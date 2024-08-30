@@ -11,6 +11,7 @@ export default async function CityPage({ params }: { params: { cityId: string } 
         where: {
             id: params.cityId,
         },
+        include: { councilMeetings: true }
     });
 
     if (!city) {

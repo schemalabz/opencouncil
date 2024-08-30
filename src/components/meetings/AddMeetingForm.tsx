@@ -16,12 +16,13 @@ import {
 } from "../ui/form"
 import { Input } from "../ui/input"
 import { SheetClose } from "../ui/sheet"
-import { Loader2 } from "lucide-react"
+import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useTranslations } from 'next-intl'
 import { Calendar } from "../ui/calendar"
 import { fetchVideos, Video } from "@/lib/fetchVideos"
 import React from "react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -32,6 +33,9 @@ const formSchema = z.object({
     }),
     videoId: z.string().min(1, {
         message: "Video selection is required.",
+    }),
+    meetingId: z.string().min(1, {
+        message: "Meeting ID is required.",
     }),
 })
 
@@ -45,6 +49,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [videos, setVideos] = useState<Video[]>([])
+    const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const t = useTranslations('AddMeetingForm')
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -53,6 +58,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
             name: "",
             date: new Date(),
             videoId: "",
+            meetingId: "",
         },
     })
 
@@ -60,6 +66,13 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
         console.log("fetching videos");
         fetchVideos().then(setVideos);
     }, [])
+
+    useEffect(() => {
+        const date = form.getValues('date');
+        const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            .toLowerCase().replace(/\s/g, '').replace(',', '_');
+        form.setValue('meetingId', formattedDate);
+    }, [form.watch('date')])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -160,6 +173,32 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                         </FormItem>
                     )}
                 />
+                <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="flex w-full justify-between p-0">
+                            {t('details')}
+                            {isDetailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                        <FormField
+                            control={form.control}
+                            name="meetingId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('meetingId')}</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingIdDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CollapsibleContent>
+                </Collapsible>
                 {formError && <p className="text-red-500">{formError}</p>}
                 <div className="flex justify-between">
                     <Button type="submit" disabled={isSubmitting}>
