@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model City {
+  id        String   @id @default(cuid())
+  name      String
+  logoImage String
+  timezone  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persons        Person[]
+  councilMeetings CouncilMeeting[]
+}
+
+model Party {
+  id        String   @id @default(cuid())
+  name      String
+  colorHex  String
+  logo      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persons Person[]
+}
+
+model Person {
+  id        String   @id @default(cuid())
+  fullName  String
+  image     String
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city   City   @relation(fields: [cityId], references: [id])
+  cityId String
+  party  Party? @relation(fields: [partyId], references: [id])
+  partyId String?
+
+  speakerDiarizations SpeakerDiarization[]
+}
+
+model CouncilMeeting {
+  id        String   @id @default(cuid())
+  name      String
+  dateTime  DateTime
+  video     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city   City   @relation(fields: [cityId], references: [id])
+  cityId String
+
+  speakerDiarizations SpeakerDiarization[]
+}
+
+model SpeakerDiarization {
+  id              String   @id @default(cuid())
+  startTimestamp  Float
+  endTimestamp    Float
+  label           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId], references: [id])
+  councilMeetingId String
+  person           Person?        @relation(fields: [personId], references: [id])
+  personId         String?
+}
