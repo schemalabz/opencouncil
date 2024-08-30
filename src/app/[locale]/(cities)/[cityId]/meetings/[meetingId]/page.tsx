@@ -15,6 +15,9 @@ export default async function CouncilMeetingPage({
                 cityId: cityId,
                 id: meetingId
             }
+        },
+        include: {
+            speakerDiarizations: true
         }
     })
 

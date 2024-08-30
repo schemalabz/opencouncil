@@ -1,13 +1,13 @@
 "use client"
 
-import { CouncilMeeting } from "@prisma/client"
+import { CouncilMeeting, SpeakerDiarization } from "@prisma/client"
 import React from "react"
 import { useState } from "react";
 import { diarizeSpeakers } from "@/lib/diarizeSpeakers";
 import { Button } from "../ui/button";
 import MeetingView from "./MeetingView";
 
-export default function Meeting({ meeting, editable }: { meeting: CouncilMeeting, editable: boolean }) {
+export default function Meeting({ meeting, editable }: { meeting: CouncilMeeting & { speakerDiarizations: SpeakerDiarization[] }, editable: boolean }) {
     const [isDiarizing, setIsDiarizing] = useState(false);
 
     const handleDiarize = async () => {
@@ -24,7 +24,7 @@ export default function Meeting({ meeting, editable }: { meeting: CouncilMeeting
     };
 
 
-    return (
+    return (<>
         <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">{meeting.name}</h1>
             {editable && (
@@ -33,7 +33,8 @@ export default function Meeting({ meeting, editable }: { meeting: CouncilMeeting
                 </Button>
             )}
 
-            <MeetingView meeting={meeting} editable={editable} />
         </div>
+        <MeetingView meeting={meeting} editable={editable} />
+    </>
     )
 }
