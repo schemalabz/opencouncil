@@ -15,20 +15,20 @@ const s3Client = new S3({
     }
 })
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: { cityId: string } }) {
     const city = await prisma.city.findUnique({
-        where: { id: params.id },
+        where: { id: params.cityId },
     })
     return NextResponse.json(city)
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
     const formData = await request.formData()
     const name = formData.get('name') as string
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File | null
 
-    let logoImageUrl = undefined
+    let logoImageUrl: string | undefined = undefined
 
     if (logoImage) {
         const fileExtension = logoImage.name.split('.').pop()
@@ -55,7 +55,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 
     const city = await prisma.city.update({
-        where: { id: params.id },
+        where: { id: params.cityId },
         data: {
             name,
             timezone,
@@ -66,9 +66,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json(city)
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
     await prisma.city.delete({
-        where: { id: params.id },
+        where: { id: params.cityId },
     })
     return NextResponse.json({ message: 'City deleted successfully' })
 }

@@ -21,6 +21,7 @@ import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useTranslations } from 'next-intl'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -51,6 +52,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [timezones, setTimezones] = useState<string[]>([])
     const [idEdited, setIdEdited] = useState(false)
+    const t = useTranslations('CityForm')
 
     useEffect(() => {
         // Get all available timezones
@@ -107,11 +109,11 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                 router.refresh() // Refresh the page to show updated data
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || 'Failed to save city')
+                throw new Error(errorData.message || t('failedToSaveCity'))
             }
         } catch (error) {
-            console.error('Failed to save city', error)
-            setFormError(error instanceof Error ? error.message : 'An unexpected error occurred')
+            console.error(t('failedToSaveCity'), error)
+            setFormError(error instanceof Error ? error.message : t('unexpectedError'))
         } finally {
             setIsSubmitting(false)
         }
@@ -142,12 +144,12 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                     name="name"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>City Name</FormLabel>
+                            <FormLabel>{t('cityName')}</FormLabel>
                             <FormControl>
-                                <Input placeholder="New York" {...field} />
+                                <Input placeholder={t('cityNamePlaceholder')} {...field} />
                             </FormControl>
                             <FormDescription>
-                                Enter the name of the city.
+                                {t('cityNameDescription')}
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
@@ -158,7 +160,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                     name="logoImage"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Logo Image</FormLabel>
+                            <FormLabel>{t('logoImage')}</FormLabel>
                             <FormControl>
                                 <Input
                                     type="file"
@@ -169,13 +171,13 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                 />
                             </FormControl>
                             <FormDescription>
-                                Upload a logo image for the city.
+                                {t('logoImageDescription')}
                             </FormDescription>
                             {logoPreview && (
                                 <div className="mt-2">
                                     <Image
                                         src={logoPreview}
-                                        alt="Logo preview"
+                                        alt={t('logoPreview')}
                                         width={100}
                                         height={100}
                                         className="object-contain"
@@ -193,7 +195,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                 >
                     <div className="flex items-center justify-between space-x-4 px-4">
                         <h4 className="text-sm font-semibold">
-                            Details
+                            {t('details')}
                         </h4>
                         <CollapsibleTrigger asChild>
                             <Button variant="ghost" size="sm" className="w-9 p-0">
@@ -202,7 +204,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                 ) : (
                                     <ChevronDown className="h-4 w-4" />
                                 )}
-                                <span className="sr-only">Toggle</span>
+                                <span className="sr-only">{t('toggle')}</span>
                             </Button>
                         </CollapsibleTrigger>
                     </div>
@@ -212,11 +214,11 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                             name="timezone"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Timezone</FormLabel>
+                                    <FormLabel>{t('timezone')}</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select a timezone" />
+                                                <SelectValue placeholder={t('selectTimezone')} />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
@@ -228,7 +230,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                         </SelectContent>
                                     </Select>
                                     <FormDescription>
-                                        Select the timezone of the city.
+                                        {t('timezoneDescription')}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -239,7 +241,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                             name="id"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>City ID</FormLabel>
+                                    <FormLabel>{t('cityId')}</FormLabel>
                                     <FormControl>
                                         <div className="flex items-center">
                                             <span className="mr-2">https://townhalls.gr/</span>
@@ -253,7 +255,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                         </div>
                                     </FormControl>
                                     <FormDescription>
-                                        Enter the ID for the city URL. Only lowercase letters a-z are allowed.
+                                        {t('cityIdDescription')}
                                     </FormDescription>
                                     <FormMessage />
                                 </FormItem>
@@ -266,14 +268,14 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                         {isSubmitting ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Submitting...
+                                {t('submitting')}
                             </>
                         ) : (
-                            <>{city ? 'Update' : 'Create'} City</>
+                            <>{city ? t('updateCity') : t('createCity')}</>
                         )}
                     </Button>
                     <SheetClose asChild>
-                        <Button type="button" variant="outline">Cancel</Button>
+                        <Button type="button" variant="outline">{t('cancel')}</Button>
                     </SheetClose>
                 </div>
             </form>

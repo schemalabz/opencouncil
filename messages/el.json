@@ -1,0 +1,65 @@
+{
+    "Header": {
+        "about": "Για Δήμους"
+    },
+    "Footer": {
+        "privacy": "Πολιτική Απορρήτου",
+        "terms": "Όροι Χρήσης",
+        "contact": "Επικοινωνία",
+        "copyright": "All rights reserved"
+    },
+    "CitiesList": {
+        "searchPlaceholder": "Αναζήτηση πόλεων...",
+        "addCity": "Προσθήκη Πόλης",
+        "addNewCity": "Προσθήκη Νέας Πόλης",
+        "noCitiesFound": "Δεν βρέθηκαν πόλεις",
+        "editCity": "Επεξεργασία Πόλης"
+    },
+    "CityForm": {
+        "cityName": "Όνομα Πόλης",
+        "cityNameDescription": "Εισάγετε το όνομα της πόλης.",
+        "timezone": "Ζώνη Ώρας",
+        "selectTimezone": "Επιλέξτε ζώνη ώρας",
+        "timezoneDescription": "Επιλέξτε τη ζώνη ώρας της πόλης.",
+        "cityId": "Αναγνωριστικό Πόλης",
+        "cityIdDescription": "Το αναγνωριστικό θα χρησιμοποιηθεί στη διεύθυνση URL της πόλης.",
+        "submitting": "Υποβολή...",
+        "updateCity": "Ενημέρωση Πόλης",
+        "createCity": "Δημιουργία Πόλης",
+        "cancel": "Ακύρωση",
+        "failedToSaveCity": "Αποτυχία αποθήκευσης πόλης",
+        "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
+        "cityNamePlaceholder": "Όνομα Πόλης",
+        "timezonePlaceholder": "Ζώνη Ώρας",
+        "cityIdPlaceholder": "Αναγνωριστικό Πόλης",
+        "logoImage": "Εικόνα Λογότυπου",
+        "logoImagePlaceholder": "Επιλέξτε μια εικόνα",
+        "logoImageDescription": "Η εικόνα που επιλέγετε θα χρησιμοποιηθεί για το λογότυπο της πόλης.",
+        "logoPreview": "Προεπισκόπηση Λογότυπου",
+        "details": "Λεπτομέρειες",
+        "toggle": "Εναλλαγή"
+    },
+    "City": {
+        "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου"
+    },
+    "AddMeetingForm": {
+        "meetingName": "Όνομα Συνεδρίασης",
+        "meetingNamePlaceholder": "Εισάγετε το όνομα της συνεδρίασης",
+        "meetingNameDescription": "Δώστε ένα όνομα για τη συνεδρίαση του δημοτικού συμβουλίου.",
+        "meetingDate": "Ημερομηνία Συνεδρίασης",
+        "meetingDateDescription": "Επιλέξτε την ημερομηνία που πραγματοποιήθηκε η συνεδρίαση.",
+        "meetingVideo": "Βίντεο Συνεδρίασης",
+        "selectVideo": "Επιλέξτε ένα βίντεο",
+        "meetingVideoDescription": "Επιλέξτε την βιντεοσκόπηση για αυτή τη συνεδρίαση.",
+        "submitting": "Υποβολή...",
+        "addMeeting": "Προσθήκη Συνεδρίασης",
+        "cancel": "Ακύρωση",
+        "failedToAddMeeting": "Αποτυχία προσθήκης συνεδρίασης",
+        "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
+        "noVideosFound": "Δεν βρέθηκαν βίντεο"
+    },
+    "NotFoundPage": {
+        "title": "Δεν βρέθηκε",
+        "description": "Η σελίδα που ζητήσατε δεν βρέθηκε."
+    }
+}

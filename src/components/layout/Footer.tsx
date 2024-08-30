@@ -1,8 +1,11 @@
-import Link from 'next/link'
+"use client";
+import { Link } from '@/i18n/routing';
 import { cn } from "@/lib/utils"
 import Logo from './Logo'
+import { useTranslations } from 'next-intl';
 
 const Footer = () => {
+    const t = useTranslations('Footer');
     return (
         <footer className="w-full bg-background border-t">
             <div className="container mx-auto px-4 py-6">
@@ -14,23 +17,23 @@ const Footer = () => {
                         <ul className="flex space-x-4">
                             <li>
                                 <Link href="/privacy" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    Privacy Policy
+                                    {t('privacy')}
                                 </Link>
                             </li>
                             <li>
                                 <Link href="/terms" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    Terms of Service
+                                    {t('terms')}
                                 </Link>
                             </li>
                             <li>
                                 <Link href="/contact" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    Contact Us
+                                    {t('contact')}
                                 </Link>
                             </li>
                         </ul>
                     </nav>
                     <div className="text-sm text-muted-foreground">
-                        © {new Date().getFullYear()} Townhalls. All rights reserved.
+                        © {new Date().getFullYear()} {t('copyright')}.
                     </div>
                 </div>
             </div>

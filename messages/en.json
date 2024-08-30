@@ -1,0 +1,65 @@
+{
+    "Header": {
+        "about": "For Municipalities"
+    },
+    "Footer": {
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service",
+        "contact": "Contact Us",
+        "copyright": "All rights reserved"
+    },
+    "CitiesList": {
+        "searchPlaceholder": "Search cities...",
+        "addCity": "Add City",
+        "addNewCity": "Add New City",
+        "noCitiesFound": "No cities found",
+        "editCity": "Edit City"
+    },
+    "CityForm": {
+        "cityName": "City Name",
+        "cityNameDescription": "Enter the name of the city.",
+        "timezone": "Time Zone",
+        "selectTimezone": "Select time zone",
+        "timezoneDescription": "Choose the time zone of the city.",
+        "cityId": "City ID",
+        "cityIdDescription": "The ID will be used in the city's URL.",
+        "submitting": "Submitting...",
+        "updateCity": "Update City",
+        "createCity": "Create City",
+        "cancel": "Cancel",
+        "failedToSaveCity": "Failed to save city",
+        "unexpectedError": "An unexpected error occurred",
+        "cityNamePlaceholder": "City Name",
+        "timezonePlaceholder": "Time Zone",
+        "cityIdPlaceholder": "City ID",
+        "logoImage": "Logo Image",
+        "logoImagePlaceholder": "Select an image",
+        "logoImageDescription": "The image you choose will be used as the city's logo.",
+        "logoPreview": "Logo Preview",
+        "details": "Details",
+        "toggle": "Toggle"
+    },
+    "City": {
+        "addCouncilMeeting": "Add Council Meeting"
+    },
+    "AddMeetingForm": {
+        "meetingName": "Meeting Name",
+        "meetingNamePlaceholder": "Enter meeting name",
+        "meetingNameDescription": "Provide a name for the council meeting.",
+        "meetingDate": "Meeting Date",
+        "meetingDateDescription": "Select the date when the meeting took place.",
+        "meetingVideo": "Meeting Video",
+        "selectVideo": "Select a video",
+        "meetingVideoDescription": "Choose the video recording for this meeting.",
+        "submitting": "Submitting...",
+        "addMeeting": "Add Meeting",
+        "cancel": "Cancel",
+        "failedToAddMeeting": "Failed to add meeting",
+        "unexpectedError": "An unexpected error occurred",
+        "noVideosFound": "No videos found"
+    },
+    "NotFoundPage": {
+        "title": "Not Found",
+        "description": "The page you are looking for does not exist."
+    }
+}
