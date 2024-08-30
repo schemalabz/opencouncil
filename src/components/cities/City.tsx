@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import AddMeetingForm from "@/components/meetings/AddMeetingForm";
+import { Link } from '@/i18n/routing';
 
 export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[] }, editable: boolean }) {
     const t = useTranslations('City');
@@ -15,7 +16,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
 
         {city.councilMeetings.map(meeting => (
             <div key={meeting.id}>
-                <a href={`/meetings/${meeting.id}`}>{meeting.name}</a>
+                <Link href={`/${city.id}/meetings/${meeting.id}`}>{meeting.name}</Link>
             </div>
         ))}
 

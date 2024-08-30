@@ -20,6 +20,7 @@ model City {
 
   persons        Person[]
   councilMeetings CouncilMeeting[]
+  speakerDiarizations SpeakerDiarization[]
 }
 
 model Party {
@@ -50,18 +51,22 @@ model Person {
 }
 
 model CouncilMeeting {
-  id        String   @id @default(cuid())
+  id        String   @default(cuid())
   name      String
   dateTime  DateTime
   video     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  released Boolean  @default(false)
+  released  Boolean  @default(false)
 
   city   City   @relation(fields: [cityId], references: [id])
   cityId String
 
   speakerDiarizations SpeakerDiarization[]
+  speakerDiarizationRequest DiarizationRequest?
+
+  @@id([cityId, id])
+  @@unique([cityId, id])
 }
 
 model SpeakerDiarization {
@@ -72,8 +77,26 @@ model SpeakerDiarization {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId], references: [id])
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
   councilMeetingId String
+  cityId            String
+
   person           Person?        @relation(fields: [personId], references: [id])
   personId         String?
+
+  city City @relation(fields: [cityId], references: [id])
+}
+
+model DiarizationRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("pending")
+  jobId     String?
+
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
+  councilMeetingId String
+  cityId            String
+
+  @@unique([councilMeetingId, cityId])
 }

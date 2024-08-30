@@ -8,6 +8,7 @@ const meetingSchema = z.object({
     name: z.string().min(2),
     date: z.string().datetime(),
     videoId: z.string().min(1),
+    meetingId: z.string().min(1),
 });
 
 export async function POST(
@@ -16,14 +17,15 @@ export async function POST(
 ) {
     try {
         const body = await request.json();
-        const { name, date, videoId } = meetingSchema.parse(body);
+        const { name, date, videoId, meetingId } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
         const meeting = await prisma.councilMeeting.create({
             data: {
                 name,
+                id: meetingId,
                 dateTime: new Date(date),
-                video: videoId,
+                video: `https://townhalls-gr.fra1.digitaloceanspaces.com/city-council-meetings/${videoId}`,
                 cityId,
                 released: false, // Set as unpublished by default
             },
@@ -32,6 +34,7 @@ export async function POST(
         return NextResponse.json(meeting, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
+            console.log(error.errors);
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
         console.error('Failed to create meeting:', error);
