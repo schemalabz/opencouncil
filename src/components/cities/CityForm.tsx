@@ -244,7 +244,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                     <FormLabel>{t('cityId')}</FormLabel>
                                     <FormControl>
                                         <div className="flex items-center">
-                                            <span className="mr-2">https://townhalls.gr/</span>
+                                            <span className="mr-2">https://opencouncil.gr/</span>
                                             <Input
                                                 {...field}
                                                 onChange={(e) => {

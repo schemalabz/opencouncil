@@ -13,7 +13,7 @@ const fontSans = FontSans({
 })
 
 export const metadata = {
-  title: 'Townhalls',
+  title: 'OpenCouncil',
   description: 'Making city council meetings useful',
   icons: {
     icon: '/favicon.ico',

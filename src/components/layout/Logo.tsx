@@ -7,11 +7,11 @@ const Logo = () => {
         <Link href="/" className={cn("flex items-center space-x-2")}>
             <Image
                 src="/logo.png"
-                alt="Townhalls Logo"
+                alt="OpenCouncil Logo"
                 width={24}
                 height={24}
             />
-            <span className="text-2xl font-bold text-primary">Townhalls</span>
+            <span className="text-2xl font-bold text-primary">OpenCouncil</span>
         </Link>
     )
 }

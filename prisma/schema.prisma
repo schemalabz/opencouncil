@@ -38,7 +38,9 @@ model Person {
   id        String   @id @default(cuid())
   fullName  String
   image     String
-  role      String
+  role      String?
+  activeFrom DateTime?
+  activeTo DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

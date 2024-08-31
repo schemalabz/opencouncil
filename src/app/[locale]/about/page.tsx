@@ -22,6 +22,45 @@ export default function AboutPage() {
                     </Button>
                 </div>
             </section>
+            {/* Why OpenCouncil Section */}
+            <section className="py-16">
+                <h2 className="text-3xl font-bold text-center mb-12">{t('features.title')}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <HelpCircle className="h-6 w-6 mr-2" />
+                                <span>{t('features.enhancedAccessibility.title')}</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p>{t('features.enhancedAccessibility.description')}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <Search className="h-6 w-6 mr-2" />
+                                <span>{t('features.empowerCouncilMembers.title')}</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p>{t('features.empowerCouncilMembers.description')}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <Database className="h-6 w-6 mr-2" />
+                                <span>{t('features.buildValuableAsset.title')}</span>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p>{t('features.buildValuableAsset.description')}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </section>
 
             {/* Feature Showcase */}
             <section className="py-16">
@@ -202,13 +241,13 @@ export default function AboutPage() {
     );
 }
 
-function FeatureCard({ icon, title, description }) {
+function FeatureCard({ icon: Icon, title, description }: { icon: React.ReactElement, title: string, description: string }) {
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center">
-                    {icon}
-                    <span className="ml-4">{title}</span>
+                    {React.cloneElement(Icon, { className: "h-6 w-6 mr-2" })}
+                    <span>{title}</span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
