@@ -65,6 +65,8 @@ model CouncilMeeting {
   speakerDiarizations SpeakerDiarization[]
   speakerDiarizationRequest DiarizationRequest?
 
+  transcriptionRequest TranscriptionRequest?
+
   @@id([cityId, id])
   @@unique([cityId, id])
 }
@@ -88,6 +90,20 @@ model SpeakerDiarization {
 }
 
 model DiarizationRequest {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("pending")
+  jobId     String?
+
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
+  councilMeetingId String
+  cityId            String
+
+  @@unique([councilMeetingId, cityId])
+}
+
+model TranscriptionRequest {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -3,8 +3,9 @@ import { useVideo } from "./VideoProvider";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Play, Pause } from "lucide-react";
+import { CouncilMeeting, SpeakerDiarization } from "@prisma/client";
 
-export default function PlaybackControls() {
+export default function PlaybackControls({ meeting }: { meeting: CouncilMeeting & { speakerDiarizations: SpeakerDiarization[] } }) {
     const { isPlaying, togglePlayPause, playbackSpeed, handleSpeedChange, currentTime, duration } = useVideo();
 
     const formatTime = (time: number) => {
@@ -13,6 +14,7 @@ export default function PlaybackControls() {
         return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     };
 
+    console.log(`Meeting is ${meeting}`)
     return (
         <div className="flex flex-col items-center space-y-2">
             <div className="flex items-center space-x-2">

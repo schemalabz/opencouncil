@@ -40,11 +40,21 @@ export default function Timeline({
     setVisibleStartTime,
     onScroll
 }: TimelineProps) {
-    const { currentTime, duration, seekTo } = useVideo();
+    const { currentTime, duration, seekTo, isPlaying } = useVideo();
     const seekerRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStartX, setDragStartX] = useState(0);
     const [dragStartTime, setDragStartTime] = useState(0);
+
+    useEffect(() => {
+        if (isPlaying) {
+            const visibleDuration = duration / zoomLevel;
+            const endTime = visibleStartTime + visibleDuration;
+            if (currentTime >= endTime || currentTime < visibleStartTime) {
+                setVisibleStartTime(Math.max(0, currentTime - visibleDuration / 2));
+            }
+        }
+    }, [currentTime, isPlaying, duration, zoomLevel, visibleStartTime, setVisibleStartTime]);
 
     const renderTimeMarks = () => {
         const visibleDuration = duration / zoomLevel;
@@ -155,7 +165,7 @@ export default function Timeline({
                             const startPercentage = ((diarization.startTimestamp - visibleStartTime) / visibleDuration) * 100;
                             const widthPercentage = ((diarization.endTimestamp - diarization.startTimestamp) / visibleDuration) * 100;
                             if (startPercentage > 100 || startPercentage + widthPercentage < 0) return null;
-                            const adjustedStartPercentage = Math.max(0, startPercentage);
+                            const adjustedStartPercentage = startPercentage;
                             const adjustedWidthPercentage = Math.min(100 - adjustedStartPercentage, widthPercentage);
                             return (
                                 <Popover key={`${rowIndex}-${index}`}>

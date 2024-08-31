@@ -61,5 +61,90 @@
     "NotFoundPage": {
         "title": "Not Found",
         "description": "The page you are looking for does not exist."
+    },
+        "AboutPage": {
+          "hero": {
+            "title": "Engage citizens with local government",
+            "subtitle": "Townhalls makes city council meetings in 🇬🇷 Greece accessible to everyone",
+            "getStarted": "Get Started",
+            "scheduleCall": "Schedule a Call"
+          },
+          "features": {
+            "title": "Features",
+            "speakerRecognition": {
+              "title": "Speaker Recognition",
+              "description": "Accurately identify and attribute speakers in council meetings."
+            },
+            "accurateTranscriptions": {
+              "title": "Accurate Transcriptions",
+              "description": "Generate precise, verbatim transcripts of all council proceedings."
+            },
+            "summarization": {
+              "title": "Summarization",
+              "description": "Automatically generate concise summaries of council meetings."
+            },
+            "aiChatAssistant": {
+              "title": "AI chat assistant",
+              "description": "Ask questions about council meetings and get answers from the AI chat assistant."
+            },
+            "highlights": {
+              "title": "Highlights",
+              "description": "Watch the most important parts of each meeting, with AI-generated or manually created highlights."
+            },
+            "openSource": {
+              "title": "Open-source",
+              "description": "Transparent development, continuous improvement. Permissive license that allows commercial use."
+            },
+            "openData": {
+              "title": "Open Data",
+              "description": "All data that we generate is public, and available via an open, non-authenticated API."
+            },
+            "multilingual": {
+              "title": "Multilingual",
+              "description": "Support for multiple languages to serve diverse communities. All meetings are transcribed to English and Greek."
+            },
+            "immediateIntegration": {
+              "title": "Immediate Integration",
+              "description": "Getting Townhalls for your municipality takes hours, not months."
+            }
+          },
+          "pricing": {
+            "title": "Simple, Transparent Pricing",
+            "description": "We believe in transparent pricing, especially when serving the public sector.",
+            "freeTrial": {
+              "title": "Free Trial",
+              "subtitle": "Try Townhalls",
+              "features": {
+                "unlimitedDuration": "Unlimited duration",
+                "fullAccess": "Full access to all features",
+                "noPayment": "No payment or commitment required",
+                "dedicatedSupport": "Dedicated support during trial"
+              },
+              "cta": "Start Free Trial"
+            },
+            "paid": {
+              "title": "€7,800 per year",
+              "subtitle": "(Or 1/10000th of the municipality budget, whichever is less)",
+              "features": {
+                "unlimitedMeetings": "Unlimited city council meetings per year",
+                "transcriptions": "Transcriptions",
+                "speakerRecognition": "Speaker recognition",
+                "aiSummarization": "AI summarization",
+                "freeHosting": "Free hosting",
+                "support": "Support",
+                "search": "Search functionality",
+                "aiChatCredits": "100€ in AI chat credits per month",
+                "highlights": "Meeting highlights",
+                "openDataApi": "Open Data API",
+                "multilingualSupport": "Multilingual Support",
+                "immediateIntegration": "Immediate Integration"
+              },
+              "cta": "Schedule a Demo"
+            }
+          },
+          "about": {
+            "title": "About Townhalls",
+            "description": "Townhalls is a one-person project created in Greece 🇬🇷, built with care and respect for local government."
+        }
     }
 }

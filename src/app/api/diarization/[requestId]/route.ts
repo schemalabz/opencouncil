@@ -34,7 +34,7 @@ async function handleRequest(req: NextRequest, { params }: { params: { requestId
         prisma.diarizationRequest.update({
             where: { id: requestId },
             data: {
-                status: requestBody.status,
+                status: "completed",
             },
         });
 
@@ -53,6 +53,12 @@ async function handleRequest(req: NextRequest, { params }: { params: { requestId
         return NextResponse.json({ message: 'Diarization result received' });
     } catch (error) {
         console.error('Error processing diarization result:', error);
+        prisma.diarizationRequest.update({
+            where: { id: requestId },
+            data: {
+                status: "failed",
+            },
+        });
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

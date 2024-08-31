@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { PrismaClient } from '@prisma/client'
-import CouncilMeeting from '@/components/meetings/Meeting.tsx'; // Assuming you have this component
+import CouncilMeeting from '@/components/meetings/Meeting';
 
 const prisma = new PrismaClient()
 
@@ -17,7 +17,9 @@ export default async function CouncilMeetingPage({
             }
         },
         include: {
-            speakerDiarizations: true
+            speakerDiarizations: true,
+            transcriptionRequest: true,
+            speakerDiarizationRequest: true
         }
     })
 

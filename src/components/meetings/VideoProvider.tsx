@@ -43,21 +43,58 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         };
 
         video?.addEventListener('loadedmetadata', updateDuration);
+        video?.addEventListener('timeupdate', handleTimeUpdate);
         updateDuration();
 
         return () => {
             video?.removeEventListener('loadedmetadata', updateDuration);
+            video?.removeEventListener('timeupdate', handleTimeUpdate);
         };
     }, []);
 
-    const togglePlayPause = () => {
+    const togglePlayPause = async () => {
+        console.log('togglePlayPause', isPlaying);
         if (videoRef.current) {
-            if (isPlaying) {
-                videoRef.current.pause();
-            } else {
-                videoRef.current.play();
+            try {
+                if (isPlaying) {
+                    await videoRef.current.pause();
+                    setIsPlaying(false);
+                } else {
+                    console.log('Attempting to play');
+                    const playPromise = videoRef.current.play();
+                    if (playPromise !== undefined) {
+                        console.log('Play promise created');
+                        playPromise
+                            .then(() => {
+                                console.log('Video playback started successfully');
+                                setIsPlaying(true);
+                            })
+                            .catch(error => {
+                                console.error('Error playing video:', error);
+                                setIsPlaying(false);
+                            });
+
+                        // Add a timeout to catch hanging promises
+                        setTimeout(() => {
+                            if (!videoRef.current?.paused) {
+                                console.log('Play promise resolved (timeout)');
+                                setIsPlaying(true);
+                            } else {
+                                console.error('Play promise did not resolve within timeout');
+                                setIsPlaying(false);
+                            }
+                        }, 5000); // 5 second timeout
+                    } else {
+                        console.log('Play promise is undefined, video might be playing');
+                        setIsPlaying(true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error in togglePlayPause:', error);
+                setIsPlaying(false);
             }
-            setIsPlaying(!isPlaying);
+        } else {
+            console.error('Video element not found');
         }
     };
 
@@ -92,14 +129,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         videoRef,
     };
 
+    console.log(`Video url is ${meeting.video}`);
     return (
         <VideoContext.Provider value={value}>
-            <video
-                ref={videoRef}
-                src={meeting.video}
-                onTimeUpdate={handleTimeUpdate}
-                style={{ display: 'none' }}
-            />
             {children}
         </VideoContext.Provider>
     );

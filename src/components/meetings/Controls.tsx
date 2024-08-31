@@ -4,6 +4,7 @@ import { useVideo } from "./VideoProvider";
 import PlaybackControls from "./PlaybackControls";
 import Timeline from "./Timeline";
 import ZoomControls from "./ZoomControls";
+import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 const speakerColors = [
     'bg-red-200', 'bg-blue-200', 'bg-green-200', 'bg-yellow-200', 'bg-purple-200',
@@ -25,10 +26,12 @@ const joinAdjacentDiarizations = (diarizations: SpeakerDiarization[]): SpeakerDi
 };
 
 export default function Controls({ meeting }: { meeting: CouncilMeeting & { speakerDiarizations: SpeakerDiarization[] } }) {
-    const { currentTime, duration } = useVideo();
+    const { currentTime, duration, videoRef } = useVideo();
     const [zoomLevel, setZoomLevel] = useState(1);
     const [visibleStartTime, setVisibleStartTime] = useState(0);
     const [speakerColorMap, setSpeakerColorMap] = useState<Record<string, string>>({});
+    const [isVideoHovered, setIsVideoHovered] = useState(false);
+    const [isVideoExpanded, setIsVideoExpanded] = useState(false);
 
     useEffect(() => {
         const uniqueSpeakers = Array.from(new Set(meeting.speakerDiarizations.map(d => d.label)));
@@ -69,19 +72,65 @@ export default function Controls({ meeting }: { meeting: CouncilMeeting & { spea
 
     const joinedDiarizations = joinAdjacentDiarizations([...meeting.speakerDiarizations]);
 
+    const toggleVideoExpansion = () => {
+        setIsVideoExpanded(!isVideoExpanded);
+    };
+
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-background p-4 shadow-lg z-10">
-            <div className="flex items-center space-x-4">
-                <PlaybackControls />
-                <Timeline
-                    joinedDiarizations={joinedDiarizations}
-                    speakerColorMap={speakerColorMap}
-                    zoomLevel={zoomLevel}
-                    visibleStartTime={visibleStartTime}
-                    setVisibleStartTime={setVisibleStartTime}
-                    onScroll={handleScroll}
-                />
-                <ZoomControls onZoomIn={() => handleZoom('in')} onZoomOut={() => handleZoom('out')} />
+        <div className={`fixed bottom-0 left-0 right-0 bg-background p-4 shadow-xl z-10 ${isVideoExpanded ? 'h-[80vh]' : ''} rounded-t-lg border-t border-gray-200 dark:border-gray-700`}>
+            <div className={`flex flex-col h-full`}>
+                {isVideoExpanded ? (
+                    <div className={`relative h-[70%] bg-black flex items-center justify-center mb-2`}
+                        onMouseEnter={() => setIsVideoHovered(true)}
+                        onMouseLeave={() => setIsVideoHovered(false)}>
+                        <video
+                            ref={videoRef}
+                            className="h-full w-auto"
+                            playsInline
+                            src={meeting.video}
+                        />
+                        {isVideoHovered && (
+                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer"
+                                onClick={toggleVideoExpansion}>
+                                <ArrowDownLeft className="text-white h-8 w-8" />
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+                <div className={`flex ${isVideoExpanded ? 'h-[30%]' : 'h-full'} items-center space-x-4`}>
+                    <div className="flex flex-col items-center space-y-2">
+                        {!isVideoExpanded && (
+                            <div className={`relative w-32 h-24 bg-black flex items-center justify-center mb-2`}
+                                onMouseEnter={() => setIsVideoHovered(true)}
+                                onMouseLeave={() => setIsVideoHovered(false)}>
+                                <video
+                                    ref={videoRef}
+                                    className="h-full w-auto"
+                                    playsInline
+                                    src={meeting.video}
+                                />
+                                {isVideoHovered && (
+                                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer"
+                                        onClick={toggleVideoExpansion}>
+                                        <ArrowUpRight className="text-white h-6 w-6" />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <PlaybackControls meeting={meeting} />
+                    </div>
+                    <div className="flex-grow">
+                        <Timeline
+                            joinedDiarizations={joinedDiarizations}
+                            speakerColorMap={speakerColorMap}
+                            zoomLevel={zoomLevel}
+                            visibleStartTime={visibleStartTime}
+                            setVisibleStartTime={setVisibleStartTime}
+                            onScroll={handleScroll}
+                        />
+                    </div>
+                    <ZoomControls onZoomIn={() => handleZoom('in')} onZoomOut={() => handleZoom('out')} />
+                </div>
             </div>
         </div>
     );
