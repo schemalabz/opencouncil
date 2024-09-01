@@ -40,7 +40,13 @@
         "toggle": "Toggle"
     },
     "City": {
-        "addCouncilMeeting": "Add Council Meeting"
+        "addCouncilMeeting": "Add Council Meeting",
+        "councilMeetingsTracked": "council meetings tracked on OpenCouncil",
+        "councilMeetings": "Council Meetings",
+        "members": "Members",
+        "parties": "Parties",
+        "membersComingSoon": "Members will be available soon",
+        "partiesComingSoon": "Parties will be available soon"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",

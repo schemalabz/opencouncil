@@ -40,7 +40,13 @@
         "toggle": "Εναλλαγή"
     },
     "City": {
-        "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου"
+        "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου",
+       "councilMeetingsTracked": "συνεδριάσεις δημοτικού συμβουλίου στο OpenCouncil",
+        "councilMeetings": "Συνεδριάσεις Συμβουλίου",
+        "members": "Μέλη",
+        "parties": "Κόμματα",
+        "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
+        "partiesComingSoon": "Τα κόμματα θα είναι σύντομα διαθέσιμα" 
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",
