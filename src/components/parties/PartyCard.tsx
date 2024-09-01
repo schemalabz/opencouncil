@@ -20,7 +20,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const remainingCount = memberNames.length - displayedNames.length;
 
     return (
-        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" style={{ borderColor: party.colorHex, borderStyle: memberNames.length === 0 ? 'dashed' : 'solid', borderColor: memberNames.length === 0 ? 'muted-foreground' : party.colorHex }}>
+        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" >
             <CardContent className="relative h-full flex flex-col justify-center">
                 <div className="flex items-center space-x-4">
                     <PartyLogo logoUrl={party.logo} colorHex={party.colorHex} width={48} height={48} />

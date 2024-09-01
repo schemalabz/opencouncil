@@ -22,7 +22,9 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
     let localizedRole = locale === 'el' ? person.role : person.role_en;
 
     return (
-        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" style={{ borderColor: person.party?.colorHex || '#000' }}>
+        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" style={{
+            borderLeftColor: person.party?.colorHex || 'gray'
+        }}>
             <CardContent className="relative h-full flex flex-col justify-center">
                 <div className="flex items-center space-x-4">
                     <PersonImage imageUrl={person.image} width={48} height={48} name={person.name} />
