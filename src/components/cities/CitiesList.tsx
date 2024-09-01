@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import CityForm from './CityForm';
 import { CityCard } from './CityCard';
 import { useTranslations } from 'next-intl';
+import FormSheet from '../FormSheet';
 
 interface CitiesListProps {
     cities: City[];
@@ -34,20 +35,7 @@ export function CitiesList({ cities, editable }: CitiesListProps) {
                     className="flex-grow mr-4"
                 />
                 {editable && (
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="outline">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                {t('addCity')}
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent>
-                            <SheetHeader>
-                                <SheetTitle>{t('addNewCity')}</SheetTitle>
-                            </SheetHeader>
-                            <CityForm onSuccess={() => { }} />
-                        </SheetContent>
-                    </Sheet>
+                    <FormSheet FormComponent={CityForm} formProps={{}} title={t('addCity')} />
                 )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

@@ -24,10 +24,13 @@ export async function POST(request: Request) {
     const formData = await request.formData()
     const id = formData.get('id') as string
     const name = formData.get('name') as string
+    const name_en = formData.get('name_en') as string
+    const name_municipality = formData.get('name_municipality') as string
+    const name_municipality_en = formData.get('name_municipality_en') as string
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File
 
-    if (!name || !timezone || !logoImage || !id) {
+    if (!name || !name_en || !name_municipality || !timezone || !logoImage || !id) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -54,6 +57,9 @@ export async function POST(request: Request) {
             data: {
                 id,
                 name,
+                name_en,
+                name_municipality,
+                name_municipality_en,
                 timezone,
                 logoImage: logoImageUrl,
             },

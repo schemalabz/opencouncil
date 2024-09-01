@@ -22,10 +22,22 @@ import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useTranslations } from 'next-intl'
+import InputWithDerivatives from '@/components/InputWithDerivatives'
+// @ts-ignore
+import { toGreeklish } from 'greek-utils'
 
 const formSchema = z.object({
     name: z.string().min(2, {
         message: "City name must be at least 2 characters.",
+    }),
+    name_en: z.string().min(2, {
+        message: "City name (English) must be at least 2 characters.",
+    }),
+    name_municipality: z.string().min(2, {
+        message: "Municipality name must be at least 2 characters.",
+    }),
+    name_municipality_en: z.string().min(2, {
+        message: "Municipality name (English) must be at least 2 characters.",
     }),
     timezone: z.string().min(1, {
         message: "Timezone is required.",
@@ -43,6 +55,7 @@ interface CityFormProps {
     onSuccess?: () => void
 }
 
+
 export default function CityForm({ city, onSuccess }: CityFormProps) {
     const router = useRouter()
     const [logoImage, setLogoImage] = useState<File | null>(null)
@@ -51,7 +64,6 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
     const [logoPreview, setLogoPreview] = useState<string | null>(city?.logoImage || null)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [timezones, setTimezones] = useState<string[]>([])
-    const [idEdited, setIdEdited] = useState(false)
     const t = useTranslations('CityForm')
 
     useEffect(() => {
@@ -68,6 +80,9 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: city?.name || "",
+            name_en: city?.name_en || "",
+            name_municipality: city?.name_municipality || "",
+            name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
         },
@@ -75,12 +90,12 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
 
     useEffect(() => {
         const subscription = form.watch((value, { name }) => {
-            if (name === 'name' && !idEdited) {
+            if (name === 'name') {
                 form.setValue('id', idifyName(value.name || ''))
             }
         })
         return () => subscription.unsubscribe()
-    }, [form, idEdited])
+    }, [form])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -90,6 +105,9 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
 
         const formData = new FormData()
         formData.append('name', values.name)
+        formData.append('name_en', values.name_en)
+        formData.append('name_municipality', values.name_municipality)
+        formData.append('name_municipality_en', values.name_municipality_en)
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         if (logoImage) {
@@ -139,21 +157,16 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                 {formError && (
                     <div className="text-red-500 mb-4">{formError}</div>
                 )}
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('cityName')}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t('cityNamePlaceholder')} {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                {t('cityNameDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
+                <InputWithDerivatives
+                    baseName="name"
+                    basePlaceholder={t('cityNamePlaceholder')}
+                    baseDescription={t('cityNameDescription')}
+                    derivatives={[
+                        { name: "name_en", calculate: (baseValue) => toGreeklish(baseValue), placeholder: t('cityNameEnPlaceholder'), description: t('cityNameEnDescription') },
+                        { name: "name_municipality", calculate: (baseValue) => `Δήμος ${baseValue}`, placeholder: t('cityMunicipalityPlaceholder'), description: t('cityMunicipalityDescription') },
+                        { name: "name_municipality_en", calculate: (baseValue) => toGreeklish(`Municipality of ${toGreeklish(baseValue)}`), placeholder: t('cityMunicipalityEnPlaceholder'), description: t('cityMunicipalityEnDescription') },
+                    ]}
+                    form={form}
                 />
                 <FormField
                     control={form.control}
@@ -248,7 +261,6 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                                             <Input
                                                 {...field}
                                                 onChange={(e) => {
-                                                    setIdEdited(true)
                                                     field.onChange(e.target.value.toLowerCase().replace(/[^a-z]/g, ''))
                                                 }}
                                             />

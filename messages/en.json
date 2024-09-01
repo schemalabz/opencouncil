@@ -37,7 +37,13 @@
         "logoImageDescription": "The image you choose will be used as the city's logo.",
         "logoPreview": "Logo Preview",
         "details": "Details",
-        "toggle": "Toggle"
+        "toggle": "Toggle",
+        "cityNameEnPlaceholder": "City Name (English)",
+        "cityNameEnDescription": "Enter the name of the city in English.",
+        "cityMunicipalityPlaceholder": "Municipality Name",
+        "cityMunicipalityDescription": "Enter the name of the municipality.",
+        "cityMunicipalityEnPlaceholder": "Municipality Name (English)",
+        "cityMunicipalityEnDescription": "Enter the name of the municipality in English."
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",
@@ -164,5 +170,26 @@
             "title": "About OpenCouncil",
             "description": "OpenCouncil is a one-person project created in Greece 🇬🇷, built with care and respect for local government."
         }
+    },
+    "InputWithDerivatives": {
+        "derivedFields": "Derived names"
+    },
+    "PartyForm": {
+        "partyNamePlaceholder": "Party Name",
+        "partyNameDescription": "Enter the name of the party.",
+        "partyNameEnPlaceholder": "Party Name (English)",
+        "partyNameEnDescription": "Enter the name of the party in English.",
+        "partyShortNamePlaceholder": "Short Party Name",
+        "partyShortNameDescription": "Enter the short name of the party.",
+        "partyShortNameEnPlaceholder": "Short Party Name (English)",
+        "partyShortNameEnDescription": "Enter the short name of the party in English.",
+        "colorHex": "Color Hex",
+        "colorHexDescription": "Enter the party's color Hex.",
+        "failedToSaveParty": "Failed to save party.",
+        "unexpectedError": "Unexpected error.",
+        "submitting": "Submitting...",
+        "updateParty": "Update Party",
+        "createParty": "Create Party",
+        "cancel": "Cancel"
     }
 }

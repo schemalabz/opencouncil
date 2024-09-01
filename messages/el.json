@@ -29,7 +29,7 @@
         "cancel": "Ακύρωση",
         "failedToSaveCity": "Αποτυχία αποθήκευσης πόλης",
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
-        "cityNamePlaceholder": "��νομα Πόλης",
+        "cityNamePlaceholder": "Όνομα Πόλης",
         "timezonePlaceholder": "Ζώνη Ώρας",
         "cityIdPlaceholder": "Αναγνωριστικό Πόλης",
         "logoImage": "Εικόνα Λογότυπου",
@@ -37,16 +37,24 @@
         "logoImageDescription": "Η εικόνα που επιλέγετε θα χρησιμοποιηθεί για το λογότυπο της πόλης.",
         "logoPreview": "Προεπισκόπηση Λογότυπου",
         "details": "Λεπτομέρειες",
-        "toggle": "Εναλλαγή"
+        "toggle": "Εναλλαγή",
+        "cityNameEnPlaceholder": "Όνομα Πόλης (Αγγλικά)",
+        "cityNameEnDescription": "Εισάγετε το όνομα της πόλης στα Αγγλικά.",
+        "cityMunicipalityPlaceholder": "Όνομα Δήμου",
+        "cityMunicipalityDescription": "Εισάγετε το όνομα του δήμου.",
+        "cityMunicipalityEnPlaceholder": "Όνομα Δήμου (Αγγλικά)",
+        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά."
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου",
-       "councilMeetingsTracked": "συνεδριάσεις δημοτικού συμβουλίου στο OpenCouncil",
+        "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση δημοτικού συμβουλίου στο OpenCouncil} =1 {1 συνεδρίαση δημοτικού συμβουλίου στο OpenCouncil} other {# συνεδριάσεις δημοτικού συμβουλίου στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις Συμβουλίου",
         "members": "Μέλη",
-        "parties": "Κόμματα",
+        "parties": "Παρατάξεις",
         "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
-        "partiesComingSoon": "Τα κόμματα θα είναι σύντομα διαθέσιμα" 
+        "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
+        "addCity": "Προσθήκη Πόλης",
+        "editCity": "Επεξεργασία Πόλης"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",
@@ -54,7 +62,7 @@
         "meetingNameDescription": "Δώστε ένα όνομα για τη συνεδρίαση του δημοτικού συμβουλίου.",
         "meetingDate": "Ημερομηνία Συνεδρίασης",
         "meetingDateDescription": "Επιλέξτε την ημερομηνία που πραγματοποιήθηκε η συνεδρίαση.",
-        "meetingVideo": "Βίντ��ο Συνεδρίασης",
+        "meetingVideo": "Βίντεο Συνεδρίασης",
         "selectVideo": "Επιλέξτε ένα βίντεο",
         "meetingVideoDescription": "Επιλέξτε την βιντεοσκόπηση για αυτή τη συνεδρίαση.",
         "submitting": "Υποβολή...",
@@ -62,7 +70,12 @@
         "cancel": "Ακύρωση",
         "failedToAddMeeting": "Αποτυχία προσθήκης συνεδρίασης",
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
-        "noVideosFound": "Δεν βρέθηκαν βίντεο"
+        "noVideosFound": "Δεν βρέθηκαν βίντεο",
+        "details": "Λεπτομέρειες",
+        "meetingId": "Αναγνωριστικό Συνεδρίασης",
+        "meetingIdDescription": "Το αναγνωριστικό θα χρησιμοποιηθεί στη διεύθυνση URL της συνεδρίασης.",
+        "meetingNameEnPlaceholder": "Εισάγετε το όνομα της συνεδρίασης στα Αγγλικά",
+        "meetingNameEnDescription": "Δώστε το όνομα της συνεδρίασης στα Αγγλικά."
     },
     "NotFoundPage": {
         "title": "Δεν βρέθηκε",
@@ -164,5 +177,77 @@
             "title": "Σχετικά με το OpenCouncil",
             "description": "Το OpenCouncil είναι ένα έργο ενός ατόμου που δημιουργήθηκε στην Ελλάδα 🇬🇷, κατασκευασμένο με φροντίδα και σεβασμό για τη τοπική αυτοδιοίκηση."
         }
+    },
+    "InputWithDerivatives": {
+        "derivedFields": "Παράγωγα ονόματα"
+    },
+    "PartyForm": {
+        "partyNamePlaceholder": "Όνομα Παράταξης",
+        "partyNameDescription": "Εισάγετε το όνομα της παράταξης.",
+        "partyNameEnPlaceholder": "Όνομα Παράταξης (Αγγλικά)",
+        "partyNameEnDescription": "Εισάγετε το όνομα της παράταξης στα Αγγλικά.",
+        "partyShortNamePlaceholder": "Σύντομο Όνομα Παράταξης",
+        "partyShortNameDescription": "Εισάγετε το σύντομο όνομα της παράταξης.",
+        "partyShortNameEnPlaceholder": "Σύντομο Όνομα Παράταξης (Αγγλικά)",
+        "partyShortNameEnDescription": "Εισάγετε το σύντομο όνομα της παράταξης στα Αγγλικά.",
+        "colorHex": "Χρώμα Hex",
+        "colorHexDescription": "Εισάγετε το χρώμα Hex της παράταξης.",
+        "failedToSaveParty": "Αποτυχία αποθήκευσης της παράταξης.",
+        "unexpectedError": "Απρόσμενο σφάλμα.",
+        "submitting": "Υποβολή...",
+        "updateParty": "Ενημέρωση Παράταξης",
+        "createParty": "Δημιουργία Παράταξης",
+        "cancel": "Ακύρωση"
+    },
+    "Party": {
+        "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
+        "addItem": "Προσθήκη Παράταξης"
+    },
+    "CouncilMeeting": {
+        "items": "{count, plural, =0 {Καμία συνεδρίαση δημοτικού συμβουλίου} =1 {1 συνεδρίαση δημοτικού συμβουλίου} other {# συνεδριάσεις δημοτικού συμβουλίου}}",
+        "addItem": "Προσθήκη Συνεδρίασης",
+        "noItems": "Δεν υπάρχουν συνεδριάσεις του δημοτικού συμβουλίου στο OpenCouncil."
+    },
+    "Person": {
+        "items": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
+        "addItem": "Προσθήκη Μέλους",
+        "noItems": "Δεν υπάρχουν μέλη στο OpenCouncil."
+    },
+    "PersonForm": {
+        "personNamePlaceholder": "Όνομα Μέλους",
+        "personNameDescription": "Εισάγετε το όνομα του μέλους.",
+        "personNameEnPlaceholder": "Όνομα Μέλους (Αγγλικά)",
+        "personNameEnDescription": "Εισάγετε το όνομα του μέλους στα Αγγλικά.",
+        "personShortNamePlaceholder": "Σύντομο Όνομα Μέλους",
+        "personShortNameDescription": "Εισάγετε το σύντομο όνομα του μέλους.",
+        "personShortNameEnPlaceholder": "Σύντομο Όνομα Μέλους (Αγγλικά)",
+        "personShortNameEnDescription": "Εισάγετε το σύντομο όνομα του μέλους στα Αγγλικά.",
+        "role": "Ρόλος",
+        "roleDescription": "Εισάγετε τον ρόλο του μέλους.",
+        "roleEn": "Ρόλος (Αγγλικά)",
+        "roleEnDescription": "Εισάγετε τον ρόλο του μέλους στα Αγγλικά.",
+        "image": "Εικόνα",
+        "imageDescription": "Ανεβάστε μια εικόνα για το μέλος.",
+        "failedToSavePerson": "Αποτυχία αποθήκευσης του μέλους.",
+        "unexpectedError": "Απρόσμενο σφάλμα.",
+        "submitting": "Υποβολή...",
+        "updatePerson": "Ενημέρωση Μέλους",
+        "createPerson": "Δημιουργία Μέλους",
+        "cancel": "Ακύρωση",
+        "rolePlaceholder": "Ρόλος",
+        "roleEnPlaceholder": "Ρόλος (Αγγλικά)",
+        "selectParty": "Επιλέξτε Παράταξη",
+        "party": "Παράταξη",
+        "partyDescription": "Επιλέξτε την παράταξη που ανήκει το μέλος."
+    },
+    "PersonCard": {
+        "party": "Παράταξη",
+        "edit": "Επεξεργασία",
+        "viewProfile": "Προβολή Προφίλ",
+        "name": "Όνομα",
+        "role": "Ρόλος",
+        "partyColor": "Χρώμα Παράταξης",
+        "image": "Εικόνα",
+        "initials": "Αρχικά"
     }
 }

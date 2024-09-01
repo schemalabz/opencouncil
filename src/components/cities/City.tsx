@@ -1,5 +1,5 @@
 "use client";
-import { City, CouncilMeeting } from '@prisma/client';
+import { City, CouncilMeeting, Party, Person } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -8,21 +8,34 @@ import AddMeetingForm from "@/components/meetings/AddMeetingForm";
 import { Link } from '@/i18n/routing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import FormSheet from '@/components/FormSheet';
+import CityForm from './CityForm';
+import List from '@/components/List';
+import PartyCard from '@/components/parties/PartyCard';
+import PartyForm from '@/components/parties/PartyForm';
+import MeetingCard from '@/components/meetings/MeetingCard';
+import PersonCard from '@/components/persons/PersonCard';
+import PersonForm from '@/components/persons/PersonForm';
 
-export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[] }, editable: boolean }) {
+export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <div className="flex items-center space-x-6 mb-8">
-                <img src={city.logoImage} alt={`${city.name} logo`} className="w-24 h-24 object-contain" />
-                <div>
-                    <h1 className="text-4xl font-bold">{city.name}</h1>
-                    <span className="text-xl text-gray-600">
-                        {city.councilMeetings.length} {t('councilMeetingsTracked')}
-                    </span>
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-6">
+                    <img src={city.logoImage} alt={`${city.name} logo`} className="w-24 h-24 object-contain" />
+                    <div>
+                        <h1 className="text-4xl font-bold">{city.name}</h1>
+                        <span className="text-xl text-gray-600">
+                            {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
+                        </span>
+                    </div>
                 </div>
+                {editable && (
+                    <FormSheet FormComponent={CityForm} formProps={{ city, onSuccess: () => setIsSheetOpen(false) }} title={t('editCity')} />
+                )}
             </div>
 
             <Tabs defaultValue="meetings">
@@ -35,40 +48,36 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                 </div>
 
                 <TabsContent value="meetings">
-                    <div className="grid gap-6">
-                        {city.councilMeetings.map(meeting => (
-                            <Link key={meeting.id} href={`/${city.id}/meetings/${meeting.id}`}>
-                                <Card className="hover:bg-gray-100 transition-colors">
-                                    <CardHeader>
-                                        <CardTitle>{meeting.name}</CardTitle>
-                                        <CardDescription>{new Date(meeting.dateTime).toLocaleDateString()}</CardDescription>
-                                    </CardHeader>
-                                </Card>
-                            </Link>
-                        ))}
-                    </div>
-
-                    {editable && (
-                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                            <SheetTrigger asChild>
-                                <Button className="mt-6">{t('addCouncilMeeting')}</Button>
-                            </SheetTrigger>
-                            <SheetContent>
-                                <SheetHeader>
-                                    <SheetTitle>{t('addCouncilMeeting')}</SheetTitle>
-                                </SheetHeader>
-                                <AddMeetingForm cityId={city.id} onSuccess={() => setIsSheetOpen(false)} />
-                            </SheetContent>
-                        </Sheet>
-                    )}
+                    <List
+                        items={city.councilMeetings}
+                        editable={editable}
+                        ItemComponent={MeetingCard}
+                        FormComponent={AddMeetingForm}
+                        formProps={{ cityId: city.id }}
+                        t={useTranslations('CouncilMeeting')}
+                    />
                 </TabsContent>
 
                 <TabsContent value="members">
-                    <p>{t('membersComingSoon')}</p>
+                    <List
+                        items={city.persons}
+                        editable={editable}
+                        ItemComponent={PersonCard}
+                        FormComponent={PersonForm}
+                        formProps={{ cityId: city.id, parties: city.parties }}
+                        t={useTranslations('Person')}
+                    />
                 </TabsContent>
 
                 <TabsContent value="parties">
-                    <p>{t('partiesComingSoon')}</p>
+                    <List
+                        items={city.parties}
+                        editable={editable}
+                        ItemComponent={PartyCard}
+                        FormComponent={PartyForm}
+                        formProps={{ cityId: city.id }}
+                        t={useTranslations('Party')}
+                    />
                 </TabsContent>
             </Tabs>
         </div>

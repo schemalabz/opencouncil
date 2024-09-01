@@ -23,10 +23,16 @@ import { Calendar } from "../ui/calendar"
 import { fetchVideos, Video } from "@/lib/fetchVideos"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import InputWithDerivatives from "../InputWithDerivatives"
+// @ts-ignore
+import { toGreeklish } from 'greek-utils'
 
 const formSchema = z.object({
     name: z.string().min(2, {
         message: "Meeting name must be at least 2 characters.",
+    }),
+    name_en: z.string().min(2, {
+        message: "Meeting name (English) must be at least 2 characters.",
     }),
     date: z.date({
         required_error: "Meeting date is required.",
@@ -56,6 +62,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
+            name_en: "",
             date: new Date(),
             videoId: "",
             meetingId: "",
@@ -69,9 +76,11 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
 
     useEffect(() => {
         const date = form.getValues('date');
-        const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            .toLowerCase().replace(/\s/g, '').replace(',', '_');
-        form.setValue('meetingId', formattedDate);
+        if (date) {
+            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                .toLowerCase().replace(/\s/g, '').replace(',', '_');
+            form.setValue('meetingId', formattedDate);
+        }
     }, [form.watch('date')])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -107,21 +116,19 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('meetingName')}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t('meetingNamePlaceholder')} {...field} />
-                            </FormControl>
-                            <FormDescription>
-                                {t('meetingNameDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
+                <InputWithDerivatives
+                    baseName="name"
+                    basePlaceholder={t('meetingNamePlaceholder')}
+                    baseDescription={t('meetingNameDescription')}
+                    derivatives={[
+                        {
+                            name: 'name_en',
+                            calculate: (baseValue) => toGreeklish(baseValue),
+                            placeholder: t('meetingNameEnPlaceholder'),
+                            description: t('meetingNameEnDescription'),
+                        },
+                    ]}
+                    form={form}
                 />
                 <FormField
                     control={form.control}
@@ -132,7 +139,11 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                             <Calendar
                                 mode="single"
                                 selected={field.value}
-                                onSelect={field.onChange}
+                                onSelect={(date) => {
+                                    if (date && date.getTime() !== field.value.getTime()) {
+                                        field.onChange(date);
+                                    }
+                                }}
                                 disabled={(date) =>
                                     date > new Date() || date < new Date("1900-01-01")
                                 }
