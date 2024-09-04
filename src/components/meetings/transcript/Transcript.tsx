@@ -14,9 +14,9 @@ export default function Transcript({ utterances }: { utterances: (Utterance & { 
     });
 
 
-    return <div>
-        {speakerSegments.map(({ speakerTag, utterances }) =>
-            <div key={speakerTag.id}>
+    return <div className="mx-4">
+        {speakerSegments.map(({ speakerTag, utterances }, index) =>
+            <div key={index}>
                 <SpeakerSegment utterances={utterances} speakerTag={speakerTag} />
             </div>
         )}

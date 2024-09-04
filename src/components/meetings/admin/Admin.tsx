@@ -3,7 +3,6 @@ import React from 'react';
 import { CouncilMeeting, TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { requestTranscribe } from '@/lib/tasks/transcribe';
@@ -19,7 +18,6 @@ export default function AdminActions({
 }) {
     const { toast } = useToast();
     const [isProcessing, setIsProcessing] = React.useState(false);
-    const [isSheetOpen, setIsSheetOpen] = React.useState(false);
     const [youtubeUrl, setYoutubeUrl] = React.useState('');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
@@ -101,55 +99,44 @@ export default function AdminActions({
         }
     };
 
-    return (
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-            <SheetTrigger asChild>
-                <Button variant="outline">
-                    Admin Actions
-                </Button>
-            </SheetTrigger>
-            <SheetContent className="overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle>Admin Actions</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
-                    <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />
-                </div>
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold mb-4">Request New Transcription</h3>
-                    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                        <PopoverTrigger asChild>
-                            <Button>Request Transcription</Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80">
-                            <div className="space-y-4">
-                                <h4 className="font-medium">Enter YouTube URL</h4>
-                                <Input
-                                    type="text"
-                                    placeholder="https://www.youtube.com/watch?v=..."
-                                    value={youtubeUrl}
-                                    onChange={(e) => setYoutubeUrl(e.target.value)}
+    return (<div>
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
+            <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />
+        </div>
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Request New Transcription</h3>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                <PopoverTrigger asChild>
+                    <Button>Request Transcription</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                    <div className="space-y-4">
+                        <h4 className="font-medium">Enter YouTube URL</h4>
+                        <Input
+                            type="text"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={youtubeUrl}
+                            onChange={(e) => setYoutubeUrl(e.target.value)}
+                        />
+                        <div className="flex items-center justify-between space-x-2 w-full">
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="force-transcribe"
+                                    checked={forceTranscribe}
+                                    onCheckedChange={setForceTranscribe}
                                 />
-                                <div className="flex items-center justify-between space-x-2 w-full">
-                                    <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id="force-transcribe"
-                                            checked={forceTranscribe}
-                                            onCheckedChange={setForceTranscribe}
-                                        />
-                                        <Label htmlFor="force-transcribe">Force </Label>
-                                    </div>
-                                    <Button onClick={handleTranscribe} disabled={isProcessing}>
-                                        {isProcessing ? 'Processing...' : 'Submit'}
-                                    </Button>
-                                </div>
-
+                                <Label htmlFor="force-transcribe">Force </Label>
                             </div>
-                        </PopoverContent>
-                    </Popover>
-                </div>
-            </SheetContent>
-        </Sheet>
+                            <Button onClick={handleTranscribe} disabled={isProcessing}>
+                                {isProcessing ? 'Processing...' : 'Submit'}
+                            </Button>
+                        </div>
+
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    </div>
     );
 };

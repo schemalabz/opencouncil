@@ -1,12 +1,12 @@
-import "../styles/globals.css"
+import "../../styles/globals.css"
 import { Inter as FontSans } from "next/font/google"
-import { cn } from "../../lib/utils"
-import Header from "../../components/layout/Header"
-import Footer from "../..//components/layout/Footer"
+import { cn } from "../../../lib/utils"
+import Header from "../../../components/layout/Header"
+import Footer from "../../../components/layout/Footer"
 import React from "react"
 import { getMessages } from "next-intl/server"
 import { NextIntlClientProvider } from "next-intl"
-import { Toaster } from "@/components/ui/toaster"
+import { ToastProvider } from "@/components/ui/toast"
 
 
 const fontSans = FontSans({
@@ -39,13 +39,15 @@ export default async function RootLayout({ children, params: { locale } }: RootL
         )}
       >
         <NextIntlClientProvider messages={messages}>
-          <Header />
-          <div className="container mx-auto py-10">
-            {children}
-          </div >
-          <Footer />
+          <ToastProvider>
+            <Header />
+            <div className="container mx-auto py-10">
+              {children}
+            </div >
+            <Footer />
+          </ToastProvider>
         </NextIntlClientProvider>
-        <Toaster />
+
       </body>
     </html>
   )

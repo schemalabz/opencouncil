@@ -57,18 +57,18 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
         <Card className="mb-2 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
             <CardContent className="p-2 flex flex-col">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center space-x-4">
                         <StatusIcon />
                         <Badge variant="outline" className="text-xs font-normal">
                             {task.type}
                         </Badge>
                         <span className="text-xs font-medium">{task.status}</span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground w-24 text-right">
-                            <TimeAgo date={task.updatedAt} />
-                        </span>
+                    <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground"><TimeAgo date={task.updatedAt} /></span>
+                        </div>
                         <Button
                             variant="ghost"
                             size="sm"

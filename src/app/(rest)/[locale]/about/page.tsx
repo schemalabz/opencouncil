@@ -1,8 +1,7 @@
 import React from 'react';
-import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../../../components/ui/card";
+import { Button } from "../../../../components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../../../../components/ui/card";
 import { Mic, FileText, Github, Globe, Database, Zap, Clock, Sparkles, LetterText, BotMessageSquare, PhoneCall, Search, MessageSquare, HelpCircle } from 'lucide-react';
-import { Link } from '../../../i18n/routing';
 import { useTranslations } from 'next-intl';
 
 export default function AboutPage() {

@@ -5,6 +5,8 @@ interface VideoContextType {
     isPlaying: boolean;
     currentTime: number;
     duration: number;
+    setCurrentScrollInterval: (interval: [number, number]) => void;
+    currentScrollInterval: [number, number];
     playbackSpeed: string;
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
@@ -54,6 +56,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
 
     const togglePlayPause = async () => {
         console.log('togglePlayPause', isPlaying);
+        console.log(`video url is ${meeting.videoUrl}`);
         if (videoRef.current) {
             try {
                 if (isPlaying) {
@@ -83,7 +86,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
                                 console.error('Play promise did not resolve within timeout');
                                 setIsPlaying(false);
                             }
-                        }, 5000); // 5 second timeout
+                        }, 20000); // 5 second timeout
                     } else {
                         console.log('Play promise is undefined, video might be playing');
                         setIsPlaying(true);
@@ -118,19 +121,30 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         }
     };
 
+    const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
+
     const value = {
         isPlaying,
         currentTime,
         duration,
         playbackSpeed,
+        currentScrollInterval,
+        setCurrentScrollInterval,
         togglePlayPause,
         handleSpeedChange,
         seekTo,
         videoRef,
     };
 
+
+
     return (
         <VideoContext.Provider value={value}>
+            <video
+                ref={videoRef}
+                src={meeting.videoUrl!}
+                style={{ display: 'none' }}
+            />
             {children}
         </VideoContext.Provider>
     );

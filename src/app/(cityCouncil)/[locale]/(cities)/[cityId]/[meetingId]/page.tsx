@@ -27,9 +27,22 @@ export default async function CouncilMeetingPage({
         }
     })
 
+    const city = await prisma.city.findUnique({
+        where: {
+            id: cityId
+        }, include: {
+            persons: true,
+            parties: true
+        }
+    })
+
+    if (!city) {
+        notFound();
+    }
+
     if (!meeting) {
         notFound();
     }
 
-    return <CouncilMeeting meeting={meeting} editable={true} />
+    return <CouncilMeeting meeting={meeting} editable={true} city={city} />
 }
