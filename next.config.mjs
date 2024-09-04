@@ -7,6 +7,8 @@ const nextConfig = {
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com'],
     },
+    transpilePackages: ['@']
 };
+
 export default withNextIntl(nextConfig);
 

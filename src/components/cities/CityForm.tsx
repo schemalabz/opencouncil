@@ -101,7 +101,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         setIsSubmitting(true)
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'
-        const method = city ? 'PUT' : 'POST'
+        const method = city ? 'PUT' : ''
 
         const formData = new FormData()
         formData.append('name', values.name)

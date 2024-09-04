@@ -6,8 +6,9 @@ const prisma = new PrismaClient();
 
 const meetingSchema = z.object({
     name: z.string().min(2),
+    name_en: z.string().min(2),
     date: z.string().datetime(),
-    videoId: z.string().min(1),
+    youtubeUrl: z.string().min(1).url(),
     meetingId: z.string().min(1),
 });
 
@@ -17,16 +18,17 @@ export async function POST(
 ) {
     try {
         const body = await request.json();
-        const { name, date, videoId, meetingId } = meetingSchema.parse(body);
+        const { name, name_en, date, youtubeUrl, meetingId } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
         const meeting = await prisma.councilMeeting.create({
             data: {
                 name,
+                name_en,
                 id: meetingId,
                 dateTime: new Date(date),
-                video: `https://townhalls-gr.fra1.digitaloceanspaces.com/city-council-meetings/${videoId}`,
                 cityId,
+                youtubeUrl,
                 released: false, // Set as unpublished by default
             },
         });

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
-import { CouncilMeeting, SpeakerDiarization } from "@prisma/client";
+import { CouncilMeeting } from "@prisma/client";
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -24,7 +24,7 @@ export const useVideo = () => {
 
 interface VideoProviderProps {
     children: React.ReactNode;
-    meeting: CouncilMeeting & { speakerDiarizations: SpeakerDiarization[] };
+    meeting: CouncilMeeting;
 }
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting }) => {
@@ -129,7 +129,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         videoRef,
     };
 
-    console.log(`Video url is ${meeting.video}`);
     return (
         <VideoContext.Provider value={value}>
             {children}

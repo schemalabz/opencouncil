@@ -35,7 +35,7 @@ export function CitiesList({ cities, editable }: CitiesListProps) {
                     className="flex-grow mr-4"
                 />
                 {editable && (
-                    <FormSheet FormComponent={CityForm} formProps={{}} title={t('addCity')} />
+                    <FormSheet FormComponent={CityForm} formProps={{}} title={t('addCity')} type="add" />
                 )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

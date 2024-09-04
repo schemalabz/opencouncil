@@ -18,7 +18,7 @@ export default function List<T, P = {}>({ items, editable, ItemComponent, FormCo
             <div className="flex justify-between items-center mb-4">
                 <p className="text-muted-foreground">{t('items', { count: items.length })}</p>
                 {editable && (
-                    <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} />
+                    <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" />
                 )}
             </div>
             {items.length > 0 ? (

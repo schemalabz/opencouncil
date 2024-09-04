@@ -24,7 +24,6 @@ model City {
   parties        Party[]
   persons        Person[]
   councilMeetings CouncilMeeting[]
-  speakerDiarizations SpeakerDiarization[]
 }
 
 model Party {
@@ -39,7 +38,7 @@ model Party {
   updatedAt DateTime @updatedAt
 
   persons Person[]
-  city City @relation(fields: [cityId], references: [id])
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
 }
 
@@ -57,12 +56,13 @@ model Person {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  city   City   @relation(fields: [cityId], references: [id])
+  speakerTags SpeakerTag[]
+
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
-  party  Party? @relation(fields: [partyId], references: [id])
+  party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
   partyId String?
 
-  speakerDiarizations SpeakerDiarization[]
 }
 
 model CouncilMeeting {
@@ -70,65 +70,77 @@ model CouncilMeeting {
   name      String
   name_en   String
   dateTime  DateTime
-  video     String
+  youtubeUrl String
+  videoUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   released  Boolean  @default(false)
 
-  city   City   @relation(fields: [cityId], references: [id])
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
 
-  speakerDiarizations SpeakerDiarization[]
-  speakerDiarizationRequest DiarizationRequest?
-
-  transcriptionRequest TranscriptionRequest?
+  taskStatuses TaskStatus[]
+  utterances Utterance[]
 
   @@id([cityId, id])
   @@unique([cityId, id])
 }
 
-model SpeakerDiarization {
+model TaskStatus {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status    String   @default("pending")
+  stage     String?
+  percentComplete Float?
+  type      String
+  requestBody String
+  responseBody String?
+
+  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  councilMeetingId String
+  cityId            String
+}
+
+model SpeakerTag {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  label           String?
+
+  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  personId String?
+
+  utterances Utterance[]
+}
+
+model Utterance {
   id              String   @id @default(cuid())
   startTimestamp  Float
   endTimestamp    Float
-  label           String?
+  text            String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
-  councilMeetingId String
-  cityId            String
+  speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
+  speakerTagId String
 
-  person           Person?        @relation(fields: [personId], references: [id])
-  personId         String?
+  meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  meetingId String
+  cityId String
 
-  city City @relation(fields: [cityId], references: [id])
+  words Word[]
 }
 
-model DiarizationRequest {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  status    String   @default("pending")
-  jobId     String?
+model Word {
+  id              String   @id @default(cuid())
+  text            String
+  startTimestamp  Float
+  endTimestamp    Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  confidence      Float    @default(1)
 
-  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
-  councilMeetingId String
-  cityId            String
-
-  @@unique([councilMeetingId, cityId])
-}
-
-model TranscriptionRequest {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  status    String   @default("pending")
-  jobId     String?
-
-  councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId])
-  councilMeetingId String
-  cityId            String
-
-  @@unique([councilMeetingId, cityId])
+  utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
+  utteranceId String
 }

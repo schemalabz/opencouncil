@@ -6,6 +6,8 @@ import Footer from "../..//components/layout/Footer"
 import React from "react"
 import { getMessages } from "next-intl/server"
 import { NextIntlClientProvider } from "next-intl"
+import { Toaster } from "@/components/ui/toaster"
+
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -43,6 +45,7 @@ export default async function RootLayout({ children, params: { locale } }: RootL
           </div >
           <Footer />
         </NextIntlClientProvider>
+        <Toaster />
       </body>
     </html>
   )

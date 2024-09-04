@@ -22,19 +22,19 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     return (
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto py-8">
             <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-6">
-                    <img src={city.logoImage} alt={`${city.name} logo`} className="w-24 h-24 object-contain" />
+                <div className="flex items-center space-x-4">
+                    <img src={city.logoImage} alt={`${city.name} logo`} className="w-16 h-16 object-contain hidden md:block" />
                     <div>
-                        <h1 className="text-4xl font-bold">{city.name}</h1>
-                        <span className="text-xl text-gray-600">
+                        <h1 className="text-3xl font-bold">{city.name}</h1>
+                        <span className="text-md text-gray-600">
                             {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
                         </span>
                     </div>
                 </div>
                 {editable && (
-                    <FormSheet FormComponent={CityForm} formProps={{ city, onSuccess: () => setIsSheetOpen(false) }} title={t('editCity')} />
+                    <FormSheet FormComponent={CityForm} formProps={{ city, onSuccess: () => setIsSheetOpen(false) }} title={t('editCity')} type="edit" />
                 )}
             </div>
 

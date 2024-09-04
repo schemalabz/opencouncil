@@ -37,8 +37,10 @@ const formSchema = z.object({
     date: z.date({
         required_error: "Meeting date is required.",
     }),
-    videoId: z.string().min(1, {
-        message: "Video selection is required.",
+    youtubeUrl: z.string().min(1, {
+        message: "YouTube URL is required.",
+    }).url({
+        message: "Invalid YouTube URL.",
     }),
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
@@ -64,7 +66,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
             name: "",
             name_en: "",
             date: new Date(),
-            videoId: "",
+            youtubeUrl: "",
             meetingId: "",
         },
     })
@@ -93,7 +95,10 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(values),
+                body: JSON.stringify({
+                    ...values,
+                    date: values.date.toISOString(),
+                }),
             })
 
             if (response.ok) {
@@ -158,25 +163,13 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                 />
                 <FormField
                     control={form.control}
-                    name="videoId"
+                    name="youtubeUrl"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>{t('meetingVideo')}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectVideo')} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {videos.length === 0 && <SelectItem value="none" disabled>{t('noVideosFound')}</SelectItem>}
-                                    {videos.map((video) => (
-                                        <SelectItem key={video.id} value={video.id}>
-                                            {video.name} ({new Date(video.dateAdded).toLocaleDateString()})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormControl>
+                                <Input {...field} placeholder="https://www.youtube.com/watch?v=..." />
+                            </FormControl>
                             <FormDescription>
                                 {t('meetingVideoDescription')}
                             </FormDescription>
