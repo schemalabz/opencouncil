@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+import { handleTaskUpdate } from '@/lib/tasks/tasks';
+import { handleTranscribeResult } from '@/lib/tasks/transcribe';
+import { TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+
+const prisma = new PrismaClient();
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { taskStatusId: string } }
+) {
+    const taskStatus = await prisma.taskStatus.findUnique({
+        where: { id: params.taskStatusId },
+    });
+
+    if (!taskStatus) {
+        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(taskStatus);
+}
+
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { taskStatusId: string } }
+) {
+    return handleUpdateRequest(request, params.taskStatusId);
+}
+
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: { taskStatusId: string } }
+) {
+    return handleUpdateRequest(request, params.taskStatusId);
+}
+
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: { taskStatusId: string } }
+) {
+    const taskStatus = await prisma.taskStatus.findUnique({
+        where: { id: params.taskStatusId },
+    });
+
+    if (!taskStatus) {
+        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+    }
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    if (taskStatus.updatedAt > tenMinutesAgo) {
+        return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
+    }
+
+    await prisma.taskStatus.delete({
+        where: { id: params.taskStatusId },
+    });
+
+    return NextResponse.json({ message: 'Task status deleted successfully' });
+}
+
+async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
+    const taskStatus = await prisma.taskStatus.findUnique({
+        where: { id: taskStatusId },
+    });
+
+    if (!taskStatus) {
+        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+    }
+
+    const update: TaskUpdate<any> = await request.json();
+
+    try {
+        if (taskStatus.type === 'transcribe') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<TranscribeResult>, handleTranscribeResult);
+        } else {
+            // Handle other task types here if needed
+            throw new Error(`Unsupported task type: ${taskStatus.type}`);
+        }
+
+        return NextResponse.json({ message: 'Task status updated successfully' });
+    } catch (error) {
+        console.error('Error updating task status:', error);
+        return NextResponse.json({ error: 'Failed to update task status' }, { status: 500 });
+    }
+}
