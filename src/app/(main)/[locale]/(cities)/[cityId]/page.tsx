@@ -1,13 +1,10 @@
 "use server";
-import { City } from '@prisma/client';
 import CityC from '../../../../../components/cities/City';
 import { PrismaClient } from '@prisma/client'
 import { notFound } from 'next/navigation';
 import React from 'react';
-
-const prisma = new PrismaClient()
-
 export default async function CityPage({ params }: { params: { cityId: string } }) {
+    const prisma = new PrismaClient()
     const city = await prisma.city.findUnique({
         where: {
             id: params.cityId,

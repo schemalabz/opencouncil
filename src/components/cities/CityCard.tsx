@@ -1,3 +1,4 @@
+'use client'
 import { City } from '@prisma/client';
 import Image from 'next/image';
 import { Card, CardContent } from "../ui/card";

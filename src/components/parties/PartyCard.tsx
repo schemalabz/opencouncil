@@ -1,3 +1,4 @@
+'use client'
 import { Party, Person } from '@prisma/client';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';

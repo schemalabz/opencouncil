@@ -1,3 +1,4 @@
+'use client'
 import { Party } from "@prisma/client";
 import { useLocale } from "next-intl";
 import React from "react";

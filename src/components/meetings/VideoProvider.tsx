@@ -1,3 +1,4 @@
+"use client"
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { CouncilMeeting } from "@prisma/client";
 
@@ -12,6 +13,7 @@ interface VideoContextType {
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
     videoRef: React.RefObject<HTMLVideoElement>;
+    isSeeking: boolean;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -39,6 +41,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [playbackSpeed, setPlaybackSpeed] = useState("1");
+    const [isSeeking, setIsSeeking] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -51,40 +54,27 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
         video?.addEventListener('loadedmetadata', updateDuration);
         video?.addEventListener('timeupdate', handleTimeUpdate);
+        video?.addEventListener('seeking', () => setIsSeeking(true));
+        video?.addEventListener('seeked', () => setIsSeeking(false));
         updateDuration();
 
         return () => {
             video?.removeEventListener('loadedmetadata', updateDuration);
             video?.removeEventListener('timeupdate', handleTimeUpdate);
+            video?.removeEventListener('seeking', () => setIsSeeking(true));
+            video?.removeEventListener('seeked', () => setIsSeeking(false));
         };
     }, []);
 
     const togglePlayPause = async () => {
-        console.log('togglePlayPause', isPlaying);
-        console.log(`video url is ${meeting.videoUrl}`);
         if (videoRef.current) {
             try {
-                if (isPlaying) {
+                if (videoRef.current.paused) {
+                    await videoRef.current.play();
+                    setIsPlaying(true);
+                } else {
                     await videoRef.current.pause();
                     setIsPlaying(false);
-                } else {
-                    console.log('Attempting to play');
-                    const playPromise = videoRef.current.play();
-                    if (playPromise !== undefined) {
-                        console.log('Play promise created');
-                        playPromise
-                            .then(() => {
-                                console.log('Video playback started successfully');
-                                setIsPlaying(true);
-                            })
-                            .catch(error => {
-                                console.error('Error playing video:', error);
-                                setIsPlaying(false);
-                            });
-                    } else {
-                        console.log('Play promise is undefined, video might be playing');
-                        setIsPlaying(true);
-                    }
                 }
             } catch (error) {
                 console.error('Error in togglePlayPause:', error);
@@ -120,16 +110,22 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const seekTo = (time: number) => {
         if (videoRef.current) {
             videoRef.current.currentTime = time;
-            setCurrentTime(time);
-            scrollToUtterance(time);
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+                scrollToUtterance(time);
+            });
         }
     };
 
-
-
     const handleTimeUpdate = () => {
         if (videoRef.current) {
-            setCurrentTime(videoRef.current.currentTime);
+            const newTime = videoRef.current.currentTime;
+            setCurrentTime(prevTime => {
+                if (Math.abs(prevTime - newTime) > 0.5) {
+                    return newTime;
+                }
+                return prevTime;
+            });
         }
     };
 
@@ -146,8 +142,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         handleSpeedChange,
         seekTo,
         videoRef,
+        isSeeking,
     };
-
 
     return (
         <VideoContext.Provider value={value}>

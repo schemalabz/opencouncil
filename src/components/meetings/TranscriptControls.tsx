@@ -1,8 +1,13 @@
-import { Play, Pause } from "lucide-react"
+import { Play, Pause, Loader } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
-export default function TranscriptControls({ isWide, className, speakerTimes }: { isWide: boolean, className?: string, speakerTimes: { start: number, end: number }[] }) {
-    const { isPlaying, togglePlayPause, currentTime, duration, seekTo, videoRef, currentScrollInterval } = useVideo();
+import { SpeakerTag } from "@prisma/client";
+import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
+import { useTranscriptOptions } from "./options/OptionsContext";
+
+export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: { speakerTagId: SpeakerTag["id"], start: number, end: number }[] }) {
+    const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
+    const { options } = useTranscriptOptions();
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -11,43 +16,61 @@ export default function TranscriptControls({ isWide, className, speakerTimes }: 
         const percentage = clickPosition / totalLength;
         seekTo(percentage * duration);
     };
+
+    const { getParty, getPerson, getSpeakerTag } = useCouncilMeetingData();
     return (
         <>
             <div className={cn(`fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 left-2 bottom-2 w-16'} flex ${isWide ? 'flex-row' : 'flex-col'} items-center `, className)}>
                 <button
                     onClick={togglePlayPause}
-                    className="p-4 bg-background/30 backdrop-blur-sm backdrop-brightness-95 m-2 border h-16 w-16 flex items-center justify-center hover:backdrop-brightness-75"
+                    className="p-4 bg-white opacity-90 m-2 border h-16 w-16 flex items-center justify-center hover:bg-gray-100"
                     aria-label={isPlaying ? "Pause" : "Play"}
                 >
-                    {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                    {isPlaying ?
+                        (isSeeking ? <Loader className="w-6 h-6 animate-spin" /> : <Pause className="w-6 h-6" />) : <Play className="w-6 h-6" />}
                 </button>
 
                 {/* seek slider */}
                 <div
-                    className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-background/30 backdrop-blur-sm backdrop-brightness-50 m-2 border relative`}
+                    className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-white opacity-90 m-2 border relative`}
                     onClick={handleSeek}
                 >
                     {currentScrollInterval[0] !== currentScrollInterval[1] && (
                         <div
-                            className={`absolute bg-background ${isWide ? 'h-full' : 'w-full'}`}
+                            className={`absolute bg-yellow-300 opacity-40 ${isWide ? 'h-full' : 'w-full'} opacity-80`}
                             style={{
                                 [isWide ? 'left' : 'top']: `${(currentScrollInterval[0] / duration) * 100}%`,
                                 [isWide ? 'width' : 'height']: `${((currentScrollInterval[1] - currentScrollInterval[0]) / duration) * 100}%`,
                             }}
                         />
                     )}
-                    {speakerTimes.map((time, index) => (
-                        <div
-                            key={index}
-                            className={`absolute bg-blue-500/50 ${isWide ? 'h-1/2 top-1/4' : 'w-1/2 left-1/4'}`}
-                            style={{
-                                [isWide ? 'left' : 'top']: `${(time.start / duration) * 100}%`,
-                                [isWide ? 'width' : 'height']: `${((time.end - time.start) / duration) * 100}%`,
-                            }}
-                        />
-                    ))}
+                    {speakerSegments.map((segment, index) => {
+                        const speakerTag = getSpeakerTag(segment.speakerTagId);
+                        const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                        const party = person?.partyId ? getParty(person.partyId) : undefined;
+                        let speakerColor = party?.colorHex || '#D3D3D3';
+
+                        const isSelected = options.selectedSpeakerTag === speakerTag?.id;
+                        if (isSelected) {
+                            speakerColor = '#81b3ff';
+                        }
+
+                        return (
+                            <div
+                                key={index}
+                                className={`absolute ${isWide ? 'h-1/2' : 'w-1/2'} opacity-90`}
+                                style={{
+                                    backgroundColor: speakerColor,
+                                    [isWide ? 'left' : 'top']: `${(segment.start / duration) * 100}%`,
+                                    [isWide ? 'width' : 'height']: `${((segment.end - segment.start) / duration) * 100}%`,
+                                    [isWide ? 'top' : 'left']: isSelected ? '10%' : '25%',
+                                    [isWide ? 'height' : 'width']: isSelected ? '80%' : '50%',
+                                }}
+                            />
+                        )
+                    })}
                     <div
-                        className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'}`}
+                        className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'} opacity-80`}
                         style={{
                             [isWide ? 'left' : 'top']: `${(currentTime / duration) * 100}%`,
                         }}

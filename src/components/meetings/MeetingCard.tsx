@@ -1,10 +1,12 @@
+'use client'
 import { CouncilMeeting } from '@prisma/client';
 import { useRouter } from '../../i18n/routing';
 import Image from 'next/image';
 import { useState } from 'react';
 import { Card, CardContent, CardFooter } from "../ui/card";
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import React from 'react';
+import { format, Locale } from 'date-fns';
 
 interface MeetingCardProps {
     item: CouncilMeeting;
@@ -14,6 +16,7 @@ interface MeetingCardProps {
 export default function MeetingCard({ item: meeting, editable }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
+    const locale = useLocale();
 
     const handleClick = () => {
         router.push(`/${meeting.cityId}/${meeting.id}`);
@@ -34,7 +37,7 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
                     <h3 className="text-2xl font-bold">{meeting.name}</h3>
                 </div>
                 <p className="mt-2">
-                    {t('meetingDate')}: {new Date(meeting.dateTime).toLocaleDateString()}
+                    {format(meeting.dateTime, 'EEEE, MMMM d, yyyy')}
                 </p>
             </CardContent>
             <CardFooter>

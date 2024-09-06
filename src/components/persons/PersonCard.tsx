@@ -1,10 +1,7 @@
+'use client'
 import { Person, Party } from '@prisma/client';
 import { useRouter } from '../../i18n/routing';
-import Image from 'next/image';
-import { useState } from 'react';
 import { Card, CardContent, CardFooter } from "../ui/card";
-import FormSheet from '../FormSheet';
-import PersonForm from './PersonForm';
 import { useTranslations } from 'next-intl';
 import React from 'react';
 import PartyBadge from '../PartyBadge';

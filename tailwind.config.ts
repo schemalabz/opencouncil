@@ -54,6 +54,10 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        transcript: {
+          DEFAULT: "hsl(var(--transcript))",
+          foreground: "hsl(var(--transcript-foreground))",
+        }
       },
       borderRadius: {
         lg: "var(--radius)",

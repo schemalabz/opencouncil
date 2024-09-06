@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { Button } from "@/components/ui/button"
 import { CitiesList } from "@/components/cities/CitiesList"
 
 const prisma = new PrismaClient()

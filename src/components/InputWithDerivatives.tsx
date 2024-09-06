@@ -1,3 +1,4 @@
+'use client'
 import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from "./ui/form"

@@ -34,6 +34,7 @@
     "axios": "^1.7.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "framer-motion-3d": "^11.3.31",
     "get-video-duration": "^4.1.0",
