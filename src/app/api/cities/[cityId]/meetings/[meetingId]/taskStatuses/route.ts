@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { getTasksForMeeting } from '@/lib/db/getTasks';
+import { getTasksForMeeting } from '@/lib/db/tasks';
 
 const prisma = new PrismaClient();
 

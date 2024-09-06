@@ -3,27 +3,46 @@ import { SpeakerTag, Utterance, Word } from "@prisma/client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import React, { useEffect, useState } from "react";
 import { useVideo } from "../VideoProvider";
+import { useTranscriptOptions } from "../options/OptionsContext";
 
 export default function UtteranceC({ utterance }: { utterance: Utterance & { words: Word[] } }) {
-    return <span className="hover:bg-accent" >
-        {utterance.words.map((word) => {
-            return <WordC word={word} key={word.id} />
-        })}
-    </span>
+    let { currentTime, seekTo } = useVideo()
+    let [isActive, setIsActive] = useState(false)
+
+    useEffect(() => {
+        let isActive = currentTime >= utterance.startTimestamp && currentTime <= utterance.endTimestamp;
+        setIsActive(isActive)
+    }, [currentTime, utterance.startTimestamp, utterance.endTimestamp])
+
+    if (isActive) {
+        return <span className={`hover:bg-accent utterance ${isActive ? 'bg-accent' : ''}`} id={utterance.id}>
+            {utterance.words.map((word) => {
+                return <WordC word={word} key={word.id} />
+            })}
+        </span>
+    } else {
+        return <span className={`cursor-pointer hover:bg-accent utterance`} id={utterance.id} onClick={() => seekTo(utterance.startTimestamp)}>
+            {utterance.text + " "}
+        </span>
+    }
 }
 
 function WordC({ word }: { word: Word }) {
     let { currentTime, seekTo } = useVideo()
     let [isActive, setIsActive] = useState(false)
+    let { options } = useTranscriptOptions();
 
     useEffect(() => {
         let isActive = currentTime >= word.startTimestamp && currentTime <= word.endTimestamp;
         setIsActive(isActive)
     }, [currentTime, word.startTimestamp, word.endTimestamp])
 
-    const confidenceColor = getConfidenceColor(word.confidence);
+    let color = '#000';
+    if (options.highlightLowConfidenceWords && word.confidence < 0.3) {
+        color = getConfidenceColor(word.confidence);
+    }
     return <span>
-        <span onClick={() => seekTo(word.startTimestamp)} style={{ color: confidenceColor }} className={`cursor-pointer hover:underline ${isActive ? 'underline font-bold' : ''}`}>{word.text.trim()}</span> </span>
+        <span onClick={() => seekTo(word.startTimestamp)} style={{ color }} className={`cursor-pointer hover:underline ${isActive ? 'underline font-bold' : ''}`}>{word.text.trim()}</span> </span>
 }
 
 function getConfidenceColor(confidence: number): string {

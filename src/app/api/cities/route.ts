@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
-
-const prisma = new PrismaClient()
+import { createCity, getCities, getCity } from '@/lib/db/cities'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -16,19 +14,26 @@ const s3Client = new S3({
 })
 
 export async function GET() {
-    const cities = await prisma.city.findMany()
-    return NextResponse.json(cities)
+    try {
+        const cities = await Promise.all((await getCities()).map(async (city) => {
+            return city;
+        }));
+        return NextResponse.json(cities)
+    } catch (error) {
+        console.error('Error fetching cities:', error)
+        return NextResponse.json({ error: 'Failed to fetch cities' }, { status: 500 })
+    }
 }
 
 export async function POST(request: Request) {
-    const formData = await request.formData()
-    const id = formData.get('id') as string
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_municipality = formData.get('name_municipality') as string
-    const name_municipality_en = formData.get('name_municipality_en') as string
-    const timezone = formData.get('timezone') as string
-    const logoImage = formData.get('logoImage') as File
+    const formData = await request.json()
+    const id = formData.id as string
+    const name = formData.name as string
+    const name_en = formData.name_en as string
+    const name_municipality = formData.name_municipality as string
+    const name_municipality_en = formData.name_municipality_en as string
+    const timezone = formData.timezone as string
+    const logoImage = formData.logoImage as File
 
     if (!name || !name_en || !name_municipality || !timezone || !logoImage || !id) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -53,21 +58,19 @@ export async function POST(request: Request) {
 
         const logoImageUrl = `https://townhalls-gr.fra1.digitaloceanspaces.com/city-logos/${fileName}`
 
-        const city = await prisma.city.create({
-            data: {
-                id,
-                name,
-                name_en,
-                name_municipality,
-                name_municipality_en,
-                timezone,
-                logoImage: logoImageUrl,
-            },
+        const city = await createCity({
+            id,
+            name,
+            name_en,
+            name_municipality,
+            name_municipality_en,
+            timezone,
+            logoImage: logoImageUrl,
         })
 
         return NextResponse.json(city)
     } catch (error) {
-        console.error('Error uploading file:', error)
-        return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
+        console.error('Error creating city:', error)
+        return NextResponse.json({ error: 'Failed to create city' }, { status: 500 })
     }
 }

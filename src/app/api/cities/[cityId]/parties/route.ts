@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-
-const prisma = new PrismaClient()
+import { getPartiesForCity, createParty, editParty, deleteParty } from '@/lib/db/parties'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -16,20 +14,18 @@ const s3Client = new S3({
 })
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const parties = await prisma.party.findMany({
-        where: { cityId: params.cityId },
-    })
+    const parties = await getPartiesForCity(params.cityId)
     return NextResponse.json(parties)
 }
 
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const colorHex = formData.get('colorHex') as string
-    const logo = formData.get('logo') as File | null
+    const formData = await request.json()
+    const name = formData.name as string
+    const name_en = formData.name_en as string
+    const name_short = formData.name_short as string
+    const name_short_en = formData.name_short_en as string
+    const colorHex = formData.colorHex as string
+    const logo = formData.logo as File | null
 
     let logoUrl: string | undefined = undefined
 
@@ -37,7 +33,6 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         const fileExtension = logo.name.split('.').pop()
         const fileName = `${uuidv4()}.${fileExtension}`
 
-        // Assuming you have an S3 client setup similar to the city logo upload
         const upload = new Upload({
             client: s3Client,
             params: {
@@ -58,75 +53,15 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         }
     }
 
-    const party = await prisma.party.create({
-        data: {
-            name,
-            name_en,
-            name_short,
-            name_short_en,
-            colorHex,
-            logo: logoUrl,
-            cityId: params.cityId,
-        },
+    const party = await createParty({
+        name,
+        name_en,
+        name_short,
+        name_short_en,
+        colorHex,
+        logo: logoUrl || null,
+        cityId: params.cityId,
     })
 
     return NextResponse.json(party)
-}
-
-export async function PUT(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const colorHex = formData.get('colorHex') as string
-    const logo = formData.get('logo') as File | null
-
-    let logoUrl: string | undefined = undefined
-
-    if (logo) {
-        const fileExtension = logo.name.split('.').pop()
-        const fileName = `${uuidv4()}.${fileExtension}`
-
-        // Assuming you have an S3 client setup similar to the city logo upload
-        const upload = new Upload({
-            client: s3Client,
-            params: {
-                Bucket: process.env.DO_SPACES_BUCKET!,
-                Key: `party-logos/${fileName}`,
-                Body: Buffer.from(await logo.arrayBuffer()),
-                ACL: 'public-read',
-                ContentType: logo.type,
-            },
-        })
-
-        try {
-            await upload.done()
-            logoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/party-logos/${fileName}`
-        } catch (error) {
-            console.error('Error uploading file:', error)
-            return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
-        }
-    }
-
-    const party = await prisma.party.update({
-        where: { id: params.partyId },
-        data: {
-            name,
-            name_en,
-            name_short,
-            name_short_en,
-            colorHex,
-            ...(logoUrl && { logo: logoUrl }),
-        },
-    })
-
-    return NextResponse.json(party)
-}
-
-export async function DELETE(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
-    await prisma.party.delete({
-        where: { id: params.partyId },
-    })
-    return NextResponse.json({ message: 'Party deleted successfully' })
 }

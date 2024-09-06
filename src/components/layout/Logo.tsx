@@ -4,14 +4,14 @@ import { cn } from "@/lib/utils"
 
 const Logo = () => {
     return (
-        <Link href="/" className={cn("flex items-center space-x-2")}>
+        <Link href="/" className={cn("flex items-center")}>
             <Image
                 src="/logo.png"
                 alt="OpenCouncil Logo"
-                width={24}
-                height={24}
+                width={48}
+                height={48}
             />
-            <span className="text-2xl font-bold text-primary">OpenCouncil</span>
+            <span className="text-2xl text-primary">OpenCouncil</span>
         </Link>
     )
 }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-
-const prisma = new PrismaClient();
+import { createCouncilMeeting } from '@/lib/db/meetings';
 
 const meetingSchema = z.object({
     name: z.string().min(2),
@@ -21,16 +19,14 @@ export async function POST(
         const { name, name_en, date, youtubeUrl, meetingId } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
-        const meeting = await prisma.councilMeeting.create({
-            data: {
-                name,
-                name_en,
-                id: meetingId,
-                dateTime: new Date(date),
-                cityId,
-                youtubeUrl,
-                released: false, // Set as unpublished by default
-            },
+        const meeting = await createCouncilMeeting({
+            name,
+            name_en,
+            id: meetingId,
+            dateTime: new Date(date),
+            cityId,
+            youtubeUrl,
+            released: false, // Set as unpublished by default
         });
 
         return NextResponse.json(meeting, { status: 201 });

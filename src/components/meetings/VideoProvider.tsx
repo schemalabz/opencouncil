@@ -27,9 +27,14 @@ export const useVideo = () => {
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
+    utteranceTimes: {
+        id: string;
+        start: number;
+        end: number;
+    }[];
 }
 
-export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting }) => {
+export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utteranceTimes }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -76,17 +81,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
                                 console.error('Error playing video:', error);
                                 setIsPlaying(false);
                             });
-
-                        // Add a timeout to catch hanging promises
-                        setTimeout(() => {
-                            if (!videoRef.current?.paused) {
-                                console.log('Play promise resolved (timeout)');
-                                setIsPlaying(true);
-                            } else {
-                                console.error('Play promise did not resolve within timeout');
-                                setIsPlaying(false);
-                            }
-                        }, 20000); // 5 second timeout
                     } else {
                         console.log('Play promise is undefined, video might be playing');
                         setIsPlaying(true);
@@ -108,12 +102,30 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         }
     };
 
+    // Scroll to the last utterance before the seek time
+    const scrollToUtterance = (time: number) => {
+        const lastUtteranceBeforeTime = utteranceTimes
+            .filter(u => u.start <= time)
+            .sort((a, b) => b.start - a.start)[0];
+
+        if (lastUtteranceBeforeTime) {
+            const utteranceElement = document.getElementById(lastUtteranceBeforeTime.id);
+            if (utteranceElement) {
+                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    };
+
+    // Update seekTo to include scrolling
     const seekTo = (time: number) => {
         if (videoRef.current) {
             videoRef.current.currentTime = time;
             setCurrentTime(time);
+            scrollToUtterance(time);
         }
     };
+
+
 
     const handleTimeUpdate = () => {
         if (videoRef.current) {
@@ -135,7 +147,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         seekTo,
         videoRef,
     };
-
 
 
     return (

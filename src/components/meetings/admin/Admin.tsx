@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { requestTranscribe } from '@/lib/tasks/transcribe';
 import TaskList from './TaskList';
-import { getTasksForMeeting } from '@/lib/db/getTasks';
+import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
@@ -61,6 +61,7 @@ export default function AdminActions({
             setIsPopoverOpen(false);
             setYoutubeUrl('');
         } catch (error) {
+            console.log('toasting');
             toast({
                 title: "Error requesting transcription",
                 description: `${error}`,
@@ -90,6 +91,7 @@ export default function AdminActions({
             // Refresh task statuses after deletion
             fetchTaskStatuses();
         } catch (error) {
+
             console.error('Error deleting task:', error);
             toast({
                 title: "Error deleting task",

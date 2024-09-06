@@ -1,8 +1,8 @@
 import { City } from '@prisma/client';
-import { Link } from '@/i18n/routing';
 import Image from 'next/image';
 import { Card, CardContent } from "../ui/card";
 import { useLocale } from 'next-intl';
+import { useRouter } from '@/i18n/routing';
 
 interface CityCardProps {
     city: City;
@@ -11,9 +11,14 @@ interface CityCardProps {
 export function CityCard({ city }: CityCardProps) {
     let locale = useLocale();
     let localizedName = locale === 'en' ? city.name_en : city.name;
+    const router = useRouter();
+
+    const handleClick = () => {
+        router.push(`/${city.id}`);
+    };
 
     return (
-        <Link href={`/${city.id}`} className="unstyled">
+        <div onClick={handleClick} className="cursor-pointer">
             <Card className="relative h-48 overflow-hidden transition-transform hover:scale-105">
                 <div className="absolute inset-0 flex items-center justify-center">
                     <Image
@@ -28,6 +33,6 @@ export function CityCard({ city }: CityCardProps) {
                     <h3 className="text-2xl font-bold text-center z-10">{localizedName}</h3>
                 </CardContent>
             </Card>
-        </Link>
+        </div>
     );
 }

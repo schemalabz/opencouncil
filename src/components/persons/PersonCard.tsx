@@ -1,5 +1,5 @@
 import { Person, Party } from '@prisma/client';
-import { Link } from '../../i18n/routing';
+import { useRouter } from '../../i18n/routing';
 import Image from 'next/image';
 import { useState } from 'react';
 import { Card, CardContent, CardFooter } from "../ui/card";
@@ -10,6 +10,7 @@ import React from 'react';
 import PartyBadge from '../PartyBadge';
 import { useLocale } from 'next-intl';
 import { Badge } from '../ui/badge';
+import { ImageOrInitials } from '../ImageOrInitials';
 
 interface PersonCardProps {
     item: Person & { party: Party | null };
@@ -19,68 +20,37 @@ interface PersonCardProps {
 export default function PersonCard({ item: person, editable, parties }: PersonCardProps) {
     const t = useTranslations('PersonCard');
     const locale = useLocale();
+    const router = useRouter();
     let localizedRole = locale === 'el' ? person.role : person.role_en;
 
+    const handleClick = () => {
+        router.push(`/${person.cityId}/people/${person.id}`);
+    };
+
     return (
-        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" style={{
-            borderLeftColor: person.party?.colorHex || 'gray'
-        }}>
-            <CardContent className="relative h-full flex flex-col justify-center">
-                <div className="flex items-center space-x-4">
-                    <PersonImage imageUrl={person.image} width={48} height={48} name={person.name} />
-                    <div className="flex flex-col justify-center">
-                        <h3 className="text-2xl font-bold">{person.name} {person.role ? <Badge>{localizedRole}</Badge> : ''}</h3>
+        <Card
+            className="relative overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
+            style={{
+                borderLeftColor: person.party?.colorHex || 'gray'
+            }}
+            onClick={handleClick}
+        >
+            <CardContent className="relative flex items-center p-4">
+                <div className="flex-shrink-0 mr-4">
+                    <ImageOrInitials imageUrl={person.image} width={64} height={64} name={person.name} />
+                </div>
+                <div className="flex flex-col justify-center space-y-2">
+                    <div className="flex items-center space-x-2">
+                        <h3 className="text-2xl font-bold">{person.name}</h3>
+                        {person.role ? <Badge>{localizedRole}</Badge> : ''}
+                    </div>
+                    <div>
                         {person.party && (
-                            <p className="mt-2">
-                                <PartyBadge party={person.party} shortName={false} />
-                            </p>
+                            <PartyBadge party={person.party} shortName={false} />
                         )}
                     </div>
                 </div>
-
             </CardContent>
         </Card>
     );
 }
-
-interface PersonImageProps {
-    imageUrl: string | null;
-    width: number;
-    height: number;
-    name: string;
-}
-
-const PersonImage: React.FC<PersonImageProps> = ({ imageUrl, width, height, name }) => {
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
-
-    return (
-        <div
-            style={{
-                width: `${width}px`,
-                height: `${height}px`,
-                backgroundColor: imageUrl ? 'transparent' : '#ccc',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                color: '#fff',
-            }}
-        >
-            {imageUrl ? (
-                <Image
-                    src={imageUrl}
-                    alt="Person image"
-                    width={width}
-                    height={height}
-                    className="object-contain"
-                />
-            ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {initials}
-                </div>
-            )}
-        </div>
-    );
-};

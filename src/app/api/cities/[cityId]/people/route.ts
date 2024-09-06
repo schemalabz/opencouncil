@@ -21,21 +21,20 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     })
     return NextResponse.json(people)
 }
-
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const role = formData.get('role') as string
-    const role_en = formData.get('role_en') as string
-    const image = formData.get('image') as File | null
-    const partyId = formData.get('partyId') as string | null
+    const formData = await request.json()
+    const name = formData.name as string
+    const name_en = formData.name_en as string
+    const name_short = formData.name_short as string
+    const name_short_en = formData.name_short_en as string
+    const role = formData.role as string
+    const role_en = formData.role_en as string
+    const image = formData.image as File | null
+    const partyId = formData.partyId as string | null
 
     let imageUrl: string | undefined = undefined
 
-    if (image) {
+    if (image && image instanceof File) {
         const fileExtension = image.name.split('.').pop()
         const fileName = `${uuidv4()}.${fileExtension}`
 
@@ -44,7 +43,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
             params: {
                 Bucket: process.env.DO_SPACES_BUCKET!,
                 Key: `person-images/${fileName}`,
-                Body: Buffer.from(await image.arrayBuffer()),
+                Body: image,
                 ACL: 'public-read',
                 ContentType: image.type,
             },
@@ -77,15 +76,15 @@ export async function POST(request: Request, { params }: { params: { cityId: str
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string, personId: string } }) {
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const role = formData.get('role') as string
-    const role_en = formData.get('role_en') as string
-    const image = formData.get('image') as File | null
-    const partyId = formData.get('partyId') as string | null
+    const formData = await request.json()
+    const name = formData.name as string
+    const name_en = formData.name_en as string
+    const name_short = formData.name_short as string
+    const name_short_en = formData.name_short_en as string
+    const role = formData.role as string
+    const role_en = formData.role_en as string
+    const image = formData.image as File | null
+    const partyId = formData.partyId as string | null
 
     let imageUrl: string | undefined = undefined
 

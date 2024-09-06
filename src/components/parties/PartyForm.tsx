@@ -67,28 +67,51 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
             colorHex: party?.colorHex || "",
         },
     })
-
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
         setFormError(null)
         const url = party ? `/api/cities/${cityId}/parties/${party.id}` : `/api/cities/${cityId}/parties`
         const method = party ? 'PUT' : 'POST'
 
-        const formData = new FormData()
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('colorHex', values.colorHex)
-        if (logo) {
-            formData.append('logo', logo)
+        const jsonData: {
+            name: string;
+            name_en: string;
+            name_short: string;
+            name_short_en: string;
+            colorHex: string;
+            logo?: string | File;
+            cityId: string;
+        } = {
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            colorHex: values.colorHex,
+            logo: logo!,
+            cityId: cityId
         }
-        formData.append('cityId', cityId)
+
+        if (logo) {
+            // Convert logo to base64
+            const reader = new FileReader();
+            reader.readAsDataURL(logo);
+            await new Promise<void>((resolve) => {
+                reader.onload = () => {
+                    if (typeof reader.result === 'string') {
+                        jsonData.logo = reader.result;
+                    }
+                    resolve();
+                };
+            });
+        }
 
         try {
             const response = await fetch(url, {
                 method,
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData),
             })
 
             if (response.ok) {

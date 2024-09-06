@@ -24,7 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useTranslations } from 'next-intl'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 // @ts-ignore
-import { toGreeklish } from 'greek-utils'
+import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -102,22 +102,23 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'
         const method = city ? 'PUT' : ''
-
-        const formData = new FormData()
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_municipality', values.name_municipality)
-        formData.append('name_municipality_en', values.name_municipality_en)
-        formData.append('timezone', values.timezone)
-        formData.append('id', values.id)
-        if (logoImage) {
-            formData.append('logoImage', logoImage)
+        const jsonData = {
+            name: values.name,
+            name_en: values.name_en,
+            name_municipality: values.name_municipality,
+            name_municipality_en: values.name_municipality_en,
+            timezone: values.timezone,
+            id: values.id,
+            logoImage: logoImage
         }
 
         try {
             const response = await fetch(url, {
                 method,
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData),
             })
 
             if (response.ok) {

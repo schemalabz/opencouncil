@@ -25,7 +25,7 @@ import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import InputWithDerivatives from "../InputWithDerivatives"
 // @ts-ignore
-import { toGreeklish } from 'greek-utils'
+import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 
 const formSchema = z.object({
     name: z.string().min(2, {

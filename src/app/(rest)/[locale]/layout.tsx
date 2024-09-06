@@ -1,54 +1,12 @@
-import "../../styles/globals.css"
-import { Inter as FontSans } from "next/font/google"
-import { cn } from "../../../lib/utils"
-import Header from "../../../components/layout/Header"
-import Footer from "../../../components/layout/Footer"
 import React from "react"
 import { getMessages } from "next-intl/server"
-import { NextIntlClientProvider } from "next-intl"
-import { ToastProvider } from "@/components/ui/toast"
+import Header from "@/components/layout/Header"
 
-
-const fontSans = FontSans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-})
-
-export const metadata = {
-  title: 'OpenCouncil',
-  description: 'Making city council meetings useful',
-  icons: {
-    icon: '/favicon.ico',
-  },
-}
-
-type RootLayoutProps = {
-  children: React.ReactNode
-  params: { locale: string }
-}
-
-export default async function RootLayout({ children, params: { locale } }: RootLayoutProps) {
-  const messages = await getMessages()
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <head />
-      <body
-        className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable
-        )}
-      >
-        <NextIntlClientProvider messages={messages}>
-          <ToastProvider>
-            <Header />
-            <div className="container mx-auto py-10">
-              {children}
-            </div >
-            <Footer />
-          </ToastProvider>
-        </NextIntlClientProvider>
-
-      </body>
-    </html>
-  )
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  return (<>
+    <Header />
+    <div className="container mx-auto py-10">
+      {children}
+    </div >
+  </>)
 }

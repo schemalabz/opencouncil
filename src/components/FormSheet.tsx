@@ -7,18 +7,20 @@ interface FormSheetProps<T> {
     formProps: T;
     title: string;
     type: "add" | "edit";
+    closeOnSuccess?: boolean;
 }
 
-export default function FormSheet<T>({ FormComponent, formProps, title, type }: FormSheetProps<T>) {
+export default function FormSheet<T>({ FormComponent, formProps, title, type, closeOnSuccess = false }: FormSheetProps<T>) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     const handleSuccess = () => {
-        setIsSheetOpen(false);
+        if (closeOnSuccess) {
+            setIsSheetOpen(false);
+        }
         if ((formProps as any).onSuccess) {
             (formProps as any).onSuccess();
         }
     };
-
 
     return (
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

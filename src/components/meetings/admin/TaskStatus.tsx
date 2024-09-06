@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import { TaskStatus } from "@prisma/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, Trash2, XCircle, HelpCircle, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { CheckCircle2, Loader2, Trash2, XCircle, HelpCircle, ChevronDown, ChevronUp, Copy, RefreshCw } from "lucide-react";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import TimeAgo from "react-timeago";
 import { motion, AnimatePresence } from "framer-motion";
+import { processTaskResponse } from "@/lib/tasks/tasks";
 
 const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
@@ -110,20 +111,33 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                             )}
                             {task.status === 'failed' && task.responseBody && (
                                 <div className="flex items-center justify-between">
-                                    <code className="font-mono truncate block w-11/12">
+                                    <code className="font-mono truncate block w-10/12">
                                         {JSON.parse(task.responseBody).error || 'Unknown error'}
                                     </code>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 w-5 p-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            copyToClipboard(task.responseBody || '');
-                                        }}
-                                    >
-                                        <Copy className="h-3 w-3" />
-                                    </Button>
+                                    <div className="flex space-x-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(task.responseBody || '');
+                                            }}
+                                        >
+                                            <Copy className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                processTaskResponse(task.type, task.id);
+                                            }}
+                                        >
+                                            <RefreshCw className="h-3 w-3" />
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                             {task.status === 'succeeded' && task.responseBody && (

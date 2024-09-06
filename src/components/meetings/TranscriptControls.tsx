@@ -2,7 +2,7 @@ import { Play, Pause } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
 export default function TranscriptControls({ isWide, className, speakerTimes }: { isWide: boolean, className?: string, speakerTimes: { start: number, end: number }[] }) {
-    const { isPlaying, togglePlayPause, currentTime, duration, seekTo, videoRef } = useVideo();
+    const { isPlaying, togglePlayPause, currentTime, duration, seekTo, videoRef, currentScrollInterval } = useVideo();
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -24,15 +24,18 @@ export default function TranscriptControls({ isWide, className, speakerTimes }: 
 
                 {/* seek slider */}
                 <div
-                    className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-background/30 backdrop-blur-sm backdrop-brightness-95 m-2 border relative`}
+                    className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-background/30 backdrop-blur-sm backdrop-brightness-50 m-2 border relative`}
                     onClick={handleSeek}
                 >
-                    <div
-                        className={`absolute backdrop-brightness-50 ${isWide ? 'h-full' : 'w-full'}`}
-                        style={{
-                            [isWide ? 'width' : 'height']: `${(currentTime / duration) * 100}%`,
-                        }}
-                    />
+                    {currentScrollInterval[0] !== currentScrollInterval[1] && (
+                        <div
+                            className={`absolute bg-background ${isWide ? 'h-full' : 'w-full'}`}
+                            style={{
+                                [isWide ? 'left' : 'top']: `${(currentScrollInterval[0] / duration) * 100}%`,
+                                [isWide ? 'width' : 'height']: `${((currentScrollInterval[1] - currentScrollInterval[0]) / duration) * 100}%`,
+                            }}
+                        />
+                    )}
                     {speakerTimes.map((time, index) => (
                         <div
                             key={index}
@@ -43,6 +46,12 @@ export default function TranscriptControls({ isWide, className, speakerTimes }: 
                             }}
                         />
                     ))}
+                    <div
+                        className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'}`}
+                        style={{
+                            [isWide ? 'left' : 'top']: `${(currentTime / duration) * 100}%`,
+                        }}
+                    />
                 </div>
             </div>
 

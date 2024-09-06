@@ -2,6 +2,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { TaskUpdate } from '../apiTypes';
+import { handleTranscribeResult } from './transcribe';
 
 const prisma = new PrismaClient();
 
@@ -110,4 +111,14 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             data: { status: 'pending', stage: update.stage, percentComplete: update.progressPercent }
         });
     }
+}
+
+export const processTaskResponse = async (taskType: string, taskId: string) => {
+    console.log(`Processing task response for task ${taskId} of type ${taskType}`);
+    const task = await prisma.taskStatus.findUnique({ where: { id: taskId } });
+    if (!task) {
+        console.error(`Task ${taskId} not found`);
+        return;
+    }
+    await handleTranscribeResult(taskId, JSON.parse(task.responseBody!));
 }

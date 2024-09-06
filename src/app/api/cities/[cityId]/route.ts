@@ -23,10 +23,13 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const timezone = formData.get('timezone') as string
-    const logoImage = formData.get('logoImage') as File | null
+    const formData = await request.json()
+    const name = formData.name as string
+    const name_en = formData.name_en as string
+    const name_municipality = formData.name_municipality as string
+    const name_municipality_en = formData.name_municipality_en as string
+    const timezone = formData.timezone as string
+    const logoImage = formData.logoImage as File | null
 
     let logoImageUrl: string | undefined = undefined
 
@@ -58,6 +61,9 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         where: { id: params.cityId },
         data: {
             name,
+            name_en,
+            name_municipality,
+            name_municipality_en,
             timezone,
             ...(logoImageUrl && { logoImage: logoImageUrl }),
         },

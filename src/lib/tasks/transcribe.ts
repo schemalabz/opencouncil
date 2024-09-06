@@ -79,6 +79,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
 export async function handleTranscribeResult(taskId: string, response: TranscribeResult) {
     const videoUrl = response.videoUrl;
+    const audioUrl = response.audioUrl;
 
     const task = await prisma.taskStatus.findUnique({
         where: {
@@ -102,7 +103,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         throw new Error('Task not found');
     }
 
-    await updateMeetingVideo(task.councilMeeting, videoUrl);
+    await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl);
 
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
@@ -144,7 +145,6 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             });
 
             if (createdUtterance) {
-                console.log(`Confidences: ${utterance.words.map(w => w.confidence).join(', ')}`);
                 await prisma.word.createMany({
                     data: utterance.words.map(word => ({
                         text: word.word,
@@ -158,10 +158,12 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         }
 
         console.log(`Created a transcript of ${utterances.count} utterances`);
+    }, {
+        timeout: 30000
     });
 }
 
-let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string) => {
+let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string, audioUrl: string) => {
     const updatedMeeting = await prisma.councilMeeting.update({
         where: {
             cityId_id: {
@@ -170,7 +172,8 @@ let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string) => {
             }
         },
         data: {
-            videoUrl
+            videoUrl,
+            audioUrl
         }
     });
 

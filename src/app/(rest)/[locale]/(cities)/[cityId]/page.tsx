@@ -1,3 +1,4 @@
+"use server";
 import { City } from '@prisma/client';
 import CityC from '../../../../../components/cities/City';
 import { PrismaClient } from '@prisma/client'

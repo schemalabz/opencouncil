@@ -1,11 +1,9 @@
 import { Party, Person } from '@prisma/client';
-import { Link } from '@/i18n/routing';
-import Image from 'next/image';
+import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
-import { Card, CardContent, CardFooter } from "../ui/card";
-import FormSheet from '../FormSheet';
-import PartyForm from './PartyForm';
+import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
+import { ImageOrInitials } from '../ImageOrInitials';
 
 interface PartyCardProps {
     item: Party & { persons: Person[] };
@@ -15,15 +13,23 @@ interface PartyCardProps {
 export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const [showAllMembers, setShowAllMembers] = useState(false);
     const t = useTranslations('PartyCard');
+    const router = useRouter();
     const memberNames = party.persons.map(person => person.name);
     const displayedNames = showAllMembers ? memberNames : memberNames.slice(0, 3);
     const remainingCount = memberNames.length - displayedNames.length;
 
+    const handleClick = () => {
+        router.push(`/${party.cityId}/parties/${party.id}`);
+    };
+
     return (
-        <Card className="relative h-48 overflow-hidden transition-transform border-l-8" >
+        <Card
+            className="relative h-48 overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
+            onClick={handleClick}
+        >
             <CardContent className="relative h-full flex flex-col justify-center">
                 <div className="flex items-center space-x-4">
-                    <PartyLogo logoUrl={party.logo} colorHex={party.colorHex} width={48} height={48} />
+                    <ImageOrInitials imageUrl={party.logo} width={64} height={64} name={party.name_short} color={party.colorHex} />
                     <h3 className="text-2xl font-bold">{party.name}</h3>
                 </div>
                 <p className="mt-2">
@@ -34,7 +40,10 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                             {memberNames.length} members, including {displayedNames.join(', ')}
                             {remainingCount > 0 && (
                                 <>
-                                    , and <button onClick={() => setShowAllMembers(!showAllMembers)} className="text-blue-500 underline">
+                                    , and <button onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowAllMembers(!showAllMembers);
+                                    }} className="text-blue-500 underline">
                                         {remainingCount} {showAllMembers ? 'less' : 'others'}
                                     </button>
                                 </>
@@ -43,41 +52,6 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                     )}
                 </p>
             </CardContent>
-        </Card >
+        </Card>
     );
 }
-
-interface PartyLogoProps {
-    logoUrl: string | null;
-    colorHex: string;
-    width: number;
-    height: number;
-}
-
-const PartyLogo: React.FC<PartyLogoProps> = ({ logoUrl, colorHex, width, height }) => {
-    return (
-        <div
-            style={{
-                width: `${width}px`,
-                height: `${height}px`,
-                backgroundColor: logoUrl ? 'transparent' : colorHex,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-            }}
-        >
-            {logoUrl ? (
-                <Image
-                    src={logoUrl}
-                    alt="Party logo"
-                    width={width}
-                    height={height}
-                    className="object-contain"
-                />
-            ) : (
-                <div style={{ width: '100%', height: '100%' }} />
-            )}
-        </div>
-    );
-};

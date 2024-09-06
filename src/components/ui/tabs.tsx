@@ -1,13 +1,13 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import Link, { LinkProps } from "next/link";
+import { Link } from "@/i18n/routing";
 import { usePathname, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 interface Context {
   defaultValue: string;
-  hrefFor: (value: string) => LinkProps["href"];
+  hrefFor: (value: string) => string;
   searchParam: string;
   selected: string;
 }

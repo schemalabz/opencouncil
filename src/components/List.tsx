@@ -10,9 +10,28 @@ interface ListProps<T, P = {}> {
     editable: boolean;
     t: (key: string, params?: any) => string;
     itemProps?: P;
+    smColumns?: number;
+    mdColumns?: number;
+    lgColumns?: number;
 }
 
-export default function List<T, P = {}>({ items, editable, ItemComponent, FormComponent, formProps, t, itemProps }: ListProps<T, P>) {
+export default function List<T, P = {}>({
+    items,
+    editable,
+    ItemComponent,
+    FormComponent,
+    formProps,
+    t,
+    itemProps,
+    smColumns = 1,
+    mdColumns = 1,
+    lgColumns = 2
+}: ListProps<T, P>) {
+    const gridClasses = `grid gap-6 ${smColumns === 1 ? 'grid-cols-1' : `grid-cols-${smColumns}`
+        } ${mdColumns === 1 ? 'md:grid-cols-1' : `md:grid-cols-${mdColumns}`
+        } ${lgColumns === 2 ? 'lg:grid-cols-2' : `lg:grid-cols-${lgColumns}`
+        }`;
+
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
@@ -22,7 +41,7 @@ export default function List<T, P = {}>({ items, editable, ItemComponent, FormCo
                 )}
             </div>
             {items.length > 0 ? (
-                <div className="grid gap-6">
+                <div className={gridClasses}>
                     {items.map((item, index) => (
                         <ItemComponent key={index} item={item} editable={editable} {...itemProps as P} />
                     ))}

@@ -17,13 +17,14 @@ import {
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
 import { Party, Person } from '@prisma/client'
-import { Loader2 } from "lucide-react"
+import { Loader2, Check } from "lucide-react"
 import { useTranslations } from 'next-intl'
-import React from "react";
-import InputWithDerivatives from "../../components/InputWithDerivatives";
+import React, { useRef } from "react"
+import InputWithDerivatives from "../../components/InputWithDerivatives"
 // @ts-ignore
-import { toGreeklish } from 'greek-utils';
+import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -55,9 +56,11 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
     const router = useRouter()
     const [image, setImage] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [formError, setFormError] = useState<string | null>(null)
+    const [isSuccess, setIsSuccess] = useState(false)
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
     const t = useTranslations('PersonForm')
+    const { toast } = useToast()
+    const nameInputRef = useRef<HTMLInputElement>(null)
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -74,41 +77,64 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
-        setFormError(null)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
-
-        const formData = new FormData()
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('role', values.role || "")
-        formData.append('role_en', values.role_en || "")
-        if (image) {
-            formData.append('image', image)
+        const jsonData = {
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            role: values.role || "",
+            role_en: values.role_en || "",
+            image: image,
+            cityId: cityId,
+            partyId: values.partyId || ""
         }
-        formData.append('cityId', cityId)
-        formData.append('partyId', values.partyId || "")
 
         try {
             const response = await fetch(url, {
                 method,
-                body: formData,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(jsonData),
             })
 
             if (response.ok) {
+                setIsSuccess(true)
+                setTimeout(() => setIsSuccess(false), 1000)
                 if (onSuccess) {
                     onSuccess()
                 }
                 router.refresh() // Refresh the page to show updated data
+                form.reset({
+                    name: "",
+                    name_en: "",
+                    name_short: "",
+                    name_short_en: "",
+                    role: "",
+                    role_en: "",
+                    image: undefined,
+                    partyId: values.partyId,
+                })
+                setImage(null)
+                setImagePreview(null)
+                nameInputRef.current?.focus()
+                toast({
+                    title: t('success'),
+                    description: person ? t('personUpdated') : t('personCreated'),
+                })
             } else {
                 const errorData = await response.json()
                 throw new Error(errorData.message || t('failedToSavePerson'))
             }
         } catch (error) {
             console.error(t('failedToSavePerson'), error)
-            setFormError(error instanceof Error ? error.message : t('unexpectedError'))
+            toast({
+                title: t('error'),
+                description: error instanceof Error ? error.message : t('unexpectedError'),
+                variant: "destructive",
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -125,6 +151,16 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                {Object.keys(form.formState.errors).length > 0 && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                        <strong className="font-bold">{t('formErrors')}</strong>
+                        <ul className="mt-2 list-disc list-inside">
+                            {Object.entries(form.formState.errors).map(([key, error]) => (
+                                <li key={key}>{error.message}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                 <InputWithDerivatives
                     baseName="name"
                     basePlaceholder={t('personNamePlaceholder')}
@@ -220,6 +256,11 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 {t('submitting')}
+                            </>
+                        ) : isSuccess ? (
+                            <>
+                                <Check className="mr-2 h-4 w-4" />
+                                {t('success')}
                             </>
                         ) : (
                             <>{person ? t('updatePerson') : t('createPerson')}</>
