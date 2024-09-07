@@ -81,7 +81,8 @@ model CouncilMeeting {
   cityId String
 
   taskStatuses TaskStatus[]
-  utterances Utterance[]
+  speakerSegments SpeakerSegment[]
+
 
   @@id([cityId, id])
   @@unique([cityId, id])
@@ -112,6 +113,23 @@ model SpeakerTag {
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   personId String?
 
+  speakerSegments SpeakerSegment[]
+}
+
+model SpeakerSegment {
+  id              String   @id @default(cuid())
+  startTimestamp  Float
+  endTimestamp    Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  meetingId String
+  cityId String
+
+  speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
+  speakerTagId String
+
   utterances Utterance[]
 }
 
@@ -123,12 +141,8 @@ model Utterance {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
-  speakerTagId String
-
-  meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
-  meetingId String
-  cityId String
+  speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
+  speakerSegmentId String
 
   words Word[]
 }
