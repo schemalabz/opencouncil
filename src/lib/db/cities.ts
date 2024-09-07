@@ -1,7 +1,6 @@
 "use server";
-import { PrismaClient, City } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { City } from '@prisma/client';
+import prisma from "./prisma";
 
 export async function deleteCity(id: string): Promise<void> {
     try {

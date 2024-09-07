@@ -14,44 +14,26 @@ import Transcript from './transcript/Transcript'
 import { Options } from './options/Options'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
+import { Transcript as TranscriptType } from '@/lib/db/transcript'
 
 type CouncilMeetingCProps = {
-    meeting: CouncilMeeting & { taskStatuses: any[], utterances: (Utterance & { words: Word[] })[] },
     editable: boolean,
-    city: City,
-    people: Person[],
-    parties: Party[]
-    speakerTags: SpeakerTag[]
+    meetingData: {
+        meeting: CouncilMeeting & { taskStatuses: any[] },
+        transcript: TranscriptType,
+        city: City,
+        people: Person[],
+        parties: Party[]
+        speakerTags: SpeakerTag[]
+    }
 }
 
-export default function CouncilMeetingC({ meeting, city, people, parties, speakerTags, editable }: CouncilMeetingCProps) {
+export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetingCProps) {
     const [isWide, setIsWide] = useState(false);
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const speakerSegments: Array<{ speakerTagId: SpeakerTag["id"], utterances: (Utterance & { words: Word[] })[], start: number, end: number }> = [];
-    const utteranceTimes: Array<{ id: string, start: number, end: number }> = [];
-    let currentSegment: (typeof speakerSegments[number] | null) = null;
-    for (const utterance of meeting.utterances) {
-        if (!currentSegment ||
-            currentSegment.speakerTagId !== utterance.speakerTagId ||
-            utterance.startTimestamp - currentSegment.end > 5) {
-            currentSegment = {
-                speakerTagId: utterance.speakerTagId,
-                utterances: [],
-                start: utterance.startTimestamp,
-                end: utterance.endTimestamp
-            };
-            speakerSegments.push(currentSegment);
-        }
-        currentSegment.utterances.push(utterance);
-        currentSegment.end = utterance.endTimestamp;
 
-        utteranceTimes.push({
-            id: utterance.id,
-            start: utterance.startTimestamp,
-            end: utterance.endTimestamp,
-        });
-    }
+    const utteranceTimes: Array<{ id: string, start: number, end: number }> = [];
 
     useEffect(() => {
         const checkSize = () => {
@@ -71,7 +53,7 @@ export default function CouncilMeetingC({ meeting, city, people, parties, speake
         { title: "Highlights", icon: <Sparkles />, content: <p>Highlights</p> },
         { title: "Share", icon: <Share />, content: <p>Share</p> },
         { title: "Options", icon: <Settings2 />, content: <Options /> },
-        { title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meeting} /> },
+        { title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> },
     ]
 
     if (loading) return (
@@ -86,15 +68,15 @@ export default function CouncilMeetingC({ meeting, city, people, parties, speake
     )
 
     return (
-        <CouncilMeetingDataProvider data={{ meeting, city, people, parties, speakerTags }}>
+        <CouncilMeetingDataProvider data={{ meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider>
-                <VideoProvider meeting={meeting} utteranceTimes={utteranceTimes}>
+                <VideoProvider meeting={meetingData.meeting} utteranceTimes={utteranceTimes}>
                     <div className="flex flex-col overflow-hidden absolute inset-0">
-                        <Header city={city} meeting={meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
+                        <Header city={meetingData.city} meeting={meetingData.meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                         <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-16'}`}>
                             <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                 <div className='flex-grow overflow-y-scroll scrollbar-hide'>
-                                    <Transcript utterances={meeting.utterances} speakerSegments={speakerSegments} />
+                                    <Transcript speakerSegments={meetingData.transcript} />
                                 </div>
                             </div>
 
@@ -108,7 +90,7 @@ export default function CouncilMeetingC({ meeting, city, people, parties, speake
                             )}
                         </div>
 
-                        <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={speakerSegments} />
+                        <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
 
                     </div>
 

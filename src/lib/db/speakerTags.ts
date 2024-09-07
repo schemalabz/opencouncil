@@ -1,7 +1,6 @@
 "use server";
-import { PrismaClient, SpeakerTag, Person } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { SpeakerTag, Person } from '@prisma/client';
+import prisma from "./prisma";
 
 export async function getSpeakerTag(id: string): Promise<(SpeakerTag & { person: Person | null }) | null> {
     try {
@@ -30,11 +29,12 @@ export async function updateSpeakerTag(id: string, data: Partial<Omit<SpeakerTag
         throw new Error('Failed to update speaker tag');
     }
 }
+
 export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: string): Promise<SpeakerTag[]> {
     try {
         const speakerTags = await prisma.speakerTag.findMany({
             where: {
-                utterances: {
+                speakerSegments: {
                     some: {
                         meetingId: cityCouncilMeetingId
                     }

@@ -1,7 +1,6 @@
 'use server'
-import { PrismaClient, TaskStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from "./prisma";
+import { TaskStatus } from '@prisma/client';
 
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
     try {

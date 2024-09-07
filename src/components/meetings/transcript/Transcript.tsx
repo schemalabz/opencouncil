@@ -2,14 +2,14 @@ import { SpeakerTag, Utterance, Word } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useState } from 'react';
 import { useVideo } from "../VideoProvider";
+import { Transcript as TranscriptType } from "@/lib/db/transcript"
 
-export default function Transcript({ utterances, speakerSegments }: { utterances: (Utterance & { words: Word[] })[], speakerSegments: Array<{ speakerTagId: SpeakerTag["id"], utterances: (Utterance & { words: Word[] })[] }> }) {
+export default function Transcript({ speakerSegments }: { speakerSegments: TranscriptType }) {
     const { setCurrentScrollInterval } = useVideo();
     const [visibleUtterances, setVisibleUtterances] = useState<Set<string>>(new Set());
     const transcriptRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-
         const observer = new IntersectionObserver((entries) => {
             setVisibleUtterances(prevVisible => {
                 const newVisible = new Set(prevVisible);
@@ -35,28 +35,28 @@ export default function Transcript({ utterances, speakerSegments }: { utterances
         return () => {
             utteranceElements.forEach(el => observer.unobserve(el));
         };
-    }, [utterances, setCurrentScrollInterval]);
+    }, [speakerSegments, setCurrentScrollInterval]);
 
     useEffect(() => {
         const updateScrollInterval = () => {
             if (visibleUtterances.size > 0) {
-                const visibleUtterancesList = utterances.filter(u => visibleUtterances.has(u.id));
-                if (visibleUtterancesList.length > 0) {
-                    const firstVisibleUtterance = visibleUtterancesList[0];
-                    const lastVisibleUtterance = visibleUtterancesList[visibleUtterancesList.length - 1];
+                const visibleSpeakerSegments = speakerSegments.filter(u => visibleUtterances.has(u.id));
+                if (visibleSpeakerSegments.length > 0) {
+                    const firstVisibleUtterance = visibleSpeakerSegments[0];
+                    const lastVisibleUtterance = visibleSpeakerSegments[visibleSpeakerSegments.length - 1];
 
                     setCurrentScrollInterval([
-                        firstVisibleUtterance.words[0].startTimestamp,
-                        lastVisibleUtterance.words[lastVisibleUtterance.words.length - 1].endTimestamp
+                        firstVisibleUtterance.startTimestamp,
+                        lastVisibleUtterance.endTimestamp
                     ]);
                 }
             }
         };
 
         updateScrollInterval();
-    }, [visibleUtterances, utterances, setCurrentScrollInterval]);
+    }, [visibleUtterances, speakerSegments, setCurrentScrollInterval]);
 
-    if (utterances.length === 0) {
+    if (speakerSegments.length === 0) {
         return <div className='flex justify-center items-center h-full w-full my-12'>
             <div className='text-muted-foreground'>No transcript available</div>
         </div>

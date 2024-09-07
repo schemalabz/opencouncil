@@ -5,6 +5,7 @@ import { getPeopleForCity } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
+import { getTranscript } from '@/lib/db/transcript';
 
 
 export default async function CouncilMeetingPage({
@@ -22,25 +23,30 @@ export default async function CouncilMeetingPage({
             }
         },
         include: {
-            taskStatuses: true,
-            utterances: {
-                include: {
-                    words: true,
-                    speakerTag: true
-                }
-            },
+            taskStatuses: true
         }
     })
-
+    const transcript = await getTranscript(meetingId, cityId);
     const city = await getCity(cityId);
     const people = await getPeopleForCity(cityId);
     const parties = await getPartiesForCity(cityId);
-    if (!city || !meeting || !people || !parties) {
+
+    if (!city || !meeting || !people || !parties || !transcript) {
         notFound();
     }
-    const speakerTags = Array.from(new Set(meeting?.utterances.map((utterance) => utterance.speakerTag.id)))
-        .map(id => meeting?.utterances.find(u => u.speakerTag.id === id)?.speakerTag)
+
+    const speakerTags = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
+        .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
         .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
 
-    return <CouncilMeeting meeting={meeting} editable={true} city={city} parties={parties} people={people} speakerTags={speakerTags} />
+    const meetingData = {
+        meeting: meeting,
+        city: city,
+        people: people,
+        parties: parties,
+        speakerTags: speakerTags,
+        transcript: transcript
+    }
+
+    return <CouncilMeeting meetingData={meetingData} editable={true} />
 }

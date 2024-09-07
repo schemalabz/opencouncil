@@ -1,8 +1,8 @@
 "use server";
 import { TranscribeRequest, TranscribeResult } from "../apiTypes";
 import { startTask } from "./tasks";
-import { CouncilMeeting, Prisma, PrismaClient } from "@prisma/client";
-
+import { CouncilMeeting, Prisma, PrismaClient, SpeakerSegment } from "@prisma/client";
+import { Utterance as ApiUtterance } from "../apiTypes";
 const prisma = new PrismaClient();
 
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, {
@@ -24,7 +24,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
                     parties: true
                 }
             },
-            utterances: {
+            speakerSegments: {
                 select: {
                     id: true
                 },
@@ -37,17 +37,17 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
         throw new Error("Council meeting not found");
     }
 
-    if (councilMeeting.utterances.length > 0) {
+    if (councilMeeting.speakerSegments.length > 0) {
         if (force) {
-            console.log(`Deleting utterances for meeting ${councilMeetingId}`);
-            await prisma.utterance.deleteMany({
+            console.log(`Deleting speaker segments for meeting ${councilMeetingId}`);
+            await prisma.speakerSegment.deleteMany({
                 where: {
                     meetingId: councilMeetingId,
                     cityId
                 }
             });
         } else {
-            throw new Error('Meeting already has utterances');
+            throw new Error('Meeting already has speaker segments');
         }
     }
 
@@ -88,7 +88,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         include: {
             councilMeeting: {
                 include: {
-                    utterances: {
+                    speakerSegments: {
                         select: {
                             id: true
                         },
@@ -104,7 +104,6 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     }
 
     await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl);
-
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
         // Create speaker tags
@@ -120,31 +119,37 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             }
         }
         console.log(`Created ${speakerTags.size} speaker tags`);
-        // Add utterances
-        const utterances = await prisma.utterance.createMany({
-            data: response.transcript.transcription.utterances.map(utterance => ({
-                startTimestamp: utterance.start,
-                endTimestamp: utterance.end,
-                text: utterance.text,
-                speakerTagId: speakerTags.get(utterance.speaker)!,
-                meetingId: task.councilMeeting.id,
-                cityId: task.councilMeeting.cityId,
-            }))
-        });
 
-        // Add words separately
-        for (const utterance of response.transcript.transcription.utterances) {
-            const createdUtterance = await prisma.utterance.findFirst({
-                where: {
-                    startTimestamp: utterance.start,
-                    endTimestamp: utterance.end,
-                    text: utterance.text,
-                    meetingId: task.councilMeeting.id,
-                    cityId: task.councilMeeting.cityId,
-                },
+        // Generate speaker segments
+        const speakerSegments = getSpeakerSegmentsFromUtterances(response.transcript.transcription.utterances);
+
+        // Add speaker segments
+        for (const segment of speakerSegments) {
+            const createdSegment = await prisma.speakerSegment.create({
+                data: {
+                    startTimestamp: segment.startTimestamp,
+                    endTimestamp: segment.endTimestamp,
+                    speakerTag: { connect: { id: speakerTags.get(Number(segment.speakerTagId))! } },
+                    meeting: { connect: { cityId_id: { cityId: task.councilMeeting.cityId, id: task.councilMeeting.id } } },
+                }
             });
 
-            if (createdUtterance) {
+            // Add utterances for this segment
+            const segmentUtterances = response.transcript.transcription.utterances.filter(
+                u => u.start >= segment.startTimestamp && u.end <= segment.endTimestamp
+            );
+
+            for (const utterance of segmentUtterances) {
+                const createdUtterance = await prisma.utterance.create({
+                    data: {
+                        startTimestamp: utterance.start,
+                        endTimestamp: utterance.end,
+                        text: utterance.text,
+                        speakerSegment: { connect: { id: createdSegment.id } },
+                    }
+                });
+
+                // Add words for this utterance
                 await prisma.word.createMany({
                     data: utterance.words.map(word => ({
                         text: word.word,
@@ -157,10 +162,45 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             }
         }
 
-        console.log(`Created a transcript of ${utterances.count} utterances`);
+        console.log(`Created ${speakerSegments.length} speaker segments`);
     }, {
-        timeout: 30000
+        timeout: 120000 // Increased timeout due to more complex operations
     });
+}
+
+let getSpeakerSegmentsFromUtterances = (utterances: ApiUtterance[]): SpeakerSegment[] => {
+    const speakerSegments: SpeakerSegment[] = [];
+
+    let currentSpeaker: number | null = null;
+    let currentSegment: Partial<SpeakerSegment> | null = null;
+
+    for (let i = 0; i < utterances.length; i++) {
+        const utterance = utterances[i];
+
+        if (currentSpeaker !== utterance.speaker ||
+            (currentSegment && utterance.start - currentSegment.endTimestamp! > 5)) {
+            // Start a new segment
+            if (currentSegment) {
+                speakerSegments.push(currentSegment as SpeakerSegment);
+            }
+            currentSegment = {
+                startTimestamp: utterance.start,
+                endTimestamp: utterance.end,
+                speakerTagId: utterance.speaker.toString()
+            };
+            currentSpeaker = utterance.speaker;
+        } else {
+            // Continue the current segment
+            currentSegment!.endTimestamp = utterance.end;
+        }
+
+        // If it's the last utterance, add the current segment
+        if (i === utterances.length - 1 && currentSegment) {
+            speakerSegments.push(currentSegment as SpeakerSegment);
+        }
+    }
+
+    return speakerSegments;
 }
 
 let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string, audioUrl: string) => {

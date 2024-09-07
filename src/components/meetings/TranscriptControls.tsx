@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 import { SpeakerTag } from "@prisma/client";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
+import { Transcript as TranscriptType } from "@/lib/db/transcript"
 
-export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: { speakerTagId: SpeakerTag["id"], start: number, end: number }[] }) {
+export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: TranscriptType }) {
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
 
@@ -61,8 +62,8 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                                 className={`absolute ${isWide ? 'h-1/2' : 'w-1/2'} opacity-90`}
                                 style={{
                                     backgroundColor: speakerColor,
-                                    [isWide ? 'left' : 'top']: `${(segment.start / duration) * 100}%`,
-                                    [isWide ? 'width' : 'height']: `${((segment.end - segment.start) / duration) * 100}%`,
+                                    [isWide ? 'left' : 'top']: `${(segment.startTimestamp / duration) * 100}%`,
+                                    [isWide ? 'width' : 'height']: `${((segment.endTimestamp - segment.startTimestamp) / duration) * 100}%`,
                                     [isWide ? 'top' : 'left']: isSelected ? '10%' : '25%',
                                     [isWide ? 'height' : 'width']: isSelected ? '80%' : '50%',
                                 }}

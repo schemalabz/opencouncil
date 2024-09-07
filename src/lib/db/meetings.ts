@@ -1,7 +1,6 @@
 "use server";
-import { PrismaClient, CouncilMeeting } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { CouncilMeeting } from '@prisma/client';
+import prisma from "./prisma";
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     try {

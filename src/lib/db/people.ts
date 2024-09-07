@@ -1,7 +1,6 @@
 "use server";
-import { PrismaClient, Person, Party } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Person, Party } from '@prisma/client';
+import prisma from "./prisma";
 
 export async function deletePerson(id: string): Promise<void> {
     try {

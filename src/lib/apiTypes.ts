@@ -67,7 +67,7 @@ export interface Transcript {
     };
 }
 
-interface Utterance {
+export interface Utterance {
     text: string;
     language: string;
     start: number;

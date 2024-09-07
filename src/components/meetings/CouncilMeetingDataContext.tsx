@@ -1,18 +1,16 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
-import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word } from '@prisma/client';
+import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskStatus } from '@prisma/client';
 
 export interface CouncilMeetingData {
     meeting: CouncilMeeting & {
-        taskStatuses: any[],
-        utterances: (Utterance & {
-            words: Word[],
-        })[]
+        taskStatuses: TaskStatus[],
     };
     city: City;
     people: Person[];
     parties: Party[];
     speakerTags: SpeakerTag[];
+
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
@@ -25,10 +23,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
     children: ReactNode,
     data: {
         meeting: CouncilMeeting & {
-            taskStatuses: any[],
-            utterances: (Utterance & {
-                words: Word[],
-            })[]
+            taskStatuses: TaskStatus[],
         };
         city: City;
         people: Person[];
