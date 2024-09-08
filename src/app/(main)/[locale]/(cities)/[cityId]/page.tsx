@@ -1,4 +1,5 @@
 "use server";
+import { isEditMode } from '@/lib/utils';
 import CityC from '../../../../../components/cities/City';
 import { PrismaClient } from '@prisma/client'
 import { notFound } from 'next/navigation';
@@ -28,5 +29,5 @@ export default async function CityPage({ params }: { params: { cityId: string } 
         notFound();
     }
 
-    return <CityC city={city} editable={true} />;
+    return <CityC city={city} editable={isEditMode()} />;
 }

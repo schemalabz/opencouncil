@@ -1,8 +1,10 @@
 "use server";
 import { CouncilMeeting } from '@prisma/client';
 import prisma from "./prisma";
+import { withUserAuthorizedToEdit } from '../auth';
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
+    withUserAuthorizedToEdit({ councilMeetingId: id });
     try {
         await prisma.councilMeeting.delete({
             where: { cityId_id: { cityId, id } },
@@ -14,6 +16,7 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 }
 
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeeting> {
+    withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     try {
         const newMeeting = await prisma.councilMeeting.create({
             data: meetingData,
@@ -26,6 +29,7 @@ export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'cr
 }
 
 export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeeting> {
+    withUserAuthorizedToEdit({ councilMeetingId: id });
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
@@ -39,6 +43,7 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
 }
 
 export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting | null> {
+    withUserAuthorizedToEdit({ councilMeetingId: id });
     try {
         const meeting = await prisma.councilMeeting.findUnique({
             where: { cityId_id: { cityId, id } },
@@ -51,6 +56,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
 }
 
 export async function getCouncilMeetingsForCity(cityId: string): Promise<CouncilMeeting[]> {
+    withUserAuthorizedToEdit({ cityId });
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: { cityId },

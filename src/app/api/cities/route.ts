@@ -1,3 +1,4 @@
+"use server"
 import { NextResponse } from 'next/server'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -15,9 +16,7 @@ const s3Client = new S3({
 
 export async function GET() {
     try {
-        const cities = await Promise.all((await getCities()).map(async (city) => {
-            return city;
-        }));
+        const cities = await getCities();
         return NextResponse.json(cities)
     } catch (error) {
         console.error('Error fetching cities:', error)
@@ -26,16 +25,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    const formData = await request.json()
-    const id = formData.id as string
-    const name = formData.name as string
-    const name_en = formData.name_en as string
-    const name_municipality = formData.name_municipality as string
-    const name_municipality_en = formData.name_municipality_en as string
-    const timezone = formData.timezone as string
-    const logoImage = formData.logoImage as File
+    const formData = await request.formData()
+    const id = formData.get('id') as string
+    const name = formData.get('name') as string
+    const name_en = formData.get('name_en') as string
+    const name_municipality = formData.get('name_municipality') as string
+    const name_municipality_en = formData.get('name_municipality_en') as string
+    const timezone = formData.get('timezone') as string
+    const logoImage = formData.get('logoImage') as File
 
-    if (!name || !name_en || !name_municipality || !timezone || !logoImage || !id) {
+    if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
     try {
         await upload.done()
 
-        const logoImageUrl = `https://townhalls-gr.fra1.digitaloceanspaces.com/city-logos/${fileName}`
+        const logoImageUrl = `${process.env.CDN_URL}/city-logos/${fileName}`
 
         const city = await createCity({
             id,

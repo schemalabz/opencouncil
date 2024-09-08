@@ -5,7 +5,7 @@ const withNextIntl = createNextIntlPlugin();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com'],
+        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr'],
     },
     transpilePackages: ['@']
 };

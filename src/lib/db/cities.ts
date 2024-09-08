@@ -1,8 +1,10 @@
 "use server";
 import { City } from '@prisma/client';
 import prisma from "./prisma";
+import { withUserAuthorizedToEdit } from "../auth";
 
 export async function deleteCity(id: string): Promise<void> {
+    withUserAuthorizedToEdit({ cityId: id });
     try {
         await prisma.city.delete({
             where: { id },
@@ -14,6 +16,7 @@ export async function deleteCity(id: string): Promise<void> {
 }
 
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt'>): Promise<City> {
+    withUserAuthorizedToEdit({ root: true });
     try {
         const newCity = await prisma.city.create({
             data: cityData,
@@ -26,6 +29,7 @@ export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt'>
 }
 
 export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | 'createdAt' | 'updatedAt'>>): Promise<City> {
+    withUserAuthorizedToEdit({ cityId: id });
     try {
         const updatedCity = await prisma.city.update({
             where: { id },

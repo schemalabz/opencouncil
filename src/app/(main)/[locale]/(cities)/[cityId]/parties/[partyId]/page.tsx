@@ -2,6 +2,7 @@
 import PartyC from "@/components/parties/Party";
 import { getCity } from "@/lib/db/cities";
 import { getParty } from "@/lib/db/parties";
+import { isEditMode } from "@/lib/utils";
 import { notFound } from "next/navigation";
 
 
@@ -13,5 +14,5 @@ export default async function PersonPage({ params }: { params: { partyId: string
         notFound();
     }
 
-    return <PartyC party={party} city={city} editable={true} />
+    return <PartyC party={party} city={city} editable={isEditMode()} />
 }

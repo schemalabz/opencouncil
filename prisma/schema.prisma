@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -40,6 +40,8 @@ model Party {
   persons Person[]
   city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
+
+  @@index([cityId])
 }
 
 model Person {
@@ -63,6 +65,8 @@ model Person {
   party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
   partyId String?
 
+  @@index([cityId])
+  @@index([partyId])
 }
 
 model CouncilMeeting {
@@ -83,9 +87,11 @@ model CouncilMeeting {
   taskStatuses TaskStatus[]
   speakerSegments SpeakerSegment[]
 
-
   @@id([cityId, id])
   @@unique([cityId, id])
+
+  @@index([dateTime])
+  @@index([released])
 }
 
 model TaskStatus {
@@ -102,6 +108,8 @@ model TaskStatus {
   councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId], onDelete: Cascade)
   councilMeetingId String
   cityId            String
+
+  @@index([councilMeetingId, cityId])
 }
 
 model SpeakerTag {
@@ -114,6 +122,8 @@ model SpeakerTag {
   personId String?
 
   speakerSegments SpeakerSegment[]
+
+  @@index([personId])
 }
 
 model SpeakerSegment {
@@ -131,6 +141,9 @@ model SpeakerSegment {
   speakerTagId String
 
   utterances Utterance[]
+
+  @@index([meetingId, cityId])
+  @@index([speakerTagId])
 }
 
 model Utterance {
@@ -145,6 +158,8 @@ model Utterance {
   speakerSegmentId String
 
   words Word[]
+
+  @@index([speakerSegmentId])
 }
 
 model Word {
@@ -158,4 +173,6 @@ model Word {
 
   utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
   utteranceId String
+
+  @@index([utteranceId])
 }

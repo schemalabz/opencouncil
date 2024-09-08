@@ -10,7 +10,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:migrate:reset": "prisma migrate reset"
+    "prisma:migrate:reset": "prisma migrate reset",
+    "production:build": "prisma generate && prisma migrate deploy && next build",
+    "production:start": "next start"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.637.0",

@@ -6,6 +6,7 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
+import { isEditMode } from '@/lib/utils';
 
 
 export default async function CouncilMeetingPage({
@@ -48,5 +49,5 @@ export default async function CouncilMeetingPage({
         transcript: transcript
     }
 
-    return <CouncilMeeting meetingData={meetingData} editable={true} />
+    return <CouncilMeeting meetingData={meetingData} editable={isEditMode()} />
 }

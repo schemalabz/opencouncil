@@ -1,8 +1,10 @@
 "use server";
 import { Person, Party } from '@prisma/client';
 import prisma from "./prisma";
+import { withUserAuthorizedToEdit } from "../auth";
 
 export async function deletePerson(id: string): Promise<void> {
+    withUserAuthorizedToEdit({ personId: id });
     try {
         await prisma.person.delete({
             where: { id },
@@ -14,6 +16,7 @@ export async function deletePerson(id: string): Promise<void> {
 }
 
 export async function createPerson(personData: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>): Promise<Person> {
+    withUserAuthorizedToEdit({ cityId: personData.cityId });
     try {
         const newPerson = await prisma.person.create({
             data: personData,
@@ -26,6 +29,7 @@ export async function createPerson(personData: Omit<Person, 'id' | 'createdAt' |
 }
 
 export async function editPerson(id: string, personData: Partial<Omit<Person, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Person> {
+    withUserAuthorizedToEdit({ personId: id });
     try {
         const updatedPerson = await prisma.person.update({
             where: { id },

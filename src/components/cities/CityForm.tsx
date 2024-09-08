@@ -101,24 +101,22 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         setIsSubmitting(true)
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'
-        const method = city ? 'PUT' : ''
-        const jsonData = {
-            name: values.name,
-            name_en: values.name_en,
-            name_municipality: values.name_municipality,
-            name_municipality_en: values.name_municipality_en,
-            timezone: values.timezone,
-            id: values.id,
-            logoImage: logoImage
+        const method = city ? 'PUT' : 'POST'
+        const formData = new FormData()
+        formData.append('name', values.name)
+        formData.append('name_en', values.name_en)
+        formData.append('name_municipality', values.name_municipality)
+        formData.append('name_municipality_en', values.name_municipality_en)
+        formData.append('timezone', values.timezone)
+        formData.append('id', values.id)
+        if (logoImage) {
+            formData.append('logoImage', logoImage)
         }
 
         try {
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(jsonData),
+                body: formData,
             })
 
             if (response.ok) {
