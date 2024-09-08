@@ -48,6 +48,10 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
         const meeting = await prisma.councilMeeting.findUnique({
             where: { cityId_id: { cityId, id } },
         });
+
+        if (meeting && !meeting.released && !withUserAuthorizedToEdit({ cityId })) {
+            return null;
+        }
         return meeting;
     } catch (error) {
         console.error('Error fetching council meeting:', error);
@@ -55,11 +59,14 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string): Promise<CouncilMeeting[]> {
-    withUserAuthorizedToEdit({ cityId });
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeeting[]> {
+    if (includeUnreleased) {
+        withUserAuthorizedToEdit({ cityId });
+    }
+
     try {
         const meetings = await prisma.councilMeeting.findMany({
-            where: { cityId },
+            where: { cityId, released: includeUnreleased ? undefined : true },
         });
         return meetings;
     } catch (error) {
