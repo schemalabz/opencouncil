@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { requestTranscribe } from '@/lib/tasks/transcribe';
+import { requestSummarize } from '@/lib/tasks/summarize';
 import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
@@ -17,7 +18,8 @@ export default function AdminActions({
     meeting: CouncilMeeting
 }) {
     const { toast } = useToast();
-    const [isProcessing, setIsProcessing] = React.useState(false);
+    const [isTranscribing, setIsTranscribing] = React.useState(false);
+    const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [youtubeUrl, setYoutubeUrl] = React.useState('');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
@@ -51,7 +53,7 @@ export default function AdminActions({
     }, [meeting.id, meeting.cityId]);
 
     const handleTranscribe = async () => {
-        setIsProcessing(true);
+        setIsTranscribing(true);
         try {
             await requestTranscribe(youtubeUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
             toast({
@@ -68,7 +70,27 @@ export default function AdminActions({
                 variant: 'destructive'
             });
         } finally {
-            setIsProcessing(false);
+            setIsTranscribing(false);
+        }
+    };
+
+    const handleSummarize = async () => {
+        setIsSummarizing(true);
+        try {
+            await requestSummarize(meeting.cityId, meeting.id);
+            toast({
+                title: "Summarization requested",
+                description: "The summarization process has started.",
+            });
+        } catch (error) {
+            console.log('toasting');
+            toast({
+                title: "Error requesting summarization",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSummarizing(false);
         }
     };
 
@@ -91,7 +113,6 @@ export default function AdminActions({
             // Refresh task statuses after deletion
             fetchTaskStatuses();
         } catch (error) {
-
             console.error('Error deleting task:', error);
             toast({
                 title: "Error deleting task",
@@ -107,37 +128,41 @@ export default function AdminActions({
             <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />
         </div>
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Request New Transcription</h3>
-            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <PopoverTrigger asChild>
-                    <Button>Request Transcription</Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                    <div className="space-y-4">
-                        <h4 className="font-medium">Enter YouTube URL</h4>
-                        <Input
-                            type="text"
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            value={youtubeUrl}
-                            onChange={(e) => setYoutubeUrl(e.target.value)}
-                        />
-                        <div className="flex items-center justify-between space-x-2 w-full">
-                            <div className="flex items-center space-x-2">
-                                <Switch
-                                    id="force-transcribe"
-                                    checked={forceTranscribe}
-                                    onCheckedChange={setForceTranscribe}
-                                />
-                                <Label htmlFor="force-transcribe">Force </Label>
+            <h3 className="text-lg font-semibold mb-4">Request New Tasks</h3>
+            <div className="space-x-4">
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <Button>Transcribe</Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Enter YouTube URL</h4>
+                            <Input
+                                type="text"
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                value={youtubeUrl}
+                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                            />
+                            <div className="flex items-center justify-between space-x-2 w-full">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="force-transcribe"
+                                        checked={forceTranscribe}
+                                        onCheckedChange={setForceTranscribe}
+                                    />
+                                    <Label htmlFor="force-transcribe">Force</Label>
+                                </div>
+                                <Button onClick={handleTranscribe} disabled={isTranscribing}>
+                                    {isTranscribing ? 'Starting...' : 'Transcribe'}
+                                </Button>
                             </div>
-                            <Button onClick={handleTranscribe} disabled={isProcessing}>
-                                {isProcessing ? 'Processing...' : 'Submit'}
-                            </Button>
                         </div>
-
-                    </div>
-                </PopoverContent>
-            </Popover>
+                    </PopoverContent>
+                </Popover>
+                <Button onClick={handleSummarize} disabled={isSummarizing}>
+                    {isSummarizing ? 'Starting...' : 'Summarize'}
+                </Button>
+            </div>
         </div>
     </div>
     );

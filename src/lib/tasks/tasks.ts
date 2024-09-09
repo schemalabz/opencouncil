@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client';
 import { TaskUpdate } from '../apiTypes';
 import { handleTranscribeResult } from './transcribe';
+import { handleSummarizeResult } from './summarize';
 
 const prisma = new PrismaClient();
 
@@ -17,11 +18,9 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
         }
     });
 
-    /*
     if (existingTask && !options.force) {
         throw new Error('A task of this type is already running for this council meeting');
     }
-        */
 
     // Create new task in database
     const newTask = await prisma.taskStatus.create({
@@ -122,5 +121,9 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         console.error(`Task ${taskId} not found`);
         return;
     }
-    await handleTranscribeResult(taskId, JSON.parse(task.responseBody!));
+    if (taskType === 'transcribe') {
+        await handleTranscribeResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'summarize') {
+        await handleSummarizeResult(taskId, JSON.parse(task.responseBody!));
+    }
 }

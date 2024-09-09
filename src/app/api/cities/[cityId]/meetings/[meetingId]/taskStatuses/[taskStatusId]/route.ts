@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { handleTranscribeResult } from '@/lib/tasks/transcribe';
-import { TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+import { SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+import { handleSummarizeResult } from '@/lib/tasks/summarize';
 
 const prisma = new PrismaClient();
 
@@ -73,6 +74,8 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
     try {
         if (taskStatus.type === 'transcribe') {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<TranscribeResult>, handleTranscribeResult);
+        } else if (taskStatus.type === 'summarize') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<SummarizeResult>, handleSummarizeResult);
         } else {
             // Handle other task types here if needed
             throw new Error(`Unsupported task type: ${taskStatus.type}`);

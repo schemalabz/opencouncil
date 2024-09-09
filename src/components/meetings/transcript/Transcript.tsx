@@ -71,8 +71,7 @@ export default function Transcript({ speakerSegments }: { speakerSegments: Trans
                         ref={ref}
                     >
                         <SpeakerSegment
-                            utterances={segment.utterances}
-                            speakerTagId={segment.speakerTagId}
+                            segment={segment}
                             renderMock={!shouldRender}
                         />
                     </div>

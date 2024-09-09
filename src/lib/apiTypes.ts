@@ -87,3 +87,28 @@ export interface Word {
     end: number;
     confidence: number;
 }
+
+
+/*
+ * Task: Summarize
+ */
+
+export interface SummarizeRequest extends TaskRequest {
+    transcript: {
+        speakerName: string | null;
+        speakerParty: string | null;
+        speakerSegmentId: string;
+        text: string;
+    }[];
+    topicLabels: string[];
+    cityName: string;
+    date: string;
+}
+
+export interface SummarizeResult {
+    speakerSegmentSummaries: {
+        speakerSegmentId: string;
+        topicLabels: string[];
+        summary: string | null;
+    }[];
+}

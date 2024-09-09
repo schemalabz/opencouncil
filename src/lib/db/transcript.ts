@@ -1,4 +1,4 @@
-import { SpeakerSegment, Utterance, Word, SpeakerTag } from "@prisma/client";
+import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic } from "@prisma/client";
 import prisma from "./prisma";
 
 export type Transcript = (SpeakerSegment & {
@@ -6,9 +6,17 @@ export type Transcript = (SpeakerSegment & {
         words: Word[];
     })[];
     speakerTag: SpeakerTag;
+    topicLabels: (TopicLabel & {
+        topic: Topic;
+    })[];
+    summary: Summary | null;
 })[];
 
-export async function getTranscript(meetingId: string, cityId: string): Promise<Transcript> {
+export async function getTranscript(meetingId: string, cityId: string, {
+    joinAdjacentSameSpeakerSegments = true,
+}: {
+    joinAdjacentSameSpeakerSegments?: boolean;
+} = {}): Promise<Transcript> {
     const speakerSegments = await prisma.speakerSegment.findMany({
         where: {
             meetingId,
@@ -21,8 +29,41 @@ export async function getTranscript(meetingId: string, cityId: string): Promise<
                     words: true,
                 },
             },
+            summary: true,
+            topicLabels: {
+                include: {
+                    topic: true,
+                },
+            },
         },
     });
 
-    return speakerSegments;
+    if (joinAdjacentSameSpeakerSegments) {
+        return joinTranscriptSegments(speakerSegments);
+    } else {
+        return speakerSegments;
+    }
+}
+
+const joinTranscriptSegments = (speakerSegments: Transcript) => {
+    const joinedSegments = [];
+    let currentSegment = speakerSegments[0];
+
+    for (let i = 1; i < speakerSegments.length; i++) {
+        if (speakerSegments[i].speakerTag.personId && currentSegment.speakerTag.personId
+            && speakerSegments[i].speakerTag.personId === currentSegment.speakerTag.personId) {
+            // Join adjacent segments with the same speaker
+            currentSegment.endTimestamp = speakerSegments[i].endTimestamp;
+            currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
+        } else {
+            // Push the current segment and start a new one
+            joinedSegments.push(currentSegment);
+            currentSegment = speakerSegments[i];
+        }
+    }
+
+    // Push the last segment
+    joinedSegments.push(currentSegment);
+
+    return joinedSegments;
 }

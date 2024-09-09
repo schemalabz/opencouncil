@@ -142,6 +142,9 @@ model SpeakerSegment {
 
   utterances Utterance[]
 
+  topicLabels TopicLabel[]
+  summary Summary?
+
   @@index([meetingId, cityId])
   @@index([speakerTagId])
 }
@@ -178,11 +181,37 @@ model Word {
   @@index([utteranceId])
 }
 
+model TopicLabel {
+  id        String   @id  @default(cuid())
+
+  speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
+  speakerSegmentId String
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topicId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Topic {
   id        String   @id  @default(cuid())
   name      String
   name_en   String
   colorHex  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topicLabels TopicLabel[]
+}
+
+model Summary {
+  id        String   @id  @default(cuid())
+  text      String
+
+  speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
+  speakerSegmentId String @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

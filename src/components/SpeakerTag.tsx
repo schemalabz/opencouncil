@@ -65,7 +65,7 @@ function SpeakerTagC({ speakerTag, className }: {
             <PopoverTrigger asChild>
                 <div
                     className={
-                        cn(`inline-flex items-center py-1 pr-1 cursor-pointer
+                        cn(`max-w-120 inline-flex items-center py-1 pr-1 cursor-pointer
                             transition-all duration-200 hover:bg-gray-100
                             ${options.selectedSpeakerTag === speakerTag.id ? 'bg-gray-100' : ''}`
                             , className)}
@@ -79,7 +79,15 @@ function SpeakerTagC({ speakerTag, className }: {
                     />
                     <div className='flex-col'>
                         <div className="ml-2 font-semibold text-md whitespace-nowrap">{name}</div>
-                        <div className="ml-2 text-muted-foreground text-sm whitespace-nowrap">{role}</div>
+                        <div className="ml-2 text-muted-foreground text-sm">
+                            {role && (
+                                role.length <= 10 ? (
+                                    <div className="whitespace-nowrap">{role}</div>
+                                ) : (
+                                    <div className="whitespace-normal">{role.substring(0, 10) + '...'}</div>
+                                )
+                            )}
+                        </div>
                     </div>
                 </div>
             </PopoverTrigger>

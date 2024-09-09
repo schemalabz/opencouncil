@@ -5,10 +5,16 @@ import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useInView } from 'framer-motion';
 import { useVideo } from '../VideoProvider';
+import { Transcript as TranscriptType } from '@/lib/db/transcript';
+import TopicBadge from './Topic';
 
-const SpeakerSegment = React.memo(({ utterances, speakerTagId, renderMock }: { utterances: (Utterance & { words: Word[] })[], speakerTagId: SpeakerTag["id"], renderMock: boolean }) => {
+const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
     const { getPerson, getParty, getSpeakerTag } = useCouncilMeetingData();
     const { currentTime } = useVideo();
+    const utterances = segment.utterances;
+    const speakerTagId = segment.speakerTagId;
+    const summary = segment.summary;
+    const topics = segment.topicLabels.map(tl => tl.topic);
     const isActive = currentTime >= utterances[0].startTimestamp && currentTime <= utterances[utterances.length - 1].endTimestamp;
 
     const speakerTag = React.useMemo(() => getSpeakerTag(speakerTagId), [getSpeakerTag, speakerTagId]);
@@ -25,20 +31,30 @@ const SpeakerSegment = React.memo(({ utterances, speakerTagId, renderMock }: { u
     };
 
     return (
-        <div className='my-4 flex flex-row items-start ' style={{ borderLeft: `4px solid ${borderColor}` }} >
-            <div className='flex-grow relative'>
-                <div className='sticky top-0 bg-transcript flex flex-row items-center'>
+        <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${borderColor}` }}>
+            <div className='w-full'>
+                <div className='sticky top-0 bg-transcript flex flex-row items-center justify-between w-full'>
                     {renderMock ? <div className='w-full h-full bg-gray-100' /> : (
-                        <>
-                            <SpeakerTagC speakerTag={speakerTag!} className='ml-4' />
-                            <div className='flex items-center border-l-2 border-gray-300 pl-2 ml-4 text-xs h-full'>
-                                {formatTimestamp(utterances[0].startTimestamp)}
+                        <div className='flex flex-col w-full mb-4'>
+                            <div className='flex flex-row justify-around w-full items-center'>
+                                <div className='flex-grow overflow-hidden'>
+                                    <SpeakerTagC speakerTag={speakerTag!} className='ml-4' />
+                                </div>
+                                <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
+                                    {formatTimestamp(utterances[0].startTimestamp)}
+                                </div>
                             </div>
-                        </>
+                            {summary ?
+                                <div className='ml-4 text-sm font-semibold'>
+                                    {summary.text}
+                                    {segment.topicLabels.map(tl => <TopicBadge topic={tl.topic} key={tl.topic.id} />)}
+                                </div>
+                                : null}
+                        </div>
                     )}
                 </div>
-                <div className='font-mono ml-4 text-justify'>
-                    {renderMock ? <div className='w-full h-full bg-none' >
+                <div className='font-mono ml-4 text-justify w-full overflow-x-hidden'>
+                    {renderMock ? <div className='w-full h-full bg-none'>
                         {utterances.map((u, i) => <span className='bg-none' id={u.id} key={u.id}>{u.text}</span>)}
                     </div> : (
                         <>

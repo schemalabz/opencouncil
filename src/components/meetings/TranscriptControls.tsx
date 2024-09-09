@@ -100,7 +100,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                                 >
                                     {hoverTime && hoverTime >= segment.startTimestamp && hoverTime <= segment.endTimestamp && (
                                         <div
-                                            className={`absolute ${isWide ? 'z-50 top-full left-1/2 transform -translate-x-1/2' : 'bottom-full left-1/2 transform -translate-x-1/2 -translate-y-5'} whitespace-nowrap text-white px-2 py-1 rounded text-xs`}
+                                            className={`absolute ${isWide ? 'z-50 top-full left-1/2 transform -translate-x-1/2' : 'bottom-full left-1/2 transform -translate-x-1/2'} whitespace-nowrap text-white px-2 py-1 rounded text-xs`}
                                             style={{
                                                 backgroundColor: speakerColor,
                                                 [isWide ? 'left' : 'bottom']: `${(segment.startTimestamp / duration) * 100}%`,
