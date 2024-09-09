@@ -6,8 +6,7 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
-import { isEditMode } from '@/lib/utils';
-
+import { isEditMode } from '@/lib/auth';
 
 export default async function CouncilMeetingPage({
     params: { meetingId, cityId }

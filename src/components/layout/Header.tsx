@@ -3,9 +3,6 @@ import { cn } from "@/lib/utils"
 import Logo from './Logo'
 import { Link } from '@/i18n/routing';
 import { usePathname } from '@/i18n/routing';
-
-
-
 import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
@@ -24,11 +21,13 @@ const Header = () => {
                 <Logo />
                 <nav>
                     <ul className="flex space-x-4 items-center">
-                        <li>
-                            <Link href="/about" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                {t('about')}
-                            </Link>
-                        </li>
+                        {process.env.NEXT_PUBLIC_SHOW_MARKETING === 'true' && (
+                            <li>
+                                <Link href="/about" className={cn("text-foreground hover:text-primary transition-colors")}>
+                                    {t('about')}
+                                </Link>
+                            </li>
+                        )}
                         <li>
                             <Link href={pathname} locale={otherLocale} className="flex items-center">
                                 <span className="mr-1">{flag}</span>

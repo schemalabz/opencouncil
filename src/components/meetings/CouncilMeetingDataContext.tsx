@@ -1,6 +1,7 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskStatus } from '@prisma/client';
+import { updateSpeakerTag } from '@/lib/db/speakerTags';
 
 export interface CouncilMeetingData {
     meeting: CouncilMeeting & {
@@ -15,6 +16,7 @@ export interface CouncilMeetingData {
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
+    updateSpeakerTagLabel: (tagId: string, label: string) => void;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingData | undefined>(undefined);
@@ -42,10 +44,21 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getPerson: (id: string) => peopleMap.get(id),
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
-        updateSpeakerTagPerson: (tagId: string, personId: string | null) => {
+        updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
+            console.log(`Updating speaker tag ${tagId} to person ${personId}`);
+            await updateSpeakerTag(tagId, { personId });
             setSpeakerTags(prevTags =>
                 prevTags.map(tag =>
                     tag.id === tagId ? { ...tag, personId } : tag
+                )
+            );
+        },
+        updateSpeakerTagLabel: async (tagId: string, label: string) => {
+            console.log(`Updating speaker tag ${tagId} label to ${label}`);
+            await updateSpeakerTag(tagId, { label });
+            setSpeakerTags(prevTags =>
+                prevTags.map(tag =>
+                    tag.id === tagId ? { ...tag, label } : tag
                 )
             );
         },

@@ -1,3 +1,4 @@
+
 /*
  * Generic task types 
  */
@@ -23,6 +24,7 @@ export interface TranscribeRequest extends TaskRequest {
     customVocabulary?: string[];
     customPrompt?: string;
 }
+
 
 export interface TranscribeResult {
     videoUrl: string;
@@ -75,10 +77,11 @@ export interface Utterance {
     confidence: number;
     channel: number;
     speaker: number;
+    drift: number;
     words: Word[];
 }
 
-interface Word {
+export interface Word {
     word: string;
     start: number;
     end: number;

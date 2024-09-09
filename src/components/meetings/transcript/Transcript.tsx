@@ -1,74 +1,83 @@
-import { SpeakerTag, Utterance, Word } from "@prisma/client";
+import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useVideo } from "../VideoProvider";
-import { Transcript as TranscriptType } from "@/lib/db/transcript"
+import { Utterance } from "@prisma/client";
+import { Transcript as TranscriptType } from "@/lib/db/transcript";
+import { useInView } from 'react-intersection-observer';
 
 export default function Transcript({ speakerSegments }: { speakerSegments: TranscriptType }) {
     const { setCurrentScrollInterval } = useVideo();
-    const [visibleUtterances, setVisibleUtterances] = useState<Set<string>>(new Set());
-    const transcriptRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const observer = new IntersectionObserver((entries) => {
-            setVisibleUtterances(prevVisible => {
-                const newVisible = new Set(prevVisible);
-                entries.forEach(entry => {
-                    const utteranceId = entry.target.id;
-                    if (entry.isIntersecting) {
-                        newVisible.add(utteranceId);
-                    } else {
-                        newVisible.delete(utteranceId);
-                    }
-                });
-                return newVisible;
-            });
-        }, {
-            root: null,
-            rootMargin: '0px',
-            threshold: 0.1
-        });
+        if (!containerRef.current) return;
 
-        const utteranceElements = document.querySelectorAll('.utterance');
-        utteranceElements.forEach(el => observer.observe(el));
-
-        return () => {
-            utteranceElements.forEach(el => observer.unobserve(el));
-        };
-    }, [speakerSegments, setCurrentScrollInterval]);
-
-    useEffect(() => {
         const updateScrollInterval = () => {
-            if (visibleUtterances.size > 0) {
-                const visibleSpeakerSegments = speakerSegments.filter(u => visibleUtterances.has(u.id));
-                if (visibleSpeakerSegments.length > 0) {
-                    const firstVisibleUtterance = visibleSpeakerSegments[0];
-                    const lastVisibleUtterance = visibleSpeakerSegments[visibleSpeakerSegments.length - 1];
+            const visibleSegments = Array.from(containerRef.current!.children)
+                .filter((child) => {
+                    const rect = child.getBoundingClientRect();
+                    return rect.top < window.innerHeight && rect.bottom >= 0;
+                })
+                .map((child) => speakerSegments[parseInt(child.id.split('-')[2])]);
 
-                    setCurrentScrollInterval([
-                        firstVisibleUtterance.startTimestamp,
-                        lastVisibleUtterance.endTimestamp
-                    ]);
-                }
+            if (visibleSegments.length > 0) {
+                const firstVisible = visibleSegments[0];
+                const lastVisible = visibleSegments[visibleSegments.length - 1];
+                setCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
             }
         };
 
-        updateScrollInterval();
-    }, [visibleUtterances, speakerSegments, setCurrentScrollInterval]);
+        const observer = new IntersectionObserver(updateScrollInterval, {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1,
+        });
 
-    if (speakerSegments.length === 0) {
-        return <div className='flex justify-center items-center h-full w-full my-12'>
-            <div className='text-muted-foreground'>No transcript available</div>
-        </div>
-    }
+        Array.from(containerRef.current.children).forEach((child) => {
+            observer.observe(child);
+        });
+
+        return () => observer.disconnect();
+    }, [speakerSegments, setCurrentScrollInterval]);
 
     return (
-        <div ref={transcriptRef} className="container" >
-            {speakerSegments.map(({ speakerTagId, utterances }, index) =>
-                <div key={index}>
-                    <SpeakerSegment utterances={utterances} speakerTagId={speakerTagId} />
-                </div>
-            )}
+        <div className="container" ref={containerRef}>
+            {speakerSegments.map((segment, index: number) => {
+                const { ref, inView } = useInView({
+                    threshold: 0,
+                    root: null,
+                    rootMargin: '200px', // Increase this value to load more segments
+                });
+
+                const prevInView = index > 0 && useInView({
+                    threshold: 0,
+                    root: null,
+                    rootMargin: '200px',
+                }).inView;
+
+                const nextInView = index < speakerSegments.length - 1 && useInView({
+                    threshold: 0,
+                    root: null,
+                    rootMargin: '200px',
+                }).inView;
+
+                const shouldRender = inView || prevInView || nextInView;
+
+                return (
+                    <div
+                        key={index}
+                        id={`speaker-segment-${index}`}
+                        ref={ref}
+                    >
+                        <SpeakerSegment
+                            utterances={segment.utterances}
+                            speakerTagId={segment.speakerTagId}
+                            renderMock={!shouldRender}
+                        />
+                    </div>
+                );
+            })}
         </div>
     );
 }

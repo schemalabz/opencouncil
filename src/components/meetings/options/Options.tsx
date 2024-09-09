@@ -1,5 +1,6 @@
 import React from 'react';
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { useTranscriptOptions } from './OptionsContext';
 
 const Setting = ({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) => (
@@ -17,6 +18,10 @@ export function Options() {
 
     const handleSettingChange = (key: keyof typeof options) => (checked: boolean) => {
         updateOptions({ [key]: checked });
+    };
+
+    const handleSliderChange = (value: number[]) => {
+        updateOptions({ maxUtteranceDrift: value[0] });
     };
 
     return (
@@ -37,8 +42,23 @@ export function Options() {
                         onCheckedChange={handleSettingChange('highlightLowConfidenceWords')}
                     />
                 </Setting>
+                {options.editable && (
+                    <Setting label="Max Utterance Drift" description="Set the maximum allowed drift for utterances">
+                        <div className="relative flex items-center">
+                            <Slider
+                                id="max-utterance-drift"
+                                min={1}
+                                max={100}
+                                step={1}
+                                value={[options.maxUtteranceDrift]}
+                                onValueChange={handleSliderChange}
+                                className="w-[200px] mr-2"
+                            />
+                            <span className="text-sm">{options.maxUtteranceDrift.toFixed(1)}</span>
+                        </div>
+                    </Setting>
+                )}
             </div>
         </div>
     );
 }
-

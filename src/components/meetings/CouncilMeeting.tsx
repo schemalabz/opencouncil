@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu } from "lucide-react"
 import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party } from '@prisma/client'
 import AdminActions from './admin/Admin'
 import Navbar from './Navbar'
 import TranscriptControls from './TranscriptControls'
-import { VideoProvider } from './VideoProvider'
+import { useVideo, VideoProvider } from './VideoProvider'
 import Header from './Header'
 import { motion, AnimatePresence } from 'framer-motion'
 import Transcript from './transcript/Transcript'
@@ -33,7 +33,9 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const utteranceTimes: Array<{ id: string, start: number, end: number }> = [];
+    const utterances = useMemo(() => {
+        return meetingData.transcript.map((u) => u.utterances).flat()
+    }, [meetingData.transcript]);
 
     useEffect(() => {
         const checkSize = () => {
@@ -70,7 +72,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     return (
         <CouncilMeetingDataProvider data={{ meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider>
-                <VideoProvider meeting={meetingData.meeting} utteranceTimes={utteranceTimes}>
+                <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
                     <div className="flex flex-col overflow-hidden absolute inset-0">
                         <Header city={meetingData.city} meeting={meetingData.meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                         <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-16'}`}>
@@ -92,12 +94,22 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
                         <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
 
+                        <CurrentTimeButton isWide={isWide} />
                     </div>
 
                     <AnimatePresence>
                         {!isWide && activeSection && (
                             <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
                                 <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
+                                    <div className="flex justify-center mb-4">
+                                        <Navbar
+                                            sections={sections}
+                                            activeSection={activeSection}
+                                            setActiveSection={setActiveSection}
+                                            showClose={false}
+                                            className='justify-center'
+                                        />
+                                    </div>
                                     {sections.find(section => section.title === activeSection)?.content}
                                 </SheetContent>
                             </Sheet>
@@ -107,4 +119,29 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
             </TranscriptOptionsProvider>
         </CouncilMeetingDataProvider>
     )
+}
+
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '../ui/button'
+
+const CurrentTimeButton = ({ isWide }: { isWide: boolean }) => {
+    const { currentTime, currentScrollInterval, scrollToUtterance } = useVideo();
+
+    if (currentScrollInterval && !(currentTime >= currentScrollInterval[0] && currentTime <= currentScrollInterval[1])) {
+        const isScrollingUp = currentTime < currentScrollInterval[0];
+        const Icon = isScrollingUp ? ArrowUp : ArrowDown;
+
+        return (
+            <Button
+                onClick={() => scrollToUtterance(currentTime)}
+                className={`absolute ${isWide ? 'bottom-24 left-1/2 transform -translate-x-1/2' : 'bottom-2 left-1/2 transform -translate-x-1/2'}`}
+                variant="outline"
+            >
+                <Icon className="w-4 h-4 mr-2" />
+                Go to current time
+            </Button>
+        );
+    } else {
+        return null;
+    }
 }

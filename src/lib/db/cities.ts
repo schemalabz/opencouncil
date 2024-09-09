@@ -1,5 +1,5 @@
 "use server";
-import { City } from '@prisma/client';
+import { City, Person, Party, CouncilMeeting } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
@@ -46,6 +46,34 @@ export async function getCity(id: string): Promise<City | null> {
     try {
         const city = await prisma.city.findUnique({
             where: { id },
+        });
+        return city;
+    } catch (error) {
+        console.error('Error fetching city:', error);
+        throw new Error('Failed to fetch city');
+    }
+}
+
+export async function getFullCity(id: string): Promise<City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } | null> {
+    try {
+        const city = await prisma.city.findUnique({
+            where: { id },
+            include: {
+                councilMeetings: true,
+                parties: {
+                    include: {
+                        persons: true
+                    }
+                },
+                persons: {
+                    include: {
+                        party: true
+                    },
+                    orderBy: {
+                        name: 'asc'
+                    }
+                }
+            }
         });
         return city;
     } catch (error) {

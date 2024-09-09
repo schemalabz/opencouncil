@@ -2,7 +2,7 @@
 import PartyC from "@/components/parties/Party";
 import { getCity } from "@/lib/db/cities";
 import { getParty } from "@/lib/db/parties";
-import { isEditMode } from "@/lib/utils";
+import { isEditMode } from "@/lib/auth";
 import { notFound } from "next/navigation";
 
 

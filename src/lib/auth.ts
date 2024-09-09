@@ -1,5 +1,4 @@
 import { type City, type Party, type Person, type CouncilMeeting } from "@prisma/client";
-import { isEditMode } from "./utils";
 
 export function withUserAuthorizedToEdit({
     cityId,
@@ -14,4 +13,8 @@ export function withUserAuthorizedToEdit({
     root?: boolean
 }) {
     return isEditMode();
+}
+
+export function isEditMode() {
+    return process.env.EDIT_MODE === "true"
 }

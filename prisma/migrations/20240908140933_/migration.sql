@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Utterance" ADD COLUMN     "drift" DOUBLE PRECISION NOT NULL DEFAULT 0;

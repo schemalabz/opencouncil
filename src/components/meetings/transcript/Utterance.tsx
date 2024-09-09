@@ -8,11 +8,17 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 export default function UtteranceC({ utterance }: { utterance: Utterance & { words: Word[] } }) {
     let { currentTime, seekTo } = useVideo()
     let [isActive, setIsActive] = useState(false)
+    let { options } = useTranscriptOptions();
+    let maxDrift = options.maxUtteranceDrift;
 
     useEffect(() => {
         let isActive = currentTime >= utterance.startTimestamp && currentTime <= utterance.endTimestamp;
         setIsActive(isActive)
     }, [currentTime, utterance.startTimestamp, utterance.endTimestamp])
+
+    if (utterance.drift > maxDrift) {
+        return <span id={utterance.id} className="over:bg-accent utterance" />
+    }
 
     if (isActive) {
         return <span className={`hover:bg-accent utterance ${isActive ? 'bg-accent' : ''}`} id={utterance.id}>

@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { CitiesList } from "@/components/cities/CitiesList"
-import { isEditMode } from '@/lib/utils';
+import { isEditMode } from '@/lib/auth';
 
 const prisma = new PrismaClient()
 

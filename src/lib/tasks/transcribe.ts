@@ -145,6 +145,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                         startTimestamp: utterance.start,
                         endTimestamp: utterance.end,
                         text: utterance.text,
+                        drift: utterance.drift,
                         speakerSegment: { connect: { id: createdSegment.id } },
                     }
                 });

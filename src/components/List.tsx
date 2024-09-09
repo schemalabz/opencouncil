@@ -13,7 +13,7 @@ interface ListProps<T, P = {}> {
     lgColumns?: number;
 }
 
-export default function List<T, P = {}>({
+export default function List<T extends { id: string }, P = {}>({
     items,
     editable,
     ItemComponent,
@@ -23,7 +23,7 @@ export default function List<T, P = {}>({
     itemProps,
     smColumns = 1,
     mdColumns = 1,
-    lgColumns = 2
+    lgColumns = 2,
 }: ListProps<T, P>) {
     const gridClasses = `grid gap-6 ${smColumns === 1 ? 'grid-cols-1' : `grid-cols-${smColumns}`
         } ${mdColumns === 1 ? 'md:grid-cols-1' : `md:grid-cols-${mdColumns}`
@@ -41,7 +41,7 @@ export default function List<T, P = {}>({
             {items.length > 0 ? (
                 <div className={gridClasses}>
                     {items.map((item, index) => (
-                        <ItemComponent key={index} item={item} editable={editable} {...itemProps as P} />
+                        <ItemComponent key={item.id} item={item} editable={editable} {...itemProps as P} />
                     ))}
                 </div>
             ) : (

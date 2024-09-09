@@ -6,6 +6,7 @@ export interface TranscriptOptions {
     editable: boolean;
     selectedSpeakerTag: SpeakerTag["id"] | null;
     highlightLowConfidenceWords: boolean;
+    maxUtteranceDrift: number;
 }
 
 interface TranscriptOptionsContextType {
@@ -19,6 +20,7 @@ const defaultOptions: TranscriptOptions = {
     editable: true,
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
+    maxUtteranceDrift: 100
 };
 
 function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {

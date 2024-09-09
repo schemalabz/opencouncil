@@ -1,6 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
-import { CouncilMeeting } from "@prisma/client";
+import { CouncilMeeting, Utterance, Word } from "@prisma/client";
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -12,6 +12,7 @@ interface VideoContextType {
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
+    scrollToUtterance: (time: number) => void;
     videoRef: React.RefObject<HTMLVideoElement>;
     isSeeking: boolean;
 }
@@ -29,24 +30,22 @@ export const useVideo = () => {
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
-    utteranceTimes: {
-        id: string;
-        start: number;
-        end: number;
-    }[];
+    utterances: (Utterance & { words: Word[] })[];
 }
 
-export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utteranceTimes }) => {
+export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [playbackSpeed, setPlaybackSpeed] = useState("1");
     const [isSeeking, setIsSeeking] = useState(false);
+    const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         const video = videoRef.current;
         const updateDuration = () => {
+            console.log(`Metadata loaded! Duration: ${video?.duration}`);
             if (video && !isNaN(video.duration)) {
                 setDuration(video.duration);
             }
@@ -70,6 +69,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         if (videoRef.current) {
             try {
                 if (videoRef.current.paused) {
+                    if (!hasStartedPlaying && utterances.length > 0) {
+                        videoRef.current.currentTime = utterances[0].startTimestamp;
+                        setHasStartedPlaying(true);
+                    }
                     await videoRef.current.play();
                     setIsPlaying(true);
                 } else {
@@ -92,14 +95,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
-    // Scroll to the last utterance before the seek time
+    // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = (time: number) => {
-        const lastUtteranceBeforeTime = utteranceTimes
-            .filter(u => u.start <= time)
-            .sort((a, b) => b.start - a.start)[0];
+        const lastUtteranceBeforeTime = utterances
+            .filter(u => u.startTimestamp <= time)
+            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
-        if (lastUtteranceBeforeTime) {
-            const utteranceElement = document.getElementById(lastUtteranceBeforeTime.id);
+        const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
+
+        if (utteranceToScrollTo) {
+            const utteranceElement = document.getElementById(utteranceToScrollTo.id);
             if (utteranceElement) {
                 utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -141,16 +146,18 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         togglePlayPause,
         handleSpeedChange,
         seekTo,
+        scrollToUtterance,
         videoRef,
         isSeeking,
     };
 
     return (
         <VideoContext.Provider value={value}>
-            <video
+            <audio
                 ref={videoRef}
-                src={meeting.videoUrl!}
+                src={meeting.audioUrl!}
                 style={{ display: 'none' }}
+                preload="metadata"
             />
             {children}
         </VideoContext.Provider>

@@ -151,6 +151,7 @@ model Utterance {
   startTimestamp  Float
   endTimestamp    Float
   text            String
+  drift           Float    @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -175,4 +176,14 @@ model Word {
   utteranceId String
 
   @@index([utteranceId])
+}
+
+model Topic {
+  id        String   @id  @default(cuid())
+  name      String
+  name_en   String
+  colorHex  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

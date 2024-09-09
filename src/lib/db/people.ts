@@ -65,7 +65,7 @@ export async function getPeopleForCity(cityId: string): Promise<(Person & { part
                 party: true,
             }
         });
-        return people;
+        return people.sort(() => Math.random() - 0.5);
     } catch (error) {
         console.error('Error fetching people for city:', error);
         throw new Error('Failed to fetch people for city');
