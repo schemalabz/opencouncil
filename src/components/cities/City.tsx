@@ -22,7 +22,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="md:container md:mx-auto py-8">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
                     <img src={city.logoImage} alt={`${city.name} logo`} className="w-16 h-16 object-contain hidden md:block" />

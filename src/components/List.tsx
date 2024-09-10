@@ -31,7 +31,7 @@ export default function List<T extends { id: string }, P = {}>({
         }`;
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-0 md:space-y-4">
             <div className="flex justify-between items-center mb-4">
                 <p className="text-muted-foreground">{t('items', { count: items.length })}</p>
                 {editable && (
