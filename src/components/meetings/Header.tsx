@@ -53,7 +53,7 @@ export default function Header({ city, meeting, isWide, activeSection, setActive
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.3 }}
                     >
-                        <Button variant="ghost" size="icon" onClick={() => setActiveSection('Summary')}>
+                        <Button variant="ghost" size="icon" onClick={() => setActiveSection('Τοποθετήσεις')}>
                             <Menu className="h-6 w-6" />
                         </Button>
                     </motion.div>
