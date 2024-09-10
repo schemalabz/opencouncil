@@ -13,6 +13,7 @@ export default async function CouncilMeetingPage({
 }: {
     params: { meetingId: string; cityId: string }
 }) {
+    const startTime = performance.now();
     const [meeting, transcript, city, people, parties] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getTranscript(meetingId, cityId),
@@ -20,6 +21,8 @@ export default async function CouncilMeetingPage({
         getPeopleForCity(cityId),
         getPartiesForCity(cityId)
     ]);
+    const endTime = performance.now();
+    console.log(`Time taken to load meeting: ${endTime - startTime} milliseconds`);
 
     if (!city || !meeting || !people || !parties || !transcript) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
