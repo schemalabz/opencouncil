@@ -81,7 +81,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider editable={editable}>
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
-                    <div className="flex flex-col overflow-hidden absolute inset-0">
+                    <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
                         <Header city={meetingData.city} meeting={meetingData.meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                         <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                             <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
