@@ -10,9 +10,29 @@ const fontSans = FontSans({
 
 export const metadata = {
     title: 'OpenCouncil',
-    description: 'Ανοιχτή τοπική αυτοδοίηκηση',
+    description: 'Ανοιχτή τοπική αυτοδιοίκηση',
     icons: {
         icon: '/favicon.ico',
+    },
+    openGraph: {
+        title: 'OpenCouncil',
+        description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+        type: 'website',
+        url: 'https://opencouncil.gr',
+        images: [
+            {
+                url: '/square.png',
+                width: 500,
+                height: 500,
+                alt: 'OpenCouncil Logo',
+            },
+        ],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'OpenCouncil',
+        description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+        images: ['/square.png'],
     },
 }
 
