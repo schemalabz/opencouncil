@@ -38,3 +38,4 @@ next-env.d.ts
 
 prisma/**.db
 data/
+copy_to_prod.sh

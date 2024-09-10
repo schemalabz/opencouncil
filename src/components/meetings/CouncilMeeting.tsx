@@ -59,7 +59,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         { title: "Τοποθετήσεις", icon: <LayoutList />, content: <Summary /> },
         { title: "Στατιστικά", icon: <BarChart3 />, content: <Statistics /> },
         { title: "Κοινοποίηση", icon: <Share />, content: <ShareC /> },
-        { title: "Επιλογές", icon: <Settings2 />, content: <Options /> },
+        { title: "Επιλογές", icon: <Settings2 />, content: <Options editable={editable} /> },
     ]
 
     if (editable) {

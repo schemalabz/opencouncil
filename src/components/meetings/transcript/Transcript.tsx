@@ -43,40 +43,47 @@ export default function Transcript({ speakerSegments }: { speakerSegments: Trans
 
     return (
         <div className="container" ref={containerRef}>
-            {speakerSegments.map((segment, index: number) => {
-                const { ref, inView } = useInView({
-                    threshold: 0,
-                    root: null,
-                    rootMargin: '200px', // Increase this value to load more segments
-                });
+            {speakerSegments.map((segment, index: number) =>
+                <SpeakerSegmentWrapper key={index} segment={segment} index={index} speakerSegments={speakerSegments} />
+            )}
+        </div>
+    );
+}
 
-                const prevInView = index > 0 && useInView({
-                    threshold: 0,
-                    root: null,
-                    rootMargin: '200px',
-                }).inView;
+function SpeakerSegmentWrapper({ segment, index, speakerSegments }: { segment: TranscriptType[number], index: number, speakerSegments: SpeakerSegmentType[] }) {
+    const { ref, inView } = useInView({
+        threshold: 0,
+        root: null,
+        rootMargin: '200px', // Increase this value to load more segments
+    });
 
-                const nextInView = index < speakerSegments.length - 1 && useInView({
-                    threshold: 0,
-                    root: null,
-                    rootMargin: '200px',
-                }).inView;
+    const { inView: prevInView } = useInView({
+        threshold: 0,
+        root: null,
+        rootMargin: '200px',
+    });
 
-                const shouldRender = inView || prevInView || nextInView;
+    const { inView: nextInView } = useInView({
+        threshold: 0,
+        root: null,
+        rootMargin: '200px',
+    });
 
-                return (
-                    <div
-                        key={index}
-                        id={`speaker-segment-${index}`}
-                        ref={ref}
-                    >
-                        <SpeakerSegment
-                            segment={segment}
-                            renderMock={!shouldRender}
-                        />
-                    </div>
-                );
-            })}
+    const isPrevInView = index > 0 && prevInView;
+    const isNextInView = index < speakerSegments.length - 1 && nextInView;
+
+    const shouldRender = inView || isPrevInView || isNextInView;
+
+    return (
+        <div
+            key={index}
+            id={`speaker-segment-${index}`}
+            ref={ref}
+        >
+            <SpeakerSegment
+                segment={segment}
+                renderMock={!shouldRender}
+            />
         </div>
     );
 }
