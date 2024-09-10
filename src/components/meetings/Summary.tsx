@@ -80,18 +80,18 @@ export default function Summary() {
                     return (
                         <div
                             key={segment.id}
-                            className="flex flex-col mb-8  border-l-4 pl-2 cursor-pointer hover:bg-accent p-1" style={{ borderColor: color }}
+                            className="flex flex-col mb-8 border-l-4 pl-2 cursor-pointer hover:bg-accent p-1" style={{ borderColor: color }}
                             onClick={() => seekTo(startTime)}
                         >
                             <div className='flex flex-row justify-between text-sm'>
                                 <span>{durationInMinutes} λεπτά</span>
                                 <span>{formatTimestamp(startTime)}</span>
                             </div>
-                            <div className="flex flex-row">
-                                <div className="w-1/3 flex-shrink-0 overflow-hidden">
+                            <div className="flex flex-col sm:flex-row">
+                                <div className="w-full sm:w-1/3 flex-shrink-0 overflow-hidden mb-2 sm:mb-0">
                                     <SpeakerTagC speakerTag={segment.speakerTag} />
                                 </div>
-                                <div className="w-2/3 flex-grow">
+                                <div className="w-full sm:w-2/3 flex-grow">
                                     <div className="text-sm text-muted-foreground text-justify">{segment.summary.text}</div>
                                 </div>
                             </div>

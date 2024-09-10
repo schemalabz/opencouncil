@@ -59,11 +59,11 @@ export function ShareC() {
         setIsExporting(false);
     };
 
-    return (
+    return (<div className="space-y-8">
         <div className="space-y-8">
-            <div className="flex items-center">
-                <h3 className="text-lg font-medium w-1/4">Σύνδεσμος</h3>
-                <div className="w-3/4 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+                <h3 className="text-md md:text-lg font-medium w-full sm:w-1/4 mb-2 sm:mb-0">Σύνδεσμος</h3>
+                <div className="w-full sm:w-3/4 space-y-2">
                     <div className="flex">
                         <Input
                             value={getShareableUrl()}
@@ -72,14 +72,14 @@ export function ShareC() {
                         />
                         <Button onClick={copyToClipboard} className="flex-shrink-0" disabled={copySuccess}>
                             {copySuccess ? (
-                                <span className="flex items-center">
+                                <span className="flex items-center text-center">
                                     <CheckCircle className="w-4 h-4 mr-2 inline-block" />
-                                    <span className="inline-block">Αντιγράφηκε</span>
+                                    <span className="hidden md:inline-block">Αντιγράφηκε</span>
                                 </span>
                             ) : (
                                 <span className="flex items-center">
                                     <CopyIcon className="w-4 h-4 mr-2 inline-block" />
-                                    <span className="inline-block">Αντιγραφή</span>
+                                    <span className="hidden md:inline-block">Αντιγραφή</span>
                                 </span>
                             )}
                         </Button>
@@ -99,16 +99,17 @@ export function ShareC() {
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div className="flex items-center">
-                <h3 className="text-lg font-medium w-1/4">Εξαγωγή</h3>
-                <div className="w-3/4 flex justify-end">
-                    <Button onClick={handleExportToPDF} className='max-w-48' disabled={isExporting}>
-                        {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
-                        Εξαγωγή σε PDF
-                    </Button>
-                </div>
+        <div className="flex items-center">
+            <h3 className="text-md md:text-lg font-medium w-1/4">Εξαγωγή</h3>
+            <div className="w-3/4 flex justify-end">
+                <Button onClick={handleExportToPDF} className='max-w-48' disabled={isExporting}>
+                    {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+                    <span className="hidden md:inline">Εξαγωγή σε PDF</span>
+                </Button>
             </div>
         </div>
+    </div>
     );
 }
