@@ -2,6 +2,7 @@ import React from 'react';
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useTranscriptOptions } from './OptionsContext';
+import { useTranslations } from 'next-intl';
 
 const Setting = ({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) => (
     <div className="flex items-center justify-between py-2">
@@ -12,8 +13,8 @@ const Setting = ({ label, description, children }: { label: string; description?
         {children}
     </div>
 );
-
-export function Options() {
+export function Options({ editable }: { editable: boolean }) {
+    const t = useTranslations('TranscriptOptions');
     const { options, updateOptions } = useTranscriptOptions();
 
     const handleSettingChange = (key: keyof typeof options) => (checked: boolean) => {
@@ -26,16 +27,18 @@ export function Options() {
 
     return (
         <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-4">Transcript Options</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('title')}</h3>
             <div className="space-y-2">
-                <Setting label="Edit Mode" description="Allow editing of the transcript">
-                    <Switch
-                        id="edit-mode"
-                        checked={options.editable}
-                        onCheckedChange={handleSettingChange('editable')}
-                    />
-                </Setting>
-                <Setting label="Highlight Uncertain Words" description="Highlight words with low confidence">
+                {options.editsAllowed && (
+                    <Setting label={t('editMode.label')} description={t('editMode.description')}>
+                        <Switch
+                            id="edit-mode"
+                            checked={options.editable}
+                            onCheckedChange={handleSettingChange('editable')}
+                        />
+                    </Setting>
+                )}
+                <Setting label={t('highlightUncertain.label')} description={t('highlightUncertain.description')}>
                     <Switch
                         id="highlight-uncertain"
                         checked={options.highlightLowConfidenceWords}
@@ -43,7 +46,7 @@ export function Options() {
                     />
                 </Setting>
                 {options.editable && (
-                    <Setting label="Max Utterance Drift" description="Set the maximum allowed drift for utterances">
+                    <Setting label={t('maxUtteranceDrift.label')} description={t('maxUtteranceDrift.description')}>
                         <div className="relative flex items-center">
                             <Slider
                                 id="max-utterance-drift"

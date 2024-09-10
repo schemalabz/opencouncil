@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { handleTranscribeResult } from '@/lib/tasks/transcribe';
 import { SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
 import { handleSummarizeResult } from '@/lib/tasks/summarize';
-
-const prisma = new PrismaClient();
+import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: { taskStatusId: string } }
 ) {
-    const taskStatus = await prisma.taskStatus.findUnique({
-        where: { id: params.taskStatusId },
-    });
-
+    const taskStatus = await getTaskStatus(params.taskStatusId);
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
     }
@@ -40,9 +35,7 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: { taskStatusId: string } }
 ) {
-    const taskStatus = await prisma.taskStatus.findUnique({
-        where: { id: params.taskStatusId },
-    });
+    const taskStatus = await getTaskStatus(params.taskStatusId);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
@@ -53,17 +46,13 @@ export async function DELETE(
         return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
     }
 
-    await prisma.taskStatus.delete({
-        where: { id: params.taskStatusId },
-    });
+    await deleteTaskStatus(params.taskStatusId);
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }
 
 async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
-    const taskStatus = await prisma.taskStatus.findUnique({
-        where: { id: taskStatusId },
-    });
+    const taskStatus = await getTaskStatus(taskStatusId);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });

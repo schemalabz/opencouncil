@@ -13,28 +13,13 @@ const Footer = () => {
                     <div className="mb-4 md:mb-0">
                         <Logo />
                     </div>
-                    <nav className="mb-4 md:mb-0">
-                        <ul className="flex space-x-4">
-                            <li>
-                                <Link href="/privacy" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    {t('privacy')}
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/terms" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    {t('terms')}
-                                </Link>
-                            </li>
-                            <li>
-                                <Link href="/contact" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    {t('contact')}
-                                </Link>
-                            </li>
-                        </ul>
-                    </nav>
                     <div className="text-sm text-muted-foreground">
-                        © {new Date().getFullYear()} {t('copyright')}.
+                        {t("disclaimer")}
                     </div>
+                    <a href="https://twitter.com/christosporios" className={"text-muted-foreground text-xs hover:text-primary transition-colors"}>
+                        @christosporios
+                    </a>
+
                 </div>
             </div>
         </footer>

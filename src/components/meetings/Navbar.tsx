@@ -13,32 +13,27 @@ export default function Navbar({ showClose, sections, setActiveSection, activeSe
                 <div className="flex space-x-1">
                     {sections.map(({ title, icon }) => (
                         <Tooltip key={title} delayDuration={0}>
-                            <TooltipTrigger asChild>
-                                <motion.div
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
+                            <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                            >
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setActiveSection(title)}
+                                    className={`flex items-center hover:bg-background/50 justify-center ${activeSection === title ? 'font-bold' : ''}`}
+                                    aria-label={title}
                                 >
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setActiveSection(title)}
-                                        className={`flex items-center justify-center ${activeSection === title ? 'bg-accent' : ''}`}
-                                        aria-label={title}
+                                    <span className="font-bold">{icon}</span>
+                                    <motion.span
+                                        className="hidden lg:block pl-2 text-xs"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ duration: 0.2 }}
                                     >
-                                        <span className="font-bold">{icon}</span>
-                                        <motion.span
-                                            className="hidden lg:block pl-2 text-xs"
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            {title}
-                                        </motion.span>
-                                    </Button>
-                                </motion.div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{title}</p>
-                            </TooltipContent>
+                                        {title}
+                                    </motion.span>
+                                </Button>
+                            </motion.div>
                         </Tooltip>
                     ))}
                 </div>

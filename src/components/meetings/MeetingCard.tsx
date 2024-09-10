@@ -1,12 +1,12 @@
 'use client'
 import { CouncilMeeting } from '@prisma/client';
 import { useRouter } from '../../i18n/routing';
-import Image from 'next/image';
-import { useState } from 'react';
 import { Card, CardContent, CardFooter } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
-import React from 'react';
-import { format, Locale } from 'date-fns';
+import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
+import { el, enUS } from 'date-fns/locale';
+import { getStatisticsFor, StatisticsOfCouncilMeeting } from '@/lib/statistics';
 
 interface MeetingCardProps {
     item: CouncilMeeting;
@@ -17,6 +17,7 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
+    const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null);
 
     const handleClick = () => {
         router.push(`/${meeting.cityId}/${meeting.id}`);
@@ -27,18 +28,33 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
         router.push(`/meetings/edit/${meeting.id}`);
     };
 
+    const getStatistics = () => {
+        getStatisticsFor({ meetingId: meeting.id, cityId: "athens" }, ['person', 'topic', 'party']).then((statistics) => {
+            setStatistics(statistics as StatisticsOfCouncilMeeting);
+        });
+    }
+    useEffect(() => {
+        getStatistics();
+    }, []);
+
+
     return (
         <Card
             className="relative h-48 overflow-hidden transition-transform hover:shadow-lg cursor-pointer"
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col justify-center">
+            <CardContent className="relative h-full flex flex-col justify-start pt-4">
                 <div className="flex items-center space-x-4">
                     <h3 className="text-2xl font-bold">{meeting.name}</h3>
                 </div>
-                <p className="mt-2">
-                    {format(meeting.dateTime, 'EEEE, MMMM d, yyyy')}
+                <p className="mt-2 text-muted-foreground">
+                    {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                 </p>
+                {statistics &&
+                    <p className='animate-fade-in'>
+                        {Math.round(statistics.speakingSeconds / 60)} λεπτά ομιλίας, από {statistics.people?.length} ομιλητές {statistics.parties?.length} παρατάξεων.
+                    </p>
+                }
             </CardContent>
             <CardFooter>
                 {editable && (

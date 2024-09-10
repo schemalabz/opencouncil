@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react';
-import { City } from '@prisma/client';
+import { City, CouncilMeeting } from '@prisma/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useTranslations } from 'next-intl';
 import FormSheet from '../FormSheet';
 
 interface CitiesListProps {
-    cities: City[];
+    cities: (City & { councilMeetings: CouncilMeeting[] })[];
     editable: boolean;
 }
 

@@ -59,7 +59,9 @@ export async function getFullCity(id: string): Promise<City & { councilMeetings:
         const city = await prisma.city.findUnique({
             where: { id },
             include: {
-                councilMeetings: true,
+                councilMeetings: {
+                    orderBy: { dateTime: 'desc' },
+                },
                 parties: {
                     include: {
                         persons: true
@@ -82,9 +84,13 @@ export async function getFullCity(id: string): Promise<City & { councilMeetings:
     }
 }
 
-export async function getCities(): Promise<City[]> {
+export async function getCities(): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
     try {
-        const cities = await prisma.city.findMany();
+        const cities = await prisma.city.findMany({
+            include: {
+                councilMeetings: true
+            }
+        });
         return cities;
     } catch (error) {
         console.error('Error fetching cities:', error);

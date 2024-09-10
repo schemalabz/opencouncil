@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu } from "lucide-react"
+import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3 } from "lucide-react"
 import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party } from '@prisma/client'
 import AdminActions from './admin/Admin'
 import Navbar from './Navbar'
@@ -15,6 +15,12 @@ import { Options } from './options/Options'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
 import { Transcript as TranscriptType } from '@/lib/db/transcript'
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '../ui/button'
+import { ChatInterface } from './Chat'
+import { Statistics } from './Statistics'
+import { ShareC } from './Share'
+import Summary from './Summary'
 
 type CouncilMeetingCProps = {
     editable: boolean,
@@ -50,13 +56,15 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     }, [])
 
     const sections = [
-        { title: "Summary", icon: <LayoutList />, content: <p>Summary</p> },
-        { title: "Chat", icon: <BotMessageSquare />, content: <p>Chat</p> },
-        { title: "Highlights", icon: <Sparkles />, content: <p>Highlights</p> },
-        { title: "Share", icon: <Share />, content: <p>Share</p> },
-        { title: "Options", icon: <Settings2 />, content: <Options /> },
-        { title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> },
+        { title: "Τοποθετήσεις", icon: <LayoutList />, content: <Summary /> },
+        { title: "Στατιστικά", icon: <BarChart3 />, content: <Statistics /> },
+        { title: "Κοινοποίηση", icon: <Share />, content: <ShareC /> },
+        { title: "Επιλογές", icon: <Settings2 />, content: <Options /> },
     ]
+
+    if (editable) {
+        sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> })
+    }
 
     if (loading) return (
         <motion.div
@@ -70,22 +78,21 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     )
 
     return (
-        <CouncilMeetingDataProvider data={{ meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
-            <TranscriptOptionsProvider>
+        <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
+            <TranscriptOptionsProvider editable={editable}>
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
                     <div className="flex flex-col overflow-hidden absolute inset-0">
                         <Header city={meetingData.city} meeting={meetingData.meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                         <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-16'}`}>
                             <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
-                                <div className='flex-grow overflow-y-scroll scrollbar-hide'>
+                                <div className='flex-grow overflow-y-auto scrollbar-hide'>
                                     <Transcript speakerSegments={meetingData.transcript} />
                                 </div>
                             </div>
 
                             {isWide && activeSection && (
-                                <div className="w-1/2 border-l flex flex-col">
-                                    <h3 className="text-lg font-semibold p-4 border-b">{activeSection}</h3>
-                                    <div className="p-4">
+                                <div className="w-1/2 border-l flex flex-col overflow-y-auto">
+                                    <div className="flex-grow overflow-y-auto scrollbar-hide p-4 pb-24">
                                         {sections.find(section => section.title === activeSection)?.content}
                                     </div>
                                 </div>
@@ -120,9 +127,6 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         </CouncilMeetingDataProvider>
     )
 }
-
-import { ArrowUp, ArrowDown } from 'lucide-react';
-import { Button } from '../ui/button'
 
 const CurrentTimeButton = ({ isWide }: { isWide: boolean }) => {
     const { currentTime, currentScrollInterval, scrollToUtterance } = useVideo();

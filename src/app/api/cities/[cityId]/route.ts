@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
+import { deleteCity, editCity, getCity } from '@/lib/db/cities'
 
-const prisma = new PrismaClient()
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -16,9 +15,7 @@ const s3Client = new S3({
 })
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const city = await prisma.city.findUnique({
-        where: { id: params.cityId },
-    })
+    const city = await getCity(params.cityId);
     return NextResponse.json(city)
 }
 
@@ -57,24 +54,19 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         }
     }
 
-    const city = await prisma.city.update({
-        where: { id: params.cityId },
-        data: {
-            name,
-            name_en,
-            name_municipality,
-            name_municipality_en,
-            timezone,
-            ...(logoImageUrl && { logoImage: logoImageUrl }),
-        },
-    })
+    const city = await editCity(params.cityId, {
+        name,
+        name_en,
+        name_municipality,
+        name_municipality_en,
+        timezone,
+        ...(logoImageUrl && { logoImage: logoImageUrl }),
+    });
 
     return NextResponse.json(city)
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
-    await prisma.city.delete({
-        where: { id: params.cityId },
-    })
+    await deleteCity(params.cityId);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

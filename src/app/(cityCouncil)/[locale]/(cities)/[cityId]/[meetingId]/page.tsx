@@ -1,39 +1,29 @@
 "use server"
-import { PrismaClient } from '@prisma/client'
 import CouncilMeeting from '@/components/meetings/CouncilMeeting';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
-import { isEditMode } from '@/lib/auth';
+import { isEditMode, withUserAuthorizedToEdit } from '@/lib/auth';
+import { getCouncilMeeting } from '@/lib/db/meetings';
 
 export default async function CouncilMeetingPage({
     params: { meetingId, cityId }
 }: {
     params: { meetingId: string; cityId: string }
 }) {
-    const prisma = new PrismaClient()
-
-    const meeting = await prisma.councilMeeting.findUnique({
-        where: {
-            cityId_id: {
-                cityId: cityId,
-                id: meetingId
-            }
-        },
-        include: {
-            taskStatuses: true
-        }
-    })
+    const meeting = await getCouncilMeeting(cityId, meetingId);
     const transcript = await getTranscript(meetingId, cityId);
     const city = await getCity(cityId);
     const people = await getPeopleForCity(cityId);
     const parties = await getPartiesForCity(cityId);
 
     if (!city || !meeting || !people || !parties || !transcript) {
+        console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
         notFound();
     }
+    console.log('=> Found everything');
 
     const speakerTags = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
         .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
@@ -48,5 +38,5 @@ export default async function CouncilMeetingPage({
         transcript: transcript
     }
 
-    return <CouncilMeeting meetingData={meetingData} editable={isEditMode()} />
+    return <CouncilMeeting meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })} />
 }

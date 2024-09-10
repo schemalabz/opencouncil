@@ -38,7 +38,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
                                 <div className='flex-grow overflow-hidden'>
-                                    <SpeakerTagC speakerTag={speakerTag!} className='ml-4' />
+                                    <SpeakerTagC speakerTag={speakerTag!} className='ml-4' editable={true} />
                                 </div>
                                 <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
                                     {formatTimestamp(utterances[0].startTimestamp)}
@@ -53,7 +53,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                         </div>
                     )}
                 </div>
-                <div className='font-mono ml-4 text-justify w-full overflow-x-hidden'>
+                <div className='font-mono pl-4 text-justify w-full overflow-x-hidden'>
                     {renderMock ? <div className='w-full h-full bg-none'>
                         {utterances.map((u, i) => <span className='bg-none' id={u.id} key={u.id}>{u.text}</span>)}
                     </div> : (

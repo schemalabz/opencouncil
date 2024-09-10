@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
 
+
+const SHOW_LOCALE_PICKER = false;
 const Header = () => {
     const t = useTranslations('Header');
     const pathname = usePathname();
@@ -28,12 +30,14 @@ const Header = () => {
                                 </Link>
                             </li>
                         )}
-                        <li>
-                            <Link href={pathname} locale={otherLocale} className="flex items-center">
-                                <span className="mr-1">{flag}</span>
-                                {otherLocale.toUpperCase()}
-                            </Link>
-                        </li>
+                        {SHOW_LOCALE_PICKER && (
+                            <li>
+                                <Link href={pathname} locale={otherLocale} className="flex items-center">
+                                    <span className="mr-1">{flag}</span>
+                                    {otherLocale.toUpperCase()}
+                                </Link>
+                            </li>
+                        )}
                     </ul>
                 </nav>
             </div>

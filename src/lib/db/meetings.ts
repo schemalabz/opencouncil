@@ -1,5 +1,5 @@
 "use server";
-import { CouncilMeeting } from '@prisma/client';
+import { CouncilMeeting, TaskStatus } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
 
@@ -42,11 +42,13 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
     }
 }
 
-export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting | null> {
-    withUserAuthorizedToEdit({ councilMeetingId: id });
+export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting & { taskStatuses: TaskStatus[] } | null> {
     try {
         const meeting = await prisma.councilMeeting.findUnique({
             where: { cityId_id: { cityId, id } },
+            include: {
+                taskStatuses: true
+            }
         });
 
         if (meeting && !meeting.released && !withUserAuthorizedToEdit({ cityId })) {
@@ -67,6 +69,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: { cityId, released: includeUnreleased ? undefined : true },
+            orderBy: { dateTime: 'desc' },
         });
         return meetings;
     } catch (error) {

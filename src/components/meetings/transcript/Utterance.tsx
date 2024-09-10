@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import React, { useEffect, useState } from "react";
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { editWord } from "@/lib/db/word";
 
 export default function UtteranceC({ utterance }: { utterance: Utterance & { words: Word[] } }) {
     let { currentTime, seekTo } = useVideo()
@@ -26,17 +27,19 @@ export default function UtteranceC({ utterance }: { utterance: Utterance & { wor
                 return <WordC word={word} key={word.id} />
             })}
         </span>
-    } else {
-        return <span className={`cursor-pointer hover:bg-accent utterance`} id={utterance.id} onClick={() => seekTo(utterance.startTimestamp)}>
-            {utterance.text + " "}
-        </span>
     }
+    return <span className={`cursor-pointer hover:bg-accent utterance`} id={utterance.id} onClick={() => seekTo(utterance.startTimestamp)}>
+        {utterance.text + " "}
+    </span>
 }
 
 function WordC({ word }: { word: Word }) {
     let { currentTime, seekTo } = useVideo()
     let [isActive, setIsActive] = useState(false)
     let { options } = useTranscriptOptions();
+    let editable = options.editable;
+    let [isEditing, setIsEditing] = useState(false);
+    let [editedText, setEditedText] = useState(word.text.trim());
 
     useEffect(() => {
         let isActive = currentTime >= word.startTimestamp && currentTime <= word.endTimestamp;
@@ -47,8 +50,48 @@ function WordC({ word }: { word: Word }) {
     if (options.highlightLowConfidenceWords && word.confidence < 0.3) {
         color = getConfidenceColor(word.confidence);
     }
-    return <span>
-        <span onClick={() => seekTo(word.startTimestamp)} style={{ color }} className={`cursor-pointer hover:underline ${isActive ? 'underline font-bold' : ''}`}>{word.text.trim()}</span> </span>
+
+    const handleClick = () => {
+        if (editable) {
+            setIsEditing(true);
+        } else {
+            seekTo(word.startTimestamp);
+        }
+    }
+
+    const handleEdit = (e: React.FormEvent) => {
+        e.preventDefault();
+        editWord(word.id, editedText);
+        setIsEditing(false);
+    }
+
+    if (isEditing) {
+        return (
+            <form onSubmit={handleEdit} className="inline-block">
+                <input
+                    type="text"
+                    value={editedText}
+                    onChange={(e) => setEditedText(e.target.value)}
+                    className="border border-gray-300 rounded px-1 py-0.5 text-sm"
+                    autoFocus
+                    size={editedText.length + 2}
+                />
+            </form>
+        );
+    }
+
+    return (
+        <span>
+            <span
+                onClick={handleClick}
+                style={{ color }}
+                className={`cursor-pointer hover:underline ${isActive ? 'underline font-bold' : ''}`}
+            >
+                {editedText}
+            </span>
+            {' '}
+        </span>
+    );
 }
 
 function getConfidenceColor(confidence: number): string {

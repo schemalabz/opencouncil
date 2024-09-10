@@ -26,7 +26,11 @@ export async function getTranscript(meetingId: string, cityId: string, {
             speakerTag: true,
             utterances: {
                 include: {
-                    words: true,
+                    words: {
+                        orderBy: {
+                            startTimestamp: 'asc',
+                        },
+                    }
                 },
             },
             summary: true,
@@ -45,7 +49,11 @@ export async function getTranscript(meetingId: string, cityId: string, {
     }
 }
 
-const joinTranscriptSegments = (speakerSegments: Transcript) => {
+export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {
+    if (speakerSegments.length === 0) {
+        return speakerSegments;
+    }
+
     const joinedSegments = [];
     let currentSegment = speakerSegments[0];
 

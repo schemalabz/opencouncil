@@ -1,9 +1,9 @@
 "use server";
 import { TranscribeRequest, TranscribeResult } from "../apiTypes";
 import { startTask } from "./tasks";
-import { CouncilMeeting, Prisma, PrismaClient, SpeakerSegment } from "@prisma/client";
+import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
-const prisma = new PrismaClient();
+import prisma from "../db/prisma";
 
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, {
     force = false
@@ -37,7 +37,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
         throw new Error("Council meeting not found");
     }
 
-    if (councilMeeting.speakerSegments.length > 0) {
+    if (councilMeeting.speakerSegments.length > 0 && !force) {
         if (force) {
             console.log(`Deleting speaker segments for meeting ${councilMeetingId}`);
             await prisma.speakerSegment.deleteMany({
@@ -74,7 +74,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
         }
     });
 
-    return startTask('transcribe', body, councilMeetingId, cityId);
+    return startTask('transcribe', body, councilMeetingId, cityId, { force });
 }
 
 export async function handleTranscribeResult(taskId: string, response: TranscribeResult) {

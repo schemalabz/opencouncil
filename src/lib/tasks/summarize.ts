@@ -1,5 +1,5 @@
 "use server";
-import { CouncilMeeting, Prisma, PrismaClient, SpeakerSegment } from "@prisma/client";
+import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
 import { getPeopleForCity } from "../db/people";
@@ -8,7 +8,7 @@ import { getAllTopics } from "../db/topics";
 import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
-const prisma = new PrismaClient();
+import prisma from "../db/prisma";
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, {
 }: {

@@ -4,6 +4,7 @@ import { SpeakerTag } from '@prisma/client';
 
 export interface TranscriptOptions {
     editable: boolean;
+    editsAllowed: boolean;
     selectedSpeakerTag: SpeakerTag["id"] | null;
     highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
@@ -17,7 +18,8 @@ interface TranscriptOptionsContextType {
 const TranscriptOptionsContext = createContext<TranscriptOptionsContextType | undefined>(undefined);
 
 const defaultOptions: TranscriptOptions = {
-    editable: true,
+    editsAllowed: false,
+    editable: false,
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
     maxUtteranceDrift: 100
@@ -33,8 +35,8 @@ function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {
     return { options, updateOptions };
 }
 
-export function TranscriptOptionsProvider({ children }: { children: React.ReactNode }) {
-    const { options, updateOptions } = useTranscriptOptionsProvider(defaultOptions);
+export function TranscriptOptionsProvider({ children, editable }: { children: React.ReactNode, editable: boolean }) {
+    const { options, updateOptions } = useTranscriptOptionsProvider({ ...defaultOptions, editsAllowed: editable });
 
     return (
         <TranscriptOptionsContext.Provider value={{ options, updateOptions }}>

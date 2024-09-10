@@ -7,14 +7,15 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
-
-function SpeakerTagC({ speakerTag, className }: {
+import { Badge } from "@/components/ui/badge";
+function SpeakerTagC({ speakerTag, className, editable = false }: {
     speakerTag: SpeakerTag,
     className?: string,
+    editable?: boolean,
 }) {
     const { options, updateOptions } = useTranscriptOptions();
     const { getPerson, getParty, people, updateSpeakerTagPerson, updateSpeakerTagLabel } = useCouncilMeetingData();
-    const editable = options.editable;
+    const isEditable = options.editable && editable;
     const [open, setOpen] = useState(false);
     const [labelInput, setLabelInput] = useState(speakerTag.label || '');
 
@@ -81,19 +82,28 @@ function SpeakerTagC({ speakerTag, className }: {
                         <div className="ml-2 font-semibold text-md whitespace-nowrap">{name}</div>
                         <div className="ml-2 text-muted-foreground text-sm">
                             {role && (
-                                role.length <= 10 ? (
-                                    <div className="whitespace-nowrap">{role}</div>
-                                ) : (
-                                    <div className="whitespace-normal">{role.substring(0, 10) + '...'}</div>
-                                )
+                                <div className="whitespace-nowrap text-ellipsis">{role}</div>
                             )}
                         </div>
                     </div>
                 </div>
             </PopoverTrigger>
             <PopoverContent className="w-96">
-                {!editable ? (
-                    <div>{party?.name || 'No party assigned'}</div>
+                {!isEditable ? (
+                    <div className="flex flex-col">
+                        <div className="flex flex-row">
+                            <div className="flex flex-row justify-stretch">
+                                <div className="text-lg font-semibold">
+                                    {person ? person.name : speakerTag.label}
+                                </div>
+                                <div className="">
+                                    {party && <PartyBadge party={party} />}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-muted-foreground text-sm">{role || ''}</div>
+
+                    </div>
                 ) : (
                     <>
                         {!isTagged && (
@@ -157,6 +167,12 @@ function SpeakerTagC({ speakerTag, className }: {
             </PopoverContent>
         </Popover>
     );
+}
+
+function PartyBadge({ party }: { party: Party }) {
+    return <Badge style={{ backgroundColor: party.colorHex }} className="text-foreground mx-1 text-center hover:bg-background/80 rounded-none">
+        {party.name}
+    </Badge>
 }
 
 export default SpeakerTagC;

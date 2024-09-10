@@ -65,12 +65,28 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         };
     }, []);
 
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const timeParam = urlParams.get('t');
+
+        if (timeParam) {
+            const seconds = parseInt(timeParam, 10);
+            if (!isNaN(seconds) && videoRef.current) {
+                videoRef.current.currentTime = seconds;
+                setCurrentTime(seconds);
+                setTimeout(() => scrollToUtterance(seconds), 1000);
+            }
+        }
+    }, []);
+
     const togglePlayPause = async () => {
         if (videoRef.current) {
             try {
                 if (videoRef.current.paused) {
                     if (!hasStartedPlaying && utterances.length > 0) {
-                        videoRef.current.currentTime = utterances[0].startTimestamp;
+                        if (currentTime === 0) {
+                            videoRef.current.currentTime = utterances[0].startTimestamp;
+                        }
                         setHasStartedPlaying(true);
                     }
                     await videoRef.current.play();

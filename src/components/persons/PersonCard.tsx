@@ -23,7 +23,6 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
     const handleClick = () => {
         router.push(`/${person.cityId}/people/${person.id}`);
     };
-
     return (
         <Card
             className="relative overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
@@ -37,9 +36,9 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
                     <ImageOrInitials imageUrl={person.image} width={64} height={64} name={person.name} />
                 </div>
                 <div className="flex flex-col justify-center space-y-2">
-                    <div className="flex items-center space-x-2">
+                    <div>
                         <h3 className="text-2xl font-bold">{person.name}</h3>
-                        {person.role ? <Badge>{localizedRole}</Badge> : ''}
+                        {person.role && <p className="text-sm text-gray-600">{localizedRole}</p>}
                     </div>
                     <div>
                         {person.party && (

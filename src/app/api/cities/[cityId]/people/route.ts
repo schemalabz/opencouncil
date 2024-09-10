@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-
-const prisma = new PrismaClient()
+import { createPerson, deletePerson, editPerson, getPeopleForCity } from '@/lib/db/people'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -16,9 +14,7 @@ const s3Client = new S3({
 })
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const people = await prisma.person.findMany({
-        where: { cityId: params.cityId },
-    })
+    const people = await getPeopleForCity(params.cityId);
     return NextResponse.json(people)
 }
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
@@ -58,19 +54,19 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         }
     }
 
-    const person = await prisma.person.create({
-        data: {
-            name,
-            name_en,
-            name_short,
-            name_short_en,
-            role,
-            role_en,
-            image: imageUrl,
-            cityId: params.cityId,
-            partyId: partyId || undefined,
-        },
-    })
+    const person = await createPerson({
+        cityId: params.cityId,
+        name,
+        name_en,
+        name_short,
+        name_short_en,
+        role,
+        role_en,
+        activeFrom: new Date(),
+        activeTo: null,
+        image: imageUrl || null,
+        partyId: partyId || null,
+    });
 
     return NextResponse.json(person)
 }
@@ -112,26 +108,20 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         }
     }
 
-    const person = await prisma.person.update({
-        where: { id: params.personId },
-        data: {
-            name,
-            name_en,
-            name_short,
-            name_short_en,
-            role,
-            role_en,
-            ...(imageUrl && { image: imageUrl }),
-            partyId: partyId || undefined,
-        },
+    const person = await editPerson(params.personId, {
+        name,
+        name_en,
+        name_short,
+        name_short_en,
+        role,
+        role_en,
+        image: imageUrl || null,
+        partyId: partyId || null,
     })
-
     return NextResponse.json(person)
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
-    await prisma.person.delete({
-        where: { id: params.personId },
-    })
+    await deletePerson(params.personId);
     return NextResponse.json({ message: 'Person deleted successfully' })
 }

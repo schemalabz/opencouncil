@@ -1,11 +1,10 @@
 "use server";
 
-import { PrismaClient } from '@prisma/client';
 import { TaskUpdate } from '../apiTypes';
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
+import prisma from '@/lib/db/prisma';
 
-const prisma = new PrismaClient();
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task

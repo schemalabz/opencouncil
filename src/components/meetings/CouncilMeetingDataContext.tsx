@@ -2,6 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskStatus } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
+import { Transcript } from '@/lib/db/transcript';
 
 export interface CouncilMeetingData {
     meeting: CouncilMeeting & {
@@ -11,6 +12,7 @@ export interface CouncilMeetingData {
     people: Person[];
     parties: Party[];
     speakerTags: SpeakerTag[];
+    transcript: Transcript;
 
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
@@ -31,6 +33,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         people: Person[];
         parties: Party[];
         speakerTags: SpeakerTag[];
+        transcript: Transcript;
     }
 }) {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);
