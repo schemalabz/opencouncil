@@ -2,7 +2,7 @@
 import { City, CouncilMeeting, Party, Person } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import AddMeetingForm from "@/components/meetings/AddMeetingForm";
 import { Link } from '@/i18n/routing';
@@ -16,6 +16,7 @@ import PartyForm from '@/components/parties/PartyForm';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
+import { Loader2 } from 'lucide-react';
 
 export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
     const t = useTranslations('City');
@@ -38,48 +39,52 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                 )}
             </div>
 
-            <Tabs defaultValue="meetings">
-                <div className="flex justify-center mb-8">
-                    <TabsList className="gap-8">
-                        <TabsTrigger value="meetings">{t('councilMeetings')}</TabsTrigger>
-                        <TabsTrigger value="members">{t('members')}</TabsTrigger>
-                        <TabsTrigger value="parties">{t('parties')}</TabsTrigger>
-                    </TabsList>
-                </div>
+            <Suspense fallback={<div className="flex justify-center items-center h-full">
+                <Loader2 className="w-4 h-4 animate-spin" />
+            </div>}>
+                <Tabs defaultValue="meetings">
+                    <div className="flex justify-center mb-8">
+                        <TabsList className="gap-8">
+                            <TabsTrigger value="meetings">{t('councilMeetings')}</TabsTrigger>
+                            <TabsTrigger value="members">{t('members')}</TabsTrigger>
+                            <TabsTrigger value="parties">{t('parties')}</TabsTrigger>
+                        </TabsList>
+                    </div>
 
-                <TabsContent value="meetings">
-                    <List
-                        items={city.councilMeetings}
-                        editable={editable}
-                        ItemComponent={MeetingCard}
-                        FormComponent={AddMeetingForm}
-                        formProps={{ cityId: city.id }}
-                        t={useTranslations('CouncilMeeting')}
-                    />
-                </TabsContent>
+                    <TabsContent value="meetings">
+                        <List
+                            items={city.councilMeetings}
+                            editable={editable}
+                            ItemComponent={MeetingCard}
+                            FormComponent={AddMeetingForm}
+                            formProps={{ cityId: city.id }}
+                            t={useTranslations('CouncilMeeting')}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="members">
-                    <List
-                        items={city.persons}
-                        editable={editable}
-                        ItemComponent={PersonCard}
-                        FormComponent={PersonForm}
-                        formProps={{ cityId: city.id, parties: city.parties }}
-                        t={useTranslations('Person')}
-                    />
-                </TabsContent>
+                    <TabsContent value="members">
+                        <List
+                            items={city.persons}
+                            editable={editable}
+                            ItemComponent={PersonCard}
+                            FormComponent={PersonForm}
+                            formProps={{ cityId: city.id, parties: city.parties }}
+                            t={useTranslations('Person')}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="parties">
-                    <List
-                        items={city.parties}
-                        editable={editable}
-                        ItemComponent={PartyCard}
-                        FormComponent={PartyForm}
-                        formProps={{ cityId: city.id }}
-                        t={useTranslations('Party')}
-                    />
-                </TabsContent>
-            </Tabs>
+                    <TabsContent value="parties">
+                        <List
+                            items={city.parties}
+                            editable={editable}
+                            ItemComponent={PartyCard}
+                            FormComponent={PartyForm}
+                            formProps={{ cityId: city.id }}
+                            t={useTranslations('Party')}
+                        />
+                    </TabsContent>
+                </Tabs>
+            </Suspense>
         </div>
     );
 }

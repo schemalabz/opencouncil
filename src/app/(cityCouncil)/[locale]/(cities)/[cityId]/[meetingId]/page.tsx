@@ -1,18 +1,26 @@
-"use server"
 import CouncilMeeting from '@/components/meetings/CouncilMeeting';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
-import { getCity } from '@/lib/db/cities';
+import { getCities, getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
 import { isEditMode, withUserAuthorizedToEdit } from '@/lib/auth';
-import { getCouncilMeeting } from '@/lib/db/meetings';
+import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
+import { unstable_setRequestLocale } from 'next-intl/server';
+
+export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
+    const allCities = await getCities();
+    const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
+    return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId, locale: "el" }));
+}
 
 export default async function CouncilMeetingPage({
-    params: { meetingId, cityId }
+    params: { meetingId, cityId, locale }
 }: {
-    params: { meetingId: string; cityId: string }
+    params: { meetingId: string; cityId: string, locale: string }
 }) {
+    unstable_setRequestLocale(locale);
+
     const startTime = performance.now();
     const [meeting, transcript, city, people, parties] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
