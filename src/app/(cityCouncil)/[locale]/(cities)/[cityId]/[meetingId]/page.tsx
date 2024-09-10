@@ -13,11 +13,13 @@ export default async function CouncilMeetingPage({
 }: {
     params: { meetingId: string; cityId: string }
 }) {
-    const meeting = await getCouncilMeeting(cityId, meetingId);
-    const transcript = await getTranscript(meetingId, cityId);
-    const city = await getCity(cityId);
-    const people = await getPeopleForCity(cityId);
-    const parties = await getPartiesForCity(cityId);
+    const [meeting, transcript, city, people, parties] = await Promise.all([
+        getCouncilMeeting(cityId, meetingId),
+        getTranscript(meetingId, cityId),
+        getCity(cityId),
+        getPeopleForCity(cityId),
+        getPartiesForCity(cityId)
+    ]);
 
     if (!city || !meeting || !people || !parties || !transcript) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
