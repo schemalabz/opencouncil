@@ -68,7 +68,7 @@ export const TitlePage = ({ meeting, city }: { meeting: CouncilMeeting, city: Ci
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 30 }}>
                     <View style={{ textAlign: 'center', border: '1px solid orange', padding: 10, marginTop: 10, fontSize: 8, backgroundColor: 'rgba(255, 165, 0, 0.2)', alignSelf: 'center', width: '100%' }}>
                         <Text>Προσοχή: Ανεπίσημο έγγραφο</Text>
-                        <Text>Το παρόν δημιουργήθηκε αυτοματοποιημένα από το OpenCouncil.gr, και μπορεί να περιέχει λάθη</Text>
+                        <Text>Το παρόν δημιουργήθηκε αυτοματοποιημένα από το OpenCouncil.gr, και ενδέχεται να περιέχει λάθη</Text>
                     </View>
                 </View>
 
