@@ -21,6 +21,7 @@ import { ChatInterface } from './Chat'
 import { Statistics } from './Statistics'
 import { ShareC } from './Share'
 import Summary from './Summary'
+import Highlights from '../Highlights'
 
 type CouncilMeetingCProps = {
     editable: boolean,
@@ -57,6 +58,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
     const sections = [
         { title: "Τοποθετήσεις", icon: <LayoutList />, content: <Summary /> },
+        { title: "Highlights", icon: <Sparkles />, content: <Highlights /> },
         { title: "Στατιστικά", icon: <BarChart3 />, content: <Statistics /> },
         { title: "Κοινοποίηση", icon: <Share />, content: <ShareC /> },
         { title: "Επιλογές", icon: <Settings2 />, content: <Options editable={editable} /> },

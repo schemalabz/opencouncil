@@ -86,6 +86,7 @@ model CouncilMeeting {
 
   taskStatuses TaskStatus[]
   speakerSegments SpeakerSegment[]
+  highlights Highlight[]
 
   @@id([cityId, id])
   @@unique([cityId, id])
@@ -162,6 +163,7 @@ model Utterance {
   speakerSegmentId String
 
   words Word[]
+  highlightedUtterances HighlightedUtterance[]
 
   @@index([speakerSegmentId])
 }
@@ -215,4 +217,33 @@ model Summary {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Highlight {
+  id        String   @id  @default(cuid())
+  name      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  meetingId String
+  cityId String
+
+  utterances HighlightedUtterance[]
+
+  @@index([meetingId, cityId])
+}
+
+model HighlightedUtterance {
+  id        String   @id  @default(cuid())
+  
+  utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
+  utteranceId String
+
+  highlight Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  highlightId String
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
