@@ -7,6 +7,7 @@ import { getTranscript } from '@/lib/db/transcript';
 import { isEditMode, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { unstable_setRequestLocale } from 'next-intl/server';
+import { getHighlightsForMeeting } from '@/lib/db/highlights';
 
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
@@ -22,12 +23,13 @@ export default async function CouncilMeetingPage({
     unstable_setRequestLocale(locale);
 
     const startTime = performance.now();
-    const [meeting, transcript, city, people, parties] = await Promise.all([
+    const [meeting, transcript, city, people, parties, highlights] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getTranscript(meetingId, cityId),
         getCity(cityId),
         getPeopleForCity(cityId),
-        getPartiesForCity(cityId)
+        getPartiesForCity(cityId),
+        getHighlightsForMeeting(cityId, meetingId)
     ]);
     const endTime = performance.now();
     console.log(`Time taken to load meeting: ${endTime - startTime} milliseconds`);
@@ -48,7 +50,8 @@ export default async function CouncilMeetingPage({
         people: people,
         parties: parties,
         speakerTags: speakerTags,
-        transcript: transcript
+        transcript: transcript,
+        highlights: highlights
     }
 
     return <CouncilMeeting meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })} />

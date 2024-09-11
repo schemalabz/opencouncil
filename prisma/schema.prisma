@@ -230,7 +230,7 @@ model Highlight {
   meetingId String
   cityId String
 
-  utterances HighlightedUtterance[]
+  highlightedUtterances HighlightedUtterance[]
 
   @@index([meetingId, cityId])
 }

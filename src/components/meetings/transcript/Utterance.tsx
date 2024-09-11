@@ -5,32 +5,59 @@ import React, { useEffect, useState } from "react";
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { editWord } from "@/lib/db/word";
+import { HighlightWithUtterances } from "@/lib/db/highlights";
 
 export default function UtteranceC({ utterance }: { utterance: Utterance & { words: Word[] } }) {
-    let { currentTime, seekTo } = useVideo()
-    let [isActive, setIsActive] = useState(false)
-    let { options } = useTranscriptOptions();
-    let maxDrift = options.maxUtteranceDrift;
+    const { currentTime, seekTo } = useVideo();
+    const [isActive, setIsActive] = useState(false);
+    const { options, updateOptions } = useTranscriptOptions();
+    const maxDrift = options.maxUtteranceDrift;
+    const selectedHighlight = options.selectedHighlight;
 
     useEffect(() => {
-        let isActive = currentTime >= utterance.startTimestamp && currentTime <= utterance.endTimestamp;
-        setIsActive(isActive)
-    }, [currentTime, utterance.startTimestamp, utterance.endTimestamp])
+        const isActive = currentTime >= utterance.startTimestamp && currentTime <= utterance.endTimestamp;
+        setIsActive(isActive);
+    }, [currentTime, utterance.startTimestamp, utterance.endTimestamp]);
+
+    const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === utterance.id);
+
+    const handleClick = () => {
+        if (selectedHighlight) {
+            if (isHighlighted) {
+                // Remove from highlight
+                const updatedHighlight = {
+                    ...selectedHighlight,
+                    highlightedUtterances: selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== utterance.id)
+                };
+                updateOptions({ selectedHighlight: updatedHighlight });
+            } else {
+                // Add to highlight
+                const updatedHighlight = {
+                    ...selectedHighlight,
+                    highlightedUtterances: [...selectedHighlight.highlightedUtterances, { utteranceId: utterance.id }]
+                };
+                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
+            }
+        } else {
+            seekTo(utterance.startTimestamp);
+        }
+    };
 
     if (utterance.drift > maxDrift) {
-        return <span id={utterance.id} className="over:bg-accent utterance" />
+        return <span id={utterance.id} className="over:bg-accent utterance" />;
     }
 
-    if (isActive) {
-        return <span className={`hover:bg-accent utterance ${isActive ? 'bg-accent' : ''}`} id={utterance.id}>
-            {utterance.words.map((word) => {
-                return <WordC word={word} key={word.id} />
-            })}
+    const className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
+
+    return (
+        <span className={className} id={utterance.id} onClick={handleClick}>
+            {isActive ? (
+                utterance.words.map((word) => <WordC word={word} key={word.id} />)
+            ) : (
+                utterance.text + " "
+            )}
         </span>
-    }
-    return <span className={`cursor-pointer hover:bg-accent utterance`} id={utterance.id} onClick={() => seekTo(utterance.startTimestamp)}>
-        {utterance.text + " "}
-    </span>
+    );
 }
 
 function WordC({ word }: { word: Word }) {

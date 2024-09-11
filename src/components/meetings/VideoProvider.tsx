@@ -15,6 +15,7 @@ interface VideoContextType {
     scrollToUtterance: (time: number) => void;
     videoRef: React.RefObject<HTMLVideoElement>;
     isSeeking: boolean;
+    setIsPlaying: (isPlaying: boolean) => void;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -79,28 +80,37 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }, []);
 
-    const togglePlayPause = async () => {
+    const playVideo = async () => {
+        console.log("PLAYING");
         if (videoRef.current) {
-            try {
-                if (videoRef.current.paused) {
-                    if (!hasStartedPlaying && utterances.length > 0) {
-                        if (currentTime === 0) {
-                            videoRef.current.currentTime = utterances[0].startTimestamp;
-                        }
-                        setHasStartedPlaying(true);
-                    }
-                    await videoRef.current.play();
-                    setIsPlaying(true);
-                } else {
-                    await videoRef.current.pause();
-                    setIsPlaying(false);
+            if (!hasStartedPlaying && utterances.length > 0) {
+                if (currentTime === 0) {
+                    videoRef.current.currentTime = utterances[0].startTimestamp;
                 }
-            } catch (error) {
-                console.error('Error in togglePlayPause:', error);
-                setIsPlaying(false);
+                setHasStartedPlaying(true);
             }
-        } else {
-            console.error('Video element not found');
+            await videoRef.current.play();
+            setIsPlaying(true);
+        }
+    };
+
+    const pauseVideo = async () => {
+        if (videoRef.current) {
+            await videoRef.current.pause();
+            setIsPlaying(false);
+        }
+    };
+
+    const togglePlayPause = async () => {
+        try {
+            if (isPlaying) {
+                await pauseVideo();
+            } else {
+                await playVideo();
+            }
+        } catch (error) {
+            console.error('Error in togglePlayPause:', error);
+            setIsPlaying(false);
         }
     };
 
@@ -165,6 +175,13 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         scrollToUtterance,
         videoRef,
         isSeeking,
+        setIsPlaying: async (shouldPlay: boolean) => {
+            if (shouldPlay) {
+                await playVideo();
+            } else {
+                await pauseVideo();
+            }
+        },
     };
 
     return (

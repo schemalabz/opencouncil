@@ -25,7 +25,7 @@ export default function Navbar({ showClose, sections, setActiveSection, activeSe
                                 >
                                     <span className="font-bold">{icon}</span>
                                     <motion.span
-                                        className="hidden lg:block pl-2 text-xs"
+                                        className="hidden xl:block pl-2 text-xs"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ duration: 0.2 }}

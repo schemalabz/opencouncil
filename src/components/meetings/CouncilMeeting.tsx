@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3 } from "lucide-react"
-import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party } from '@prisma/client'
+import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party, HighlightedUtterance } from '@prisma/client'
 import AdminActions from './admin/Admin'
 import Navbar from './Navbar'
 import TranscriptControls from './TranscriptControls'
@@ -22,6 +22,8 @@ import { Statistics } from './Statistics'
 import { ShareC } from './Share'
 import Summary from './Summary'
 import Highlights from '../Highlights'
+import { HighlightWithUtterances } from '@/lib/db/highlights'
+import HighlightView from './highlightView/HighlightView'
 
 type CouncilMeetingCProps = {
     editable: boolean,
@@ -32,6 +34,7 @@ type CouncilMeetingCProps = {
         people: Person[],
         parties: Party[]
         speakerTags: SpeakerTag[]
+        highlights: HighlightWithUtterances[]
     }
 }
 
@@ -39,6 +42,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     const [isWide, setIsWide] = useState(false);
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [mode, setMode] = useState<'transcript' | 'highlights'>('transcript');
 
     const utterances = useMemo(() => {
         return meetingData.transcript.map((u) => u.utterances).flat()
@@ -58,13 +62,13 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
     const sections = [
         { title: "Τοποθετήσεις", icon: <LayoutList />, content: <Summary /> },
-        { title: "Highlights", icon: <Sparkles />, content: <Highlights /> },
         { title: "Στατιστικά", icon: <BarChart3 />, content: <Statistics /> },
         { title: "Κοινοποίηση", icon: <Share />, content: <ShareC /> },
         { title: "Επιλογές", icon: <Settings2 />, content: <Options editable={editable} /> },
     ]
 
     if (editable) {
+        sections.push({ title: "Highlights", icon: <Sparkles />, content: <Highlights highlights={meetingData.highlights} /> })
         sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> })
     }
 
@@ -83,45 +87,50 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider editable={editable}>
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
-                    <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
-                        <Header city={meetingData.city} meeting={meetingData.meeting} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
-                        <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
-                            <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
-                                <div className='flex-grow overflow-y-auto scrollbar-hide'>
-                                    <Transcript speakerSegments={meetingData.transcript} />
-                                </div>
-                            </div>
-
-                            {isWide && activeSection && (
-                                <div className="w-1/2 border-l flex flex-col overflow-y-auto">
-                                    <div className="flex-grow overflow-y-auto scrollbar-hide p-4 pb-24">
-                                        {sections.find(section => section.title === activeSection)?.content}
+                    {mode === 'transcript' ? <>
+                        <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
+                            <Header city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
+                            <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
+                                <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
+                                    <div className='flex-grow overflow-y-auto scrollbar-hide'>
+                                        <Transcript speakerSegments={meetingData.transcript} />
                                     </div>
                                 </div>
-                            )}
+
+                                {isWide && activeSection && (
+                                    <div className="w-1/2 border-l flex flex-col overflow-y-auto">
+                                        <div className="flex-grow overflow-y-auto scrollbar-hide p-4 pb-24">
+                                            {sections.find(section => section.title === activeSection)?.content}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
+
+                            <CurrentTimeButton isWide={isWide} />
                         </div>
 
-                        <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
-
-                        <CurrentTimeButton isWide={isWide} />
-                    </div>
-
-                    {!isWide && activeSection && (
-                        <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
-                            <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
-                                <div className="flex justify-center mb-4">
-                                    <Navbar
-                                        sections={sections}
-                                        activeSection={activeSection}
-                                        setActiveSection={setActiveSection}
-                                        showClose={false}
-                                        className='justify-center'
-                                    />
-                                </div>
-                                {sections.find(section => section.title === activeSection)?.content}
-                            </SheetContent>
-                        </Sheet>
-                    )}
+                        {!isWide && activeSection && (
+                            <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
+                                <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
+                                    <div className="flex justify-center mb-4">
+                                        <Navbar
+                                            sections={sections}
+                                            activeSection={activeSection}
+                                            setActiveSection={setActiveSection}
+                                            showClose={false}
+                                            className='justify-center'
+                                        />
+                                    </div>
+                                    {sections.find(section => section.title === activeSection)?.content}
+                                </SheetContent>
+                            </Sheet>
+                        )}
+                    </>
+                        :
+                        <HighlightView data={meetingData} switchToTranscript={() => setMode('transcript')} />
+                    }
                 </VideoProvider>
             </TranscriptOptionsProvider>
         </CouncilMeetingDataProvider>
