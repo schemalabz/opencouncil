@@ -1,6 +1,9 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { CouncilMeeting, Utterance, Word } from "@prisma/client";
+import MuxVideo from '@mux/mux-video-react';
+import MuxVideoElement from '@mux/mux-video';
+
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -13,7 +16,7 @@ interface VideoContextType {
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
     scrollToUtterance: (time: number) => void;
-    videoRef: React.RefObject<HTMLVideoElement>;
+    playerRef: React.RefObject<MuxVideoElement>;
     isSeeking: boolean;
     setIsPlaying: (isPlaying: boolean) => void;
 }
@@ -41,28 +44,31 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [playbackSpeed, setPlaybackSpeed] = useState("1");
     const [isSeeking, setIsSeeking] = useState(false);
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
+    const playerRef = useRef<MuxVideoElement>(null);
 
     useEffect(() => {
-        const video = videoRef.current;
+        const player = playerRef.current;
         const updateDuration = () => {
-            console.log(`Metadata loaded! Duration: ${video?.duration}`);
-            if (video && !isNaN(video.duration)) {
-                setDuration(video.duration);
+            console.log(`Metadata loaded! Duration: ${player?.duration}`);
+            if (player && !isNaN(player.duration)) {
+                setDuration(player.duration);
             }
         };
 
-        video?.addEventListener('loadedmetadata', updateDuration);
-        video?.addEventListener('timeupdate', handleTimeUpdate);
-        video?.addEventListener('seeking', () => setIsSeeking(true));
-        video?.addEventListener('seeked', () => setIsSeeking(false));
+        player?.addEventListener('loadedmetadata', updateDuration);
+        player?.addEventListener('timeupdate', handleTimeUpdate);
+        player?.addEventListener('seeking', () => setIsSeeking(true));
+        player?.addEventListener('seeked', () => {
+            setIsSeeking(false);
+            setCurrentTime(player.currentTime);
+        });
         updateDuration();
 
         return () => {
-            video?.removeEventListener('loadedmetadata', updateDuration);
-            video?.removeEventListener('timeupdate', handleTimeUpdate);
-            video?.removeEventListener('seeking', () => setIsSeeking(true));
-            video?.removeEventListener('seeked', () => setIsSeeking(false));
+            player?.removeEventListener('loadedmetadata', updateDuration);
+            player?.removeEventListener('timeupdate', handleTimeUpdate);
+            player?.removeEventListener('seeking', () => setIsSeeking(true));
+            player?.removeEventListener('seeked', () => setIsSeeking(false));
         };
     }, []);
 
@@ -72,8 +78,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
-            if (!isNaN(seconds) && videoRef.current) {
-                videoRef.current.currentTime = seconds;
+            if (!isNaN(seconds) && playerRef.current) {
+                playerRef.current.currentTime = seconds;
                 setCurrentTime(seconds);
                 setTimeout(() => scrollToUtterance(seconds), 1000);
             }
@@ -82,21 +88,22 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const playVideo = async () => {
         console.log("PLAYING");
-        if (videoRef.current) {
+        if (playerRef.current) {
             if (!hasStartedPlaying && utterances.length > 0) {
                 if (currentTime === 0) {
-                    videoRef.current.currentTime = utterances[0].startTimestamp;
+                    // TODO: 
+                    //playerRef.current.currentTime = utterances[0].startTimestamp;
                 }
                 setHasStartedPlaying(true);
             }
-            await videoRef.current.play();
+            await playerRef.current.play();
             setIsPlaying(true);
         }
     };
 
     const pauseVideo = async () => {
-        if (videoRef.current) {
-            await videoRef.current.pause();
+        if (playerRef.current) {
+            await playerRef.current.pause();
             setIsPlaying(false);
         }
     };
@@ -116,8 +123,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const handleSpeedChange = (value: string) => {
         setPlaybackSpeed(value);
-        if (videoRef.current) {
-            videoRef.current.playbackRate = parseFloat(value);
+        if (playerRef.current) {
+            playerRef.current.playbackRate = parseFloat(value);
         }
     };
 
@@ -137,26 +144,32 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    const formatTimestamp = (timestamp: number) => {
+        const hours = Math.floor(timestamp / 3600);
+        const minutes = Math.floor((timestamp % 3600) / 60);
+        const seconds = Math.floor(timestamp % 60);
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
     // Update seekTo to include scrolling
     const seekTo = (time: number) => {
-        if (videoRef.current) {
-            videoRef.current.currentTime = time;
+        if (playerRef.current) {
+            console.log(`SEEK: Seeking to ${formatTimestamp(time)}`)
+            playerRef.current.currentTime = time;
+            setCurrentTime(time);
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
                 scrollToUtterance(time);
             });
+        } else {
+            console.log(`SEEK: No player element found`)
         }
     };
 
     const handleTimeUpdate = () => {
-        if (videoRef.current) {
-            const newTime = videoRef.current.currentTime;
-            setCurrentTime(prevTime => {
-                if (Math.abs(prevTime - newTime) > 0.5) {
-                    return newTime;
-                }
-                return prevTime;
-            });
+        if (playerRef.current && !isSeeking) {
+            const newTime = playerRef.current.currentTime;
+            setCurrentTime(newTime);
         }
     };
 
@@ -173,7 +186,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         handleSpeedChange,
         seekTo,
         scrollToUtterance,
-        videoRef,
+        playerRef,
         isSeeking,
         setIsPlaying: async (shouldPlay: boolean) => {
             if (shouldPlay) {
@@ -184,13 +197,19 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         },
     };
 
+    console.log(`PlaybackId: ${meeting.muxPlaybackId}`)
     return (
         <VideoContext.Provider value={value}>
-            <audio
-                ref={videoRef}
-                src={meeting.audioUrl!}
+            <MuxVideo
+                ref={playerRef as any}
                 style={{ display: 'none' }}
-                preload="metadata"
+                streamType="on-demand"
+                playbackId={meeting.muxPlaybackId!}
+                metadata={{
+                    video_id: meeting.id,
+                    video_title: meeting.name,
+                }}
+                playsInline
             />
             {children}
         </VideoContext.Provider>

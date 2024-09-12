@@ -80,6 +80,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 export async function handleTranscribeResult(taskId: string, response: TranscribeResult) {
     const videoUrl = response.videoUrl;
     const audioUrl = response.audioUrl;
+    const muxPlaybackId = response.muxPlaybackId;
 
     const task = await prisma.taskStatus.findUnique({
         where: {
@@ -103,7 +104,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         throw new Error('Task not found');
     }
 
-    await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl);
+    await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl, muxPlaybackId);
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
         // Create speaker tags
@@ -204,7 +205,7 @@ let getSpeakerSegmentsFromUtterances = (utterances: ApiUtterance[]): SpeakerSegm
     return speakerSegments;
 }
 
-let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string, audioUrl: string) => {
+let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string, audioUrl: string, muxPlaybackId: string) => {
     const updatedMeeting = await prisma.councilMeeting.update({
         where: {
             cityId_id: {
@@ -214,7 +215,8 @@ let updateMeetingVideo = async (meeting: CouncilMeeting, videoUrl: string, audio
         },
         data: {
             videoUrl,
-            audioUrl
+            audioUrl,
+            muxPlaybackId
         }
     });
 

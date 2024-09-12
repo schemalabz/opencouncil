@@ -29,6 +29,7 @@ export interface TranscribeRequest extends TaskRequest {
 export interface TranscribeResult {
     videoUrl: string;
     audioUrl: string;
+    muxPlaybackId: string;
     transcript: Transcript;
 }
 

@@ -43,6 +43,9 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [mode, setMode] = useState<'transcript' | 'highlights'>('transcript');
+    const highlightId = typeof window !== 'undefined' && window.location.hash.startsWith('#h-')
+        ? window.location.hash.slice(3)
+        : null;
 
     const utterances = useMemo(() => {
         return meetingData.transcript.map((u) => u.utterances).flat()
@@ -56,6 +59,11 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         checkSize()
         window.addEventListener('resize', checkSize)
         setLoading(false)
+
+        // Check if URL hash starts with #h- and set mode to 'highlights' if it does
+        if (typeof window !== 'undefined' && window.location.hash.startsWith('#h-')) {
+            setMode('highlights');
+        }
 
         return () => window.removeEventListener('resize', checkSize)
     }, [])
@@ -129,7 +137,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                         )}
                     </>
                         :
-                        <HighlightView data={meetingData} switchToTranscript={() => setMode('transcript')} />
+                        <HighlightView initialHighlightId={highlightId ?? ''} data={meetingData} switchToTranscript={() => setMode('transcript')} />
                     }
                 </VideoProvider>
             </TranscriptOptionsProvider>

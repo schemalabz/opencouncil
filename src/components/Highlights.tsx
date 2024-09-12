@@ -61,6 +61,13 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
         }
     };
 
+    const formatTimestamp = (timestamp: number) => {
+        const hours = Math.floor(timestamp / 3600);
+        const minutes = Math.floor(timestamp / 60);
+        const seconds = Math.floor(timestamp % 60);
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
     return (
         <Card
             className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''}`}
@@ -105,7 +112,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                             return (
                                 <div key={index} className="flex items-center space-x-2">
                                     {speakerTag && <SpeakerTagC speakerTag={speakerTag} className="flex-shrink-0" />}
-                                    <p className="text-sm">{utterance.text}</p>
+                                    <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
                                     <Button
                                         size="icon"
                                         variant="ghost"

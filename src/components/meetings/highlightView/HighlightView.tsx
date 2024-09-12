@@ -1,12 +1,13 @@
 import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance } from "@prisma/client"
 import { Transcript } from "@/lib/db/transcript"
 import { HighlightWithUtterances } from "@/lib/db/highlights"
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { ChevronUp, ChevronDown, Share2, ArrowUp, ArrowLeft, TriangleAlert } from 'lucide-react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { ChevronUp, ChevronDown, Share2, ArrowUp, ArrowLeft, TriangleAlert, CheckCircle, Play, PlayCircle } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { useVideo } from "../VideoProvider"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext"
+import MuxPlayer from "@mux/mux-player-react"
 
 const AnimatedText = ({ text }: { text: string }) => {
     const [currentText, setCurrentText] = useState('')
@@ -34,67 +35,70 @@ const AnimatedText = ({ text }: { text: string }) => {
 const Subtitles = ({ utterance }: { utterance: Utterance }) => (
     <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 p-2 rounded">
         <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold">
-                speakerName
-            </div>
             <div className="flex-1">
                 <p className="text-white text-sm">{utterance.text}</p>
             </div>
         </div>
     </div>
 )
+const formatTimestamp = (timestamp: number) => {
+    const minutes = Math.floor(timestamp / 60);
+    const seconds = Math.floor(timestamp % 60);
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
 
-const HighlightCard = ({ highlight, onEnded }: { highlight: HighlightWithUtterances, onEnded: () => void }) => {
-    if (!highlight) return null;
-    const { currentTime, seekTo, isPlaying, setIsPlaying } = useVideo()
-    const [currentUtteranceIndex, setCurrentUtteranceIndex] = useState(0)
-    const [highlightProgress, setHighlightProgress] = useState(0)
-    const { transcript } = useCouncilMeetingData()
-    const utterances = highlight.highlightedUtterances.map(hu =>
-        transcript.flatMap(segment => segment.utterances).find(u => u.id === hu.utteranceId)
-    ).filter((u): u is NonNullable<typeof u> => u !== undefined)
+const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Utterance & { person: Person })[], name: string, onEnded: () => void, meeting: CouncilMeeting }) => {
+    const { currentTime, seekTo, isSeeking, isPlaying, setIsPlaying, playerRef } = useVideo()
+    const [currentUtteranceIndex, setCurrentUtteranceIndex] = useState(0);
+    const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
     useEffect(() => {
-        if (!utterances || utterances.length === 0) return;
-
-        console.log("Setting up playback")
-        seekTo(utterances[0].startTimestamp);
+        console.log(`New utterances! ${name}`)
+        console.log(`Start times ${utterances.map(u => formatTimestamp(u.startTimestamp))}}`)
+        seekTo(utterances[0].startTimestamp)
         setCurrentUtteranceIndex(0);
-        setIsPlaying(true);
-    }, [highlight])
+        setHasStartedPlaying(true);
+        if (!isPlaying) {
+            console.log(`Starting playback because was not playing`)
+            setTimeout(() => setIsPlaying(true), 0);
+        }
+    }, [utterances]);
 
     useEffect(() => {
-        if (!utterances || utterances.length === 0) return;
+        if (isSeeking || !hasStartedPlaying) return;
 
-        const currentUtterance = utterances[currentUtteranceIndex];
-        if (currentTime >= currentUtterance.endTimestamp) {
+        if (currentTime > utterances[currentUtteranceIndex].endTimestamp) {
             if (currentUtteranceIndex < utterances.length - 1) {
+                if (Math.abs(currentTime - utterances[currentUtteranceIndex + 1].startTimestamp) > 0.5) {
+                    seekTo(utterances[currentUtteranceIndex + 1].startTimestamp)
+                }
                 setCurrentUtteranceIndex(prevIndex => prevIndex + 1);
             } else {
-                onEnded();
+                onEnded()
             }
-        } else if (currentTime < currentUtterance.startTimestamp) {
-            seekTo(currentUtterance.startTimestamp);
         }
-    }, [currentTime, currentUtteranceIndex, utterances])
+    }, [currentTime, isSeeking, hasStartedPlaying])
+    const playerContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const totalDuration = utterances.reduce(
-            (total, utterance) => total + (utterance.endTimestamp - utterance.startTimestamp),
-            0
-        );
-        const elapsedDuration = utterances.slice(0, currentUtteranceIndex).reduce(
-            (total, utterance) => total + (utterance.endTimestamp - utterance.startTimestamp),
-            0
-        ) + Math.max(0, currentTime - utterances[currentUtteranceIndex].startTimestamp);
-        setHighlightProgress((elapsedDuration / totalDuration) * 100);
-    }, [currentTime, currentUtteranceIndex, utterances]);
+        if (playerRef.current && playerContainerRef.current) {
+            playerContainerRef.current.appendChild(playerRef.current);
+            playerRef.current.style.display = 'block';
+        }
+
+        return () => {
+            if (playerRef.current && playerRef.current.parentNode === playerContainerRef.current) {
+                playerContainerRef.current?.removeChild(playerRef.current);
+                playerRef.current.style.display = 'none';
+            }
+        };
+    }, [playerRef]);
 
     return (
         <div className="bg-gray-900 text-white h-screen w-full snap-start flex flex-col justify-center p-4">
-            <h2 className="text-xl font-semibold mb-2 text-center">{highlight.name}</h2>
+            <h2 className="text-xl font-semibold mb-2 text-center">{name}</h2>
             <div className="aspect-video bg-gray-800 w-full max-w-4xl mx-auto flex items-center justify-center text-3xl font-bold relative">
-                <AnimatedText text="<video here>" />
+                <div ref={playerContainerRef} />
                 {currentUtteranceIndex < utterances.length && (
                     <Subtitles utterance={utterances[currentUtteranceIndex]} />
                 )}
@@ -102,7 +106,7 @@ const HighlightCard = ({ highlight, onEnded }: { highlight: HighlightWithUtteran
             <div className="w-full max-w-4xl mx-auto mt-4 bg-gray-700 h-1">
                 <div
                     className="bg-white h-full transition-all duration-300 ease-linear"
-                    style={{ width: `${highlightProgress}%` }}
+                    style={{ width: `${(currentUtteranceIndex / utterances.length) * 100}%` }}
                 />
             </div>
         </div>
@@ -145,7 +149,7 @@ const SuperHeader = ({ currentIndex, totalHighlights, meeting, city, switchToTra
                             transition={{ type: "spring", stiffness: 100 }}
                         >
                             <h2 className="text-3xl font-bold mb-4">Προσοχή!</h2>
-                            <p className="text-lg mb-4">Αυτό το περιεχόμενο είναι σε πειραματικό στάδιο.</p>
+                            <p className="text-lg mb-4">Τα αποσμάτα απομαγνητοφωνήθηκαν και επιλέχτηκαν αυτόματα, και ενδεχομένως να περιέχουν λάθη, ή να είναι ελλειπή</p>
                             <p className="text-sm italic">Κάντε κλικ οπουδήποτε για να κλείσετε</p>
                         </motion.div>
                     </motion.div>
@@ -155,7 +159,8 @@ const SuperHeader = ({ currentIndex, totalHighlights, meeting, city, switchToTra
     );
 };
 
-export default function HighlightView({ data, switchToTranscript }: {
+export default function HighlightView({ initialHighlightId, data, switchToTranscript }: {
+    initialHighlightId: string,
     data: {
         meeting: CouncilMeeting & { taskStatuses: any[] },
         transcript: Transcript,
@@ -167,28 +172,99 @@ export default function HighlightView({ data, switchToTranscript }: {
     }
     switchToTranscript: () => void
 }) {
-    const [currentIndex, setCurrentIndex] = useState(0)
     const [direction, setDirection] = useState<'up' | 'down'>('down')
-    const handleScroll = useCallback((scrollDirection: 'up' | 'down') => {
-        if (scrollDirection === 'down' && currentIndex > 0) {
-            setCurrentIndex(prevIndex => prevIndex - 1)
-            setDirection('down')
-        } else if (scrollDirection === 'up' && currentIndex < data.highlights.length - 1) {
-            setCurrentIndex(prevIndex => prevIndex + 1)
-            setDirection('up')
+    const [isLinkCopied, setIsLinkCopied] = useState(false)
+    const [showReels, setShowReels] = useState(false);
+
+    const { getPerson } = useCouncilMeetingData();
+
+    const utteranceById = useMemo(() => {
+        return data.transcript.flatMap(segment => segment.utterances).reduce((acc, utterance) => {
+            acc[utterance.id] = utterance;
+            return acc;
+        }, {} as Record<string, Utterance>);
+    }, [data.transcript]);
+
+    const highlightUtterances = useMemo(() => {
+        return data.highlights.map((highlight) => {
+            return highlight.highlightedUtterances.map(hu => {
+                const utterance = utteranceById[hu.utteranceId];
+                const speakerSegment = data.transcript.find(segment =>
+                    segment.utterances.some(u => u.id === utterance.id)
+                );
+
+                if (!speakerSegment) {
+                    console.error(`No speaker segment found for utterance ${utterance.id}`);
+                    return { ...utterance, person: {} as Person };
+                }
+
+                const person = getPerson(speakerSegment.speakerTag.personId || '');
+
+                if (!person) {
+                    console.error(`No person found for speaker tag ${speakerSegment.speakerTag.id}`);
+                    return { ...utterance, person: {} as Person };
+                }
+
+                return { ...utterance, person };
+            }).sort((a, b) => a.startTimestamp - b.startTimestamp);
+        });
+    }, [data.highlights, utteranceById, data.transcript, getPerson]);
+
+    const getCurrentIndex = useCallback(() => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#h-')) {
+            const highlightId = hash.slice(3);
+            const index = data.highlights.findIndex(h => h.id === highlightId);
+            return index !== -1 ? index : 0;
         }
-    }, [currentIndex, data.highlights.length])
+        return 0;
+    }, [data.highlights]);
+
+    const setCurrentIndex = useCallback((index: number) => {
+        const highlight = data.highlights[index];
+        if (highlight) {
+            window.history.pushState({}, '', `#h-${highlight.id}`);
+        }
+    }, [data.highlights]);
+
+    const handleScroll = useCallback((scrollDirection: 'up' | 'down') => {
+        const currentIndex = getCurrentIndex();
+        if (scrollDirection === 'down' && currentIndex > 0) {
+            setCurrentIndex(currentIndex - 1);
+            setDirection('down');
+        } else if (scrollDirection === 'up' && currentIndex < data.highlights.length - 1) {
+            setCurrentIndex(currentIndex + 1);
+            setDirection('up');
+        }
+    }, [getCurrentIndex, setCurrentIndex, data.highlights.length]);
 
     const handleWheel = useCallback((event: React.WheelEvent) => {
+        if (!showReels) return;
         if (event.deltaY > 0) {
             handleScroll('up')
         } else if (event.deltaY < 0) {
             handleScroll('down')
         }
-    }, [handleScroll])
+    }, [handleScroll, showReels])
 
-    const handleShare = () => {
-        console.log('Share button clicked')
+    const handleShare = (event: React.MouseEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const url = window.location.href;
+
+        if (navigator.share && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            // Mobile device
+            navigator.share({
+                title: 'Share this highlight',
+                url: url
+            }).catch(console.error);
+        } else {
+            // Desktop
+            navigator.clipboard.writeText(url).then(() => {
+                setIsLinkCopied(true)
+                setTimeout(() => setIsLinkCopied(false), 3000)
+            })
+        }
     }
 
     const variants = {
@@ -205,12 +281,31 @@ export default function HighlightView({ data, switchToTranscript }: {
             opacity: 0,
         }),
     }
+    useEffect(() => {
+        if (initialHighlightId) {
+            setCurrentIndex(data.highlights.findIndex(h => h.id === initialHighlightId));
+        } else if (data.highlights.length > 0 && !window.location.hash.startsWith('#h-')) {
+            // If no initial highlight and no hash, set to the first highlight
+            const firstHighlightId = data.highlights[0].id;
+            window.history.pushState({}, '', `#h-${firstHighlightId}`);
+            setCurrentIndex(0);
+        }
+    }, [initialHighlightId, data.highlights, setCurrentIndex]);
 
+    useEffect(() => {
+        const handleHashChange = () => {
+            // Force a re-render when the hash changes
+            setDirection(prev => prev === 'up' ? 'down' : 'up');
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, []);
+
+    const currentIndex = getCurrentIndex();
     const currentHighlight = data.highlights[currentIndex]
-    const progressPercentage = ((currentIndex + 1) / data.highlights.length) * 100
+    const progressPercentage = ((currentIndex + 1) / data.highlights.length) * 100;
 
-    console.log(`current index is ${currentIndex}`)
-    console.log(progressPercentage)
     return (
         <div
             className="relative h-screen w-full overflow-hidden bg-black flex flex-col"
@@ -219,64 +314,87 @@ export default function HighlightView({ data, switchToTranscript }: {
             <SuperHeader switchToTranscript={switchToTranscript} currentIndex={currentIndex} totalHighlights={data.highlights.length} meeting={data.meeting} city={data.city} />
 
             <div className="flex-grow flex flex-col relative">
-                <button
-                    className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black to-transparent text-white p-4 z-10 flex justify-center items-center"
-                    onClick={() => handleScroll('up')}
-                >
-                    <ChevronUp className="w-8 h-8" />
-                </button>
-
-                <div className="flex-grow flex items-center justify-center overflow-hidden">
-                    <AnimatePresence initial={false} custom={direction}>
-                        <motion.div
-                            key={currentIndex}
-                            custom={direction}
-                            variants={variants}
-                            initial="enter"
-                            animate="center"
-                            exit="exit"
-                            transition={{
-                                y: { type: "spring", stiffness: 300, damping: 30 },
-                                opacity: { duration: 0.2 },
-                            }}
-                            className="absolute w-full h-full"
+                {showReels ? (
+                    <>
+                        <button
+                            className="absolute top-28 left-0 right-0 bg-gradient-to-b from-black to-transparent text-white p-4 z-10 flex justify-center items-center"
+                            onClick={() => handleScroll('down')}
                         >
-                            {currentIndex < data.highlights.length &&
-                                <HighlightCard highlight={data.highlights[currentIndex]} onEnded={() => handleScroll('up')} />}
+                            <ChevronUp className="w-8 h-8" />
+                        </button>
 
-                            {currentIndex >= data.highlights.length &&
-                                <div className="absolute w-full h-full bg-black flex flex-col items-center justify-center space-y-4">
-                                    <p className="text-white text-xl font-bold">Τέλος</p>
-                                    <Button onClick={switchToTranscript} variant='ghost' className='text-white text-sm'>Δείτε όλη τη συνεδρίαση</Button>
-                                </div>
-                            }
-                        </motion.div>
-                    </AnimatePresence>
-                </div>
+                        <div className="flex-grow flex items-center justify-center overflow-hidden">
+                            <AnimatePresence initial={false} custom={direction} mode="wait">
+                                <motion.div
+                                    key={currentIndex}
+                                    custom={direction}
+                                    variants={variants}
+                                    initial="enter"
+                                    animate="center"
+                                    exit="exit"
+                                    transition={{
+                                        y: { type: "spring", stiffness: 300, damping: 30 },
+                                        opacity: { duration: 0.2 },
+                                    }}
+                                    className="absolute w-full h-full"
+                                >
+                                    {currentIndex < data.highlights.length && currentHighlight &&
+                                        <HighlightCard meeting={data.meeting} key={currentIndex} utterances={highlightUtterances[currentIndex]} name={currentHighlight.name} onEnded={() => handleScroll('up')} />}
 
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent text-white p-4 z-10 flex flex-col items-center space-y-4">
-                    <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full flex items-center space-x-2 transition-all duration-200 z-20"
-                        onClick={handleShare}
+                                    {currentIndex >= data.highlights.length &&
+                                        <div className="absolute w-full h-full bg-black flex flex-col items-center justify-center space-y-4">
+                                            <p className="text-white text-xl font-bold">Τέλος</p>
+                                            <Button onClick={switchToTranscript} variant='ghost' className='text-white text-sm'>Δείτε όλη τη συνεδρίαση</Button>
+                                        </div>
+                                    }
+                                </motion.div>
+                            </AnimatePresence>
+                        </div>
+
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent text-white p-4 z-10 flex flex-col items-center space-y-4">
+                            <button
+                                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-full flex items-center space-x-2 transition-all duration-200 z-20"
+                                onClick={handleShare}
+                            >
+                                {isLinkCopied ? (
+                                    <>
+                                        <CheckCircle className="w-6 h-6" />
+                                        <span>Link copied</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Share2 className="w-6 h-6" />
+                                        <span>Share</span>
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                className="flex justify-center items-center"
+                                onClick={() => handleScroll('up')}
+                            >
+                                <ChevronDown className="w-8 h-8" />
+                            </button>
+                        </div>
+
+                        {/* Vertical progress bar */}
+                        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 h-3/5 w-2 bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                                className="bg-blue-500 w-full rounded-full transition-all duration-300 ease-out"
+                                style={{ height: `${progressPercentage}%` }}
+                            ></div>
+                        </div>
+                    </>
+                ) : (
+                    <div
+                        className="flex-grow flex items-center justify-center cursor-pointer"
+                        onClick={() => setShowReels(true)}
                     >
-                        <Share2 className="w-6 h-6" />
-                        <span>Share</span>
-                    </button>
-                    <button
-                        className="flex justify-center items-center"
-                        onClick={() => handleScroll('down')}
-                    >
-                        <ChevronDown className="w-8 h-8" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Vertical progress bar */}
-            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 h-3/5 w-2 bg-gray-700 rounded-full overflow-hidden">
-                <div
-                    className="bg-blue-500 w-full rounded-full transition-all duration-300 ease-out"
-                    style={{ height: `${progressPercentage}%` }}
-                ></div>
+                        <div className="flex flex-col items-center justify-center w-full h-full text-white hover:bg-black hover:text-white/50 transition-all duration-200">
+                            <PlayCircle className="w-24 h-24 mb-4" />
+                            <span className="text-2xl font-bold">Start </span>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )
