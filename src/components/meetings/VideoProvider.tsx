@@ -208,6 +208,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                     video_title: meeting.name,
                 }}
                 playsInline
+                disablePictureInPicture
             />
             {children}
         </VideoContext.Provider>
