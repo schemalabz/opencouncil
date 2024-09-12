@@ -9,6 +9,8 @@ import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings'
 import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 
+export const revalidate = 60; // Revalidate at most every 60 seconds
+
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
     const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
