@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { handleTranscribeResult } from '@/lib/tasks/transcribe';
-import { SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+import { ExtractHighlightsRequest, ExtractHighlightsResult, SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
 import { handleSummarizeResult } from '@/lib/tasks/summarize';
 import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
+import { handleExtractHighlightsResult } from '@/lib/tasks/extractHighlights';
 
 export async function GET(
     request: NextRequest,
@@ -65,6 +66,8 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<TranscribeResult>, handleTranscribeResult);
         } else if (taskStatus.type === 'summarize') {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<SummarizeResult>, handleSummarizeResult);
+        } else if (taskStatus.type === 'extract-highlights') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<ExtractHighlightsResult>, handleExtractHighlightsResult);
         } else {
             // Handle other task types here if needed
             throw new Error(`Unsupported task type: ${taskStatus.type}`);

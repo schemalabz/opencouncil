@@ -32,6 +32,9 @@ export async function getTranscript(meetingId: string, cityId: string, {
                         },
                     }
                 },
+                orderBy: {
+                    startTimestamp: 'asc',
+                },
             },
             summary: true,
             topicLabels: {

@@ -153,7 +153,5 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         });
     });
 
-    console.log(`Statistics: ${JSON.stringify(statistics)}`);
-
     return statistics;
 }
