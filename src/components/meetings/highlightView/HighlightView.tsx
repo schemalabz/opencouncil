@@ -53,13 +53,10 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
     useEffect(() => {
-        console.log(`New utterances! ${name}`)
-        console.log(`Start times ${utterances.map(u => formatTimestamp(u.startTimestamp))}}`)
         seekTo(utterances[0].startTimestamp)
         setCurrentUtteranceIndex(0);
         setHasStartedPlaying(true);
         if (!isPlaying) {
-            console.log(`Starting playback because was not playing`)
             setTimeout(() => setIsPlaying(true), 0);
         }
     }, [utterances]);

@@ -49,7 +49,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     useEffect(() => {
         const player = playerRef.current;
         const updateDuration = () => {
-            console.log(`Metadata loaded! Duration: ${player?.duration}`);
             if (player && !isNaN(player.duration)) {
                 setDuration(player.duration);
             }
@@ -197,7 +196,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         },
     };
 
-    console.log(`PlaybackId: ${meeting.muxPlaybackId}`)
     return (
         <VideoContext.Provider value={value}>
             <MuxVideo
