@@ -10,7 +10,7 @@ import Navbar from './Navbar'
 import { City, CouncilMeeting } from '@prisma/client'
 import AnimatedGradientText from '../magicui/animated-gradient-text'
 
-export default function Header({ city, meeting, isWide, activeSection, setActiveSection, sections, switchToHighlights }: { city: City, meeting: CouncilMeeting, isWide: boolean, activeSection: string | null, setActiveSection: (section: string | null) => void, sections: { title: string, icon: React.ReactNode, content: React.ReactNode }[], switchToHighlights: () => void }) {
+export default function Header({ city, meeting, isWide, activeSection, setActiveSection, sections, switchToHighlights, showHiglightButton = true }: { city: City, meeting: CouncilMeeting, isWide: boolean, activeSection: string | null, setActiveSection: (section: string | null) => void, sections: { title: string, icon: React.ReactNode, content: React.ReactNode }[], switchToHighlights: () => void, showHiglightButton?: boolean }) {
     return (
         <motion.header
             className={`sticky top-0 z-10 bg-background border-b p-4 flex justify-between items-center`}
@@ -45,12 +45,14 @@ export default function Header({ city, meeting, isWide, activeSection, setActive
             </div>
 
             <div className='flex-1 flex items-center justify-start ml-2'>
-                <div onClick={() => switchToHighlights()} className='cursor-pointer'>
-                    <AnimatedGradientText>
-                        <Sparkles className='inline-block md:mr-2' />
-                        <span className='hidden md:inline'>Highlights</span>
-                    </AnimatedGradientText>
-                </div>
+                {showHiglightButton && (
+                    <div onClick={() => switchToHighlights()} className='cursor-pointer'>
+                        <AnimatedGradientText>
+                            <Sparkles className='inline-block md:mr-2' />
+                            <span className='hidden md:inline'>Highlights</span>
+                        </AnimatedGradientText>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3 } from "lucide-react"
 import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party, HighlightedUtterance } from '@prisma/client'
 import AdminActions from './admin/Admin'
@@ -97,7 +97,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
                     {mode === 'transcript' ? <>
                         <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
-                            <Header city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
+                            <Header showHiglightButton={meetingData.highlights.length > 0} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                             <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                                 <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                     <div className='flex-grow overflow-y-auto scrollbar-hide'>
@@ -121,15 +121,18 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
                         {!isWide && activeSection && (
                             <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
+                                <SheetTitle>
+                                    <Navbar
+                                        sections={sections}
+                                        activeSection={activeSection}
+                                        setActiveSection={setActiveSection}
+                                        showClose={false}
+                                        className='justify-center'
+                                    />
+                                </SheetTitle>
                                 <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
                                     <div className="flex justify-center mb-4">
-                                        <Navbar
-                                            sections={sections}
-                                            activeSection={activeSection}
-                                            setActiveSection={setActiveSection}
-                                            showClose={false}
-                                            className='justify-center'
-                                        />
+
                                     </div>
                                     {sections.find(section => section.title === activeSection)?.content}
                                 </SheetContent>
