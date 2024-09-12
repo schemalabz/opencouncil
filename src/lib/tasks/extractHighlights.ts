@@ -1,3 +1,4 @@
+"use server";
 import { City } from "@prisma/client";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
@@ -22,21 +23,29 @@ export async function requestExtractHighlights(cityId: City["id"], councilMeetin
 
     const body: Omit<ExtractHighlightsRequest, 'callbackUrl'> = {
         names: names,
-        transcript: {
-            speakerName: transcript[0].speakerTag.label,
-            speakerParty: null,
-            speakerSegmentId: transcript[0].id,
-            utterances: transcript[0].utterances.map(u => ({
-                text: u.text,
-                utteranceId: u.id
-            }))
-        },
+        transcript: transcript.map(segment => {
+            const speakerTag = segment.speakerTag;
+            const person = people.find(p => p.id === speakerTag.personId);
+            const party = parties.find(p => p.id === person?.partyId);
+
+            const ret: ExtractHighlightsRequest['transcript'][number] = {
+                speakerName: person?.name || speakerTag.label,
+                speakerParty: party?.name || null,
+                speakerSegmentId: segment.id,
+                utterances: segment.utterances.map(u => ({
+                    text: u.text,
+                    utteranceId: u.id
+                }))
+            }
+
+            return ret;
+        }),
         topicLabels: topics.map(t => t.name),
         cityName: city.name,
         date: councilMeeting.dateTime.toISOString().split('T')[0],
     }
 
-    return startTask('extractHighlights', body, councilMeetingId, cityId);
+    return startTask('extract-highlights', body, councilMeetingId, cityId);
 }
 
 import prisma from "../db/prisma";

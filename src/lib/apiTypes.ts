@@ -128,7 +128,7 @@ export interface ExtractHighlightsRequest extends TaskRequest {
             text: string;
             utteranceId: string;
         }[];
-    };
+    }[];
     topicLabels: string[];
     cityName: string;
     date: string;

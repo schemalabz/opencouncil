@@ -19,7 +19,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     });
 
     if (existingTask && !options.force) {
-        throw new Error('A task of this type is already running for this council meeting');
+        //throw new Error('A task of this type is already running for this council meeting');
     }
 
     // Create new task in database
