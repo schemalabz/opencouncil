@@ -11,6 +11,7 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { requestExtractHighlights } from '@/lib/tasks/extractHighlights';
 
 export default function AdminActions({
     meeting
@@ -20,11 +21,14 @@ export default function AdminActions({
     const { toast } = useToast();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
+    const [isExtracting, setIsExtracting] = React.useState(false);
     const [youtubeUrl, setYoutubeUrl] = React.useState('');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
+    const [isHighlightPopoverOpen, setIsHighlightPopoverOpen] = React.useState(false);
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
+    const [topics, setTopics] = React.useState(['']);
 
     React.useEffect(() => {
         setYoutubeUrl(meeting.youtubeUrl);
@@ -94,6 +98,28 @@ export default function AdminActions({
         }
     };
 
+    const handleExtractHighlights = async () => {
+        setIsExtracting(true);
+        try {
+            await requestExtractHighlights(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''));
+            toast({
+                title: "Highlight extraction requested",
+                description: "The highlight extraction process has started.",
+            });
+            setIsHighlightPopoverOpen(false);
+            setTopics(['']);
+        } catch (error) {
+            console.log('toasting');
+            toast({
+                title: "Error requesting highlight extraction",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
     const handleDeleteTask = async (taskId: string) => {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/taskStatuses/${taskId}`, {
@@ -120,6 +146,16 @@ export default function AdminActions({
                 variant: 'destructive'
             });
         }
+    };
+
+    const handleTopicChange = (index: number, value: string) => {
+        const newTopics = [...topics];
+        newTopics[index] = value;
+        setTopics(newTopics);
+    };
+
+    const addTopic = () => {
+        setTopics([...topics, '']);
     };
 
     return (<div>
@@ -162,6 +198,33 @@ export default function AdminActions({
                 <Button onClick={handleSummarize} disabled={isSummarizing}>
                     {isSummarizing ? 'Starting...' : 'Summarize'}
                 </Button>
+                <Popover open={isHighlightPopoverOpen} onOpenChange={setIsHighlightPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <Button>Extract Highlights</Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Enter Topics</h4>
+                            {topics.map((topic, index) => (
+                                <Input
+                                    key={index}
+                                    type="text"
+                                    placeholder={`Topic ${index + 1}`}
+                                    value={topic}
+                                    onChange={(e) => handleTopicChange(index, e.target.value)}
+                                />
+                            ))}
+                            <div className="flex items-center justify-between space-x-4 w-full">
+                                <Button onClick={addTopic}>
+                                    Add Topic
+                                </Button>
+                                <Button onClick={handleExtractHighlights} disabled={isExtracting}>
+                                    {isExtracting ? 'Extracting...' : 'Extract Highlights'}
+                                </Button>
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
             </div>
         </div>
     </div>

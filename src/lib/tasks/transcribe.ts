@@ -53,7 +53,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
     const city = councilMeeting.city;
 
-    const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)];
+    const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)].flatMap(s => s.split(' '));
     const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίας του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
 
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {

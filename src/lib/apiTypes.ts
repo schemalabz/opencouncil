@@ -113,3 +113,30 @@ export interface SummarizeResult {
         summary: string | null;
     }[];
 }
+
+/*
+ * Task: Extract Highlights
+ */
+
+export interface ExtractHighlightsRequest extends TaskRequest {
+    names: string[];
+    transcript: {
+        speakerName: string | null;
+        speakerParty: string | null;
+        speakerSegmentId: string;
+        utterances: {
+            text: string;
+            utteranceId: string;
+        }[];
+    };
+    topicLabels: string[];
+    cityName: string;
+    date: string;
+}
+
+export interface ExtractHighlightsResult {
+    highlights: {
+        name: string;
+        utteranceIds: string[];
+    }[];
+}
