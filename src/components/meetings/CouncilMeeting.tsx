@@ -121,18 +121,15 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
                         {!isWide && activeSection && (
                             <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
-                                <SheetTitle>
-                                    <Navbar
-                                        sections={sections}
-                                        activeSection={activeSection}
-                                        setActiveSection={setActiveSection}
-                                        showClose={false}
-                                        className='justify-center'
-                                    />
-                                </SheetTitle>
-                                <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
-                                    <div className="flex justify-center mb-4">
-
+                                <SheetContent side="bottom" className="h-[70vh] overflow-y-auto" noanimate>
+                                    <div className="mb-4">
+                                        <Navbar
+                                            sections={sections}
+                                            activeSection={activeSection}
+                                            setActiveSection={setActiveSection}
+                                            showClose={false}
+                                            className='justify-center'
+                                        />
                                     </div>
                                     {sections.find(section => section.title === activeSection)?.content}
                                 </SheetContent>

@@ -12,7 +12,7 @@ export default function Transcript({ speakerSegments, isSheetOpen }: { speakerSe
     const containerRef = useRef<HTMLDivElement>(null);
 
     const debouncedSetCurrentScrollInterval = useMemo(
-        () => debounce(setCurrentScrollInterval, 2000),
+        () => debounce(setCurrentScrollInterval, 500),
         [setCurrentScrollInterval]
     );
 
