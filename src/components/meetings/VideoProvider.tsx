@@ -81,15 +81,18 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const playVideo = async () => {
         console.log("PLAYING");
         if (playerRef.current) {
-            if (!hasStartedPlaying && utterances.length > 0) {
-                if (currentTime === 0) {
-                    // TODO: 
-                    //playerRef.current.currentTime = utterances[0].startTimestamp;
+            await playerRef.current.play();
+            if (!hasStartedPlaying) { // this is the first time we play
+                if (currentTime === 0 && utterances.length > 0) {
+                    playerRef.current.currentTime = utterances[0].startTimestamp;
                 }
+
+                playerRef.current.currentTime = currentTime;
                 setHasStartedPlaying(true);
             }
-            await playerRef.current.play();
+
             setIsPlaying(true);
+
         }
     };
 
@@ -157,7 +160,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const seekTo = (time: number) => {
         if (playerRef.current) {
             console.log(`SEEK: Seeking to ${formatTimestamp(time)}`)
-            playerRef.current.currentTime = time;
+            if (hasStartedPlaying) {
+                playerRef.current.currentTime = time;
+            }
             setCurrentTime(time);
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
