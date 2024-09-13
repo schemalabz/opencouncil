@@ -8,6 +8,7 @@ import { useVideo } from "../VideoProvider"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext"
 import MuxPlayer from "@mux/mux-player-react"
+import { Video } from "../Video"
 
 const AnimatedText = ({ text }: { text: string }) => {
     const [currentText, setCurrentText] = useState('')
@@ -57,7 +58,7 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
         setCurrentUtteranceIndex(0);
         setHasStartedPlaying(true);
         if (!isPlaying) {
-            setTimeout(() => setIsPlaying(true), 0);
+            setTimeout(() => setIsPlaying(true), 500);
         }
     }, [utterances]);
 
@@ -75,27 +76,12 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
             }
         }
     }, [currentTime, isSeeking, hasStartedPlaying])
-    const playerContainerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (playerRef.current && playerContainerRef.current) {
-            playerContainerRef.current.appendChild(playerRef.current);
-            playerRef.current.style.display = 'block';
-        }
-
-        return () => {
-            if (playerRef.current && playerRef.current.parentNode === playerContainerRef.current) {
-                playerContainerRef.current?.removeChild(playerRef.current);
-                playerRef.current.style.display = 'none';
-            }
-        };
-    }, [playerRef]);
 
     return (
         <div className="bg-gray-900 text-white h-screen w-full snap-start flex flex-col justify-center p-4">
             <h2 className="text-xl font-semibold mb-2 text-center">{name}</h2>
             <div className="aspect-video bg-gray-800 w-full max-w-4xl mx-auto flex items-center justify-center text-3xl font-bold relative">
-                <div ref={playerContainerRef} />
+                <Video />
                 {currentUtteranceIndex < utterances.length && (
                     <Subtitles utterance={utterances[currentUtteranceIndex]} />
                 )}

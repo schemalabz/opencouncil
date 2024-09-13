@@ -97,7 +97,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
                     {mode === 'transcript' ? <>
                         <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
-                            <Header showHiglightButton={meetingData.highlights.length > 0} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
+                            <Header showHiglightButton={false} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
                             <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                                 <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                     <div className='flex-grow overflow-y-auto scrollbar-hide'>

@@ -45,6 +45,10 @@ export async function getTranscript(meetingId: string, cityId: string, {
         },
     });
 
+    console.log(`Topic labels: ${speakerSegments.reduce((acc, segment) => {
+        return acc + segment.topicLabels.length;
+    }, 0)}`);
+
     if (joinAdjacentSameSpeakerSegments) {
         return joinTranscriptSegments(speakerSegments);
     } else {
@@ -66,6 +70,7 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
             // Join adjacent segments with the same speaker
             currentSegment.endTimestamp = speakerSegments[i].endTimestamp;
             currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
+            currentSegment.topicLabels = [...currentSegment.topicLabels, ...speakerSegments[i].topicLabels];
         } else {
             // Push the current segment and start a new one
             joinedSegments.push(currentSegment);

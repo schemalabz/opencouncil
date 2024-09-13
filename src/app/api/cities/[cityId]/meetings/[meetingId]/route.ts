@@ -9,6 +9,9 @@ export async function GET(
 
     try {
         const transcript = await getTranscript(meetingId, cityId);
+        const topicLabelCount = transcript.reduce((acc, segment) => {
+            return acc + segment.topicLabels.length;
+        }, 0);
 
         if (!transcript) {
             return NextResponse.json({ error: 'Transcript not found' }, { status: 404 });

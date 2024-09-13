@@ -34,6 +34,10 @@ export default async function CouncilMeetingPage({
     const endTime = performance.now();
     console.log(`Time taken to load meeting: ${endTime - startTime} milliseconds`);
 
+    console.log('topicLabelCount', transcript.reduce((acc, segment) => {
+        return acc + segment.topicLabels.length;
+    }, 0));
+
     if (!city || !meeting || !people || !parties || !transcript) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
         notFound();
