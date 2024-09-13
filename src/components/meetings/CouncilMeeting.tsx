@@ -95,9 +95,9 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider editable={editable}>
                 <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
-                    {mode === 'transcript' ? <>
+                    {mode === 'transcript' ? (
                         <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
-                            <Header showHiglightButton={false} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={setActiveSection} sections={sections} />
+                            <Header showHiglightButton={false} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={(sn) => sn === activeSection ? setActiveSection(null) : setActiveSection(sn)} sections={sections} />
                             <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                                 <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                     <div className='flex-grow overflow-y-auto scrollbar-hide'>
@@ -117,28 +117,27 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                             <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
 
                             <CurrentTimeButton isWide={isWide} />
-                        </div>
 
-                        {!isWide && activeSection && (
-                            <Sheet open={!!activeSection} onOpenChange={() => setActiveSection(null)}>
-                                <SheetContent side="bottom" className="h-[70vh] overflow-y-auto" noanimate>
-                                    <div className="mb-4">
+                            {!isWide && activeSection && (
+                                <div className="fixed bottom-0 left-0 right-0 h-[70vh] bg-background z-50 overflow-y-auto border-t-2 border-gray-200">
+                                    <div className="sticky top-0 z-10 bg-background py-4">
                                         <Navbar
                                             sections={sections}
                                             activeSection={activeSection}
                                             setActiveSection={setActiveSection}
-                                            showClose={false}
+                                            showClose={true}
                                             className='justify-center'
                                         />
                                     </div>
-                                    {sections.find(section => section.title === activeSection)?.content}
-                                </SheetContent>
-                            </Sheet>
-                        )}
-                    </>
-                        :
+                                    <div className="p-4 overflow-y-auto" style={{ height: 'calc(70vh - 48px)' }}>
+                                        {sections.find(section => section.title === activeSection)?.content}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
                         <HighlightView initialHighlightId={highlightId ?? ''} data={meetingData} switchToTranscript={() => setMode('transcript')} />
-                    }
+                    )}
                 </VideoProvider>
             </TranscriptOptionsProvider>
         </CouncilMeetingDataProvider>
