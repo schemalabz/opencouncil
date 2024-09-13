@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import SpeakerTagC from "@/components/SpeakerTag";
 import UtteranceC from "./Utterance";
 import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
@@ -11,17 +11,19 @@ import TopicBadge from './Topic';
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
     const { getPerson, getParty, getSpeakerTag } = useCouncilMeetingData();
     const { currentTime } = useVideo();
+
+    const memoizedData = useMemo(() => {
+        const speakerTag = getSpeakerTag(segment.speakerTagId);
+        const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+        const party = person?.partyId ? getParty(person.partyId) : undefined;
+        const borderColor = party?.colorHex || '#D3D3D3';
+        return { speakerTag, person, party, borderColor };
+    }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag]);
+
     const utterances = segment.utterances;
-    const speakerTagId = segment.speakerTagId;
     const summary = segment.summary;
     const topics = segment.topicLabels.map(tl => tl.topic);
     const isActive = currentTime >= utterances[0].startTimestamp && currentTime <= utterances[utterances.length - 1].endTimestamp;
-
-    const speakerTag = React.useMemo(() => getSpeakerTag(speakerTagId), [getSpeakerTag, speakerTagId]);
-    const person = React.useMemo(() => speakerTag?.personId ? getPerson(speakerTag.personId) : undefined, [getPerson, speakerTag]);
-    const party = React.useMemo(() => person?.partyId ? getParty(person.partyId) : undefined, [getParty, person]);
-
-    const borderColor = party?.colorHex || '#D3D3D3';
 
     const formatTimestamp = (timestamp: number) => {
         const hours = Math.floor(timestamp / 3600);
@@ -31,7 +33,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     };
 
     return (
-        <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${borderColor}` }}>
+        <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
             <div className='w-full'>
                 <div className='sticky top-0 bg-transcript flex flex-row items-center justify-between w-full border-b border-gray-300'
 
@@ -42,7 +44,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
                                 <div className='flex-grow overflow-hidden'>
-                                    <SpeakerTagC speakerTag={speakerTag!} className='ml-4' editable={true} />
+                                    <SpeakerTagC speakerTag={memoizedData.speakerTag!} className='ml-4' editable={true} />
                                 </div>
                                 <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
                                     {formatTimestamp(utterances[0].startTimestamp)}

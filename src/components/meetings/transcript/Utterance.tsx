@@ -1,13 +1,13 @@
 "use client";
 import { SpeakerTag, Utterance, Word } from "@prisma/client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { editWord } from "@/lib/db/word";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 
-export default function UtteranceC({ utterance }: { utterance: Utterance & { words: Word[] } }) {
+const UtteranceC = React.memo(({ utterance }: { utterance: Utterance & { words: Word[] } }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options, updateOptions } = useTranscriptOptions();
@@ -49,7 +49,7 @@ export default function UtteranceC({ utterance }: { utterance: Utterance & { wor
 
     const className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
 
-    return (
+    return useMemo(() => (
         <span className={className} id={utterance.id} onClick={handleClick}>
             {isActive ? (
                 utterance.words.map((word) => <WordC word={word} key={word.id} />)
@@ -57,8 +57,10 @@ export default function UtteranceC({ utterance }: { utterance: Utterance & { wor
                 utterance.text + " "
             )}
         </span>
-    );
-}
+    ), [isActive, utterance, className, handleClick]);
+});
+
+export default UtteranceC;
 
 function WordC({ word }: { word: Word }) {
     let { currentTime, seekTo } = useVideo()

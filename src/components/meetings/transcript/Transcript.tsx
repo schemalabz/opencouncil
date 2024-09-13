@@ -1,14 +1,20 @@
 import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useVideo } from "../VideoProvider";
 import { Utterance } from "@prisma/client";
 import { Transcript as TranscriptType } from "@/lib/db/transcript";
 import { useInView } from 'react-intersection-observer';
+import { debounce } from '@/lib/utils';
 
-export default function Transcript({ speakerSegments }: { speakerSegments: TranscriptType }) {
+export default function Transcript({ speakerSegments, isSheetOpen }: { speakerSegments: TranscriptType, isSheetOpen: boolean }) {
     const { setCurrentScrollInterval } = useVideo();
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const debouncedSetCurrentScrollInterval = useMemo(
+        () => debounce(setCurrentScrollInterval, 2000),
+        [setCurrentScrollInterval]
+    );
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -24,7 +30,7 @@ export default function Transcript({ speakerSegments }: { speakerSegments: Trans
             if (visibleSegments.length > 0) {
                 const firstVisible = visibleSegments[0];
                 const lastVisible = visibleSegments[visibleSegments.length - 1];
-                setCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
+                debouncedSetCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
             }
         };
 
@@ -39,7 +45,7 @@ export default function Transcript({ speakerSegments }: { speakerSegments: Trans
         });
 
         return () => observer.disconnect();
-    }, [speakerSegments, setCurrentScrollInterval]);
+    }, [speakerSegments, debouncedSetCurrentScrollInterval]);
 
     return (
         <div className="container" ref={containerRef}>

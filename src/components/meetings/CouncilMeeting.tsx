@@ -101,7 +101,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                             <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                                 <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                     <div className='flex-grow overflow-y-auto scrollbar-hide'>
-                                        <Transcript speakerSegments={meetingData.transcript} />
+                                        <Transcript speakerSegments={meetingData.transcript} isSheetOpen={!!activeSection} />
                                     </div>
                                 </div>
 
