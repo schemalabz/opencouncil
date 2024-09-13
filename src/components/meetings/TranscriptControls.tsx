@@ -62,7 +62,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                         (isSeeking ? <Loader className="w-6 h-6 animate-spin" /> : <Pause className="w-6 h-6" />) : <Play className="w-6 h-6" />}
                 </button>
 
-                <Video className='object-contain w-16 h-16 bg-white opacity-90 m-2 border flex items-center justify-center group' expandable={true} onExpandChange={setIsExpanded} />
+                <Video className={`object-contain w-16 h-16 bg-white opacity-90 m-2 border flex items-center justify-center group ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
 
                 {/* seek slider */}
                 <div

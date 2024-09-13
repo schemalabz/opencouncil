@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent } from 'react';
 import { CouncilMeeting, Utterance, Word } from "@prisma/client";
 import { Video } from './Video';
 
@@ -18,6 +18,9 @@ interface VideoContextType {
     isSeeking: boolean;
     setIsPlaying: (isPlaying: boolean) => void;
     meeting: CouncilMeeting;
+    onTimeUpdate: (time: SyntheticEvent<HTMLVideoElement, Event>) => void;
+    onSeeked: () => void;
+    onSeeking: () => void;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -54,19 +57,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         };
 
         player?.addEventListener('loadedmetadata', updateDuration);
-        player?.addEventListener('timeupdate', handleTimeUpdate);
-        player?.addEventListener('seeking', () => setIsSeeking(true));
-        player?.addEventListener('seeked', () => {
-            setIsSeeking(false);
-            setCurrentTime(player.currentTime);
-        });
         updateDuration();
 
         return () => {
             player?.removeEventListener('loadedmetadata', updateDuration);
-            player?.removeEventListener('timeupdate', handleTimeUpdate);
-            player?.removeEventListener('seeking', () => setIsSeeking(true));
-            player?.removeEventListener('seeked', () => setIsSeeking(false));
         };
     }, []);
 
@@ -119,6 +113,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    const handleSeeking = async () => {
+        setIsSeeking(true);
+    }
+
+    const handleSeeked = async () => {
+        setIsSeeking(false);
+        if (playerRef.current) {
+            setCurrentTime(playerRef.current.currentTime)
+        }
+    }
     const handleSpeedChange = (value: string) => {
         setPlaybackSpeed(value);
         if (playerRef.current) {
@@ -173,6 +177,23 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
+    const preserveVideoState = () => {
+        if (playerRef.current) {
+            const currentTime = playerRef.current.currentTime;
+            const wasPlaying = !playerRef.current.paused;
+
+            // Use setTimeout to allow the DOM to update
+            setTimeout(() => {
+                if (playerRef.current) {
+                    playerRef.current.currentTime = currentTime;
+                    if (wasPlaying) {
+                        playerRef.current.play().catch(e => console.error("Error playing video:", e));
+                    }
+                }
+            }, 0);
+        }
+    };
+
     const value = {
         isPlaying,
         currentTime,
@@ -186,6 +207,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         scrollToUtterance,
         playerRef,
         isSeeking,
+        onTimeUpdate: handleTimeUpdate,
+        onSeeked: handleSeeked,
+        onSeeking: handleSeeking,
         setIsPlaying: async (shouldPlay: boolean) => {
             if (shouldPlay) {
                 await playVideo();
