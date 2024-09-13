@@ -7,7 +7,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { editWord } from "@/lib/db/word";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 
-const UtteranceC = React.memo(({ utterance }: { utterance: Utterance & { words: Word[] } }) => {
+const UtteranceC: React.FC<{ utterance: Utterance & { words: Word[] } }> = React.memo(({ utterance }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options, updateOptions } = useTranscriptOptions();
@@ -42,14 +42,9 @@ const UtteranceC = React.memo(({ utterance }: { utterance: Utterance & { words: 
             seekTo(utterance.startTimestamp);
         }
     };
-
-    if (utterance.drift > maxDrift) {
-        return <span id={utterance.id} className="over:bg-accent utterance" />;
-    }
-
     const className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
 
-    return useMemo(() => (
+    const memoizedContent = useMemo(() => (
         <span className={className} id={utterance.id} onClick={handleClick}>
             {isActive ? (
                 utterance.words.map((word) => <WordC word={word} key={word.id} />)
@@ -58,11 +53,19 @@ const UtteranceC = React.memo(({ utterance }: { utterance: Utterance & { words: 
             )}
         </span>
     ), [isActive, utterance, className, handleClick]);
+
+    if (utterance.drift > maxDrift) {
+        return <span id={utterance.id} className="over:bg-accent utterance" />;
+    }
+
+    return memoizedContent;
 });
+
+UtteranceC.displayName = 'UtteranceC';
 
 export default UtteranceC;
 
-function WordC({ word }: { word: Word }) {
+const WordC: React.FC<{ word: Word }> = ({ word }) => {
     let { currentTime, seekTo } = useVideo()
     let [isActive, setIsActive] = useState(false)
     let { options } = useTranscriptOptions();
@@ -122,6 +125,8 @@ function WordC({ word }: { word: Word }) {
         </span>
     );
 }
+
+WordC.displayName = 'WordC';
 
 function getConfidenceColor(confidence: number): string {
     // Convert confidence to a value between 0 and 255
