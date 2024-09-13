@@ -1,4 +1,4 @@
-import { Play, Pause, Loader } from "lucide-react"
+import { Play, Pause, Loader, Maximize2 } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
 import { SpeakerTag } from "@prisma/client";
@@ -6,6 +6,7 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { Transcript as TranscriptType } from "@/lib/db/transcript"
 import { useState } from "react";
+import { Video } from "./Video";
 
 export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: TranscriptType }) {
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
@@ -28,6 +29,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
     };
     const { getParty, getPerson, getSpeakerTag } = useCouncilMeetingData();
     const [hoverTime, setHoverTime] = useState<number | null>(null);
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -50,6 +52,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                     handleMouseLeave();
                 }}
                 className={cn(`cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 left-2 bottom-2 w-16'} flex ${isWide ? 'flex-row' : 'flex-col'} items-center `, className)}>
+
                 <button
                     onClick={togglePlayPause}
                     className="p-4 bg-white opacity-90 m-2 border h-16 w-16 flex items-center justify-center hover:bg-gray-100"
@@ -59,6 +62,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                         (isSeeking ? <Loader className="w-6 h-6 animate-spin" /> : <Pause className="w-6 h-6" />) : <Play className="w-6 h-6" />}
                 </button>
 
+                <Video className='object-contain w-16 h-16 bg-white opacity-90 m-2 border flex items-center justify-center group' expandable={true} onExpandChange={setIsExpanded} />
 
                 {/* seek slider */}
                 <div

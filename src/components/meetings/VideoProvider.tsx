@@ -1,9 +1,7 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { CouncilMeeting, Utterance, Word } from "@prisma/client";
-import MuxVideo from '@mux/mux-video-react';
-import MuxVideoElement from '@mux/mux-video';
-
+import { Video } from './Video';
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -16,9 +14,10 @@ interface VideoContextType {
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
     scrollToUtterance: (time: number) => void;
-    playerRef: React.RefObject<MuxVideoElement>;
+    playerRef: React.MutableRefObject<HTMLVideoElement | null>;
     isSeeking: boolean;
     setIsPlaying: (isPlaying: boolean) => void;
+    meeting: CouncilMeeting;
 }
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
@@ -44,7 +43,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [playbackSpeed, setPlaybackSpeed] = useState("1");
     const [isSeeking, setIsSeeking] = useState(false);
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-    const playerRef = useRef<MuxVideoElement>(null);
+    const playerRef = useRef<HTMLVideoElement | null>(null);
 
     useEffect(() => {
         const player = playerRef.current;
@@ -194,22 +193,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 await pauseVideo();
             }
         },
+        meeting,
     };
 
     return (
         <VideoContext.Provider value={value}>
-            <MuxVideo
-                ref={playerRef as any}
-                style={{ display: 'none' }}
-                streamType="on-demand"
-                playbackId={meeting.muxPlaybackId!}
-                metadata={{
-                    video_id: meeting.id,
-                    video_title: meeting.name,
-                }}
-                playsInline
-                disablePictureInPicture
-            />
             {children}
         </VideoContext.Provider>
     );
