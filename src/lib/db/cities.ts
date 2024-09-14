@@ -56,6 +56,8 @@ export async function getCity(id: string): Promise<City | null> {
 
 export async function getFullCity(id: string): Promise<City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } | null> {
     try {
+        console.log('Getting full city', id);
+        const startTime = performance.now();
         const city = await prisma.city.findUnique({
             where: { id },
             include: {
@@ -77,6 +79,8 @@ export async function getFullCity(id: string): Promise<City & { councilMeetings:
                 }
             }
         });
+        const endTime = performance.now();
+        console.log(`Time taken to get full city: ${endTime - startTime} milliseconds`);
         return city;
     } catch (error) {
         console.error('Error fetching city:', error);

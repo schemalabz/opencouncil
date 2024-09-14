@@ -147,7 +147,7 @@ model SpeakerSegment {
   topicLabels TopicLabel[]
   summary Summary?
 
-  @@index([meetingId, cityId])
+  @@index([meetingId, cityId, startTimestamp])
   @@index([speakerTagId])
 }
 
@@ -166,7 +166,7 @@ model Utterance {
   words Word[]
   highlightedUtterances HighlightedUtterance[]
 
-  @@index([speakerSegmentId])
+  @@index([speakerSegmentId, startTimestamp])
 }
 
 model Word {
@@ -181,7 +181,7 @@ model Word {
   utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
   utteranceId String
 
-  @@index([utteranceId])
+  @@index([utteranceId, startTimestamp])
 }
 
 model TopicLabel {
@@ -195,6 +195,8 @@ model TopicLabel {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([speakerSegmentId, topicId])
 }
 
 model Topic {
@@ -218,6 +220,8 @@ model Summary {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([speakerSegmentId])
 }
 
 model Highlight {

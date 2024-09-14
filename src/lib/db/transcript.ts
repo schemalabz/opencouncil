@@ -17,33 +17,75 @@ export async function getTranscript(meetingId: string, cityId: string, {
 }: {
     joinAdjacentSameSpeakerSegments?: boolean;
 } = {}): Promise<Transcript> {
-    const speakerSegments = await prisma.speakerSegment.findMany({
-        where: {
-            meetingId,
-            cityId,
-        },
-        include: {
-            speakerTag: true,
-            utterances: {
-                include: {
-                    words: {
-                        orderBy: {
-                            startTimestamp: 'asc',
-                        },
-                    }
-                },
-                orderBy: {
-                    startTimestamp: 'asc',
-                },
-            },
-            summary: true,
-            topicLabels: {
-                include: {
-                    topic: true,
-                },
-            },
-        },
-    });
+    const startTime = performance.now();
+    console.log(`Getting transcript for meeting ${meetingId} ${cityId}`);
+
+    const speakerSegments: Transcript = await prisma.$queryRaw`
+      WITH speaker_segments AS (
+        SELECT ss.*, st.id AS "speakerTag_id", st.label AS "speakerTag_label", st."personId" AS "speakerTag_personId"
+        FROM "SpeakerSegment" ss
+        LEFT JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
+        WHERE ss."meetingId" = ${meetingId} AND ss."cityId" = ${cityId}
+      )
+      SELECT 
+        ss.*,
+        jsonb_build_object(
+          'id', ss."speakerTag_id",
+          'label', ss."speakerTag_label",
+          'personId', ss."speakerTag_personId"
+        ) AS "speakerTag",
+        u.utterances,
+        sum.text AS "summary.text",
+        COALESCE(tl.topic_labels, '[]'::jsonb) AS "topicLabels"
+      FROM speaker_segments ss
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', u.id,
+            'startTimestamp', u."startTimestamp",
+            'endTimestamp', u."endTimestamp",
+            'text', u.text,
+            'drift', u.drift,
+            'words', (
+              SELECT jsonb_agg(
+                jsonb_build_object(
+                  'id', w.id,
+                  'text', w.text,
+                  'startTimestamp', w."startTimestamp",
+                  'endTimestamp', w."endTimestamp",
+                  'confidence', w.confidence
+                ) ORDER BY w."startTimestamp" ASC
+              )
+              FROM "Word" w
+              WHERE w."utteranceId" = u.id
+            )
+          ) ORDER BY u."startTimestamp" ASC
+        ) AS utterances
+        FROM "Utterance" u
+        WHERE u."speakerSegmentId" = ss.id
+      ) u ON true
+      LEFT JOIN "Summary" sum ON ss.id = sum."speakerSegmentId"
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', tl.id,
+            'topic', jsonb_build_object(
+              'id', t.id,
+              'name', t.name,
+              'name_en', t.name_en,
+              'colorHex', t."colorHex"
+            )
+          )
+        ) AS topic_labels
+        FROM "TopicLabel" tl
+        JOIN "Topic" t ON tl."topicId" = t.id
+        WHERE tl."speakerSegmentId" = ss.id
+      ) tl ON true
+      ORDER BY ss."startTimestamp" ASC
+    `;
+
+    const endTime = performance.now();
+    console.log(`Time taken to query for transcript: ${endTime - startTime} milliseconds`);
 
     console.log(`Topic labels: ${speakerSegments.reduce((acc, segment) => {
         return acc + segment.topicLabels.length;
