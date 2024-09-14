@@ -8,6 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import SpeakerBadge from './SpeakerBadge';
+
 function SpeakerTagC({ speakerTag, className, editable = false }: {
     speakerTag: SpeakerTag,
     className?: string,
@@ -19,7 +21,7 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
     const [open, setOpen] = useState(false);
     const [labelInput, setLabelInput] = useState(speakerTag.label || '');
 
-    const { person, party, role, isTagged, name, partyColor } = useMemo(() => {
+    const { person, party, role, isTagged } = useMemo(() => {
         let person: Person | null = null;
         let party: Party | null = null;
         let isTagged = speakerTag.personId !== null;
@@ -28,10 +30,9 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
             party = person && person.partyId && getParty(person.partyId) ? getParty(person.partyId)! : null;
             isTagged = true;
         }
-        const name = isTagged ? person?.name_short : speakerTag.label;
-        const partyColor = party?.colorHex;
+
         const role = isTagged ? person?.role : null;
-        return { person, party, role, isTagged, name, partyColor };
+        return { person, party, role, isTagged };
     }, [speakerTag, getPerson, getParty]);
 
     const handleSpeakerChange = (personId: string | null) => {
@@ -40,7 +41,9 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
         console.log(`Assigning speaker tag to person with id: ${personId}`);
     };
 
-    const handleTagClick = () => {
+    const handleTagClick = (e: React.MouseEvent) => {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Stop event propagation
         setOpen(true);
 
         if (options.selectedSpeakerTag === speakerTag.id) {
@@ -64,28 +67,14 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
             updateOptions({ selectedSpeakerTag: v ? speakerTag.id : null });
         }}>
             <PopoverTrigger asChild>
-                <div
-                    className={
-                        cn(`max-w-120 inline-flex items-center py-1 pr-1 cursor-pointer
-                            transition-all duration-200 hover:bg-gray-100
-                            ${options.selectedSpeakerTag === speakerTag.id ? 'bg-gray-100' : ''}`
-                            , className)}
-                    onClick={handleTagClick}
-                >
-                    <ImageOrInitials
-                        imageUrl={isTagged && person?.image ? person.image : null}
-                        width={40}
-                        height={40}
-                        name={isTagged ? (name ?? '') : undefined}
+                <div onClick={handleTagClick}> {/* Wrap SpeakerBadge in a div with onClick */}
+                    <SpeakerBadge
+                        speakerTag={speakerTag}
+                        className={className}
+                        person={person || undefined}
+                        party={party || undefined}
+                        isSelected={options.selectedSpeakerTag === speakerTag.id}
                     />
-                    <div className='flex-col'>
-                        <div className="ml-2 font-semibold text-md whitespace-nowrap">{name}</div>
-                        <div className="ml-2 text-muted-foreground text-sm">
-                            {role && (
-                                <div className="whitespace-nowrap text-ellipsis">{role}</div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </PopoverTrigger>
             <PopoverContent className="w-96">

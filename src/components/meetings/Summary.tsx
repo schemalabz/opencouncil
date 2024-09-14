@@ -19,6 +19,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { CommandList } from "cmdk";
+import Combobox from "../Combobox";
 
 export default function Summary() {
     const { transcript, getPerson, getParty, parties, speakerTags } = useCouncilMeetingData();
@@ -103,58 +104,5 @@ export default function Summary() {
                 })}
             </div>
         </div>
-    )
-}
-
-function Combobox({ options, value, onChange, placeholder, className }: {
-    options: string[],
-    value: string | null,
-    onChange: (value: string | null) => void,
-    placeholder: string,
-    className?: string
-}) {
-    const [open, setOpen] = useState(false);
-
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-[200px] justify-between text-ellipsis text-xs overflow-hidden"
-                >
-                    {value ?? placeholder}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className={cn("p-0", className)}>
-                <Command>
-                    <CommandInput placeholder={placeholder} />
-                    <CommandList>
-                        <CommandEmpty>No result found.</CommandEmpty>
-                        <CommandGroup>
-                            {options.map((option) => (
-                                <CommandItem
-                                    key={option}
-                                    onSelect={() => {
-                                        onChange(option === value ? null : option)
-                                        setOpen(false)
-                                    }}
-                                >
-                                    <Check
-                                        className={cn(
-                                            "mr-2 h-4 w-4",
-                                            value === option ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
-                                    {option}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
     )
 }

@@ -149,6 +149,7 @@ model SpeakerSegment {
 
   @@index([meetingId, cityId, startTimestamp])
   @@index([speakerTagId])
+
 }
 
 model Utterance {
