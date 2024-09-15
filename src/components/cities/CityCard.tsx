@@ -1,11 +1,11 @@
 'use client'
 import { City, CouncilMeeting } from '@prisma/client';
 import Image from 'next/image';
-import { Card, CardContent, CardFooter } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
-import { Badge, BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
+import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
 
 interface CityCardProps {
     city: City & { councilMeetings: CouncilMeeting[] };
@@ -32,33 +32,39 @@ export function CityCard({ city }: CityCardProps) {
                     </div>
                 ) : (
                     <>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <Image
-                                src={city.logoImage || '/default-city-logo.jpg'}
-                                alt={`${localizedName} logo`}
-                                layout="fill"
-                                objectFit="contain"
-                                className="opacity-20"
-                            />
+                        <div className="absolute inset-0 flex items-center justify-end">
+                            <div className="w-1/2 h-full relative overflow-hidden">
+                                <Image
+                                    src={city.logoImage || '/default-city-logo.jpg'}
+                                    alt={`${localizedName} logo`}
+                                    layout="fill"
+                                    objectFit="contain"
+                                    className="opacity-20"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-l from-transparent to-background"></div>
+                            </div>
                         </div>
-                        <CardContent className="relative h-full flex flex-col justify-start">
-                            <h3 className="text-xl md:text-2xl font-bold text-center z-10">{localizedName}</h3>
-                            <span className="text-md md:text-lg z-10 text-center">{t('councilMeetingsTracked', { count: city.councilMeetings.length })}</span>
-                            <div className="absolute bottom-0 left-0 right-0 flex justify-center">
+                        <CardContent className="relative h-full flex flex-col justify-between p-6">
+                            <div className="w-1/2">
+                                <h3 className="text-xl md:text-2xl font-bold mb-2">{localizedName}</h3>
+                                <span className="text-sm md:text-base text-muted-foreground">
+                                    {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
+                                </span>
+                            </div>
+                            <div className="absolute bottom-2 right-2">
                                 {city.officialSupport ? (
-                                    <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                                        <BadgeCheck className="w-4 h-4 mr-1" />
-                                        Με την υποστήριξη του δήμου
+                                    <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-1.5 rounded-full">
+                                        <BadgeCheck className="w-4 h-4 mr-1.5" />
+                                        Με υποστήριξη δήμου
                                     </div>
                                 ) : (
-                                    <div className="flex items-center bg-transparent text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded">
-                                        <BadgeX className="w-4 h-4 mr-1" />
-                                        Χωρίς επίσημη υποστήριξη του δήμου
+                                    <div className="flex items-center bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-1.5 rounded-full">
+                                        <BadgeX className="w-4 h-4 mr-1.5" />
+                                        Χωρίς επίσημη υποστήριξη
                                     </div>
                                 )}
                             </div>
                         </CardContent>
-
                     </>
                 )}
             </Card>

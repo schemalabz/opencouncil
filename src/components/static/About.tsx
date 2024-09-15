@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-mo
 import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import React from 'react'
 import ProductRoadmap from './ProductRoadmap'
 import { useTranslations } from 'next-intl'
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import Particles from '../magicui/particles'
 import ShineBorder from '../magicui/shine-border'
 import AnimatedGradientText from '../magicui/animated-gradient-text'
+import ContactFormPopup from '../ContactFormPopup'
 
 export default function AboutPage() {
     const t = useTranslations('about')
@@ -26,6 +27,7 @@ export default function AboutPage() {
 
     const heroRef = useRef(null)
     const isHeroInView = useInView(heroRef, { once: true })
+    const [isContactFormOpen, setIsContactFormOpen] = useState(false)
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -48,7 +50,7 @@ export default function AboutPage() {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.8 }}
                 >
-                    <div className="flex flex-col items-center justify-center h-full">
+                    <div className="flex flex-col items-center justify-center h-full z-10 relative"> {/* Added z-10 and relative */}
                         <h1 className="text-4xl md:text-6xl font-bold mb-6">
                             Ανοιχτή Αυτοδιοίκηση
                         </h1>
@@ -66,21 +68,21 @@ export default function AboutPage() {
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.7, duration: 0.8 }}
                         >
-                            <Button size="lg" variant="outline">
+                            <Button size="lg" variant="outline" onClick={() => setIsContactFormOpen(true)}>
                                 <PhoneCall className="mr-2 h-4 w-4" />
                                 Προγραμματίστε μια κλήση
                             </Button>
                         </motion.div>
-                        <Particles
-                            className="absolute inset-0"
-                            quantity={200}
-                            ease={80}
-                            color="#000"
-                            refresh
-                        />
                     </div>
+                    <Particles
+                        className="absolute inset-0 z-0"
+                        quantity={200}
+                        ease={80}
+                        color="#000"
+                        refresh
+                    />
                     <motion.div
-                        className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
+                        className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10"
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1, duration: 0.8, repeat: Infinity, repeatType: 'reverse' }}
@@ -203,26 +205,32 @@ export default function AboutPage() {
                 transition={{ duration: 0.8 }}
                 viewport={{ once: true }}
             >
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"> {/* Added relative and z-10 */}
                     <h2 className="text-3xl font-bold text-center mb-8">Ας φτιάξουμε το μέλλον της αυτοδιοίκησης μαζί</h2>
                     <p className="text-center text-lg mb-8">
                         Ελάτε να διαμορφώσουμε μαζί τη πρώτη πλατφόρμα τεχνητής νοημοσύνης για τη τοπική αυτοδιοίκηση.
                     </p>
                     <div className="flex justify-center">
-                        <Button size="lg" variant="secondary">
+                        <Button size="lg" variant="secondary" onClick={() => setIsContactFormOpen(true)}>
                             Δοκιμάστε το δωρεάν
                         </Button>
                     </div>
                 </div>
 
                 <Particles
-                    className="absolute inset-0"
+                    className="absolute inset-0 z-0"
                     quantity={200}
                     ease={80}
                     color="#fff"
                     refresh
                 />
             </motion.section>
+
+            {/* Add the ContactFormPopup component */}
+            <ContactFormPopup
+                isOpen={isContactFormOpen}
+                onClose={() => setIsContactFormOpen(false)}
+            />
         </div >
     )
 }

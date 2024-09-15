@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid } from "lucide-react"
 import { Inter } from 'next/font/google'
+import ContactFormPopup from '../ContactFormPopup'
 
 const inter = Inter({ subsets: ['greek', 'latin'] })
 
@@ -25,18 +26,12 @@ export default function Pricing() {
     const [averageDuration, setAverageDuration] = useState(3)
     const [population, setPopulation] = useState(50000)
     const [needsAccuracyGuarantee, setNeedsAccuracyGuarantee] = useState(false)
+    const [isContactFormOpen, setIsContactFormOpen] = useState(false)
     const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
-    const [showContactForm, setShowContactForm] = useState(false)
-    const [showConfirmation, setShowConfirmation] = useState(false)
-    const [contactName, setContactName] = useState('')
-    const [contactPosition, setContactPosition] = useState('')
-    const [contactEmail, setContactEmail] = useState('')
-    const [contactMunicipality, setContactMunicipality] = useState('')
 
     useEffect(() => {
         if (isDialogOpen) {
-            setShowContactForm(false)
-            setShowConfirmation(false)
+            setIsContactFormOpen(false)
             setCalculatedPrice(null)
         }
     }, [isDialogOpen])
@@ -61,14 +56,7 @@ export default function Pricing() {
         const totalYearlyPrice = yearlyHostingFee + yearlySessionFee + yearlyAccuracyGuaranteeFee
 
         setCalculatedPrice(totalYearlyPrice)
-        setShowContactForm(true)
-    }
-
-    const handleContactRequest = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        // Here you would typically send the contact information to your backend
-        console.log('Contact request:', { contactName, contactPosition, contactEmail, contactMunicipality, calculatedPrice })
-        setShowConfirmation(true)
+        setIsContactFormOpen(true)
     }
 
     return (
@@ -190,152 +178,86 @@ export default function Pricing() {
                                 exit={{ opacity: 0, scale: 0.9 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                {!showContactForm && !showConfirmation ? (
-                                    <>
-                                        <DialogHeader>
-                                            <DialogTitle>Υπολογίστε το ετήσιο κόστος</DialogTitle>
-                                            <DialogDescription>
-                                                Συμπληρώστε τα παρακάτω στοιχεία για να υπολογίσετε το ετήσιο κόστος του συμβολαίου σας.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="grid gap-6 py-4">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="councilCount">
-                                                    Αριθμός συμβουλίων ανά έτος
-                                                </Label>
-                                                <Slider
-                                                    id="councilCount"
-                                                    min={10}
-                                                    max={50}
-                                                    step={1}
-                                                    value={[councilCount]}
-                                                    onValueChange={(value) => setCouncilCount(value[0])}
-                                                />
-                                                <div className="text-right text-sm text-muted-foreground">
-                                                    {councilCount}
-                                                </div>
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="averageDuration">
-                                                    Μέση διάρκεια συνεδρίασης (ώρες)
-                                                </Label>
-                                                <Slider
-                                                    id="averageDuration"
-                                                    min={1}
-                                                    max={8}
-                                                    step={1}
-                                                    value={[averageDuration]}
-                                                    onValueChange={(value) => setAverageDuration(value[0])}
-                                                />
-                                                <div className="text-right text-sm text-muted-foreground">
-                                                    {averageDuration}
-                                                </div>
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="population">
-                                                    Πληθυσμός
-                                                </Label>
-                                                <Slider
-                                                    id="population"
-                                                    min={2000}
-                                                    max={200000}
-                                                    step={1000}
-                                                    value={[population]}
-                                                    onValueChange={(value) => setPopulation(value[0])}
-                                                />
-                                                <div className="text-right text-sm text-muted-foreground">
-                                                    {population <= 2000 ? '2000 or fewer' : population >= 200000 ? '200000 or more' : population}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <Switch
-                                                    id="accuracy-guarantee"
-                                                    checked={needsAccuracyGuarantee}
-                                                    onCheckedChange={setNeedsAccuracyGuarantee}
-                                                />
-                                                <Label htmlFor="accuracy-guarantee">
-                                                    Χρειάζεστε εγγύηση ορθότητας πρακτικών;
-                                                </Label>
-                                            </div>
+                                <DialogHeader>
+                                    <DialogTitle>Υπολογίστε το ετήσιο κόστος</DialogTitle>
+                                    <DialogDescription>
+                                        Συμπληρώστε τα παρακάτω στοιχεία για να υπολογίσετε το ετήσιο κόστος του συμβολαίου σας.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-6 py-4">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="councilCount">
+                                            Αριθμός συμβουλίων ανά έτος
+                                        </Label>
+                                        <Slider
+                                            id="councilCount"
+                                            min={10}
+                                            max={50}
+                                            step={1}
+                                            value={[councilCount]}
+                                            onValueChange={(value) => setCouncilCount(value[0])}
+                                        />
+                                        <div className="text-right text-sm text-muted-foreground">
+                                            {councilCount}
                                         </div>
-                                        <DialogFooter className="sm:justify-center">
-                                            <Button onClick={calculatePrice}>Υπολογισμός</Button>
-                                        </DialogFooter>
-                                    </>
-                                ) : showContactForm && !showConfirmation ? (
-                                    <>
-                                        <div className="bg-primary/10 p-4 rounded-md mb-4 flex flex-col items-center justify-center">
-                                            <p className="text-center text-primary text-sm mb-1">Εκτιμώμενο <span className="underline">ετήσιο</span> κόστος</p>
-                                            <p className="text-center text-primary font-semibold text-2xl">
-                                                <strong>{calculatedPrice}€ + ΦΠΑ</strong>
-                                            </p>
-                                        </div>
-                                        <p className="text-center mb-4">Μπορούμε να επικοινωνήσουμε μαζί σας;</p>
-                                        <form onSubmit={handleContactRequest}>
-                                            <div className="grid gap-4 py-4">
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="name">Όνομα</Label>
-                                                    <Input
-                                                        id="name"
-                                                        value={contactName}
-                                                        onChange={(e) => setContactName(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="position">Θέση</Label>
-                                                    <Input
-                                                        id="position"
-                                                        value={contactPosition}
-                                                        onChange={(e) => setContactPosition(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="municipality">Δήμος</Label>
-                                                    <Input
-                                                        id="municipality"
-                                                        value={contactMunicipality}
-                                                        onChange={(e) => setContactMunicipality(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                    <Label htmlFor="email">Email</Label>
-                                                    <Input
-                                                        id="email"
-                                                        type="email"
-                                                        value={contactEmail}
-                                                        onChange={(e) => setContactEmail(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                            <DialogFooter className="sm:justify-center">
-                                                <Button type="submit">Επικοινωνήστε μαζί μου</Button>
-                                            </DialogFooter>
-                                        </form>
-                                    </>
-                                ) : (
-                                    <div className="bg-green-100 p-6 rounded-md text-center">
-                                        <CheckCircle2Icon className="mx-auto h-12 w-12 text-green-500 mb-4" />
-                                        <p className="text-green-800 font-semibold text-lg mb-2">
-                                            Θα επικοινωνήσουμε μαζί σας στο {contactEmail}
-                                        </p>
-                                        <Button onClick={() => {
-                                            setIsDialogOpen(false)
-                                            setShowContactForm(false)
-                                            setShowConfirmation(false)
-                                        }} className="mt-4">
-                                            Κλείσιμο
-                                        </Button>
                                     </div>
-                                )}
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="averageDuration">
+                                            Μέση διάρκεια συνεδρίασης (ώρες)
+                                        </Label>
+                                        <Slider
+                                            id="averageDuration"
+                                            min={1}
+                                            max={8}
+                                            step={1}
+                                            value={[averageDuration]}
+                                            onValueChange={(value) => setAverageDuration(value[0])}
+                                        />
+                                        <div className="text-right text-sm text-muted-foreground">
+                                            {averageDuration}
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="population">
+                                            Πληθυσμός
+                                        </Label>
+                                        <Slider
+                                            id="population"
+                                            min={2000}
+                                            max={200000}
+                                            step={1000}
+                                            value={[population]}
+                                            onValueChange={(value) => setPopulation(value[0])}
+                                        />
+                                        <div className="text-right text-sm text-muted-foreground">
+                                            {population <= 2000 ? '2000 or fewer' : population >= 200000 ? '200000 or more' : population}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="accuracy-guarantee"
+                                            checked={needsAccuracyGuarantee}
+                                            onCheckedChange={setNeedsAccuracyGuarantee}
+                                        />
+                                        <Label htmlFor="accuracy-guarantee">
+                                            Χρειάζεστε εγγύηση ορθότητας πρακτικών;
+                                        </Label>
+                                    </div>
+                                </div>
+                                <DialogFooter className="sm:justify-center">
+                                    <Button onClick={calculatePrice}>Υπολογισμός</Button>
+                                </DialogFooter>
                             </motion.div>
                         </DialogContent>
                     </Dialog>
                 )}
             </AnimatePresence>
+
+            <ContactFormPopup
+                isOpen={isContactFormOpen}
+                onClose={() => setIsContactFormOpen(false)}
+                calculatedPrice={calculatedPrice}
+            />
         </motion.div>
     )
 }
