@@ -1,11 +1,11 @@
 'use client'
 import { City, CouncilMeeting } from '@prisma/client';
 import Image from 'next/image';
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent, CardFooter } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Badge, BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
 
 interface CityCardProps {
     city: City & { councilMeetings: CouncilMeeting[] };
@@ -44,7 +44,21 @@ export function CityCard({ city }: CityCardProps) {
                         <CardContent className="relative h-full flex flex-col justify-start">
                             <h3 className="text-xl md:text-2xl font-bold text-center z-10">{localizedName}</h3>
                             <span className="text-md md:text-lg z-10 text-center">{t('councilMeetingsTracked', { count: city.councilMeetings.length })}</span>
+                            <div className="absolute bottom-0 left-0 right-0 flex justify-center">
+                                {city.officialSupport ? (
+                                    <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                        <BadgeCheck className="w-4 h-4 mr-1" />
+                                        Με την υποστήριξη του δήμου
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center bg-transparent text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded">
+                                        <BadgeX className="w-4 h-4 mr-1" />
+                                        Χωρίς επίσημη υποστήριξη του δήμου
+                                    </div>
+                                )}
+                            </div>
                         </CardContent>
+
                     </>
                 )}
             </Card>

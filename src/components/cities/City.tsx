@@ -16,7 +16,7 @@ import PartyForm from '@/components/parties/PartyForm';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
-import { Loader2 } from 'lucide-react';
+import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
 
 export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
     const t = useTranslations('City');
@@ -32,6 +32,17 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                         <span className="text-md text-gray-600">
                             {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
                         </span>
+                        {city.officialSupport ? (
+                            <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium rounded mt-2">
+                                <BadgeCheck className="w-4 h-4 mr-1" />
+                                <span>Με την υποστήριξη του δήμου</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center bg-transparent text-muted-foreground text-xs font-medium rounded mt-2">
+                                <BadgeX className="w-4 h-4 mr-1" />
+                                <span>Χωρίς επίσημη υποστήριξη του δήμου</span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {editable && (

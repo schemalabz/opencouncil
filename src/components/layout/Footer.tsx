@@ -9,11 +9,11 @@ export default function Footer() {
     return (
         <footer className="w-full bg-background border-t">
             <div className="container mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="flex flex-col items-center md:items-start">
                         <Logo />
-                        <p className="mt-2 text-xs text-muted-foreground text-center md:text-left">
-                            Αυτοματοποιημένη απομαγνητοφώνηση και οργάνωση των δημοτικών συμβουλίων. Οι πληροφορίες ενδέχεται να περιέχουν λάθη.
+                        <p className="mt-2 text-xs text-muted-foreground text-center md:text-left text-justify max-w-sm">
+                            Αυτόματη απομαγνητοφώνηση και οργάνωση δημοτικών συμβουλίων. Οι πληροφορίες που παρουσιάζονται ενδέχεται να περιέχουν λάθη.
                         </p>
                     </div>
                     <nav className="flex flex-col items-center md:items-start space-y-2">
@@ -23,6 +23,15 @@ export default function Footer() {
                         </Link>
                         <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             Για δήμους
+                        </Link>
+                        <Link href="/search" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            Αναζήτηση
+                        </Link>
+                    </nav>
+                    <nav className="flex flex-col items-center md:items-start space-y-2">
+                        <h3 className="font-semibold text-foreground">Πολιτικές και Όροι</h3>
+                        <Link href="/corrections" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            Διορθώσεις
                         </Link>
                         <Link href="/privacy" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             Πολιτική Απορρήτου
