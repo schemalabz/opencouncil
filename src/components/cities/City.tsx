@@ -17,13 +17,41 @@ import MeetingCard from '@/components/meetings/MeetingCard';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
+import { Search } from "lucide-react";
+import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
 export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const router = useRouter();
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        const params = new URLSearchParams();
+        params.set('query', searchQuery);
+        params.set('cityId', city.id);
+        router.push(`/search?${params.toString()}`);
+    };
 
     return (
         <div className="md:container md:mx-auto py-8">
+            <Breadcrumb className="mb-4">
+                <BreadcrumbList>
+                    <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                            <Link href="/">Αρχική</Link>
+                        </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                        <BreadcrumbLink href={`/${city.id}`}>{city.name}</BreadcrumbLink>
+                    </BreadcrumbItem>
+                </BreadcrumbList>
+            </Breadcrumb>
+
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
                     <img src={city.logoImage} alt={`${city.name} logo`} className="w-16 h-16 object-contain hidden md:block" />
@@ -49,6 +77,16 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                     <FormSheet FormComponent={CityForm} formProps={{ city, onSuccess: () => setIsSheetOpen(false) }} title={t('editCity')} type="edit" />
                 )}
             </div>
+
+            <form onSubmit={handleSearch} className="relative mb-8">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Input
+                    placeholder={t('searchInCity', { cityName: city.name })}
+                    className="pl-10 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </form>
 
             <Suspense fallback={<div className="flex justify-center items-center h-full">
                 <Loader2 className="w-4 h-4 animate-spin" />

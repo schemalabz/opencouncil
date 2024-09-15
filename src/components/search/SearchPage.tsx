@@ -9,6 +9,9 @@ import { Result } from "./Result";
 import { Button } from "../ui/button";
 import AnimatedGradientText from "../magicui/animated-gradient-text";
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getCity } from "@/lib/db/cities";
+import { getPerson } from "@/lib/db/people";
+import { getParty } from "@/lib/db/parties";
 
 const MAX_PAGES = 10;
 
@@ -84,6 +87,36 @@ export default function SearchPage() {
         if (query || filters.cityId || filters.personId || filters.partyId) {
             search(true);
         }
+    }, []);
+
+    useEffect(() => {
+        const fetchInitialFilterData = async () => {
+            if (filters.cityId) {
+                const city = await getCity(filters.cityId);
+                if (city) {
+                    setFilters(prev => ({ ...prev, cityId: city.id }));
+                }
+            }
+            if (filters.personId) {
+                const person = await getPerson(filters.personId);
+                if (person) {
+                    setFilters(prev => ({
+                        ...prev,
+                        personId: person.id,
+                        cityId: person.cityId,
+                        partyId: person.partyId ?? undefined
+                    }));
+                }
+            }
+            if (filters.partyId) {
+                const party = await getParty(filters.partyId);
+                if (party) {
+                    setFilters(prev => ({ ...prev, partyId: party.id, cityId: party.cityId }));
+                }
+            }
+        };
+
+        fetchInitialFilterData();
     }, []);
 
     return (
