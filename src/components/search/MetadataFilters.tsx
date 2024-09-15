@@ -45,14 +45,11 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     }, []);
 
     useEffect(() => {
-        if (filters.cityId) {
+        if (cities.length > 0 && filters.cityId) {
             fetchParties(filters.cityId);
             fetchPeople(filters.cityId);
-        } else {
-            setParties([]);
-            setPeople([]);
         }
-    }, [filters.cityId]);
+    }, [cities, filters.cityId]);
 
     const onCityChange = (cityName: string | null) => {
         const cityId = cityName ? cities.find(c => c.name === cityName)?.id : undefined;

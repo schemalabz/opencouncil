@@ -3,11 +3,13 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
 }
 
 model City {
@@ -141,6 +143,7 @@ model SpeakerSegment {
 
   speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
+  embedding Unsupported("vector")?
 
   utterances Utterance[]
 

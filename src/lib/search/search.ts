@@ -1,0 +1,207 @@
+"use server";
+import { City, CouncilMeeting, Party, Person, SpeakerSegment, Summary } from "@prisma/client";
+import prisma from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
+import { getEmbeddings, rerankDocuments } from "@/lib/voyage/voyage";
+
+export type SearchRequest = {
+    query: string;
+    cityId?: string;
+    personId?: string;
+    partyId?: string;
+}
+
+export type SearchResult = {
+    city: City;
+    councilMeeting: CouncilMeeting;
+    relevanceScore: number;
+    speakerSegment: (SpeakerSegment & {
+        person?: Person;
+        party?: Party;
+        summary?: { text: string };
+        text?: string;
+    });
+};
+
+const RERANK = false;
+const MAX_PAGE = 10;
+export async function search(request: SearchRequest, page: number = 1, pageSize: number = 10): Promise<SearchResult[]> {
+    const { query, cityId, personId, partyId } = request;
+
+    // Get embedding for the query
+    const [queryEmbedding] = await getEmbeddings([query]);
+
+    // Calculate offset for pagination
+    const offset = (page - 1) * pageSize;
+
+    // Perform similarity search using raw SQL with pagination
+    const rawResults: any[] = await prisma.$queryRaw`
+        WITH ranked_segments AS (
+            SELECT 
+                ss."id",
+                ss."meetingId",
+                ss."cityId",
+                ss.embedding <=> ${Prisma.raw(`'[${queryEmbedding.join(',')}]'::vector`)} AS distance
+            FROM "SpeakerSegment" ss
+            WHERE 
+                ${cityId ? Prisma.sql`ss."cityId" = ${cityId}` : Prisma.sql`1=1`}
+                ${personId ? Prisma.sql`AND ss."speakerTagId" IN (SELECT "id" FROM "SpeakerTag" WHERE "personId" = ${personId})` : Prisma.sql``}
+                ${partyId ? Prisma.sql`AND ss."speakerTagId" IN (SELECT st."id" FROM "SpeakerTag" st JOIN "Person" p ON st."personId" = p."id" WHERE p."partyId" = ${partyId})` : Prisma.sql``}
+                AND (
+                    SELECT SUM(LENGTH(u."text"))
+                    FROM "Utterance" u
+                    WHERE u."speakerSegmentId" = ss."id"
+                ) >= 100
+            ORDER BY distance ASC
+            LIMIT ${pageSize * MAX_PAGE}
+        )
+        SELECT 
+            COUNT(*) OVER() as total_count,
+            c."id" as city_id,
+            c."name" as city_name,
+            cm."id" as meeting_id,
+            cm."name" as meeting_name,
+            ss."id" as segment_id,
+            p."id" as person_id,
+            p."name" as person_name,
+            party."id" as party_id,
+            party."name" as party_name,
+            s."text" as summary_text,
+            string_agg(u."text", ' ') as utterance_text,
+            rs.distance
+        FROM ranked_segments rs
+        JOIN "SpeakerSegment" ss ON ss."id" = rs."id"
+        JOIN "CouncilMeeting" cm ON cm."id" = ss."meetingId"
+        JOIN "City" c ON c."id" = ss."cityId"
+        LEFT JOIN "SpeakerTag" st ON st."id" = ss."speakerTagId"
+        LEFT JOIN "Person" p ON p."id" = st."personId"
+        LEFT JOIN "Party" party ON party."id" = p."partyId"
+        LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss."id"
+        LEFT JOIN "Utterance" u ON u."speakerSegmentId" = ss."id"
+        GROUP BY c."id", c."name", cm."id", cm."name", ss."id", p."id", p."name", party."id", party."name", s."text", rs.distance
+        ORDER BY rs.distance ASC
+        OFFSET ${offset}
+        LIMIT ${pageSize}
+    `;
+
+    console.log('Query results:', rawResults);
+
+    // Transform rawResults into results
+    const results = rawResults.map(row => ({
+        city: {
+            id: row.city_id,
+            name: row.city_name,
+        },
+        councilMeeting: {
+            id: row.meeting_id,
+            name: row.meeting_name,
+        },
+        speakerSegment: {
+            id: row.segment_id,
+            summary: row.summary_text ? {
+                text: row.summary_text,
+            } : null,
+            utterances: [{
+                text: row.utterance_text,
+            }],
+        },
+        person: row.person_id ? {
+            id: row.person_id,
+            name: row.person_name,
+        } : null,
+        party: row.party_id ? {
+            id: row.party_id,
+            name: row.party_name,
+        } : null,
+        distance: row.distance,
+    }));
+
+    console.log('Transformed results:', results);
+
+    let sortedResults;
+
+    if (RERANK) {
+        // Extract texts for reranking
+        const texts = results.map(r => r.speakerSegment?.summary?.text || '');
+
+        if (texts.length === 0) {
+            return [];
+        }
+
+        // Rerank results
+        const rerankedResults = await rerankDocuments(query, texts);
+
+        console.log('Reranked results:', rerankedResults);
+
+        // Sort the results based on the reranking scores
+        sortedResults = rerankedResults.data
+            .map(item => ({
+                ...results[item.index],
+                relevanceScore: item.relevance_score
+            }))
+            .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+        console.log('Sorted results:', sortedResults);
+    } else {
+        // If not reranking, use the distance as the relevance score
+        sortedResults = results.map(result => ({
+            ...result,
+            relevanceScore: 1 / (1 + result.distance) // Convert distance to a score between 0 and 1
+        })).sort((a, b) => b.relevanceScore - a.relevanceScore);
+    }
+
+    // Use Prisma to get the full results
+    const fullResults = await Promise.all(sortedResults.map(async (result) => {
+        const fullSpeakerSegment = await prisma.speakerSegment.findUnique({
+            where: { id: result.speakerSegment.id },
+            include: {
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                party: true
+                            }
+                        }
+                    }
+                },
+                summary: true,
+                meeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                utterances: {
+                    orderBy: {
+                        startTimestamp: 'asc'
+                    }
+                }
+            }
+        });
+
+        if (!fullSpeakerSegment) {
+            throw new Error(`SpeakerSegment with id ${result.speakerSegment.id} not found`);
+        }
+
+        return {
+            city: fullSpeakerSegment.meeting.city,
+            councilMeeting: fullSpeakerSegment.meeting,
+            relevanceScore: result.relevanceScore,
+            speakerSegment: {
+                id: fullSpeakerSegment.id,
+                startTimestamp: fullSpeakerSegment.startTimestamp,
+                endTimestamp: fullSpeakerSegment.endTimestamp,
+                createdAt: fullSpeakerSegment.createdAt,
+                updatedAt: fullSpeakerSegment.updatedAt,
+                meetingId: fullSpeakerSegment.meetingId,
+                cityId: fullSpeakerSegment.cityId,
+                speakerTagId: fullSpeakerSegment.speakerTagId,
+                person: fullSpeakerSegment.speakerTag.person || undefined,
+                party: fullSpeakerSegment.speakerTag.person?.party || undefined,
+                summary: fullSpeakerSegment.summary || undefined,
+                text: fullSpeakerSegment.utterances.map(u => u.text).join(' ')
+            }
+        };
+    }));
+
+    return fullResults;
+}

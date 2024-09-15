@@ -24,28 +24,40 @@ export function Result({ result, className }: { result: SearchResult; className?
         setIsExpanded(!isExpanded);
     };
 
+    const formatTimestamp = (timestamp: number) => {
+        const hours = Math.floor(timestamp / 3600);
+        const minutes = Math.floor((timestamp % 3600) / 60);
+        const seconds = timestamp % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${Math.floor(seconds).toString().padStart(2, '0')}`;
+    };
+
     return (
         <Card className={className}>
             <CardHeader>
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link href={`/${city.id}`}>{city.name}</Link>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbLink href={`/${city.id}/${councilMeeting.id}`}>{councilMeeting.name}</BreadcrumbLink>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+                <div className="flex justify-between items-center mb-2">
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href={`/${city.id}`}>{city.name}</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink href={`/${city.id}/${councilMeeting.id}`}>{councilMeeting.name}</BreadcrumbLink>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                    <div className="bg-blue-100 text-blue-800 text-sm font-semibold px-2.5 py-0.5 rounded-full">
+                        Relevance: {result.relevanceScore.toFixed(2)}
+                    </div>
+                </div>
                 <CardDescription className="flex flex-row justify-between items-center">
                     <span className="text-lg font-semibold">
                         {format(new Date(councilMeeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                     </span>
                     <Link className="text-muted-foreground" href={`/${city.id}/${councilMeeting.id}?t=${speakerSegment.startTimestamp}`}>
-                        {format(new Date(speakerSegment.startTimestamp * 1000), "HH:mm:ss")}
+                        {formatTimestamp(speakerSegment.startTimestamp)}
                     </Link>
                 </CardDescription>
             </CardHeader>

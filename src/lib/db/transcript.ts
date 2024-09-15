@@ -22,7 +22,18 @@ export async function getTranscript(meetingId: string, cityId: string, {
 
     const speakerSegments: Transcript = await prisma.$queryRaw`
       WITH speaker_segments AS (
-        SELECT ss.*, st.id AS "speakerTag_id", st.label AS "speakerTag_label", st."personId" AS "speakerTag_personId"
+        SELECT 
+          ss.id, 
+          ss."startTimestamp", 
+          ss."endTimestamp", 
+          ss."createdAt", 
+          ss."updatedAt", 
+          ss."meetingId", 
+          ss."cityId", 
+          ss."speakerTagId",
+          st.id AS "speakerTag_id", 
+          st.label AS "speakerTag_label", 
+          st."personId" AS "speakerTag_personId"
         FROM "SpeakerSegment" ss
         LEFT JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
         WHERE ss."meetingId" = ${meetingId} AND ss."cityId" = ${cityId}
@@ -124,4 +135,16 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
     joinedSegments.push(currentSegment);
 
     return joinedSegments;
+}
+
+export async function updateEmbeddings(embeddings: { speakerSegmentId: SpeakerSegment["id"], embedding: number[] }[]) {
+    await prisma.$transaction(
+        embeddings.map(e =>
+            prisma.$executeRaw`
+                UPDATE "SpeakerSegment"
+                SET embedding = ${e.embedding}::vector
+                WHERE id = ${e.speakerSegmentId}
+            `
+        )
+    );
 }

@@ -12,6 +12,7 @@ import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { requestExtractHighlights } from '@/lib/tasks/extractHighlights';
+import { embedCouncilMeeting } from '@/lib/search/embed';
 
 export default function AdminActions({
     meeting
@@ -29,6 +30,7 @@ export default function AdminActions({
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
+    const [isEmbedding, setIsEmbedding] = React.useState(false);
 
     React.useEffect(() => {
         setYoutubeUrl(meeting.youtubeUrl);
@@ -120,6 +122,14 @@ export default function AdminActions({
         }
     };
 
+    const handleEmbed = async () => {
+        setIsEmbedding(true);
+        await embedCouncilMeeting(meeting.cityId, meeting.id);
+        setIsEmbedding(false);
+    }
+
+
+
     const handleDeleteTask = async (taskId: string) => {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/taskStatuses/${taskId}`, {
@@ -197,6 +207,9 @@ export default function AdminActions({
                 </Popover>
                 <Button onClick={handleSummarize} disabled={isSummarizing}>
                     {isSummarizing ? 'Starting...' : 'Summarize'}
+                </Button>
+                <Button onClick={handleEmbed} disabled={isEmbedding}>
+                    Embed
                 </Button>
                 <Popover open={isHighlightPopoverOpen} onOpenChange={setIsHighlightPopoverOpen}>
                     <PopoverTrigger asChild>

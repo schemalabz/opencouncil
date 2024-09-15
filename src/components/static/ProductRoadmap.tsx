@@ -2,37 +2,43 @@
 
 import { useEffect, useRef } from 'react'
 import { motion, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
-import { Brain, Globe, LockKeyhole, Glasses, Leaf, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote } from 'lucide-react'
+import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote } from 'lucide-react'
 
 const features = [
     {
-        name: "AI Chat",
-        date: "October 2024",
-        description: "",
-        icon: Brain
+        name: "Ανοιχτός κώδικας",
+        date: "Σεπτέμβριος 2024",
+        description: "Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια που επιτρέπει την εμπορική χρήση.",
+        icon: Github
     },
     {
-        name: "Πολυγλωσσική χρήση",
-        date: "November 2024",
-        description: "",
+        name: "Ανοιχτά Δεδομένα",
+        date: "Σεπτέμβριος 2024",
+        description: "Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.",
+        icon: Database
+    },
+    {
+        name: "Βοηθός συνομιλίας AI",
+        date: "Οκτώβριος 2024",
+        description: "Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.",
+        icon: BotMessageSquare
+    },
+    {
+        name: "Πολύγλωσσο",
+        date: "Νοέμβριος 2024",
+        description: "Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.",
         icon: Globe
     },
     {
-        name: "Σύνδεση με την ημερίσια διάταξη",
-        date: "December 2024",
-        description: "Η πλατφόρμα θα συνδεθεί με την ημερίσια διάταξη του δήμου",
-        icon: ScrollText
-    },
-    {
-        name: "Προσοποποιημένα newsletters",
-        date: "January 2025",
-        description: "Incorporate blockchain technology for enhanced security and transparency.",
+        name: "Προσωποποιημένα newsletters",
+        date: "Ιανουάριος 2025",
+        description: "Αυτοματοποιημένη αποστολή εξατομικευμένων ενημερώσεων στους πολίτες.",
         icon: Mail
     },
     {
         name: "Καταγραφή παρουσιών και ψηφισμάτων",
-        date: "February 2025",
-        description: "Introduce virtual reality-based training programs for employees and clients.",
+        date: "Φεβρουάριος 2025",
+        description: "Αυτόματη καταγραφή παρουσιών και ψηφισμάτων των μελών του συμβουλίου.",
         icon: Vote
     }
 ]
@@ -117,7 +123,7 @@ export default function ProductRoadmap() {
 
     return (
         <div ref={containerRef} className="max-w-4xl mx-auto py-16 px-4">
-            <h2 className="text-3xl font-bold mb-12 text-center">Product Roadmap</h2>
+            <h2 className="text-3xl font-bold mb-12 text-center">Πλάνο ανάπτυξης</h2>
             <div className="relative">
                 <div
                     ref={lineRef}

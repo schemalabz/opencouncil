@@ -23,13 +23,6 @@ const Header = () => {
                 <Logo />
                 <nav>
                     <ul className="flex space-x-4 items-center">
-                        {process.env.NEXT_PUBLIC_SHOW_MARKETING === 'true' && (
-                            <li>
-                                <Link href="/about" className={cn("text-foreground hover:text-primary transition-colors")}>
-                                    {t('about')}
-                                </Link>
-                            </li>
-                        )}
                         {SHOW_LOCALE_PICKER && (
                             <li>
                                 <Link href={pathname} locale={otherLocale} className="flex items-center">

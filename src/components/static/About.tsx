@@ -1,12 +1,19 @@
 'use client'
 import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion'
-import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown } from 'lucide-react'
+import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { useRef, useEffect } from 'react'
 import React from 'react'
 import ProductRoadmap from './ProductRoadmap'
 import { useTranslations } from 'next-intl'
+import { Badge } from '@/components/ui/badge'
+import Pricing from './Pricing'
+import GridPattern from '../magicui/grid-pattern'
+import { cn } from '@/lib/utils'
+import Particles from '../magicui/particles'
+import ShineBorder from '../magicui/shine-border'
+import AnimatedGradientText from '../magicui/animated-gradient-text'
 
 export default function AboutPage() {
     const t = useTranslations('about')
@@ -51,7 +58,7 @@ export default function AboutPage() {
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.5, duration: 0.8 }}
                         >
-                            Κάνουμε τις συνεδριάσεις του δημοτικού συμβουλίου προσβάσιμες σε όλους
+                            Κάνουμε τις συνεδριάσεις δημοτικών συμβουλίων χρήσιμες σε όλους
                         </motion.p>
                         <motion.div
                             className="flex justify-center space-x-4"
@@ -59,12 +66,18 @@ export default function AboutPage() {
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.7, duration: 0.8 }}
                         >
-                            <Button size="lg">Ξεκινήστε</Button>
                             <Button size="lg" variant="outline">
                                 <PhoneCall className="mr-2 h-4 w-4" />
                                 Προγραμματίστε μια κλήση
                             </Button>
                         </motion.div>
+                        <Particles
+                            className="absolute inset-0"
+                            quantity={200}
+                            ease={80}
+                            color="#000"
+                            refresh
+                        />
                     </div>
                     <motion.div
                         className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
@@ -85,12 +98,12 @@ export default function AboutPage() {
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-3xl font-bold text-center mb-12">Χαρακτηριστικά</h2>
+                    <h2 className="text-3xl font-bold text-center mb-12">Χτίζουμε το μέλλον των δημοτικών συμβουλίων</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                         {[
-                            { icon: HelpCircle, title: 'Βελτιωμένη Προσβασιμότητα', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες σε όλους τους πολίτες, συμπεριλαμβανομένων των ατόμων με αναπηρίες. Η πλατφόρμα μας διασφαλίζει ότι η τοπική δημοκρατία είναι συμπεριληπτική, διαφανής και προσιτή σε κάθε μέλος της κοινότητας.' },
-                            { icon: Search, title: 'Ενδυνάμωση των Μελών του Συμβουλίου', description: 'Εξοπλίστε τα μέλη του συμβουλίου σας με ισχυρά εργαλεία για να βελτιστοποιήσουν την εργασία τους. Οι προηγμένες λειτουργίες αναζήτησης και οργάνωσης επιτρέπουν γρήγορη πρόσβαση σε προηγούμενες συζητήσεις, αποφάσεις και σημαντικές πληροφορίες, ενισχύοντας την παραγωγικότητα και τη λήψη τεκμηριωμένων αποφάσεων.' },
-                            { icon: Database, title: 'Δημιουργία Πολύτιμου Περιουσιακού Στοιχείου', description: 'Δημιουργήστε μια πλούσια, αναζητήσιμη βάση δεδομένων των διαδικασιών του συμβουλίου. Αυτό το ανοιχτό περιουσιακό στοιχείο δεδομένων όχι μόνο προωθεί τη διαφάνεια αλλά παρέχει επίσης ανεκτίμητες πληροφορίες για τη χάραξη πολιτικής, την έρευνα και τη συμμετοχή των πολιτών, τοποθετώντας την πόλη σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' }
+                            { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
+                            { icon: DatabaseIcon, title: 'Ένα νέο δημόσιο αγαθό', description: 'Δημιουργήστε μια πλούσια, αναζητήσιμη βάση δεδομένων των δημοκρατικών διαδικασιών του συμβουλίου, που ανήκει σε όλους.' },
+                            { icon: Building, title: 'Αποτελσματική διακυβέρνηση', description: 'Εξοπλίστε το δήμο σας με ισχυρά εργαλεία για την αποτελεσματικότερη χάραξη πολιτικών. Οι προηγμένες λειτουργίες αναζήτησης και οργάνωσης επιτρέπουν γρήγορη πρόσβαση σε προηγούμενες συζητήσεις και αποφάσεις.' },
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -126,14 +139,14 @@ export default function AboutPage() {
                     <h2 className="text-3xl font-bold text-center mb-12">Χαρακτηριστικά</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {[
-                            { icon: Mic, title: 'Αναγνώριση Ομιλητή', description: 'Ακριβής αναγνώριση και απόδοση των ομιλητών στις συνεδριάσεις του συμβουλίου.' },
-                            { icon: FileText, title: 'Ακριβής Απομαγνητοφώνηση', description: 'Δημιουργία ακριβών, κατά λέξη απομαγνητοφωνήσεων όλων των διαδικασιών του συμβουλίου.' },
-                            { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων των συνεδριάσεων του συμβουλίου.' },
-                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.' },
-                            { icon: Sparkles, title: 'Επισημάνσεις', description: 'Παρακολουθήστε τα πιο σημαντικά μέρη κάθε συνεδρίασης, με επισημάνσεις που δημιουργούνται από AI ή χειροκίνητα.' },
-                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια που επιτρέπει την εμπορική χρήση.' },
-                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα που παράγουμε είναι δημόσια και διαθέσιμα μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.' },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων. Όλες οι συνεδριάσεις μεταγράφονται στα Αγγλικά και τα Ελληνικά.' },
+                            { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.' },
+                            { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
+                            { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.' },
+                            { icon: Sparkles, title: 'Highlights', description: 'Αυτόματη δημιουργία ολιγόλεπτων βίντεο με τα πιό σημαντικά μέρη κάθε συνεδρίασης.' },
+                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Οκτώβριος 2024' },
+                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', releaseDate: 'Σεπτέμβριος 2024' },
+                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', releaseDate: 'Σεπτέμβριος 2024' },
+                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Νοέμβριος 2024' },
                             { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' }
                         ].map((feature, index) => (
                             <motion.div
@@ -143,10 +156,17 @@ export default function AboutPage() {
                                 transition={{ delay: index * 0.1, duration: 0.5 }}
                                 viewport={{ once: true }}
                             >
+
+
                                 <FeatureCard
                                     icon={<feature.icon className="h-10 w-10 text-primary" />}
                                     title={feature.title}
                                     description={feature.description}
+                                    badge={feature.releaseDate ? (
+                                        <AnimatedGradientText>
+                                            <CalendarClock className="h-4 w-4 mr-2" /> {feature.releaseDate}
+                                        </AnimatedGradientText>
+                                    ) : null}
                                 />
                             </motion.div>
                         ))}
@@ -155,74 +175,13 @@ export default function AboutPage() {
 
                 {/* Pricing Section */}
                 <motion.section
-                    className="py-16 bg-muted rounded-lg"
+                    className="py-16"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-3xl font-bold text-center mb-12">Τιμολόγηση</h2>
-                    <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-                        Απλή και διαφανής τιμολόγηση για όλους τους δήμους
-                    </p>
-                    <div className="max-w-3xl m-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {[
-                            {
-                                title: 'Δωρεάν Δοκιμή',
-                                subtitle: 'Για δήμους που θέλουν να δοκιμάσουν το OpenCouncil',
-                                features: [
-                                    'Απεριόριστη διάρκεια',
-                                    'Πλήρης πρόσβαση σε όλες τις λειτουργίες',
-                                    'Χωρίς χρέωση',
-                                    'Υποστήριξη μέσω email'
-                                ],
-                                cta: 'Ξεκινήστε Δωρεάν'
-                            },
-                            {
-                                title: 'Επί Πληρωμή',
-                                subtitle: 'Για δήμους που θέλουν να χρησιμοποιήσουν το OpenCouncil μακροπρόθεσμα',
-                                features: [
-                                    'Απεριόριστη διάρκεια',
-                                    'Πλήρης πρόσβαση σε όλες τις λειτουργίες',
-                                    'Προσαρμοσμένη τιμολόγηση βάσει του πληθυσμού του δήμου',
-                                    'Αποκλειστική υποστήριξη'
-                                ],
-                                cta: 'Επικοινωνήστε μαζί μας'
-                            }
-                        ].map((plan, index) => (
-                            <motion.div
-                                key={plan.title}
-                                initial={{ opacity: 0, x: index === 0 ? -50 : 50 }}
-                                whileInView={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.2, duration: 0.8 }}
-                                viewport={{ once: true }}
-                            >
-                                <Card className="mb-8 md:mb-0 flex flex-col h-full">
-                                    <CardHeader>
-                                        <CardTitle className="text-2xl font-bold text-center">
-                                            {t(`pricing.${plan}.title`)}
-                                        </CardTitle>
-                                        <p className="text-center text-muted-foreground">
-                                            {t(`pricing.${plan}.subtitle`)}
-                                        </p>
-                                    </CardHeader>
-                                    <CardContent className="flex-grow">
-                                        <ul className="space-y-2">
-                                            {['unlimitedDuration', 'fullAccess', 'noPayment', 'dedicatedSupport'].map((feature) => (
-                                                <li key={feature} className="flex items-start">
-                                                    <Clock className="h-5 w-5 mr-2 text-primary flex-shrink-0 mt-1" />
-                                                    <span>{t(`pricing.${plan}.features.${feature}`)}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button className="w-full">{t(`pricing.${plan}.cta`)}</Button>
-                                    </CardFooter>
-                                </Card>
-                            </motion.div>
-                        ))}
-                    </div>
+                    <Pricing />
                 </motion.section>
 
                 <motion.section
@@ -236,33 +195,40 @@ export default function AboutPage() {
                 </motion.section>
 
 
-                <motion.section
-                    className="py-16 bg-primary text-primary-foreground"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
-                >
-                    <div className="container mx-auto px-4">
-                        <h2 className="text-3xl font-bold text-center mb-8">Ξεκινήστε σήμερα</h2>
-                        <p className="text-center text-lg mb-8">
-                            Ανακαλύψτε πώς η Ανοιχτή Αυτοδιοίκηση μπορεί να βελτιώσει τη διαφάνεια στην τοπική σας κοινότητα.
-                        </p>
-                        <div className="flex justify-center">
-                            <Button size="lg" variant="secondary">
-                                Δοκιμάστε το δωρεάν
-                            </Button>
-                        </div>
+            </div >
+            <motion.section
+                className="py-16 bg-primary text-primary-foreground w-screen relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw]"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                viewport={{ once: true }}
+            >
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 className="text-3xl font-bold text-center mb-8">Ας φτιάξουμε το μέλλον της αυτοδιοίκησης μαζί</h2>
+                    <p className="text-center text-lg mb-8">
+                        Ελάτε να διαμορφώσουμε μαζί τη πρώτη πλατφόρμα τεχνητής νοημοσύνης για τη τοπική αυτοδιοίκηση.
+                    </p>
+                    <div className="flex justify-center">
+                        <Button size="lg" variant="secondary">
+                            Δοκιμάστε το δωρεάν
+                        </Button>
                     </div>
-                </motion.section>
-            </div>
-        </div>
+                </div>
+
+                <Particles
+                    className="absolute inset-0"
+                    quantity={200}
+                    ease={80}
+                    color="#fff"
+                    refresh
+                />
+            </motion.section>
+        </div >
     )
 }
-
-function FeatureCard({ icon: Icon, title, description }: { icon: React.ReactElement, title: string, description: string }) {
-    return (
-        <Card className="h-full">
+function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
+    const cardContent = (
+        <Card className={`h-full ${badge ? 'border-none' : ''}`}>
             <CardHeader>
                 <CardTitle className="flex items-center">
                     {React.cloneElement(Icon, { className: "h-6 w-6 mr-2" })}
@@ -272,6 +238,23 @@ function FeatureCard({ icon: Icon, title, description }: { icon: React.ReactElem
             <CardContent>
                 <p className="text-muted-foreground">{description}</p>
             </CardContent>
+            <CardFooter className="flex justify-end">
+                {badge}
+            </CardFooter>
         </Card>
-    )
+    );
+
+    if (badge) {
+        return (
+            <ShineBorder
+                className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden border bg-background md:shadow-xl"
+                color={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
+            >
+
+                {cardContent}
+            </ShineBorder>
+        );
+    } else {
+        return cardContent;
+    }
 }
