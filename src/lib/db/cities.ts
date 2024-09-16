@@ -88,9 +88,12 @@ export async function getFullCity(id: string): Promise<City & { councilMeetings:
     }
 }
 
-export async function getCities(): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
+export async function getCities({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
     try {
         const cities = await prisma.city.findMany({
+            where: {
+                isListed: includeUnlisted ? undefined : true
+            },
             include: {
                 councilMeetings: true
             }

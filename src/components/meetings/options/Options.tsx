@@ -51,7 +51,7 @@ export function Options({ editable }: { editable: boolean }) {
                             <Slider
                                 id="max-utterance-drift"
                                 min={1}
-                                max={100}
+                                max={500}
                                 step={1}
                                 value={[options.maxUtteranceDrift]}
                                 onValueChange={handleSliderChange}

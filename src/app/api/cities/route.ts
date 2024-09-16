@@ -65,6 +65,8 @@ export async function POST(request: Request) {
             name_municipality_en,
             timezone,
             logoImage: logoImageUrl,
+            officialSupport: false,
+            isListed: false,
         })
 
         return NextResponse.json(city)

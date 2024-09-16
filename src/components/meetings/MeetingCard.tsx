@@ -32,7 +32,7 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
     };
 
     const getStatistics = () => {
-        getStatisticsFor({ meetingId: meeting.id, cityId: "athens" }, ['person', 'topic', 'party']).then((statistics) => {
+        getStatisticsFor({ meetingId: meeting.id, cityId: meeting.cityId }, ['person', 'topic', 'party']).then((statistics) => {
             setStatistics(statistics as StatisticsOfCouncilMeeting);
         });
     }

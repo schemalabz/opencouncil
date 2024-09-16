@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
 import { City, Party, Person } from '@prisma/client';
@@ -16,11 +16,25 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbS
 import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
 import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
+import { getLatestSegmentsForParty } from '@/lib/search/search';
+import { Result } from '../search/Result';
 
 export default function PartyC({ city, party, editable }: { city: City, party: Party & { persons: Person[] }, editable: boolean }) {
     const t = useTranslations('Party');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
+    const [latestSegments, setLatestSegments] = useState<any[]>([]);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+
+    useEffect(() => {
+        const fetchLatestSegments = async () => {
+            const { results, totalCount } = await getLatestSegmentsForParty(party.id, page);
+            setLatestSegments(prevSegments => [...prevSegments, ...results]);
+            setTotalCount(totalCount);
+        };
+        fetchLatestSegments();
+    }, [party.id, page]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,6 +99,15 @@ export default function PartyC({ city, party, editable }: { city: City, party: P
             <div className="mt-8">
                 <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
                 <Statistics type="party" id={party.id} cityId={city.id} />
+            </div>
+            <div className="mt-8">
+                <h2 className="text-2xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>
+                {latestSegments.map((result, index) => (
+                    <Result key={index} result={result} className="mb-4" />
+                ))}
+                {latestSegments.length < totalCount && (
+                    <Button onClick={() => setPage(prevPage => prevPage + 1)}>Περισσότερα</Button>
+                )}
             </div>
         </div>
     );

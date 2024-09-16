@@ -23,6 +23,7 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   officialSupport Boolean @default(false)
+  isListed Boolean @default(false)
 
   parties        Party[]
   persons        Person[]

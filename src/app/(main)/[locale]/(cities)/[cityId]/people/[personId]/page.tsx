@@ -1,4 +1,4 @@
-"use server"
+"use server";
 import { getCity } from "@/lib/db/cities";
 import { getPerson } from "@/lib/db/people";
 import PersonC from "@/components/persons/Person";

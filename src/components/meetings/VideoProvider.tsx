@@ -49,7 +49,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [currentTime, setCurrentTime] = useState(0);
 
     useEffect(() => {
-        console.log("VideoProvider mounted");
         const player = playerRef.current;
         const updateDuration = () => {
             if (player && !isNaN(player.duration)) {
@@ -61,21 +60,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         updateDuration();
 
         return () => {
-            console.log("VideoProvider unmounting");
             player?.removeEventListener('loadedmetadata', updateDuration);
         };
     }, [playerRef.current, utterances]);
 
     useEffect(() => {
-        console.log("USE EFFECT");
         const urlParams = new URLSearchParams(window.location.search);
         const timeParam = urlParams.get('t');
 
         if (currentTimeRef.current === 0 && utterances.length > 0) {
-            console.log("SETTING TO FIRST UTTERANCE, startTimestamp is ", utterances[0].startTimestamp);
             currentTimeRef.current = utterances[0].startTimestamp;
-        } else {
-            console.log("NOT SETTING TO FIRST UTTERANCE, because currentTimeRef.current is ", currentTimeRef.current);
         }
 
         if (timeParam) {
@@ -89,17 +83,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     }, []);
 
     const playVideo = async () => {
-        console.log("PLAYING");
         if (playerRef.current) {
             await playerRef.current.play();
             if (!hasStartedPlaying) { // this is the first time we play
-                console.log("SETTING TO CURRENT TIME to ", currentTimeRef.current);
                 playerRef.current.currentTime = currentTimeRef.current;
                 setHasStartedPlaying(true);
-            } else {
-                console.log("NOT FIRST PLAY, but currentTimeRef.current is ", currentTimeRef.current);
             }
-
             setIsPlaying(true);
 
         }
@@ -168,7 +157,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // Update seekTo to include scrolling
     const seekTo = (time: number) => {
         if (playerRef.current) {
-            console.log(`SEEK: Seeking to ${formatTimestamp(time)}`)
             if (hasStartedPlaying) {
                 playerRef.current.currentTime = time;
             }
@@ -177,14 +165,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             requestAnimationFrame(() => {
                 scrollToUtterance(time);
             });
-        } else {
-            console.log(`SEEK: No player element found`)
         }
     };
 
     const handleTimeUpdate = useCallback(() => {
         if (playerRef.current && !isSeeking) {
-            console.log("TIME UPDATE: currentTime is ", playerRef.current.currentTime);
             if (isPlaying) {
                 const newTime = playerRef.current.currentTime;
                 currentTimeRef.current = newTime;

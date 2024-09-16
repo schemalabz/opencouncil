@@ -8,10 +8,12 @@ import { Link } from '@/i18n/routing';
 import PartyBadge from "../PartyBadge";
 import { useLocale } from "next-intl";
 import { useState } from 'react';
+import { useRouter } from "next/navigation";
 
 export function Result({ result, className }: { result: SearchResult; className?: string }) {
     const { city, councilMeeting, speakerSegment } = result;
     const locale = useLocale();
+    const router = useRouter();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const truncateText = (text: string, wordCount: number) => {
@@ -48,9 +50,6 @@ export function Result({ result, className }: { result: SearchResult; className?
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
-                    <div className="bg-blue-100 text-blue-800 text-sm font-semibold px-2.5 py-0.5 rounded-full">
-                        Relevance: {result.relevanceScore.toFixed(2)}
-                    </div>
                 </div>
                 <CardDescription className="flex flex-row justify-between items-center">
                     <span className="text-lg font-semibold">
@@ -73,6 +72,9 @@ export function Result({ result, className }: { result: SearchResult; className?
                                 person={speakerSegment.person}
                                 party={speakerSegment.party}
                                 withLeftBorder
+                                handleTagClick={() => {
+                                    router.push(`/${city.id}/people/${speakerSegment.person?.id}`);
+                                }}
                             />
                             {speakerSegment.party && (
                                 <div className="inline-block">

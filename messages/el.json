@@ -285,8 +285,8 @@
         "speaker": "Ομιλητής",
         "noDataAvailable": "Δεν υπάρχουν διαθέσιμα δεδομένα",
         "loading": "Φόρτωση...",
-        "totalSpeakingTime": "Συνολικός Χρόνος Ομιλίας"
-
+        "totalSpeakingTime": "Συνολικός Χρόνος Ομιλίας",
+        "totalMinutes": "Συνολικά λεπτά ομιλίας"
     },
     "TranscriptOptions": {
         "title": "Επιλογές Απομαγνητοφώνησης",

@@ -25,7 +25,7 @@ const defaultOptions: TranscriptOptions = {
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
     selectedHighlight: null,
-    maxUtteranceDrift: 100
+    maxUtteranceDrift: 500
 };
 
 function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {

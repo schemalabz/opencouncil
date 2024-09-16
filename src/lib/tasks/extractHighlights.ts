@@ -53,12 +53,8 @@ import { ExtractHighlightsResult } from "../apiTypes";
 
 export async function handleExtractHighlightsResult(taskId: string, response: ExtractHighlightsResult) {
     const task = await prisma.taskStatus.findUnique({
-        where: {
-            id: taskId
-        },
-        include: {
-            councilMeeting: true
-        }
+        where: { id: taskId },
+        include: { councilMeeting: true }
     });
 
     if (!task) {
@@ -66,10 +62,12 @@ export async function handleExtractHighlightsResult(taskId: string, response: Ex
     }
 
     const { councilMeeting } = task;
-
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
+        const missingUtterances = [];
         for (const highlight of response.highlights) {
+            console.log(`Processing highlight: ${highlight.name}`);
+
             // Create a new Highlight
             const newHighlight = await prisma.highlight.create({
                 data: {
@@ -78,8 +76,20 @@ export async function handleExtractHighlightsResult(taskId: string, response: Ex
                 }
             });
 
-            // Create HighlightedUtterances for each utteranceId
             for (const utteranceId of highlight.utteranceIds) {
+                console.log(`Attempting to connect Utterance ID: ${utteranceId}`);
+
+                // Verify Utterance exists
+                const utteranceExists = await prisma.utterance.findUnique({
+                    where: { id: utteranceId }
+                });
+
+                if (!utteranceExists) {
+                    console.warn(`Utterance with ID ${utteranceId} does not exist.`);
+                    missingUtterances.push(utteranceId);
+                    continue;
+                }
+
                 await prisma.highlightedUtterance.create({
                     data: {
                         utterance: { connect: { id: utteranceId } },
@@ -87,6 +97,10 @@ export async function handleExtractHighlightsResult(taskId: string, response: Ex
                     }
                 });
             }
+        }
+
+        if (missingUtterances.length > 0) {
+            console.warn(`The following utterances were missing: ${missingUtterances.join(', ')}`);
         }
     });
 

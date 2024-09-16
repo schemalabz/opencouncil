@@ -3,6 +3,7 @@ import { City, CouncilMeeting, Party, Person, SpeakerSegment, Summary } from "@p
 import prisma from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { getEmbeddings, rerankDocuments } from "@/lib/voyage/voyage";
+import { getCities } from "../db/cities";
 
 export type SearchRequest = {
     query: string;
@@ -14,7 +15,7 @@ export type SearchRequest = {
 export type SearchResult = {
     city: City;
     councilMeeting: CouncilMeeting;
-    relevanceScore: number;
+    relevanceScore?: number;
     speakerSegment: (SpeakerSegment & {
         person?: Person;
         party?: Party;
@@ -22,6 +23,185 @@ export type SearchResult = {
         text?: string;
     });
 };
+
+export async function getLatestSegmentsForSpeaker(personId: string, page: number = 1, pageSize: number = 5): Promise<{ results: SearchResult[], totalCount: number }> {
+    const skip = (page - 1) * pageSize;
+
+    const [segments, totalCount] = await Promise.all([
+        prisma.speakerSegment.findMany({
+            where: {
+                speakerTag: {
+                    personId: personId
+                },
+                summary: {
+                    isNot: null
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                }
+            },
+            include: {
+                meeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                party: true
+                            }
+                        }
+                    }
+                },
+                utterances: true,
+                summary: true
+            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
+            skip: skip,
+            take: pageSize
+        }),
+        prisma.speakerSegment.count({
+            where: {
+                speakerTag: {
+                    personId: personId
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                }
+            }
+        })
+    ]);
+
+    const results = segments
+        .filter(segment => segment.utterances.reduce((acc, u) => acc + u.text.length, 0) >= 100)
+        .map(segment => ({
+            city: segment.meeting.city,
+            councilMeeting: segment.meeting,
+            speakerSegment: {
+                ...segment,
+                person: segment.speakerTag?.person || undefined,
+                party: segment.speakerTag?.person?.party || undefined,
+                summary: segment.summary ? { text: segment.summary.text } : undefined,
+                text: segment.utterances.map(u => u.text).join(' ')
+            }
+        }));
+
+    return {
+        results,
+        totalCount
+    };
+}
+
+export async function getLatestSegmentsForParty(partyId: string, page: number = 1, pageSize: number = 5): Promise<{ results: SearchResult[], totalCount: number }> {
+    const skip = (page - 1) * pageSize;
+
+    const [segments, totalCount] = await Promise.all([
+        prisma.speakerSegment.findMany({
+            where: {
+                speakerTag: {
+                    person: {
+                        partyId: partyId
+                    }
+                },
+                summary: {
+                    isNot: null
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                }
+            },
+            include: {
+                meeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                party: true
+                            }
+                        }
+                    }
+                },
+                utterances: true,
+                summary: true
+            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
+            skip: skip,
+            take: pageSize
+        }),
+        prisma.speakerSegment.count({
+            where: {
+                speakerTag: {
+                    person: {
+                        partyId: partyId
+                    }
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                }
+            }
+        })
+    ]);
+
+    const results = segments
+        .filter(segment => segment.utterances.reduce((acc, u) => acc + u.text.length, 0) >= 100)
+        .map(segment => ({
+            city: segment.meeting.city,
+            councilMeeting: segment.meeting,
+            speakerSegment: {
+                ...segment,
+                person: segment.speakerTag?.person || undefined,
+                party: segment.speakerTag?.person?.party || undefined,
+                summary: segment.summary ? { text: segment.summary.text } : undefined,
+                text: segment.utterances.map(u => u.text).join(' ')
+            }
+        }));
+
+    return {
+        results,
+        totalCount
+    };
+}
+
 
 const RERANK = false;
 const MAX_RESULTS = 50;
@@ -174,6 +354,8 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
             }
         });
 
+
+
         if (!fullSpeakerSegment) {
             throw new Error(`SpeakerSegment with id ${result.speakerSegment.id} not found`);
         }
@@ -199,5 +381,13 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
         };
     }));
 
-    return fullResults;
+    if (cityId) {
+        return fullResults;
+    } else {
+        // Filter out results for cities that are not listed
+        const listedCities = await getCities();
+        const resultsOfListedCities = fullResults.filter(result => listedCities.some(city => city.id === result.city.id));
+
+        return resultsOfListedCities;
+    }
 }

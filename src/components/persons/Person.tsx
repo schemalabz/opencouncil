@@ -12,16 +12,29 @@ import PartyBadge from '../PartyBadge';
 import { useRouter } from 'next/navigation';
 import { Search } from "lucide-react";
 import { Input } from '../ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
-import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
+import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
+import { Result } from '../search/Result';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
+    const [latestSegments, setLatestSegments] = useState<any[]>([]);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+
+    useEffect(() => {
+        const fetchLatestSegments = async () => {
+            const { results, totalCount } = await getLatestSegmentsForSpeaker(person.id, page);
+            setLatestSegments(prevSegments => [...prevSegments, ...results]);
+            setTotalCount(totalCount);
+        };
+        fetchLatestSegments();
+    }, [person.id, page]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,6 +109,16 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
             <div className="mt-8">
                 <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
                 <Statistics type="person" id={person.id} cityId={city.id} />
+            </div>
+
+            <div className="mt-8">
+                <h2 className="text-2xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>
+                {latestSegments.map((result, index) => (
+                    <Result key={index} result={result} className="mb-4" />
+                ))}
+                {latestSegments.length < totalCount && (
+                    <Button onClick={() => setPage(prevPage => prevPage + 1)}>Περισσότερα</Button>
+                )}
             </div>
         </div>
     );
