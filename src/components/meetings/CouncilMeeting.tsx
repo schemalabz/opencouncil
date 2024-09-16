@@ -47,9 +47,11 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         ? window.location.hash.slice(3)
         : null;
 
-    const utterances = useMemo(() => {
+    const memoizedUtterances = useMemo(() => {
         return meetingData.transcript.map((u) => u.utterances).flat()
     }, [meetingData.transcript]);
+
+    const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting.id]);
 
     useEffect(() => {
         const checkSize = () => {
@@ -91,10 +93,11 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         </motion.div>
     )
 
+    console.log("Rendering VideoProvider");
     return (
         <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
             <TranscriptOptionsProvider editable={editable}>
-                <VideoProvider meeting={meetingData.meeting} utterances={utterances}>
+                <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                     {mode === 'transcript' ? (
                         <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
                             <Header showHiglightButton={meetingData.highlights.length > 0} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={(sn) => sn === activeSection ? setActiveSection(null) : setActiveSection(sn)} sections={sections} />

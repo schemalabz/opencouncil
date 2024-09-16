@@ -10,29 +10,6 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext"
 import MuxPlayer from "@mux/mux-player-react"
 import { Video } from "../Video"
 
-const AnimatedText = ({ text }: { text: string }) => {
-    const [currentText, setCurrentText] = useState('')
-    const [currentIndex, setCurrentIndex] = useState(0)
-
-    useEffect(() => {
-        if (currentIndex < text.length) {
-            const timeout = setTimeout(() => {
-                setCurrentText(prevText => prevText + text[currentIndex])
-                setCurrentIndex(prevIndex => prevIndex + 1)
-            }, 100)
-            return () => clearTimeout(timeout)
-        } else {
-            const timeout = setTimeout(() => {
-                setCurrentText('')
-                setCurrentIndex(0)
-            }, 1000)
-            return () => clearTimeout(timeout)
-        }
-    }, [currentIndex, text])
-
-    return <span>{currentText}</span>
-}
-
 const Subtitles = ({ utterance }: { utterance: Utterance }) => (
     <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 p-2 rounded">
         <div className="flex items-center space-x-2">
@@ -54,12 +31,14 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
     useEffect(() => {
+        console.log(".seeking");
         seekTo(utterances[0].startTimestamp)
         setCurrentUtteranceIndex(0);
         setHasStartedPlaying(true);
-        if (!isPlaying) {
-            setTimeout(() => setIsPlaying(true), 500);
-        }
+        setTimeout(() => {
+            console.log(".playing");
+            setIsPlaying(true)
+        }, 500);
     }, [utterances]);
 
     useEffect(() => {

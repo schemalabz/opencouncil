@@ -38,10 +38,9 @@ interface VideoProviderProps {
     meeting: CouncilMeeting;
     utterances: (Utterance & { words: Word[] })[];
 }
-
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
+    const currentTimeRef = useRef(0);
     const [duration, setDuration] = useState(0);
     const [playbackSpeed, setPlaybackSpeed] = useState("1");
     const [isSeeking, setIsSeeking] = useState(false);
@@ -49,6 +48,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const playerRef = useRef<HTMLVideoElement | null>(null);
 
     useEffect(() => {
+        console.log("VideoProvider mounted");
         const player = playerRef.current;
         const updateDuration = () => {
             if (player && !isNaN(player.duration)) {
@@ -60,19 +60,28 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         updateDuration();
 
         return () => {
+            console.log("VideoProvider unmounting");
             player?.removeEventListener('loadedmetadata', updateDuration);
         };
-    }, []);
+    }, [playerRef.current, utterances]);
 
     useEffect(() => {
+        console.log("USE EFFECT");
         const urlParams = new URLSearchParams(window.location.search);
         const timeParam = urlParams.get('t');
+
+        if (currentTimeRef.current === 0 && utterances.length > 0) {
+            console.log("SETTING TO FIRST UTTERANCE, startTimestamp is ", utterances[0].startTimestamp);
+            currentTimeRef.current = utterances[0].startTimestamp;
+        } else {
+            console.log("NOT SETTING TO FIRST UTTERANCE, because currentTimeRef.current is ", currentTimeRef.current);
+        }
 
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
                 playerRef.current.currentTime = seconds;
-                setCurrentTime(seconds);
+                currentTimeRef.current = seconds;
                 setTimeout(() => scrollToUtterance(seconds), 1000);
             }
         }
@@ -83,12 +92,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         if (playerRef.current) {
             await playerRef.current.play();
             if (!hasStartedPlaying) { // this is the first time we play
-                if (currentTime === 0 && utterances.length > 0) {
-                    playerRef.current.currentTime = utterances[0].startTimestamp;
-                }
-
-                playerRef.current.currentTime = currentTime;
+                console.log("SETTING TO CURRENT TIME to ", currentTimeRef.current);
+                playerRef.current.currentTime = currentTimeRef.current;
                 setHasStartedPlaying(true);
+            } else {
+                console.log("NOT FIRST PLAY, but currentTimeRef.current is ", currentTimeRef.current);
             }
 
             setIsPlaying(true);
@@ -123,7 +131,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const handleSeeked = async () => {
         setIsSeeking(false);
         if (playerRef.current) {
-            setCurrentTime(playerRef.current.currentTime)
+            currentTimeRef.current = playerRef.current.currentTime;
         }
     }
     const handleSpeedChange = (value: string) => {
@@ -163,7 +171,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             if (hasStartedPlaying) {
                 playerRef.current.currentTime = time;
             }
-            setCurrentTime(time);
+            currentTimeRef.current = time;
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
                 scrollToUtterance(time);
@@ -175,33 +183,18 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const handleTimeUpdate = () => {
         if (playerRef.current && !isSeeking) {
-            const newTime = playerRef.current.currentTime;
-            setCurrentTime(newTime);
+            console.log("TIME UPDATE: currentTime is ", playerRef.current.currentTime);
+            if (isPlaying) {
+                currentTimeRef.current = playerRef.current.currentTime;
+            }
         }
     };
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
-    const preserveVideoState = () => {
-        if (playerRef.current) {
-            const currentTime = playerRef.current.currentTime;
-            const wasPlaying = !playerRef.current.paused;
-
-            // Use setTimeout to allow the DOM to update
-            setTimeout(() => {
-                if (playerRef.current) {
-                    playerRef.current.currentTime = currentTime;
-                    if (wasPlaying) {
-                        playerRef.current.play().catch(e => console.error("Error playing video:", e));
-                    }
-                }
-            }, 0);
-        }
-    };
-
     const value = {
         isPlaying,
-        currentTime,
+        currentTime: currentTimeRef.current,
         duration,
         playbackSpeed,
         currentScrollInterval,
