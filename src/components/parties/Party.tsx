@@ -14,6 +14,8 @@ import { Search } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
+import { Statistics } from '../Statistics';
+import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
 
 export default function PartyC({ city, party, editable }: { city: City, party: Party & { persons: Person[] }, editable: boolean }) {
     const t = useTranslations('Party');
@@ -80,6 +82,10 @@ export default function PartyC({ city, party, editable }: { city: City, party: P
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </form>
+            <div className="mt-8">
+                <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
+                <Statistics type="party" id={party.id} cityId={city.id} />
+            </div>
         </div>
     );
 }

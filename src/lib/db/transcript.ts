@@ -2,25 +2,25 @@ import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic
 import prisma from "./prisma";
 
 export type Transcript = (SpeakerSegment & {
-    utterances: (Utterance & {
-        words: Word[];
-    })[];
-    speakerTag: SpeakerTag;
-    topicLabels: (TopicLabel & {
-        topic: Topic;
-    })[];
-    summary: Summary | null;
+  utterances: (Utterance & {
+    words: Word[];
+  })[];
+  speakerTag: SpeakerTag;
+  topicLabels: (TopicLabel & {
+    topic: Topic;
+  })[];
+  summary: Summary | null;
 })[];
 
 export async function getTranscript(meetingId: string, cityId: string, {
-    joinAdjacentSameSpeakerSegments = true,
+  joinAdjacentSameSpeakerSegments = true,
 }: {
-    joinAdjacentSameSpeakerSegments?: boolean;
+  joinAdjacentSameSpeakerSegments?: boolean;
 } = {}): Promise<Transcript> {
-    const startTime = performance.now();
-    console.log(`Getting transcript for meeting ${meetingId} ${cityId}`);
+  const startTime = performance.now();
+  console.log(`Getting transcript for meeting ${meetingId} ${cityId}`);
 
-    const speakerSegments: Transcript = await prisma.$queryRaw`
+  const speakerSegments: Transcript = await prisma.$queryRaw`
       WITH speaker_segments AS (
         SELECT 
           ss.id, 
@@ -46,7 +46,9 @@ export async function getTranscript(meetingId: string, cityId: string, {
           'personId', ss."speakerTag_personId"
         ) AS "speakerTag",
         u.utterances,
-        sum.text AS "summary.text",
+        CASE WHEN sum.text IS NOT NULL THEN
+          jsonb_build_object('text', sum.text)
+        ELSE NULL END AS summary,
         COALESCE(tl.topic_labels, '[]'::jsonb) AS "topicLabels"
       FROM speaker_segments ss
       LEFT JOIN LATERAL (
@@ -95,56 +97,58 @@ export async function getTranscript(meetingId: string, cityId: string, {
       ORDER BY ss."startTimestamp" ASC
     `;
 
-    const endTime = performance.now();
-    console.log(`Time taken to query for transcript: ${endTime - startTime} milliseconds`);
+  const endTime = performance.now();
+  console.log(`Time taken to query for transcript: ${endTime - startTime} milliseconds`);
+  const summariesCount = speakerSegments.reduce((acc, segment) => {
+    return acc + (segment.summary ? 1 : 0);
+  }, 0);
 
-    console.log(`Topic labels: ${speakerSegments.reduce((acc, segment) => {
-        return acc + segment.topicLabels.length;
-    }, 0)}`);
+  console.log(`Summaries count: ${summariesCount}`);
 
-    if (joinAdjacentSameSpeakerSegments) {
-        return joinTranscriptSegments(speakerSegments);
-    } else {
-        return speakerSegments;
-    }
+  console.log(`Topic labels: ${speakerSegments.reduce((acc, segment) => {
+    return acc + segment.topicLabels.length;
+  }, 0)}`);
+
+  return speakerSegments;
 }
 
 export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {
-    if (speakerSegments.length === 0) {
-        return speakerSegments;
+  if (speakerSegments.length === 0) {
+    return speakerSegments;
+  }
+
+  const joinedSegments = [];
+  let currentSegment = speakerSegments[0];
+
+  for (let i = 1; i < speakerSegments.length; i++) {
+    if (speakerSegments[i].speakerTag.personId && currentSegment.speakerTag.personId
+      && speakerSegments[i].speakerTag.personId === currentSegment.speakerTag.personId
+      && speakerSegments[i].startTimestamp >= currentSegment.startTimestamp) {
+      // Join adjacent segments with the same speaker
+      currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, speakerSegments[i].endTimestamp);
+      currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
+      currentSegment.topicLabels = [...currentSegment.topicLabels, ...speakerSegments[i].topicLabels];
+    } else {
+      // Push the current segment and start a new one
+      joinedSegments.push(currentSegment);
+      currentSegment = speakerSegments[i];
     }
+  }
 
-    const joinedSegments = [];
-    let currentSegment = speakerSegments[0];
+  // Push the last segment
+  joinedSegments.push(currentSegment);
 
-    for (let i = 1; i < speakerSegments.length; i++) {
-        if (speakerSegments[i].speakerTag.personId && currentSegment.speakerTag.personId
-            && speakerSegments[i].speakerTag.personId === currentSegment.speakerTag.personId) {
-            // Join adjacent segments with the same speaker
-            currentSegment.endTimestamp = speakerSegments[i].endTimestamp;
-            currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
-            currentSegment.topicLabels = [...currentSegment.topicLabels, ...speakerSegments[i].topicLabels];
-        } else {
-            // Push the current segment and start a new one
-            joinedSegments.push(currentSegment);
-            currentSegment = speakerSegments[i];
-        }
-    }
-
-    // Push the last segment
-    joinedSegments.push(currentSegment);
-
-    return joinedSegments;
+  return joinedSegments;
 }
 
 export async function updateEmbeddings(embeddings: { speakerSegmentId: SpeakerSegment["id"], embedding: number[] }[]) {
-    await prisma.$transaction(
-        embeddings.map(e =>
-            prisma.$executeRaw`
+  await prisma.$transaction(
+    embeddings.map(e =>
+      prisma.$executeRaw`
                 UPDATE "SpeakerSegment"
                 SET embedding = ${e.embedding}::vector
                 WHERE id = ${e.speakerSegmentId}
             `
-        )
-    );
+    )
+  );
 }

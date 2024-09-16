@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 import Particles from '../magicui/particles'
 import ShineBorder from '../magicui/shine-border'
 import AnimatedGradientText from '../magicui/animated-gradient-text'
-import ContactFormPopup from '../ContactFormPopup'
+import ContactFormPopup from './ContactFormPopup'
 
 export default function AboutPage() {
     const t = useTranslations('about')
@@ -208,7 +208,7 @@ export default function AboutPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10"> {/* Added relative and z-10 */}
                     <h2 className="text-3xl font-bold text-center mb-8">Ας φτιάξουμε το μέλλον της αυτοδιοίκησης μαζί</h2>
                     <p className="text-center text-lg mb-8">
-                        Ελάτε να διαμορφώσουμε μαζί τη πρώτη πλατφόρμα τεχνητής νοημοσύνης για τη τοπική αυτοδιοίκηση.
+                        Ελάτε να χτίσουμε τη πρώτη πλατφόρμα τεχνητής νοημοσύνης για τη τοπική αυτοδιοίκηση.
                     </p>
                     <div className="flex justify-center">
                         <Button size="lg" variant="secondary" onClick={() => setIsContactFormOpen(true)}>

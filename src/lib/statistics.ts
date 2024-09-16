@@ -72,9 +72,6 @@ export async function getStatisticsFor(
         }
     });
 
-    // Join adjacent segments with the same speaker
-    transcript = joinAdjacentSpeakerSegments(transcript);
-
     function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
         if (segments.length === 0) {
             return segments;
@@ -85,9 +82,10 @@ export async function getStatisticsFor(
 
         for (let i = 1; i < segments.length; i++) {
             if (segments[i].speakerTag.person?.id && currentSegment.speakerTag.person?.id
-                && segments[i].speakerTag.person!.id === currentSegment.speakerTag.person.id) {
+                && segments[i].speakerTag.person!.id === currentSegment.speakerTag.person.id
+                && segments[i].startTimestamp >= currentSegment.startTimestamp) {
                 // Join adjacent segments with the same speaker
-                currentSegment.endTimestamp = segments[i].endTimestamp;
+                currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, segments[i].endTimestamp);
                 currentSegment.topicLabels = [...currentSegment.topicLabels, ...segments[i].topicLabels];
             } else {
                 // Push the current segment and start a new one
@@ -120,37 +118,45 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
     }
 
     transcript.forEach(segment => {
-        statistics.speakingSeconds += segment.endTimestamp - segment.startTimestamp;
-        segment.topicLabels.forEach(topicLabel => {
-            const topic = topicLabel.topic;
-            if (groupBy.includes("topic")) {
+        const segmentDuration = Math.max(0, segment.endTimestamp - segment.startTimestamp);
+        statistics.speakingSeconds += segmentDuration;
+
+        // Handle person statistics
+        if (groupBy.includes("person") && segment.speakerTag.person) {
+            const personStatistics = statistics.people!.find(p => p.item.id === segment.speakerTag.person?.id);
+            if (personStatistics) {
+                personStatistics.speakingSeconds += segmentDuration;
+                personStatistics.count++;
+            } else {
+                statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segmentDuration, count: 1 });
+            }
+        }
+
+        // Handle party statistics
+        if (groupBy.includes("party") && segment.speakerTag.person?.party) {
+            const partyStatistics = statistics.parties!.find(p => p.item.id === segment.speakerTag.person?.party?.id);
+            if (partyStatistics) {
+                partyStatistics.speakingSeconds += segmentDuration;
+                partyStatistics.count++;
+            } else {
+                statistics.parties!.push({ item: segment.speakerTag.person.party, speakingSeconds: segmentDuration, count: 1 });
+            }
+        }
+
+        // Handle topic statistics
+        if (groupBy.includes("topic") && segment.topicLabels.length > 0) {
+            const topicDuration = segmentDuration / segment.topicLabels.length; // Divide duration among topics
+            segment.topicLabels.forEach((topicLabel) => {
+                const topic = topicLabel.topic;
                 const topicStatistics = statistics.topics!.find(t => t.item.id === topic.id);
                 if (topicStatistics) {
-                    topicStatistics.speakingSeconds += segment.endTimestamp - segment.startTimestamp;
+                    topicStatistics.speakingSeconds += topicDuration;
                     topicStatistics.count++;
                 } else {
-                    statistics.topics!.push({ item: topic, speakingSeconds: segment.endTimestamp - segment.startTimestamp, count: 1 });
+                    statistics.topics!.push({ item: topic, speakingSeconds: topicDuration, count: 1 });
                 }
-            }
-            if (groupBy.includes("person")) {
-                const personStatistics = statistics.people!.find(p => p.item.id === segment.speakerTag.person?.id);
-                if (personStatistics) {
-                    personStatistics.speakingSeconds += segment.endTimestamp - segment.startTimestamp;
-                    personStatistics.count++;
-                } else if (segment.speakerTag.person) {
-                    statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segment.endTimestamp - segment.startTimestamp, count: 1 });
-                }
-            }
-            if (groupBy.includes("party")) {
-                const partyStatistics = statistics.parties!.find(p => p.item.id === segment.speakerTag.person?.partyId);
-                if (partyStatistics) {
-                    partyStatistics.speakingSeconds += segment.endTimestamp - segment.startTimestamp;
-                    partyStatistics.count++;
-                } else if (segment.speakerTag.person && segment.speakerTag.person.party) {
-                    statistics.parties!.push({ item: segment.speakerTag.person.party, speakingSeconds: segment.endTimestamp - segment.startTimestamp, count: 1 });
-                }
-            }
-        });
+            });
+        }
     });
 
     return statistics;

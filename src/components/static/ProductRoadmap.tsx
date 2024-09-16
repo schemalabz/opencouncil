@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { motion, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
-import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote } from 'lucide-react'
+import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll } from 'lucide-react'
 
 const features = [
     {
@@ -30,6 +30,12 @@ const features = [
         icon: Globe
     },
     {
+        name: "Σύνδεση με την ημερήσια διάταξη",
+        date: "Δεκέμβριος 2024",
+        description: "Οι απομαγνητοφωνήσεις θα συνδέονται με την ημερήσια διάταξη του εκάστοτε δημοτικού συμβουλίου.",
+        icon: Scroll
+    },
+    {
         name: "Προσωποποιημένα newsletters",
         date: "Ιανουάριος 2025",
         description: "Αυτοματοποιημένη αποστολή εξατομικευμένων ενημερώσεων στους πολίτες.",
@@ -37,7 +43,7 @@ const features = [
     },
     {
         name: "Καταγραφή παρουσιών και ψηφισμάτων",
-        date: "Φεβρουάριος 2025",
+        date: "Μάρτιος 2025",
         description: "Αυτόματη καταγραφή παρουσιών και ψηφισμάτων των μελών του συμβουλίου.",
         icon: Vote
     }
@@ -106,7 +112,6 @@ function FeatureItem({ feature, index, progress }: { feature: any, index: number
         </motion.div>
     )
 }
-
 export default function ProductRoadmap() {
     const containerRef = useRef(null)
     const { scrollYProgress } = useScroll({
@@ -118,9 +123,8 @@ export default function ProductRoadmap() {
     const lineHeight = useTransform(
         scrollYProgress,
         [0, 1],
-        ["0%", "100%"]
+        ["0%", "110%"]
     )
-
     return (
         <div ref={containerRef} className="max-w-4xl mx-auto py-16 px-4">
             <h2 className="text-3xl font-bold mb-12 text-center">Πλάνο ανάπτυξης</h2>
@@ -133,6 +137,11 @@ export default function ProductRoadmap() {
                         className="absolute top-0 left-0 right-0 bg-black origin-top"
                         style={{ height: lineHeight }}
                     />
+                </div>
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 20L19.0526 5L0.947441 5L10 20Z" fill="black" />
+                    </svg>
                 </div>
                 <div className="space-y-16">
                     {features.map((feature, index) => (

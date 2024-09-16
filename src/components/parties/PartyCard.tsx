@@ -26,6 +26,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     return (
         <Card
             className="relative h-48 overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
+            style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
             <CardContent className="relative h-full flex flex-col justify-center">

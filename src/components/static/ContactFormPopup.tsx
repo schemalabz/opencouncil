@@ -50,18 +50,18 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                         <>
                             <DialogHeader>
                                 <DialogTitle>Επικοινωνήστε μαζί μας</DialogTitle>
-                                <DialogDescription>
-                                    Συμπληρώστε τα παρακάτω στοιχεία και θα επικοινωνήσουμε μαζί σας σύντομα.
-                                </DialogDescription>
                             </DialogHeader>
                             {calculatedPrice !== undefined && calculatedPrice !== null && (
-                                <div className="bg-primary/10 p-4 rounded-md mb-4 flex flex-col items-center justify-center">
+                                <div className="bg-primary/10 p-4 rounded-md my-4 flex flex-col items-center justify-center">
                                     <p className="text-center text-primary text-sm mb-1">Εκτιμώμενο <span className="underline">ετήσιο</span> κόστος</p>
                                     <p className="text-center text-primary font-semibold text-2xl">
-                                        <strong>{calculatedPrice}€ + ΦΠΑ</strong>
+                                        <strong>{calculatedPrice?.toLocaleString('el-GR')}€ + ΦΠΑ</strong>
                                     </p>
                                 </div>
                             )}
+                            <p className="text-center text-muted-foreground text-sm mb-4">
+                                Συμπληρώστε τα παρακάτω στοιχεία και θα επικοινωνήσουμε μαζί σας σύντομα.
+                            </p>
                             <form onSubmit={handleContactRequest}>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">

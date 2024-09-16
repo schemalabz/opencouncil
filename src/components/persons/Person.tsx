@@ -15,6 +15,8 @@ import { Input } from '../ui/input';
 import { useState } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
+import { Statistics } from '../Statistics';
+import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
     const t = useTranslations('Person');
@@ -90,14 +92,10 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </form>
-            <div className="mt-4">
-                <h2 className="text-2xl font-semibold mb-2">{t('details')}</h2>
-                <p><strong>{t('englishName')}:</strong> {person.name_en}</p>
-                <p><strong>{t('shortName')}:</strong> {person.name_short}</p>
-                <p><strong>{t('shortNameEnglish')}:</strong> {person.name_short_en}</p>
-                {person.role_en && <p><strong>{t('englishRole')}:</strong> {person.role_en}</p>}
-                {person.activeFrom && <p><strong>{t('activeFrom')}:</strong> {new Date(person.activeFrom).toLocaleDateString()}</p>}
-                {person.activeTo && <p><strong>{t('activeTo')}:</strong> {new Date(person.activeTo).toLocaleDateString()}</p>}
+
+            <div className="mt-8">
+                <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
+                <Statistics type="person" id={person.id} cityId={city.id} />
             </div>
         </div>
     );

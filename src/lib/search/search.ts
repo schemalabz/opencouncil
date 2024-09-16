@@ -24,17 +24,14 @@ export type SearchResult = {
 };
 
 const RERANK = false;
-const MAX_PAGE = 10;
-export async function search(request: SearchRequest, page: number = 1, pageSize: number = 10): Promise<SearchResult[]> {
+const MAX_RESULTS = 50;
+export async function search(request: SearchRequest): Promise<SearchResult[]> {
     const { query, cityId, personId, partyId } = request;
 
     // Get embedding for the query
     const [queryEmbedding] = await getEmbeddings([query]);
 
-    // Calculate offset for pagination
-    const offset = (page - 1) * pageSize;
-
-    // Perform similarity search using raw SQL with pagination
+    // Perform similarity search using raw SQL
     const rawResults: any[] = await prisma.$queryRaw`
         WITH ranked_segments AS (
             SELECT 
@@ -52,8 +49,8 @@ export async function search(request: SearchRequest, page: number = 1, pageSize:
                     FROM "Utterance" u
                     WHERE u."speakerSegmentId" = ss."id"
                 ) >= 100
-            ORDER BY distance ASC
-            LIMIT ${pageSize * MAX_PAGE}
+                AND ss.embedding IS NOT NULL
+            LIMIT ${MAX_RESULTS}
         )
         SELECT 
             COUNT(*) OVER() as total_count,
@@ -80,8 +77,7 @@ export async function search(request: SearchRequest, page: number = 1, pageSize:
         LEFT JOIN "Utterance" u ON u."speakerSegmentId" = ss."id"
         GROUP BY c."id", c."name", cm."id", cm."name", ss."id", p."id", p."name", party."id", party."name", s."text", rs.distance
         ORDER BY rs.distance ASC
-        OFFSET ${offset}
-        LIMIT ${pageSize}
+        LIMIT ${MAX_RESULTS}
     `;
 
     console.log('Query results:', rawResults);

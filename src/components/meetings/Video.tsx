@@ -51,9 +51,9 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                 {renderVideoElement()}
                 <button
                     onClick={toggleExpand}
-                    className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full"
+                    className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full z-10"
                 >
-                    <ArrowDownLeft className="w-4 h-4 text-white" />
+                    <Minimize2 className="w-4 h-4 text-white" />
                 </button>
                 {isHovered && (
                     <motion.div
@@ -61,6 +61,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
                     >
                         <Move className="w-6 h-6 text-white" />
                     </motion.div>
