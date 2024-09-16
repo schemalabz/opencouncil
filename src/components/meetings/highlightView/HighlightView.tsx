@@ -38,11 +38,13 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
         setTimeout(() => {
             console.log(".playing");
             setIsPlaying(true)
-        }, 500);
+        }, 100);
     }, [utterances]);
 
     useEffect(() => {
+        console.log("currentTime", currentTime);
         if (isSeeking || !hasStartedPlaying) return;
+        console.log("--->");
 
         if (currentTime > utterances[currentUtteranceIndex].endTimestamp) {
             if (currentUtteranceIndex < utterances.length - 1) {
@@ -51,6 +53,7 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
                 }
                 setCurrentUtteranceIndex(prevIndex => prevIndex + 1);
             } else {
+                console.log("ENDED");
                 onEnded()
             }
         }
@@ -59,10 +62,14 @@ const HighlightCard = ({ utterances, name, onEnded, meeting }: { utterances: (Ut
     return (
         <div className="bg-gray-900 text-white h-screen w-full snap-start flex flex-col justify-center p-4">
             <h2 className="text-xl font-semibold mb-2 text-center">{name}</h2>
-            <div className="aspect-video bg-gray-800 w-full max-w-4xl mx-auto flex items-center justify-center text-3xl font-bold relative">
-                <Video />
+            <div className="aspect-video bg-gray-800 w-full max-w-4xl mx-auto flex items-center justify-center text-3xl font-bold relative overflow-hidden">
+                <div className="absolute inset-0">
+                    <Video />
+                </div>
                 {currentUtteranceIndex < utterances.length && (
-                    <Subtitles utterance={utterances[currentUtteranceIndex]} />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 bg-black bg-opacity-50">
+                        <Subtitles utterance={utterances[currentUtteranceIndex]} />
+                    </div>
                 )}
             </div>
             <div className="w-full max-w-4xl mx-auto mt-4 bg-gray-700 h-1">
@@ -195,10 +202,14 @@ export default function HighlightView({ initialHighlightId, data, switchToTransc
             setCurrentIndex(currentIndex - 1);
             setDirection('down');
         } else if (scrollDirection === 'up' && currentIndex < data.highlights.length - 1) {
-            setCurrentIndex(currentIndex + 1);
-            setDirection('up');
+            if (currentIndex === data.highlights.length - 1) {
+                setShowReels(false);
+            } else {
+                setCurrentIndex(currentIndex + 1);
+                setDirection('up');
+            }
         }
-    }, [getCurrentIndex, setCurrentIndex, data.highlights.length]);
+    }, [getCurrentIndex, setCurrentIndex, data.highlights.length, setShowReels]);
 
     const handleWheel = useCallback((event: React.WheelEvent) => {
         if (!showReels) return;
@@ -261,7 +272,11 @@ export default function HighlightView({ initialHighlightId, data, switchToTransc
         };
 
         window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            // Remove the hash from the URL on unmount
+            window.history.pushState(null, '', window.location.pathname + window.location.search);
+        };
     }, []);
 
     const currentIndex = getCurrentIndex();

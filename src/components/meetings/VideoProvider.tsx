@@ -1,5 +1,5 @@
 "use client"
-import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback } from 'react';
 import { CouncilMeeting, Utterance, Word } from "@prisma/client";
 import { Video } from './Video';
 
@@ -46,6 +46,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [isSeeking, setIsSeeking] = useState(false);
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
     const playerRef = useRef<HTMLVideoElement | null>(null);
+    const [currentTime, setCurrentTime] = useState(0);
 
     useEffect(() => {
         console.log("VideoProvider mounted");
@@ -181,14 +182,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
-    const handleTimeUpdate = () => {
+    const handleTimeUpdate = useCallback(() => {
         if (playerRef.current && !isSeeking) {
             console.log("TIME UPDATE: currentTime is ", playerRef.current.currentTime);
             if (isPlaying) {
-                currentTimeRef.current = playerRef.current.currentTime;
+                const newTime = playerRef.current.currentTime;
+                currentTimeRef.current = newTime;
+                setCurrentTime(newTime);
             }
         }
-    };
+    }, [isSeeking, isPlaying]);
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
