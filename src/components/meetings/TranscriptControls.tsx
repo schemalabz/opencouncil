@@ -5,13 +5,15 @@ import { SpeakerTag } from "@prisma/client";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { Transcript as TranscriptType } from "@/lib/db/transcript"
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 
 export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: TranscriptType }) {
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
     const [isSliderHovered, setIsSliderHovered] = useState(false);
+    const [isTouchActive, setIsTouchActive] = useState(false);
+    const sliderRef = useRef<HTMLDivElement>(null);
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -19,6 +21,17 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
         const totalLength = isWide ? rect.width : rect.height;
         const percentage = clickPosition / totalLength;
         seekTo(percentage * duration);
+    };
+
+    const handleTouchSeek = (touch: React.Touch) => {
+        if (!sliderRef.current) return;
+        const rect = sliderRef.current.getBoundingClientRect();
+        const touchPosition = isWide ? touch.clientX - rect.left : touch.clientY - rect.top;
+        const totalLength = isWide ? rect.width : rect.height;
+        let percentage = touchPosition / totalLength;
+        percentage = Math.max(0, Math.min(1, percentage));
+        const touchTime = percentage * duration;
+        setHoverTime(touchTime);
     };
 
     const formatTimestamp = (timestamp: number) => {
@@ -43,6 +56,30 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
         setHoverTime(null);
     };
 
+    const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+        e.preventDefault(); // Prevent default touch behavior
+        setIsTouchActive(true);
+        if (e.touches.length > 0) {
+            handleTouchSeek(e.touches[0]);
+        }
+    };
+
+    const onTouchMoveHandler = (e: React.TouchEvent<HTMLDivElement>) => {
+        e.preventDefault(); // Prevent default touch behavior
+        if (e.touches.length > 0) {
+            handleTouchSeek(e.touches[0]);
+        }
+    };
+
+    const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+        e.preventDefault(); // Prevent default touch behavior
+        if (hoverTime !== null) {
+            seekTo(hoverTime);
+        }
+        setIsTouchActive(false);
+        setHoverTime(null);
+    };
+
     return (
         <>
             <div
@@ -64,12 +101,15 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
 
                 <Video className={`object-contain w-16 h-16 bg-white opacity-90 m-2 border flex items-center justify-center group ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
 
-                {/* seek slider */}
                 <div
+                    ref={sliderRef}
                     className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-white opacity-95 m-2 border relative`}
                     onClick={handleSeek}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMoveHandler}
+                    onTouchEnd={onTouchEnd}
                 >
                     {currentScrollInterval[0] !== currentScrollInterval[1] && (
                         <div
@@ -102,12 +142,13 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                                     }}
 
                                 >
-                                    {hoverTime && hoverTime >= segment.startTimestamp && hoverTime <= segment.endTimestamp && (
+                                    {(hoverTime !== null && hoverTime >= segment.startTimestamp && hoverTime <= segment.endTimestamp) && (
                                         <div
-                                            className={`absolute ${isWide ? 'z-50 top-full left-1/2 transform -translate-x-1/2' : 'bottom-full left-1/2 transform -translate-x-1/2'} whitespace-nowrap text-white px-2 py-1 rounded text-xs`}
+                                            className={`absolute ${isWide ? 'top-full' : 'bottom-full'} left-1/2 transform -translate-x-1/2 whitespace-nowrap text-white px-2 py-1 rounded text-xs`}
                                             style={{
                                                 backgroundColor: speakerColor,
                                                 [isWide ? 'left' : 'bottom']: `${(segment.startTimestamp / duration) * 100}%`,
+                                                ...(isWide ? {} : { transform: 'translate(-50%, -10px)' })
                                             }}
                                         >
                                             {speakerName}
@@ -129,7 +170,7 @@ export default function TranscriptControls({ isWide, className, speakerSegments 
                             </div>
                         )}
                     </div>
-                    {hoverTime !== null && (
+                    {(hoverTime !== null) && (
                         <div
                             className={`absolute bg-gray-600 ${isWide ? 'w-px h-11' : 'h-px w-11'} opacity-100 z-40`}
                             style={{

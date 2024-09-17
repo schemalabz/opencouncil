@@ -25,6 +25,7 @@ import InputWithDerivatives from "../../components/InputWithDerivatives"
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { Switch } from '../ui/switch'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -43,6 +44,7 @@ const formSchema = z.object({
     role_en: z.string().optional(),
     image: z.instanceof(File).optional(),
     partyId: z.string().optional(),
+    isAdministrativeRole: z.boolean().optional(),
 })
 
 interface PersonFormProps {
@@ -72,6 +74,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             role: person?.role || "",
             role_en: person?.role_en || "",
             partyId: person?.partyId || "",
+            isAdministrativeRole: person?.isAdministrativeRole || false,
         },
     })
 
@@ -88,7 +91,8 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             role_en: values.role_en || "",
             image: image,
             cityId: cityId,
-            partyId: values.partyId || ""
+            partyId: values.partyId || "",
+            isAdministrativeRole: values.isAdministrativeRole || false,
         }
 
         try {
@@ -116,6 +120,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                     role_en: "",
                     image: undefined,
                     partyId: values.partyId,
+                    isAdministrativeRole: false,
                 })
                 setImage(null)
                 setImagePreview(null)
@@ -245,6 +250,22 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                             {imagePreview && <img src={imagePreview} alt="Image preview" className="mt-2" />}
                             <FormDescription>
                                 {t('imageDescription')}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="isAdministrativeRole"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('isAdministrativeRole')}</FormLabel>
+                            <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormDescription>
+                                {t('isAdministrativeRoleDescription')}
                             </FormDescription>
                             <FormMessage />
                         </FormItem>

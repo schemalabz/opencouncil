@@ -42,11 +42,13 @@ export default function Pricing() {
         if (population <= 2000) {
             monthlyFee = 0
         } else if (population <= 10000) {
-            monthlyFee = 100
+            monthlyFee = 200
+        } else if (population <= 30000) {
+            monthlyFee = 400
         } else if (population <= 50000) {
-            monthlyFee = 500
+            monthlyFee = 600
         } else if (population <= 100000) {
-            monthlyFee = 1000
+            monthlyFee = 1200
         } else {
             monthlyFee = 2000
         }
@@ -262,9 +264,10 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                         content={
                             <ul className="space-y-2">
                                 <PricingTier icon={<UsersIcon />} population="Έως 2.000 κάτοικοι" price="Δωρεάν" />
-                                <PricingTier icon={<UsersIcon />} population="2.001 - 10.000 κάτοικοι" price="100€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="10.001 - 50.000 κάτοικοι" price="500€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="50.001 - 100.000 κάτοικοι" price="1.000€ / μήνα" />
+                                <PricingTier icon={<UsersIcon />} population="2.001 - 10.000 κάτοικοι" price="200€ / μήνα" />
+                                <PricingTier icon={<UsersIcon />} population="10.001 - 30.000 κάτοικοι" price="400€ / μήνα" />
+                                <PricingTier icon={<UsersIcon />} population="30.001 - 50.000 κάτοικοι" price="600€ / μήνα" />
+                                <PricingTier icon={<UsersIcon />} population="50.001 - 100.000 κάτοικοι" price="1.200€ / μήνα" />
                                 <PricingTier icon={<UsersIcon />} population="100.001+ κάτοικοι" price="2.000€ / μήνα" />
                             </ul>
                         }

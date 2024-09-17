@@ -51,7 +51,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                 {renderVideoElement()}
                 <button
                     onClick={toggleExpand}
-                    className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full"
+                    className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full z-10"
                 >
                     <ArrowDownLeft className="w-4 h-4 text-white" />
                 </button>

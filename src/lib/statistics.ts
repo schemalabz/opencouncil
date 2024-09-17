@@ -125,22 +125,26 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         // Handle person statistics
         if (groupBy.includes("person") && segment.speakerTag.person) {
             const personStatistics = statistics.people!.find(p => p.item.id === segment.speakerTag.person?.id);
-            if (personStatistics) {
-                personStatistics.speakingSeconds += segmentDuration;
-                personStatistics.count++;
-            } else {
-                statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segmentDuration, count: 1 });
+            if (!segment.speakerTag.person.isAdministrativeRole) { // e.g. council chair
+                if (personStatistics) {
+                    personStatistics.speakingSeconds += segmentDuration;
+                    personStatistics.count++;
+                } else {
+                    statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segmentDuration, count: 1 });
+                }
             }
         }
 
         // Handle party statistics
         if (groupBy.includes("party") && segment.speakerTag.person?.party) {
             const partyStatistics = statistics.parties!.find(p => p.item.id === segment.speakerTag.person?.party?.id);
-            if (partyStatistics) {
-                partyStatistics.speakingSeconds += segmentDuration;
-                partyStatistics.count++;
-            } else {
-                statistics.parties!.push({ item: segment.speakerTag.person.party, speakingSeconds: segmentDuration, count: 1 });
+            if (!segment.speakerTag.person.isAdministrativeRole) { // e.g. council chair
+                if (partyStatistics) {
+                    partyStatistics.speakingSeconds += segmentDuration;
+                    partyStatistics.count++;
+                } else {
+                    statistics.parties!.push({ item: segment.speakerTag.person.party, speakingSeconds: segmentDuration, count: 1 });
+                }
             }
         }
 

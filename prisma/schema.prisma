@@ -57,6 +57,7 @@ model Person {
   image     String?
   role      String?
   role_en   String?
+  isAdministrativeRole Boolean @default(false)
   activeFrom DateTime?
   activeTo DateTime?
   createdAt DateTime @default(now())

@@ -6,7 +6,7 @@ import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import SpeakerBadge from './SpeakerBadge';
 
@@ -61,6 +61,11 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
         setOpen(false);
     };
 
+    const handleUnassign = () => {
+        handleSpeakerChange(null);
+        setOpen(false);
+    };
+
     return (
         <Popover open={open} onOpenChange={(v) => {
             setOpen(v);
@@ -91,7 +96,6 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
                             </div>
                         </div>
                         <div className="text-muted-foreground text-sm">{role || ''}</div>
-
                     </div>
                 ) : (
                     <>
@@ -120,6 +124,15 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
                             <CommandList>
                                 <CommandEmpty>No speaker found.</CommandEmpty>
                                 <CommandGroup>
+                                    {isTagged && (
+                                        <CommandItem
+                                            onSelect={handleUnassign}
+                                            className="text-red-500 hover:bg-red-100"
+                                        >
+                                            <X className="mr-2 h-4 w-4" />
+                                            <span>Unassign speaker</span>
+                                        </CommandItem>
+                                    )}
                                     {people.map((person) => (
                                         <CommandItem
                                             key={person.id}

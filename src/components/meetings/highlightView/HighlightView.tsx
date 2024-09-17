@@ -11,44 +11,33 @@ import MuxPlayer from "@mux/mux-player-react"
 import { Video } from "../Video"
 import SpeakerBadge from "@/components/SpeakerBadge"
 import PartyBadge from "@/components/PartyBadge"
-
 const SUB_SCROLL_TIMEOUT = 500; // milliseconds
+
+// Updated Subtitles Component
 const Subtitles = ({ utterance }: { utterance: Utterance & { person?: Person, party?: Party } }) => (
     <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-60 p-2 rounded-lg sm:p-4 sm:rounded-xl">
-        <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-x-2 sm:space-y-0">
-            <div className="flex items-center space-x-2">
-                {utterance.person && (
-                    <SpeakerBadge
-                        speakerTag={{
-                            label: utterance.person.name_short,
-                            personId: utterance.person.id
-                        }}
-                        person={utterance.person}
-                        party={utterance.party}
-                        className="flex-shrink-0 text-xs sm:text-sm"
-                    />
-                )}
-                {utterance.party && (
-                    <PartyBadge
-                        party={utterance.party}
-                        shortName={true}
-                        className="text-xs sm:text-sm"
-                    />
-                )}
-            </div>
-            <div className="flex-1">
-                <p className="text-white text-xs sm:text-sm">{utterance.text}</p>
-            </div>
+        <div className="flex flex-col space-y-2">
+            <p className="text-white text-xs sm:text-sm">{utterance.text}</p>
         </div>
     </div>
 )
-const formatTimestamp = (timestamp: number) => {
-    const minutes = Math.floor(timestamp / 60);
-    const seconds = Math.floor(timestamp % 60);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-}
 
-const HighlightCard = ({ utterances, name, onEnded, meeting, currentUtteranceIndex, setCurrentUtteranceIndex }: { utterances: (Utterance & { person?: Person, party?: Party })[], name: string, onEnded: () => void, meeting: CouncilMeeting, currentUtteranceIndex: number, setCurrentUtteranceIndex: React.Dispatch<React.SetStateAction<number>> }) => {
+// Updated HighlightCard Component
+const HighlightCard = ({
+    utterances,
+    name,
+    onEnded,
+    meeting,
+    currentUtteranceIndex,
+    setCurrentUtteranceIndex
+}: {
+    utterances: (Utterance & { person?: Person, party?: Party })[],
+    name: string,
+    onEnded: () => void,
+    meeting: CouncilMeeting,
+    currentUtteranceIndex: number,
+    setCurrentUtteranceIndex: React.Dispatch<React.SetStateAction<number>>
+}) => {
     const { currentTime, seekTo, isSeeking, isPlaying, setIsPlaying, playerRef } = useVideo()
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
@@ -86,6 +75,33 @@ const HighlightCard = ({ utterances, name, onEnded, meeting, currentUtteranceInd
                 <div className="absolute inset-0">
                     <Video />
                 </div>
+
+                {/* Person Badge - Upper Left Corner */}
+                {utterances[currentUtteranceIndex].person && (
+                    <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
+                        <SpeakerBadge
+                            speakerTag={{
+                                label: utterances[currentUtteranceIndex].person.name_short,
+                                personId: utterances[currentUtteranceIndex].person.id
+                            }}
+                            person={utterances[currentUtteranceIndex].person}
+                            party={utterances[currentUtteranceIndex].party}
+                            className="text-xs sm:text-sm"
+                        />
+                    </div>
+                )}
+
+                {/* Party Badge - Upper Right Corner */}
+                {utterances[currentUtteranceIndex].party && (
+                    <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+                        <PartyBadge
+                            party={utterances[currentUtteranceIndex].party}
+                            shortName={true}
+                            className="text-xs sm:text-sm"
+                        />
+                    </div>
+                )}
+
                 {currentUtteranceIndex < utterances.length && (
                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-black bg-opacity-50">
                         <Subtitles utterance={utterances[currentUtteranceIndex]} />
@@ -109,7 +125,6 @@ const HighlightCard = ({ utterances, name, onEnded, meeting, currentUtteranceInd
         </div>
     )
 }
-
 const SuperHeader = ({ currentIndex, totalHighlights, meeting, city, switchToTranscript }: { currentIndex: number, totalHighlights: number, meeting: CouncilMeeting, city: City, switchToTranscript: () => void }) => {
     const [isWarningExpanded, setIsWarningExpanded] = useState(false);
 
