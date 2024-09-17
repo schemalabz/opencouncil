@@ -44,14 +44,14 @@ export default function List<T extends { id: string }, P = {}>({
     );
 
     return (
-        <div className="space-y-0 md:space-y-4">
+        <div className="space-y-2 md:space-y-4">
             <div className="flex justify-between items-center mb-4">
                 <p className="text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
                 {editable && (
                     <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" />
                 )}
             </div>
-            <div className="relative mb-4">
+            <div className="relative mb-8">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input
                     placeholder={t('searchItems')}
@@ -61,14 +61,17 @@ export default function List<T extends { id: string }, P = {}>({
                 />
             </div>
             {filteredItems.length > 0 ? (
-                <div className={gridClasses}>
-                    {filteredItems.map((item, index) => (
-                        <ItemComponent key={item.id} item={item} editable={editable} {...itemProps as P} />
-                    ))}
+                <div className={`${gridClasses}`}>
+                    {
+                        filteredItems.map((item, index) => (
+                            <ItemComponent key={item.id} item={item} editable={editable} {...itemProps as P} />
+                        ))
+                    }
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }
