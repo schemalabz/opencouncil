@@ -36,7 +36,7 @@ if [ "$CONFIRMATION" != "$RANDOM_STRING" ]; then
 fi
 
 # Array of table names
-TABLES=("City" "Party" "Person" "CouncilMeeting" "TaskStatus" "SpeakerTag" "SpeakerSegment" "Utterance" "Word" "Topic" "TopicLabel" "Summary")
+TABLES=("City" "Party" "Person" "CouncilMeeting" "TaskStatus" "SpeakerTag" "SpeakerSegment" "Utterance" "Word" "Topic" "TopicLabel" "Summary" "Highlight" "HighlightedUtterance")
 
 # Delete all rows from destination tables if --clear flag is set
 if [ "$CLEAR" = true ]; then
