@@ -12,7 +12,8 @@
     "prisma:studio": "prisma studio",
     "prisma:migrate:reset": "prisma migrate reset",
     "production:build": "prisma generate && prisma migrate deploy && next build",
-    "production:start": "next start"
+    "production:start": "next start",
+    "email": "tsx scripts/email_municipality.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.637.0",
@@ -45,6 +46,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
     "framer-motion": "^11.5.4",
     "framer-motion-3d": "^11.3.31",
     "get-video-duration": "^4.1.0",
@@ -73,6 +75,7 @@
     "uuid": "^10.0.0",
     "vaul": "^0.9.1",
     "video.js": "^8.17.4",
+    "yargs": "^17.7.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -82,6 +85,8 @@
     "@types/react-dom": "^18",
     "@types/three": "^0.168.0",
     "@types/uuid": "^10.0.0",
+    "@types/yargs": "^17.0.33",
+    "csv-parser": "^3.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.7",
     "postcss": "^8",
