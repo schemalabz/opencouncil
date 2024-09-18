@@ -42,12 +42,10 @@ const HighlightCard = ({
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
     useEffect(() => {
-        console.log(".seeking");
         seekTo(utterances[0].startTimestamp)
         setCurrentUtteranceIndex(0);
         setHasStartedPlaying(true);
         setTimeout(() => {
-            console.log(".playing");
             setIsPlaying(true)
         }, 100);
     }, [utterances]);

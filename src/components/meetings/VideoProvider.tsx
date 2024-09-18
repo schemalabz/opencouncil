@@ -75,7 +75,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
-                playerRef.current.currentTime = seconds;
                 currentTimeRef.current = seconds;
                 setTimeout(() => scrollToUtterance(seconds), 1000);
             }
