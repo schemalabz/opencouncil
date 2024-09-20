@@ -10,6 +10,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 }: {
     force?: boolean;
 } = {}) {
+    console.log(`Requesting transcription for ${youtubeUrl}`);
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
             cityId_id: {
@@ -37,7 +38,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
         throw new Error("Council meeting not found");
     }
 
-    if (councilMeeting.speakerSegments.length > 0 && !force) {
+    if (councilMeeting.speakerSegments.length > 0) {
         if (force) {
             console.log(`Deleting speaker segments for meeting ${councilMeetingId}`);
             await prisma.speakerSegment.deleteMany({
@@ -47,6 +48,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
                 }
             });
         } else {
+            console.log(`Meeting already has speaker segments`);
             throw new Error('Meeting already has speaker segments');
         }
     }
