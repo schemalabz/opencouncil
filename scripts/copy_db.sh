@@ -18,19 +18,24 @@ if [ -z "$SOURCE" ] || [ -z "$TARGET" ]; then
 fi
 
 # Generate random string
-RANDOM_STRING=$(openssl rand -base64 6 | tr -dc 'A-Za-z0-9' | head -c 6)
+RANDOM_STRING=$(openssl rand -base64 6 | tr -dc 'A-Za-z0-9' | head -c 3)
+# Extract the database name from the target URL
+TARGET_DB_NAME=$(echo $TARGET | sed -n 's#.*/\([^/?]*\).*#\1#p')
+
+# Generate confirmation code
+CONFIRMATION_CODE="DELETE-${TARGET_DB_NAME}-$RANDOM_STRING"
 
 # Display warning message
 if [ "$CLEAR" = true ]; then
-    echo -e "\033[31mPotential data loss -- this will delete all data from destination tables and copy data from $SOURCE to $TARGET. Enter $RANDOM_STRING to continue.\033[0m"
+    echo -e "\033[31mPotential data loss -- this will delete all data from destination tables and copy data\n\tfrom $SOURCE\n\tto $TARGET\n\nEnter $CONFIRMATION_CODE to continue.\033[0m"
 else
-    echo -e "\033[31mThis will copy data from $SOURCE to $TARGET. Enter $RANDOM_STRING to continue.\033[0m"
+    echo -e "\033[31mThis will copy data from $SOURCE to $TARGET. Enter $CONFIRMATION_CODE to continue.\033[0m"
 fi
 
 # Prompt for confirmation
 read -p "Enter the confirmation code: " CONFIRMATION
 
-if [ "$CONFIRMATION" != "$RANDOM_STRING" ]; then
+if [ "$CONFIRMATION" != "$CONFIRMATION_CODE" ]; then
     echo "Confirmation failed. Exiting."
     exit 1
 fi
