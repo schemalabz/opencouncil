@@ -8,6 +8,7 @@ import { isEditMode, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
+import { getSubjectsForMeeting } from '@/lib/db/subject';
 
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
@@ -23,13 +24,14 @@ export default async function CouncilMeetingPage({
     unstable_setRequestLocale(locale);
 
     const startTime = performance.now();
-    const [meeting, transcript, city, people, parties, highlights] = await Promise.all([
+    const [meeting, transcript, city, people, parties, highlights, subjects] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getTranscript(meetingId, cityId),
         getCity(cityId),
         getPeopleForCity(cityId),
         getPartiesForCity(cityId),
-        getHighlightsForMeeting(cityId, meetingId)
+        getHighlightsForMeeting(cityId, meetingId),
+        getSubjectsForMeeting(cityId, meetingId)
     ]);
     const endTime = performance.now();
     console.log(`Time taken to load meeting: ${endTime - startTime} milliseconds`);
@@ -38,7 +40,7 @@ export default async function CouncilMeetingPage({
         return acc + segment.topicLabels.length;
     }, 0));
 
-    if (!city || !meeting || !people || !parties || !transcript) {
+    if (!city || !meeting || !people || !parties || !transcript || !subjects) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
         notFound();
     }
@@ -55,7 +57,8 @@ export default async function CouncilMeetingPage({
         parties: parties,
         speakerTags: speakerTags,
         transcript: transcript,
-        highlights: highlights
+        highlights: highlights,
+        subjects: subjects
     }
 
     return <CouncilMeeting meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })} />

@@ -9,44 +9,10 @@ import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
+import { getSummarizeRequestBody } from "../db/utils";
 
-export async function requestSummarize(cityId: string, councilMeetingId: string, {
-}: {
-    } = {}) {
-    const transcript = await getTranscript(councilMeetingId, cityId);
-    const people = await getPeopleForCity(cityId);
-    const parties = await getPartiesForCity(cityId);
-    const topics = await getAllTopics();
-    const city = await getCity(cityId);
-    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
-
-    if (!city || !councilMeeting) {
-        throw new Error('City or council meeting not found');
-    }
-
-    const body: Omit<SummarizeRequest, 'callbackUrl'> = {
-        transcript: transcript.map(t => {
-            const person = people.find(p => p.id === t.speakerTag.personId);
-            let speakerName = t.speakerTag.label;
-            let speakerParty: string | null = null;
-            if (person) {
-                speakerName = person.name;
-                if (person.partyId) {
-                    speakerParty = parties.find(p => p.id === person.partyId)?.name || null;
-                }
-            }
-
-            return {
-                speakerName: speakerName,
-                speakerParty: speakerParty,
-                speakerSegmentId: t.id,
-                text: t.utterances.map(u => u.text).join(' '),
-            };
-        }),
-        topicLabels: topics.map(t => t.name),
-        cityName: city.name,
-        date: councilMeeting.dateTime.toISOString().split('T')[0],
-    }
+export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = []) {
+    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects);
 
     return startTask('summarize', body, councilMeetingId, cityId);
 }
@@ -67,16 +33,16 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const { councilMeeting } = task;
 
-    const availableSpeakerSegments = await prisma.speakerSegment.findMany({
+    const speakerSegments = await prisma.speakerSegment.findMany({
         where: {
             meetingId: councilMeeting.id,
             cityId: councilMeeting.cityId
         }
     });
 
-    const availableSpeakerSegmentIds = availableSpeakerSegments.map(s => s.id);
+    const availableSpeakerSegmentIds = speakerSegments.map(s => s.id);
 
-    // Start a transaction
+    // Speaker segment transaction
     await prisma.$transaction(async (prisma) => {
         for (const segmentSummary of response.speakerSegmentSummaries) {
             if (!availableSpeakerSegmentIds.includes(segmentSummary.speakerSegmentId)) {
@@ -120,6 +86,39 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     }
                 }
             }
+        }
+    });
+
+    // Combined Subject and Highlight transaction
+    await prisma.$transaction(async (prisma) => {
+        for (const subject of response.subjects) {
+            const createdSubject = await prisma.subject.create({
+                data: {
+                    name: subject.name,
+                    description: subject.description,
+                    councilMeeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
+                    speakerSegments: {
+                        create: subject.speakerSegmentIds.map(ssId => ({
+                            speakerSegment: { connect: { id: ssId } }
+                        }))
+                    }
+                }
+            });
+
+            const highlight = await prisma.highlight.create({
+                data: {
+                    name: subject.name,
+                    meeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
+                    subject: { connect: { id: createdSubject.id } }
+                }
+            });
+
+            await prisma.highlightedUtterance.createMany({
+                data: subject.highlightedUtteranceIds.filter(id => id).map(utteranceId => ({
+                    utteranceId: utteranceId,
+                    highlightId: highlight.id
+                }))
+            });
         }
     });
 

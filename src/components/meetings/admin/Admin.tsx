@@ -11,8 +11,8 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { requestExtractHighlights } from '@/lib/tasks/extractHighlights';
 import { embedCouncilMeeting } from '@/lib/search/embed';
+import PodcastSpecs from './PodcastSpecs';
 
 export default function AdminActions({
     meeting
@@ -22,10 +22,9 @@ export default function AdminActions({
     const { toast } = useToast();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
-    const [isExtracting, setIsExtracting] = React.useState(false);
     const [youtubeUrl, setYoutubeUrl] = React.useState('');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
-    const [isHighlightPopoverOpen, setIsHighlightPopoverOpen] = React.useState(false);
+    const [isSummarizePopoverOpen, setIsSummarizePopoverOpen] = React.useState(false);
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
@@ -83,11 +82,13 @@ export default function AdminActions({
     const handleSummarize = async () => {
         setIsSummarizing(true);
         try {
-            await requestSummarize(meeting.cityId, meeting.id);
+            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''));
             toast({
                 title: "Summarization requested",
                 description: "The summarization process has started.",
             });
+            setIsSummarizePopoverOpen(false);
+            setTopics(['']);
         } catch (error) {
             console.log('toasting');
             toast({
@@ -100,35 +101,11 @@ export default function AdminActions({
         }
     };
 
-    const handleExtractHighlights = async () => {
-        setIsExtracting(true);
-        try {
-            await requestExtractHighlights(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''));
-            toast({
-                title: "Highlight extraction requested",
-                description: "The highlight extraction process has started.",
-            });
-            setIsHighlightPopoverOpen(false);
-            setTopics(['']);
-        } catch (error) {
-            console.log('toasting');
-            toast({
-                title: "Error requesting highlight extraction",
-                description: `${error}`,
-                variant: 'destructive'
-            });
-        } finally {
-            setIsExtracting(false);
-        }
-    };
-
     const handleEmbed = async () => {
         setIsEmbedding(true);
         await embedCouncilMeeting(meeting.cityId, meeting.id);
         setIsEmbedding(false);
     }
-
-
 
     const handleDeleteTask = async (taskId: string) => {
         try {
@@ -205,15 +182,9 @@ export default function AdminActions({
                         </div>
                     </PopoverContent>
                 </Popover>
-                <Button onClick={handleSummarize} disabled={isSummarizing}>
-                    {isSummarizing ? 'Starting...' : 'Summarize'}
-                </Button>
-                <Button onClick={handleEmbed} disabled={isEmbedding}>
-                    Embed
-                </Button>
-                <Popover open={isHighlightPopoverOpen} onOpenChange={setIsHighlightPopoverOpen}>
+                <Popover open={isSummarizePopoverOpen} onOpenChange={setIsSummarizePopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button>Extract Highlights</Button>
+                        <Button>Summarize</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
@@ -231,15 +202,19 @@ export default function AdminActions({
                                 <Button onClick={addTopic}>
                                     Add Topic
                                 </Button>
-                                <Button onClick={handleExtractHighlights} disabled={isExtracting}>
-                                    {isExtracting ? 'Extracting...' : 'Extract Highlights'}
+                                <Button onClick={handleSummarize} disabled={isSummarizing}>
+                                    {isSummarizing ? 'Starting...' : 'Summarize'}
                                 </Button>
                             </div>
                         </div>
                     </PopoverContent>
                 </Popover>
+                <Button onClick={handleEmbed} disabled={isEmbedding}>
+                    Embed
+                </Button>
             </div>
         </div>
+        <PodcastSpecs />
     </div>
     );
 };

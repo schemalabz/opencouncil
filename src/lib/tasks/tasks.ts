@@ -4,7 +4,8 @@ import { TaskUpdate } from '../apiTypes';
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
 import prisma from '@/lib/db/prisma';
-import { handleExtractHighlightsResult } from './extractHighlights';
+import { handleGeneratePodcastSpecResult } from './generatePodcastSpec';
+import { handleSplitMediaFileResult } from './splitMediaFile';
 
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
@@ -125,8 +126,10 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         await handleTranscribeResult(taskId, JSON.parse(task.responseBody!));
     } else if (taskType === 'summarize') {
         await handleSummarizeResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'extract-highlights') {
-        await handleExtractHighlightsResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'generatePodcastSpec') {
+        await handleGeneratePodcastSpecResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'splitMediaFile') {
+        await handleSplitMediaFileResult(taskId, JSON.parse(task.responseBody!));
     } else {
         throw new Error(`Unsupported task type: ${taskType}`);
     }

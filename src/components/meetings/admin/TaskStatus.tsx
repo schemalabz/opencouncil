@@ -156,6 +156,17 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                     >
                                         <Copy className="h-3 w-3" />
                                     </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-5 w-5 p-0"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            processTaskResponse(task.type, task.id);
+                                        }}
+                                    >
+                                        <RefreshCw className="h-3 w-3" />
+                                    </Button>
                                 </div>
                             )}
                         </motion.div>

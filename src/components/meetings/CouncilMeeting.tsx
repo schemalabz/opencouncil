@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
-import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3 } from "lucide-react"
+import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3, MessageSquareQuote } from "lucide-react"
 import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party, HighlightedUtterance } from '@prisma/client'
 import AdminActions from './admin/Admin'
 import Navbar from './Navbar'
@@ -24,6 +24,8 @@ import Summary from './Summary'
 import Highlights from '../Highlights'
 import { HighlightWithUtterances } from '@/lib/db/highlights'
 import HighlightView from './highlightView/HighlightView'
+import { SubjectWithRelations } from '@/lib/db/subject'
+import Subjects from './Subjects'
 
 type CouncilMeetingCProps = {
     editable: boolean,
@@ -35,6 +37,7 @@ type CouncilMeetingCProps = {
         parties: Party[]
         speakerTags: SpeakerTag[]
         highlights: HighlightWithUtterances[]
+        subjects: SubjectWithRelations[]
     }
 }
 
@@ -71,7 +74,8 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
     }, [])
 
     const sections = [
-        { title: "Τοποθετήσεις", icon: <LayoutList />, content: <Summary /> },
+        { title: "Τοποθετήσεις", icon: <MessageSquareQuote />, content: <Summary /> },
+        { title: "Θέματα", icon: <LayoutList />, content: <Subjects /> },
         { title: "Στατιστικά", icon: <BarChart3 />, content: <Statistics /> },
         { title: "Κοινοποίηση", icon: <Share />, content: <ShareC /> },
         { title: "Επιλογές", icon: <Settings2 />, content: <Options editable={editable} /> },
@@ -95,7 +99,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
     console.log("Rendering VideoProvider");
     return (
-        <CouncilMeetingDataProvider data={{ transcript: meetingData.transcript, meeting: meetingData.meeting, city: meetingData.city, people: meetingData.people, parties: meetingData.parties, speakerTags: meetingData.speakerTags }}>
+        <CouncilMeetingDataProvider data={meetingData}>
             <TranscriptOptionsProvider editable={editable}>
                 <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                     {mode === 'transcript' ? (

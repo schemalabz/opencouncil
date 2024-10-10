@@ -89,21 +89,36 @@ export interface Word {
     confidence: number;
 }
 
-
 /*
- * Task: Summarize
+ * (Base) Request on Transcript
  */
 
-export interface SummarizeRequest extends TaskRequest {
+// A generic type for requests that need a transcript as input
+export interface RequestOnTranscript extends TaskRequest {
     transcript: {
         speakerName: string | null;
         speakerParty: string | null;
+        speakerRole: string | null;
         speakerSegmentId: string;
         text: string;
+        utterances: {
+            text: string;
+            utteranceId: string;
+            startTimestamp: number;
+            endTimestamp: number;
+        }[];
     }[];
     topicLabels: string[];
     cityName: string;
     date: string;
+}
+
+/*
+* Summarize
+*/
+
+export interface SummarizeRequest extends RequestOnTranscript {
+    requestedSubjects: string[];
 }
 
 export interface SummarizeResult {
@@ -112,31 +127,66 @@ export interface SummarizeResult {
         topicLabels: string[];
         summary: string | null;
     }[];
+
+    subjects: {
+        name: string;
+        description: string;
+        speakerSegmentIds: string[];
+        highlightedUtteranceIds: string[];
+    }[];
+}
+
+
+/*
+ * Produce Podcast
+ */
+
+export interface GeneratePodcastSpecRequest extends RequestOnTranscript {
+    subjects: {
+        name: string;
+        description: string;
+        speakerSegmentIds: string[];
+        highlightedUtteranceIds: string[];
+        allocation: 'onlyMention' | 'skip' | 'full';
+        allocatedMinutes: number;
+    }[];
+
+    audioUrl: string;
+}
+
+export type PodcastPart = {
+    type: "host";
+    text: string;
+} | {
+    type: "audio";
+    utteranceIds: string[];
+};
+
+export interface GeneratePodcastSpecResult {
+    parts: PodcastPart[];
 }
 
 /*
- * Task: Extract Highlights
+ * Split Media File
  */
 
-export interface ExtractHighlightsRequest extends TaskRequest {
-    names: string[];
-    transcript: {
-        speakerName: string | null;
-        speakerParty: string | null;
-        speakerSegmentId: string;
-        utterances: {
-            text: string;
-            utteranceId: string;
+export interface SplitMediaFileRequest extends TaskRequest {
+    audioUrl: string;
+    parts: { // a part of the file, consisting of multiple contiguous segments
+        id: string;
+        segments: { // a contiguous segments of the media file
+            startTimestamp: number;
+            endTimestamp: number;
         }[];
     }[];
-    topicLabels: string[];
-    cityName: string;
-    date: string;
 }
 
-export interface ExtractHighlightsResult {
-    highlights: {
-        name: string;
-        utteranceIds: string[];
+export interface SplitMediaFileResult {
+    parts: {
+        id: string;
+        audioUrl: string;
+        duration: number;
+        startTimestamp: number;
+        endTimestamp: number;
     }[];
 }

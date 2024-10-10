@@ -93,6 +93,8 @@ model CouncilMeeting {
   taskStatuses TaskStatus[]
   speakerSegments SpeakerSegment[]
   highlights Highlight[]
+  subjects Subject[]
+  podcastSpecs PodcastSpec[]
 
   @@id([cityId, id])
   @@unique([cityId, id])
@@ -153,6 +155,8 @@ model SpeakerSegment {
   topicLabels TopicLabel[]
   summary Summary?
 
+  subjects SubjectSpeakerSegment[]
+
   @@index([meetingId, cityId, startTimestamp])
   @@index([speakerTagId])
 
@@ -172,7 +176,7 @@ model Utterance {
 
   words Word[]
   highlightedUtterances HighlightedUtterance[]
-
+  podcastPartAudioUtterances PodcastPartAudioUtterance[]
   @@index([speakerSegmentId, startTimestamp])
 }
 
@@ -231,6 +235,38 @@ model Summary {
   @@index([speakerSegmentId])
 }
 
+model Subject {
+  id        String   @id  @default(cuid())
+  name      String
+  description String
+  cityId String
+  councilMeetingId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  councilMeeting CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+
+  highlights Highlight[]
+  speakerSegments SubjectSpeakerSegment[]
+}
+
+model SubjectSpeakerSegment {
+  id        String   @id  @default(cuid())
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+
+  speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
+  speakerSegmentId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectId, speakerSegmentId])
+}
+
+
 model Highlight {
   id        String   @id  @default(cuid())
   name      String
@@ -243,6 +279,9 @@ model Highlight {
   cityId String
 
   highlightedUtterances HighlightedUtterance[]
+  
+  subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  subjectId String?
 
   @@index([meetingId, cityId])
 }
@@ -258,4 +297,46 @@ model HighlightedUtterance {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model PodcastSpec {
+  id        String   @id  @default(cuid())
+  councilMeetingId String
+  cityId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  meeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  parts PodcastPart[]
+}
+
+enum PodcastPartType {
+  HOST
+  AUDIO
+}
+
+model PodcastPart {
+  id        String   @id  @default(cuid())
+  type PodcastPartType
+  text String?
+  audioSegmentUrl String?
+  duration Float?
+  startTimestamp Float?
+  endTimestamp Float?
+  index Int
+
+  podcastSpec PodcastSpec @relation(fields: [podcastSpecId], references: [id], onDelete: Cascade)
+  podcastSpecId String
+
+  podcastPartAudioUtterances PodcastPartAudioUtterance[]
+}
+
+model PodcastPartAudioUtterance {
+  id        String   @id  @default(cuid())
+
+  podcastPart PodcastPart @relation(fields: [podcastPartId], references: [id], onDelete: Cascade)
+  podcastPartId String
+
+  utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
+  utteranceId String
 }

@@ -76,6 +76,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
         }
     });
 
+    console.log(`Transcribe body: ${JSON.stringify(body)}`);
     return startTask('transcribe', body, councilMeetingId, cityId, { force });
 }
 

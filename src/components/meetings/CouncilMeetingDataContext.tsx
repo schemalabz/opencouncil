@@ -3,6 +3,7 @@ import React, { createContext, useContext, ReactNode, useMemo, useState } from '
 import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskStatus } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { Transcript } from '@/lib/db/transcript';
+import { SubjectWithRelations } from '@/lib/db/subject';
 
 export interface CouncilMeetingData {
     meeting: CouncilMeeting & {
@@ -13,10 +14,12 @@ export interface CouncilMeetingData {
     parties: Party[];
     speakerTags: SpeakerTag[];
     transcript: Transcript;
+    subjects: SubjectWithRelations[];
 
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
+    getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
 }
@@ -34,12 +37,14 @@ export function CouncilMeetingDataProvider({ children, data }: {
         parties: Party[];
         speakerTags: SpeakerTag[];
         transcript: Transcript;
+        subjects: SubjectWithRelations[];
     }
 }) {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);
     const partiesMap = useMemo(() => new Map(data.parties.map(party => [party.id, party])), [data.parties]);
     const [speakerTags, setSpeakerTags] = useState(data.speakerTags);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
+    const speakerSegmentsMap = useMemo(() => new Map(data.transcript.map(segment => [segment.id, segment])), [data.transcript]);
 
     const contextValue = useMemo(() => ({
         ...data,
@@ -47,6 +52,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getPerson: (id: string) => peopleMap.get(id),
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
+        getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
             await updateSpeakerTag(tagId, { personId });
@@ -65,7 +71,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 )
             );
         },
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>
