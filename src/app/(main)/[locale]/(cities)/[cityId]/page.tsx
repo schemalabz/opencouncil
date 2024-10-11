@@ -5,6 +5,7 @@ import React from 'react';
 import { getCities, getFullCity } from '@/lib/db/cities';
 import { unstable_setRequestLocale } from 'next-intl/server';
 
+/*
 export async function generateStaticParams({ params }: { params: { cityId: string, locale: string } }) {
     const cities = await getCities();
     return cities.map((city) => ({
@@ -12,6 +13,7 @@ export async function generateStaticParams({ params }: { params: { cityId: strin
         locale: "el"
     }));
 }
+*/
 
 export default async function CityPage({ params }: { params: { cityId: string, locale: string } }) {
     unstable_setRequestLocale(params.locale);
