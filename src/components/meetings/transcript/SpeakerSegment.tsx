@@ -44,7 +44,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
                                 <div className='flex-grow overflow-hidden'>
-                                    <SpeakerTagC speakerTag={memoizedData.speakerTag!} className='ml-4' editable={true} />
+                                    <SpeakerTagC speakerTag={memoizedData.speakerTag!} className='ml-4' speakerSegmentId={segment.id} editable={true} />
                                 </div>
                                 <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
                                     {formatTimestamp(utterances[0].startTimestamp)}

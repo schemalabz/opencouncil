@@ -141,6 +141,7 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
   return joinedSegments;
 }
 
+
 export async function updateEmbeddings(embeddings: { speakerSegmentId: SpeakerSegment["id"], embedding: number[] }[]) {
   await prisma.$transaction(
     embeddings.map(e =>

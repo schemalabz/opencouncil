@@ -51,3 +51,32 @@ export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: 
     });
     return speakerTags;
 }
+
+export async function assignSpeakerSegmentToNewSpeakerTag(speakerSegmentId: string) {
+    const speakerSegment = await prisma.speakerSegment.findUnique({
+        where: { id: speakerSegmentId },
+        include: { speakerTag: true }
+    });
+
+    if (!speakerSegment) {
+        throw new Error('Speaker segment not found');
+    }
+
+    withUserAuthorizedToEdit({ cityId: speakerSegment.cityId });
+
+    const newSpeakerTag = await prisma.speakerTag.create({
+        data: {
+            label: "New " + speakerSegment.speakerTag.label,
+            speakerSegments: {
+                connect: { id: speakerSegmentId }
+            }
+        }
+    });
+
+    await prisma.speakerSegment.update({
+        where: { id: speakerSegmentId },
+        data: { speakerTagId: newSpeakerTag.id }
+    });
+
+    return newSpeakerTag;
+}

@@ -9,11 +9,16 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import SpeakerBadge from './SpeakerBadge';
+import { Link } from '@/i18n/routing';
+import { Button } from './ui/button';
+import { toast } from '@/hooks/use-toast';
+import { assignSpeakerSegmentToNewSpeakerTag } from '@/lib/db/speakerTags';
 
-function SpeakerTagC({ speakerTag, className, editable = false }: {
+function SpeakerTagC({ speakerTag, className, editable = false, speakerSegmentId }: {
     speakerTag: SpeakerTag,
     className?: string,
     editable?: boolean,
+    speakerSegmentId?: string,
 }) {
     const { options, updateOptions } = useTranscriptOptions();
     const { getPerson, getParty, people, updateSpeakerTagPerson, updateSpeakerTagLabel } = useCouncilMeetingData();
@@ -66,6 +71,30 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
         setOpen(false);
     };
 
+    const onSplitToNewSpeakerTag = () => {
+        if (speakerSegmentId) {
+            try {
+                assignSpeakerSegmentToNewSpeakerTag(speakerSegmentId);
+            } catch (e) {
+                toast({
+                    title: 'Error splitting to new speaker tag',
+                    description: (e as Error).message,
+                    variant: 'destructive',
+                });
+            }
+            toast({
+                title: 'Split to new speaker tag',
+                description: 'Speaker segment split to new speaker tag',
+            });
+        } else {
+            toast({
+                title: 'No speaker segment id provided',
+                description: 'Cannot split to new speaker tag without a speaker segment id',
+                variant: 'destructive',
+            });
+        }
+    };
+
     return (
         <Popover open={open} onOpenChange={(v) => {
             setOpen(v);
@@ -99,7 +128,10 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
                     </div>
                 ) : (
                     <>
-                        {!isTagged && (
+                        <div>
+                            <Button variant="link" onClick={onSplitToNewSpeakerTag}>Split to new speaker tag</Button>
+                        </div>
+                        {!isTagged && (<>
                             <div className="mb-4">
                                 <label htmlFor="label-input" className="block text-sm font-medium text-gray-700">
                                     Speaker Label
@@ -118,6 +150,7 @@ function SpeakerTagC({ speakerTag, className, editable = false }: {
                                     Update Label
                                 </button>
                             </div>
+                        </>
                         )}
                         <Command>
                             <CommandInput placeholder="Search speaker..." />
