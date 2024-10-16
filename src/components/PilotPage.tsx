@@ -10,34 +10,43 @@ import DotPattern from "./magicui/dot-pattern";
 import NumberTicker from "./magicui/number-ticker";
 import { useState, useEffect } from "react";
 import { getPilotStats } from "@/lib/pilotStats";
-import { Loader2 } from "lucide-react";
+import { Loader2, Podcast, Sparkles } from "lucide-react";
+import AnimatedGradientText from "./magicui/animated-gradient-text";
 
 export default function PilotPage({ cities }: { cities: (City & { councilMeetings: CouncilMeeting[] })[] }) {
     const t = useTranslations('PilotPage');
     return (
-        <div className="flex flex-col gap-4" id="hero">
-            <div className="flex flex-col gap-4 relative">
-                <h1 className='my-16'>
-                    <GradualSpacing text={t('promo')} className="text-lg md:text-2xl lg:text-4xl" />
-                </h1>
-                <DotPattern />
-            </div>
-            <div className="flex lg:flex-row flex-col gap-8 items-center max-w-6xl mx-auto" >
-                <div className="flex flex-1 flex-col">
-                    <h2 className='text-2xl text-left'>{t('title')}</h2>
-                    <span className='text-xl text-gray-500 text-left'>{t('subtitle')}</span>
+        <>
+            <a href="https://open.spotify.com/episode/5A29fZuy3LUEQprfAlYDwg?si=68297c2f81d34d33" target="_blank" rel="noopener noreferrer">
+                <AnimatedGradientText>
+                    <Podcast className='inline-block md:mr-2' />
+                    <span className='hidden md:inline'>Ακούστε το αυτόματο podcast του OpenCouncil για το δημοτικό συμβούλιο της Αθήνας</span>
+                </AnimatedGradientText>
+            </a>
+            <div className="flex flex-col gap-4 mt-4" id="hero">
+                <div className="flex flex-col gap-4 relative">
+                    <h1 className='my-16'>
+                        <GradualSpacing text={t('promo')} className="text-lg md:text-2xl lg:text-4xl" />
+                    </h1>
+                    <DotPattern />
                 </div>
-                <div className="flex flex-1 flex-col">
-                    {cities.map((city) => (
-                        <CityCard key={city.id} city={city} />
-                    ))}
+                <div className="flex lg:flex-row flex-col gap-8 items-center max-w-6xl mx-auto" >
+                    <div className="flex flex-1 flex-col">
+                        <h2 className='text-2xl text-left'>{t('title')}</h2>
+                        <span className='text-xl text-gray-500 text-left'>{t('subtitle')}</span>
+                    </div>
+                    <div className="flex flex-1 flex-col">
+                        {cities.map((city) => (
+                            <CityCard key={city.id} city={city} />
+                        ))}
+                    </div>
+                </div >
+
+                <div className="">
+                    <PilotStats />
                 </div>
             </div >
-
-            <div className="">
-                <PilotStats />
-            </div>
-        </div >
+        </>
     )
 }
 function PilotStats() {
