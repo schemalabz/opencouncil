@@ -7,13 +7,13 @@ import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartph
 const features = [
     {
         name: "Ανοιχτός κώδικας",
-        date: "Σεπτέμβριος 2024",
+        date: "Οκτώβριος 2024",
         description: "Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια που επιτρέπει την εμπορική χρήση.",
         icon: Github
     },
     {
         name: "Ανοιχτά Δεδομένα",
-        date: "Σεπτέμβριος 2024",
+        date: "Οκτώβριος 2024",
         description: "Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.",
         icon: Database
     },
