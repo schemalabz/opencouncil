@@ -37,6 +37,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const image = formData.image as File | null
     const partyId = formData.partyId as string | null
     const isAdministrativeRole = formData.isAdministrativeRole as boolean
+    const activeFrom = formData.activeFrom ? new Date(formData.activeFrom) : null
+    const activeTo = formData.activeTo ? new Date(formData.activeTo) : null
 
     let imageUrl: string | undefined = undefined
 
@@ -75,6 +77,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(imageUrl && { image: imageUrl }),
             partyId: partyId || undefined,
             isAdministrativeRole,
+            activeFrom,
+            activeTo,
         })
         return NextResponse.json(person)
     } catch (error) {

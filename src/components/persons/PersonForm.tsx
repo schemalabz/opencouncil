@@ -17,7 +17,7 @@ import {
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
 import { Party, Person } from '@prisma/client'
-import { Loader2, Check } from "lucide-react"
+import { Loader2, Check, CalendarIcon } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import React, { useRef } from "react"
 import InputWithDerivatives from "../../components/InputWithDerivatives"
@@ -26,6 +26,10 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Switch } from '../ui/switch'
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -45,6 +49,8 @@ const formSchema = z.object({
     image: z.instanceof(File).optional(),
     partyId: z.string().optional(),
     isAdministrativeRole: z.boolean().optional(),
+    activeFrom: z.date().nullable(),
+    activeTo: z.date().nullable(),
 })
 
 interface PersonFormProps {
@@ -75,6 +81,8 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             role_en: person?.role_en || "",
             partyId: person?.partyId || "",
             isAdministrativeRole: person?.isAdministrativeRole || false,
+            activeFrom: person?.activeFrom || null,
+            activeTo: person?.activeTo || null,
         },
     })
 
@@ -93,6 +101,8 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             cityId: cityId,
             partyId: values.partyId || "",
             isAdministrativeRole: values.isAdministrativeRole || false,
+            activeFrom: values.activeFrom,
+            activeTo: values.activeTo,
         }
 
         try {
@@ -121,6 +131,8 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                     image: undefined,
                     partyId: values.partyId,
                     isAdministrativeRole: false,
+                    activeFrom: null,
+                    activeTo: null,
                 })
                 setImage(null)
                 setImagePreview(null)
@@ -267,6 +279,90 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                             <FormDescription>
                                 {t('isAdministrativeRoleDescription')}
                             </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>{t('activeFrom')}</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[240px] pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                        >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>{t('pickADate')}</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value || undefined}
+                                        onSelect={field.onChange}
+                                        disabled={(date) =>
+                                            date > new Date() || date < new Date("1900-01-01")
+                                        }
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <FormDescription>{t('activeFromDescription')}</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>{t('activeTo')}</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-[240px] pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                        >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>{t('pickADate')}</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value || undefined}
+                                        onSelect={(date) => field.onChange(date)}
+                                        disabled={(date) =>
+                                            date > new Date() || date < new Date("1900-01-01")
+                                        }
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
+                            <FormDescription>{t('activeToDescription')}</FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}

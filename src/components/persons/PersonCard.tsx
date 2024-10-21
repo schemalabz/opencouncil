@@ -8,6 +8,7 @@ import PartyBadge from '../PartyBadge';
 import { useLocale } from 'next-intl';
 import { Badge } from '../ui/badge';
 import { ImageOrInitials } from '../ImageOrInitials';
+import { format } from 'date-fns';
 
 interface PersonCardProps {
     item: Person & { party: Party | null };
@@ -23,6 +24,14 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
     const handleClick = () => {
         router.push(`/${person.cityId}/people/${person.id}`);
     };
+
+    const formatActiveDates = (from: Date | null, to: Date | null) => {
+        if (!to && !from) return null;
+        if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
+        if (from && to) return `${t('active')}: ${formatDate(from)} - ${formatDate(to)}`;
+        return null;
+    };
+
     return (
         <Card
             className="relative overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
@@ -39,6 +48,11 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
                     <div>
                         <h3 className="text-2xl font-bold">{person.name}</h3>
                         {person.role && <p className="text-sm text-gray-600">{localizedRole}</p>}
+                        {formatActiveDates(person.activeFrom, person.activeTo) && (
+                            <p className="text-xs text-gray-500">
+                                {formatActiveDates(person.activeFrom, person.activeTo)}
+                            </p>
+                        )}
                     </div>
                     <div>
                         {person.party && (
@@ -50,3 +64,7 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
         </Card>
     );
 }
+
+const formatDate = (date: Date | null) => {
+    return date ? format(date, 'dd/MM/yyyy') : '-';
+};

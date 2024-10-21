@@ -18,6 +18,7 @@ import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
 import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
 import { Result } from '../search/Result';
+import { format } from 'date-fns';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
     const t = useTranslations('Person');
@@ -53,6 +54,17 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
         });
     }
 
+    const formatActiveDates = (from: Date | null, to: Date | null) => {
+        if (!to && !from) return null;
+        if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
+        if (from && to) return `${t('active')}: ${formatDate(from)} - ${formatDate(to)}`;
+        return null;
+    };
+
+    const formatDate = (date: Date | null) => {
+        return date ? format(date, 'dd/MM/yyyy') : '-';
+    };
+
     return (
         <div className="container mx-auto py-8">
             <Breadcrumb className="mb-4">
@@ -82,6 +94,11 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
                         <h1 className="text-3xl font-bold">{person.name}</h1>
                         {person.role && <p className="text-xl text-gray-600">{person.role}</p>}
                         {person.party && <PartyBadge party={person.party} shortName={false} />}
+                        {formatActiveDates(person.activeFrom, person.activeTo) && (
+                            <p className="text-sm text-gray-600">
+                                {formatActiveDates(person.activeFrom, person.activeTo)}
+                            </p>
+                        )}
                     </div>
                 </div>
                 {editable && (

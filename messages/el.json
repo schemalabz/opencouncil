@@ -240,8 +240,10 @@
         "activeTo": "Ενεργός έως",
         "searchForPerson": "Αναζήτηση στα πρακτικά που αφορούν το μέλος",
         "statistics": "Στατιστικά Μέλους",
-        "searchItems": "Αναζητήστε μέλη"
-        },
+        "searchItems": "Αναζητήστε μέλη",
+        "activeUntil": "Μέλος έως",
+        "active": "Μέλος"
+    },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
         "personNameDescription": "Εισάγετε το όνομα του μέλους.",
@@ -279,7 +281,9 @@
         "role": "Ρόλος",
         "partyColor": "Χρώμα Παράταξης",
         "image": "Εικόνα",
-        "initials": "Αρχικά"
+        "initials": "Αρχικά",
+        "activeUntil": "Μέλος έως",
+        "active": "Μέλος"
     },
     "Statistics": {
         "topicsList": "Λίστα Θεμάτων",
