@@ -13,9 +13,10 @@ const s3Client = new S3({
     }
 })
 
-export async function GET(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ cityId: string, partyId: string }> }) {
     try {
-        const party = await getParty(params.partyId)
+        const { partyId } = await params;
+        const party = await getParty(partyId)
         if (!party) {
             return NextResponse.json({ error: 'Party not found' }, { status: 404 })
         }
@@ -26,8 +27,9 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ cityId: string, partyId: string }> }) {
     const formData = await request.json()
+    const { cityId, partyId } = await params;
     const name = formData.name as string
     const name_en = formData.name_en as string
     const name_short = formData.name_short as string
@@ -62,7 +64,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 
     try {
-        const party = await editParty(params.partyId, {
+        const party = await editParty(partyId, {
             name,
             name_en,
             name_short,
@@ -77,9 +79,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ cityId: string, partyId: string }> }) {
     try {
-        await deleteParty(params.partyId)
+        const { partyId } = await params;
+        await deleteParty(partyId)
         return NextResponse.json({ message: 'Party deleted successfully' })
     } catch (error) {
         console.error('Error deleting party:', error)

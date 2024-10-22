@@ -15,9 +15,10 @@ export async function generateStaticParams({ params }: { params: { cityId: strin
 }
 */
 
-export default async function CityPage({ params }: { params: { cityId: string, locale: string } }) {
-    unstable_setRequestLocale(params.locale);
-    const city = await getFullCity(params.cityId);
+export default async function CityPage({ params }: { params: Promise<{ cityId: string, locale: string }> }) {
+    const { cityId, locale } = await params;
+    unstable_setRequestLocale(locale);
+    const city = await getFullCity(cityId);
 
     if (!city) {
         notFound();

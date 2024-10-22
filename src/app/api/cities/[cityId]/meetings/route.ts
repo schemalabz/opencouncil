@@ -12,12 +12,12 @@ const meetingSchema = z.object({
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { cityId: string } }
+    { params }: { params: Promise<{ cityId: string }> }
 ) {
     try {
         const body = await request.json();
         const { name, name_en, date, youtubeUrl, meetingId } = meetingSchema.parse(body);
-        const cityId = params.cityId;
+        const { cityId } = await params;
 
         const meeting = await createCouncilMeeting({
             name,

@@ -10,17 +10,24 @@ import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 
-export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
-    const allCities = await getCities();
-    const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
-    return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId, locale: "el" }));
+export async function generateStaticParams() {
+    if (process.env.EDIT_MODE !== 'true') {
+        const allCities = await getCities();
+        const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
+        return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId, locale: "el" }));
+    }
+    return [];
 }
+export const revalidate = 60;
+export const dynamicParams = true;
+
 
 export default async function CouncilMeetingPage({
-    params: { meetingId, cityId, locale }
+    params
 }: {
-    params: { meetingId: string; cityId: string, locale: string }
+    params: Promise<{ meetingId: string; cityId: string, locale: string }>
 }) {
+    const { meetingId, cityId, locale } = await params;
     unstable_setRequestLocale(locale);
 
     const startTime = performance.now();

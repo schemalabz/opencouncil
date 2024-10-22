@@ -9,9 +9,10 @@ import { handleSplitMediaFileResult } from '@/lib/tasks/splitMediaFile';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
+    { params }: { params: Promise<{ taskStatusId: string }> }
 ) {
-    const taskStatus = await getTaskStatus(params.taskStatusId);
+    const { taskStatusId } = await params;
+    const taskStatus = await getTaskStatus(taskStatusId);
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
     }
@@ -21,23 +22,26 @@ export async function GET(
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
+    { params }: { params: Promise<{ taskStatusId: string }> }
 ) {
-    return handleUpdateRequest(request, params.taskStatusId);
+    const { taskStatusId } = await params;
+    return handleUpdateRequest(request, taskStatusId);
 }
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
+    { params }: { params: Promise<{ taskStatusId: string }> }
 ) {
-    return handleUpdateRequest(request, params.taskStatusId);
+    const { taskStatusId } = await params;
+    return handleUpdateRequest(request, taskStatusId);
 }
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { taskStatusId: string } }
+    { params }: { params: Promise<{ taskStatusId: string }> }
 ) {
-    const taskStatus = await getTaskStatus(params.taskStatusId);
+    const { taskStatusId } = await params;
+    const taskStatus = await getTaskStatus(taskStatusId);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
@@ -48,7 +52,7 @@ export async function DELETE(
         return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
     }
 
-    await deleteTaskStatus(params.taskStatusId);
+    await deleteTaskStatus(taskStatusId);
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }

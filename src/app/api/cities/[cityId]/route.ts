@@ -14,13 +14,15 @@ const s3Client = new S3({
     }
 })
 
-export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const city = await getCity(params.cityId);
+export async function GET(request: Request, { params }: { params: Promise<{ cityId: string }> }) {
+    const { cityId } = await params;
+    const city = await getCity(cityId);
     return NextResponse.json(city)
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ cityId: string }> }) {
     const formData = await request.json()
+    const { cityId } = await params;
     const name = formData.name as string
     const name_en = formData.name_en as string
     const name_municipality = formData.name_municipality as string
@@ -54,7 +56,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         }
     }
 
-    const city = await editCity(params.cityId, {
+    const city = await editCity(cityId, {
         name,
         name_en,
         name_municipality,
@@ -66,7 +68,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     return NextResponse.json(city)
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
-    await deleteCity(params.cityId);
+export async function DELETE(request: Request, { params }: { params: Promise<{ cityId: string }> }) {
+    const { cityId } = await params;
+    await deleteCity(cityId);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

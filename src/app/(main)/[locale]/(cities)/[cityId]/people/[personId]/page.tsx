@@ -6,10 +6,11 @@ import { getPartiesForCity } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
 import { isEditMode } from "@/lib/auth";
 
-export default async function PersonPage({ params }: { params: { personId: string, cityId: string } }) {
-    const person = await getPerson(params.personId);
-    const city = await getCity(params.cityId);
-    const parties = await getPartiesForCity(params.cityId);
+export default async function PersonPage({ params }: { params: Promise<{ personId: string, cityId: string }> }) {
+    const { personId, cityId } = await params;
+    const person = await getPerson(personId);
+    const city = await getCity(cityId);
+    const parties = await getPartiesForCity(cityId);
 
     if (!person || !city) {
         notFound();

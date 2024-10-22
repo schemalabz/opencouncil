@@ -13,9 +13,10 @@ const s3Client = new S3({
     }
 })
 
-export async function GET(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ cityId: string, personId: string }> }) {
     try {
-        const person = await getPerson(params.personId)
+        const { personId } = await params;
+        const person = await getPerson(personId)
         if (!person) {
             return NextResponse.json({ error: 'Person not found' }, { status: 404 })
         }
@@ -26,8 +27,9 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function PUT(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ cityId: string, personId: string }> }) {
     const formData = await request.json()
+    const { personId } = await params;
     const name = formData.name as string
     const name_en = formData.name_en as string
     const name_short = formData.name_short as string
@@ -67,7 +69,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 
     try {
-        const person = await editPerson(params.personId, {
+        const person = await editPerson(personId, {
             name,
             name_en,
             name_short,
@@ -87,9 +89,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ cityId: string, personId: string }> }) {
     try {
-        await deletePerson(params.personId)
+        const { personId } = await params;
+        await deletePerson(personId)
         return NextResponse.json({ message: 'Person deleted successfully' })
     } catch (error) {
         console.error('Error deleting person:', error)

@@ -8,7 +8,8 @@ const nextConfig = {
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr'],
     },
-    transpilePackages: ['@']
+    transpilePackages: ['@'],
+    basePath: process.env.BASE_PATH,
 
 };
 

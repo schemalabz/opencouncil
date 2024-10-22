@@ -13,11 +13,13 @@ const s3Client = new S3({
     }
 })
 
-export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const people = await getPeopleForCity(params.cityId);
+export async function GET(request: Request, { params }: { params: Promise<{ cityId: string }> }) {
+    const { cityId } = await params;
+    const people = await getPeopleForCity(cityId);
     return NextResponse.json(people)
 }
-export async function POST(request: Request, { params }: { params: { cityId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ cityId: string }> }) {
+    const { cityId } = await params;
     const formData = await request.json()
     const name = formData.name as string
     const name_en = formData.name_en as string
@@ -56,7 +58,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
     }
 
     const person = await createPerson({
-        cityId: params.cityId,
+        cityId,
         name,
         name_en,
         name_short,

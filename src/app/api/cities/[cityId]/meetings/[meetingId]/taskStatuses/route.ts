@@ -3,9 +3,9 @@ import { getTasksForMeeting } from '@/lib/db/tasks';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { cityId: string, meetingId: string } }
+    { params }: { params: Promise<{ cityId: string, meetingId: string }> }
 ) {
-    const { cityId, meetingId } = params;
+    const { cityId, meetingId } = await params;
     try {
         const tasks = await getTasksForMeeting(cityId, meetingId);
 

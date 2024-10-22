@@ -39,12 +39,13 @@ export const metadata = {
 
 type RootLayoutProps = {
     children: React.ReactNode
-    params: { locale: string }
+    params: Promise<{ locale: string }>
 }
 
-export default async function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children, params }: RootLayoutProps) {
+    const { locale } = await params;
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang={locale} suppressHydrationWarning>
             <body
                 className={cn(
                     "min-h-screen bg-background font-sans antialiased",
