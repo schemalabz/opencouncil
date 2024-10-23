@@ -82,3 +82,17 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
         throw new Error('Failed to fetch council meetings for city');
     }
 }
+
+export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeeting> {
+    withUserAuthorizedToEdit({ councilMeetingId: id });
+    try {
+        const updatedMeeting = await prisma.councilMeeting.update({
+            where: { cityId_id: { cityId, id } },
+            data: { released },
+        });
+        return updatedMeeting;
+    } catch (error) {
+        console.error('Error toggling council meeting release:', error);
+        throw new Error('Failed to toggle council meeting release');
+    }
+}

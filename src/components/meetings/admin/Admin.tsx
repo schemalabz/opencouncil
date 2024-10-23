@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { embedCouncilMeeting } from '@/lib/search/embed';
 import PodcastSpecs from './PodcastSpecs';
+import { toggleMeetingRelease } from '@/lib/db/meetings';
 
 export default function AdminActions({
     meeting
@@ -30,6 +31,7 @@ export default function AdminActions({
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
     const [isEmbedding, setIsEmbedding] = React.useState(false);
+    const [isReleased, setIsReleased] = React.useState(meeting.released);
 
     React.useEffect(() => {
         setYoutubeUrl(meeting.youtubeUrl);
@@ -145,6 +147,24 @@ export default function AdminActions({
         setTopics([...topics, '']);
     };
 
+    const handleReleaseToggle = async () => {
+        try {
+            const updatedMeeting = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            setIsReleased(updatedMeeting.released);
+            toast({
+                title: updatedMeeting.released ? "Meeting Released" : "Meeting Unreleased",
+                description: `The meeting has been ${updatedMeeting.released ? 'released' : 'unreleased'}.`,
+            });
+        } catch (error) {
+            console.error('Error toggling meeting release:', error);
+            toast({
+                title: "Error toggling meeting release",
+                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                variant: 'destructive'
+            });
+        }
+    };
+
     return (<div>
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
@@ -212,6 +232,17 @@ export default function AdminActions({
                 <Button onClick={handleEmbed} disabled={isEmbedding}>
                     Embed
                 </Button>
+            </div>
+        </div>
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Meeting Release</h3>
+            <div className="flex items-center space-x-2">
+                <Switch
+                    id="release-toggle"
+                    checked={isReleased}
+                    onCheckedChange={handleReleaseToggle}
+                />
+                <Label htmlFor="release-toggle">Released</Label>
             </div>
         </div>
         <PodcastSpecs />
