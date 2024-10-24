@@ -98,7 +98,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     description: subject.description,
                     councilMeeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
                     speakerSegments: {
-                        create: subject.speakerSegmentIds.map(ssId => ({
+                        create: subject.speakerSegmentIds.filter(ssId => ssId).map(ssId => ({
                             speakerSegment: { connect: { id: ssId } }
                         }))
                     }
