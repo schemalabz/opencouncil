@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Trash, Users } from "lucide-react";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./meetings/options/OptionsContext";
-import { deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, upsertHighlight } from "@/lib/db/highlights";
+import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, upsertHighlight } from "@/lib/db/highlights";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import SpeakerTagC from "./SpeakerTag";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean }) => {
-    const { transcript, getSpeakerTag } = useCouncilMeetingData();
+    const { transcript, getSpeakerTag, subjects } = useCouncilMeetingData();
     const { updateOptions, options } = useTranscriptOptions();
     const editable = options.editable;
     const utterances = highlight.highlightedUtterances.map(hu =>
@@ -29,6 +29,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     const isSelected = options.selectedHighlight?.id === highlight.id;
 
     const removeUtterance = (utteranceId: string) => {
+        if (!editable) return;
         const updatedHighlight = {
             ...highlight,
             highlightedUtterances: highlight.highlightedUtterances.filter(hu => hu.utteranceId !== utteranceId)
@@ -37,6 +38,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     };
 
     const handleSave = async () => {
+        if (!editable) return;
         try {
             await upsertHighlight({
                 id: highlight.id,
@@ -68,6 +70,46 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
+    const handleAddSubject = async (subjectId: string) => {
+        if (!editable) return;
+        try {
+            await addHighlightToSubject({ subjectId, highlightId: highlight.id });
+            requestUpdate();
+            toast({
+                title: "Success",
+                description: "Subject added to highlight successfully.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error('Failed to add subject to highlight:', error);
+            toast({
+                title: "Error",
+                description: "Failed to add subject to highlight. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleRemoveSubject = async () => {
+        if (!editable) return;
+        try {
+            await removeHighlightFromSubject({ subjectId: highlight.subjectId!, highlightId: highlight.id });
+            requestUpdate();
+            toast({
+                title: "Success",
+                description: "Subject removed from highlight successfully.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error('Failed to remove subject from highlight:', error);
+            toast({
+                title: "Error",
+                description: "Failed to remove subject from highlight. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
     return (
         <Card
             className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''}`}
@@ -87,19 +129,56 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                             <Users className="h-3 w-3 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground">{speakerCount}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                            <Button size="icon" variant="ghost" onClick={(e) => {
-                                e.stopPropagation();
-                                deleteHighlight(highlight.id);
-                                requestUpdate();
-                            }}>
-                                <Trash className="h-3 w-3 text-muted-foreground" />
-                            </Button>
-                        </div>
+                        {editable && (
+                            <div className="flex items-center space-x-1">
+                                <Button size="icon" variant="ghost" onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteHighlight(highlight.id);
+                                    requestUpdate();
+                                }}>
+                                    <Trash className="h-3 w-3 text-muted-foreground" />
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {isSelected && (
                     <div className="mt-2 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                            {highlight.subjectId && (
+                                <Badge variant="secondary">{subjects.find(s => s.id === highlight.subjectId)?.name}
+                                    {editable && (
+                                        <Button size="icon" variant="ghost" onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveSubject();
+                                        }}>
+                                            <Trash className="h-3 w-3 text-muted-foreground" />
+                                        </Button>
+                                    )}
+                                </Badge>
+                            )}
+                            {editable && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm">Add Subject</Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-60">
+                                        <div className="space-y-2">
+                                            {subjects.map((subject) => (
+                                                <Button
+                                                    key={subject.id}
+                                                    onClick={() => handleAddSubject(subject.id)}
+                                                    variant="ghost"
+                                                    className="w-full justify-start"
+                                                >
+                                                    {subject.name}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            )}
+                        </div>
                         {utterances.map((utterance, index) => {
                             const segment = transcript.find(s => s.id === utterance.speakerSegmentId);
                             if (!segment) {
@@ -113,17 +192,19 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                                 <div key={index} className="flex items-center space-x-2">
                                     {speakerTag && <SpeakerTagC speakerTag={speakerTag} className="flex-shrink-0" />}
                                     <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-4 w-4 p-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeUtterance(utterance.id);
-                                        }}
-                                    >
-                                        <span className="text-xs">×</span>
-                                    </Button>
+                                    {editable && (
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-4 w-4 p-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeUtterance(utterance.id);
+                                            }}
+                                        >
+                                            <span className="text-xs">×</span>
+                                        </Button>
+                                    )}
                                 </div>
                             );
                         })}

@@ -10,7 +10,7 @@ export async function requestGeneratePodcastSpec(cityId: string, councilMeetingI
     id: string;
     allocation: 'onlyMention' | 'skip' | number;
     allocatedMinutes: number;
-}[]) {
+}[], additionalInstructions?: string) {
     const baseBody = await getSummarizeRequestBody(councilMeetingId, cityId, []);
 
     const meeting = await prisma.councilMeeting.findUnique({
@@ -60,7 +60,8 @@ export async function requestGeneratePodcastSpec(cityId: string, councilMeetingI
                 : 'full',
             allocatedMinutes: typeof subject.allocatedMinutes === 'number' ? subject.allocatedMinutes : 0
         })),
-        audioUrl: meeting.audioUrl
+        audioUrl: meeting.audioUrl,
+        additionalInstructions: additionalInstructions
     };
 
     console.log('Requesting podcast spec for meeting', meeting.id);

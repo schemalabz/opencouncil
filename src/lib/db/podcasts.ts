@@ -24,6 +24,11 @@ export async function getPodcastSpecsForMeeting(cityId: string, councilMeetingId
                             include: {
                                 utterance: true,
                             },
+                            orderBy: {
+                                utterance: {
+                                    startTimestamp: 'asc',
+                                },
+                            },
                         },
                     },
                     orderBy: {

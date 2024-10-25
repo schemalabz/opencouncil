@@ -1,5 +1,5 @@
 "use server";
-import { City, CouncilMeeting, Highlight, HighlightedUtterance, Utterance } from '@prisma/client';
+import { City, CouncilMeeting, Highlight, HighlightedUtterance, Subject, Utterance } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
@@ -139,5 +139,28 @@ export async function deleteHighlight(id: Highlight["id"]) {
     } catch (error) {
         console.error('Error deleting highlight:', error);
         throw new Error('Failed to delete highlight');
+    }
+}
+
+export async function addHighlightToSubject({ subjectId, highlightId }: { subjectId: Subject["id"], highlightId: Highlight["id"] }) {
+    try {
+        const updatedHighlight = await prisma.highlight.update({
+            where: { id: highlightId },
+            data: { subjectId: subjectId },
+        });
+
+        return updatedHighlight;
+    } catch (error) {
+        console.error('Error adding highlight to subject:', error);
+        throw new Error('Failed to add highlight to subject');
+    }
+}
+
+export async function removeHighlightFromSubject({ subjectId, highlightId }: { subjectId: Subject["id"], highlightId: Highlight["id"] }) {
+    try {
+        await prisma.highlight.update({ where: { id: highlightId }, data: { subjectId: null } });
+    } catch (error) {
+        console.error('Error removing highlight from subject:', error);
+        throw new Error('Failed to remove highlight from subject');
     }
 }

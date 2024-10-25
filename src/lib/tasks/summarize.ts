@@ -11,8 +11,8 @@ import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
 import { getSummarizeRequestBody } from "../db/utils";
 
-export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = []) {
-    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects);
+export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string) {
+    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions);
 
     return startTask('summarize', body, councilMeetingId, cityId);
 }
@@ -89,9 +89,26 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
         }
     });
 
+    let nullSSidCount = 0;
     // Combined Subject and Highlight transaction
     await prisma.$transaction(async (prisma) => {
+        // Delete old highlights and subjects for this meeting
+        await prisma.highlight.deleteMany({
+            where: {
+                meetingId: councilMeeting.id,
+                cityId: councilMeeting.cityId
+            }
+        });
+        await prisma.subject.deleteMany({
+            where: {
+                councilMeetingId: councilMeeting.id,
+                cityId: councilMeeting.cityId
+            }
+        });
+
+        // Create new subjects and highlights
         for (const subject of response.subjects) {
+            nullSSidCount += subject.speakerSegmentIds.filter(ssId => !ssId).length;
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,

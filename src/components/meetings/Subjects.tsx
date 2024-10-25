@@ -10,6 +10,8 @@ import { useTranscriptOptions } from "./options/OptionsContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { requestGeneratePodcastSpec } from '@/lib/tasks/generatePodcastSpec';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
@@ -20,6 +22,8 @@ export default function Subjects() {
     const { options } = useTranscriptOptions();
     const [subjectAllocations, setSubjectAllocations] = useState<Record<string, AllocationOption>>({});
     const [isGeneratingPodcastSpec, setIsGeneratingPodcastSpec] = useState(false);
+    const [additionalInstructions, setAdditionalInstructions] = useState('');
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
     const { toast } = useToast();
     const { meeting } = useCouncilMeetingData();
@@ -71,11 +75,13 @@ export default function Subjects() {
                 allocatedMinutes: typeof subjectAllocations[subject.id] === 'number' ? subjectAllocations[subject.id] as number : 0
             }));
 
-            await requestGeneratePodcastSpec(meeting.cityId, meeting.id, subjectsWithAllocation);
+            await requestGeneratePodcastSpec(meeting.cityId, meeting.id, subjectsWithAllocation, additionalInstructions);
             toast({
                 title: "Podcast Spec Generation Requested",
                 description: "The podcast spec generation process has started.",
             });
+            setIsPopoverOpen(false);
+            setAdditionalInstructions('');
         } catch (error) {
             console.error('Error requesting podcast spec generation:', error);
             toast({
@@ -166,6 +172,8 @@ export default function Subjects() {
                                     <SelectItem value="2">2 minutes</SelectItem>
                                     <SelectItem value="3">3 minutes</SelectItem>
                                     <SelectItem value="5">5 minutes</SelectItem>
+                                    <SelectItem value="10">10 minutes</SelectItem>
+                                    <SelectItem value="15">15 minutes</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -173,9 +181,27 @@ export default function Subjects() {
                 </div>
             ))}
             {options.editable && (
-                <Button onClick={handleCreatePodcastSpec} className="mt-4">
-                    Create podcast spec
-                </Button>
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <Button className="mt-4">
+                            Create podcast spec
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Additional Instructions</h4>
+                            <Input
+                                type="text"
+                                placeholder="Enter additional instructions..."
+                                value={additionalInstructions}
+                                onChange={(e) => setAdditionalInstructions(e.target.value)}
+                            />
+                            <Button onClick={handleCreatePodcastSpec} disabled={isGeneratingPodcastSpec}>
+                                {isGeneratingPodcastSpec ? 'Generating...' : 'Generate Podcast Spec'}
+                            </Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
             )}
         </div>
     );

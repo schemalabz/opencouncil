@@ -8,7 +8,7 @@ import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
 import { SummarizeRequest } from "../apiTypes";
 
-export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[]): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
+export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId);
     const people = await getPeopleForCity(cityId);
     const parties = await getPartiesForCity(cityId);
@@ -46,6 +46,7 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
         topicLabels: topics.map(t => t.name),
         cityName: city.name,
         date: councilMeeting.dateTime.toISOString().split('T')[0],
+        additionalInstructions
     }
 
     return body;

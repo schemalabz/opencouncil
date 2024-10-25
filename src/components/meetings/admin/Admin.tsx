@@ -30,6 +30,7 @@ export default function AdminActions({
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
+    const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isEmbedding, setIsEmbedding] = React.useState(false);
     const [isReleased, setIsReleased] = React.useState(meeting.released);
 
@@ -84,13 +85,14 @@ export default function AdminActions({
     const handleSummarize = async () => {
         setIsSummarizing(true);
         try {
-            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''));
+            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions);
             toast({
                 title: "Summarization requested",
                 description: "The summarization process has started.",
             });
             setIsSummarizePopoverOpen(false);
             setTopics(['']);
+            setAdditionalInstructions('');
         } catch (error) {
             console.log('toasting');
             toast({
@@ -218,6 +220,12 @@ export default function AdminActions({
                                     onChange={(e) => handleTopicChange(index, e.target.value)}
                                 />
                             ))}
+                            <Input
+                                type="text"
+                                placeholder="Additional Instructions"
+                                value={additionalInstructions}
+                                onChange={(e) => setAdditionalInstructions(e.target.value)}
+                            />
                             <div className="flex items-center justify-between space-x-4 w-full">
                                 <Button onClick={addTopic}>
                                     Add Topic
