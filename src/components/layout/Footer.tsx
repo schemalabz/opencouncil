@@ -60,9 +60,6 @@ export default function Footer() {
                         >
                             hello@opencouncil.gr
                         </a>
-                        <p className="mt-2 text-sm text-muted-foreground text-right">
-                            16 & 17 Οκτωβρίου <a href='https://smart-cities.gr/' target='_blank' rel='noopener noreferrer'>στο περίπτερο της ΕΛΛΑΚ στο Ζάππειο</a>
-                        </p>
                     </div>
                 </div>
                 <div className="mt-8 pt-4 border-t border-border text-center text-xs text-muted-foreground">
