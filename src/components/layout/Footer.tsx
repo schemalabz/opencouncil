@@ -27,6 +27,9 @@ export default function Footer() {
                         <Link href="/search" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             Αναζήτηση
                         </Link>
+                        <Link href="/docs" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            API
+                        </Link>
                     </nav>
                     <nav className="flex flex-col items-center md:items-start space-y-2">
                         <h3 className="font-semibold text-foreground">Πολιτικές και Όροι</h3>

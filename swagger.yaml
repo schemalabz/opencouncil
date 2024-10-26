@@ -1,0 +1,403 @@
+openapi: 3.0.0
+info:
+  title: City Council API
+  version: 1.0.0
+  description: API for OpenCouncil
+
+paths:
+  # Cities
+  /api/cities:
+    get:
+      summary: Get all cities
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/City'
+        '500':
+          description: Failed to fetch cities
+
+  /api/cities/{cityId}:
+    get:
+      summary: Get a specific city
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/City'
+        '404':
+          description: City not found
+        '500':
+          description: Failed to fetch city
+
+  # Meetings
+  /api/cities/{cityId}/meetings:
+    get:
+      summary: Get meetings for a city
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Meeting'
+        '500':
+          description: Failed to fetch meetings
+
+  /api/cities/{cityId}/meetings/{meetingId}:
+    get:
+      summary: Get transcript for a specific meeting
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/meetingId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transcript'
+        '404':
+          description: Transcript not found
+        '500':
+          description: Failed to fetch transcript
+
+  # Parties
+  /api/cities/{cityId}/parties:
+    get:
+      summary: Get parties for a city
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Party'
+        '500':
+          description: Failed to fetch parties
+
+  /api/cities/{cityId}/parties/{partyId}:
+    get:
+      summary: Get a specific party
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/partyId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '404':
+          description: Party not found
+        '500':
+          description: Failed to fetch party
+
+  # People
+  /api/cities/{cityId}/people:
+    get:
+      summary: Get people for a city
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '500':
+          description: Failed to fetch people
+
+  /api/cities/{cityId}/people/{personId}:
+    get:
+      summary: Get a specific person
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/personId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '404':
+          description: Person not found
+        '500':
+          description: Failed to fetch person
+
+components:
+  parameters:
+    cityId:
+      name: cityId
+      in: path
+      required: true
+      schema:
+        type: string
+    meetingId:
+      name: meetingId
+      in: path
+      required: true
+      schema:
+        type: string
+    partyId:
+      name: partyId
+      in: path
+      required: true
+      schema:
+        type: string
+    personId:
+      name: personId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    City:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        name_municipality:
+          type: string
+        name_municipality_en:
+          type: string
+        logoImage:
+          type: string
+        timezone:
+          type: string
+        officialSupport:
+          type: boolean
+        isListed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Meeting:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        dateTime:
+          type: string
+          format: date-time
+        youtubeUrl:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        audioUrl:
+          type: string
+          nullable: true
+        muxPlaybackId:
+          type: string
+          nullable: true
+        released:
+          type: boolean
+        cityId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Transcript:
+      type: array
+      items:
+        $ref: '#/components/schemas/SpeakerSegment'
+
+    SpeakerSegment:
+      type: object
+      properties:
+        id:
+          type: string
+        startTimestamp:
+          type: number
+        endTimestamp:
+          type: number
+        speakerTag:
+          $ref: '#/components/schemas/SpeakerTag'
+        utterances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Utterance'
+        topicLabels:
+          type: array
+          items:
+            $ref: '#/components/schemas/TopicLabel'
+        summary:
+          $ref: '#/components/schemas/Summary'
+
+    SpeakerTag:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        person:
+          $ref: '#/components/schemas/Person'
+
+    Utterance:
+      type: object
+      properties:
+        id:
+          type: string
+        startTimestamp:
+          type: number
+        endTimestamp:
+          type: number
+        text:
+          type: string
+        drift:
+          type: number
+        words:
+          type: array
+          items:
+            $ref: '#/components/schemas/Word'
+
+    Word:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        startTimestamp:
+          type: number
+        endTimestamp:
+          type: number
+        confidence:
+          type: number
+
+    TopicLabel:
+      type: object
+      properties:
+        id:
+          type: string
+        topic:
+          $ref: '#/components/schemas/Topic'
+
+    Topic:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        colorHex:
+          type: string
+
+    Summary:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+
+    Party:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        name_short:
+          type: string
+        name_short_en:
+          type: string
+        colorHex:
+          type: string
+        logo:
+          type: string
+          nullable: true
+        cityId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Person:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        name_short:
+          type: string
+        name_short_en:
+          type: string
+        image:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        role_en:
+          type: string
+          nullable: true
+        isAdministrativeRole:
+          type: boolean
+        activeFrom:
+          type: string
+          format: date-time
+          nullable: true
+        activeTo:
+          type: string
+          format: date-time
+          nullable: true
+        cityId:
+          type: string
+        partyId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
