@@ -10,17 +10,17 @@ import DotPattern from "./magicui/dot-pattern";
 import NumberTicker from "./magicui/number-ticker";
 import { useState, useEffect } from "react";
 import { getPilotStats } from "@/lib/pilotStats";
-import { Loader2, Podcast, Sparkles } from "lucide-react";
+import { Info, Loader2, Podcast, Sparkles } from "lucide-react";
 import AnimatedGradientText from "./magicui/animated-gradient-text";
 
 export default function PilotPage({ cities }: { cities: (City & { councilMeetings: CouncilMeeting[] })[] }) {
     const t = useTranslations('PilotPage');
     return (
         <>
-            <a href="https://open.spotify.com/episode/5A29fZuy3LUEQprfAlYDwg?si=68297c2f81d34d33" target="_blank" rel="noopener noreferrer">
+            <a href="https://schemalabs.substack.com/p/pencouncil" target="_blank" rel="noopener">
                 <AnimatedGradientText>
-                    <Podcast className='inline-block md:mr-2' />
-                    <span className='hidden md:inline'>Ακούστε το αυτόματο podcast του OpenCouncil για το δημοτικό συμβούλιο της Αθήνας</span>
+                    <Info className='inline-block md:mr-2' />
+                    <span className='hidden md:inline'>Διαβάστε περισσότερα για το OpenCouncil</span>
                 </AnimatedGradientText>
             </a>
             <div className="flex flex-col gap-4 mt-4" id="hero">

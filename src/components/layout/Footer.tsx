@@ -30,6 +30,9 @@ export default function Footer() {
                         <Link href="/docs" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                             API
                         </Link>
+                        <Link href="https://status.opencouncil.gr" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                            Status
+                        </Link>
                     </nav>
                     <nav className="flex flex-col items-center md:items-start space-y-2">
                         <h3 className="font-semibold text-foreground">Πολιτικές και Όροι</h3>
