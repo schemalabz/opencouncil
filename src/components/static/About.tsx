@@ -1,6 +1,6 @@
 'use client'
 import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion'
-import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock } from 'lucide-react'
+import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { useRef, useEffect, useState } from 'react'
@@ -63,15 +63,26 @@ export default function AboutPage() {
                             Κάνουμε τις συνεδριάσεις δημοτικών συμβουλίων χρήσιμες σε όλους
                         </motion.p>
                         <motion.div
-                            className="flex justify-center space-x-4"
+                            className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4"
                             initial={{ y: 20, opacity: 0 }}
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.7, duration: 0.8 }}
                         >
                             <Button size="lg" variant="outline" onClick={() => setIsContactFormOpen(true)}>
-                                <PhoneCall className="mr-2 h-4 w-4" />
+                                <CalendarClock className="mr-2 h-4 w-4" />
                                 Προγραμματίστε μια κλήση
                             </Button>
+                            <a
+                                href="https://onair.io/opencouncil"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center"
+                            >
+                                <Button size="lg" variant="outline">
+                                    <PhoneCall className="mr-2 h-4 w-4" />
+                                    Καλέστε μας τώρα
+                                </Button>
+                            </a>
                         </motion.div>
                     </div>
                     <Particles
@@ -210,10 +221,22 @@ export default function AboutPage() {
                     <p className="text-center text-lg mb-8">
                         Ελάτε να χτίσουμε τη πρώτη πλατφόρμα τεχνητής νοημοσύνης για τη τοπική αυτοδιοίκηση.
                     </p>
-                    <div className="flex justify-center">
+                    <div className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
                         <Button size="lg" variant="secondary" onClick={() => setIsContactFormOpen(true)}>
-                            Δοκιμάστε το δωρεάν
+                            <CalendarClock className="mr-2 h-4 w-4" />
+                            Προγραμματίστε μια κλήση
                         </Button>
+                        <a
+                            href="https://onair.io/opencouncil"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center"
+                        >
+                            <Button size="lg" variant="secondary">
+                                <PhoneCall className="mr-2 h-4 w-4" />
+                                Καλέστε μας τώρα
+                            </Button>
+                        </a>
                     </div>
                 </div>
 

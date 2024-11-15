@@ -3,7 +3,7 @@
 import { Link } from '@/i18n/routing'
 import { cn } from "@/lib/utils"
 import Logo from './Logo'
-import { Twitter } from 'lucide-react'
+import { Phone, Twitter } from 'lucide-react'
 
 export default function Footer() {
     return (
@@ -48,6 +48,15 @@ export default function Footer() {
                     </nav>
                     <div className="flex flex-col items-center md:items-end">
                         <h3 className="font-semibold text-foreground">Επικοιvωνία</h3>
+                        <a
+                            href="https://onair.io/opencouncil"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                            <Phone className="w-4 h-4 mr-2" />
+                            Καλέστε μας τώρα
+                        </a>
                         <a
                             href="https://twitter.com/christosporios"
                             target="_blank"
