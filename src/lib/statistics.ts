@@ -73,34 +73,35 @@ export async function getStatisticsFor(
         }
     });
 
-    function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
-        if (segments.length === 0) {
-            return segments;
-        }
-
-        const joinedSegments: SpeakerSegmentInfo[] = [];
-        let currentSegment = segments[0];
-
-        for (let i = 1; i < segments.length; i++) {
-            if (segments[i].speakerTag.person?.id && currentSegment.speakerTag.person?.id
-                && segments[i].speakerTag.person!.id === currentSegment.speakerTag.person.id
-                && segments[i].startTimestamp >= currentSegment.startTimestamp) {
-                // Join adjacent segments with the same speaker
-                currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, segments[i].endTimestamp);
-                currentSegment.topicLabels = [...currentSegment.topicLabels, ...segments[i].topicLabels];
-            } else {
-                // Push the current segment and start a new one
-                joinedSegments.push(currentSegment);
-                currentSegment = segments[i];
-            }
-        }
-
-        // Push the last segment
-        joinedSegments.push(currentSegment);
-
-        return joinedSegments;
-    }
     return getStatisticsForTranscript(transcript, groupBy);
+}
+
+function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
+    if (segments.length === 0) {
+        return segments;
+    }
+
+    const joinedSegments: SpeakerSegmentInfo[] = [];
+    let currentSegment = segments[0];
+
+    for (let i = 1; i < segments.length; i++) {
+        if (segments[i].speakerTag.person?.id && currentSegment.speakerTag.person?.id
+            && segments[i].speakerTag.person!.id === currentSegment.speakerTag.person.id
+            && segments[i].startTimestamp >= currentSegment.startTimestamp) {
+            // Join adjacent segments with the same speaker
+            currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, segments[i].endTimestamp);
+            currentSegment.topicLabels = [...currentSegment.topicLabels, ...segments[i].topicLabels];
+        } else {
+            // Push the current segment and start a new one
+            joinedSegments.push(currentSegment);
+            currentSegment = segments[i];
+        }
+    }
+
+    // Push the last segment
+    joinedSegments.push(currentSegment);
+
+    return joinedSegments;
 }
 
 export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[], groupBy: ("person" | "topic" | "party")[]): Promise<Statistics> {
