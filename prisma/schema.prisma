@@ -340,3 +340,17 @@ model PodcastPartAudioUtterance {
   utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
   utteranceId String
 }
+
+model Offer {
+  id        String   @id  @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  type      String   @default("pilot")
+
+  recipientName String
+  platformPrice Float
+  ingestionPerHourPrice Float
+  hoursToIngest Int
+  discountPercentage Float
+  cityId String?
+}
