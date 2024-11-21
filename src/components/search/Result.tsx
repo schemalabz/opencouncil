@@ -32,7 +32,6 @@ export function Result({ result, className }: { result: SearchResult; className?
         const seconds = timestamp % 60;
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${Math.floor(seconds).toString().padStart(2, '0')}`;
     };
-
     return (
         <Card className={className}>
             <CardHeader>
@@ -55,9 +54,15 @@ export function Result({ result, className }: { result: SearchResult; className?
                     <span className="text-lg font-semibold">
                         {format(new Date(councilMeeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                     </span>
-                    <Link className="text-muted-foreground" href={`/${city.id}/${councilMeeting.id}?t=${speakerSegment.startTimestamp}`}>
-                        {formatTimestamp(speakerSegment.startTimestamp)}
-                    </Link>
+                    <div className="flex items-center gap-2">
+
+                        <Link className="text-muted-foreground" href={`/${city.id}/${councilMeeting.id}?t=${speakerSegment.startTimestamp}`}>
+                            {formatTimestamp(speakerSegment.startTimestamp)}
+                        </Link>
+                        <span className="text-sm text-muted-foreground">
+                            (&sim;{Math.round((speakerSegment.endTimestamp - speakerSegment.startTimestamp) / 60)} λεπτά)
+                        </span>
+                    </div>
                 </CardDescription>
             </CardHeader>
             <CardContent>
