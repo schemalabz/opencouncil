@@ -343,6 +343,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
         </div>
     )
 }
+
 export function OfferLetterNotice({ offer }: { offer: Offer }) {
     return (
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-transparent print:border-none">
@@ -363,10 +364,10 @@ export function OfferLetterNotice({ offer }: { offer: Offer }) {
                     height={100}
                 />
             </div>
-            <div className="print:hidden flex flex-col sm:flex-row gap-2">
+            <div className="print:hidden flex flex-col gap-2">
                 <Button
                     onClick={() => window.print()}
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                    className="flex items-center justify-center gap-2 w-full"
                 >
                     <FileText className="w-4 h-4" />
                     Εκτύπωση
@@ -387,7 +388,7 @@ function CopyToClipboardButton({ offer }: { offer: Offer }) {
     };
 
     return (
-        <Button variant="outline" onClick={handleClick} className="w-[240px]">
+        <Button variant="outline" onClick={handleClick} className="w-full">
             {copied ? (
                 <Check className="w-4 h-4 mr-2" />
             ) : <Copy className="w-4 h-4 mr-2" />}
