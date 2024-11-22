@@ -86,10 +86,12 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
                                 <td className="text-right">{formatCurrency(subtotal)}</td>
                             </tr>
-                            <tr className="border-b">
-                                <td colSpan={3} className="text-right py-2">Έκπτωση για το {offer.recipientName} ({offer.discountPercentage}%)</td>
-                                <td className="text-right">-{formatCurrency(discount)}</td>
-                            </tr>
+                            {discount > 0 && (
+                                <tr className="border-b">
+                                    <td colSpan={3} className="text-right py-2">Έκπτωση για το {offer.recipientName} ({offer.discountPercentage}%)</td>
+                                    <td className="text-right">-{formatCurrency(discount)}</td>
+                                </tr>
+                            )}
                             <tr>
                                 <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
                                 <td className="text-right font-bold">{formatCurrency(total)}</td>
