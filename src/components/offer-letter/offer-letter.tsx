@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan } = calculateOfferTotals(offer)
 
     const CTABox = () => (
         <Card className="my-8 bg-blue-50 print:break-inside-avoid">
@@ -21,7 +21,6 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
             </CardContent>
         </Card>
     )
-
     return (
         <div className="mx-auto sm:p-8 print:p-4 space-y-8 print:space-y-4 print:text-sm">
             <OfferLetterNotice offer={offer} />
@@ -41,71 +40,91 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <p className="font-bold">
                     για τη πλατφόρμα OpenCouncil, τη ψηφιοποίηση δημόσιων συνεδριάσεων και τη δυνατότητα συμμετοχής σε πιλοτικές λειτουργίες
                 </p>
+                <p className="text-sm text-gray-600">
+                    {formatDate(offer.createdAt)}
+                </p>
             </header>
 
             <section className="mb-8">
-                <h3 className="text-2xl font-semibold mb-4">Οικονομική Προσφορά</h3>
-                <Card className="mb-4">
-                    <CardHeader>
-                        <CardTitle>Περίοδος παροχής υπηρεσιών</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p>Από <span className="font-bold">{formatDate(offer.startDate)}</span> έως <span className="font-bold">{formatDate(offer.endDate)}</span> (τιμολογείται ως <span className="font-bold">{months} μήνες</span>).</p>
-                        <p>Δωρεάν δοκιμαστική περίοδος μέχρι τότε.</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Κόστος</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[500px] print:text-xs">
-                                <thead>
-                                    <tr className="border-b">
-                                        <th className="text-left py-2">Υπηρεσία</th>
-                                        <th className="text-right py-2">Μονάδα</th>
-                                        <th className="text-right py-2">Τιμή</th>
-                                        <th className="text-right py-2">Σύνολο</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr className="border-b">
-                                        <td className="py-2">Πλατφόρμα OpenCouncil</td>
-                                        <td className="text-right">{months} μήνες</td>
-                                        <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
-                                        <td className="text-right">{formatCurrency(platformTotal)}</td>
-                                    </tr>
-                                    <tr className="border-b">
-                                        <td className="py-2">Ψηφιοποίηση συνεδριάσεων</td>
-                                        <td className="text-right">{offer.hoursToIngest} ώρες</td>
-                                        <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
-                                        <td className="text-right">{formatCurrency(ingestionTotal)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="py-2">Πιλοτικές λειτουργίες</td>
-                                        <td className="text-right">∞</td>
-                                        <td className="text-right">{formatCurrency(0)}</td>
-                                        <td className="text-right">{formatCurrency(0)}</td>
-                                    </tr>
-                                    <tr className="border-b">
-                                        <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
-                                        <td className="text-right">{formatCurrency(subtotal)}</td>
-                                    </tr>
-                                    <tr className="border-b">
-                                        <td colSpan={3} className="text-right py-2">Έκπτωση Πιλοτικού Δήμου ({offer.discountPercentage}%)</td>
-                                        <td className="text-right">-{formatCurrency(discount)}</td>
-                                    </tr>
-                                    <tr>
-                                        <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
-                                        <td className="text-right font-bold">{formatCurrency(total)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p className="mt-4 text-sm text-gray-600">* Οι τιμές δεν περιλαμβάνουν ΦΠΑ</p>
-                    </CardContent>
-                </Card>
+                <h3 className="text-2xl font-semibold mb-4">Περίοδος παροχής υπηρεσιών</h3>
+                <p>Από <span className="font-bold">{formatDate(offer.startDate)}</span> έως <span className="font-bold">{formatDate(offer.endDate)}</span> (τιμολογείται ως <span className="font-bold">{months} μήνες</span>).</p>
+                <p>Δωρεάν δοκιμαστική περίοδος μέχρι τότε.</p>
+            </section>
+
+            <section className="mb-8">
+                <h3 className="text-2xl font-semibold mb-4">Κόστος</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[500px] print:text-xs">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left py-2">Υπηρεσία</th>
+                                <th className="text-right py-2">Μονάδα</th>
+                                <th className="text-right py-2">Τιμή</th>
+                                <th className="text-right py-2">Σύνολο</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr className="border-b">
+                                <td className="py-2">Πλατφόρμα OpenCouncil</td>
+                                <td className="text-right">{months} μήνες</td>
+                                <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
+                                <td className="text-right">{formatCurrency(platformTotal)}</td>
+                            </tr>
+                            <tr className="border-b">
+                                <td className="py-2">Ψηφιοποίηση συνεδριάσεων</td>
+                                <td className="text-right">{offer.hoursToIngest} ώρες</td>
+                                <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
+                                <td className="text-right">{formatCurrency(ingestionTotal)}</td>
+                            </tr>
+                            <tr>
+                                <td className="py-2">Πιλοτικές λειτουργίες</td>
+                                <td className="text-right">∞</td>
+                                <td className="text-right">{formatCurrency(0)}</td>
+                                <td className="text-right">{formatCurrency(0)}</td>
+                            </tr>
+                            <tr className="border-b">
+                                <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
+                                <td className="text-right">{formatCurrency(subtotal)}</td>
+                            </tr>
+                            <tr className="border-b">
+                                <td colSpan={3} className="text-right py-2">Έκπτωση Πιλοτικού Δήμου ({offer.discountPercentage}%)</td>
+                                <td className="text-right">-{formatCurrency(discount)}</td>
+                            </tr>
+                            <tr>
+                                <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
+                                <td className="text-right font-bold">{formatCurrency(total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p className="mt-4 text-sm text-gray-600">* Οι τιμές δεν περιλαμβάνουν ΦΠΑ</p>
+            </section>
+
+            <section className="mb-8">
+                <h3 className="text-2xl font-semibold mb-4">Προτεινόμενο πλάνο πληρωμών</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[500px] print:text-xs">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left py-2">Ημερομηνία</th>
+                                <th className="text-right py-2">Ποσό</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paymentPlan.map((payment, i) => (
+                                <tr key={i} className="border-b">
+                                    <td className="py-2">{formatDate(payment.dueDate)}</td>
+                                    <td className="text-right">{formatCurrency(payment.amount)}</td>
+                                </tr>
+                            ))}
+                            <tr>
+                                <td className="py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
+                                <td className="text-right font-bold">{formatCurrency(total)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p className="mt-4 text-sm text-gray-600">* Οι τιμές δεν περιλαμβάνουν ΦΠΑ</p>
             </section>
 
             <CTABox />
@@ -206,6 +225,49 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         </ul>
                     </ModuleCard>
                 </div>
+            </section>
+
+            <section className="mb-8">
+                <h3 className="text-2xl font-semibold mb-4">Τεχνικές προδιαγραφές</h3>
+
+                <ul className="space-y-2">
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>H υπηρεσία προσφέρεται στο cloud της ΟpenCouncil, που φιλοξενείται στη Digital Ocean σε servers στην Ευρωπαϊκή Ένωση.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Θα καταβάλουμε κάθε δυνατή προσπάθεια για την μέγιστη δυνατή διαθεσιμότητα όλων των υπηρεσιών.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Μπορούμε να δουλέψουμε μαζί σας για τη χρήση κάποιου subdomain του δήμου, όμως η πλατφόρμα του opencouncil για το δήμο θα είναι διαθέσιμη και στο <a href="https://opencouncil.gr" className="underline">opencouncil.gr</a>.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Η αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλητών γίνεται με το Whisper της OpenAI, και το PyAnnote.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Χρησιμοποιούμε το Claude της Anthropic AI για τη παραγωγή συνόψεων, την εξαγωγή θεμάτων και άλλες υπηρεσίες.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Τα βίντεο των συνεδριάσεων προσφέρονται με adaptive bitrate streaming με χρήση του mux.com, σε ανάλυση ως και 720p.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Όλες οι τεχνολογίες και υπηρεσίες που χρησιμοποιούνται μπορεί να αλλάξουν μελλοντικά, καθώς νέες υπηρεσίες και τεχνολογίες γίνονται διαθέσιμες.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Η πλατφόρμα θα είναι διαθέσιμη σε όλες τις συσκευές, όπως κινητά, laptops, desktops, μέσω όλων των σύγχρονων περιηγητών διαδικτύου.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                        <span>Η πολιτική απορρήτου μας είναι διαθέσιμη στο <a href="/privacy" className="underline">opencouncil.gr/privacy</a> και οι όροι χρήσης στο <a href="/terms" className="underline">opencouncil.gr/terms</a>.</span>
+                    </li>
+                </ul>
             </section>
 
             <section className="mb-8">

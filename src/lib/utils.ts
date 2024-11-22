@@ -34,7 +34,15 @@ export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
 }
 
-export const calculateOfferTotals = (offer: Offer) => {
+export const calculateOfferTotals = (offer: Offer): {
+  months: number,
+  platformTotal: number,
+  ingestionTotal: number,
+  subtotal: number,
+  discount: number,
+  total: number,
+  paymentPlan: { dueDate: Date, amount: number }[]
+} => {
   const months = monthsBetween(offer.startDate, offer.endDate)
   const platformTotal = offer.platformPrice * months
   const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest
@@ -42,12 +50,43 @@ export const calculateOfferTotals = (offer: Offer) => {
   const discount = subtotal * (offer.discountPercentage / 100)
   const total = subtotal - discount
 
+  // Calculate payment dates
+  const startDate = new Date(offer.startDate)
+  const endDate = new Date(offer.endDate)
+  const midPoint = new Date((startDate.getTime() + endDate.getTime()) / 2)
+
+  // First payment date: Find Friday before midPoint - 15 days
+  const firstPaymentDate = new Date(midPoint)
+  firstPaymentDate.setDate(firstPaymentDate.getDate() - 15)
+  while (firstPaymentDate.getDay() !== 5) { // 5 = Friday
+    firstPaymentDate.setDate(firstPaymentDate.getDate() - 1)
+  }
+
+  // Second payment date: Find Friday before endDate - 15 days
+  const secondPaymentDate = new Date(endDate)
+  secondPaymentDate.setDate(secondPaymentDate.getDate() - 15)
+  while (secondPaymentDate.getDay() !== 5) {
+    secondPaymentDate.setDate(secondPaymentDate.getDate() - 1)
+  }
+
+  const paymentPlan = [
+    {
+      dueDate: firstPaymentDate,
+      amount: total / 2
+    },
+    {
+      dueDate: secondPaymentDate,
+      amount: total / 2
+    }
+  ]
+
   return {
     months,
     platformTotal,
     ingestionTotal,
     subtotal,
     discount,
-    total
+    total,
+    paymentPlan
   }
 }
