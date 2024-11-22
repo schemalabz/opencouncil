@@ -53,3 +53,14 @@ export async function getOffer(id: string): Promise<Offer | null> {
         throw new Error('Failed to fetch offer');
     }
 }
+
+export async function getOffers(): Promise<Offer[]> {
+    withUserAuthorizedToEdit({});
+    try {
+        const offers = await prisma.offer.findMany();
+        return offers;
+    } catch (error) {
+        console.error('Error fetching offers:', error);
+        throw new Error('Failed to fetch offers');
+    }
+}

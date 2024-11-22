@@ -347,10 +347,18 @@ model Offer {
   updatedAt DateTime @updatedAt
   type      String   @default("pilot")
 
+  startDate DateTime
+  endDate DateTime
+
   recipientName String
   platformPrice Float
   ingestionPerHourPrice Float
   hoursToIngest Int
   discountPercentage Float
   cityId String?
+
+  respondToEmail String
+  respondToPhone String
+  respondToName String
+
 }

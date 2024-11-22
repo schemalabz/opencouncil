@@ -7,7 +7,7 @@ import { Phone, Twitter } from 'lucide-react'
 
 export default function Footer() {
     return (
-        <footer className="w-full bg-background border-t">
+        <footer className="w-full bg-background border-t print:hidden">
             <div className="container mx-auto px-4 py-8">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div className="flex flex-col items-center md:items-start">

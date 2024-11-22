@@ -1,16 +1,10 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AdminSidebar } from "@/components/admin/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
+import React from "react"
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-    return (
-        <div className="flex h-[calc(100vh-65px)]">
-            <SidebarProvider>
-                <AdminSidebar />
-                <main className="flex-1">
-                    <SidebarTrigger />
-                    {children}
-                </main>
-            </SidebarProvider>
-        </div>
-    )
+export default async function Layout({ children }: { children: React.ReactNode }) {
+    return <SidebarProvider>
+        <AdminSidebar />
+        {children}
+    </SidebarProvider>
 }

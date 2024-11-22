@@ -1,20 +1,72 @@
+import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
     SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
     SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
 } from "@/components/ui/sidebar"
+const menuItems = [
+    {
+        title: "Dashboard",
+        icon: LayoutDashboard,
+        url: "/admin"
+    },
+    {
+        title: "Users",
+        icon: Users,
+        url: "/admin/users"
+    },
+    {
+        title: "Meetings",
+        icon: FileText,
+        url: "/admin/meetings"
+    },
+    {
+        title: "Offers",
+        icon: Files,
+        url: "/admin/offers"
+    },
+    {
+        title: "Settings",
+        icon: Settings,
+        url: "/admin/settings"
+    }
+]
 
 export function AdminSidebar() {
     return (
-        <Sidebar variant="inset" className="h-full">
-            <SidebarHeader />
+        <Sidebar collapsible="none" className="h-full">
+            <SidebarHeader className="p-4">
+                <h2 className="text-lg font-semibold">Admin Panel</h2>
+            </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup />
-                <SidebarGroup />
+                <SidebarGroup>
+                    <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            {menuItems.map((item) => (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton asChild>
+                                        <a href={item.url}>
+                                            <item.icon className="h-4 w-4" />
+                                            <span>{item.title}</span>
+                                        </a>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarContent>
-            <SidebarFooter />
+            <SidebarFooter className="p-4">
+                <p className="text-xs text-muted-foreground">Admin v1.0</p>
+            </SidebarFooter>
         </Sidebar>
     )
 }
