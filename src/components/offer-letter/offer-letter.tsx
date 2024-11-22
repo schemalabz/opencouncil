@@ -60,7 +60,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     </CardHeader>
                     <CardContent className="p-6">
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[600px]">
+                            <table className="w-full min-w-[500px] print:text-xs">
                                 <thead>
                                     <tr className="border-b">
                                         <th className="text-left py-2">Υπηρεσία</th>
@@ -71,7 +71,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 </thead>
                                 <tbody>
                                     <tr className="border-b">
-                                        <td className="py-2">Πλατφόρμα OpenCouncil.gr</td>
+                                        <td className="py-2">Πλατφόρμα OpenCouncil</td>
                                         <td className="text-right">{months} μήνες</td>
                                         <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
                                         <td className="text-right">{formatCurrency(platformTotal)}</td>
@@ -83,7 +83,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                         <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                                     </tr>
                                     <tr>
-                                        <td className="py-2">Συμμετοχή σε πιλοτικές λειτουργίες</td>
+                                        <td className="py-2">Πιλοτικές λειτουργίες</td>
                                         <td className="text-right">∞</td>
                                         <td className="text-right">{formatCurrency(0)}</td>
                                         <td className="text-right">{formatCurrency(0)}</td>
@@ -340,7 +340,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
             <div className="fixed bottom-4 right-4 print:hidden">
                 <Button onClick={() => window.print()}>Εκτύπωση</Button>
             </div>
-        </div>
+        </div >
     )
 }
 
