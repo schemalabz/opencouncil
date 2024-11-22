@@ -23,7 +23,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
     )
 
     return (
-        <div className="mx-auto p-8 print:p-4 space-y-8 print:space-y-4 print:text-sm">
+        <div className="mx-auto sm:p-8 print:p-4 space-y-8 print:space-y-4 print:text-sm">
             <OfferLetterNotice offer={offer} />
             <header className="text-center space-y-4">
                 <div className="flex items-center justify-center gap-4">
@@ -59,48 +59,50 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         <CardTitle>Κόστος</CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b">
-                                    <th className="text-left py-2">Υπηρεσία</th>
-                                    <th className="text-right py-2">Μονάδα</th>
-                                    <th className="text-right py-2">Τιμή</th>
-                                    <th className="text-right py-2">Σύνολο</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="border-b">
-                                    <td className="py-2">Πλατφόρμα OpenCouncil.gr</td>
-                                    <td className="text-right">{months} μήνες</td>
-                                    <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
-                                    <td className="text-right">{formatCurrency(platformTotal)}</td>
-                                </tr>
-                                <tr className="border-b">
-                                    <td className="py-2">Ψηφιοποίηση συνεδριάσεων</td>
-                                    <td className="text-right">{offer.hoursToIngest} ώρες</td>
-                                    <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
-                                    <td className="text-right">{formatCurrency(ingestionTotal)}</td>
-                                </tr>
-                                <tr>
-                                    <td className="py-2">Συμμετοχή σε πιλοτικές λειτουργίες</td>
-                                    <td className="text-right">∞</td>
-                                    <td className="text-right">{formatCurrency(0)}</td>
-                                    <td className="text-right">{formatCurrency(0)}</td>
-                                </tr>
-                                <tr className="border-b">
-                                    <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
-                                    <td className="text-right">{formatCurrency(subtotal)}</td>
-                                </tr>
-                                <tr className="border-b">
-                                    <td colSpan={3} className="text-right py-2">Έκπτωση Πιλοτικού Δήμου ({offer.discountPercentage}%)</td>
-                                    <td className="text-right">-{formatCurrency(discount)}</td>
-                                </tr>
-                                <tr>
-                                    <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
-                                    <td className="text-right font-bold">{formatCurrency(total)}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[600px]">
+                                <thead>
+                                    <tr className="border-b">
+                                        <th className="text-left py-2">Υπηρεσία</th>
+                                        <th className="text-right py-2">Μονάδα</th>
+                                        <th className="text-right py-2">Τιμή</th>
+                                        <th className="text-right py-2">Σύνολο</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr className="border-b">
+                                        <td className="py-2">Πλατφόρμα OpenCouncil.gr</td>
+                                        <td className="text-right">{months} μήνες</td>
+                                        <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
+                                        <td className="text-right">{formatCurrency(platformTotal)}</td>
+                                    </tr>
+                                    <tr className="border-b">
+                                        <td className="py-2">Ψηφιοποίηση συνεδριάσεων</td>
+                                        <td className="text-right">{offer.hoursToIngest} ώρες</td>
+                                        <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
+                                        <td className="text-right">{formatCurrency(ingestionTotal)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-2">Συμμετοχή σε πιλοτικές λειτουργίες</td>
+                                        <td className="text-right">∞</td>
+                                        <td className="text-right">{formatCurrency(0)}</td>
+                                        <td className="text-right">{formatCurrency(0)}</td>
+                                    </tr>
+                                    <tr className="border-b">
+                                        <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
+                                        <td className="text-right">{formatCurrency(subtotal)}</td>
+                                    </tr>
+                                    <tr className="border-b">
+                                        <td colSpan={3} className="text-right py-2">Έκπτωση Πιλοτικού Δήμου ({offer.discountPercentage}%)</td>
+                                        <td className="text-right">-{formatCurrency(discount)}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
+                                        <td className="text-right font-bold">{formatCurrency(total)}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                         <p className="mt-4 text-sm text-gray-600">* Οι τιμές δεν περιλαμβάνουν ΦΠΑ</p>
                     </CardContent>
                 </Card>
@@ -341,10 +343,9 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
         </div>
     )
 }
-
 export function OfferLetterNotice({ offer }: { offer: Offer }) {
     return (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex justify-between items-center print:bg-transparent print:border-none">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-transparent print:border-none">
             <div>
                 <p className="hidden print:block">
                     Μπορείτε να δείτε αυτή τη προσφορά ηλεκτρονικά σκανάροντας το QR code.
@@ -362,16 +363,15 @@ export function OfferLetterNotice({ offer }: { offer: Offer }) {
                     height={100}
                 />
             </div>
-            <div className="print:hidden flex gap-2">
+            <div className="print:hidden flex flex-col sm:flex-row gap-2">
                 <Button
                     onClick={() => window.print()}
-                    className="flex items-center gap-2"
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                     <FileText className="w-4 h-4" />
                     Εκτύπωση
                 </Button>
                 <CopyToClipboardButton offer={offer} />
-
             </div>
         </div>
     );
