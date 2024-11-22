@@ -316,23 +316,24 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </ul>
             </section>
 
-            <section className="mb-8">
-                <h3 className="text-2xl font-semibold mb-4">Στοιχεία Εταιρείας</h3>
-                <p className="">
-                    <em className="no-underline">OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.</em><br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
-                </p>
-                <p className="mt-2">
-                    H OpenCouncil ανήκει στην <a href="https://schemalabs.gr" className="underline">Schema Labs Αστική Μη Κερδοσκοπική Εταιρεία</a>.
-                </p>
-            </section>
-
-            <CTABox />
-            <footer className="mt-8 text-right">
-                <p className="mb-4">Με εκτίμηση,<br />εκ μέρους της ΟpenCouncil,</p>
-                <p className="font-bold">{offer.respondToName}</p>
-                <p>{offer.respondToEmail}</p>
-                <p>{offer.respondToPhone}</p>
-            </footer>
+            <div className="print:block">
+                <section className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4">Στοιχεία Εταιρείας</h3>
+                    <p className="">
+                        <em className="no-underline">OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.</em><br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
+                    </p>
+                    <p className="mt-2">
+                        H OpenCouncil ανήκει στην <a href="https://schemalabs.gr" className="underline">Schema Labs Αστική Μη Κερδοσκοπική Εταιρεία</a>.
+                    </p>
+                </section>
+                <CTABox />
+                <footer className="mt-8 text-right">
+                    <p className="mb-4">Με εκτίμηση,<br />εκ μέρους της ΟpenCouncil,</p>
+                    <p className="font-bold">{offer.respondToName}</p>
+                    <p>{offer.respondToEmail}</p>
+                    <p>{offer.respondToPhone}</p>
+                </footer>
+            </div>
 
             <div className="fixed bottom-4 right-4 print:hidden">
                 <Button onClick={() => window.print()}>Εκτύπωση</Button>
