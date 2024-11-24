@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files, Rocket } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -31,6 +31,11 @@ const menuItems = [
         title: "Offers",
         icon: Files,
         url: "/admin/offers"
+    },
+    {
+        title: "Waitlist",
+        icon: Rocket,
+        url: "/admin/waitlist"
     },
     {
         title: "Settings",
