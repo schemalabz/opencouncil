@@ -362,3 +362,12 @@ model Offer {
   respondToName String
 
 }
+
+model Waitlist {
+  id        String   @id  @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email String
+  municipalityIds String // comma-separated list of integers for now
+}
