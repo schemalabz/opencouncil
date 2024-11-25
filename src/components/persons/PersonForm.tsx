@@ -230,6 +230,9 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                                         <SelectValue placeholder={t('selectParty')} />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="">
+                                            {t('noParty')}
+                                        </SelectItem>
                                         {parties.map((party) => (
                                             <SelectItem key={party.id} value={party.id}>
                                                 {party.name}
