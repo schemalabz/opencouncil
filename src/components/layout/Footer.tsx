@@ -10,10 +10,14 @@ export default function Footer() {
         <footer className="w-full bg-background border-t print:hidden">
             <div className="container mx-auto px-4 py-8">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                    <div className="flex flex-col items-center md:items-start">
+                    <div className="flex flex-col items-center">
                         <Logo />
-                        <p className="mt-2 text-xs text-muted-foreground text-center md:text-left text-justify max-w-sm">
-                            Αυτόματη απομαγνητοφώνηση και οργάνωση δημοτικών συμβουλίων. Οι πληροφορίες που παρουσιάζονται ενδέχεται να περιέχουν λάθη.
+                        <p className="mt-2 text-xs text-muted-foreground md:text-left text-justify max-w-sm">
+                            Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.
+                        </p>
+                        <p className="mt-2 text-xs text-muted-foreground md:text-left text-justify max-w-sm">
+                            Η OpenCouncil είναι εταιρεία της <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>,
+                            μιας μη-κερδοσκοπικής εταιρείας που αναπτύσσει τεχνολογία για την ενίσχυση της δημοκρατίας.
                         </p>
                     </div>
                     <nav className="flex flex-col items-center md:items-start space-y-2">
@@ -75,7 +79,7 @@ export default function Footer() {
                     </div>
                 </div>
                 <div className="mt-8 pt-4 border-t border-border text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} OpenCouncil.
+                    © {new Date().getFullYear()} OpenCouncil
                 </div>
             </div>
         </footer>
