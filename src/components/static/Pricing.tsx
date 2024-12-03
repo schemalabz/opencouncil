@@ -55,7 +55,7 @@ export default function Pricing() {
 
         const yearlyHostingFee = monthlyFee * 12
         const yearlySessionFee = councilCount * averageDuration * 9
-        const yearlyAccuracyGuaranteeFee = needsAccuracyGuarantee ? councilCount * 80 : 0
+        const yearlyAccuracyGuaranteeFee = needsAccuracyGuarantee ? councilCount * 50 : 0
         const totalYearlyPrice = yearlyHostingFee + yearlySessionFee + yearlyAccuracyGuaranteeFee
 
         setCalculatedPrice(totalYearlyPrice)
