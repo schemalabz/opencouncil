@@ -8,7 +8,8 @@ import { Transcript as TranscriptType } from "@/lib/db/transcript"
 import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 
-export default function TranscriptControls({ isWide, className, speakerSegments }: { isWide: boolean, className?: string, speakerSegments: TranscriptType }) {
+export default function TranscriptControls({ isWide, className }: { isWide: boolean, className?: string }) {
+    const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
     const [isSliderHovered, setIsSliderHovered] = useState(false);

@@ -1,3 +1,4 @@
+"use client";
 import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo } from 'react';
@@ -6,8 +7,10 @@ import { Utterance } from "@prisma/client";
 import { Transcript as TranscriptType } from "@/lib/db/transcript";
 import { useInView } from 'react-intersection-observer';
 import { debounce } from '@/lib/utils';
+import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 
-export default function Transcript({ speakerSegments, isSheetOpen }: { speakerSegments: TranscriptType, isSheetOpen: boolean }) {
+export default function Transcript() {
+    const { transcript: speakerSegments } = useCouncilMeetingData();
     const { setCurrentScrollInterval } = useVideo();
     const containerRef = useRef<HTMLDivElement>(null);
 
