@@ -53,13 +53,11 @@ export default function Footer() {
                     <div className="flex flex-col items-center md:items-end">
                         <h3 className="font-semibold text-foreground">Επικοιvωνία</h3>
                         <a
-                            href="https://onair.io/opencouncil"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="tel:+302111980212"
                             className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
                         >
                             <Phone className="w-4 h-4 mr-2" />
-                            Καλέστε μας τώρα
+                            +30 2111980212
                         </a>
                         <a
                             href="https://twitter.com/christosporios"

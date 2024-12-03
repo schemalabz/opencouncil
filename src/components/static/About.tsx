@@ -73,9 +73,7 @@ export default function AboutPage() {
                                 Προγραμματίστε μια κλήση
                             </Button>
                             <a
-                                href="https://onair.io/opencouncil"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href="tel:+302111980212"
                                 className="inline-flex items-center justify-center"
                             >
                                 <Button size="lg" variant="outline">
@@ -250,7 +248,7 @@ export default function AboutPage() {
                             Προγραμματίστε μια κλήση
                         </Button>
                         <a
-                            href="https://onair.io/opencouncil"
+                            href="tel:+302111980212"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center justify-center"
