@@ -74,11 +74,11 @@ export default function AboutPage() {
                             </Button>
                             <a
                                 href="tel:+302111980212"
-                                className="inline-flex items-center justify-center"
+                                className="inline-flex items-center justify-center no-underline"
                             >
                                 <Button size="lg" variant="outline">
                                     <PhoneCall className="mr-2 h-4 w-4" />
-                                    Καλέστε μας τώρα
+                                    +30 2111980212
                                 </Button>
                             </a>
                         </motion.div>
@@ -251,11 +251,11 @@ export default function AboutPage() {
                             href="tel:+302111980212"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center"
+                            className="inline-flex items-center justify-center no-underline"
                         >
                             <Button size="lg" variant="secondary">
                                 <PhoneCall className="mr-2 h-4 w-4" />
-                                Καλέστε μας τώρα
+                                +30 2111980212
                             </Button>
                         </a>
                     </div>
