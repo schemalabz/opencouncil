@@ -80,7 +80,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <tr className="border-b">
                                     <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
                                     <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
-                                    <td className="text-right">{formatCurrency(50)}/συνεδρίαση</td>
+                                    <td className="text-right">{formatCurrency(80)}/συνεδρίαση</td>
                                     <td className="text-right">{formatCurrency(offer.meetingsToIngest * 50)}</td>
                                 </tr>
                             )}
