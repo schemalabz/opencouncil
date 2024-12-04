@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan, correctnessGuaranteeCost } = calculateOfferTotals(offer)
 
     const CTABox = () => (
         <Card className="my-8 bg-blue-50 print:break-inside-avoid">
@@ -80,8 +80,8 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <tr className="border-b">
                                     <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
                                     <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
-                                    <td className="text-right">{formatCurrency(80)}/συνεδρίαση</td>
-                                    <td className="text-right">{formatCurrency(offer.meetingsToIngest * 50)}</td>
+                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost / offer.meetingsToIngest)}/συνεδρίαση</td>
+                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost)}</td>
                                 </tr>
                             )}
                             <tr>

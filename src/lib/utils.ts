@@ -42,7 +42,7 @@ export const calculateOfferTotals = (offer: Offer): {
   discount: number,
   total: number,
   meetingsToIngest: number,
-  correctnessGuarantee: boolean,
+  correctnessGuaranteeCost: number,
   paymentPlan: { dueDate: Date, amount: number }[]
 } => {
   const months = monthsBetween(offer.startDate, offer.endDate)
@@ -91,7 +91,6 @@ export const calculateOfferTotals = (offer: Offer): {
     discount,
     total,
     meetingsToIngest: offer.meetingsToIngest || 0,
-    correctnessGuarantee: offer.correctnessGuarantee,
     paymentPlan
   }
 }
