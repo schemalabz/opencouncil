@@ -355,8 +355,10 @@ model Offer {
   ingestionPerHourPrice Float
   hoursToIngest Int
   discountPercentage Float
+  meetingsToIngest Int?
   cityId String?
 
+  correctnessGuarantee Boolean @default(false)
   respondToEmail String
   respondToPhone String
   respondToName String
