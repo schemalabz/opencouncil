@@ -91,6 +91,7 @@ export const calculateOfferTotals = (offer: Offer): {
     discount,
     total,
     meetingsToIngest: offer.meetingsToIngest || 0,
+    correctnessGuaranteeCost,
     paymentPlan
   }
 }
