@@ -6,4 +6,4 @@
 */
 -- AlterTable
 ALTER TABLE "Offer" ADD COLUMN     "correctnessGuarantee" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "meetingsToIngest" INTEGER NOT NULL;
+ADD COLUMN     "meetingsToIngest" INTEGER NOT NULL DEFAULT 0;
