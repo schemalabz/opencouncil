@@ -1,6 +1,6 @@
 'use client'
 import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion'
-import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone } from 'lucide-react'
+import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { useRef, useEffect, useState } from 'react'
@@ -60,7 +60,7 @@ export default function AboutPage() {
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.5, duration: 0.8 }}
                         >
-                            Κάνουμε τις συνεδριάσεις δημοτικών συμβουλίων χρήσιμες σε όλους
+                            Κάνουμε τους δημότες να νοιάζονται για το δήμο τους
                         </motion.p>
                         <motion.div
                             className="flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4"
@@ -73,14 +73,12 @@ export default function AboutPage() {
                                 Προγραμματίστε μια κλήση
                             </Button>
                             <a
-                                href="https://onair.io/opencouncil"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center"
+                                href="tel:+302111980212"
+                                className="inline-flex items-center justify-center no-underline"
                             >
                                 <Button size="lg" variant="outline">
                                     <PhoneCall className="mr-2 h-4 w-4" />
-                                    Καλέστε μας τώρα
+                                    +30 2111980212
                                 </Button>
                             </a>
                         </motion.div>
@@ -102,6 +100,7 @@ export default function AboutPage() {
                         <span className="sr-only">Scroll down for more content</span>
                     </motion.div>
                 </motion.section>
+
 
                 {/* Why OpenCouncil Section */}
                 <motion.section
@@ -141,6 +140,25 @@ export default function AboutPage() {
                     </div>
                 </motion.section>
 
+                <motion.div
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true }}
+                    className="text-center"
+                >
+                    <Button
+                        size="lg"
+                        className="bg-primary hover:bg-primary/90"
+                        asChild
+                    >
+                        <a href="/athens">
+                            <Building2 className="mr-2 h-5 w-5" />
+                            Δείτε το OpenCouncil για το Δήμο Αθηναίων
+                        </a>
+                    </Button>
+                </motion.div>
+
                 {/* Feature Showcase */}
                 <motion.section
                     className="py-16"
@@ -156,11 +174,14 @@ export default function AboutPage() {
                             { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
                             { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.' },
                             { icon: Sparkles, title: 'Highlights', description: 'Αυτόματη δημιουργία ολιγόλεπτων βίντεο με τα πιό σημαντικά μέρη κάθε συνεδρίασης.' },
-                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Οκτώβριος 2024' },
-                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', releaseDate: 'Σεπτέμβριος 2024' },
-                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', releaseDate: 'Σεπτέμβριος 2024' },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Νοέμβριος 2024' },
-                            { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' }
+                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Ιανουάριος 2025' },
+                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', releaseDate: 'Δεκέμβριος 2024' },
+                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.' },
+                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Φεβρουάριος 2025' },
+                            { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
+                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Αυτόματη αναγνώριση θεμάτων από την απομαγνητοφώνηση, και σύνδεση τους με την ημερήσια διάταξη της συνεδρίασης', releaseDate: 'Δεκέμβριος 2025' },
+                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Δεκέμβριος 2025' },
+                            { icon: Vote, title: 'Φυσική διαβούλευση', description: 'Κάντε μικρές διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Ιανουάριος 2025' }
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -227,14 +248,14 @@ export default function AboutPage() {
                             Προγραμματίστε μια κλήση
                         </Button>
                         <a
-                            href="https://onair.io/opencouncil"
+                            href="tel:+302111980212"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center"
+                            className="inline-flex items-center justify-center no-underline"
                         >
                             <Button size="lg" variant="secondary">
                                 <PhoneCall className="mr-2 h-4 w-4" />
-                                Καλέστε μας τώρα
+                                +30 2111980212
                             </Button>
                         </a>
                     </div>

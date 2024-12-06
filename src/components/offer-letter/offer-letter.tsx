@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan, correctnessGuaranteeCost } = calculateOfferTotals(offer)
 
     const CTABox = () => (
         <Card className="my-8 bg-blue-50 print:break-inside-avoid">
@@ -76,6 +76,14 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
+                            {offer.correctnessGuarantee && offer.meetingsToIngest && (
+                                <tr className="border-b">
+                                    <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
+                                    <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
+                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost / offer.meetingsToIngest)}/συνεδρίαση</td>
+                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost)}</td>
+                                </tr>
+                            )}
                             <tr>
                                 <td className="py-2">Πιλοτικές λειτουργίες</td>
                                 <td className="text-right">∞</td>
@@ -168,10 +176,17 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
                                 <span>Εισαγωγή των δεδομένων στη πλατφόρμα OpenCouncil, όπου γίνονται προσβάσιμα μέσω της σελίδας opencouncil.gr, του API και άλλων τρόπων.</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Η διαδικασία είναι αυτόματη, και τα δεδομένα που παράγονται μπορεί να περιέχουν λάθη. Όμως, δεσμευόμαστε να διορθώσουμε όποια λάθη προκύψουν από την αυτόματη διαδικασία, σύμφωνα με τη <a href='/corrections' className="underline">πολιτική διορθόσεων</a> μας.</span>
-                            </li>
+                            {offer.correctnessGuarantee ? (
+                                <li className="flex items-start gap-2">
+                                    <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                                    <span>Η απομαγνητοφώνηση κάθε συνεδρίασης θα ελέγχονται από άνθρωπο για την ακρίβειά της, εντός 36 ωρών από τη συνεδρίαση, αλλά συχνά και πιο σύντομα.</span>
+                                </li>
+                            ) : (
+                                <li className="flex items-start gap-2">
+                                    <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                                    <span>Η διαδικασία είναι αυτόματη, και τα δεδομένα που παράγονται μπορεί να περιέχουν λάθη. Όμως, δεσμευόμαστε να διορθώσουμε όποια λάθη προκύψουν από την αυτόματη διαδικασία, σύμφωνα με τη <a href='/corrections' className="underline">πολιτική διορθόσεων</a> μας.</span>
+                                </li>
+                            )}
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
                                 <span>Δεσμευόμαστε να ολοκληρώσουμε τη διαδικασία της ψηφιοποίησης 24 ώρες αφότου το αρχικό βίντεο μιας συνεδρίασης γίνει διαθέσιμο. Όμως, προσπαθούμε να ολοκληρώνουμε αυτή τη διαδικασία σε λιγότερο από 2 ώρες.</span>

@@ -41,12 +41,15 @@ export const calculateOfferTotals = (offer: Offer): {
   subtotal: number,
   discount: number,
   total: number,
+  meetingsToIngest: number,
+  correctnessGuaranteeCost: number,
   paymentPlan: { dueDate: Date, amount: number }[]
 } => {
   const months = monthsBetween(offer.startDate, offer.endDate)
   const platformTotal = offer.platformPrice * months
   const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest
-  const subtotal = platformTotal + ingestionTotal
+  const correctnessGuaranteeCost = offer.correctnessGuarantee && offer.meetingsToIngest ? offer.meetingsToIngest * 80 : 0
+  const subtotal = platformTotal + ingestionTotal + correctnessGuaranteeCost
   const discount = subtotal * (offer.discountPercentage / 100)
   const total = subtotal - discount
 
@@ -87,6 +90,8 @@ export const calculateOfferTotals = (offer: Offer): {
     subtotal,
     discount,
     total,
+    meetingsToIngest: offer.meetingsToIngest || 0,
+    correctnessGuaranteeCost,
     paymentPlan
   }
 }

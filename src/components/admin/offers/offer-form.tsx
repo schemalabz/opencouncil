@@ -28,6 +28,7 @@ import { getCities } from '@/lib/db/cities'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect } from 'react'
 import { calculateOfferTotals, formatCurrency } from '@/lib/utils'
+import { Switch } from "@/components/ui/switch"
 
 const formSchema = z.object({
     recipientName: z.string().min(2, {
@@ -61,7 +62,9 @@ const formSchema = z.object({
     respondToPhone: z.string().min(10, {
         message: "Please enter a valid phone number.",
     }),
-    cityId: z.string().optional()
+    cityId: z.string().optional(),
+    correctnessGuarantee: z.boolean().default(false),
+    meetingsToIngest: z.number().int().min(1).max(100).optional()
 })
 
 interface OfferFormProps {
@@ -104,7 +107,9 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
             respondToName: offer?.respondToName || "",
             respondToEmail: offer?.respondToEmail || "",
             respondToPhone: offer?.respondToPhone || "",
-            cityId: cityId || offer?.cityId || undefined
+            cityId: cityId || offer?.cityId || undefined,
+            correctnessGuarantee: offer?.correctnessGuarantee || false,
+            meetingsToIngest: offer?.meetingsToIngest || 1
         },
     })
 
@@ -118,12 +123,16 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
             if (offer) {
                 await updateOffer(offer.id, {
                     ...values,
-                    cityId: values.cityId || null
+                    cityId: values.cityId || null,
+                    meetingsToIngest: values.correctnessGuarantee ? values.meetingsToIngest : null,
+                    correctnessGuarantee: values.correctnessGuarantee
                 })
             } else {
                 await createOffer({
                     ...values,
-                    cityId: values.cityId || null
+                    cityId: values.cityId || null,
+                    meetingsToIngest: values.correctnessGuarantee ? values.meetingsToIngest! : null,
+                    correctnessGuarantee: values.correctnessGuarantee
                 })
             }
 
@@ -145,7 +154,9 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 respondToName: "",
                 respondToEmail: "",
                 respondToPhone: "",
-                cityId: undefined
+                cityId: undefined,
+                correctnessGuarantee: false,
+                meetingsToIngest: 1
             })
             toast({
                 title: t('success'),
@@ -310,6 +321,59 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                             </FormControl>
                             <FormDescription>
                                 {t('discountPercentageDescription')}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="correctnessGuarantee"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base">
+                                    {t('correctnessGuarantee')}
+                                </FormLabel>
+                                <FormDescription>
+                                    {t('correctnessGuaranteeDescription')}
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="meetingsToIngest"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('meetingsToIngest')}</FormLabel>
+                            <FormControl>
+                                <div className="flex items-center gap-2">
+                                    <Slider
+                                        disabled={!form.watch('correctnessGuarantee')}
+                                        min={1}
+                                        max={100}
+                                        step={1}
+                                        value={[field.value || 1]}
+                                        onValueChange={([value]) => field.onChange(value)}
+                                    />
+                                    <span className="w-12 text-sm">{field.value || 1}</span>
+                                </div>
+                            </FormControl>
+                            <FormDescription>
+                                {!form.watch('correctnessGuarantee')
+                                    ? t('meetingsToIngestDisabledDescription')
+                                    : t('meetingsToIngestDescription')
+                                }
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
