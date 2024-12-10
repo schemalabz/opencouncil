@@ -1,3 +1,4 @@
+"use client"
 import { Play, Pause, Loader, Maximize2 } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
@@ -8,13 +9,26 @@ import { Transcript as TranscriptType } from "@/lib/db/transcript"
 import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 
-export default function TranscriptControls({ isWide, className }: { isWide: boolean, className?: string }) {
+export default function TranscriptControls({ className }: { className?: string }) {
     const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
+    const [isWide, setIsWide] = useState(false);
+
+    useEffect(() => {
+        const checkSize = () => {
+            setIsWide(window.innerWidth > window.innerHeight)
+        }
+
+        checkSize()
+        window.addEventListener('resize', checkSize)
+
+        return () => window.removeEventListener('resize', checkSize)
+    }, [])
+
 
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -89,7 +103,7 @@ export default function TranscriptControls({ isWide, className }: { isWide: bool
                     setIsSliderHovered(false);
                     handleMouseLeave();
                 }}
-                className={cn(`cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 left-2 bottom-2 w-16'} flex ${isWide ? 'flex-row' : 'flex-col'} items-center `, className)}>
+                className={cn(`cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 right-2 bottom-2 w-16'} flex ${isWide ? 'flex-row' : 'flex-col'} items-center z-50 `, className)}>
 
                 <button
                     onClick={togglePlayPause}

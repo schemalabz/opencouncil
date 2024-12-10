@@ -6,23 +6,9 @@ import { useEffect, useState } from "react";
 
 export default function TranscriptPage() {
     const { transcript: speakerSegments } = useCouncilMeetingData();
-    const [isWide, setIsWide] = useState(false);
-
-
-    useEffect(() => {
-        const checkSize = () => {
-            setIsWide(window.innerWidth > window.innerHeight)
-        }
-
-        checkSize()
-        window.addEventListener('resize', checkSize)
-
-        return () => window.removeEventListener('resize', checkSize)
-    }, [])
 
     return <>
         {speakerSegments.length}
         <Transcript />
-        <TranscriptControls isWide={isWide} />
     </>
 }

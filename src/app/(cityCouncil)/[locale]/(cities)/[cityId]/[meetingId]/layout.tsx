@@ -12,6 +12,7 @@ import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import Header from '@/components/meetings/Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
+import TranscriptControls from '@/components/meetings/TranscriptControls';
 
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
@@ -73,6 +74,7 @@ export default async function CouncilMeetingPage({
                 <Header />
                 {children}
             </div>
+            <TranscriptControls />
         </SidebarProvider>
     </CouncilMeetingWrapper >
 }

@@ -1,4 +1,5 @@
 import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files, Rocket } from "lucide-react"
+import Link from "next/link"
 import {
     Sidebar,
     SidebarContent,
@@ -58,10 +59,10 @@ export function AdminSidebar() {
                             {menuItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild>
-                                        <a href={item.url}>
+                                        <Link href={item.url}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}

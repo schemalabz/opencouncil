@@ -1,5 +1,5 @@
 "use client"
-import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight } from "lucide-react"
+import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -12,9 +12,12 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarTrigger,
+    useSidebar,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState } from "react"
+import { useVideo } from "./VideoProvider"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
@@ -46,7 +49,7 @@ export default function MeetingSidebar() {
     return (
         <Sidebar collapsible="icon" className="h-full">
             <SidebarHeader className="p-4">
-                <h2 className="text-lg font-semibold">Συνεδρίαση</h2>
+                <ControlsWidget />
             </SidebarHeader>
             <SidebarContent>
                 <SidebarGroup>
@@ -55,10 +58,10 @@ export default function MeetingSidebar() {
                             {mainMenuItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton asChild>
-                                        <a href={item.url}>
+                                        <Link href={item.url}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
-                                        </a>
+                                        </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
                             ))}
@@ -92,4 +95,51 @@ export default function MeetingSidebar() {
             </SidebarFooter>
         </Sidebar>
     )
+}
+
+function ControlsWidget() {
+    const { isPlaying, togglePlayPause, isSeeking, currentTime, duration } = useVideo();
+    const { state } = useSidebar();
+
+    const formatTime = (time: number) => {
+        const hours = Math.floor(time / 3600);
+        const minutes = Math.floor((time % 3600) / 60);
+        const seconds = Math.floor(time % 60);
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    if (state === "collapsed") {
+        return (
+            <button onClick={togglePlayPause} className="flex items-center justify-center">
+                {isPlaying ?
+                    (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
+                    : <Play className="h-4 w-4" />
+                }
+            </button>
+        );
+    }
+
+    return (
+        <div className="w-full space-y-2">
+            <div className="flex items-center justify-between">
+                <button onClick={togglePlayPause} className="flex items-center gap-2">
+                    {isPlaying ?
+                        (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
+                        : <Play className="h-4 w-4" />
+                    }
+                    <span className="text-sm">{formatTime(currentTime)}</span>
+                </button>
+                <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-secondary">
+                <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${(currentTime / duration) * 100}%` }}
+                />
+            </div>
+        </div>
+    );
 }
