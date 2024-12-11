@@ -436,11 +436,12 @@ export function OfferLetterNotice({ offer }: { offer: Offer }) {
                 </p>
             </div>
             <div className="hidden print:block">
-                <img
+                <Image
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=https://opencouncil.gr/offer-letter/${offer.id}`}
                     alt="QR Code"
                     width={100}
                     height={100}
+                    unoptimized
                 />
             </div>
             <div className="print:hidden flex flex-col gap-2">

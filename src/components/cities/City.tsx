@@ -19,6 +19,7 @@ import PersonForm from '@/components/persons/PersonForm';
 import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
@@ -54,7 +55,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
 
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
-                    <img src={city.logoImage} alt={`${city.name} logo`} className="w-16 h-16 object-contain hidden md:block" />
+                    <Image src={city.logoImage} alt={`${city.name} logo`} width={64} height={64} className="object-contain hidden md:block" />
                     <div>
                         <h1 className="text-3xl font-bold">{city.name}</h1>
                         <span className="text-md text-gray-600">

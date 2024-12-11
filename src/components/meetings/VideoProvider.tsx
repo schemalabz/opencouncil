@@ -48,6 +48,22 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const playerRef = useRef<HTMLVideoElement | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
 
+    // Scroll to the last utterance before the seek time or the first utterance if none before
+    const scrollToUtterance = useCallback((time: number) => {
+        const lastUtteranceBeforeTime = utterances
+            .filter(u => u.startTimestamp <= time)
+            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
+
+        const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
+
+        if (utteranceToScrollTo) {
+            const utteranceElement = document.getElementById(utteranceToScrollTo.id);
+            if (utteranceElement) {
+                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [utterances]);
+
     useEffect(() => {
         const player = playerRef.current;
         const updateDuration = () => {
@@ -62,7 +78,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         return () => {
             player?.removeEventListener('loadedmetadata', updateDuration);
         };
-    }, [playerRef.current, utterances]);
+    }, [utterances]);
 
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -79,7 +95,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 setTimeout(() => scrollToUtterance(seconds), 1000);
             }
         }
-    }, []);
+    }, [utterances, scrollToUtterance]);
 
     const playVideo = async () => {
         if (playerRef.current) {
@@ -127,22 +143,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         setPlaybackSpeed(value);
         if (playerRef.current) {
             playerRef.current.playbackRate = parseFloat(value);
-        }
-    };
-
-    // Scroll to the last utterance before the seek time or the first utterance if none before
-    const scrollToUtterance = (time: number) => {
-        const lastUtteranceBeforeTime = utterances
-            .filter(u => u.startTimestamp <= time)
-            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
-
-        const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
-
-        if (utteranceToScrollTo) {
-            const utteranceElement = document.getElementById(utteranceToScrollTo.id);
-            if (utteranceElement) {
-                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
         }
     };
 
