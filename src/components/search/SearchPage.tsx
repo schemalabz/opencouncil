@@ -3,7 +3,7 @@
 import { Search, Sparkles } from "lucide-react";
 import { Input } from "../ui/input";
 import MetadataFilters, { Filters } from "./MetadataFilters";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { SearchResult, search as searchFn } from "@/lib/search/search";
 import { Result } from "./Result";
 import AnimatedGradientText from "../magicui/animated-gradient-text";
@@ -25,16 +25,16 @@ export default function SearchPage() {
     const [isSearching, setIsSearching] = useState(false);
     const [query, setQuery] = useState(searchParams.get('query') || "");
 
-    const updateUrl = () => {
+    const updateUrl = useCallback(() => {
         const params = new URLSearchParams();
         if (query) params.set('query', query);
         if (filters.cityId) params.set('cityId', filters.cityId);
         if (filters.personId) params.set('personId', filters.personId);
         if (filters.partyId) params.set('partyId', filters.partyId);
         router.push(`?${params.toString()}`, { scroll: false });
-    };
+    }, [query, filters.cityId, filters.personId, filters.partyId, router]);
 
-    const search = async () => {
+    const search = useCallback(async () => {
         setIsSearching(true);
         updateUrl();
         const newResults = await searchFn({
@@ -45,13 +45,13 @@ export default function SearchPage() {
         });
         setResults(newResults);
         setIsSearching(false);
-    }
+    }, [query, filters.cityId, filters.personId, filters.partyId, updateUrl]);
 
     useEffect(() => {
         if (query || filters.cityId || filters.personId || filters.partyId) {
             search();
         }
-    }, []);
+    }, [query, filters.cityId, filters.personId, filters.partyId, search]);
 
     useEffect(() => {
         const fetchInitialFilterData = async () => {
@@ -81,7 +81,7 @@ export default function SearchPage() {
         };
 
         fetchInitialFilterData();
-    }, []);
+    }, [filters.cityId, filters.personId, filters.partyId]);
 
     return (
         <div className="flex flex-col gap-4">
