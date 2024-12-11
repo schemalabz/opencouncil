@@ -1,6 +1,26 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
+// Helper function to create words
+const createWords = (text: string, startTime: number, wordDuration = 5) => {
+  const words = text.split(' ')
+  return words.map((word, index) => ({
+    text: word,
+    startTimestamp: startTime + (index * wordDuration),
+    endTimestamp: startTime + ((index + 1) * wordDuration),
+  }))
+}
+
+// Helper function to create utterances
+const createUtterance = (text: string, startTime: number, duration: number) => ({
+  startTimestamp: startTime,
+  endTimestamp: startTime + duration,
+  text,
+  words: {
+    create: createWords(text, startTime)
+  }
+})
+
 async function main() {
   // Create a city
   const city = await prisma.city.create({
@@ -9,7 +29,7 @@ async function main() {
       name_en: 'Athens',
       name_municipality: 'Δήμος Αθηναίων',
       name_municipality_en: 'Municipality of Athens',
-      logoImage: 'https://www.cityofathens.gr/sites/default/files/styles/large/public/2020-03/dimos_athinaiwn_sima.png',
+      logoImage: 'https://data.opencouncil.gr/city-logos/cce17f59-3df0-406b-ad66-112e7214f9bb.png',
       timezone: 'Europe/Athens',
       officialSupport: false,
       isListed: true,
@@ -20,30 +40,30 @@ async function main() {
   const parties = await Promise.all([
     prisma.party.create({
       data: {
-        name: 'Αθήνα Ψηλά',
-        name_en: 'Athens High',
-        name_short: 'ΑΨ',
-        name_short_en: 'AH',
+        name: 'Πρόοδος και Ανάπτυξη',
+        name_en: 'Progress and Development',
+        name_short: 'ΠΑ',
+        name_short_en: 'PD',
         colorHex: '#2196f3',
         cityId: city.id,
       },
     }),
     prisma.party.create({
       data: {
-        name: 'Ανοιχτή Πόλη',
-        name_en: 'Open City',
-        name_short: 'ΑΠ',
-        name_short_en: 'OC',
+        name: 'Δημοτική Αναγέννηση',
+        name_en: 'Municipal Renaissance',
+        name_short: 'ΔΑ',
+        name_short_en: 'MR',
         colorHex: '#f44336',
         cityId: city.id,
       },
     }),
     prisma.party.create({
       data: {
-        name: 'Λαϊκή Συσπείρωση',
-        name_en: 'Popular Rally',
-        name_short: 'ΛΣ',
-        name_short_en: 'PR',
+        name: 'Πολίτες Μπροστά',
+        name_en: 'Citizens Forward',
+        name_short: 'ΠΜ',
+        name_short_en: 'CF',
         colorHex: '#e91e63',
         cityId: city.id,
       },
@@ -53,10 +73,10 @@ async function main() {
   // Create council members
   const mayor = await prisma.person.create({
     data: {
-      name: 'Κώστας Μπακογιάννης',
-      name_en: 'Kostas Bakoyannis',
-      name_short: 'Κ. Μπακογιάννης',
-      name_short_en: 'K. Bakoyannis',
+      name: 'Γεώργιος Δημητρίου',
+      name_en: 'Georgios Dimitriou',
+      name_short: 'Γ. Δημητρίου',
+      name_short_en: 'G. Dimitriou',
       role: 'Δήμαρχος',
       role_en: 'Mayor',
       isAdministrativeRole: true,
@@ -68,10 +88,10 @@ async function main() {
   const members = await Promise.all([
     prisma.person.create({
       data: {
-        name: 'Νίκος Παπαδάκης',
-        name_en: 'Nikos Papadakis',
-        name_short: 'Ν. Παπαδάκης',
-        name_short_en: 'N. Papadakis',
+        name: 'Ανδρέας Αντωνίου',
+        name_en: 'Andreas Antoniou',
+        name_short: 'Α. Αντωνίου',
+        name_short_en: 'A. Antoniou',
         role: 'Δημοτικός Σύμβουλος',
         role_en: 'Council Member',
         cityId: city.id,
@@ -80,10 +100,10 @@ async function main() {
     }),
     prisma.person.create({
       data: {
-        name: 'Μαρία Κουτσούρη',
-        name_en: 'Maria Koutsouri',
-        name_short: 'Μ. Κουτσούρη',
-        name_short_en: 'M. Koutsouri',
+        name: 'Ελένη Παππά',
+        name_en: 'Eleni Pappa',
+        name_short: 'Ε. Παππά',
+        name_short_en: 'E. Pappa',
         role: 'Δημοτική Σύμβουλος',
         role_en: 'Council Member',
         cityId: city.id,
@@ -137,34 +157,38 @@ async function main() {
         speakerTagId: speakerTags[0].id,
         utterances: {
           create: [
-            {
-              startTimestamp: 0,
-              endTimestamp: 60,
-              text: 'Καλησπέρα σας. Καλώς ήρθατε στη σημερινή συνεδρίαση του δημοτικού συμβουλίου.',
-              words: {
-                create: [
-                  {
-                    text: 'Καλησπέρα',
-                    startTimestamp: 0,
-                    endTimestamp: 10,
-                  },
-                  {
-                    text: 'σας',
-                    startTimestamp: 10,
-                    endTimestamp: 15,
-                  },
-                ],
-              },
-            },
-          ],
+            createUtterance('Καλησπέρα σας. Καλώς ήρθατε στη σημερινή συνεδρίαση του δημοτικού συμβουλίου.', 0, 60),
+            createUtterance('Σήμερα έχουμε πολλά σημαντικά θέματα προς συζήτηση.', 60, 30),
+            createUtterance('Θα ξεκινήσουμε με το θέμα της καθαριότητας στο κέντρο της πόλης.', 90, 30)
+          ]
         },
         summary: {
           create: {
-            text: 'Ο Δήμαρχος καλωσορίζει το συμβούλιο',
+            text: 'Ο Δήμαρχος καλωσορίζει το συμβούλιο και εισάγει τα θέματα της ημερήσιας διάταξης'
           },
         },
       },
     }),
+    prisma.speakerSegment.create({
+      data: {
+        startTimestamp: 120,
+        endTimestamp: 240,
+        meetingId: meeting.id,
+        cityId: city.id,
+        speakerTagId: speakerTags[1].id,
+        utterances: {
+          create: [
+            createUtterance('Κύριε Δήμαρχε, θα ήθελα να θέσω ένα ζήτημα σχετικά με τις δημοτικές συγκοινωνίες.', 120, 60),
+            createUtterance('Οι δημότες διαμαρτύρονται για τα δρομολόγια στις απομακρυσμένες γειτονιές.', 180, 60)
+          ]
+        },
+        summary: {
+          create: {
+            text: 'Ο δημοτικός σύμβουλος θέτει ζήτημα για τις δημοτικές συγκοινωνίες'
+          },
+        },
+      },
+    })
   ])
 
   // Create topics
@@ -193,9 +217,15 @@ async function main() {
         topicId: topics[0].id,
       },
     }),
+    prisma.topicLabel.create({
+      data: {
+        speakerSegmentId: segments[1].id,
+        topicId: topics[1].id,
+      },
+    }),
   ])
 
-  // Create a highlight
+  // Create highlights
   const highlight = await prisma.highlight.create({
     data: {
       name: 'Εισαγωγική τοποθέτηση Δημάρχου',
