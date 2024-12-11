@@ -148,3 +148,8 @@ a:hover {
 a:hover.unstyled {
   text-decoration: none;
 }
+
+
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}
