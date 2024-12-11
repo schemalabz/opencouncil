@@ -23,3 +23,39 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 - **Data Models**: Prisma ORM for type-safe database access
 - **Media Processing**: Support for video (YouTube, Mux) and audio processing
 - **AI Features**: Text embeddings and natural language processing for search and summaries
+
+## Development Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Set up your environment variables by copying `.env.example` to `.env` and filling in the values:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Set up the database:
+   ```bash
+   # Generate Prisma client
+   npm run prisma:generate
+
+   # Run migrations
+   npm run prisma:migrate
+
+   # Seed the database with sample data
+   npm run prisma:seed
+   ```
+
+   The seeding script will create:
+   - A sample city (Athens) with its council
+   - Three political parties with realistic colors and names
+   - Council members including a mayor and council members
+   - A sample council meeting with transcribed segments
+   - Topics and highlights for the meeting
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
