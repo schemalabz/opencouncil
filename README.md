@@ -16,13 +16,12 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 
 ## Technical Architecture
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app). The application uses:
+This is a [Next.js](https://nextjs.org/) web application:
 
 - **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL with pgvector for embeddings
 - **Data Models**: Prisma ORM for type-safe database access
-- **Media Processing**: Support for video (YouTube, Mux) and audio processing
-- **AI Features**: Text embeddings and natural language processing for search and summaries
+- **Tasks**: This Next.js app calls the backend task server, for media processing and AI features. 
 
 ## Development Setup
 
@@ -31,31 +30,26 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
    npm install
    ```
 
-2. Set up your environment variables by copying `.env.example` to `.env` and filling in the values:
+2. Optionally, start a dockerized PostgreSQL databse with the pgvector extension installed by using the docker file:
+   ```bash
+   docker compose up db -d
+   ```
+
+3. Set up your environment variables by copying `.env.example` to `.env` and filling in the values:
    ```bash
    cp .env.example .env
    ```
 
-3. Set up the database:
+4. Set up the database:
    ```bash
-   # Generate Prisma client
-   npm run prisma:generate
-
    # Run migrations
    npm run prisma:migrate
 
-   # Seed the database with sample data
+   # Optionally, seed the database with sample data
    npm run prisma:seed
    ```
 
-   The seeding script will create:
-   - A sample city (Athens) with its council
-   - Three political parties with realistic colors and names
-   - Council members including a mayor and council members
-   - A sample council meeting with transcribed segments
-   - Topics and highlights for the meeting
-
-4. Start the development server:
+5. Start the development server:
    ```bash
    npm run dev
    ```
