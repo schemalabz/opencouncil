@@ -31,14 +31,11 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
         router.push(`/meetings/edit/${meeting.id}`);
     };
 
-    const getStatistics = () => {
+    useEffect(() => {
         getStatisticsFor({ meetingId: meeting.id, cityId: meeting.cityId }, ['person', 'topic', 'party']).then((statistics) => {
             setStatistics(statistics as StatisticsOfCouncilMeeting);
         });
-    }
-    useEffect(() => {
-        getStatistics();
-    }, []);
+    }, [meeting.id, meeting.cityId]);
 
 
     return (

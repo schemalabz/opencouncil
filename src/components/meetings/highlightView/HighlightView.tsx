@@ -48,7 +48,7 @@ const HighlightCard = ({
         setTimeout(() => {
             setIsPlaying(true)
         }, 100);
-    }, [utterances]);
+    }, [utterances, seekTo, setCurrentUtteranceIndex, setIsPlaying]);
 
     useEffect(() => {
         if (isSeeking || !hasStartedPlaying) return;
@@ -64,7 +64,7 @@ const HighlightCard = ({
                 onEnded()
             }
         }
-    }, [currentTime, isSeeking, hasStartedPlaying])
+    }, [currentTime, isSeeking, hasStartedPlaying, currentUtteranceIndex, utterances, seekTo, setCurrentUtteranceIndex, onEnded])
 
     return (
         <div className="bg-gray-900 text-white h-full w-full snap-start flex flex-col justify-center p-4">

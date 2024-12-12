@@ -16,10 +16,40 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 
 ## Technical Architecture
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app). The application uses:
+This is a [Next.js](https://nextjs.org/) web application:
 
 - **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL with pgvector for embeddings
 - **Data Models**: Prisma ORM for type-safe database access
-- **Media Processing**: Support for video (YouTube, Mux) and audio processing
-- **AI Features**: Text embeddings and natural language processing for search and summaries
+- **Tasks**: This Next.js app calls the backend task server, for media processing and AI features. 
+
+## Development Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Optionally, start a dockerized PostgreSQL databse with the pgvector extension installed by using the docker file:
+   ```bash
+   docker compose up db -d
+   ```
+
+3. Set up your environment variables by copying `.env.example` to `.env` and filling in the values:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Set up the database:
+   ```bash
+   # Run migrations
+   npm run prisma:migrate
+
+   # Optionally, seed the database with sample data
+   npm run prisma:seed
+   ```
+
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```

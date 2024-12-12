@@ -83,7 +83,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                 .toLowerCase().replace(/\s/g, '').replace(',', '_');
             form.setValue('meetingId', formattedDate);
         }
-    }, [form.watch('date')])
+    }, [form])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
