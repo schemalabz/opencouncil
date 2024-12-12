@@ -54,9 +54,10 @@ export const TitlePage = ({ meeting, city }: { meeting: CouncilMeeting, city: Ci
             <View style={{ flexDirection: 'column', alignItems: 'center' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text */}
                         <Image
                             style={styles.logo}
-                            src="/logo.png" // Replace with the actual path to your logo
+                            src="/logo.png"
                         />
                         <Text style={styles.headerText}>OpenCouncil</Text>
                     </View>

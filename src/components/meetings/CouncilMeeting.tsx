@@ -54,7 +54,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
         return meetingData.transcript.map((u) => u.utterances).flat()
     }, [meetingData.transcript]);
 
-    const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting.id]);
+    const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting]);
 
     useEffect(() => {
         const checkSize = () => {
@@ -104,11 +104,9 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                 <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                     {mode === 'transcript' ? (
                         <div className="flex flex-col overflow-hidden absolute inset-0 h-[100dvh]">
-                            <Header showHiglightButton={meetingData.highlights.length > 0} city={meetingData.city} meeting={meetingData.meeting} switchToHighlights={() => setMode('highlights')} isWide={isWide} activeSection={activeSection} setActiveSection={(sn) => sn === activeSection ? setActiveSection(null) : setActiveSection(sn)} sections={sections} />
                             <div className={`flex-grow flex overflow-hidden ${isWide ? '' : 'ml-12'}`}>
                                 <div className={`${isWide && activeSection ? 'w-1/2' : 'w-full'} flex flex-col scrollbar-hide`} style={{ backgroundColor: '#fefef9' }}>
                                     <div className='flex-grow overflow-y-auto scrollbar-hide pb-24'>
-                                        <Transcript speakerSegments={meetingData.transcript} isSheetOpen={!!activeSection} />
                                     </div>
                                 </div>
 
@@ -121,7 +119,6 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                                 )}
                             </div>
 
-                            <TranscriptControls isWide={isWide} className={!isWide ? "top-24 bottom-4" : ""} speakerSegments={meetingData.transcript} />
 
                             <CurrentTimeButton isWide={isWide} />
 

@@ -54,7 +54,7 @@ export function Statistics() {
                 minutes: Math.round(person.speakingSeconds / 60),
                 fill: (person.item.partyId && getParty(person.item.partyId)?.colorHex) ?? "gray"
             }));
-    }, [statistics]);
+    }, [statistics, getParty]);
 
     const chartConfig: ChartConfig = {
         minutes: {

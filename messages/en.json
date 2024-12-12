@@ -1,17 +1,27 @@
 {
+    "PilotPage": {
+        "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
+        "subtitle": "The information contained may have errors.",
+        "promo": "Open local government",
+        "words": "words",
+        "minutes": "minutes of speech",
+        "people": "speakers",
+        "meetings": "meetings"
+    },
     "Header": {
         "about": "For Municipalities"
     },
     "Footer": {
-        "privacy": "Privacy Policy",
+        "privacy": "Privacy Policy", 
         "terms": "Terms of Service",
         "contact": "Contact Us",
-        "copyright": "All rights reserved"
+        "copyright": "All rights reserved",
+        "disclaimer": "The information shown is automatically collected and may not be accurate."
     },
     "CitiesList": {
         "searchPlaceholder": "Search cities...",
         "addCity": "Add City",
-        "addNewCity": "Add New City",
+        "addNewCity": "Add New City", 
         "noCitiesFound": "No cities found",
         "editCity": "Edit City"
     },
@@ -25,7 +35,7 @@
         "cityIdDescription": "The ID will be used in the city's URL.",
         "submitting": "Submitting...",
         "updateCity": "Update City",
-        "createCity": "Create City",
+        "createCity": "Create City", 
         "cancel": "Cancel",
         "failedToSaveCity": "Failed to save city",
         "unexpectedError": "An unexpected error occurred",
@@ -42,17 +52,20 @@
         "cityNameEnDescription": "Enter the name of the city in English.",
         "cityMunicipalityPlaceholder": "Municipality Name",
         "cityMunicipalityDescription": "Enter the name of the municipality.",
-        "cityMunicipalityEnPlaceholder": "Municipality Name (English)",
+        "cityMunicipalityEnPlaceholder": "Municipality Name (English)", 
         "cityMunicipalityEnDescription": "Enter the name of the municipality in English."
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",
-        "councilMeetingsTracked": "council meetings tracked on OpenCouncil",
+        "councilMeetingsTracked": "{count, plural, =0 {No council meetings on OpenCouncil} =1 {1 council meeting on OpenCouncil} other {# council meetings on OpenCouncil}}",
         "councilMeetings": "Council Meetings",
         "members": "Members",
         "parties": "Parties",
         "membersComingSoon": "Members will be available soon",
-        "partiesComingSoon": "Parties will be available soon"
+        "partiesComingSoon": "Parties will be available soon",
+        "addCity": "Add City",
+        "editCity": "Edit City",
+        "searchInCity": "Search in city council meetings"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",
@@ -68,128 +81,145 @@
         "cancel": "Cancel",
         "failedToAddMeeting": "Failed to add meeting",
         "unexpectedError": "An unexpected error occurred",
-        "noVideosFound": "No videos found"
+        "noVideosFound": "No videos found",
+        "details": "Details",
+        "meetingId": "Meeting ID",
+        "meetingIdDescription": "The ID will be used in the meeting's URL.",
+        "meetingNameEnPlaceholder": "Enter the meeting name in English",
+        "meetingNameEnDescription": "Provide the meeting name in English."
     },
     "NotFoundPage": {
         "title": "Not Found",
-        "description": "The page you are looking for does not exist."
+        "description": "The page you requested was not found."
     },
     "AboutPage": {
         "hero": {
-            "title": "Engage citizens with local government",
-            "subtitle": "OpenCouncil makes city council meetings in 🇬🇷 Greece accessible to everyone",
+            "title": "Bringing citizens closer to local government",
+            "subtitle": "OpenCouncil makes city council work visible and accessible to everyone",
             "getStarted": "Get Started",
             "scheduleCall": "Schedule a Call"
-        },
-        "features": {
-            "title": "Features",
-            "speakerRecognition": {
-                "title": "Speaker Recognition",
-                "description": "Accurately identify and attribute speakers in council meetings."
-            },
-            "accurateTranscriptions": {
-                "title": "Accurate Transcriptions",
-                "description": "Generate precise, verbatim transcripts of all council proceedings."
-            },
-            "summarization": {
-                "title": "Summarization",
-                "description": "Automatically generate concise summaries of council meetings."
-            },
-            "aiChatAssistant": {
-                "title": "AI chat assistant",
-                "description": "Ask questions about council meetings and get answers from the AI chat assistant."
-            },
-            "highlights": {
-                "title": "Highlights",
-                "description": "Watch the most important parts of each meeting, with AI-generated or manually created highlights."
-            },
-            "openSource": {
-                "title": "Open-source",
-                "description": "Transparent development, continuous improvement. Permissive license that allows commercial use."
-            },
-            "openData": {
-                "title": "Open Data",
-                "description": "All data that we generate is public, and available via an open, non-authenticated API."
-            },
-            "multilingual": {
-                "title": "Multilingual",
-                "description": "Support for multiple languages to serve diverse communities. All meetings are transcribed to English and Greek."
-            },
-            "immediateIntegration": {
-                "title": "Immediate Integration",
-                "description": "Getting OpenCouncil for your municipality takes hours, not months."
-            },
-            "enhancedAccessibility": {
-                "title": "Enhanced Accessibility",
-                "description": "Make council meetings digestible and accessible to all citizens, including those with disabilities. Our platform ensures that local democracy is inclusive, transparent, and within reach of every community member."
-            },
-            "empowerCouncilMembers": {
-                "title": "Empower Council Members",
-                "description": "Equip your council members with powerful tools to streamline their work. Our advanced search and organization features allow for quick access to past discussions, decisions, and important information, enhancing productivity and informed decision-making."
-            },
-            "buildValuableAsset": {
-                "title": "Build a Valuable Asset",
-                "description": "Create a rich, searchable database of council proceedings. This open data asset not only promotes transparency but also provides invaluable insights for policy-making, research, and citizen engagement, positioning your city at the forefront of smart governance."
-            }
-        },
-        "pricing": {
-            "title": "Simple, Transparent Pricing",
-            "description": "We believe in transparent pricing, especially when serving the public sector.",
-            "freeTrial": {
-                "title": "Free Trial",
-                "subtitle": "Try OpenCouncil",
-                "features": {
-                    "unlimitedDuration": "Unlimited duration",
-                    "fullAccess": "Full access to all features",
-                    "noPayment": "No payment or commitment required",
-                    "dedicatedSupport": "Dedicated support during trial"
-                },
-                "cta": "Start Free Trial"
-            },
-            "paid": {
-                "title": "€7,800 per year",
-                "subtitle": "(Or 1/10000th of the municipality budget, whichever is less)",
-                "features": {
-                    "unlimitedMeetings": "Unlimited city council meetings per year",
-                    "transcriptions": "Transcriptions",
-                    "speakerRecognition": "Speaker recognition",
-                    "aiSummarization": "AI summarization",
-                    "freeHosting": "Free hosting",
-                    "support": "Support",
-                    "search": "Search functionality",
-                    "aiChatCredits": "100€ in AI chat credits per month",
-                    "highlights": "Meeting highlights",
-                    "openDataApi": "Open Data API",
-                    "multilingualSupport": "Multilingual Support",
-                    "immediateIntegration": "Immediate Integration"
-                },
-                "cta": "Schedule a Demo"
-            }
-        },
-        "about": {
-            "title": "About OpenCouncil",
-            "description": "OpenCouncil is a one-person project created in Greece 🇬🇷, built with care and respect for local government."
         }
     },
-    "InputWithDerivatives": {
-        "derivedFields": "Derived names"
+    "TranscriptOptions": {
+        "title": "Transcript Options",
+        "editMode": {
+            "label": "Edit Mode",
+            "description": "Enable edit mode for transcript text"
+        },
+        "highlightUncertain": {
+            "label": "Highlight Uncertain Words",
+            "description": "Highlight words with low recognition confidence"
+        },
+        "maxUtteranceDrift": {
+            "label": "Maximum Utterance Drift",
+            "description": "Maximum allowed time drift for each utterance in seconds"
+        }
     },
-    "PartyForm": {
-        "partyNamePlaceholder": "Party Name",
-        "partyNameDescription": "Enter the name of the party.",
-        "partyNameEnPlaceholder": "Party Name (English)",
-        "partyNameEnDescription": "Enter the name of the party in English.",
-        "partyShortNamePlaceholder": "Short Party Name",
-        "partyShortNameDescription": "Enter the short name of the party.",
-        "partyShortNameEnPlaceholder": "Short Party Name (English)",
-        "partyShortNameEnDescription": "Enter the short name of the party in English.",
-        "colorHex": "Color Hex",
-        "colorHexDescription": "Enter the party's color Hex.",
-        "failedToSaveParty": "Failed to save party.",
+    "PersonForm": {
+        "personNameEnDescription": "Enter the member's name in English.",
+        "personShortNamePlaceholder": "Member Short Name",
+        "personShortNameDescription": "Enter the member's short name.",
+        "personShortNameEnPlaceholder": "Member Short Name (English)",
+        "personShortNameEnDescription": "Enter the member's short name in English.",
+        "role": "Role",
+        "roleDescription": "Enter the member's role.",
+        "roleEn": "Role (English)",
+        "roleEnDescription": "Enter the member's role in English.",
+        "image": "Image",
+        "imageDescription": "Upload an image for the member.",
+        "failedToSavePerson": "Failed to save member.",
         "unexpectedError": "Unexpected error.",
         "submitting": "Submitting...",
-        "updateParty": "Update Party",
-        "createParty": "Create Party",
-        "cancel": "Cancel"
+        "updatePerson": "Update Member",
+        "createPerson": "Create Member",
+        "cancel": "Cancel",
+        "rolePlaceholder": "Role",
+        "roleEnPlaceholder": "Role (English)",
+        "selectParty": "Select Party",
+        "party": "Party",
+        "partyDescription": "Select the party this member belongs to.",
+        "isAdministrativeRole": "Administrative Council Member",
+        "isAdministrativeRoleDescription": "Speaking time of administrative members is not counted towards party speaking time."
+    },
+    "PersonCard": {
+        "party": "Party",
+        "edit": "Edit",
+        "viewProfile": "View Profile",
+        "name": "Name",
+        "role": "Role",
+        "partyColor": "Party Color",
+        "image": "Image",
+        "initials": "Initials",
+        "activeUntil": "Member until",
+        "active": "Member"
+    },
+    "Statistics": {
+        "topicsList": "Topics List",
+        "topSpeakers": "Speakers with longest speaking times (minutes)",
+        "minutes": "Minutes",
+        "speakingTime": "Speaking Time",
+        "occurrences": "Occurrences",
+        "topic": "Topic",
+        "speaker": "Speaker",
+        "noDataAvailable": "No data available",
+        "loading": "Loading...",
+        "totalSpeakingTime": "Total Speaking Time",
+        "totalMinutes": "Total speaking minutes"
+    },
+    "OfferForm": {
+        "respondToName": "Responsible Person Name",
+        "respondToNameDescription": "The name of the person responsible for the offer",
+        "respondToEmail": "Responsible Person Email",
+        "respondToEmailDescription": "The email of the person responsible for the offer",
+        "respondToPhone": "Responsible Person Phone",
+        "respondToPhoneDescription": "The phone number of the person responsible for the offer",
+        "city": "City",
+        "selectCity": "Select city",
+        "cityDescription": "The city this offer is intended for",
+        "totalPrice": "Total Price",
+        "formErrors": "Please fix the following errors:",
+        "submitting": "Submitting...",
+        "success": "Success",
+        "error": "Error",
+        "unexpectedError": "Unexpected error",
+        "createOffer": "Create Offer",
+        "updateOffer": "Update Offer",
+        "cancel": "Cancel",
+        "offerCreated": "Offer created successfully",
+        "offerUpdated": "Offer updated successfully",
+        "failedToSaveOffer": "Failed to save offer",
+        "ingestionPerHourPrice": "Ingestion Price per Hour",
+        "ingestionPerHourPriceDescription": "The ingestion price per hour in euros",
+        "hoursToIngest": "Hours to Ingest",
+        "hoursToIngestDescription": "The number of hours to ingest",
+        "discountPercentage": "Discount Percentage",
+        "discountPercentageDescription": "The discount percentage (0-100)",
+        "correctnessGuarantee": "Correctness Guarantee",
+        "correctnessGuaranteeDescription": "Human review of transcripts to confirm accuracy",
+        "meetingsToIngest": "Meetings with correctness guarantee",
+        "meetingsToIngestDescription": "The number of meetings to be reviewed",
+        "meetingsToIngestDisabledDescription": "Enable correctness guarantee to set number of meetings",
+        "startDate": "Start Date",
+        "startDateDescription": "The contract start date",
+        "endDate": "End Date",
+        "endDateDescription": "The contract end date"
+    },
+    "Offer": {
+        "title": "Offers",
+        "addNew": "Add New",
+        "edit": "Edit",
+        "delete": "Delete",
+        "recipientName": "Recipient Name",
+        "type": "Type",
+        "noOffers": "No offers found",
+        "loading": "Loading offers...",
+        "confirmDelete": "Are you sure you want to delete this offer?",
+        "deleteSuccess": "Offer deleted successfully",
+        "deleteError": "Error deleting offer",
+        "items": "{count, plural, =0 {No offers} =1 {1 offer} other {# offers}}",
+        "addItem": "Add Offer",
+        "searchItems": "Search offers",
+        "noItems": "No offers",
+        "item": "Offer"
     }
 }

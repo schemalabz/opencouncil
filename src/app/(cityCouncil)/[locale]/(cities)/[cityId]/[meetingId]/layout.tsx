@@ -40,17 +40,11 @@ export default async function CouncilMeetingPage({
         getSubjectsForMeeting(cityId, meetingId)
     ]);
     const endTime = performance.now();
-    console.log(`Time taken to load meeting: ${endTime - startTime} milliseconds`);
-
-    console.log('topicLabelCount', transcript.reduce((acc, segment) => {
-        return acc + segment.topicLabels.length;
-    }, 0));
 
     if (!city || !meeting || !people || !parties || !transcript || !subjects) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
         notFound();
     }
-    console.log('=> Found everything');
 
     const speakerTags = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
         .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)

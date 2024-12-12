@@ -21,38 +21,41 @@ const UtteranceC: React.FC<{ utterance: Utterance & { words: Word[] } }> = React
 
     const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === utterance.id);
 
-    const handleClick = () => {
-        if (selectedHighlight) {
-            if (isHighlighted) {
-                // Remove from highlight
-                const updatedHighlight = {
-                    ...selectedHighlight,
-                    highlightedUtterances: selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== utterance.id)
-                };
-                updateOptions({ selectedHighlight: updatedHighlight });
-            } else {
-                // Add to highlight
-                const updatedHighlight = {
-                    ...selectedHighlight,
-                    highlightedUtterances: [...selectedHighlight.highlightedUtterances, { utteranceId: utterance.id }]
-                };
-                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
-            }
-        } else {
-            seekTo(utterance.startTimestamp);
-        }
-    };
     const className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
 
-    const memoizedContent = useMemo(() => (
-        <span className={className} id={utterance.id} onClick={handleClick}>
-            {isActive ? (
-                utterance.words.map((word) => <WordC word={word} key={word.id} />)
-            ) : (
-                utterance.text + " "
-            )}
-        </span>
-    ), [isActive, utterance, className, handleClick]);
+    const memoizedContent = useMemo(() => {
+        const handleClick = () => {
+            if (selectedHighlight) {
+                if (isHighlighted) {
+                    // Remove from highlight
+                    const updatedHighlight = {
+                        ...selectedHighlight,
+                        highlightedUtterances: selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== utterance.id)
+                    };
+                    updateOptions({ selectedHighlight: updatedHighlight });
+                } else {
+                    // Add to highlight
+                    const updatedHighlight = {
+                        ...selectedHighlight,
+                        highlightedUtterances: [...selectedHighlight.highlightedUtterances, { utteranceId: utterance.id }]
+                    };
+                    updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
+                }
+            } else {
+                seekTo(utterance.startTimestamp);
+            }
+        };
+
+        return (
+            <span className={className} id={utterance.id} onClick={handleClick}>
+                {isActive ? (
+                    utterance.words.map((word) => <WordC word={word} key={word.id} />)
+                ) : (
+                    utterance.text + " "
+                )}
+            </span>
+        );
+    }, [isActive, utterance, className, selectedHighlight, isHighlighted, updateOptions, seekTo]);
 
     if (utterance.drift > maxDrift) {
         return <span id={utterance.id} className="over:bg-accent utterance" />;

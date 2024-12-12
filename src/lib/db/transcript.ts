@@ -18,7 +18,6 @@ export async function getTranscript(meetingId: string, cityId: string, {
   joinAdjacentSameSpeakerSegments?: boolean;
 } = {}): Promise<Transcript> {
   const startTime = performance.now();
-  console.log(`Getting transcript for meeting ${meetingId} ${cityId}`);
 
   const speakerSegments: Transcript = await prisma.$queryRaw`
       WITH speaker_segments AS (
@@ -98,16 +97,6 @@ export async function getTranscript(meetingId: string, cityId: string, {
     `;
 
   const endTime = performance.now();
-  console.log(`Time taken to query for transcript: ${endTime - startTime} milliseconds`);
-  const summariesCount = speakerSegments.reduce((acc, segment) => {
-    return acc + (segment.summary ? 1 : 0);
-  }, 0);
-
-  console.log(`Summaries count: ${summariesCount}`);
-
-  console.log(`Topic labels: ${speakerSegments.reduce((acc, segment) => {
-    return acc + segment.topicLabels.length;
-  }, 0)}`);
 
   return speakerSegments;
 }

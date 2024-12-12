@@ -38,7 +38,7 @@ export default function AdminActions({
         setYoutubeUrl(meeting.youtubeUrl);
     }, [meeting.youtubeUrl]);
 
-    const fetchTaskStatuses = async () => {
+    const fetchTaskStatuses = React.useCallback(async () => {
         try {
             const tasks = await getTasksForMeeting(meeting.cityId, meeting.id);
             setTaskStatuses(tasks);
@@ -52,13 +52,13 @@ export default function AdminActions({
         } finally {
             setIsLoadingTasks(false);
         }
-    };
+    }, [meeting.cityId, meeting.id, toast]);
 
     React.useEffect(() => {
         fetchTaskStatuses();
         const intervalId = setInterval(fetchTaskStatuses, 3000);
         return () => clearInterval(intervalId);
-    }, [meeting.id, meeting.cityId]);
+    }, [fetchTaskStatuses]);
 
     const handleTranscribe = async () => {
         setIsTranscribing(true);

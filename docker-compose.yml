@@ -11,7 +11,6 @@ services:
       - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}
     depends_on:
       - db
-
   db:
     image: pgvector/pgvector:pg16
     volumes:
@@ -22,6 +21,7 @@ services:
       - POSTGRES_DB=${DATABASE_NAME}
     ports:
       - "5432:5432"
+    command: -c 'max_connections=200'
 
 volumes:
   pgdata:

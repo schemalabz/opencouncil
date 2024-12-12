@@ -15,6 +15,7 @@ export const metadata = {
     icons: {
         icon: '/favicon.ico',
     },
+    metadataBase: new URL('https://opencouncil.gr'),
     openGraph: {
         title: 'OpenCouncil',
         description: 'Ανοιχτή τοπική αυτοδιοίκηση',

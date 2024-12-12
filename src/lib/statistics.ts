@@ -42,7 +42,6 @@ export async function getStatisticsFor(
 ): Promise<Statistics> {
     let transcript: SpeakerSegmentInfo[];
 
-    console.log(`Getting statistics for person: ${personId}, party: ${partyId}, meeting: ${meetingId}, city: ${cityId}`);
     transcript = await prisma.speakerSegment.findMany({
         where: {
             meetingId: meetingId,

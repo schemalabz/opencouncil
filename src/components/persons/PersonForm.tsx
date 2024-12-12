@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -262,7 +263,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                                     }
                                 }} />
                             </FormControl>
-                            {imagePreview && <img src={imagePreview} alt="Image preview" className="mt-2" />}
+                            {imagePreview && <Image src={imagePreview} alt="Image preview" width={200} height={200} className="mt-2 object-contain" unoptimized />}
                             <FormDescription>
                                 {t('imageDescription')}
                             </FormDescription>

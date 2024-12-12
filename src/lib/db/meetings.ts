@@ -43,7 +43,6 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
 }
 
 export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting & { taskStatuses: TaskStatus[] } | null> {
-    console.log(`Getting council meeting ${cityId} ${id}`);
     const startTime = performance.now();
     try {
         const meeting = await prisma.councilMeeting.findUnique({
@@ -53,7 +52,6 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
             }
         });
         const endTime = performance.now();
-        console.log(`Time taken to query for council meeting: ${endTime - startTime} milliseconds`);
 
 
         if (meeting && !meeting.released && !withUserAuthorizedToEdit({ cityId })) {
