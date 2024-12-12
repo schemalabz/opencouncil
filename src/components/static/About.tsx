@@ -17,7 +17,7 @@ import AnimatedGradientText from '../magicui/animated-gradient-text'
 import ContactFormPopup from './ContactFormPopup'
 
 export default function AboutPage() {
-    const t = useTranslations('about')
+    const t = useTranslations('AboutPage')
     const { scrollYProgress } = useScroll()
     const scaleX = useSpring(scrollYProgress, {
         stiffness: 100,
