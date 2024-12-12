@@ -103,7 +103,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
 
                     <TabsContent value="meetings">
                         <List
-                            items={city.councilMeetings}
+                            items={editable ? city.councilMeetings : city.councilMeetings.filter(meeting => meeting.released)}
                             editable={editable}
                             ItemComponent={MeetingCard}
                             FormComponent={AddMeetingForm}
