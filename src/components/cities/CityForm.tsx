@@ -48,6 +48,7 @@ const formSchema = z.object({
     }).regex(/^[a-z]+$/, {
         message: "ID must contain only lowercase letters a-z.",
     }),
+    authorityType: z.enum(['municipality', 'region'])
 })
 
 interface CityFormProps {
@@ -85,6 +86,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
+            authorityType: city?.authorityType || "municipality"
         },
     })
 
@@ -109,6 +111,7 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         formData.append('name_municipality_en', values.name_municipality_en)
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
+        formData.append('authorityType', values.authorityType)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -166,6 +169,30 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                         { name: "name_municipality_en", calculate: (baseValue) => toGreeklish(`Municipality of ${toGreeklish(baseValue)}`), placeholder: t('cityMunicipalityEnPlaceholder'), description: t('cityMunicipalityEnDescription') },
                     ]}
                     form={form}
+                />
+                <FormField
+                    control={form.control}
+                    name="authorityType"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('authorityType')}</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t('selectAuthorityType')} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="municipality">Municipality</SelectItem>
+                                    <SelectItem value="region">Region</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>
+                                {t('authorityTypeDescription')}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
                 />
                 <FormField
                     control={form.control}

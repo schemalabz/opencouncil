@@ -53,7 +53,10 @@
         "cityMunicipalityPlaceholder": "Όνομα Δήμου",
         "cityMunicipalityDescription": "Εισάγετε το όνομα του δήμου.",
         "cityMunicipalityEnPlaceholder": "Όνομα Δήμου (Αγγλικά)",
-        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά."
+        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+        "authorityType": "Τύπος Αρχής",
+        "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
+        "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί"
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου",

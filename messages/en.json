@@ -53,7 +53,10 @@
         "cityMunicipalityPlaceholder": "Municipality Name",
         "cityMunicipalityDescription": "Enter the name of the municipality.",
         "cityMunicipalityEnPlaceholder": "Municipality Name (English)", 
-        "cityMunicipalityEnDescription": "Enter the name of the municipality in English."
+        "cityMunicipalityEnDescription": "Enter the name of the municipality in English.",
+        "authorityType": "Authority Type",
+        "selectAuthorityType": "Select the authority type",
+        "authorityTypeDescription": "Select the type of authority."
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",
