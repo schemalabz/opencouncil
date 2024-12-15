@@ -283,6 +283,8 @@ model Highlight {
   subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   subjectId String?
 
+  videoUrl String?
+
   @@index([meetingId, cityId])
 }
 

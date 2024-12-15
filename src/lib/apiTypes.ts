@@ -173,7 +173,8 @@ export interface GeneratePodcastSpecResult {
  */
 
 export interface SplitMediaFileRequest extends TaskRequest {
-    audioUrl: string;
+    url: string; // an mp4 or mp3 url
+    type: 'audio' | 'video';
     parts: { // a part of the file, consisting of multiple contiguous segments
         id: string;
         segments: { // a contiguous segments of the media file
@@ -186,7 +187,8 @@ export interface SplitMediaFileRequest extends TaskRequest {
 export interface SplitMediaFileResult {
     parts: {
         id: string;
-        audioUrl: string;
+        url: string;
+        type: 'audio' | 'video';
         duration: number;
         startTimestamp: number;
         endTimestamp: number;
