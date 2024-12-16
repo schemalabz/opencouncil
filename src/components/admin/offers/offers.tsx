@@ -19,6 +19,14 @@ type GroupedOffers = {
     noCity: Offer[];
 }
 
+function DiscountBadge({ discount }: { discount: number }) {
+    return (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+            {discount}% off
+        </span>
+    );
+}
+
 function OfferLine({ offer, isSuperseded }: { offer: Offer, isSuperseded?: boolean }) {
     const totals = calculateOfferTotals(offer);
 
@@ -29,6 +37,7 @@ function OfferLine({ offer, isSuperseded }: { offer: Offer, isSuperseded?: boole
                     {offer.recipientName}
                 </a>
                 {isSuperseded && <span className="text-sm text-muted-foreground">(Superseded)</span>}
+                <DiscountBadge discount={offer.discountPercentage} />
             </div>
             <div>{formatCurrency(totals.total)}</div>
         </div>
@@ -54,6 +63,7 @@ function CityGroup({ cityId, offers }: { cityId: string, offers: Offer[] }) {
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         <CardTitle>{cityId}</CardTitle>
                         <CardDescription>{offers.length} offers</CardDescription>
+                        <DiscountBadge discount={mostRecentOffer.discountPercentage} />
                     </div>
                     <div className="font-semibold">{formatCurrency(totals.total)}</div>
                 </div>
@@ -76,6 +86,7 @@ function CityGroup({ cityId, offers }: { cityId: string, offers: Offer[] }) {
 export default function Offers({ initialOffers }: { initialOffers: Offer[] }) {
     const [offers, setOffers] = useState<Offer[]>(initialOffers);
     const [groupedOffers, setGroupedOffers] = useState<GroupedOffers>({ noCity: [] });
+    const [showCharts, setShowCharts] = useState(false);
 
     useEffect(() => {
         // Group offers by cityId
@@ -144,76 +155,91 @@ export default function Offers({ initialOffers }: { initialOffers: Offer[] }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Offer Totals by City</CardTitle>
-                    </CardHeader>
+            <Card className="mb-8">
+                <CardHeader
+                    className="cursor-pointer hover:bg-accent/50"
+                    onClick={() => setShowCharts(!showCharts)}
+                >
+                    <div className="flex items-center gap-2">
+                        {showCharts ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <CardTitle>Analytics</CardTitle>
+                    </div>
+                </CardHeader>
+                {showCharts && (
                     <CardContent>
-                        <ChartContainer
-                            config={{
-                                total: {
-                                    label: "Total",
-                                    color: "hsl(var(--chart-1))",
-                                },
-                                platformPrice: {
-                                    label: "Platform Price",
-                                    color: "hsl(var(--chart-2))",
-                                },
-                                ingestionCost: {
-                                    label: "Ingestion Cost",
-                                    color: "hsl(var(--chart-3))",
-                                },
-                                discount: {
-                                    label: "Discount",
-                                    color: "hsl(var(--chart-4))",
-                                },
-                            }}
-                            className="h-[300px]"
-                        >
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={cityTotals}>
-                                    <XAxis dataKey="name" />
-                                    <YAxis />
-                                    <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Legend />
-                                    <Bar dataKey="total" fill="var(--color-total)" />
-                                    <Bar dataKey="platformTotal" fill="var(--color-platformPrice)" />
-                                    <Bar dataKey="ingestionTotal" fill="var(--color-ingestionCost)" />
-                                    <Bar dataKey="discount" fill="var(--color-discount)" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </ChartContainer>
-                    </CardContent>
-                </Card>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Offer Totals by City</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ChartContainer
+                                        config={{
+                                            total: {
+                                                label: "Total",
+                                                color: "hsl(var(--chart-1))",
+                                            },
+                                            platformPrice: {
+                                                label: "Platform Price",
+                                                color: "hsl(var(--chart-2))",
+                                            },
+                                            ingestionCost: {
+                                                label: "Ingestion Cost",
+                                                color: "hsl(var(--chart-3))",
+                                            },
+                                            discount: {
+                                                label: "Discount",
+                                                color: "hsl(var(--chart-4))",
+                                            },
+                                        }}
+                                        className="h-[300px]"
+                                    >
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={cityTotals}>
+                                                <XAxis dataKey="name" />
+                                                <YAxis />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Legend />
+                                                <Bar dataKey="total" fill="var(--color-total)" />
+                                                <Bar dataKey="platformTotal" fill="var(--color-platformPrice)" />
+                                                <Bar dataKey="ingestionTotal" fill="var(--color-ingestionCost)" />
+                                                <Bar dataKey="discount" fill="var(--color-discount)" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Correctness Guarantee Distribution</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <Pie
-                                    data={pieChartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                    outerRadius={80}
-                                    fill="#8884d8"
-                                    dataKey="value"
-                                >
-                                    {pieChartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Correctness Guarantee Distribution</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie
+                                                data={pieChartData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {pieChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </CardContent>
-                </Card>
-            </div>
+                )}
+            </Card>
 
             <Suspense fallback={
                 <div className="flex justify-center items-center h-full">
