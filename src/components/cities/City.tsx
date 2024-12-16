@@ -64,12 +64,12 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                         {city.officialSupport ? (
                             <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium rounded mt-2">
                                 <BadgeCheck className="w-4 h-4 mr-1" />
-                                <span>Με την υποστήριξη του δήμου</span>
+                                <span>Με την υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
                             </div>
                         ) : (
                             <div className="flex items-center bg-transparent text-muted-foreground text-xs font-medium rounded mt-2">
                                 <BadgeX className="w-4 h-4 mr-1" />
-                                <span>Χωρίς επίσημη υποστήριξη του δήμου</span>
+                                <span>Χωρίς επίσημη υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
                             </div>
                         )}
                     </div>
