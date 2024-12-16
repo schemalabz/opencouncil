@@ -41,12 +41,43 @@ export async function deleteOffer(id: string): Promise<void> {
         throw new Error('Failed to delete offer');
     }
 }
+export type OfferSupersededBy = {
+    oldId: Offer['id'];
+    newId: Offer['id'];
+}
 
-export async function getOffer(id: string): Promise<Offer | null> {
+export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | null> {
     try {
         const offer = await prisma.offer.findUnique({
             where: { id },
         });
+
+        if (!offer) {
+            return null;
+        }
+
+        // If this offer has a cityId, check for more recent offers for the same city
+        if (offer.cityId) {
+            const newerOffer = await prisma.offer.findFirst({
+                where: {
+                    cityId: offer.cityId,
+                    createdAt: {
+                        gt: offer.createdAt
+                    }
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            });
+
+            if (newerOffer) {
+                return {
+                    oldId: offer.id,
+                    newId: newerOffer.id
+                };
+            }
+        }
+
         return offer;
     } catch (error) {
         console.error('Error fetching offer:', error);
