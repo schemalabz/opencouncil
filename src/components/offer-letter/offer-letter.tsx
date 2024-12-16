@@ -304,30 +304,27 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         icon={<MessageCircle className="w-10 h-10 mb-2" />}
                         restriction="Μέχρι 1000 ενεργοί λογαριασμοί πολιτών"
                     >
-                        <ul className="space-y-2">
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Δυνατότητα για τους {isRegion ? 'πολίτες' : 'δημότες'} να εγγραφούν στο OpenCouncil, δίνοντας στοιχεία επικοινωνίας τους (αριθμόυς τηλεφώνου ή email) και μια λίστα από περιοχές και θέματα {isRegion ? 'της περιφέρειας' : 'του δήμου'} που τους αφορούν (π.χ. κάποιο συγκεκριμένο σχολείο, ένα πάρκο, μια γειτονιά).</span>
-                                <span>Δυνατότητα για τους δημότες να εγγραφούν στο OpenCouncil, δίνοντας στοιχεία επικοινωνίας τους (αριθμόυς τηλεφώνου ή email) και μια λίστα από περιοχές και θέματα του δήμου που τους αφορούν (π.χ. κάποιο συγκεκριμένο σχολείο, ένα πάρκο, μια γειτονιά).</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Εξαγωγή θεμάτων που αφορούν το κάθε δημότη ξεχωριστά, από την ημερήσια διάταξη και την απομαγνητοφώνηση της συνεδρίασης.</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Αποστολή προσωποποιημένων μηνυμάτων σε κάθε δημότη για θέματα που τους αφορούν και πρόκειται να συζητηθούν στην επόμενη συνεδρίαση.</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Δυνατότητα απάντησης από τους δημότες, και σύνοψη των απαντήσεων για τον εισηγητή του θέματος.</span>
-                            </li>
-                        </ul>
+                        <li className="space-y-2">
+                            <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                            <span>Δυνατότητα για τους πολίτες να εγγραφούν στο OpenCouncil, δίνοντας στοιχεία επικοινωνίας τους (αριθμόυς τηλεφώνου ή email) και μια λίστα από περιοχές και θέματα {isRegion ? 'της περιφέρειας' : 'του δήμου'} που τους αφορούν (π.χ. κάποιο συγκεκριμένο σχολείο, ένα πάρκο, μια γειτονιά).</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                            <span>Εξαγωγή θεμάτων που αφορούν τον κάθε {isRegion ? 'πολίτη' : 'δημότη'} ξεχωριστά, από την ημερήσια διάταξη και την απομαγνητοφώνηση της συνεδρίασης.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                            <span>Αποστολή προσωποποιημένων μηνυμάτων σε κάθε {isRegion ? 'πολίτη' : 'δημότη'} για θέματα που τους αφορούν και πρόκειται να συζητηθούν στην επόμενη συνεδρίαση.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
+                            <span>Δυνατότητα απάντησης από τους {isRegion ? 'πολίτες' : 'δημότες'}, και σύνοψη των απαντήσεων για τον εισηγητή του θέματος.</span>
+                        </li>
                     </ModuleCard>
                     <ModuleCard
                         piloting
                         title="Podcast"
-                        subtitle="Αυτόματη παραγωγή και διανομή ενημερωτικών podcast για τους δημότες"
+                        subtitle={`Αυτόματη παραγωγή και διανομή ενημερωτικών podcast για τους ${isRegion ? 'πολίτες' : 'δημότες'}`}
                         icon={<Mic className="w-10 h-10 mb-2" />}
                         restriction="Μέχρι 2 ώρες podcast το μήνα"
                     >
@@ -360,18 +357,17 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         </ul>
                     </ModuleCard>
                 </div>
-            </section>
-
+            </section >
             <section className="mb-8">
                 <h3 className="text-2xl font-semibold mb-4">Επιπλέον δωρεάν προνόμια</h3>
                 <ul className="grid md:grid-cols-2 gap-4">
                     <li className="flex items-center">
                         <Phone className="w-5 h-5 mr-2" />
-                        <span>Άμεση τηλεφωνική υποστήριξη για το δήμο και τα μέλη των συμβουλίων</span>
+                        <span>Άμεση τηλεφωνική υποστήριξη για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τα μέλη των συμβουλίων</span>
                     </li>
                     <li className="flex items-center">
                         <Mail className="w-5 h-5 mr-2" />
-                        <span>Τεχνική υποστήριξη μέσω email για το δήμο και τους δημότες</span>
+                        <span>Τεχνική υποστήριξη μέσω email για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'}</span>
                     </li>
                     <li className="flex items-center">
                         <Database className="w-5 h-5 mr-2" />
