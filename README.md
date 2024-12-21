@@ -30,7 +30,7 @@ This is a [Next.js](https://nextjs.org/) web application:
    npm install
    ```
 
-2. Optionally, start a dockerized PostgreSQL databse with the pgvector extension installed by using the docker file:
+2. Start a dockerized PostgreSQL database with the pgvector and postgis extensions installed by using the docker file (alternatively, you can use your own DB):
    ```bash
    docker compose up db -d
    ```

@@ -16,7 +16,6 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 
     return startTask('summarize', body, councilMeetingId, cityId);
 }
-
 export async function handleSummarizeResult(taskId: string, response: SummarizeResult) {
     const task = await prisma.taskStatus.findUnique({
         where: {
@@ -89,7 +88,6 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
         }
     });
 
-    let nullSSidCount = 0;
     // Combined Subject and Highlight transaction
     await prisma.$transaction(async (prisma) => {
         // Delete old highlights and subjects for this meeting
@@ -105,18 +103,39 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                 cityId: councilMeeting.cityId
             }
         });
-
         // Create new subjects and highlights
         for (const subject of response.subjects) {
-            nullSSidCount += subject.speakerSegmentIds.filter(ssId => !ssId).length;
+            // Create location if provided
+            let locationId: string | undefined;
+            if (subject.location) {
+                // Create location using raw SQL since PostGIS geometry is unsupported in Prisma
+                const result = await prisma.$queryRaw<[{ id: string }]>`
+                    INSERT INTO "Location" (id, type, text, coordinates)
+                    VALUES (
+                        gen_random_cuid()::text,
+                        ${subject.location.type}::text,
+                        ${subject.location.text}::text,
+                        ST_GeomFromGeoJSON(${JSON.stringify({
+                    type: subject.location.type === 'point' ? 'Point' :
+                        subject.location.type === 'lineString' ? 'LineString' : 'Polygon',
+                    coordinates: subject.location.coordinates
+                })})
+                    )
+                    RETURNING id
+                `;
+                locationId = result[0].id;
+            }
+
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,
                     description: subject.description,
                     councilMeeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
+                    location: locationId ? { connect: { id: locationId } } : undefined,
                     speakerSegments: {
-                        create: subject.speakerSegmentIds.filter(ssId => ssId).map(ssId => ({
-                            speakerSegment: { connect: { id: ssId } }
+                        create: subject.speakerSegments.map(segment => ({
+                            speakerSegment: { connect: { id: segment.speakerSegmentId } },
+                            summary: segment.summary
                         }))
                     }
                 }
@@ -140,5 +159,4 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
-
 }

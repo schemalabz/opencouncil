@@ -37,7 +37,7 @@ yarn-error.log*
 next-env.d.ts
 
 prisma/**.db
-data/
+db/data/
 copy_to_prod.sh
 
 *.secret.*

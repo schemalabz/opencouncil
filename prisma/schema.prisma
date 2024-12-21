@@ -9,8 +9,9 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  extensions = [pgvector(map: "vector")]
+  extensions = [pgvector(map: "vector"), postgis(version: "3.5.0")]
 }
+
 model City {
   id        String   @id @default(cuid())
   name      String   // Αθήνα
@@ -246,14 +247,31 @@ model Subject {
   description String
   cityId String
   councilMeetingId String
+  locationId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   councilMeeting CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
 
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
   speakerSegments SubjectSpeakerSegment[]
+}
+
+enum LocationType {
+  point
+  lineString
+  polygon
+}
+
+model Location {
+  id        String   @id  @default(cuid())
+  type LocationType
+  text String
+  coordinates Unsupported("geometry")
+
+  subjects Subject[]
 }
 
 model SubjectSpeakerSegment {
@@ -261,6 +279,7 @@ model SubjectSpeakerSegment {
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   subjectId String
+  summary String?
 
   speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
   speakerSegmentId String

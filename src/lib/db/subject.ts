@@ -1,11 +1,12 @@
 import prisma from "./prisma";
-import { Subject, SubjectSpeakerSegment, SpeakerSegment, Highlight } from "@prisma/client";
+import { Subject, SubjectSpeakerSegment, SpeakerSegment, Highlight, Location } from "@prisma/client";
 
 export type SubjectWithRelations = Subject & {
     speakerSegments: (SubjectSpeakerSegment & {
         speakerSegment: SpeakerSegment;
     })[];
     highlights: Highlight[];
+    location: Location | null;
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
@@ -18,6 +19,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                     },
                 },
                 highlights: true,
+                location: true,
             },
         });
         return subjects;
@@ -41,6 +43,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                     },
                 },
                 highlights: true,
+                location: true,
             },
         });
         return subjects;

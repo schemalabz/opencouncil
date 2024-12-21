@@ -132,8 +132,16 @@ export interface SummarizeResult {
     subjects: {
         name: string;
         description: string;
-        speakerSegmentIds: string[];
+        speakerSegments: {
+            speakerSegmentId: string;
+            summary: string | null;
+        }[];
         highlightedUtteranceIds: string[];
+        location: {
+            type: 'point' | 'lineString' | 'polygon';
+            text: string; // e.g. an area, an address, a road name
+            coordinates: number[][]; // a sequence of coordinates. just one coordinate for a point, more for a line or polygon
+        } | null;
     }[];
 }
 
