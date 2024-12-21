@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Trash, Users } from "lucide-react";
+import { Clock, Download, Trash, Users } from "lucide-react";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./meetings/options/OptionsContext";
 import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, upsertHighlight } from "@/lib/db/highlights";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import SpeakerTagC from "./SpeakerTag";
+import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean }) => {
     const { transcript, getSpeakerTag, subjects } = useCouncilMeetingData();
@@ -58,6 +59,25 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
             toast({
                 title: "Error",
                 description: "Failed to save highlight. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleGenerateVideo = async () => {
+        try {
+            await requestSplitMediaFileForHighlight(highlight.id);
+            toast({
+                title: "Success",
+                description: "Video generation started. This may take a few minutes.",
+                variant: "default",
+            });
+            // Poll for updates or handle completion notification separately
+        } catch (error) {
+            console.error('Failed to generate video:', error);
+            toast({
+                title: "Error",
+                description: "Failed to generate video. Please try again.",
                 variant: "destructive",
             });
         }
@@ -208,11 +228,40 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                                 </div>
                             );
                         })}
-                        {showSaveButton && (
-                            <Button onClick={handleSave} className="mt-2">
-                                Save Changes
-                            </Button>
-                        )}
+                        <div className="flex justify-between items-center mt-4">
+                            {showSaveButton && (
+                                <Button onClick={handleSave}>
+                                    Save Changes
+                                </Button>
+                            )}
+                            <div className="flex space-x-2">
+                                {highlight.videoUrl ? (
+                                    <a
+                                        href={highlight.videoUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Button variant="outline" size="sm" className="flex items-center space-x-1">
+                                            <Download className="h-4 w-4" />
+                                            <span>Download Video</span>
+                                        </Button>
+                                    </a>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleGenerateVideo();
+                                        }}
+                                        className="flex items-center space-x-1"
+                                    >
+                                        <span>Generate Video</span>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </CardContent>

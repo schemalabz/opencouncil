@@ -26,6 +26,7 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
   const diffTime = Math.abs(end.getTime() - start.getTime());
+  // Round to nearest month - periods > 15 days count as a full month
   const diffMonths = Math.round(diffTime / (1000 * 60 * 60 * 24 * 30));
   return diffMonths;
 }

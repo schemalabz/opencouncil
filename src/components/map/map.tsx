@@ -13,6 +13,13 @@ interface MapProps {
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
+const AOI_POLYGON: [number, number][] = [
+    [23.7275, 37.9838],
+    [23.7275, 37.9838],
+    [23.7275, 37.9838],
+    [23.7275, 37.9838],
+    [23.7275, 37.9838]
+]
 
 export default function Map({
     className,
@@ -73,7 +80,7 @@ export default function Map({
                                     [180, -90],
                                     [-180, -90]
                                 ],
-                                ...AOI_POLYGON[0] // This creates a hole in the world polygon
+                                AOI_POLYGON // This creates a hole in the world polygon
                             ]
                         }
                     }

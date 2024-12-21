@@ -3,7 +3,7 @@
 import { Link } from '@/i18n/routing'
 import { cn } from "@/lib/utils"
 import Logo from './Logo'
-import { Phone, Twitter } from 'lucide-react'
+import { Phone, Twitter, Instagram, Facebook, BookOpen } from 'lucide-react'
 
 export default function Footer() {
     return (
@@ -60,13 +60,40 @@ export default function Footer() {
                             +30 2111980212
                         </a>
                         <a
-                            href="https://twitter.com/christosporios"
+                            href="https://twitter.com/opencouncil_gr"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
                         >
                             <Twitter className="w-4 h-4 mr-2" />
-                            @christosporios
+                            @opencouncil_gr
+                        </a>
+                        <a
+                            href="https://instagram.com/opencouncil_gr"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                            <Instagram className="w-4 h-4 mr-2" />
+                            @opencouncil_gr
+                        </a>
+                        <a
+                            href="https://www.facebook.com/profile.php?id=61570217107676"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                            <Facebook className="w-4 h-4 mr-2" />
+                            OpenCouncil
+                        </a>
+                        <a
+                            href="https://schemalabs.substack.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Substack
                         </a>
                         <a
                             href="mailto:hello@opencouncil.gr"

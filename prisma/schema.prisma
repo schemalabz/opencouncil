@@ -11,7 +11,6 @@ datasource db {
   url      = env("DATABASE_URL")
   extensions = [pgvector(map: "vector")]
 }
-
 model City {
   id        String   @id @default(cuid())
   name      String   // Αθήνα
@@ -24,10 +23,16 @@ model City {
   updatedAt DateTime @updatedAt
   officialSupport Boolean @default(false)
   isListed Boolean @default(false)
+  authorityType AuthorityType @default(municipality)
 
   parties        Party[]
   persons        Person[]
   councilMeetings CouncilMeeting[]
+}
+
+enum AuthorityType {
+  municipality
+  region
 }
 
 model Party {
@@ -282,6 +287,8 @@ model Highlight {
   
   subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   subjectId String?
+
+  videoUrl String?
 
   @@index([meetingId, cityId])
 }

@@ -27,6 +27,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const name_municipality_en = formData.name_municipality_en as string
     const timezone = formData.timezone as string
     const logoImage = formData.logoImage as File | null
+    const authorityType = formData.authorityType as 'municipality' | 'region' || 'municipality'
 
     let logoImageUrl: string | undefined = undefined
 
@@ -61,6 +62,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         name_municipality_en,
         timezone,
         ...(logoImageUrl && { logoImage: logoImageUrl }),
+        authorityType
     });
 
     return NextResponse.json(city)

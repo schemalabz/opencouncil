@@ -69,7 +69,7 @@ const formSchema = z.object({
 
 interface OfferFormProps {
     offer?: Offer
-    onSuccess?: () => void
+    onSuccess?: (data: any) => void
     cityId?: string
 }
 
@@ -139,7 +139,7 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
             setIsSuccess(true)
             setTimeout(() => setIsSuccess(false), 1000)
             if (onSuccess) {
-                onSuccess()
+                onSuccess(values)
             }
             router.refresh()
             form.reset({

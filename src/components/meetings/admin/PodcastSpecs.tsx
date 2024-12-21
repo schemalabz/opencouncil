@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import SpeakerBadge from "@/components/SpeakerBadge";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { getPodcastSpecsForMeeting, PodcastSpecWithRelations } from "@/lib/db/podcasts";
-import { reqeustSplitMediaFile } from "@/lib/tasks/splitMediaFile";
+import { requestSplitMediaFileForPodcast } from "@/lib/tasks/splitMediaFile";
 import { useToast } from '@/hooks/use-toast';
 
 export default function PodcastSpecs() {
@@ -40,7 +40,7 @@ export default function PodcastSpecs() {
     const handleGenerateAudioSnippets = async (podcastId: string) => {
         setIsGeneratingAudio(prev => ({ ...prev, [podcastId]: true }));
         try {
-            await reqeustSplitMediaFile(podcastId);
+            await requestSplitMediaFileForPodcast(podcastId);
             toast({
                 title: "Audio snippet generation requested",
                 description: "The process has started.",

@@ -23,7 +23,6 @@ export async function GET() {
         return NextResponse.json({ error: 'Failed to fetch cities' }, { status: 500 })
     }
 }
-
 export async function POST(request: Request) {
     const formData = await request.formData()
     const id = formData.get('id') as string
@@ -33,6 +32,7 @@ export async function POST(request: Request) {
     const name_municipality_en = formData.get('name_municipality_en') as string
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File
+    const authorityType = formData.get('authorityType') as 'municipality' | 'region' || 'municipality'
 
     if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -67,6 +67,7 @@ export async function POST(request: Request) {
             logoImage: logoImageUrl,
             officialSupport: false,
             isListed: false,
+            authorityType
         })
 
         return NextResponse.json(city)

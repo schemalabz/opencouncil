@@ -53,11 +53,14 @@
         "cityMunicipalityPlaceholder": "Όνομα Δήμου",
         "cityMunicipalityDescription": "Εισάγετε το όνομα του δήμου.",
         "cityMunicipalityEnPlaceholder": "Όνομα Δήμου (Αγγλικά)",
-        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά."
+        "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
+        "authorityType": "Τύπος Αρχής",
+        "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
+        "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί"
     },
     "City": {
-        "addCouncilMeeting": "Προσθήκη Δημοτικού Συμβουλίου",
-        "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση δημοτικού συμβουλίου στο OpenCouncil} =1 {1 συνεδρίαση δημοτικού συμβουλίου στο OpenCouncil} other {# συνεδριάσεις δημοτικού συμβουλίου στο OpenCouncil}}",
+        "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
+        "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις",
         "members": "Μέλη",
         "parties": "Παρατάξεις",
@@ -65,12 +68,12 @@
         "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
         "addCity": "Προσθήκη Πόλης",
         "editCity": "Επεξεργασία Πόλης",
-        "searchInCity": "Αναζήτηση στις συνεδριάσεις του δήμου"
+        "searchInCity": "Αναζήτηση στις συνεδριάσεις"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",
         "meetingNamePlaceholder": "Εισάγετε το όνομα της συνεδρίασης",
-        "meetingNameDescription": "Δώστε ένα όνομα για τη συνεδρίαση του δημοτικού συμβουλίου.",
+        "meetingNameDescription": "Δώστε ένα όνομα για τη συνεδρίαση",
         "meetingDate": "Ημερομηνία Συνεδρίασης",
         "meetingDateDescription": "Επιλέξτε την ημερομηνία που πραγματοποιήθηκε η συνεδρίαση.",
         "meetingVideo": "Βίντεο Συνεδρίασης",
@@ -219,10 +222,10 @@
         "noItems": "Δεν υπάρχουν παράταξεις"
     },
     "CouncilMeeting": {
-        "items": "{count, plural, =0 {Καμία συνεδρίαση δημοτικού συμβουλίου} =1 {1 συνεδρίαση δημοτικού συμβουλίου} other {# συνεδριάσεις δημοτικού συμβουλίου}}",
+        "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
         "addItem": "Προσθήκη Συνεδρίασης",
-        "noItems": "Δεν υπάρχουν συνεδριάσεις του δημοτικού συμβουλίου στο OpenCouncil.",
-        "searchItems": "Αναζητήστε ονομασίες δημοτικών συμβουλίων"
+        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil.",
+        "searchItems": "Αναζητήστε ονομασίες συνεδριάσεων"
     },
     "Person": {
         "items": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
