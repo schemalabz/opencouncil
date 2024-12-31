@@ -24,11 +24,16 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
 
     const borderColor = subject.topic?.colorHex || "gray";
     const backgroundColor = subject.topic?.colorHex ? subject.topic.colorHex + "15" : "transparent";
-    const people: { image: string | null; name: string; color: string }[] = subject.statistics?.people?.map(p => ({
-        image: p.item.image,
-        name: p.item.name,
-        color: partyIdToColorHex(p.item?.partyId || "")
-    })) || [];
+
+    // Get top 5 speakers by speaking time
+    const topSpeakers = subject.statistics?.people
+        ?.sort((a, b) => b.speakingSeconds - a.speakingSeconds)
+        .slice(0, 5)
+        .map(p => ({
+            image: p.item.image,
+            name: p.item.name,
+            color: partyIdToColorHex(p.item?.partyId || "")
+        })) || [];
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="hover:no-underline">
@@ -60,7 +65,7 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
                 </CardContent>
                 <CardFooter className="flex-shrink">
                     <div className="mt-auto">
-                        <AvatarList avatars={people?.map(p => ({
+                        <AvatarList avatars={topSpeakers.map(p => ({
                             imageUrl: p.image || null,
                             name: p.name,
                             color: p.color,

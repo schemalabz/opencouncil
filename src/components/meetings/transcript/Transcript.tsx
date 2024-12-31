@@ -51,7 +51,7 @@ export default function Transcript() {
     }, [speakerSegments, debouncedSetCurrentScrollInterval]);
 
     return (
-        <div className="container" ref={containerRef}>
+        <div className="container" ref={containerRef} >
             {speakerSegments.map((segment, index: number) =>
                 <SpeakerSegmentWrapper key={index} segment={segment} index={index} speakerSegments={speakerSegments} />
             )}

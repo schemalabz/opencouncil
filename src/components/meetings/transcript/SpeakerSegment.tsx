@@ -39,7 +39,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     return (
         <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
             <div className='w-full'>
-                <div className='sticky top-0 bg-transcript flex flex-row items-center justify-between w-full border-b border-gray-300'>
+                <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-gray-300 bg-white'>
                     {renderMock ? <div className='w-full h-full bg-gray-100' /> : (
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
