@@ -1,3 +1,4 @@
+"use client";
 import ReactPDF from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
 import { CouncilMeetingDocument } from './pdf/CouncilMeetingDocument';
@@ -6,10 +7,10 @@ import { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, FileDown, Loader2 } from "lucide-react";
+import { CheckCircle, CopyIcon, FileDown, LinkIcon, Loader2 } from "lucide-react";
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 
-export function ShareC() {
+export default function ShareC() {
     const { currentTime } = useVideo();
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
@@ -27,7 +28,6 @@ export function ShareC() {
         }
         return url;
     };
-
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(getShareableUrl());
@@ -59,57 +59,74 @@ export function ShareC() {
         setIsExporting(false);
     };
 
-    return (<div className="space-y-8">
-        <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center">
-                <h3 className="text-md md:text-lg font-medium w-full sm:w-1/4 mb-2 sm:mb-0">Σύνδεσμος</h3>
-                <div className="w-full sm:w-3/4 space-y-2">
-                    <div className="flex">
-                        <Input
-                            value={getShareableUrl()}
-                            readOnly
-                            className="flex-grow mr-2"
-                        />
-                        <Button onClick={copyToClipboard} className="flex-shrink-0" disabled={copySuccess}>
-                            {copySuccess ? (
-                                <span className="flex items-center text-center">
-                                    <CheckCircle className="w-4 h-4 mr-2 inline-block" />
-                                    <span className="hidden md:inline-block">Αντιγράφηκε</span>
-                                </span>
-                            ) : (
-                                <span className="flex items-center">
-                                    <CopyIcon className="w-4 h-4 mr-2 inline-block" />
-                                    <span className="hidden md:inline-block">Αντιγραφή</span>
-                                </span>
-                            )}
-                        </Button>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Checkbox
-                            id="timestamp"
-                            checked={includeTimestamp}
-                            onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
-                        />
-                        <label
-                            htmlFor="timestamp"
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                            Ξεκίνημα στο {formatTimestamp(currentTime)}
-                        </label>
+    return (
+        <div className="flex flex-col w-full p-6">
+            <section className="w-full max-w-4xl mx-auto space-y-8">
+                <div>
+                    <h3 className="text-xl font-bold text-left mb-2">
+                        <LinkIcon className="w-4 h-4 inline-block mr-2" />
+                        Κοινοποίηση
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Μοιραστείτε αυτή τη συνεδρίαση με άλλους
+                    </p>
+
+                    <div className="space-y-4">
+                        <div className="flex">
+                            <Input
+                                value={getShareableUrl()}
+                                readOnly
+                                className="flex-grow mr-2"
+                            />
+                            <Button onClick={copyToClipboard} className="flex-shrink-0" disabled={copySuccess}>
+                                {copySuccess ? (
+                                    <span className="flex items-center text-center">
+                                        <CheckCircle className="w-4 h-4 mr-2 inline-block" />
+                                        <span className="hidden md:inline-block">Αντιγράφηκε</span>
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center">
+                                        <CopyIcon className="w-4 h-4 mr-2 inline-block" />
+                                        <span className="hidden md:inline-block">Αντιγραφή</span>
+                                    </span>
+                                )}
+                            </Button>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="timestamp"
+                                checked={includeTimestamp}
+                                onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
+                            />
+                            <label
+                                htmlFor="timestamp"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                Ξεκίνημα στο {formatTimestamp(currentTime)}
+                            </label>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <div className="flex items-center">
-            <h3 className="text-md md:text-lg font-medium w-1/4">Εξαγωγή</h3>
-            <div className="w-3/4 flex justify-end">
-                <Button onClick={handleExportToPDF} className='max-w-48' disabled={isExporting}>
-                    {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
-                    <span className="hidden md:inline">Εξαγωγή σε PDF</span>
-                </Button>
-            </div>
+                <div>
+                    <h3 className="text-xl font-bold text-left mb-2">
+                        <FileDown className="w-4 h-4 inline-block mr-2" />
+                        Εξαγωγή
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Κατεβάστε τα πρακτικά της συνεδρίασης σε μορφή PDF
+                    </p>
+
+                    <Button onClick={handleExportToPDF} className="w-full sm:w-auto" disabled={isExporting}>
+                        {isExporting ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                            <FileDown className="w-4 h-4 mr-2" />
+                        )}
+                        <span>Εξαγωγή σε PDF</span>
+                    </Button>
+                </div>
+            </section>
         </div>
-    </div>
     );
 }

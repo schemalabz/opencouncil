@@ -4,6 +4,7 @@ import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskS
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { Transcript } from '@/lib/db/transcript';
 import { SubjectWithRelations } from '@/lib/db/subject';
+import { Statistics } from '@/lib/statistics';
 
 export interface CouncilMeetingData {
     meeting: CouncilMeeting & {
@@ -14,7 +15,7 @@ export interface CouncilMeetingData {
     parties: Party[];
     speakerTags: SpeakerTag[];
     transcript: Transcript;
-    subjects: SubjectWithRelations[];
+    subjects: (SubjectWithRelations & { statistics: Statistics | null })[];
 
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
@@ -37,7 +38,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         parties: Party[];
         speakerTags: SpeakerTag[];
         transcript: Transcript;
-        subjects: SubjectWithRelations[];
+        subjects: (SubjectWithRelations & { statistics: Statistics | null })[];
     }
 }) {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);

@@ -1,11 +1,22 @@
 "use client"
 import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
+import { SubjectCards } from "@/components/meetings/subject-cards";
+import { SubjectCard } from "@/components/subject-card";
+import Marquee from "@/components/ui/marquee";
+import { SubjectWithRelations } from "@/lib/db/subject";
+import { Statistics } from "@/lib/statistics";
+import { Subject } from "@prisma/client";
 import { format, formatDate } from "date-fns";
 import { CalculatorIcon, CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
+import Link from "next/link";
 
 export default function MeetingPage() {
     const { meeting, subjects } = useCouncilMeetingData();
+    const hottestSubjects = [...subjects]
+        .sort((a, b) => (b.hot ? 1 : 0) - (a.hot ? 1 : 0))
+        .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
+
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[300px] w-full">
@@ -13,9 +24,11 @@ export default function MeetingPage() {
                 <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
                 <MeetingInfo />
             </div>
+            <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />
         </div>
     )
 }
+
 
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();

@@ -1,3 +1,8 @@
+"use client"
+import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
+import { SubjectCards } from "@/components/meetings/subject-cards";
+
 export default function SubjectsPage() {
-    return <div>SubjectsPage</div>;
+    const { meeting, subjects } = useCouncilMeetingData();
+    return <SubjectCards subjects={subjects} fullWidth />
 }

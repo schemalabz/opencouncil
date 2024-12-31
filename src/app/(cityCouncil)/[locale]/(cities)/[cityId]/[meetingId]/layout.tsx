@@ -13,6 +13,7 @@ import Header from '@/components/meetings/Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
+import { getStatisticsFor } from '@/lib/statistics';
 
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
@@ -41,6 +42,11 @@ export default async function CouncilMeetingPage({
     ]);
     const endTime = performance.now();
 
+    const subjectsWithStatistics = await Promise.all(subjects.map(async (subject) => ({
+        ...subject,
+        statistics: await getStatisticsFor(subject, ["person", "party"])
+    })));
+
     if (!city || !meeting || !people || !parties || !transcript || !subjects) {
         console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
         notFound();
@@ -58,7 +64,7 @@ export default async function CouncilMeetingPage({
         speakerTags: speakerTags,
         transcript: transcript,
         highlights: highlights,
-        subjects: subjects
+        subjects: subjectsWithStatistics
     }
 
     return <CouncilMeetingWrapper meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })}>

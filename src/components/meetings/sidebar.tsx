@@ -1,5 +1,5 @@
 "use client"
-import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader } from "lucide-react"
+import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -43,6 +43,11 @@ export default function MeetingSidebar() {
             title: "Στατιστικά",
             icon: BarChart2,
             url: `/${city.id}/${meeting.id}/statistics`
+        },
+        {
+            title: "Ρυθμίσεις",
+            icon: Settings,
+            url: `/${city.id}/${meeting.id}/settings`
         }
     ]
 
@@ -77,15 +82,26 @@ export default function MeetingSidebar() {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
 
-                            {subjectsExpanded && subjects?.map((subject) => (
-                                <SidebarMenuItem key={subject.id} className="pl-8">
-                                    <SidebarMenuButton asChild>
-                                        <a href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}>
-                                            <span className="text-sm">{subject.name}</span>
-                                        </a>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
+                            {subjectsExpanded && (
+                                <>
+                                    <SidebarMenuItem className="pl-8">
+                                        <SidebarMenuButton asChild>
+                                            <a href={`/${city.id}/${meeting.id}/subjects`}>
+                                                <span className="text-sm font-bold">Όλα τα θέματα</span>
+                                            </a>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    {subjects?.map((subject) => (
+                                        <SidebarMenuItem key={subject.id} className="pl-8">
+                                            <SidebarMenuButton asChild>
+                                                <a href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}>
+                                                    <span className="text-sm">{subject.name}</span>
+                                                </a>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    ))}
+                                </>
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

@@ -1,5 +1,5 @@
 "use server"
-import { City, CouncilMeeting, Party, Person, SpeakerSegment, Topic, TopicLabel } from "@prisma/client";
+import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, TopicLabel } from "@prisma/client";
 import prisma from "./db/prisma";
 import { joinTranscriptSegments } from "./db/transcript";
 
@@ -37,7 +37,7 @@ type SpeakerSegmentInfo = SpeakerSegment & {
 }
 
 export async function getStatisticsFor(
-    { personId, partyId, meetingId, cityId }: { personId?: Person["id"], partyId?: Party["id"], meetingId?: CouncilMeeting["id"], cityId?: City["id"] },
+    { personId, partyId, meetingId, cityId, subjectId }: { personId?: Person["id"], partyId?: Party["id"], meetingId?: CouncilMeeting["id"], cityId?: City["id"], subjectId?: Subject["id"] },
     groupBy: ("person" | "topic" | "party")[]
 ): Promise<Statistics> {
     let transcript: SpeakerSegmentInfo[];
@@ -51,6 +51,13 @@ export async function getStatisticsFor(
                 person: partyId ? {
                     partyId: partyId
                 } : undefined
+            },
+            subjects: {
+                // TODO: this is somewhat incorrect, as a speaker segment can have multiple subjects.
+                //       We should probably use the highlighted utterances instead.
+                some: {
+                    id: subjectId
+                }
             }
         },
         include: {

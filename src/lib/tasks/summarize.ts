@@ -135,7 +135,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     speakerSegments: {
                         create: subject.speakerSegments.map(segment => ({
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },
-                            summary: segment.summary
+                            summary: segment.summary,
+                            hot: subject.hot,
+                            agendaItemIndex: subject.agendaItemIndex
                         }))
                     }
                 }

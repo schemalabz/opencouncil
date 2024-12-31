@@ -24,7 +24,8 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
             style={{
                 width: `${width}px`,
                 height: `${height}px`,
-                backgroundColor: imageUrl ? 'transparent' : color ?? '#ccc',
+                borderRadius: '50%',
+                border: `2px solid ${color ?? '#ccc'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -32,6 +33,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                 fontSize: '1.5rem',
                 fontWeight: 'bold',
                 color: '#fff',
+                backgroundColor: '#ccc',
             }}
         >
             {imageUrl ? (
@@ -40,7 +42,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                     alt={name ?? ''}
                     width={width}
                     height={height}
-                    className="object-contain"
+                    className="object-cover rounded-full no-underline"
                 />
             ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm">

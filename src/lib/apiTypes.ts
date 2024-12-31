@@ -132,6 +132,8 @@ export interface SummarizeResult {
     subjects: {
         name: string;
         description: string;
+        hot: boolean;
+        agendaItemIndex: number | null;
         speakerSegments: {
             speakerSegmentId: string;
             summary: string | null;

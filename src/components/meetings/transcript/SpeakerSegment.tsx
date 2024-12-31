@@ -21,6 +21,10 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag]);
 
     const utterances = segment.utterances;
+    if (!utterances) {
+        return null;
+    }
+
     const summary = segment.summary;
     const topics = segment.topicLabels.map(tl => tl.topic);
     const isActive = currentTime >= utterances[0].startTimestamp && currentTime <= utterances[utterances.length - 1].endTimestamp;

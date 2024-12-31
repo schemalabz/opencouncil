@@ -155,6 +155,7 @@ model SpeakerSegment {
   speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
   embedding Unsupported("vector")?
+  icon String?
 
   utterances Utterance[]
 
@@ -221,11 +222,13 @@ model Topic {
   name      String
   name_en   String
   colorHex  String
+  icon      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   topicLabels TopicLabel[]
+  subjects Subject[]
 }
 
 model Summary {
@@ -245,14 +248,20 @@ model Subject {
   id        String   @id  @default(cuid())
   name      String
   description String
+
   cityId String
   councilMeetingId String
+
+  hot Boolean @default(false)
+  agendaItemIndex Int?
+  topicId String?
   locationId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   councilMeeting CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+  topic Topic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
@@ -287,7 +296,7 @@ model SubjectSpeakerSegment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([subjectId, speakerSegmentId])
+  @@unique([subjectId, speakerSegmentId])
 }
 
 

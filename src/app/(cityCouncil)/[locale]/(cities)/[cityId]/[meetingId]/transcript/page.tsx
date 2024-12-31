@@ -8,7 +8,6 @@ export default function TranscriptPage() {
     const { transcript: speakerSegments } = useCouncilMeetingData();
 
     return <>
-        {speakerSegments.length}
         <Transcript />
     </>
 }
