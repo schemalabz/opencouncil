@@ -10,7 +10,7 @@ import AvatarList from "./avatar-list";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 
-export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelations & { statistics: Statistics | null }, fullWidth?: boolean }) {
+export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, fullWidth?: boolean }) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
@@ -37,7 +37,7 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="hover:no-underline">
-            <Card style={{ borderColor, backgroundColor }} className={cn(fullWidth ? "w-full" : "w-56 md:w-96", "flex flex-col", "hover:shadow-md transition-shadow", "h-64")}>
+            <Card style={{ borderColor, backgroundColor }} className={cn(fullWidth ? "w-full" : "w-56 md:w-96", "flex flex-col", "hover:shadow-md transition-shadow", "min-h-64")}>
                 <CardHeader className="flex flex-col gap-2">
                     <div className="flex flex-row items-center gap-2">
                         <div className="p-2 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>

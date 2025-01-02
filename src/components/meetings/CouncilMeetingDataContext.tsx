@@ -15,7 +15,7 @@ export interface CouncilMeetingData {
     parties: Party[];
     speakerTags: SpeakerTag[];
     transcript: Transcript;
-    subjects: (SubjectWithRelations & { statistics: Statistics | null })[];
+    subjects: (SubjectWithRelations & { statistics?: Statistics })[];
 
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
@@ -38,7 +38,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         parties: Party[];
         speakerTags: SpeakerTag[];
         transcript: Transcript;
-        subjects: (SubjectWithRelations & { statistics: Statistics | null })[];
+        subjects: (SubjectWithRelations & { statistics?: Statistics })[];
     }
 }) {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);

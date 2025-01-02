@@ -155,7 +155,6 @@ model SpeakerSegment {
   speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
   embedding Unsupported("vector")?
-  icon String?
 
   utterances Utterance[]
 
@@ -295,8 +294,6 @@ model SubjectSpeakerSegment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([subjectId, speakerSegmentId])
 }
 
 

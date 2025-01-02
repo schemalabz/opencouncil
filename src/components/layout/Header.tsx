@@ -18,7 +18,7 @@ const Header = () => {
     const flag = otherLocale === 'en' ? '🇬🇧' : '🇬🇷';
 
     return (
-        <header className="w-full bg-background border-b h-[65px] print:hidden">
+        <header className="w-full bg-background border-b h-[65px] print:hidden fixed top-0 z-50">
             <div className="container mx-auto px-4 h-full flex justify-between items-center">
                 <Logo />
                 <nav>

@@ -19,7 +19,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '../ui/button'
 import { ChatInterface } from './Chat'
 import { Statistics } from './Statistics'
-import { ShareC } from './Share'
+import ShareC from './Share'
 import Summary from './Summary'
 import Highlights from '../Highlights'
 import { HighlightWithUtterances } from '@/lib/db/highlights'

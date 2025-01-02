@@ -70,9 +70,11 @@ export default async function CouncilMeetingPage({
     return <CouncilMeetingWrapper meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })}>
         <SidebarProvider>
             <MeetingSidebar />
-            <div className="flex flex-col flex-1">
+            <div className="flex flex-col flex-1 mt-[65px]">
                 <Header />
-                {children}
+                <div className='mr-16 md:mr-0 md:mb-16'>
+                    {children}
+                </div>
             </div>
             <TranscriptControls />
         </SidebarProvider>

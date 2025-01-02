@@ -6,7 +6,7 @@ import { FileIcon } from "lucide-react";
 import { SubjectCard } from "../subject-card";
 import { cn } from "@/lib/utils";
 
-export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics: Statistics | null })[], totalSubjects?: number, fullWidth?: boolean }) {
+export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics?: Statistics })[], totalSubjects?: number, fullWidth?: boolean }) {
     return (
         <div className={cn("p-6", fullWidth && "w-full")}>
             <section className="w-full max-w-4xl mx-auto">

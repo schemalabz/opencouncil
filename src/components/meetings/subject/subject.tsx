@@ -4,10 +4,14 @@ import { SubjectWithRelations } from "@/lib/db/subject";
 import { Statistics } from "@/lib/statistics";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import TopicBadge from "../transcript/Topic";
+import { useVideo } from "../VideoProvider";
+import { Button } from "@/components/ui/button";
+import { Play, FileText } from "lucide-react";
 
-export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics: Statistics | null } }) {
+export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
     const { topic, location, description, name, speakerSegments } = subject;
-    const { getSpeakerTag, getPerson, getParty } = useCouncilMeetingData();
+    const { getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
+    const { seekTo } = useVideo();
 
     return (
         <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -41,8 +45,8 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     </div>
                 </div>
             )}
-
             {/* Speaker Segments */}
+
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Τοποθετήσεις Ομιλητών</h3>
                 {speakerSegments?.map(segment => {
@@ -51,19 +55,45 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     const party = person?.partyId ? getParty(person.partyId) : undefined;
                     if (!speakerTag) return null;
 
+                    const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
+                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`
+
                     return (
                         <div key={segment.speakerSegmentId} className="rounded-lg border bg-card text-card-foreground shadow-sm">
                             <div className="p-4">
-                                <SpeakerBadge
-                                    speakerTag={speakerTag}
-                                    person={person}
-                                    party={party}
-                                    withLeftBorder
-                                />
-                                {segment.summary && (
+                                <div className="flex justify-between items-start">
+                                    <SpeakerBadge
+                                        speakerTag={speakerTag}
+                                        person={person}
+                                        party={party}
+                                        withLeftBorder
+                                    />
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => seekTo(segment.speakerSegment.startTimestamp)}
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <a href={transcriptUrl}>
+                                                <FileText className="h-4 w-4 mr-2" />
+                                                Απομαγνητοφώνηση
+                                            </a>
+                                        </Button>
+                                    </div>
+                                </div>
+                                {segment.summary ? (
                                     <div className="mt-4 pl-4 border-l-2 border-muted">
                                         <p className="text-muted-foreground">{segment.summary}</p>
                                     </div>
+                                ) : (
+                                    <p className="text-center text-sm mt-8 text-muted-foreground italic">Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση</p>
                                 )}
                             </div>
                         </div>
