@@ -9,11 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import SpeakerTagC from "./SpeakerTag";
 import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
+import { UserBadge } from "./user/UserBadge";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean }) => {
-    const { transcript, getSpeakerTag, subjects } = useCouncilMeetingData();
+    const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
     const { updateOptions, options } = useTranscriptOptions();
     const editable = options.editable;
     const utterances = highlight.highlightedUtterances.map(hu =>
@@ -205,12 +205,20 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                                 console.error(`Segment id ${utterance.speakerSegmentId} not found for utterance ${utterance.id}`);
                             }
                             const speakerTag = getSpeakerTag(segment?.speakerTagId!);
+                            const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                            const party = person?.partyId ? getParty(person.partyId) : undefined;
                             if (!speakerTag) {
                                 console.error("speakerTag not found for segment", segment?.id);
                             }
                             return (
                                 <div key={index} className="flex items-center space-x-2">
-                                    {speakerTag && <SpeakerTagC speakerTag={speakerTag} className="flex-shrink-0" />}
+                                    {speakerTag && <UserBadge
+                                        imageUrl={person?.image || null}
+                                        name={person?.name_short || speakerTag.label || ''}
+                                        role={person?.role || null}
+                                        party={party || null}
+                                        className="flex-shrink-0"
+                                    />}
                                     <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
                                     {editable && (
                                         <Button

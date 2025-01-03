@@ -1,16 +1,18 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import SpeakerTagC from "@/components/SpeakerTag";
-import UtteranceC from "./Utterance";
 import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useInView } from 'framer-motion';
 import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
+import { UserBadge } from '@/components/user/UserBadge';
+import UtteranceC from "./Utterance";
+import { useTranscriptOptions } from "../options/OptionsContext";
 
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getParty, getSpeakerTag } = useCouncilMeetingData();
+    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson } = useCouncilMeetingData();
     const { currentTime } = useVideo();
+    const { options } = useTranscriptOptions();
 
     const memoizedData = useMemo(() => {
         const speakerTag = getSpeakerTag(segment.speakerTagId);
@@ -36,6 +38,14 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
     };
 
+    const handlePersonChange = (personId: string | null) => {
+        if (memoizedData.speakerTag) {
+            // Assuming updateSpeakerTagPerson is available in your context
+            // You'll need to add this to your context if not already present
+            updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
+        }
+    };
+
     return (
         <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
             <div className='w-full'>
@@ -44,7 +54,23 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
                                 <div className='flex-grow overflow-hidden'>
-                                    <SpeakerTagC speakerTag={memoizedData.speakerTag!} className='ml-4' speakerSegmentId={segment.id} editable={true} />
+                                    {memoizedData.speakerTag && (
+                                        <UserBadge
+                                            imageUrl={memoizedData.person?.image || null}
+                                            name={memoizedData.person?.name_short || memoizedData.speakerTag.label || ''}
+                                            role={memoizedData.person?.role || null}
+                                            party={memoizedData.party || null}
+                                            className='ml-4'
+                                            speakerTag={memoizedData.speakerTag}
+                                            editable={options.editable}
+                                            onPersonChange={handlePersonChange}
+                                            availablePeople={people.map(p => ({
+                                                ...p,
+                                                party: p.partyId ? getParty(p.partyId) || null : null
+                                            }))}
+                                            withBorder={true}
+                                        />
+                                    )}
                                 </div>
                                 <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
                                     {formatTimestamp(utterances[0].startTimestamp)}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import SpeakerBadge from "@/components/SpeakerBadge";
+import { UserBadge } from "@/components/user/UserBadge";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { getPodcastSpecsForMeeting, PodcastSpecWithRelations } from "@/lib/db/podcasts";
 import { requestSplitMediaFileForPodcast } from "@/lib/tasks/splitMediaFile";
@@ -113,21 +113,20 @@ export default function PodcastSpecs() {
                                                     )}
                                                 </div>
                                             )}
-                                            {part.podcastPartAudioUtterances.map(utterance => {
+                                            {part.podcastPartAudioUtterances.map((utterance, index) => {
                                                 const speakerSegment = getSpeakerSegmentById(utterance.utterance.speakerSegmentId);
                                                 const speakerTag = speakerSegment?.speakerTagId ? getSpeakerTag(speakerSegment.speakerTagId) : null;
                                                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
                                                 const party = person?.partyId ? getParty(person.partyId) : null;
                                                 return (
-                                                    <div key={utterance.id} className="flex items-start space-x-2">
-                                                        {speakerTag && person && party && (
-                                                            <SpeakerBadge
-                                                                speakerTag={speakerTag}
-                                                                person={person}
-                                                                party={party}
-                                                                withLeftBorder={true}
-                                                            />
-                                                        )}
+                                                    <div key={index} className="flex items-center space-x-2">
+                                                        <UserBadge
+                                                            imageUrl={person?.image || null}
+                                                            name={person?.name_short || speakerTag?.label || ''}
+                                                            role={person?.role || null}
+                                                            party={party || null}
+                                                            className="flex-shrink-0"
+                                                        />
                                                         <p className="text-sm">{utterance.utterance.text}</p>
                                                     </div>
                                                 );

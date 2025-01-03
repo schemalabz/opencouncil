@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ColorPercentageRing } from "./ui/color-percentage-ring";
 import Icon from "./icon";
 import { MapPin, ScrollText } from "lucide-react";
-import AvatarList from "./avatar-list";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
+import { UserAvatarList } from "./user/UserAvatarList";
 
 export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, fullWidth?: boolean }) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
@@ -30,9 +30,8 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
         ?.sort((a, b) => b.speakingSeconds - a.speakingSeconds)
         .slice(0, 5)
         .map(p => ({
-            image: p.item.image,
-            name: p.item.name,
-            color: partyIdToColorHex(p.item?.partyId || "")
+            ...p.item,
+            party: p.item.partyId ? parties.find(party => party.id === p.item.partyId) || null : null
         })) || [];
 
     return (
@@ -58,19 +57,15 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
 
                 </CardHeader>
                 <CardContent className="flex-grow">
-
                     {subject.description && (
                         <div className="flex-grow text-sm text-muted-foreground line-clamp-2">{subject.description}</div>
                     )}
                 </CardContent>
                 <CardFooter className="flex-shrink">
-                    <div className="mt-auto">
-                        <AvatarList avatars={topSpeakers.map(p => ({
-                            imageUrl: p.image || null,
-                            name: p.name,
-                            color: p.color,
-                            profileUrl: `/${city.id}/person/${p.name}`
-                        }))} />
+                    <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
+                        <UserAvatarList
+                            users={topSpeakers}
+                        />
                     </div>
                 </CardFooter>
             </Card>

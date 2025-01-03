@@ -1,4 +1,3 @@
-import SpeakerTagC from "../SpeakerTag";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import TopicBadge from "./transcript/Topic";
 import { useVideo } from "./VideoProvider";
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/popover"
 import { CommandList } from "cmdk";
 import Combobox from "../Combobox";
+import { UserBadge } from "../user/UserBadge";
 
 export default function Summary() {
     const { transcript, getPerson, getParty, parties, speakerTags } = useCouncilMeetingData();
@@ -91,7 +91,16 @@ export default function Summary() {
                             </div>
                             <div className="flex flex-col sm:flex-row">
                                 <div className="w-full sm:w-1/3 flex-shrink-0 overflow-hidden mb-2 sm:mb-0">
-                                    <SpeakerTagC speakerTag={segment.speakerTag} />
+                                    <div className="flex items-center space-x-2">
+                                        <UserBadge
+                                            imageUrl={person?.image || null}
+                                            name={person?.name_short || segment.speakerTag.label || ''}
+                                            role={person?.role || null}
+                                            party={party || null}
+                                            className="flex-shrink-0"
+                                        />
+                                        <p className="text-sm">{segment.summary.text}</p>
+                                    </div>
                                 </div>
                                 <div className="w-full sm:w-2/3 flex-grow">
                                     <div className="text-sm text-muted-foreground text-justify">{segment.summary.text}</div>

@@ -4,7 +4,6 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import SpeakerBadge from "@/components/SpeakerBadge";
 import { useVideo } from "./VideoProvider";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { requestGeneratePodcastSpec } from '@/lib/tasks/generatePodcastSpec';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { UserBadge } from "@/components/user/UserBadge";
 
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
@@ -137,11 +137,12 @@ export default function Subjects() {
                                             return (
                                                 <li key={segment.id} className="text-sm">
                                                     <div onClick={() => handleSpeakerClick(segment.speakerSegment.id)} className="cursor-pointer flex items-center">
-                                                        <SpeakerBadge
-                                                            speakerTag={speakerTag!}
-                                                            person={person!}
-                                                            party={party!}
-                                                            withLeftBorder={true}
+                                                        <UserBadge
+                                                            imageUrl={person?.image || null}
+                                                            name={person?.name_short || speakerTag?.label || ''}
+                                                            role={person?.role || null}
+                                                            party={party || null}
+                                                            withBorder={true}
                                                         />
                                                         {segmentTimestamp !== undefined && (
                                                             <span className="ml-2 text-xs text-muted-foreground">

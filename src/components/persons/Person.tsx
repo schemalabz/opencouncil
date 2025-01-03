@@ -1,14 +1,11 @@
 "use client";
 import { useTranslations } from 'next-intl';
 import { City, Party, Person } from '@prisma/client';
-import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { deletePerson } from '@/lib/db/people';
-import { redirect } from '@/i18n/routing';
 import { toast } from '@/hooks/use-toast';
-import PartyBadge from '../PartyBadge';
 import { useRouter } from 'next/navigation';
 import { Search } from "lucide-react";
 import { Input } from '../ui/input';
@@ -19,6 +16,7 @@ import { Statistics } from '../Statistics';
 import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
 import { Result } from '../search/Result';
 import { format } from 'date-fns';
+import { UserBadge } from '../user/UserBadge';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
     const t = useTranslations('Person');
@@ -89,17 +87,18 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
 
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
-                    <ImageOrInitials imageUrl={person.image} width={90} height={90} name={person.name} />
-                    <div>
-                        <h1 className="text-3xl font-bold">{person.name}</h1>
-                        {person.role && <p className="text-xl text-gray-600">{person.role}</p>}
-                        {person.party && <PartyBadge party={person.party} shortName={false} />}
-                        {formatActiveDates(person.activeFrom, person.activeTo) && (
-                            <p className="text-sm text-gray-600">
-                                {formatActiveDates(person.activeFrom, person.activeTo)}
-                            </p>
-                        )}
-                    </div>
+                    <UserBadge
+                        imageUrl={person.image}
+                        name={person.name}
+                        role={person.role}
+                        party={person.party}
+                        className="flex-grow"
+                    />
+                    {formatActiveDates(person.activeFrom, person.activeTo) && (
+                        <p className="text-sm text-gray-600">
+                            {formatActiveDates(person.activeFrom, person.activeTo)}
+                        </p>
+                    )}
                 </div>
                 {editable && (
                     <div className="flex items-center space-x-4">

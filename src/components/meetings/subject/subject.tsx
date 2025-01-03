@@ -1,5 +1,4 @@
 import Map from "@/components/map/map";
-import SpeakerBadge from "@/components/SpeakerBadge";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { Statistics } from "@/lib/statistics";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
@@ -7,6 +6,7 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Play, FileText } from "lucide-react";
+import { UserBadge } from "@/components/user/UserBadge";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
     const { topic, location, description, name, speakerSegments } = subject;
@@ -62,11 +62,12 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                         <div key={segment.speakerSegmentId} className="rounded-lg border bg-card text-card-foreground shadow-sm">
                             <div className="p-4">
                                 <div className="flex justify-between items-start">
-                                    <SpeakerBadge
-                                        speakerTag={speakerTag}
-                                        person={person}
-                                        party={party}
-                                        withLeftBorder
+                                    <UserBadge
+                                        imageUrl={person?.image || null}
+                                        name={person?.name_short || speakerTag.label || ''}
+                                        role={person?.role || null}
+                                        party={party || null}
+                                        withBorder={true}
                                     />
                                     <div className="flex gap-2">
                                         <Button
