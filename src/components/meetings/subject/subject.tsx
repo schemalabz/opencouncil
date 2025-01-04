@@ -8,34 +8,65 @@ import { Button } from "@/components/ui/button";
 import { Play, FileText, MapPin, ScrollText } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
+import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
+import Icon from "@/components/icon";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
     const { topic, location, description, name, speakerSegments, agendaItemIndex } = subject;
     const { getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
 
+    const colorPercentages = subject.statistics?.parties?.map(p => ({
+        color: p.item.colorHex,
+        percentage: (p.speakingSeconds / subject.statistics!.speakingSeconds) * 100
+    })) || [];
+
+    const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
+
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
             {/* Header */}
             <div className="flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <h1 className="text-2xl font-bold">{name}</h1>
-
-                    <div className="flex flex-wrap gap-3">
-                        {topic && (
-                            <div className="flex items-center">
-                                <TopicBadge topic={topic} />
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex-shrink-0">
+                        <ColorPercentageRing
+                            data={colorPercentages}
+                            size={96}
+                            thickness={12}
+                        >
+                            <div className="flex flex-col items-center">
+                                <div className="text-lg font-medium">
+                                    {totalMinutes}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    λεπτά
+                                </div>
                             </div>
-                        )}
-
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="w-4 h-4" />
-                            <span>{location?.text || "Χωρίς τοποθεσία"}</span>
+                        </ColorPercentageRing>
+                    </div>
+                    <div className="flex-grow">
+                        <div className="flex flex-row items-center gap-2">
+                            <div className="p-2 rounded-full" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
+                                <Icon name={topic?.icon as any || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
+                            </div>
+                            <h1 className="text-2xl font-bold">{name}</h1>
                         </div>
+                        <div className="flex flex-wrap gap-3 mt-2">
+                            {topic && (
+                                <div className="flex items-center">
+                                    <TopicBadge topic={topic} />
+                                </div>
+                            )}
 
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <ScrollText className="w-4 h-4" />
-                            <span>{agendaItemIndex ? `Θέμα διάταξης #${agendaItemIndex}` : "Εκτός ημερησίας"}</span>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <MapPin className="w-4 h-4" />
+                                <span>{location?.text || "Χωρίς τοποθεσία"}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <ScrollText className="w-4 h-4" />
+                                <span>{agendaItemIndex ? `Θέμα διάταξης #${agendaItemIndex}` : "Εκτός ημερησίας"}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

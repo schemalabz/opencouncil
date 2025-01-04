@@ -40,11 +40,11 @@ export function PersonBadge({
 }: PersonBadgeProps) {
     const router = useRouter();
     const partyColor = person?.party?.colorHex || 'gray';
-
     const badge = (
         <div
             className={cn(
-                "inline-flex items-center py-1 pr-1 cursor-pointer transition-transform duration-200 hover:scale-105",
+                "inline-flex items-center py-1 pr-1 cursor-pointer z-10",
+                "transform-gpu hover:translate-y-[-2px] transition-transform duration-200", // Fixed scaling with translate
                 isSelected && "bg-gray-100",
                 className
             )}

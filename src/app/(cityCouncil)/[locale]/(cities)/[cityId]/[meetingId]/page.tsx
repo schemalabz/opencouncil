@@ -4,18 +4,11 @@ import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataC
 import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
 import { CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
+import { sortSubjectsByImportance } from "@/lib/utils";
 
 export default function MeetingPage() {
     const { meeting, subjects } = useCouncilMeetingData();
-    const hottestSubjects = [...subjects]
-        .sort((a, b) => {
-            if (b.hot) return 1;
-            if (a.hot) return -1;
-            if (a.statistics && b.statistics) {
-                return b.statistics.speakingSeconds - a.statistics.speakingSeconds;
-            }
-            return 0;
-        })
+    const hottestSubjects = sortSubjectsByImportance(subjects)
         .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
 
     return (

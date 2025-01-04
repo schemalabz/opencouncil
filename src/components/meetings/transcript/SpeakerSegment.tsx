@@ -53,7 +53,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     {renderMock ? <div className='w-full h-full bg-gray-100' /> : (
                         <div className='flex flex-col w-full mb-4'>
                             <div className='flex flex-row justify-around w-full items-center'>
-                                <div className='flex-grow overflow-hidden'>
+                                <div className='flex-grow overflow-hidden ml-2'>
                                     {memoizedData.speakerTag && (
                                         <PersonBadge
                                             person={memoizedData.person ? { ...memoizedData.person, party: memoizedData.party || null } : undefined}

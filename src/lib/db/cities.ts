@@ -1,7 +1,8 @@
 "use server";
-import { City, Person, Party, CouncilMeeting } from '@prisma/client';
+import { City, Person, Party, CouncilMeeting, Subject, Topic } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { SubjectWithRelations } from './subject';
 
 export async function deleteCity(id: string): Promise<void> {
     withUserAuthorizedToEdit({ cityId: id });
@@ -54,7 +55,7 @@ export async function getCity(id: string): Promise<City | null> {
     }
 }
 
-export async function getFullCity(id: string): Promise<City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } | null> {
+export async function getFullCity(id: string): Promise<City & { councilMeetings: (CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } | null> {
     try {
         const startTime = performance.now();
         const city = await prisma.city.findUnique({
@@ -62,6 +63,13 @@ export async function getFullCity(id: string): Promise<City & { councilMeetings:
             include: {
                 councilMeetings: {
                     orderBy: { dateTime: 'desc' },
+                    include: {
+                        subjects: {
+                            include: {
+                                topic: true
+                            }
+                        }
+                    }
                 },
                 parties: {
                     include: {

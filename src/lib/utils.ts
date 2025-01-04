@@ -1,6 +1,8 @@
-import { Offer } from "@prisma/client";
+import { Offer, Subject, Topic } from "@prisma/client";
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { Statistics } from "./statistics";
+import { SubjectWithRelations } from "./db/subject";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -16,7 +18,6 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
-
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR' }).format(value);
@@ -40,6 +41,21 @@ export function formatDate(date: Date): string {
   } else {
     throw new Error(`Invalid date: ${date}`);
   }
+}
+
+export function sortSubjectsByImportance<T extends Subject & { topic?: Topic | null, statistics?: Statistics }>(subjects: T[]) {
+  return [...subjects].sort((a, b) => {
+    // First priority: hot subjects
+    if (b.hot && !a.hot) return 1;
+    if (a.hot && !b.hot) return -1;
+
+    // Second priority: speaking time
+    if (a.statistics && b.statistics) {
+      return b.statistics.speakingSeconds - a.statistics.speakingSeconds;
+    }
+
+    return 0;
+  });
 }
 
 export const calculateOfferTotals = (offer: Offer): {

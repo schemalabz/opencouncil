@@ -1,5 +1,5 @@
 "use client";
-import { City, CouncilMeeting, Party, Person } from '@prisma/client';
+import { City, CouncilMeeting, Party, Person, Subject, Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Suspense, useState } from 'react';
@@ -22,8 +22,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { SubjectWithRelations } from '@/lib/db/subject';
 
-export default function CityC({ city, editable }: { city: City & { councilMeetings: CouncilMeeting[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
+export default function CityC({ city, editable }: { city: City & { councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");

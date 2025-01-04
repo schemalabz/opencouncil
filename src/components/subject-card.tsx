@@ -40,7 +40,7 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
                 <CardHeader className="flex flex-col gap-2">
                     <div className="flex flex-row items-center gap-2">
                         <div className="p-2 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={subject.topic?.icon as any || "circle"} color={subject.topic?.colorHex || "#9ca3af"} size={20} />
+                            <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={20} />
                         </div>
                         <CardTitle className="text-md flex-1">{subject.name}</CardTitle>
                     </div>
