@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3, MessageSquareQuote } from "lucide-react"
 import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party, HighlightedUtterance } from '@prisma/client'
@@ -26,21 +26,16 @@ import { HighlightWithUtterances } from '@/lib/db/highlights'
 import HighlightView from './highlightView/HighlightView'
 import { SubjectWithRelations } from '@/lib/db/subject'
 import Subjects from './Subjects'
+import { MeetingData } from '@/lib/getMeetingData'
 
 type CouncilMeetingWrapperProps = {
     editable: boolean,
-    meetingData: {
-        meeting: CouncilMeeting & { taskStatuses: any[] },
-        transcript: TranscriptType,
-        city: City,
-        people: Person[],
-        parties: Party[]
-        speakerTags: SpeakerTag[]
-        highlights: HighlightWithUtterances[]
-        subjects: SubjectWithRelations[]
-    },
+    meetingData: MeetingData,
     children: React.ReactNode
 }
+
+const LayoutContext = createContext<{ isWide: boolean }>({ isWide: false });
+export const useLayout = () => useContext(LayoutContext);
 
 export default function CouncilMeetingWrapper({ meetingData, editable, children }: CouncilMeetingWrapperProps) {
     const [isWide, setIsWide] = useState(false);
@@ -99,34 +94,14 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
     )
 
     return (
-        <CouncilMeetingDataProvider data={meetingData}>
-            <TranscriptOptionsProvider editable={editable}>
-                <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
-                    {children}
-                </VideoProvider>
-            </TranscriptOptionsProvider>
-        </CouncilMeetingDataProvider>
+        <LayoutContext.Provider value={{ isWide }}>
+            <CouncilMeetingDataProvider data={meetingData}>
+                <TranscriptOptionsProvider editable={editable}>
+                    <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                        {children}
+                    </VideoProvider>
+                </TranscriptOptionsProvider>
+            </CouncilMeetingDataProvider>
+        </LayoutContext.Provider>
     )
-}
-
-const CurrentTimeButton = ({ isWide }: { isWide: boolean }) => {
-    const { currentTime, currentScrollInterval, scrollToUtterance } = useVideo();
-
-    if (currentScrollInterval && !(currentTime >= currentScrollInterval[0] && currentTime <= currentScrollInterval[1])) {
-        const isScrollingUp = currentTime < currentScrollInterval[0];
-        const Icon = isScrollingUp ? ArrowUp : ArrowDown;
-
-        return (
-            <Button
-                onClick={() => scrollToUtterance(currentTime)}
-                className={`absolute ${isWide ? 'bottom-24 left-1/2 transform -translate-x-1/2' : 'bottom-2 left-1/2 transform -translate-x-1/2'}`}
-                variant="outline"
-            >
-                <Icon className="w-4 h-4 mr-2" />
-                Go to current time
-            </Button>
-        );
-    } else {
-        return null;
-    }
 }

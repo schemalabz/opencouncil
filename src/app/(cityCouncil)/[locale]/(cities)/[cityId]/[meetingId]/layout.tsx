@@ -14,12 +14,15 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { getStatisticsFor } from '@/lib/statistics';
+import { MeetingData } from '@/lib/getMeetingData';
 
+/*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
     const allCities = await getCities();
     const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
     return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId, locale: "el" }));
 }
+*/
 
 export default async function CouncilMeetingPage({
     params: { meetingId, cityId, locale },
@@ -30,44 +33,15 @@ export default async function CouncilMeetingPage({
 }) {
     unstable_setRequestLocale(locale);
 
-    const startTime = performance.now();
-    const [meeting, transcript, city, people, parties, highlights, subjects] = await Promise.all([
-        getCouncilMeeting(cityId, meetingId),
-        getTranscript(meetingId, cityId),
-        getCity(cityId),
-        getPeopleForCity(cityId),
-        getPartiesForCity(cityId),
-        getHighlightsForMeeting(cityId, meetingId),
-        getSubjectsForMeeting(cityId, meetingId)
-    ]);
-    const endTime = performance.now();
-
-    const subjectsWithStatistics = await Promise.all(subjects.map(async (subject) => ({
-        ...subject,
-        statistics: await getStatisticsFor(subject, ["person", "party"])
-    })));
-
-    if (!city || !meeting || !people || !parties || !transcript || !subjects) {
-        console.log(`404, because ${!city ? 'city' : ''}${!meeting ? 'meeting' : ''}${!people ? 'people' : ''}${!parties ? 'parties' : ''}${!transcript ? 'transcript' : ''} don't exist`)
+    const res = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${meetingId}`);
+    const data: MeetingData = await res.json();
+    if (!data || !data.city || !data.meeting || !data.people || !data.parties || !data.transcript || !data.subjects) {
         notFound();
     }
 
-    const speakerTags = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
-        .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
-        .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
+    console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const meetingData = {
-        meeting: meeting,
-        city: city,
-        people: people,
-        parties: parties,
-        speakerTags: speakerTags,
-        transcript: transcript,
-        highlights: highlights,
-        subjects: subjectsWithStatistics
-    }
-
-    return <CouncilMeetingWrapper meetingData={meetingData} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: meeting.id })}>
+    return <CouncilMeetingWrapper meetingData={data} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: data.meeting.id })}>
         <SidebarProvider>
             <MeetingSidebar />
             <div className="flex flex-col flex-1 mt-[65px]">

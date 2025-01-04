@@ -9,6 +9,7 @@ import {
 import { Badge } from "../ui/badge";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface UserBadgeProps {
     // Core data
@@ -16,6 +17,8 @@ interface UserBadgeProps {
     name: string;
     role?: string | null;
     party?: Party | null;
+    cityId?: string;
+    userId?: string;
 
     // Display options
     short?: boolean; // If true, only shows avatar
@@ -27,7 +30,7 @@ interface UserBadgeProps {
     speakerTag?: SpeakerTag;
     editable?: boolean;
     onPersonChange?: (personId: string | null) => void;
-    availablePeople?: (Person & { party?: Party | null })[];
+    availablePeople?: Person[];
 }
 
 export function UserBadge({
@@ -35,36 +38,26 @@ export function UserBadge({
     name,
     role,
     party,
+    cityId,
+    userId,
     short = false,
     className,
-    withBorder = false,
     isSelected = false,
     speakerTag,
     editable = false,
     onPersonChange,
     availablePeople,
 }: UserBadgeProps) {
+    const router = useRouter();
     const partyColor = party?.colorHex || 'gray';
 
     const badge = (
         <div
             className={cn(
-                "inline-flex items-center py-1 pr-1 cursor-pointer transition-all duration-200",
-                withBorder && "pl-2",
+                "inline-flex items-center py-1 pr-1 cursor-pointer transition-transform duration-200 hover:scale-105",
                 isSelected && "bg-gray-100",
                 className
             )}
-            style={{
-                borderLeft: withBorder ? `2px solid ${partyColor}` : 'none',
-                transform: 'scale(1)',
-                transition: 'transform 0.2s ease-in-out'
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-            }}
         >
             <ImageOrInitials
                 imageUrl={imageUrl}
@@ -85,37 +78,50 @@ export function UserBadge({
             )}
         </div>
     );
-
     if (!editable) {
+        const content = (
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <ImageOrInitials
+                        imageUrl={imageUrl}
+                        width={48}
+                        height={48}
+                        name={name}
+                        color={partyColor}
+                    />
+                    <div>
+                        <div className="font-semibold">{name}</div>
+                        {role && <div className="text-sm text-muted-foreground">{role}</div>}
+                    </div>
+                </div>
+                {party && (
+                    <Badge
+                        style={{ backgroundColor: party.colorHex }}
+                        className="text-foreground w-fit hover:bg-background/80"
+                    >
+                        {party.name}
+                    </Badge>
+                )}
+            </div>
+        );
+
         return (
             <Popover>
                 <PopoverTrigger asChild>
                     {badge}
                 </PopoverTrigger>
-                <PopoverContent className="w-80">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                            <ImageOrInitials
-                                imageUrl={imageUrl}
-                                width={48}
-                                height={48}
-                                name={name}
-                                color={partyColor}
-                            />
-                            <div>
-                                <div className="font-semibold">{name}</div>
-                                {role && <div className="text-sm text-muted-foreground">{role}</div>}
-                            </div>
-                        </div>
-                        {party && (
-                            <Badge
-                                style={{ backgroundColor: party.colorHex }}
-                                className="text-foreground w-fit hover:bg-background/80"
-                            >
-                                {party.name}
-                            </Badge>
-                        )}
-                    </div>
+                <PopoverContent
+                    className={cn(
+                        "w-80",
+                        cityId && userId && "cursor-pointer"
+                    )}
+                    onClick={() => {
+                        if (cityId && userId) {
+                            router.push(`/${cityId}/people/${userId}`);
+                        }
+                    }}
+                >
+                    {content}
                 </PopoverContent>
             </Popover>
         );
@@ -153,7 +159,7 @@ export function UserBadge({
                                             className="mr-2"
                                             style={{
                                                 borderLeft: person.partyId ?
-                                                    `4px solid ${person.party?.colorHex || 'transparent'}` :
+                                                    `4px solid ${party?.colorHex || 'transparent'}` :
                                                     'none',
                                                 paddingLeft: '4px'
                                             }}
@@ -181,4 +187,4 @@ export function UserBadge({
             </PopoverContent>
         </Popover>
     );
-} 
+}

@@ -2,19 +2,20 @@
 import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectCards } from "@/components/meetings/subject-cards";
-import { SubjectCard } from "@/components/subject-card";
-import Marquee from "@/components/ui/marquee";
-import { SubjectWithRelations } from "@/lib/db/subject";
-import { Statistics } from "@/lib/statistics";
-import { Subject } from "@prisma/client";
-import { format, formatDate } from "date-fns";
-import { CalculatorIcon, CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
-import Link from "next/link";
+import { formatDate } from "date-fns";
+import { CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
 
 export default function MeetingPage() {
     const { meeting, subjects } = useCouncilMeetingData();
     const hottestSubjects = [...subjects]
-        .sort((a, b) => (b.hot ? 1 : 0) - (a.hot ? 1 : 0))
+        .sort((a, b) => {
+            if (b.hot) return 1;
+            if (a.hot) return -1;
+            if (a.statistics && b.statistics) {
+                return b.statistics.speakingSeconds - a.statistics.speakingSeconds;
+            }
+            return 0;
+        })
         .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
 
     return (

@@ -13,6 +13,7 @@ interface VideoContextType {
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
+    seekToAndPlay: (time: number) => void;
     scrollToUtterance: (time: number) => void;
     playerRef: React.MutableRefObject<HTMLVideoElement | null>;
     isSeeking: boolean;
@@ -36,7 +37,7 @@ export const useVideo = () => {
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
-    utterances: (Utterance & { words: Word[] })[];
+    utterances: Utterance[];
 }
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -177,6 +178,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }, [isSeeking, isPlaying]);
 
+    const seekToAndPlay = (time: number) => {
+        seekTo(time);
+        playVideo();
+    }
+
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
     const value = {
@@ -191,6 +197,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         seekTo,
         scrollToUtterance,
         playerRef,
+        seekToAndPlay,
         isSeeking,
         onTimeUpdate: handleTimeUpdate,
         onSeeked: handleSeeked,

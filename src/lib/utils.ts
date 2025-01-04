@@ -32,7 +32,14 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 }
 
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
+  console.log(`formatDate: ${date}`);
+  if (date instanceof Date) {
+    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
+  } else if (typeof date === 'string') {
+    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(new Date(date));
+  } else {
+    throw new Error(`Invalid date: ${date}`);
+  }
 }
 
 export const calculateOfferTotals = (offer: Offer): {

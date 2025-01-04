@@ -18,6 +18,7 @@ export type SearchResult = {
     relevanceScore?: number;
     speakerSegment: (SpeakerSegment & {
         person?: Person;
+        personLabel?: string;
         party?: Party;
         summary?: { text: string };
         text?: string;
@@ -99,6 +100,7 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
             speakerSegment: {
                 ...segment,
                 person: segment.speakerTag?.person || undefined,
+                personLabel: segment.speakerTag?.label || undefined,
                 party: segment.speakerTag?.person?.party || undefined,
                 summary: segment.summary ? { text: segment.summary.text } : undefined,
                 text: segment.utterances.map(u => u.text).join(' ')

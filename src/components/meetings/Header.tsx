@@ -6,6 +6,7 @@ import { Link } from '@/i18n/routing'
 import Image from 'next/image'
 import { useCouncilMeetingData } from './CouncilMeetingDataContext'
 import { SidebarTrigger } from '../ui/sidebar'
+import { formatDate } from '@/lib/utils'
 
 export default function Header() {
     const { city, meeting } = useCouncilMeetingData();
@@ -32,7 +33,7 @@ export default function Header() {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbPage>{meeting.dateTime.toLocaleDateString()}</BreadcrumbPage>
+                                <BreadcrumbPage>{formatDate(meeting.dateTime)}</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>

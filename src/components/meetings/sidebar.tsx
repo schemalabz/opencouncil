@@ -86,17 +86,17 @@ export default function MeetingSidebar() {
                                 <>
                                     <SidebarMenuItem className="pl-8">
                                         <SidebarMenuButton asChild>
-                                            <a href={`/${city.id}/${meeting.id}/subjects`}>
+                                            <Link href={`/${city.id}/${meeting.id}/subjects`}>
                                                 <span className="text-sm font-bold">Όλα τα θέματα</span>
-                                            </a>
+                                            </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                     {subjects?.map((subject) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
                                             <SidebarMenuButton asChild>
-                                                <a href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}>
+                                                <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}>
                                                     <span className="text-sm">{subject.name}</span>
-                                                </a>
+                                                </Link>
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>
                                     ))}
@@ -107,7 +107,6 @@ export default function MeetingSidebar() {
                 </SidebarGroup>
             </SidebarContent>
             <SidebarFooter className="p-4">
-                <p className="text-xs text-muted-foreground">{meeting.dateTime.toLocaleDateString()}</p>
             </SidebarFooter>
         </Sidebar>
     )
@@ -148,7 +147,6 @@ function ControlsWidget() {
                     }
                     <span className="text-sm">{formatTime(currentTime)}</span>
                 </button>
-                <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
             </div>
             <div className="h-1 w-full rounded-full bg-secondary">
                 <div

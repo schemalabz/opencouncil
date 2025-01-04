@@ -13,9 +13,10 @@ type StatisticsProps = {
     type: 'person' | 'party'
     id: string
     cityId: string
+    color?: string
 }
 
-export function Statistics({ type, id, cityId }: StatisticsProps) {
+export function Statistics({ type, id, cityId, color }: StatisticsProps) {
     const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(null)
     const t = useTranslations('Statistics')
 
@@ -54,12 +55,18 @@ export function Statistics({ type, id, cityId }: StatisticsProps) {
     const chartConfig: ChartConfig = {
         minutes: {
             label: t('minutes'),
-            color: "hsl(var(--chart-1))",
+            color: color || "hsl(var(--chart-1))",
         },
         label: {
             color: "hsl(var(--foreground))",
         },
     }
+
+    const barColor = color || "#D3D3D3"
+    const textColor = color ?
+        // If color provided, make text lighter/darker based on color brightness
+        parseInt(barColor.replace('#', ''), 16) > 0xffffff / 2 ? '#000000' : '#ffffff'
+        : "hsl(var(--foreground))"
 
     if (!statistics) return (
         <div className="flex justify-center items-center w-full h-full">
@@ -77,7 +84,7 @@ export function Statistics({ type, id, cityId }: StatisticsProps) {
                 <h3 className="text-lg font-medium mb-4">{t('topicsList')}</h3>
                 <ul className="space-y-2">
                     {statistics.topics?.map((topicStat) => (
-                        <TopicBadge key={topicStat.item.id} topic={topicStat.item} count={topicStat.count} />
+                        <TopicBadge key={topicStat.item.id} topic={topicStat.item} count={topicStat.count} className="m-2" />
                     ))}
                 </ul>
             </div>
@@ -97,9 +104,9 @@ export function Statistics({ type, id, cityId }: StatisticsProps) {
                                 <YAxis dataKey="name" type="category" hide />
                                 <XAxis type="number" hide />
                                 <Tooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="minutes" fill="hsl(var(--primary))" radius={4}>
-                                    <LabelList dataKey="name" position="insideLeft" fill="hsl(var(--background))" />
-                                    <LabelList dataKey="minutes" position="right" fill="hsl(var(--foreground))" />
+                                <Bar dataKey="minutes" fill={barColor} radius={4}>
+                                    <LabelList dataKey="name" position="insideLeft" fill={textColor} />
+                                    <LabelList dataKey="minutes" position="right" fill={textColor} />
                                 </Bar>
                             </BarChart>
                         </ChartContainer>

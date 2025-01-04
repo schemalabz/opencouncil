@@ -1,22 +1,12 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
-import { CouncilMeeting, City, Person, Party, SpeakerTag, Utterance, Word, TaskStatus } from '@prisma/client';
+import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { Transcript } from '@/lib/db/transcript';
-import { SubjectWithRelations } from '@/lib/db/subject';
-import { Statistics } from '@/lib/statistics';
+import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
+import { MeetingData } from '@/lib/getMeetingData';
 
-export interface CouncilMeetingData {
-    meeting: CouncilMeeting & {
-        taskStatuses: TaskStatus[],
-    };
-    city: City;
-    people: Person[];
-    parties: Party[];
-    speakerTags: SpeakerTag[];
-    transcript: Transcript;
-    subjects: (SubjectWithRelations & { statistics?: Statistics })[];
-
+export interface CouncilMeetingDataContext extends MeetingData {
+    getFullTranscript: () => Promise<Transcript>;
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
@@ -25,21 +15,11 @@ export interface CouncilMeetingData {
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
 }
 
-const CouncilMeetingDataContext = createContext<CouncilMeetingData | undefined>(undefined);
+const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
 
 export function CouncilMeetingDataProvider({ children, data }: {
     children: ReactNode,
-    data: {
-        meeting: CouncilMeeting & {
-            taskStatuses: TaskStatus[],
-        };
-        city: City;
-        people: Person[];
-        parties: Party[];
-        speakerTags: SpeakerTag[];
-        transcript: Transcript;
-        subjects: (SubjectWithRelations & { statistics?: Statistics })[];
-    }
+    data: MeetingData
 }) {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);
     const partiesMap = useMemo(() => new Map(data.parties.map(party => [party.id, party])), [data.parties]);
@@ -54,6 +34,9 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
+        getFullTranscript: async () => {
+            return await getTranscript(data.meeting.id, data.meeting.cityId);
+        },
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
             await updateSpeakerTag(tagId, { personId });

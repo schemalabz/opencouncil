@@ -11,6 +11,7 @@ import MuxPlayer from "@mux/mux-player-react"
 import { Video } from "../Video"
 import { UserBadge } from "@/components/user/UserBadge"
 import PartyBadge from "@/components/PartyBadge"
+import { MeetingData } from "@/lib/getMeetingData"
 const SUB_SCROLL_TIMEOUT = 500; // milliseconds
 
 // Updated Subtitles Component
@@ -174,15 +175,7 @@ const SuperHeader = ({ currentIndex, totalHighlights, meeting, city, switchToTra
 
 export default function HighlightView({ initialHighlightId, data, switchToTranscript }: {
     initialHighlightId: string,
-    data: {
-        meeting: CouncilMeeting & { taskStatuses: any[] },
-        transcript: Transcript,
-        city: City,
-        people: Person[],
-        parties: Party[]
-        speakerTags: SpeakerTag[]
-        highlights: HighlightWithUtterances[]
-    }
+    data: MeetingData
     switchToTranscript: () => void
 }) {
     const [direction, setDirection] = useState<'up' | 'down'>('down')

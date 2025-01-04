@@ -5,28 +5,44 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
-import { Play, FileText } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText } from "lucide-react";
 import { UserBadge } from "@/components/user/UserBadge";
+import { Link } from "@/i18n/routing";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
-    const { topic, location, description, name, speakerSegments } = subject;
+    const { topic, location, description, name, speakerSegments, agendaItemIndex } = subject;
     const { getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
-    const { seekTo } = useVideo();
+    const { seekToAndPlay } = useVideo();
 
     return (
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
             {/* Header */}
-            <div className="flex items-start gap-4">
-                <div className="flex-1">
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <h1 className="text-2xl font-bold">{name}</h1>
-                    {description && (
-                        <p className="mt-2 text-muted-foreground">{description}</p>
-                    )}
-                    {topic && (
-                        <TopicBadge topic={topic} />
 
-                    )}
+                    <div className="flex flex-wrap gap-3">
+                        {topic && (
+                            <div className="flex items-center">
+                                <TopicBadge topic={topic} />
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span>{location?.text || "Χωρίς τοποθεσία"}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <ScrollText className="w-4 h-4" />
+                            <span>{agendaItemIndex ? `Θέμα διάταξης #${agendaItemIndex}` : "Εκτός ημερησίας"}</span>
+                        </div>
+                    </div>
                 </div>
+
+                {description && (
+                    <p className="text-muted-foreground">{description}</p>
+                )}
             </div>
 
             {/* Location Map */}
@@ -45,8 +61,8 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     </div>
                 </div>
             )}
-            {/* Speaker Segments */}
 
+            {/* Speaker Segments */}
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Τοποθετήσεις Ομιλητών</h3>
                 {speakerSegments?.map(segment => {
@@ -61,7 +77,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     return (
                         <div key={segment.speakerSegmentId} className="rounded-lg border bg-card text-card-foreground shadow-sm">
                             <div className="p-4">
-                                <div className="flex justify-between items-start">
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                                     <UserBadge
                                         imageUrl={person?.image || null}
                                         name={person?.name_short || speakerTag.label || ''}
@@ -71,7 +87,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                                     />
                                     <div className="flex gap-2">
                                         <Button
-                                            onClick={() => seekTo(segment.speakerSegment.startTimestamp)}
+                                            onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
                                             variant="outline"
                                             size="sm"
                                         >
@@ -82,10 +98,10 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                                             variant="outline"
                                             size="sm"
                                         >
-                                            <a href={transcriptUrl}>
+                                            <Link href={transcriptUrl}>
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Απομαγνητοφώνηση
-                                            </a>
+                                            </Link>
                                         </Button>
                                     </div>
                                 </div>
@@ -103,5 +119,4 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
             </div>
         </div>
     );
-
 }

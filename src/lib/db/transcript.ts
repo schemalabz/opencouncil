@@ -2,9 +2,7 @@ import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic
 import prisma from "./prisma";
 
 export type Transcript = (SpeakerSegment & {
-  utterances: (Utterance & {
-    words: Word[];
-  })[];
+  utterances: Utterance[];
   speakerTag: SpeakerTag;
   topicLabels: (TopicLabel & {
     topic: Topic;
@@ -12,13 +10,58 @@ export type Transcript = (SpeakerSegment & {
   summary: Summary | null;
 })[];
 
+// When we put the text at the speaker segment level, we get a transcript that's much smaller in size.
+export type LightTranscript = (SpeakerSegment & {
+  text: string;
+  speakerTag: SpeakerTag;
+  topicLabels: (TopicLabel & {
+    topic: Topic;
+  })[];
+  summary: Summary | null;
+})[];
+
+export async function getLightTranscript(meetingId: string, cityId: string): Promise<LightTranscript> {
+  const speakerSegments = await getTranscript(meetingId, cityId);
+  return speakerSegments.map(segment => ({
+    ...segment,
+    utterances: null, // this cuts down the size massively
+    text: segment.utterances.map(u => u.text).join(' '),
+    summary: segment.summary,
+    speakerTag: segment.speakerTag
+  }));
+}
+
 export async function getTranscript(meetingId: string, cityId: string, {
   joinAdjacentSameSpeakerSegments = true,
 }: {
   joinAdjacentSameSpeakerSegments?: boolean;
 } = {}): Promise<Transcript> {
-  const startTime = performance.now();
 
+  const speakerSegments = await prisma.speakerSegment.findMany({
+    where: {
+      meetingId,
+      cityId
+    },
+    include: {
+      speakerTag: true,
+      utterances: true,
+      topicLabels: {
+        include: {
+          topic: true
+        }
+      },
+      summary: true
+    }
+  });
+
+  if (joinAdjacentSameSpeakerSegments) {
+    return joinTranscriptSegments(speakerSegments);
+  }
+
+  return speakerSegments;
+
+  /*
+  const startTime = performance.now();
   const speakerSegments: Transcript = await prisma.$queryRaw`
       WITH speaker_segments AS (
         SELECT 
@@ -97,8 +140,9 @@ export async function getTranscript(meetingId: string, cityId: string, {
     `;
 
   const endTime = performance.now();
-
   return speakerSegments;
+    */
+
 }
 
 export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {

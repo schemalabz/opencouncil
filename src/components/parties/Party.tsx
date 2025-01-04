@@ -98,7 +98,7 @@ export default function PartyC({ city, party, editable }: { city: City, party: P
             </form>
             <div className="mt-8">
                 <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
-                <Statistics type="party" id={party.id} cityId={city.id} />
+                <Statistics type="party" id={party.id} cityId={city.id} color={party.colorHex} />
             </div>
             <div className="mt-8">
                 <h2 className="text-2xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>

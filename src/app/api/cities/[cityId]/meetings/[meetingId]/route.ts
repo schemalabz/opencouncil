@@ -1,25 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getTranscript } from '@/lib/db/transcript';
+import { NextResponse } from 'next/server';
+import { getMeetingData } from '@/lib/getMeetingData';
+import { getCities } from '@/lib/db/cities';
+import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
+
+export async function generateStaticParams() {
+    const allCities = await getCities();
+    const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
+    return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId }));
+}
 
 export async function GET(
-    request: NextRequest,
-    { params }: { params: { cityId: string, meetingId: string } }
+    request: Request,
+    { params }: { params: { cityId: string; meetingId: string } }
 ) {
-    const { cityId, meetingId } = params;
-
-    try {
-        const transcript = await getTranscript(meetingId, cityId);
-        const topicLabelCount = transcript.reduce((acc, segment) => {
-            return acc + segment.topicLabels.length;
-        }, 0);
-
-        if (!transcript) {
-            return NextResponse.json({ error: 'Transcript not found' }, { status: 404 });
-        }
-
-        return NextResponse.json(transcript);
-    } catch (error) {
-        console.error('Error fetching transcript:', error);
-        return NextResponse.json({ error: 'Failed to fetch transcript' }, { status: 500 });
-    }
+    const data = await getMeetingData(params.cityId, params.meetingId);
+    return NextResponse.json({ ...data });
 }

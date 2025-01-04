@@ -56,7 +56,7 @@ export async function getStatisticsFor(
                 // TODO: this is somewhat incorrect, as a speaker segment can have multiple subjects.
                 //       We should probably use the highlighted utterances instead.
                 some: {
-                    id: subjectId
+                    subjectId: subjectId
                 }
             }
         },
@@ -78,6 +78,8 @@ export async function getStatisticsFor(
             }
         }
     });
+
+    console.log(`Got ${transcript.length} speaker segments for ${meetingId}, with: ${personId} ${partyId} ${subjectId}`)
 
     return getStatisticsForTranscript(transcript, groupBy);
 }
@@ -132,13 +134,11 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         // Handle person statistics
         if (groupBy.includes("person") && segment.speakerTag.person) {
             const personStatistics = statistics.people!.find(p => p.item.id === segment.speakerTag.person?.id);
-            if (!segment.speakerTag.person.isAdministrativeRole) { // e.g. council chair
-                if (personStatistics) {
-                    personStatistics.speakingSeconds += segmentDuration;
-                    personStatistics.count++;
-                } else {
-                    statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segmentDuration, count: 1 });
-                }
+            if (personStatistics) {
+                personStatistics.speakingSeconds += segmentDuration;
+                personStatistics.count++;
+            } else {
+                statistics.people!.push({ item: segment.speakerTag.person, speakingSeconds: segmentDuration, count: 1 });
             }
         }
 

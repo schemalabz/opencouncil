@@ -14,15 +14,16 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbS
 import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
 import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
-import { Result } from '../search/Result';
+import { SearchResult } from '@/lib/search/search';
 import { format } from 'date-fns';
 import { UserBadge } from '../user/UserBadge';
+import { Result } from '@/components/search/Result';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [latestSegments, setLatestSegments] = useState<any[]>([]);
+    const [latestSegments, setLatestSegments] = useState<SearchResult[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
 

@@ -7,7 +7,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { editWord } from "@/lib/db/word";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 
-const UtteranceC: React.FC<{ utterance: Utterance & { words: Word[] } }> = React.memo(({ utterance }) => {
+const UtteranceC: React.FC<{ utterance: Utterance & { words?: Word[] } }> = React.memo(({ utterance }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options, updateOptions } = useTranscriptOptions();
@@ -49,7 +49,9 @@ const UtteranceC: React.FC<{ utterance: Utterance & { words: Word[] } }> = React
         return (
             <span className={className} id={utterance.id} onClick={handleClick}>
                 {isActive ? (
-                    utterance.words.map((word) => <WordC word={word} key={word.id} />)
+                    (utterance.words ?
+                        (utterance.words.map((word) => <WordC word={word} key={word.id} />))
+                        : utterance.text + " ")
                 ) : (
                     utterance.text + " "
                 )}

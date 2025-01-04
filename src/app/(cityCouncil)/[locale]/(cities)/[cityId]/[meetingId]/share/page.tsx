@@ -1,3 +1,4 @@
+"use client";
 import Share from "@/components/meetings/Share";
 
 export default function SharePage() {

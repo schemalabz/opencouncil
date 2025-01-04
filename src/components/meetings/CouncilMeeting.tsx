@@ -26,19 +26,11 @@ import { HighlightWithUtterances } from '@/lib/db/highlights'
 import HighlightView from './highlightView/HighlightView'
 import { SubjectWithRelations } from '@/lib/db/subject'
 import Subjects from './Subjects'
+import { MeetingData } from '@/lib/getMeetingData'
 
 type CouncilMeetingCProps = {
     editable: boolean,
-    meetingData: {
-        meeting: CouncilMeeting & { taskStatuses: any[] },
-        transcript: TranscriptType,
-        city: City,
-        people: Person[],
-        parties: Party[]
-        speakerTags: SpeakerTag[]
-        highlights: HighlightWithUtterances[]
-        subjects: SubjectWithRelations[]
-    }
+    meetingData: MeetingData
 }
 
 export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetingCProps) {
@@ -120,8 +112,6 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                             </div>
 
 
-                            <CurrentTimeButton isWide={isWide} />
-
                             {!isWide && activeSection && (
                                 <div className="fixed bottom-0 left-0 right-0 h-[70vh] bg-background z-50 overflow-y-auto border-t-2 border-gray-200">
                                     <div className="sticky top-0 z-10 bg-background py-4">
@@ -146,26 +136,4 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
             </TranscriptOptionsProvider>
         </CouncilMeetingDataProvider>
     )
-}
-
-const CurrentTimeButton = ({ isWide }: { isWide: boolean }) => {
-    const { currentTime, currentScrollInterval, scrollToUtterance } = useVideo();
-
-    if (currentScrollInterval && !(currentTime >= currentScrollInterval[0] && currentTime <= currentScrollInterval[1])) {
-        const isScrollingUp = currentTime < currentScrollInterval[0];
-        const Icon = isScrollingUp ? ArrowUp : ArrowDown;
-
-        return (
-            <Button
-                onClick={() => scrollToUtterance(currentTime)}
-                className={`absolute ${isWide ? 'bottom-24 left-1/2 transform -translate-x-1/2' : 'bottom-2 left-1/2 transform -translate-x-1/2'}`}
-                variant="outline"
-            >
-                <Icon className="w-4 h-4 mr-2" />
-                Go to current time
-            </Button>
-        );
-    } else {
-        return null;
-    }
 }

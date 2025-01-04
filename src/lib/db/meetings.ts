@@ -42,14 +42,11 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
     }
 }
 
-export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting & { taskStatuses: TaskStatus[] } | null> {
+export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting | null> {
     const startTime = performance.now();
     try {
         const meeting = await prisma.councilMeeting.findUnique({
             where: { cityId_id: { cityId, id } },
-            include: {
-                taskStatuses: true
-            }
         });
         const endTime = performance.now();
 
