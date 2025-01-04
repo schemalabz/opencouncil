@@ -8,7 +8,7 @@ import Icon from "./icon";
 import { MapPin, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
-import { UserAvatarList } from "./user/UserAvatarList";
+import { PersonAvatarList } from "./persons/PersonAvatarList";
 
 export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, fullWidth?: boolean }) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
@@ -63,7 +63,7 @@ export function SubjectCard({ subject, fullWidth }: { subject: SubjectWithRelati
                 </CardContent>
                 <CardFooter className="flex-shrink">
                     <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
-                        <UserAvatarList
+                        <PersonAvatarList
                             users={topSpeakers}
                         />
                     </div>

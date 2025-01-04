@@ -5,7 +5,7 @@ import { useInView } from 'framer-motion';
 import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
-import { UserBadge } from '@/components/user/UserBadge';
+import { PersonBadge } from '@/components/persons/PersonBadge';
 import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 
@@ -55,12 +55,8 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                             <div className='flex flex-row justify-around w-full items-center'>
                                 <div className='flex-grow overflow-hidden'>
                                     {memoizedData.speakerTag && (
-                                        <UserBadge
-                                            imageUrl={memoizedData.person?.image || null}
-                                            name={memoizedData.person?.name_short || memoizedData.speakerTag.label || ''}
-                                            role={memoizedData.person?.role || null}
-                                            party={memoizedData.party || null}
-                                            className='ml-4'
+                                        <PersonBadge
+                                            person={memoizedData.person ? { ...memoizedData.person, party: memoizedData.party || null } : undefined}
                                             speakerTag={memoizedData.speakerTag}
                                             editable={options.editable}
                                             onPersonChange={handlePersonChange}
@@ -68,7 +64,6 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 ...p,
                                                 party: p.partyId ? getParty(p.partyId) || null : null
                                             }))}
-                                            withBorder={true}
                                         />
                                     )}
                                 </div>

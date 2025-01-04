@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
-import { UserAvatarList } from '../user/UserAvatarList';
+import { PersonAvatarList } from '../persons/PersonAvatarList';
 
 interface PartyCardProps {
     item: Party & { persons: Person[] };
@@ -39,7 +39,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                 </div>
 
                 <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                    <UserAvatarList
+                    <PersonAvatarList
                         users={personsWithParty}
                         maxDisplayed={5}
                         numMore={party.persons.length > 5 ? party.persons.length - 5 : 0}

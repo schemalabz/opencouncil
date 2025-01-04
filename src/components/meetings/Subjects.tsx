@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { requestGeneratePodcastSpec } from '@/lib/tasks/generatePodcastSpec';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { UserBadge } from "@/components/user/UserBadge";
+import { PersonBadge } from "@/components/persons/PersonBadge";
 
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
@@ -137,12 +137,9 @@ export default function Subjects() {
                                             return (
                                                 <li key={segment.id} className="text-sm">
                                                     <div onClick={() => handleSpeakerClick(segment.speakerSegment.id)} className="cursor-pointer flex items-center">
-                                                        <UserBadge
-                                                            imageUrl={person?.image || null}
-                                                            name={person?.name_short || speakerTag?.label || ''}
-                                                            role={person?.role || null}
-                                                            party={party || null}
-                                                            withBorder={true}
+                                                        <PersonBadge
+                                                            person={person ? { ...person, party: party || null } : undefined}
+                                                            speakerTag={speakerTag}
                                                         />
                                                         {segmentTimestamp !== undefined && (
                                                             <span className="ml-2 text-xs text-muted-foreground">

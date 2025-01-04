@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { UserBadge } from "../user/UserBadge";
+import { PersonBadge } from "../persons/PersonBadge";
 import { SearchResult } from "@/lib/search/search";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,8 @@ export function Result({ result, className }: { result: SearchResult, className?
                         </div>
                     </div>
 
-                    <UserBadge
-                        imageUrl={result.speakerSegment.person?.image || null}
-                        name={result.speakerSegment.person?.name_short || result.speakerSegment.personLabel || ''}
-                        role={result.speakerSegment.person?.role || null}
-                        party={result.speakerSegment.party || null}
-                        withBorder={true}
+                    <PersonBadge
+                        person={result.speakerSegment.person ? { ...result.speakerSegment.person, party: result.speakerSegment.party || null } : undefined}
                     />
                 </div>
 

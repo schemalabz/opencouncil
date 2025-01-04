@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext"
 import MuxPlayer from "@mux/mux-player-react"
 import { Video } from "../Video"
-import { UserBadge } from "@/components/user/UserBadge"
+import { PersonBadge } from "@/components/persons/PersonBadge"
 import PartyBadge from "@/components/PartyBadge"
 import { MeetingData } from "@/lib/getMeetingData"
 const SUB_SCROLL_TIMEOUT = 500; // milliseconds
@@ -78,11 +78,8 @@ const HighlightCard = ({
                 {/* Person Badge - Upper Left Corner */}
                 {utterances[currentUtteranceIndex].person && (
                     <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
-                        <UserBadge
-                            imageUrl={utterances[currentUtteranceIndex].person?.image || null}
-                            name={utterances[currentUtteranceIndex].person?.name_short || ''}
-                            role={utterances[currentUtteranceIndex].person?.role || null}
-                            party={utterances[currentUtteranceIndex].party || null}
+                        <PersonBadge
+                            person={utterances[currentUtteranceIndex].person ? { ...utterances[currentUtteranceIndex].person, party: utterances[currentUtteranceIndex].party || null } : undefined}
                             className="text-xs sm:text-sm"
                         />
                     </div>

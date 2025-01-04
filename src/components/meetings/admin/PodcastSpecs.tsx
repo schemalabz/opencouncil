@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { UserBadge } from "@/components/user/UserBadge";
+import { PersonBadge } from "@/components/persons/PersonBadge";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { getPodcastSpecsForMeeting, PodcastSpecWithRelations } from "@/lib/db/podcasts";
 import { requestSplitMediaFileForPodcast } from "@/lib/tasks/splitMediaFile";
@@ -120,12 +120,9 @@ export default function PodcastSpecs() {
                                                 const party = person?.partyId ? getParty(person.partyId) : null;
                                                 return (
                                                     <div key={index} className="flex items-center space-x-2">
-                                                        <UserBadge
-                                                            imageUrl={person?.image || null}
-                                                            name={person?.name_short || speakerTag?.label || ''}
-                                                            role={person?.role || null}
-                                                            party={party || null}
-                                                            className="flex-shrink-0"
+                                                        <PersonBadge
+                                                            person={person ? { ...person, party: party || null } : undefined}
+                                                            speakerTag={speakerTag || undefined}
                                                         />
                                                         <p className="text-sm">{utterance.utterance.text}</p>
                                                     </div>

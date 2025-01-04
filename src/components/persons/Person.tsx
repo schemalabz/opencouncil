@@ -16,7 +16,7 @@ import { Statistics } from '../Statistics';
 import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
 import { SearchResult } from '@/lib/search/search';
 import { format } from 'date-fns';
-import { UserBadge } from '../user/UserBadge';
+import { PersonBadge } from './PersonBadge';
 import { Result } from '@/components/search/Result';
 
 export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
@@ -88,12 +88,8 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
 
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
-                    <UserBadge
-                        imageUrl={person.image}
-                        name={person.name}
-                        role={person.role}
-                        party={person.party}
-                        className="flex-grow"
+                    <PersonBadge
+                        person={{ ...person, party: person.party }}
                     />
                     {formatActiveDates(person.activeFrom, person.activeTo) && (
                         <p className="text-sm text-gray-600">

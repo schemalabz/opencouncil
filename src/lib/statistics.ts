@@ -79,8 +79,6 @@ export async function getStatisticsFor(
         }
     });
 
-    console.log(`Got ${transcript.length} speaker segments for ${meetingId}, with: ${personId} ${partyId} ${subjectId}`)
-
     return getStatisticsForTranscript(transcript, groupBy);
 }
 

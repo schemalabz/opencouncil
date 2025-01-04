@@ -6,7 +6,7 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Play, FileText, MapPin, ScrollText } from "lucide-react";
-import { UserBadge } from "@/components/user/UserBadge";
+import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
@@ -78,12 +78,9 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                         <div key={segment.speakerSegmentId} className="rounded-lg border bg-card text-card-foreground shadow-sm">
                             <div className="p-4">
                                 <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                                    <UserBadge
-                                        imageUrl={person?.image || null}
-                                        name={person?.name_short || speakerTag.label || ''}
-                                        role={person?.role || null}
-                                        party={party || null}
-                                        withBorder={true}
+                                    <PersonBadge
+                                        person={person ? { ...person, party: party || null } : undefined}
+                                        speakerTag={speakerTag}
                                     />
                                     <div className="flex gap-2">
                                         <Button

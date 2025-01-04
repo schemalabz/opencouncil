@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover"
 import { CommandList } from "cmdk";
 import Combobox from "../Combobox";
-import { UserBadge } from "../user/UserBadge";
+import { PersonBadge } from "../persons/PersonBadge";
 
 export default function Summary() {
     const { transcript, getPerson, getParty, parties, speakerTags } = useCouncilMeetingData();
@@ -92,12 +92,9 @@ export default function Summary() {
                             <div className="flex flex-col sm:flex-row">
                                 <div className="w-full sm:w-1/3 flex-shrink-0 overflow-hidden mb-2 sm:mb-0">
                                     <div className="flex items-center space-x-2">
-                                        <UserBadge
-                                            imageUrl={person?.image || null}
-                                            name={person?.name_short || segment.speakerTag.label || ''}
-                                            role={person?.role || null}
-                                            party={party || null}
-                                            className="flex-shrink-0"
+                                        <PersonBadge
+                                            person={person ? { ...person, party: party || null } : undefined}
+                                            speakerTag={segment.speakerTag}
                                         />
                                         <p className="text-sm">{segment.summary.text}</p>
                                     </div>

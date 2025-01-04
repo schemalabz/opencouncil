@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
-import { UserBadge } from "./user/UserBadge";
+import { PersonBadge } from "./persons/PersonBadge";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
@@ -212,12 +212,10 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                             }
                             return (
                                 <div key={index} className="flex items-center space-x-2">
-                                    {speakerTag && <UserBadge
-                                        imageUrl={person?.image || null}
-                                        name={person?.name_short || speakerTag.label || ''}
-                                        role={person?.role || null}
-                                        party={party || null}
-                                        className="flex-shrink-0"
+                                    {speakerTag && <PersonBadge
+                                        person={person ? { ...person, party: party || null } : undefined}
+                                        speakerTag={speakerTag}
+                                        className="ml-2"
                                     />}
                                     <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
                                     {editable && (

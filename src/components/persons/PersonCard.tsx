@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import React from 'react';
 import { useLocale } from 'next-intl';
 import { format } from 'date-fns';
-import { UserBadge } from '../user/UserBadge';
+import { PersonBadge } from './PersonBadge';
 
 interface PersonCardProps {
     item: Person & { party: Party | null };
@@ -40,13 +40,8 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
             onClick={handleClick}
         >
             <CardContent className="relative flex items-center p-4">
-                <UserBadge
-                    imageUrl={person.image}
-                    name={person.name}
-                    role={localizedRole}
-                    party={person.party}
-                    withBorder={false}
-                    className="flex-grow"
+                <PersonBadge
+                    person={{ ...person, party: person.party }}
                 />
                 {formatActiveDates(person.activeFrom, person.activeTo) && (
                     <p className="text-xs text-gray-500">
