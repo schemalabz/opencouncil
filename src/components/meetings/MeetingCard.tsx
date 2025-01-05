@@ -26,36 +26,12 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
-    const [statistics, setStatistics] = useState<MeetingStatistics | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     const handleClick = () => {
         setIsLoading(true);
         router.push(`/${meeting.cityId}/${meeting.id}`);
     };
-
-    useEffect(() => {
-        if (meeting.subjects.length > 0) {
-            import('@/lib/statistics').then(({ getStatisticsFor }) => {
-                Promise.all(meeting.subjects.map(subject =>
-                    getStatisticsFor({ subjectId: subject.id }, ['person', 'party'])
-                )).then(stats => {
-                    const subjectsWithStats = meeting.subjects.map((subject, i) => ({
-                        ...subject,
-                        statistics: stats[i]
-                    }));
-                    setStatistics({
-                        ...stats[0],
-                        subjects: subjectsWithStats
-                    } as MeetingStatistics);
-                });
-            });
-        }
-    }, [meeting.subjects]);
-
-    const importantSubjects = statistics?.subjects ?
-        sortSubjectsByImportance(statistics.subjects)
-            .slice(0, 3) : [];
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
 
@@ -95,7 +71,7 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
                         </div>
 
                         <div className="flex flex-wrap gap-2 items-center">
-                            {importantSubjects.map((subject) => (
+                            {meeting.subjects.slice(0, 3).map((subject) => (
                                 <SubjectBadge
                                     key={subject.id}
                                     subject={subject}

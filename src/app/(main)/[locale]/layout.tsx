@@ -16,9 +16,9 @@ export default async function Layout({ children, params: { locale } }: { childre
   return (<>
     <NextIntlClientProvider locale={locale} messages={messages}>
       <Header />
-      <div className="container mx-auto py-10 min-h-[70vh]">
+      <div className="container mx-auto py-10 min-h-[70vh] mt-[65px]">
         {children}
-      </div >
+      </div>
       <Footer />
       <Toaster />
     </NextIntlClientProvider>

@@ -44,7 +44,7 @@ export default async function CouncilMeetingPage({
     return <CouncilMeetingWrapper meetingData={data} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: data.meeting.id })}>
         <SidebarProvider>
             <MeetingSidebar />
-            <div className="flex flex-col flex-1 mt-[65px]">
+            <div className="flex flex-col flex-1">
                 <Header />
                 <div className='mr-16 md:mr-0 md:mb-16'>
                     {children}

@@ -5,7 +5,6 @@ import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
 import { CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
 import { sortSubjectsByImportance } from "@/lib/utils";
-
 export default function MeetingPage() {
     const { meeting, subjects } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects)
@@ -15,7 +14,7 @@ export default function MeetingPage() {
         <div className="flex flex-col w-full">
             <div className="relative h-[300px] w-full">
                 <Map className="w-full h-full" />
-                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
             </div>
             <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />

@@ -70,21 +70,22 @@ export function PersonBadge({
             )}
         </div>
     );
-
     if (!editable) {
         const content = (
             <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
-                    <ImageOrInitials
-                        imageUrl={person?.image || null}
-                        width={48}
-                        height={48}
-                        name={person?.name_short || speakerTag?.label || ''}
-                        color={partyColor}
-                    />
-                    <div>
-                        <div className="font-semibold">{person?.name_short || speakerTag?.label || ''}</div>
-                        {person?.role && <div className="text-sm text-muted-foreground">{person.role}</div>}
+                    <div className="flex-shrink-0">
+                        <ImageOrInitials
+                            imageUrl={person?.image || null}
+                            width={48}
+                            height={48}
+                            name={person?.name_short || speakerTag?.label || ''}
+                            color={partyColor}
+                        />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="font-semibold truncate">{person?.name_short || speakerTag?.label || ''}</div>
+                        {person?.role && <div className="text-sm text-muted-foreground truncate">{person.role}</div>}
                     </div>
                 </div>
                 {person?.party && (

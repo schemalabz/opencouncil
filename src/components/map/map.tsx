@@ -64,6 +64,7 @@ export default function Map({
                 // Start rotation animation
                 rotateCamera(0)
 
+                /*
                 // Add world coverage and AOI cutout
                 map.current!.addSource('world-and-aoi', {
                     'type': 'geojson',
@@ -95,6 +96,7 @@ export default function Map({
                         'fill-opacity': 0.8
                     }
                 });
+                */
 
                 // Add 3D buildings
                 const style = map.current!.getStyle();
