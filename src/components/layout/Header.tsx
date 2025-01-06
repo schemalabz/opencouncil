@@ -6,6 +6,7 @@ import { usePathname } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { useLocale } from 'next-intl';
 import Image from 'next/image';
+import UserDropdown from "./user-dropdown";
 
 
 const SHOW_LOCALE_PICKER = false;
@@ -31,6 +32,7 @@ const Header = () => {
                                 </Link>
                             </li>
                         )}
+                        <UserDropdown />
                     </ul>
                 </nav>
             </div>

@@ -1,7 +1,5 @@
 "use server";
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from './resend';
 
 interface ContactFormData {
     contactName: string;
@@ -37,22 +35,11 @@ export async function sendContactEmail(data: ContactFormData) {
     <p>Με εκτίμηση,<br>Η ομάδα του OpenCouncil</p>
   `;
 
-    try {
-        const result = await resend.emails.send({
-            from,
-            to,
-            cc,
-            subject,
-            html,
-        });
-
-        if (result.error) {
-            console.error('Failed to send email:', result);
-            throw new Error("An error occurred while sending the email");
-        }
-        return { success: true, message: 'Email sent successfully' };
-    } catch (error) {
-        console.error('Failed to send email:', error);
-        return { success: false, message: 'Failed to send email' };
-    }
+    return sendEmail({
+        from,
+        to,
+        cc,
+        subject,
+        html
+    });
 }

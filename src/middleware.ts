@@ -1,13 +1,13 @@
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { auth } from './auth'
 
-const intlMiddleware = createIntlMiddleware(routing, {
-    localeDetection: false
-});
+
+const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
 
 export default async function middleware(req: NextRequest) {
-    // First, check for basic auth
+    // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {
             status: 401,
@@ -15,22 +15,21 @@ export default async function middleware(req: NextRequest) {
         });
     }
 
-    // If basic auth passes, proceed with i18n middleware for matching routes
+    // Handle i18n first
     const pathname = req.nextUrl.pathname;
-    const matchesI18nRoutes = /^\/(?!api|_next|_vercel|\..+).*/.test(pathname);
-
-    if (matchesI18nRoutes) {
-        return intlMiddleware(req);
+    if (/^\/(?!api|_next|_vercel|\..+).*/.test(pathname)) {
+        const response = await i18nMiddleware(req);
+        if (response) return response;
     }
 
-    return NextResponse.next();
+    return auth(req as any);
 }
 
 export const config = {
     matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
 
-function isHttpBasicAuthAuthenticated(req: NextRequest) {
+function isHttpBasicAuthAuthenticated(req: Request) {
     if (!process.env.BASIC_AUTH_USERNAME || !process.env.BASIC_AUTH_PASSWORD) {
         return true; // if there's no basic auth configured, we're authenticated
     }

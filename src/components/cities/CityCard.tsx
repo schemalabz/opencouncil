@@ -37,9 +37,8 @@ export function CityCard({ city }: CityCardProps) {
                                 <Image
                                     src={city.logoImage || '/default-city-logo.jpg'}
                                     alt={`${localizedName} logo`}
-                                    layout="fill"
-                                    objectFit="contain"
-                                    className="opacity-20"
+                                    fill
+                                    className="opacity-20 object-contain"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-l from-transparent to-background"></div>
                             </div>

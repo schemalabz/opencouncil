@@ -3,7 +3,13 @@
 import { Link } from '@/i18n/routing'
 import { cn } from "@/lib/utils"
 import Logo from './Logo'
-import { Phone, Twitter, Instagram, Facebook, BookOpen } from 'lucide-react'
+import { Phone, Twitter, Instagram, Facebook, BookOpen, Mail } from 'lucide-react'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function Footer() {
     return (
@@ -60,47 +66,76 @@ export default function Footer() {
                             +30 2111980212
                         </a>
                         <a
-                            href="https://twitter.com/opencouncil_gr"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                            <Twitter className="w-4 h-4 mr-2" />
-                            @opencouncil_gr
-                        </a>
-                        <a
-                            href="https://instagram.com/opencouncil_gr"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                            <Instagram className="w-4 h-4 mr-2" />
-                            @opencouncil_gr
-                        </a>
-                        <a
-                            href="https://www.facebook.com/profile.php?id=61570217107676"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                            <Facebook className="w-4 h-4 mr-2" />
-                            OpenCouncil
-                        </a>
-                        <a
-                            href="https://schemalabs.substack.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                            <BookOpen className="w-4 h-4 mr-2" />
-                            Substack
-                        </a>
-                        <a
                             href="mailto:hello@opencouncil.gr"
                             className="mt-2 flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
                         >
+                            <Mail className="w-4 h-4 mr-2" />
                             hello@opencouncil.gr
                         </a>
+                        <div className="mt-2 flex items-center gap-2">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <a
+                                            href="https://twitter.com/opencouncil_gr"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-primary transition-colors"
+                                        >
+                                            <Twitter className="w-4 h-4" />
+                                        </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>@opencouncil_gr</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <a
+                                            href="https://instagram.com/opencouncil_gr"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-primary transition-colors"
+                                        >
+                                            <Instagram className="w-4 h-4" />
+                                        </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>@opencouncil_gr</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <a
+                                            href="https://www.facebook.com/profile.php?id=61570217107676"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-primary transition-colors"
+                                        >
+                                            <Facebook className="w-4 h-4" />
+                                        </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>OpenCouncil</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <a
+                                            href="https://schemalabs.substack.com"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-primary transition-colors"
+                                        >
+                                            <BookOpen className="w-4 h-4" />
+                                        </a>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Substack</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </div>
                 </div>
                 <div className="mt-8 pt-4 border-t border-border text-center text-xs text-muted-foreground">
