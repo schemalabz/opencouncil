@@ -1,9 +1,9 @@
-import { isEditMode } from '@/lib/auth';
 import CityC from '../../../../../components/cities/City';
 import { notFound } from 'next/navigation';
 import React from 'react';
 import { getCities, getFullCity } from '@/lib/db/cities';
 import { unstable_setRequestLocale } from 'next-intl/server';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 /*
 export async function generateStaticParams({ params }: { params: { cityId: string, locale: string } }) {
@@ -23,5 +23,5 @@ export default async function CityPage({ params }: { params: { cityId: string, l
         notFound();
     }
 
-    return <CityC city={city} editable={isEditMode()} />;
+    return <CityC city={city} />;
 }

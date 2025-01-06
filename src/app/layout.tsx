@@ -3,6 +3,7 @@ import { Inter as FontSans } from "next/font/google"
 import { cn } from "../lib/utils"
 import React from "react"
 import PlausibleProvider from 'next-plausible'
+import { SessionProvider } from "next-auth/react"
 
 const fontSans = FontSans({
     subsets: ["latin"],
@@ -52,9 +53,11 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                     fontSans.variable
                 )}
             >
-                <PlausibleProvider domain="opencouncil.gr">
-                    {children}
-                </PlausibleProvider>
+                <SessionProvider>
+                    <PlausibleProvider domain="opencouncil.gr">
+                        {children}
+                    </PlausibleProvider>
+                </SessionProvider>
             </body>
         </html >
     )

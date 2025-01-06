@@ -4,7 +4,6 @@ import { getPerson } from "@/lib/db/people";
 import PersonC from "@/components/persons/Person";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
-import { isEditMode } from "@/lib/auth";
 
 export default async function PersonPage({ params }: { params: { personId: string, cityId: string } }) {
     const person = await getPerson(params.personId);
@@ -15,5 +14,5 @@ export default async function PersonPage({ params }: { params: { personId: strin
         notFound();
     }
 
-    return <PersonC person={person} city={city} editable={isEditMode()} parties={parties} />
+    return <PersonC person={person} city={city} parties={parties} />
 }

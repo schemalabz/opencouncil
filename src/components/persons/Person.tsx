@@ -18,14 +18,24 @@ import { SearchResult } from '@/lib/search/search';
 import { format } from 'date-fns';
 import { PersonBadge } from './PersonBadge';
 import { Result } from '@/components/search/Result';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export default function PersonC({ city, person, editable, parties }: { city: City, person: Person & { party: Party | null }, editable: boolean, parties: Party[] }) {
+export default function PersonC({ city, person, parties }: { city: City, person: Person & { party: Party | null }, parties: Party[] }) {
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [latestSegments, setLatestSegments] = useState<SearchResult[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [canEdit, setCanEdit] = useState(false);
+
+    useEffect(() => {
+        const checkEditPermissions = async () => {
+            const hasPermission = await isUserAuthorizedToEdit({ personId: person.id });
+            setCanEdit(hasPermission);
+        };
+        checkEditPermissions();
+    }, [person.id]);
 
     useEffect(() => {
         const fetchLatestSegments = async () => {
@@ -97,7 +107,7 @@ export default function PersonC({ city, person, editable, parties }: { city: Cit
                         </p>
                     )}
                 </div>
-                {editable && (
+                {canEdit && (
                     <div className="flex items-center space-x-4">
                         <FormSheet
                             FormComponent={PersonForm}

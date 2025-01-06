@@ -17,7 +17,7 @@ export async function deleteCity(id: string): Promise<void> {
 }
 
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt'>): Promise<City> {
-    withUserAuthorizedToEdit({ root: true });
+    withUserAuthorizedToEdit({});
     try {
         const newCity = await prisma.city.create({
             data: cityData,
@@ -55,43 +55,44 @@ export async function getCity(id: string): Promise<City | null> {
     }
 }
 
-export async function getFullCity(id: string): Promise<City & { councilMeetings: (CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } | null> {
-    try {
-        const startTime = performance.now();
-        const city = await prisma.city.findUnique({
-            where: { id },
-            include: {
-                councilMeetings: {
-                    orderBy: { dateTime: 'desc' },
-                    include: {
-                        subjects: {
-                            include: {
-                                topic: true
-                            }
+export async function getFullCity(cityId: string) {
+    return await prisma.city.findUnique({
+        where: { id: cityId },
+        include: {
+            councilMeetings: {
+                include: {
+                    subjects: {
+                        include: {
+                            speakerSegments: {
+                                include: {
+                                    speakerSegment: true
+                                }
+                            },
+                            highlights: true,
+                            location: true,
+                            topic: true
                         }
                     }
-                },
-                parties: {
-                    include: {
-                        persons: true
-                    }
-                },
-                persons: {
-                    include: {
-                        party: true
-                    },
-                    orderBy: {
-                        name: 'asc'
-                    }
+                }
+            },
+            parties: {
+                include: {
+                    persons: true
+                }
+            },
+            persons: {
+                include: {
+                    party: true,
+                    speakerTags: true
+                }
+            },
+            administrators: {
+                include: {
+                    user: true
                 }
             }
-        });
-        const endTime = performance.now();
-        return city;
-    } catch (error) {
-        console.error('Error fetching city:', error);
-        throw new Error('Failed to fetch city');
-    }
+        }
+    });
 }
 
 export async function getCities({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {

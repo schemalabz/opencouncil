@@ -18,14 +18,24 @@ import { Statistics } from '../Statistics';
 import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
 import { getLatestSegmentsForParty } from '@/lib/search/search';
 import { Result } from '../search/Result';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export default function PartyC({ city, party, editable }: { city: City, party: Party & { persons: Person[] }, editable: boolean }) {
+export default function PartyC({ city, party }: { city: City, party: Party & { persons: Person[] } }) {
     const t = useTranslations('Party');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [latestSegments, setLatestSegments] = useState<any[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [canEdit, setCanEdit] = useState(false);
+
+    useEffect(() => {
+        const checkEditPermissions = async () => {
+            const hasPermission = await isUserAuthorizedToEdit({ partyId: party.id });
+            setCanEdit(hasPermission);
+        };
+        checkEditPermissions();
+    }, [party.id]);
 
     useEffect(() => {
         const fetchLatestSegments = async () => {
@@ -82,7 +92,7 @@ export default function PartyC({ city, party, editable }: { city: City, party: P
                         <h1 className="text-3xl font-bold">{party.name}</h1>
                     </div>
                 </div>
-                {editable && (<div className="flex items-center space-x-4">
+                {canEdit && (<div className="flex items-center space-x-4">
                     <FormSheet FormComponent={PartyForm} formProps={{ party, cityId: city.id }} title={t('editParty')} type="edit" />
                     <Button onClick={onDelete}>{t('deleteParty')}</Button>
                 </div>)}

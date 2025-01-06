@@ -29,6 +29,6 @@ export default {
 
             if (!res.ok)
                 throw new Error("Resend error: " + JSON.stringify(await res.json()))
-        },
+        }
     })],
 } satisfies NextAuthConfig

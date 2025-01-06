@@ -147,6 +147,7 @@ function ControlsWidget() {
                     }
                     <span className="text-sm">{formatTime(currentTime)}</span>
                 </button>
+                <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
             </div>
             <div className="h-1 w-full rounded-full bg-secondary">
                 <div

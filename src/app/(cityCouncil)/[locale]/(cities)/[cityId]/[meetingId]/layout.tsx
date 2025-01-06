@@ -3,7 +3,7 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getCities, getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
-import { isEditMode, withUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
@@ -34,6 +34,9 @@ export default async function CouncilMeetingPage({
     unstable_setRequestLocale(locale);
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${meetingId}`);
+    if (res.status !== 200) {
+        notFound();
+    }
     const data: MeetingData = await res.json();
     if (!data || !data.city || !data.meeting || !data.people || !data.parties || !data.transcript || !data.subjects) {
         notFound();
@@ -41,7 +44,8 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    return <CouncilMeetingWrapper meetingData={data} editable={isEditMode() && withUserAuthorizedToEdit({ councilMeetingId: data.meeting.id })}>
+    const editable = await isUserAuthorizedToEdit({ councilMeetingId: data.meeting.id });
+    return <CouncilMeetingWrapper meetingData={data} editable={editable}>
         <SidebarProvider>
             <MeetingSidebar />
             <div className="flex flex-col flex-1">

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { City, CouncilMeeting } from '@prisma/client';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
@@ -10,20 +10,22 @@ import CityForm from './CityForm';
 import { CityCard } from './CityCard';
 import { useTranslations } from 'next-intl';
 import FormSheet from '../FormSheet';
+import { useSession } from 'next-auth/react';
 
 interface CitiesListProps {
     cities: (City & { councilMeetings: CouncilMeeting[] })[];
-    editable: boolean;
 }
 
-export function CitiesList({ cities, editable }: CitiesListProps) {
+export function CitiesList({ cities }: CitiesListProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCity, setSelectedCity] = useState<City | null>(null);
     const t = useTranslations('CitiesList');
+    const { data: session } = useSession()
 
     const filteredCities = cities.filter(city =>
         city.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center mb-4">
@@ -34,7 +36,7 @@ export function CitiesList({ cities, editable }: CitiesListProps) {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="flex-grow mr-4"
                 />
-                {editable && (
+                {session?.user?.isSuperAdmin && (
                     <FormSheet FormComponent={CityForm} formProps={{}} title={t('addCity')} type="add" />
                 )}
             </div>
@@ -49,7 +51,7 @@ export function CitiesList({ cities, editable }: CitiesListProps) {
                     ))
                 )}
             </div>
-            {editable && (
+            {session?.user?.isSuperAdmin && (
                 <Sheet>
                     <SheetContent>
                         <SheetHeader>

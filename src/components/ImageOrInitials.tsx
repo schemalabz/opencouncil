@@ -7,8 +7,9 @@ interface ImageOrInitialsProps {
     height: number;
     name?: string;
     color?: string;
+    square?: boolean;
 }
-export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, width, height, name, color }) => {
+export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, width, height, name, color, square }) => {
     const getInitials = () => {
         if (!name) return '';
         const nameParts = name.split(' ');
@@ -24,7 +25,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
             style={{
                 width: `${width}px`,
                 height: `${height}px`,
-                borderRadius: '50%',
+                borderRadius: square ? '4px' : '50%',
                 border: `2px solid ${color ?? '#ccc'}`,
                 display: 'flex',
                 alignItems: 'center',
@@ -42,7 +43,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                     alt={name ?? ''}
                     width={width}
                     height={height}
-                    className="object-cover rounded-full no-underline"
+                    className={`object-cover ${square ? 'rounded' : 'rounded-full'} no-underline`}
                 />
             ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm">

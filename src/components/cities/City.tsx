@@ -2,7 +2,7 @@
 import { City, CouncilMeeting, Party, Person, Subject, Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import AddMeetingForm from "@/components/meetings/AddMeetingForm";
 import { Link } from '@/i18n/routing';
@@ -23,12 +23,22 @@ import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { SubjectWithRelations } from '@/lib/db/subject';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export default function CityC({ city, editable }: { city: City & { councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] }, editable: boolean }) {
+export default function CityC({ city }: { city: City & { councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } }) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const router = useRouter();
+    const [canEdit, setCanEdit] = useState(false);
+
+    useEffect(() => {
+        const checkEditPermissions = async () => {
+            const hasPermission = await isUserAuthorizedToEdit({ cityId: city.id });
+            setCanEdit(hasPermission);
+        };
+        checkEditPermissions();
+    }, [city.id]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,6 +47,8 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
         params.set('cityId', city.id);
         router.push(`/search?${params.toString()}`);
     };
+
+
 
     return (
         <div className="md:container md:mx-auto py-8">
@@ -75,7 +87,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                         )}
                     </div>
                 </div>
-                {editable && (
+                {canEdit && (
                     <FormSheet FormComponent={CityForm} formProps={{ city, onSuccess: () => setIsSheetOpen(false) }} title={t('editCity')} type="edit" />
                 )}
             </div>
@@ -104,8 +116,8 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
 
                     <TabsContent value="meetings">
                         <List
-                            items={editable ? city.councilMeetings : city.councilMeetings.filter(meeting => meeting.released)}
-                            editable={editable}
+                            items={canEdit ? city.councilMeetings : city.councilMeetings.filter(meeting => meeting.released).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())}
+                            editable={canEdit}
                             ItemComponent={MeetingCard}
                             FormComponent={AddMeetingForm}
                             formProps={{ cityId: city.id }}
@@ -116,7 +128,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                     <TabsContent value="members">
                         <List
                             items={city.persons}
-                            editable={editable}
+                            editable={canEdit}
                             ItemComponent={PersonCard}
                             FormComponent={PersonForm}
                             formProps={{ cityId: city.id, parties: city.parties }}
@@ -127,7 +139,7 @@ export default function CityC({ city, editable }: { city: City & { councilMeetin
                     <TabsContent value="parties">
                         <List
                             items={city.parties}
-                            editable={editable}
+                            editable={canEdit}
                             ItemComponent={PartyCard}
                             FormComponent={PartyForm}
                             formProps={{ cityId: city.id }}

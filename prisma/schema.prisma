@@ -29,6 +29,7 @@ model City {
   parties        Party[]
   persons        Person[]
   councilMeetings CouncilMeeting[]
+  administrators Administers[]
 }
 
 enum AuthorityType {
@@ -50,6 +51,8 @@ model Party {
   persons Person[]
   city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
+
+  administrators Administers[]
 
   @@index([cityId])
 }
@@ -75,6 +78,8 @@ model Person {
   cityId String
   party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
   partyId String?
+
+  administrators Administers[]
 
   @@index([cityId])
   @@index([partyId])
@@ -414,11 +419,14 @@ model User {
   name          String?
   email         String          @unique
   emailVerified DateTime?
-  image         String?
+  phone         String?
+  onboarded     Boolean         @default(false)
+  allowContact  Boolean         @default(false)
+  isSuperAdmin  Boolean         @default(false)
   accounts      Account[]
   sessions      Session[]
-  // Optional for WebAuthn support
   Authenticator Authenticator[]
+  administers   Administers[]
  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -477,4 +485,23 @@ model Authenticator {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
  
   @@id([userId, credentialID])
+}
+
+model Administers {
+  
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  cityId    String?
+  partyId   String?
+  personId  String?
+  
+  city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  party     Party?   @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  person    Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, cityId, partyId, personId])
 }

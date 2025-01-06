@@ -33,8 +33,8 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
             onClick={handleClick}
         >
             <CardContent className="relative h-full flex flex-col justify-between">
-                <div className="flex items-center space-x-4">
-                    <ImageOrInitials imageUrl={party.logo} width={64} height={64} name={party.name_short} color={party.colorHex} />
+                <div className="flex items-center space-x-4 mt-4">
+                    <ImageOrInitials imageUrl={party.logo} width={64} height={64} name={party.name_short} color={party.colorHex} square={true} />
                     <h3 className="text-2xl font-bold">{party.name}</h3>
                 </div>
 

@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { useCouncilMeetingData } from './CouncilMeetingDataContext'
 import { SidebarTrigger } from '../ui/sidebar'
 import { formatDate } from '@/lib/utils'
-
+import UserDropdown from '../layout/user-dropdown'
 export default function Header() {
     const { city, meeting } = useCouncilMeetingData();
     return (
@@ -43,6 +43,10 @@ export default function Header() {
                     </h1>
                 </div>
             </div>
-        </motion.header >
+
+            <div>
+                <UserDropdown currentEntity={{ cityId: city.id }} />
+            </div>
+        </motion.header>
     )
 }

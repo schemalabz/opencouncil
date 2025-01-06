@@ -16,14 +16,12 @@ export default async function Layout({ children, params: { locale } }: { childre
   const messages = await getMessages();
   return (<>
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <SessionProvider>
-        <Header />
-        <div className="container mx-auto py-10 min-h-[70vh] mt-[65px]">
-          {children}
-        </div>
-        <Footer />
-        <Toaster />
-      </SessionProvider>
+      <Header />
+      <div className="container mx-auto py-10 min-h-[70vh] mt-[65px]">
+        {children}
+      </div>
+      <Footer />
+      <Toaster />
     </NextIntlClientProvider>
   </>)
 }

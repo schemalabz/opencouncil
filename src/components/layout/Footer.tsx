@@ -10,6 +10,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { ContactBadge } from './contact-badge'
 
 export default function Footer() {
     return (
