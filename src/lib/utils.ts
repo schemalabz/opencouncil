@@ -3,9 +3,19 @@ import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
 import { SubjectWithRelations } from "./db/subject";
+// @ts-ignore
+import { default as greekKlitiki } from "greek-name-klitiki";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+export function klitiki(name: string): string {
+  if (name.includes(" ")) {
+    return name.split(" ").map(greekKlitiki).join(" ");
+  }
+
+  return greekKlitiki(name);
 }
 
 export function debounce<T extends (...args: any[]) => any>(

@@ -1,9 +1,13 @@
-import { signIn } from "@/auth"
+"use client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
-
+import { useSearchParams } from "next/navigation"
+import { signInWithEmail } from "@/lib/serverSignIn"
 export function SignIn() {
+    const searchParams = useSearchParams()
+    const email = searchParams.get("email")
+
     return (
         <Card className="max-w-xl">
             <CardHeader>
@@ -13,10 +17,7 @@ export function SignIn() {
                 </p>
             </CardHeader>
             <form
-                action={async (formData) => {
-                    "use server"
-                    await signIn("resend", formData, { redirectTo: "/profile" })
-                }}
+                action={signInWithEmail}
             >
                 <CardContent>
                     <div className="space-y-4">
@@ -26,6 +27,7 @@ export function SignIn() {
                             placeholder="Εισάγετε το email σας"
                             className="w-full"
                             required
+                            defaultValue={email || ""}
                         />
                     </div>
                 </CardContent>
