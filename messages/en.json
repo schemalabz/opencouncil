@@ -224,5 +224,13 @@
         "searchItems": "Search offers",
         "noItems": "No offers",
         "item": "Offer"
+    },
+    "MeetingCard": {
+        "noVideo": "No media",
+        "withVideo": "With video",
+        "withAudio": "Audio",
+        "subjects": "subjects",
+        "moreSubjects": "and {count} more subjects",
+        "mostRecent": "Most recent meeting"
     }
 }

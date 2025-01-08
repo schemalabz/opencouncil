@@ -115,7 +115,8 @@ em {
   font-style: normal;
   font-weight: 500;
   text-decoration: underline solid 2px hsl(var(--primary));
-  text-underline-offset: 4px;     /* Moves the line further below the text */
+  text-underline-offset: 4px;
+  white-space: nowrap;
 }
 
 h2 {

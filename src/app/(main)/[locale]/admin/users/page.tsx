@@ -9,12 +9,14 @@ import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
-interface UserWithAdministers extends User {
-    administers: Array<Administers & {
-        city?: { id: string; name: string } | null
-        party?: { id: string; name: string } | null
-        person?: { id: string; name: string } | null
-    }>
+
+interface UserWithAdministers extends Omit<User, 'administers'> {
+    administers: Array<{
+        id: string;
+        city?: { id: string; name: string } | null;
+        party?: { id: string; name: string; city: { id: string; name: string } } | null;
+        person?: { id: string; name: string; city: { id: string; name: string } } | null;
+    }>;
 }
 
 export default function UsersPage() {

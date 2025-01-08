@@ -1,11 +1,10 @@
-import { CitiesList } from "@/components/cities/CitiesList"
-import PilotPage from '@/components/PilotPage';
-import { getCities } from '@/lib/db/cities';
+import { Landing } from "@/components/landing/landing";
+import { getLandingPageData } from '@/lib/db/landing';
 
 export default async function CitiesPage() {
-    const cities = await getCities();
+    const cities = await getLandingPageData();
 
     return (
-        <CitiesList cities={cities} />
+        <Landing publicCities={cities} />
     )
 }

@@ -5,8 +5,10 @@ import { Statistics } from "@/lib/statistics";
 import { FileIcon } from "lucide-react";
 import { SubjectCard } from "../subject-card";
 import { cn } from "@/lib/utils";
+import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 
 export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics?: Statistics })[], totalSubjects?: number, fullWidth?: boolean }) {
+    const { city, meeting, parties } = useCouncilMeetingData();
     return (
         <div className={cn("p-6", fullWidth && "w-full")}>
             <section className="w-full max-w-4xl mx-auto">
@@ -27,7 +29,7 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
                 </p>
 
                 <div className={cn("flex flex-wrap gap-4 mt-4", fullWidth && "flex-col")}>
-                    {subjects.map(subject => <SubjectCard key={subject.id} subject={subject} fullWidth={fullWidth} />)}
+                    {subjects.map(subject => <SubjectCard key={subject.id} subject={subject} city={city} meeting={meeting} parties={parties} fullWidth={fullWidth} />)}
                 </div>
 
                 {/*

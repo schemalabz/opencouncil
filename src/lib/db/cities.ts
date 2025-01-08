@@ -3,6 +3,7 @@ import { City, Person, Party, CouncilMeeting, Subject, Topic } from '@prisma/cli
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { SubjectWithRelations } from './subject';
+import { LandingPageCity } from './landing';
 
 export async function deleteCity(id: string): Promise<void> {
     withUserAuthorizedToEdit({ cityId: id });
@@ -96,6 +97,10 @@ export async function getFullCity(cityId: string) {
 }
 
 export async function getCities({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
+    if (includeUnlisted) {
+        withUserAuthorizedToEdit({});
+    }
+
     try {
         const cities = await prisma.city.findMany({
             where: {

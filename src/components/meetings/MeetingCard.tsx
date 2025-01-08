@@ -16,13 +16,10 @@ import { Link } from '@/i18n/routing';
 interface MeetingCardProps {
     item: CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] };
     editable: boolean;
+    mostRecent?: boolean;
 }
 
-type MeetingStatistics = StatisticsOfCouncilMeeting & {
-    subjects: (Subject & { topic?: Topic | null, statistics?: Statistics })[];
-};
-
-export default function MeetingCard({ item: meeting, editable }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, mostRecent }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
@@ -34,6 +31,12 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
     };
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
+
+    const getMediaStatus = () => {
+        if (meeting.videoUrl) return t('withVideo');
+        if (meeting.audioUrl) return t('withAudio');
+        return t('noVideo');
+    };
 
     return (
         <Card
@@ -61,11 +64,11 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <VideoIcon className="w-4 h-4" />
-                                    {meeting.videoUrl ? "Με βίντεο" : meeting.audioUrl ? "Ήχος" : "Χωρίς μέσα"}
+                                    {getMediaStatus()}
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <FileIcon className="w-4 h-4" />
-                                    {meeting.subjects.length} θέματα
+                                    {meeting.subjects.length} {t('subjects')}
                                 </div>
                             </div>
                         </div>
@@ -84,12 +87,17 @@ export default function MeetingCard({ item: meeting, editable }: MeetingCardProp
                                     className="text-sm text-muted-foreground hover:text-primary"
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    και άλλα {remainingSubjectsCount} θέματα
+                                    {t('moreSubjects', { count: remainingSubjectsCount })}
                                 </Link>
                             )}
                         </div>
                     </div>
 
+                    {mostRecent && (
+                        <div className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+                            {t('mostRecent')}
+                        </div>
+                    )}
                 </CardContent>
             )}
         </Card>
