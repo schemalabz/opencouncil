@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { ComponentPropsWithoutRef } from "react";
 
 interface MarqueeProps extends ComponentPropsWithoutRef<"div"> {
+  label?: string;
   /**
    * Optional CSS class name to apply custom styles
    */
@@ -39,35 +40,43 @@ export default function Marquee({
   children,
   vertical = false,
   repeat = 4,
+  label,
   ...props
 }: MarqueeProps) {
   return (
-    <div
-      {...props}
-      className={cn(
-        "group flex overflow-hidden p-2 [--duration:40s] [--gap:1rem] [gap:var(--gap)]",
-        {
-          "flex-row": !vertical,
-          "flex-col": vertical,
-        },
-        className,
+    <div className="relative">
+      <div
+        {...props}
+        className={cn(
+          "group relative flex overflow-hidden p-2 [--duration:40s] [--gap:1rem] [gap:var(--gap)]",
+          {
+            "flex-row": !vertical,
+            "flex-col": vertical,
+          },
+          className,
+        )}
+      >
+        {Array(repeat)
+          .fill(0)
+          .map((_, i) => (
+            <div
+              key={i}
+              className={cn("flex shrink-0 justify-around [gap:var(--gap)]", {
+                "animate-marquee flex-row": !vertical,
+                "animate-marquee-vertical flex-col": vertical,
+                "group-hover:[animation-play-state:paused]": pauseOnHover,
+                "[animation-direction:reverse]": reverse,
+              })}
+            >
+              {children}
+            </div>
+          ))}
+      </div>
+      {label && (
+        <div className="absolute bottom-4 right-4 z-50 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+          {label}
+        </div>
       )}
-    >
-      {Array(repeat)
-        .fill(0)
-        .map((_, i) => (
-          <div
-            key={i}
-            className={cn("flex shrink-0 justify-around [gap:var(--gap)]", {
-              "animate-marquee flex-row": !vertical,
-              "animate-marquee-vertical flex-col": vertical,
-              "group-hover:[animation-play-state:paused]": pauseOnHover,
-              "[animation-direction:reverse]": reverse,
-            })}
-          >
-            {children}
-          </div>
-        ))}
     </div>
   );
 }

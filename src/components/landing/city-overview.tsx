@@ -77,12 +77,12 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             {/* Subjects Marquee */}
             {city.recentSubjects.length > 0 && (
                 <div className="w-full relative overflow-hidden rounded-lg">
-                    <Marquee pauseOnHover repeat={2} className="[--duration:200s]">
+                    <Marquee pauseOnHover repeat={2} className="[--duration:200s]" label="Πρόσφατα θέματα">
                         {city.recentSubjects.map((subject) => (
                             <SubjectCard
                                 key={subject.id}
                                 subject={subject}
-                                city={city}
+                                city={city} χ
                                 meeting={latestMeeting}
                                 parties={city.parties}
                             />
