@@ -11,25 +11,29 @@ datasource db {
   url      = env("DATABASE_URL")
   extensions = [pgvector(map: "vector"), postgis(version: "3.5.0")]
 }
-
 model City {
   id        String   @id @default(cuid())
   name      String   // Αθήνα
   name_en   String   // Athens
   name_municipality String // Δήμος Αθηναίων
   name_municipality_en String // Municipality of Athens
-  logoImage String
+  logoImage String?
   timezone  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   officialSupport Boolean @default(false)
   isListed Boolean @default(false)
+  isPending Boolean @default(false)
   authorityType AuthorityType @default(municipality)
+  wikipediaId String?
+  geometry Unsupported("geometry")?
 
   parties        Party[]
   persons        Person[]
   councilMeetings CouncilMeeting[]
   administrators Administers[]
+
+  @@index([isPending, isListed])
 }
 
 enum AuthorityType {

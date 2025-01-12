@@ -41,3 +41,7 @@ db/data/
 copy_to_prod.sh
 
 *.secret.*
+
+response.txt
+*.oc.geojson
+*.geojson

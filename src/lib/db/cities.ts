@@ -96,7 +96,7 @@ export async function getFullCity(cityId: string) {
     });
 }
 
-export async function getCities({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
+export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
     if (includeUnlisted) {
         withUserAuthorizedToEdit({});
     }
@@ -104,7 +104,8 @@ export async function getCities({ includeUnlisted = false }: { includeUnlisted?:
     try {
         const cities = await prisma.city.findMany({
             where: {
-                isListed: includeUnlisted ? undefined : true
+                isPending: includePending ? undefined : false,
+                isListed: (includeUnlisted || includePending) ? undefined : true
             },
             include: {
                 councilMeetings: true

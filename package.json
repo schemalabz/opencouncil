@@ -16,9 +16,12 @@
     "prisma:seed": "tsx prisma/seed.ts",
     "production:build": "prisma generate && prisma migrate deploy && next build",
     "production:start": "next start",
-    "email": "tsx scripts/email_municipality.ts"
+    "email": "tsx scripts/email_municipality.ts",
+    "import:fill": "tsx prisma/import_administrations.ts --mode fill",
+    "import:import": "tsx prisma/import_administrations.ts --mode import"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.33.1",
     "@auth/core": "^0.34.2",
     "@auth/prisma-adapter": "^2.7.4",
     "@aws-sdk/client-s3": "^3.637.0",
