@@ -1,5 +1,5 @@
 "use server";
-import { City, Person, Party, CouncilMeeting, Subject, Topic } from '@prisma/client';
+import { City, Person, Party, CouncilMeeting, Subject, Topic, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { SubjectWithRelations } from './subject';
@@ -108,7 +108,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
                 isListed: (includeUnlisted || includePending) ? undefined : true
             },
             include: {
-                councilMeetings: true
+                councilMeetings: true,
             }
         });
         return cities;
@@ -116,4 +116,27 @@ export async function getCities({ includeUnlisted = false, includePending = fals
         console.error('Error fetching cities:', error);
         throw new Error('Failed to fetch cities');
     }
+}
+
+export async function getCitiesWithGeometry(cities: City[]): Promise<(City & { geometry: any })[]> {
+    if (cities.length === 0) return [];
+
+    const cityWithGeometry = await prisma.$queryRaw<
+        ({ id: string, geometry: string | null })[]
+    >`SELECT 
+        c."id" AS id,
+        ST_AsGeoJSON(c.geometry)::text AS geometry
+    FROM "City" c
+    WHERE c.id IN (${Prisma.join(cities.map(city => city.id))})
+    `;
+
+
+    return cities.map(city => {
+        const cityGeom = cityWithGeometry.find(c => c.id === city.id);
+        const parsed = cityGeom?.geometry ? JSON.parse(cityGeom.geometry) : null;
+        return {
+            ...city,
+            geometry: parsed
+        };
+    });
 }

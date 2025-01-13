@@ -67,7 +67,9 @@ export async function POST(request: Request) {
             logoImage: logoImageUrl,
             officialSupport: false,
             isListed: false,
-            authorityType
+            isPending: true,
+            authorityType,
+            wikipediaId: null,
         })
 
         return NextResponse.json(city)

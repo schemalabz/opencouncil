@@ -16,7 +16,7 @@ import PartyForm from '@/components/parties/PartyForm';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
-import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
+import { BadgeCheck, BadgeX, Building2, Loader2 } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -68,7 +68,11 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
 
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center space-x-4">
-                    <Image src={city.logoImage} alt={`${city.name} logo`} width={64} height={64} className="object-contain hidden md:block" />
+                    {city.logoImage ? (
+                        <Image src={city.logoImage} alt={`${city.name} logo`} width={64} height={64} className="object-contain hidden md:block" />
+                    ) : (
+                        <Building2 className="w-16 h-16 text-gray-400 hidden md:block" />
+                    )}
                     <div>
                         <h1 className="text-3xl font-bold">{city.name}</h1>
                         <span className="text-md text-gray-600">

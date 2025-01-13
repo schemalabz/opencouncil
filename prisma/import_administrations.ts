@@ -73,7 +73,8 @@ Please provide an array of objects in JSON format, where each object has:
 
 List ALL the cities in the list of the municipalities. Sometimes you can use the input data to produce the fields,
 but sometimes you might have to make guesses. You were given a list of ${municipalitiesData.length} municipalities,
-so your response should be an array of ${municipalitiesData.length} objects.
+so your response should be an array of ${municipalitiesData.length} objects. It is important that the id is unique,
+and if the city ID exists in the list of municipalities, you should use that id.
 `
 
         const response = await aiChat<any[]>(systemPrompt, userPrompt, "Your answer in json:\n[", "[")
@@ -113,13 +114,14 @@ async function importData(inputFile: string) {
     for (const admin of data) {
         // Create the geometry value using raw SQL with proper text casting
         const geoJson = JSON.stringify({
-            type: "Polygon",
+            type: "MultiPolygon",
             coordinates: admin.coordinates
         });
 
         const existingCity = await prisma.city.findUnique({
             where: { id: admin.id }
         });
+
 
         if (!existingCity) {
             await prisma.city.create({

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
-import { EyeOff } from "lucide-react";
+import { Building2, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type LandingPageCity } from "@/lib/db/landing";
 
@@ -18,12 +18,16 @@ export function CityMiniCard({ city, showPrivateLabel }: CityMiniCardProps) {
                 "transform-gpu hover:translate-y-[-2px] transition-transform duration-200"
             )}>
                 <div className="relative w-12 h-12 sm:w-16 sm:h-16">
-                    <Image
-                        src={city.logoImage}
-                        alt={city.name}
-                        fill
-                        className="object-contain"
-                    />
+                    {city.logoImage ? (
+                        <Image
+                            src={city.logoImage}
+                            alt={city.name}
+                            fill
+                            className="object-contain"
+                        />
+                    ) : (
+                        <Building2 className="w-full h-full text-gray-400" />
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <h2 className="text-xl sm:text-2xl font-light">{city.name}</h2>

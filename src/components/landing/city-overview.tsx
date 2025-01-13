@@ -82,7 +82,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                             <SubjectCard
                                 key={subject.id}
                                 subject={subject}
-                                city={city} χ
+                                city={city}
                                 meeting={latestMeeting}
                                 parties={city.parties}
                             />
