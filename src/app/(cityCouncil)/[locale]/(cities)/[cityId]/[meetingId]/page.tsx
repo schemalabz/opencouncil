@@ -6,14 +6,28 @@ import { formatDate } from "date-fns";
 import { CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
 import { sortSubjectsByImportance } from "@/lib/utils";
 export default function MeetingPage() {
-    const { meeting, subjects } = useCouncilMeetingData();
+    const { meeting, subjects, city } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects)
         .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
 
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[300px] w-full">
-                <Map className="w-full h-full" />
+                <Map className="w-full h-full" features={[{
+                    id: city.id,
+                    geometry: city.geometry,
+                    properties: {
+                        name: city.name,
+                        name_en: city.name_en
+                    },
+                    style: {
+                        fillColor: '#627BBC',
+                        fillOpacity: 0.2,
+                        strokeColor: '#627BBC',
+                        strokeWidth: 2,
+                    }
+                }]}
+                />
                 <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
             </div>

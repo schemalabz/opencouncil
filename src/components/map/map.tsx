@@ -3,7 +3,19 @@ import { useRef, useEffect } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/lib/utils'
-import { City } from '@prisma/client'
+
+export interface MapFeature {
+    id: string
+    geometry: any // GeoJSON geometry
+    properties?: Record<string, any>
+    style?: {
+        fillColor?: string
+        fillOpacity?: number
+        strokeColor?: string
+        strokeWidth?: number
+        label?: string
+    }
+}
 
 interface MapProps {
     className?: string
@@ -11,21 +23,56 @@ interface MapProps {
     zoom?: number
     animateRotation?: boolean
     pitch?: number
-    cities?: (City & { geometry?: any })[]
+    features?: MapFeature[]
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
 
 export default function Map({
     className,
-    center = [23.7275, 37.9838], // Default to Athens coordinates
+    center = undefined,
     zoom = 12, // Default zoom level
     animateRotation = true,
     pitch = 45,
-    cities = []
+    features = []
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
+
+    if (!center) {
+        // If there's a single feature, center on it
+        if (features.length > 0) {
+            console.log("Centering on feature");
+            const feature = features[0];
+            if (feature.geometry.type === 'Point') {
+                console.log("Centering on point");
+                center = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
+            } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+                console.log("Centering on polygon");
+                // For polygons, find the center by averaging all coordinates
+                const coords = feature.geometry.type === 'Polygon' ?
+                    feature.geometry.coordinates[0] :
+                    feature.geometry.coordinates[0][0];
+
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+
+                coords.forEach((coord: [number, number]) => {
+                    minX = Math.min(minX, coord[0]);
+                    maxX = Math.max(maxX, coord[0]);
+                    minY = Math.min(minY, coord[1]);
+                    maxY = Math.max(maxY, coord[1]);
+                });
+
+                center = [(minX + maxX) / 2, (minY + maxY) / 2];
+            }
+        }
+        else {
+            center = [23.7275, 37.9838];
+        }
+    }
+
+    console.log(center);
 
     function rotateCamera(timestamp: number) {
         if (!map.current) return
@@ -57,65 +104,117 @@ export default function Map({
 
         map.current.on('load', () => {
             if (animateRotation) {
-                // Start rotation animation
                 rotateCamera(0)
             }
 
-            // Add cities source and layer if we have cities with geometry
-            const citiesWithGeometry = cities.filter(city => city.geometry)
-            if (citiesWithGeometry.length > 0) {
-                map.current!.addSource('cities', {
+            // Add features source and layers if we have features
+            if (features.length > 0) {
+                map.current!.addSource('features', {
                     type: 'geojson',
                     data: {
                         type: 'FeatureCollection',
-                        features: citiesWithGeometry.map(city => ({
+                        features: features.map(feature => ({
                             type: 'Feature',
-                            geometry: city.geometry,
+                            geometry: feature.geometry,
                             properties: {
-                                id: city.id,
-                                name: city.name,
-                                name_en: city.name_en
+                                id: feature.id,
+                                ...feature.properties,
+                                style: feature.style
                             }
                         }))
                     }
                 });
 
+                // Add fill layer
                 map.current!.addLayer({
-                    'id': 'city-fills',
+                    'id': 'feature-fills',
                     'type': 'fill',
-                    'source': 'cities',
+                    'source': 'features',
                     'paint': {
-                        'fill-color': '#627BBC',
-                        'fill-opacity': 0.4
+                        'fill-color': [
+                            'case',
+                            ['has', 'style', ['properties']],
+                            ['string', ['get', 'fillColor', ['get', 'style', ['properties']]]],
+                            '#627BBC'
+                        ],
+                        'fill-opacity': [
+                            'case',
+                            ['has', 'style', ['properties']],
+                            ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
+                            0.4
+                        ]
                     }
                 });
 
+                // Add border layer
                 map.current!.addLayer({
-                    'id': 'city-borders',
+                    'id': 'feature-borders',
                     'type': 'line',
-                    'source': 'cities',
+                    'source': 'features',
                     'paint': {
-                        'line-color': '#627BBC',
-                        'line-width': 2
+                        'line-color': [
+                            'case',
+                            ['has', 'style', ['properties']],
+                            ['string', ['get', 'strokeColor', ['get', 'style', ['properties']]]],
+                            '#627BBC'
+                        ],
+                        'line-width': [
+                            'case',
+                            ['has', 'style', ['properties']],
+                            ['number', ['get', 'strokeWidth', ['get', 'style', ['properties']]]],
+                            2
+                        ]
+                    }
+                });
+
+                // Add labels if specified
+                map.current!.addLayer({
+                    'id': 'feature-labels',
+                    'type': 'symbol',
+                    'source': 'features',
+                    'layout': {
+                        'text-field': [
+                            'case',
+                            ['has', 'style', ['properties']],
+                            ['string', ['get', 'label', ['get', 'style', ['properties']]]],
+                            ''
+                        ],
+                        'text-size': 12,
+                        'text-anchor': 'center',
+                        'text-optional': true
+                    },
+                    'paint': {
+                        'text-color': '#000000'
                     }
                 });
 
                 // Add hover effect
-                map.current!.on('mousemove', 'city-fills', (e) => {
+                map.current!.on('mousemove', 'feature-fills', (e) => {
                     if (e.features && e.features.length > 0 && e.features[0].properties) {
                         map.current!.getCanvas().style.cursor = 'pointer'
-                        map.current!.setPaintProperty('city-fills', 'fill-opacity', [
+                        const baseOpacity = e.features[0].properties.style?.fillOpacity ?? 0.4;
+                        map.current!.setPaintProperty('feature-fills', 'fill-opacity', [
                             'case',
                             ['==', ['get', 'id'], e.features[0].properties.id],
-                            0.7,
-                            0.4
+                            Math.min(baseOpacity + 0.3, 1),
+                            [
+                                'case',
+                                ['has', 'style', ['properties']],
+                                ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
+                                0.4
+                            ]
                         ])
                     }
                 });
 
-                map.current!.on('mouseleave', 'city-fills', () => {
+                map.current!.on('mouseleave', 'feature-fills', () => {
                     map.current!.getCanvas().style.cursor = ''
-                    map.current!.setPaintProperty('city-fills', 'fill-opacity', 0.4)
+                    map.current!.setPaintProperty('feature-fills', 'fill-opacity', [
+                        'case',
+                        ['has', 'style', ['properties']],
+                        ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
+                        0.4
+                    ])
                 });
             }
 
@@ -124,11 +223,6 @@ export default function Map({
             if (!style) return;
             const layers = style.layers;
             if (!layers) return;
-            for (const layer of layers) {
-                if (layer.type === 'symbol' && layer.layout && 'text-field' in layer.layout) {
-                    map.current?.removeLayer(layer.id)
-                }
-            }
 
             map.current!.addLayer({
                 'id': '3d-buildings',
@@ -166,7 +260,7 @@ export default function Map({
             resizeObserver.disconnect()
             map.current?.remove()
         }
-    }, [center, zoom, animateRotation, pitch, cities])
+    }, [center, zoom, animateRotation, pitch, features])
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />

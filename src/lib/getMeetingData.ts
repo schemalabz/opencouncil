@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
-import { getCity } from '@/lib/db/cities';
+import { getCitiesWithGeometry, getCity } from '@/lib/db/cities';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
@@ -16,7 +16,7 @@ import { getTasksForMeeting } from './db/tasks';
 export type MeetingData = {
     meeting: CouncilMeeting;
     transcript: Transcript;
-    city: City;
+    city: City & { geometry?: GeoJSON.FeatureCollection };
     people: Person[];
     parties: Party[];
     highlights: HighlightWithUtterances[];
@@ -45,10 +45,12 @@ export const getMeetingData = unstable_cache(
             statistics: await getStatisticsFor({ subjectId: subject.id }, ["person", "party"])
         })));
 
+        const cityWithGeometry = await getCitiesWithGeometry([city]);
+
         const speakerTags: SpeakerTag[] = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
             .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
             .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
 
-        return { meeting, transcript, city, people, parties, highlights, subjects: subjectsWithStatistics, speakerTags };
+        return { meeting, transcript, city: cityWithGeometry[0], people, parties, highlights, subjects: subjectsWithStatistics, speakerTags };
     }
 );

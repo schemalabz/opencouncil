@@ -14,12 +14,11 @@ import { Label } from '@/components/ui/label';
 import { embedCouncilMeeting } from '@/lib/search/embed';
 import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
+import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 
 export default function AdminActions({
-    meeting
 }: {
-    meeting: CouncilMeeting
-}) {
+    }) {
     const { toast } = useToast();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
@@ -32,6 +31,7 @@ export default function AdminActions({
     const [topics, setTopics] = React.useState(['']);
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isEmbedding, setIsEmbedding] = React.useState(false);
+    const { meeting } = useCouncilMeetingData();
     const [isReleased, setIsReleased] = React.useState(meeting.released);
 
     React.useEffect(() => {

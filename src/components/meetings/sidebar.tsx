@@ -16,12 +16,22 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useVideo } from "./VideoProvider"
+import { isUserAuthorizedToEdit } from "@/lib/auth"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
+    const [canEdit, setCanEdit] = useState(false)
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const authorized = await isUserAuthorizedToEdit({ councilMeetingId: meeting.id })
+            setCanEdit(authorized)
+        }
+        checkAuth()
+    }, [meeting.id])
 
     const mainMenuItems = [
         {
@@ -48,7 +58,12 @@ export default function MeetingSidebar() {
             title: "Ρυθμίσεις",
             icon: Settings,
             url: `/${city.id}/${meeting.id}/settings`
-        }
+        },
+        ...(canEdit ? [{
+            title: "Διαχείριση",
+            icon: Settings,
+            url: `/${city.id}/${meeting.id}/admin`
+        }] : [])
     ]
 
     return (
