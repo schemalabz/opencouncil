@@ -253,6 +253,34 @@ export default function AdminActions({
                 <Label htmlFor="release-toggle">Released</Label>
             </div>
         </div>
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Cache Management</h3>
+            <Button
+                onClick={async () => {
+                    try {
+                        const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/revalidate`, {
+                            method: 'POST',
+                        });
+                        if (response.ok) {
+                            toast({
+                                title: "Cache Invalidated",
+                                description: "The meeting data will be refreshed on the next request.",
+                            });
+                        } else {
+                            throw new Error('Failed to invalidate cache');
+                        }
+                    } catch (error) {
+                        toast({
+                            title: "Error",
+                            description: "Failed to invalidate cache",
+                            variant: "destructive"
+                        });
+                    }
+                }}
+            >
+                Refresh Cache
+            </Button>
+        </div>
         <PodcastSpecs />
     </div>
     );
