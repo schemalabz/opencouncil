@@ -64,9 +64,6 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                             <CardTitle>
                                 {!isOnboarded ? t("welcomeOnboard") : t("personalInfo")}
                             </CardTitle>
-                            {!isOnboarded && (
-                                <CardDescription>{t("onboardingDescription")}</CardDescription>
-                            )}
                             <Button variant="ghost" size="sm">
                                 <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'transform rotate-180' : ''}`} />
                             </Button>
@@ -76,6 +73,9 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
 
                 <CollapsibleContent>
                     <CardContent>
+                        {!isOnboarded && (
+                            <CardDescription className="mb-6">{t("onboardingDescription")}</CardDescription>
+                        )}
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
                                 <Label htmlFor="name">{t("fullName")} *</Label>
