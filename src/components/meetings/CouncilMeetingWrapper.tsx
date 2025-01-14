@@ -10,14 +10,9 @@ import TranscriptControls from './TranscriptControls'
 import { useVideo, VideoProvider } from './VideoProvider'
 import Header from './Header'
 import { motion, AnimatePresence } from 'framer-motion'
-import Transcript from './transcript/Transcript'
 import { Options } from './options/Options'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
-import { Transcript as TranscriptType } from '@/lib/db/transcript'
-import { ArrowUp, ArrowDown } from 'lucide-react';
-import { Button } from '../ui/button'
-import { ChatInterface } from './Chat'
 import { Statistics } from './Statistics'
 import ShareC from './Share'
 import Summary from './Summary'
@@ -79,7 +74,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
 
     if (editable) {
         sections.push({ title: "Highlights", icon: <Sparkles />, content: <Highlights highlights={meetingData.highlights} /> })
-        sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> })
+        sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions /> })
     }
 
     if (loading) return (

@@ -75,7 +75,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
 
     if (editable) {
         sections.push({ title: "Highlights", icon: <Sparkles />, content: <Highlights highlights={meetingData.highlights} /> })
-        sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions meeting={meetingData.meeting} /> })
+        sections.push({ title: "Admin", icon: <CheckCircle />, content: <AdminActions /> })
     }
 
     if (loading) return (
