@@ -1,7 +1,7 @@
 "use server";
 import { City, Person, Party, CouncilMeeting, Subject, Topic, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { SubjectWithRelations } from './subject';
 import { LandingPageCity } from './landing';
 
@@ -57,10 +57,14 @@ export async function getCity(id: string): Promise<City | null> {
 }
 
 export async function getFullCity(cityId: string) {
+    const canEdit = await isUserAuthorizedToEdit({ cityId });
     return await prisma.city.findUnique({
         where: { id: cityId },
         include: {
             councilMeetings: {
+                where: {
+                    released: canEdit ? undefined : true
+                },
                 include: {
                     subjects: {
                         include: {
