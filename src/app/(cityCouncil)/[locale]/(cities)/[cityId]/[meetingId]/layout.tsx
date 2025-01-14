@@ -33,7 +33,10 @@ export default async function CouncilMeetingPage({
 }) {
     unstable_setRequestLocale(locale);
 
+    const t = performance.now();
+    console.log("Getting data...");
     const res = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${meetingId}`);
+    console.log(`Got data in ${performance.now() - t}ms`);
     if (res.status !== 200) {
         notFound();
     }
