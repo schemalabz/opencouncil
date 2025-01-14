@@ -16,9 +16,6 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
     })) || [];
 
-    const borderColor = subject.topic?.colorHex || "gray";
-    const backgroundColor = subject.topic?.colorHex ? subject.topic.colorHex + "15" : "transparent";
-
     // Get top 5 speakers by speaking time
     const topSpeakers = subject.statistics?.people
         ?.sort((a, b) => b.speakingSeconds - a.speakingSeconds)
@@ -30,7 +27,7 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="hover:no-underline">
-            <Card style={{ borderColor, backgroundColor }} className={cn(fullWidth ? "w-full" : "w-48 md:w-96", "flex flex-col", "hover:shadow-md transition-shadow", "h-[220px] md:h-[260px]")}>
+            <Card className={cn(fullWidth ? "w-full" : "w-48 md:w-96", "flex flex-col", "hover:shadow-md transition-shadow", "h-[220px] md:h-[260px]")}>
                 <CardHeader className="flex flex-col gap-1 md:gap-2 pb-2 md:pb-3">
                     <div className="flex flex-row items-center gap-1 md:gap-2">
                         <div className="p-1.5 md:p-2 rounded-full shrink-0" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>

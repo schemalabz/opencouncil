@@ -45,4 +45,4 @@ copy_to_prod.sh
 response.txt
 *.oc.geojson
 *.geojson
-scripts/hydrate_staging.sh
+scripts/hydrate.sh

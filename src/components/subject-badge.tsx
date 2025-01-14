@@ -30,7 +30,6 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
                 "mt-2 inline-flex items-center gap-2 px-2 py-1 rounded-full cursor-pointer transition-transform duration-200 hover:scale-105",
                 className
             )}
-            style={{ backgroundColor }}
         >
             <div className="p-1 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                 <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
