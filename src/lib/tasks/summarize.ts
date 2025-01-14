@@ -89,6 +89,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
 
     // Combined Subject and Highlight transaction
+    const topics = await prisma.topic.findMany();
+    const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
+
     await prisma.$transaction(async (prisma) => {
         // Delete old highlights and subjects for this meeting
         await prisma.highlight.deleteMany({
@@ -132,6 +135,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     description: subject.description,
                     councilMeeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
                     location: locationId ? { connect: { id: locationId } } : undefined,
+                    topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
+                        { connect: { id: topicsByName[subject.topicLabel].id } } :
+                        undefined,
                     speakerSegments: {
                         create: subject.speakerSegments.map(segment => ({
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },
