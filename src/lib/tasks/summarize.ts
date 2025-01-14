@@ -138,12 +138,12 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
                         { connect: { id: topicsByName[subject.topicLabel].id } } :
                         undefined,
+                    hot: subject.hot,
+                    agendaItemIndex: subject.agendaItemIndex,
                     speakerSegments: {
                         create: subject.speakerSegments.map(segment => ({
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },
-                            summary: segment.summary,
-                            hot: subject.hot,
-                            agendaItemIndex: subject.agendaItemIndex
+                            summary: segment.summary
                         }))
                     }
                 }
