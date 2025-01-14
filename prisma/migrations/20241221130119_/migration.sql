@@ -1,5 +1,5 @@
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "postgis" WITH VERSION "3.5.0";
+CREATE EXTENSION IF NOT EXISTS "postgis" WITH VERSION "3.3.0";
 
 -- CreateEnum
 CREATE TYPE "LocationType" AS ENUM ('point', 'lineString', 'polygon');

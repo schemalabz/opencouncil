@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  extensions = [pgvector(map: "vector"), postgis(version: "3.5.0")]
+  extensions = [pgvector(map: "vector"), postgis(version: "3.3.0")]
 }
 model City {
   id        String   @id @default(cuid())
