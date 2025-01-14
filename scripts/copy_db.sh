@@ -41,7 +41,7 @@ if [ "$CONFIRMATION" != "$CONFIRMATION_CODE" ]; then
 fi
 
 # Array of table names
-TABLES=("City" "Party" "Person" "CouncilMeeting" "TaskStatus" "SpeakerTag" "SpeakerSegment" "Utterance" "Word" "Topic" "TopicLabel" "Summary" "Subject" "SubjectSpeakerSegment" "Highlight" "HighlightedUtterance" "PodcastSpec" "PodcastPart" "PodcastPartAudioUtterance")
+TABLES=("City" "Party" "Person" "CouncilMeeting" "TaskStatus" "SpeakerTag" "SpeakerSegment" "Utterance" "Word" "Topic" "TopicLabel" "Summary" "Subject" "SubjectSpeakerSegment" "Highlight" "HighlightedUtterance" "PodcastSpec" "PodcastPart" "PodcastPartAudioUtterance" "Location" "Offer" "Waitlist")
 
 # Delete all rows from destination tables if --clear flag is set
 if [ "$CLEAR" = true ]; then

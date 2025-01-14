@@ -1,8 +1,6 @@
 "use server";
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface EmailParams {
     from: string;
     to: string;
@@ -13,6 +11,7 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const { from, to, cc, subject, html, text } = params;
 
     try {
