@@ -23,9 +23,11 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 />
                 <div className="flex-1 h-px bg-border"></div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 h-64">
+
+            {/* Latest Meeting and Stats */}
+            <div className="flex flex-col lg:flex-row gap-4">
                 {/* Latest Meeting */}
-                <div className="md:col-span-8 h-full flex items-center">
+                <div className="h-64 lg:flex-1">
                     {latestMeeting && (
                         <MeetingCard
                             item={{
@@ -38,9 +40,10 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                     )}
                 </div>
 
-                <div className="md:col-span-4 space-y-3 sm:space-y-4 h-full flex flex-col">
+                {/* Stats Stack */}
+                <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 lg:w-72">
                     {/* People */}
-                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors flex-1">
+                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors">
                         <Link href={`/${city.id}?tab=people`} className="block">
                             <div className="flex items-center gap-2 font-semibold mb-1 sm:mb-2">
                                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -51,7 +54,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                     </div>
 
                     {/* Parties */}
-                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors flex-1">
+                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors">
                         <Link href={`/${city.id}?tab=parties`} className="block">
                             <div className="flex items-center gap-2 font-semibold mb-1 sm:mb-2">
                                 <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -62,7 +65,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                     </div>
 
                     {/* Meetings */}
-                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors flex-1">
+                    <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors">
                         <Link href={`/${city.id}?tab=meetings`} className="block">
                             <div className="flex items-center gap-2 font-semibold mb-1 sm:mb-2">
                                 <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -94,4 +97,4 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             )}
         </div>
     );
-} 
+}
