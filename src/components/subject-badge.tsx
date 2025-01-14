@@ -34,7 +34,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
             <div className="p-1 rounded-full" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                 <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
             </div>
-            <span className="text-sm" style={{ color: subject.topic?.colorHex || "#374151" }}>{subject.name}</span>
+            <span className="text-sm" >{subject.name}</span>
         </div>
     );
 
