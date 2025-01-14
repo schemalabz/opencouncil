@@ -44,27 +44,29 @@ export default function Map({
         if (features.length > 0) {
             console.log("Centering on feature");
             const feature = features[0];
-            if (feature.geometry.type === 'Point') {
-                console.log("Centering on point");
-                center = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
-            } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-                console.log("Centering on polygon");
-                // For polygons, find the center by averaging all coordinates
-                const coords = feature.geometry.type === 'Polygon' ?
-                    feature.geometry.coordinates[0] :
-                    feature.geometry.coordinates[0][0];
+            if (feature.geometry) {
+                if (feature.geometry.type === 'Point') {
+                    console.log("Centering on point");
+                    center = [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
+                } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+                    console.log("Centering on polygon");
+                    // For polygons, find the center by averaging all coordinates
+                    const coords = feature.geometry.type === 'Polygon' ?
+                        feature.geometry.coordinates[0] :
+                        feature.geometry.coordinates[0][0];
 
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
+                    let minX = Infinity, maxX = -Infinity;
+                    let minY = Infinity, maxY = -Infinity;
 
-                coords.forEach((coord: [number, number]) => {
-                    minX = Math.min(minX, coord[0]);
-                    maxX = Math.max(maxX, coord[0]);
-                    minY = Math.min(minY, coord[1]);
-                    maxY = Math.max(maxY, coord[1]);
-                });
+                    coords.forEach((coord: [number, number]) => {
+                        minX = Math.min(minX, coord[0]);
+                        maxX = Math.max(maxX, coord[0]);
+                        minY = Math.min(minY, coord[1]);
+                        maxY = Math.max(maxY, coord[1]);
+                    });
 
-                center = [(minX + maxX) / 2, (minY + maxY) / 2];
+                    center = [(minX + maxX) / 2, (minY + maxY) / 2];
+                }
             }
         }
         else {
