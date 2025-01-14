@@ -3,12 +3,13 @@ import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
-import { CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
-import { sortSubjectsByImportance } from "@/lib/utils";
+import { AlertTriangleIcon, CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
+import { cn, sortSubjectsByImportance } from "@/lib/utils";
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects)
         .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
+    const isOldVersion = subjects.length === 0;
 
     return (
         <div className="flex flex-col w-full">
@@ -30,8 +31,22 @@ export default function MeetingPage() {
                 />
                 <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
+
+
             </div>
-            <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />
+
+            <div className="p-6">
+                <div className="max-w-4xl mx-auto mb-4">
+                    {isOldVersion && (
+                        <div className="flex items-center">
+                            <AlertTriangleIcon className="w-4 h-4 mr-2" />
+                            Αυτή η συνεδρίαση έχει επεξεργαστεί από μια παλαιότερη έκδοση του OpenCouncil, οπότε δεν έχει θέματα.
+                        </div>
+                    )}
+                </div>
+
+                <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />
+            </div>
         </div>
     )
 }
@@ -54,6 +69,7 @@ function MeetingInfo() {
                             {meeting.videoUrl ? "Βίντεο Διαθέσιμο" : meeting.audioUrl ? "Μόνο ήχος" : "Χωρίς βίντεο/ήχο"}
                         </div>
                     )}
+
                     {subjects.length > 0 ? (
                         <div className="flex items-center">
                             <FileIcon className="w-4 h-4 mr-2" />
@@ -62,7 +78,7 @@ function MeetingInfo() {
                     ) : (
                         <div className="flex items-center">
                             <FileIcon className="w-4 h-4 mr-2" />
-
+                            Χωρίς θέματα
                         </div>
                     )}
                 </div>
