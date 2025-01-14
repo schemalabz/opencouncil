@@ -6,6 +6,7 @@ import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
+import { cn } from '@/lib/utils';
 
 interface PartyCardProps {
     item: Party & { persons: Person[] };
@@ -28,22 +29,37 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
     return (
         <Card
-            className="relative h-48 overflow-hidden transition-transform border-l-8 cursor-pointer hover:shadow-md"
+            className={cn(
+                "group relative h-full overflow-hidden transition-all duration-300",
+                "hover:shadow-lg hover:scale-[1.01] cursor-pointer",
+                "border-l-8"
+            )}
             style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col justify-between">
-                <div className="flex items-center space-x-4 mt-4">
-                    <ImageOrInitials imageUrl={party.logo} width={64} height={64} name={party.name_short} color={party.colorHex} square={true} />
-                    <h3 className="text-2xl font-bold">{party.name}</h3>
-                </div>
+            <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
+                <div className="space-y-3 sm:space-y-4 flex-grow">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16">
+                            <ImageOrInitials
+                                imageUrl={party.logo}
+                                width={48}
+                                height={48}
+                                name={party.name_short}
+                                color={party.colorHex}
+                                square={true}
+                            />
+                        </div>
+                        <h3 className="text-lg sm:text-xl font-bold line-clamp-2">{party.name}</h3>
+                    </div>
 
-                <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                    <PersonAvatarList
-                        users={personsWithParty}
-                        maxDisplayed={5}
-                        numMore={party.persons.length > 5 ? party.persons.length - 5 : 0}
-                    />
+                    <div onClick={(e) => e.stopPropagation()}>
+                        <PersonAvatarList
+                            users={personsWithParty}
+                            maxDisplayed={5}
+                            numMore={party.persons.length > 5 ? party.persons.length - 5 : 0}
+                        />
+                    </div>
                 </div>
             </CardContent>
         </Card>

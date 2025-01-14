@@ -26,32 +26,35 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
         })) || [];
 
     return (
-        <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="hover:no-underline w-full">
-            <Card className={cn(fullWidth ? "w-full" : "w-full md:w-96", "flex flex-col", "hover:shadow-md transition-shadow", "h-[220px] md:h-[260px]")}>
-                <CardHeader className="flex flex-col gap-1 md:gap-2 pb-2 md:pb-3">
-                    <div className="flex flex-row items-center gap-1 md:gap-2">
-                        <div className="hidden md:block p-1.5 md:p-2 rounded-full shrink-0" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
+        <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
+            <Card className={cn(
+                "flex flex-col hover:shadow-md transition-shadow h-full",
+                fullWidth ? "w-full" : "w-full"
+            )}>
+                <CardHeader className="flex flex-col gap-1.5 pb-2">
+                    <div className="flex flex-row items-center gap-1.5">
+                        <div className="p-1.5 rounded-full shrink-0" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                             <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
-                        <CardTitle className="text-sm md:text-md line-clamp-2 flex-1">{subject.name}</CardTitle>
+                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1">{subject.name}</CardTitle>
                     </div>
-                    <div className="flex flex-col md:flex-row md:justify-between md:gap-2">
-                        <div className="hidden md:flex text-xs md:text-sm text-muted-foreground items-center gap-1">
-                            <MapPin className="w-3 h-3 md:w-4 md:h-4 inline-block shrink-0" />
+                    <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
                             {subject.location?.text || "Χωρίς τοποθεσία"}
                         </div>
-                        <div className="hidden md:flex text-xs md:text-sm text-muted-foreground items-center gap-1">
-                            <ScrollText className="w-3 h-3 md:w-4 md:h-4 inline-block shrink-0" />
+                        <div className="flex items-center gap-1">
+                            <ScrollText className="w-3.5 h-3.5 shrink-0" />
                             {subject.agendaItemIndex ? `#${subject.agendaItemIndex}` : "Εκτός"}
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="flex-grow pb-2 md:pb-3 max-w-lg">
+                <CardContent className="flex-grow pb-2 max-w-full">
                     {subject.description && (
-                        <div className="text-xs md:text-sm text-muted-foreground line-clamp-2">{subject.description}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">{subject.description}</div>
                     )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="pt-0">
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
                             users={topSpeakers}

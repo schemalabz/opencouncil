@@ -81,15 +81,18 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             {city.recentSubjects.length > 0 && (
                 <div className="w-full relative overflow-hidden rounded-lg">
                     <Marquee pauseOnHover repeat={2} className="[--duration:200s]" label="Πρόσφατα θέματα">
-                        {city.recentSubjects.map((subject) => (
-                            <SubjectCard
-                                key={subject.id}
-                                subject={subject}
-                                city={city}
-                                meeting={latestMeeting}
-                                parties={city.parties}
-                            />
-                        ))}
+                        <div className="flex gap-4">
+                            {city.recentSubjects.map((subject) => (
+                                <div key={subject.id} className="w-[300px] sm:w-[360px] shrink-0">
+                                    <SubjectCard
+                                        subject={subject}
+                                        city={city}
+                                        meeting={latestMeeting}
+                                        parties={city.parties}
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     </Marquee>
                     <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white dark:from-background"></div>
                     <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-white dark:from-background"></div>

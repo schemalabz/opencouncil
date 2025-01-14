@@ -41,8 +41,8 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
     return (
         <Card
             className={cn(
-                "group relative h-64 overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer",
-                "hover:scale-[1.02]"
+                "group relative h-full overflow-hidden transition-all duration-300",
+                "hover:shadow-lg hover:scale-[1.01] cursor-pointer"
             )}
             onClick={handleClick}
         >
@@ -51,40 +51,40 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                     <Loader2 className="w-8 h-8 animate-spin" />
                 </div>
             ) : (
-                <CardContent className="relative h-full flex flex-col justify-between p-6">
-                    <div className="space-y-4">
+                <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
+                    <div className="space-y-3 sm:space-y-4 flex-grow">
                         <div className="space-y-2">
-                            <h3 className="text-2xl font-bold group-hover:text-primary transition-colors">
+                            <h3 className="text-lg sm:text-xl font-bold group-hover:text-primary transition-colors line-clamp-2">
                                 {meeting.name}
                             </h3>
-                            <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
-                                    <CalendarIcon className="w-4 h-4" />
+                                    <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                     {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <VideoIcon className="w-4 h-4" />
+                                    <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                     {getMediaStatus()}
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <FileIcon className="w-4 h-4" />
+                                    <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                     {meeting.subjects.length} {t('subjects')}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2 items-center">
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
                             {meeting.subjects.slice(0, 3).map((subject) => (
                                 <SubjectBadge
                                     key={subject.id}
                                     subject={subject}
-                                    className="-mt-0"
+                                    className="text-xs"
                                 />
                             ))}
                             {remainingSubjectsCount > 0 && (
                                 <Link
                                     href={`/${meeting.cityId}/${meeting.id}/subjects`}
-                                    className="text-sm text-muted-foreground hover:text-primary"
+                                    className="text-xs sm:text-sm text-muted-foreground hover:text-primary"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {t('moreSubjects', { count: remainingSubjectsCount })}
@@ -94,7 +94,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                     </div>
 
                     {mostRecent && (
-                        <div className="absolute bottom-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+                        <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                             {t('mostRecent')}
                         </div>
                     )}

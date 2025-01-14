@@ -5,6 +5,7 @@ import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
 import { AlertTriangleIcon, CalendarIcon, FileIcon, VideoIcon } from "lucide-react";
 import { cn, sortSubjectsByImportance } from "@/lib/utils";
+
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects)
@@ -13,7 +14,7 @@ export default function MeetingPage() {
 
     return (
         <div className="flex flex-col w-full">
-            <div className="relative h-[300px] w-full">
+            <div className="relative h-[200px] sm:h-[300px] w-full">
                 <Map className="w-full h-full" features={[{
                     id: city.id,
                     geometry: city.geometry,
@@ -29,16 +30,14 @@ export default function MeetingPage() {
                     }
                 }]}
                 />
-                <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
-
-
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
                 <div className="max-w-4xl mx-auto mb-4">
                     {isOldVersion && (
-                        <div className="flex items-center">
+                        <div className="flex items-center text-sm sm:text-base">
                             <AlertTriangleIcon className="w-4 h-4 mr-2" />
                             Αυτή η συνεδρίαση έχει επεξεργαστεί από μια παλαιότερη έκδοση του OpenCouncil, οπότε δεν έχει θέματα.
                         </div>
@@ -55,32 +54,25 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     return (
-        <div className="absolute bottom-0 left-0 right-0 p-6">
+        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-2xl font-bold mb-2">{meeting.name}</h1>
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                <h1 className="text-xl sm:text-2xl font-bold mb-2">{meeting.name}</h1>
+                <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                     <div className="flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                         {formatDate(new Date(meeting.dateTime), 'PPP')}
                     </div>
                     {meeting.videoUrl && (
                         <div className="flex items-center">
-                            <VideoIcon className="w-4 h-4 mr-2" />
+                            <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                             {meeting.videoUrl ? "Βίντεο Διαθέσιμο" : meeting.audioUrl ? "Μόνο ήχος" : "Χωρίς βίντεο/ήχο"}
                         </div>
                     )}
 
-                    {subjects.length > 0 ? (
-                        <div className="flex items-center">
-                            <FileIcon className="w-4 h-4 mr-2" />
-                            {subjects.length} θέματα
-                        </div>
-                    ) : (
-                        <div className="flex items-center">
-                            <FileIcon className="w-4 h-4 mr-2" />
-                            Χωρίς θέματα
-                        </div>
-                    )}
+                    <div className="flex items-center">
+                        <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                        {subjects.length > 0 ? `${subjects.length} θέματα` : "Χωρίς θέματα"}
+                    </div>
                 </div>
             </div>
         </div>

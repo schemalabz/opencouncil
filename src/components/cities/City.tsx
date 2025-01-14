@@ -25,7 +25,13 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbS
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export default function CityC({ city }: { city: City & { councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[], parties: (Party & { persons: Person[] })[], persons: (Person & { party: Party | null })[] } }) {
+export default function CityC({ city }: {
+    city: City & {
+        councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[],
+        parties: (Party & { persons: Person[] })[],
+        persons: (Person & { party: Party | null })[]
+    }
+}) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -128,6 +134,9 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
                             FormComponent={AddMeetingForm}
                             formProps={{ cityId: city.id }}
                             t={useTranslations('CouncilMeeting')}
+                            smColumns={1}
+                            mdColumns={2}
+                            lgColumns={3}
                         />
                     </TabsContent>
 
@@ -139,6 +148,9 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
                             FormComponent={PersonForm}
                             formProps={{ cityId: city.id, parties: city.parties }}
                             t={useTranslations('Person')}
+                            smColumns={1}
+                            mdColumns={2}
+                            lgColumns={3}
                         />
                     </TabsContent>
 
@@ -150,6 +162,9 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
                             FormComponent={PartyForm}
                             formProps={{ cityId: city.id }}
                             t={useTranslations('Party')}
+                            smColumns={1}
+                            mdColumns={2}
+                            lgColumns={3}
                         />
                     </TabsContent>
                 </Tabs>
