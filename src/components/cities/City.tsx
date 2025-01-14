@@ -48,7 +48,9 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
         router.push(`/search?${params.toString()}`);
     };
 
-
+    const orderedMeetings = [...city.councilMeetings]
+        .filter(meeting => canEdit || meeting.released)
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
     return (
         <div className="md:container md:mx-auto py-8">
@@ -120,7 +122,7 @@ export default function CityC({ city }: { city: City & { councilMeetings: (Counc
 
                     <TabsContent value="meetings">
                         <List
-                            items={canEdit ? city.councilMeetings : city.councilMeetings.filter(meeting => meeting.released).sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())}
+                            items={orderedMeetings}
                             editable={canEdit}
                             ItemComponent={MeetingCard}
                             FormComponent={AddMeetingForm}
