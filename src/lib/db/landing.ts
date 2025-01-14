@@ -28,7 +28,8 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
 
     const cities = await prisma.city.findMany({
         where: {
-            isListed: includeUnlisted ? undefined : true
+            isListed: includeUnlisted ? undefined : true,
+            isPending: false
         },
         include: {
             parties: true,
