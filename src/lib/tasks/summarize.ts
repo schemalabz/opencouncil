@@ -129,6 +129,18 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                 locationId = result[0].id;
             }
 
+            // Debug logging
+            console.log('Subject speaker segments:', JSON.stringify(subject.speakerSegments, null, 2));
+
+            // Filter out invalid speaker segments and log warnings
+            const validSpeakerSegments = subject.speakerSegments.filter(segment => {
+                if (!segment.speakerSegmentId) {
+                    console.warn(`Warning: Found speaker segment with missing ID in subject "${subject.name}"`);
+                    return false;
+                }
+                return true;
+            });
+
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,
@@ -140,12 +152,12 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                         undefined,
                     hot: subject.hot,
                     agendaItemIndex: subject.agendaItemIndex,
-                    speakerSegments: {
-                        create: subject.speakerSegments.map(segment => ({
+                    speakerSegments: validSpeakerSegments.length > 0 ? {
+                        create: validSpeakerSegments.map(segment => ({
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },
                             summary: segment.summary
                         }))
-                    }
+                    } : undefined
                 }
             });
 
