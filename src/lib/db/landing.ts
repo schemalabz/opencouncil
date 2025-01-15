@@ -34,6 +34,9 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
         include: {
             parties: true,
             councilMeetings: {
+                where: {
+                    released: true,
+                },
                 orderBy: {
                     dateTime: 'desc'
                 },
