@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Person, Party, SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn } from "@/lib/utils";
@@ -8,8 +9,10 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "../ui/badge";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
-import { Check, X } from "lucide-react";
+import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
 
 interface PersonBadgeProps {
     // Core data
@@ -25,6 +28,7 @@ interface PersonBadgeProps {
     // For speaker tags
     editable?: boolean;
     onPersonChange?: (personId: string | null) => void;
+    onLabelChange?: (label: string) => void;
     availablePeople?: (Person & { party: Party | null })[];
 }
 
@@ -36,10 +40,21 @@ export function PersonBadge({
     isSelected = false,
     editable = false,
     onPersonChange,
+    onLabelChange,
     availablePeople,
 }: PersonBadgeProps) {
     const router = useRouter();
     const partyColor = person?.party?.colorHex || 'gray';
+    const [isEditingLabel, setIsEditingLabel] = useState(false);
+    const [tempLabel, setTempLabel] = useState(speakerTag?.label || '');
+
+    const handleLabelSubmit = () => {
+        if (onLabelChange && tempLabel.trim()) {
+            onLabelChange(tempLabel.trim());
+        }
+        setIsEditingLabel(false);
+    };
+
     const badge = (
         <div
             className={cn(
@@ -70,6 +85,7 @@ export function PersonBadge({
             )}
         </div>
     );
+
     if (!editable) {
         const content = (
             <div className="flex flex-col gap-2">
@@ -128,56 +144,90 @@ export function PersonBadge({
                 {badge}
             </PopoverTrigger>
             <PopoverContent className="w-96">
-                <Command>
-                    <CommandInput placeholder="Search speaker..." />
-                    <CommandList>
-                        <CommandEmpty>No speaker found.</CommandEmpty>
-                        <CommandGroup>
-                            {speakerTag && (
-                                <CommandItem
-                                    onSelect={() => onPersonChange?.(null)}
-                                    className="text-red-500 hover:bg-red-100"
-                                >
-                                    <X className="mr-2 h-4 w-4" />
-                                    <span>Unassign speaker</span>
-                                </CommandItem>
-                            )}
-                            {availablePeople?.map((availablePerson) => (
-                                <CommandItem
-                                    key={availablePerson.id}
-                                    value={`${availablePerson.name} ${availablePerson.name_short}`}
-                                    onSelect={() => onPersonChange?.(availablePerson.id)}
-                                >
-                                    <div className="flex items-center">
-                                        <div
-                                            className="mr-2"
-                                            style={{
-                                                borderLeft: availablePerson.party ?
-                                                    `4px solid ${availablePerson.party.colorHex || 'transparent'}` :
-                                                    'none',
-                                                paddingLeft: '4px'
-                                            }}
+                {isEditingLabel ? (
+                    <div className="flex flex-col gap-2">
+                        <Input
+                            value={tempLabel}
+                            onChange={(e) => setTempLabel(e.target.value)}
+                            placeholder="Enter speaker label"
+                            className="w-full"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setIsEditingLabel(false)}>
+                                Cancel
+                            </Button>
+                            <Button size="sm" onClick={handleLabelSubmit}>
+                                Save
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <Command>
+                        <CommandInput placeholder="Search speaker..." />
+                        <CommandList>
+                            <CommandEmpty>
+                                <div className="flex flex-col gap-2 p-2">
+                                    <span>No speaker found.</span>
+                                    {!person && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setIsEditingLabel(true)}
+                                            className="flex items-center gap-2"
                                         >
-                                            <ImageOrInitials
-                                                imageUrl={availablePerson.image || null}
-                                                width={32}
-                                                height={32}
-                                                name={availablePerson.name_short}
-                                            />
+                                            <Edit2 className="h-4 w-4" />
+                                            Edit Label
+                                        </Button>
+                                    )}
+                                </div>
+                            </CommandEmpty>
+                            <CommandGroup>
+                                {speakerTag && (
+                                    <CommandItem
+                                        onSelect={() => onPersonChange?.(null)}
+                                        className="text-red-500 hover:bg-red-100"
+                                    >
+                                        <X className="mr-2 h-4 w-4" />
+                                        <span>Unassign speaker</span>
+                                    </CommandItem>
+                                )}
+                                {availablePeople?.map((availablePerson) => (
+                                    <CommandItem
+                                        key={availablePerson.id}
+                                        value={`${availablePerson.name} ${availablePerson.name_short}`}
+                                        onSelect={() => onPersonChange?.(availablePerson.id)}
+                                    >
+                                        <div className="flex items-center">
+                                            <div
+                                                className="mr-2"
+                                                style={{
+                                                    borderLeft: availablePerson.party ?
+                                                        `4px solid ${availablePerson.party.colorHex || 'transparent'}` :
+                                                        'none',
+                                                    paddingLeft: '4px'
+                                                }}
+                                            >
+                                                <ImageOrInitials
+                                                    imageUrl={availablePerson.image || null}
+                                                    width={32}
+                                                    height={32}
+                                                    name={availablePerson.name_short}
+                                                />
+                                            </div>
+                                            <span className="text-base">{availablePerson.name_short}</span>
                                         </div>
-                                        <span className="text-base">{availablePerson.name_short}</span>
-                                    </div>
-                                    <Check
-                                        className={cn(
-                                            "ml-auto h-4 w-4",
-                                            speakerTag?.personId === availablePerson.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                    />
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </CommandList>
-                </Command>
+                                        <Check
+                                            className={cn(
+                                                "ml-auto h-4 w-4",
+                                                speakerTag?.personId === availablePerson.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        </CommandList>
+                    </Command>
+                )}
             </PopoverContent>
         </Popover>
     );

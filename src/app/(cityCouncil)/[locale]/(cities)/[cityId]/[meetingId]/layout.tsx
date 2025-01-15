@@ -35,6 +35,7 @@ export default async function CouncilMeetingPage({
 
     const t = performance.now();
     console.log("Getting data...");
+    //todo: think about auth here
     const res = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${meetingId}`);
     console.log(`Got data in ${performance.now() - t}ms`);
     if (res.status !== 200) {

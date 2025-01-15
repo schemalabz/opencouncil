@@ -10,7 +10,7 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson } = useCouncilMeetingData();
+    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson, updateSpeakerTagLabel } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
 
@@ -40,9 +40,13 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
-            // Assuming updateSpeakerTagPerson is available in your context
-            // You'll need to add this to your context if not already present
             updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
+        }
+    };
+
+    const handleLabelChange = (label: string) => {
+        if (memoizedData.speakerTag) {
+            updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
         }
     };
 
@@ -60,6 +64,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                             speakerTag={memoizedData.speakerTag}
                                             editable={options.editable}
                                             onPersonChange={handlePersonChange}
+                                            onLabelChange={handleLabelChange}
                                             availablePeople={people.map(p => ({
                                                 ...p,
                                                 party: p.partyId ? getParty(p.partyId) || null : null

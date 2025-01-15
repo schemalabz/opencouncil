@@ -44,7 +44,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 <div className="grid grid-cols-3 lg:grid-cols-1 gap-3 lg:w-72">
                     {/* People */}
                     <div className="hover:bg-accent/50 rounded-lg p-3 sm:p-4 transition-colors">
-                        <Link href={`/${city.id}?tab=people`} className="block">
+                        <Link href={`/${city.id}?tab=members`} className="block">
                             <div className="flex items-center gap-2 font-semibold mb-1 sm:mb-2">
                                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                                 <h3 className="text-sm sm:text-base">{city.personCount} Πρόσωπα</h3>
