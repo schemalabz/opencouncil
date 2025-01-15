@@ -35,6 +35,16 @@ export default function ExplainPage() {
                         </motion.p>
                     </div>
                 </motion.section>
+                <motion.section
+                    className="flex justify-center"
+                >
+                    <Button asChild>
+                        <Link href="/athens">
+                            Εξερεύνησε τα δημοτικά συμβούλια της Αθήνας
+                        </Link>
+                    </Button>
+                </motion.section>
+
                 {/* Features Section */}
                 <motion.section
                     className="py-8 sm:py-12 md:py-16 container mx-auto"

@@ -138,6 +138,11 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     console.warn(`Warning: Found speaker segment with missing ID in subject "${subject.name}"`);
                     return false;
                 }
+                // Check if the speaker segment exists in our available IDs
+                if (!availableSpeakerSegmentIds.includes(segment.speakerSegmentId)) {
+                    console.log(`Speaker segment ${segment.speakerSegmentId} does not exist -- ignoring`);
+                    return false;
+                }
                 return true;
             });
 
