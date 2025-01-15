@@ -26,6 +26,7 @@ export type MeetingData = {
 
 export const getMeetingData = unstable_cache(
     async (cityId: string, meetingId: string): Promise<MeetingData> => {
+        console.log('getting meeting data for', cityId, meetingId);
         const [meeting, transcript, city, people, parties, highlights, subjects] = await Promise.all([
             getCouncilMeeting(cityId, meetingId),
             getTranscript(meetingId, cityId),

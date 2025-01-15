@@ -11,6 +11,7 @@ export async function POST(
     if (!hasPermission) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('revalidating meeting', params.meetingId);
 
     // Revalidate the API route
     revalidatePath(`/api/cities/${params.cityId}/meetings/${params.meetingId}`);
