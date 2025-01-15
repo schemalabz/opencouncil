@@ -43,6 +43,11 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                     include: {
                         speakerSegment: true,
                     },
+                    orderBy: {
+                        speakerSegment: {
+                            startTimestamp: 'asc',
+                        },
+                    },
                 },
                 highlights: true,
                 location: true,
