@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { Badge } from '@/components/ui/badge'
 
 export default function CityC({ city }: {
     city: City & {
@@ -83,20 +84,22 @@ export default function CityC({ city }: {
                     )}
                     <div>
                         <h1 className="text-3xl font-bold">{city.name}</h1>
-                        <span className="text-md text-gray-600">
+                        <div className="text-md text-gray-600">
                             {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
-                        </span>
-                        {city.officialSupport ? (
-                            <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium rounded mt-2">
-                                <BadgeCheck className="w-4 h-4 mr-1" />
-                                <span>Με την υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center bg-transparent text-muted-foreground text-xs font-medium rounded mt-2">
-                                <BadgeX className="w-4 h-4 mr-1" />
-                                <span>Χωρίς επίσημη υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
-                            </div>
-                        )}
+                        </div>
+                        <div>
+                            {city.officialSupport ? (
+                                <Badge variant="secondary" className="mt-2 gap-1 bg-green-100 text-green-800 hover:bg-green-100">
+                                    <BadgeCheck className="w-4 h-4" />
+                                    <span>Με την υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="mt-2 gap-1 text-muted-foreground">
+                                    <BadgeX className="w-4 h-4" />
+                                    <span>Χωρίς επίσημη υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </div>
                 {canEdit && (
