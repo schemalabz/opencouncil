@@ -3,8 +3,8 @@ import { getMeetingData } from '@/lib/getMeetingData';
 import { getCities } from '@/lib/db/cities';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 
-// Revalidate every 60 minutes
-export const revalidate = 3600;
+// Revalidate every 1 minute
+export const revalidate = 60;
 
 export async function generateStaticParams() {
     const allCities = await getCities();
