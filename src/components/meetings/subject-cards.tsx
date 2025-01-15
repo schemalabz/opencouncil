@@ -18,7 +18,7 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1 sm:mt-0">
                     {totalSubjects ? (
-                        <>{subjects.length} από <Link href="/subjects" className="underline hover:text-foreground">{totalSubjects} συνολικά θέματα</Link></>
+                        <>{subjects.length} από <Link href={`/${city.id}/${meeting.id}/subjects`} className="underline hover:text-foreground">{totalSubjects} συνολικά θέματα</Link></>
                     ) : (
                         <>{subjects.length} θέματα</>
                     )}

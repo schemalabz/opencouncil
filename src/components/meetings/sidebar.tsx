@@ -1,5 +1,5 @@
 "use client"
-import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings } from "lucide-react"
+import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -63,7 +63,13 @@ export default function MeetingSidebar() {
             title: "Διαχείριση",
             icon: Settings,
             url: `/${city.id}/${meeting.id}/admin`
-        }] : [])
+        },
+        {
+            title: "Highlights",
+            icon: Star,
+            url: `/${city.id}/${meeting.id}/highlights`
+        },
+        ] : [])
     ]
 
     return (

@@ -11,11 +11,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
 import { PersonBadge } from "./persons/PersonBadge";
+import { isUserAuthorizedToEdit } from "@/lib/auth";
 
-const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean }) => {
+const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean, canEdit: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
-    const { updateOptions, options } = useTranscriptOptions();
-    const editable = options.editable;
+    const { options, updateOptions } = useTranscriptOptions();
+
     const utterances = highlight.highlightedUtterances.map(hu =>
         transcript.map((ss) => ss.utterances.find(u => u.id === hu.utteranceId)).find(u => u !== undefined)
     ).filter((u): u is NonNullable<typeof u> => u !== undefined);
@@ -30,7 +31,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     const isSelected = options.selectedHighlight?.id === highlight.id;
 
     const removeUtterance = (utteranceId: string) => {
-        if (!editable) return;
+        if (!canEdit) return;
         const updatedHighlight = {
             ...highlight,
             highlightedUtterances: highlight.highlightedUtterances.filter(hu => hu.utteranceId !== utteranceId)
@@ -39,7 +40,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     };
 
     const handleSave = async () => {
-        if (!editable) return;
+        if (!canEdit) return;
         try {
             await upsertHighlight({
                 id: highlight.id,
@@ -91,7 +92,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     };
 
     const handleAddSubject = async (subjectId: string) => {
-        if (!editable) return;
+        if (!canEdit) return;
         try {
             await addHighlightToSubject({ subjectId, highlightId: highlight.id });
             requestUpdate();
@@ -111,7 +112,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
     };
 
     const handleRemoveSubject = async () => {
-        if (!editable) return;
+        if (!canEdit) return;
         try {
             await removeHighlightFromSubject({ subjectId: highlight.subjectId!, highlightId: highlight.id });
             requestUpdate();
@@ -149,7 +150,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                             <Users className="h-3 w-3 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground">{speakerCount}</span>
                         </div>
-                        {editable && (
+                        {canEdit && (
                             <div className="flex items-center space-x-1">
                                 <Button size="icon" variant="ghost" onClick={(e) => {
                                     e.stopPropagation();
@@ -167,7 +168,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                         <div className="flex flex-wrap gap-2">
                             {highlight.subjectId && (
                                 <Badge variant="secondary">{subjects.find(s => s.id === highlight.subjectId)?.name}
-                                    {editable && (
+                                    {canEdit && (
                                         <Button size="icon" variant="ghost" onClick={(e) => {
                                             e.stopPropagation();
                                             handleRemoveSubject();
@@ -177,7 +178,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                                     )}
                                 </Badge>
                             )}
-                            {editable && (
+                            {canEdit && (
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" size="sm">Add Subject</Button>
@@ -218,7 +219,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
                                         className="ml-2"
                                     />}
                                     <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
-                                    {editable && (
+                                    {canEdit && (
                                         <Button
                                             size="icon"
                                             variant="ghost"
@@ -278,8 +279,8 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton }: { highlig
 const AddHighlightButton = ({ onHighlightAdded }: { onHighlightAdded: () => void }) => {
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [newHighlightName, setNewHighlightName] = React.useState('');
-    const { updateOptions } = useTranscriptOptions();
     const { meeting } = useCouncilMeetingData();
+    const { updateOptions } = useTranscriptOptions();
 
     const handleAddHighlight = async () => {
         try {
@@ -326,8 +327,17 @@ const AddHighlightButton = ({ onHighlightAdded }: { onHighlightAdded: () => void
 
 export default function Highlights({ highlights: initialHighlights }: { highlights: HighlightWithUtterances[] }) {
     const { options } = useTranscriptOptions();
-    const [highlights, setHighlights] = React.useState(initialHighlights);
     const { meeting } = useCouncilMeetingData();
+    const [highlights, setHighlights] = React.useState(initialHighlights);
+    const [canEdit, setCanEdit] = React.useState(false);
+
+    React.useEffect(() => {
+        const checkAuth = async () => {
+            const authorized = await isUserAuthorizedToEdit({ councilMeetingId: meeting.id });
+            setCanEdit(authorized);
+        };
+        checkAuth();
+    }, [meeting.id]);
 
     const reloadHighlights = React.useCallback(async () => {
         try {
@@ -338,18 +348,17 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
         }
     }, [meeting.cityId, meeting.id]);
 
-    const selectedHighlight = options.selectedHighlight;
-
     return (
         <div>
-            {options.editable && <AddHighlightButton onHighlightAdded={reloadHighlights} />}
+            {canEdit && <AddHighlightButton onHighlightAdded={reloadHighlights} />}
             {highlights.length > 0 ? (
                 highlights.map(highlight => (
                     <SingleHighlight
                         key={highlight.id}
-                        highlight={selectedHighlight?.id === highlight.id ? selectedHighlight : highlight}
+                        highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
                         requestUpdate={reloadHighlights}
-                        showSaveButton={options.editable && selectedHighlight?.id === highlight.id}
+                        showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
+                        canEdit={canEdit}
                     />
                 ))
             ) : (
