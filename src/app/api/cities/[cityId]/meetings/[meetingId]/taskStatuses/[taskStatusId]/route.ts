@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { handleTranscribeResult } from '@/lib/tasks/transcribe';
-import { GeneratePodcastSpecResult, SplitMediaFileResult, SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+import { FixTranscriptResult, GeneratePodcastSpecResult, SplitMediaFileResult, SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
 import { handleSummarizeResult } from '@/lib/tasks/summarize';
 import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
 import { handleGeneratePodcastSpecResult } from '@/lib/tasks/generatePodcastSpec';
 import { handleSplitMediaFileResult } from '@/lib/tasks/splitMediaFile';
+import { handleFixTranscriptResult } from '@/lib/tasks/fixTranscript';
 
 export async function GET(
     request: NextRequest,
@@ -71,6 +72,8 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<GeneratePodcastSpecResult>, handleGeneratePodcastSpecResult);
         } else if (taskStatus.type === 'splitMediaFile') {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<SplitMediaFileResult>, handleSplitMediaFileResult);
+        } else if (taskStatus.type === 'fixTranscript') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<FixTranscriptResult>, handleFixTranscriptResult);
         } else {
             // Handle other task types here if needed
             throw new Error(`Unsupported task type: ${taskStatus.type}`);

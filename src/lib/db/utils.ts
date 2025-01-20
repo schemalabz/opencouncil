@@ -6,9 +6,9 @@ import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
-import { SummarizeRequest } from "../apiTypes";
+import { RequestOnTranscript, SummarizeRequest, TranscribeRequest } from "../apiTypes";
 
-export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
+export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId);
     const people = await getPeopleForCity(cityId);
     const parties = await getPartiesForCity(cityId);
@@ -20,14 +20,13 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
         throw new Error('City or council meeting not found');
     }
 
-    const body: Omit<SummarizeRequest, 'callbackUrl'> = {
-        requestedSubjects,
+    return {
         transcript: transcript.map(segment => {
             const speakerTag = segment.speakerTag;
             const person = people.find(p => p.id === speakerTag.personId);
             const party = parties.find(p => p.id === person?.partyId);
 
-            const ret: SummarizeRequest['transcript'][number] = {
+            return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
                 speakerRole: person?.role || null,
@@ -39,15 +38,20 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
                     startTimestamp: u.startTimestamp,
                     endTimestamp: u.endTimestamp
                 }))
-            }
-
-            return ret;
+            };
         }),
         topicLabels: topics.map(t => t.name),
         cityName: city.name,
-        date: councilMeeting.dateTime.toISOString().split('T')[0],
-        additionalInstructions
-    }
+        date: councilMeeting.dateTime.toISOString().split('T')[0]
+    };
+}
 
-    return body;
+export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
+    const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
+
+    return {
+        ...baseRequest,
+        requestedSubjects,
+        additionalInstructions
+    };
 }

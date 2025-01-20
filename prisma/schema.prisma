@@ -189,6 +189,7 @@ model Utterance {
 
   speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
   speakerSegmentId String
+  uncertain Boolean @default(false)
 
   words Word[]
   highlightedUtterances HighlightedUtterance[]

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { requestTranscribe } from '@/lib/tasks/transcribe';
 import { requestSummarize } from '@/lib/tasks/summarize';
+import { requestFixTranscript } from '@/lib/tasks/fixTranscript';
 import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
@@ -102,6 +103,22 @@ export default function AdminActions({
             });
         } finally {
             setIsSummarizing(false);
+        }
+    };
+
+    const handleFixTranscript = async () => {
+        try {
+            await requestFixTranscript(meeting.id, meeting.cityId);
+            toast({
+                title: "Fix transcript requested",
+                description: "The transcript fixing process has started.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error requesting transcript fix",
+                description: `${error}`,
+                variant: 'destructive'
+            });
         }
     };
 
@@ -237,6 +254,9 @@ export default function AdminActions({
                         </div>
                     </PopoverContent>
                 </Popover>
+                <Button onClick={handleFixTranscript}>
+                    Fix Transcript
+                </Button>
                 <Button onClick={handleEmbed} disabled={isEmbedding}>
                     Embed
                 </Button>

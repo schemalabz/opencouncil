@@ -114,6 +114,21 @@ export interface RequestOnTranscript extends TaskRequest {
 }
 
 /*
+ * Fix Transcript
+ */
+
+export interface FixTranscriptRequest extends RequestOnTranscript {
+}
+
+export interface FixTranscriptResult {
+    updateUtterances: {
+        utteranceId: string;
+        markUncertain: boolean;
+        text: string;
+    }[];
+}
+
+/*
 * Summarize
 */
 
