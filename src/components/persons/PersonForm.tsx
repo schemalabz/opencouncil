@@ -94,6 +94,8 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
         const formData = new FormData()
+
+        // Append all form values
         formData.append('name', values.name)
         formData.append('name_en', values.name_en)
         formData.append('name_short', values.name_short)
@@ -105,8 +107,12 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
         formData.append('isAdministrativeRole', String(values.isAdministrativeRole || false))
         if (values.activeFrom) formData.append('activeFrom', values.activeFrom.toISOString())
         if (values.activeTo) formData.append('activeTo', values.activeTo.toISOString())
-        if (image) formData.append('image', image)
         formData.append('profileUrl', values.profileUrl || "")
+
+        // Only append image if it exists
+        if (image) {
+            formData.append('image', image)
+        }
 
         try {
             const response = await fetch(url, {
