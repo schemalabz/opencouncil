@@ -24,6 +24,7 @@ interface PersonBadgeProps {
     className?: string;
     withBorder?: boolean;
     isSelected?: boolean;
+    preferFullName?: boolean; // If true, shows full name when space permits
 
     // For speaker tags
     editable?: boolean;
@@ -42,6 +43,7 @@ export function PersonBadge({
     onPersonChange,
     onLabelChange,
     availablePeople,
+    preferFullName = false,
 }: PersonBadgeProps) {
     const router = useRouter();
     const partyColor = person?.party?.colorHex || 'gray';
@@ -72,13 +74,15 @@ export function PersonBadge({
                 color={partyColor}
             />
             {!short && (
-                <div className="flex-col">
-                    <div className="ml-2 font-semibold text-md whitespace-nowrap">
-                        {person?.name_short || speakerTag?.label || ''}
+                <div className="flex-col min-w-0 flex-1 overflow-hidden">
+                    <div className="ml-2 font-semibold text-md">
+                        <div className="truncate">
+                            {preferFullName ? person?.name || person?.name_short : person?.name_short || speakerTag?.label || ''}
+                        </div>
                     </div>
                     {person?.role && (
-                        <div className="ml-2 text-muted-foreground text-sm">
-                            <div className="whitespace-nowrap text-ellipsis">{person.role}</div>
+                        <div className="ml-2 text-muted-foreground text-sm overflow-hidden text-ellipsis">
+                            {person.role}
                         </div>
                     )}
                 </div>

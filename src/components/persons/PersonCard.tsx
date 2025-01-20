@@ -44,11 +44,12 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
             }}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col justify-between p-4 sm:p-6">
-                <div className="space-y-3 sm:space-y-4">
+            <CardContent className="relative h-full flex flex-col justify-center p-4 sm:p-6">
+                <div className="space-y-2 sm:space-y-3">
                     <PersonBadge
                         person={{ ...person, party: person.party }}
                         className="!text-base sm:!text-lg"
+                        preferFullName
                     />
                     {formatActiveDates(person.activeFrom, person.activeTo) && (
                         <p className="text-xs sm:text-sm text-muted-foreground">
