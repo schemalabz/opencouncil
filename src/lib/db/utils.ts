@@ -42,6 +42,13 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         }),
         topicLabels: topics.map(t => t.name),
         cityName: city.name,
+        partiesWithPeople: parties.map(p => ({
+            name: p.name,
+            people: people.filter(person => person.partyId === p.id).map(person => ({
+                name: person.name,
+                role: person.role || ''
+            }))
+        })),
         date: councilMeeting.dateTime.toISOString().split('T')[0]
     };
 }

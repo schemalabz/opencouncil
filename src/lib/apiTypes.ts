@@ -110,6 +110,13 @@ export interface RequestOnTranscript extends TaskRequest {
     }[];
     topicLabels: string[];
     cityName: string;
+    partiesWithPeople: {
+        name: string;
+        people: {
+            name: string;
+            role: string;
+        }[];
+    }[];
     date: string;
 }
 
