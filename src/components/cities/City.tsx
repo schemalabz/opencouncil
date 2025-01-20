@@ -59,6 +59,16 @@ export default function CityC({ city }: {
         .filter(meeting => canEdit || meeting.released)
         .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
 
+    const orderedPersons = [...city.persons]
+        .sort((a, b) => {
+            const aLastWord = a.name.split(' ').pop() || '';
+            const bLastWord = b.name.split(' ').pop() || '';
+            return aLastWord.localeCompare(bLastWord);
+        })
+
+    const orderedParties = [...city.parties]
+        .sort((a, b) => b.persons.length - a.persons.length);
+
     return (
         <div className="md:container md:mx-auto py-8">
             <Breadcrumb className="mb-4">
@@ -144,7 +154,7 @@ export default function CityC({ city }: {
 
                     <TabsContent value="members">
                         <List
-                            items={city.persons}
+                            items={orderedPersons}
                             editable={canEdit}
                             ItemComponent={PersonCard}
                             FormComponent={PersonForm}
@@ -158,7 +168,7 @@ export default function CityC({ city }: {
 
                     <TabsContent value="parties">
                         <List
-                            items={city.parties}
+                            items={orderedParties}
                             editable={canEdit}
                             ItemComponent={PartyCard}
                             FormComponent={PartyForm}
