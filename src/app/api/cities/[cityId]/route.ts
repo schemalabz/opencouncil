@@ -20,14 +20,14 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.json()
-    const name = formData.name as string
-    const name_en = formData.name_en as string
-    const name_municipality = formData.name_municipality as string
-    const name_municipality_en = formData.name_municipality_en as string
-    const timezone = formData.timezone as string
-    const logoImage = formData.logoImage as File | null
-    const authorityType = formData.authorityType as 'municipality' | 'region' || 'municipality'
+    const formData = await request.formData()
+    const name = formData.get('name') as string
+    const name_en = formData.get('name_en') as string
+    const name_municipality = formData.get('name_municipality') as string
+    const name_municipality_en = formData.get('name_municipality_en') as string
+    const timezone = formData.get('timezone') as string
+    const logoImage = formData.get('logoImage') as File | null
+    const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
 
     let logoImageUrl: string | undefined = undefined
 
@@ -48,7 +48,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
         try {
             await upload.done()
-            logoImageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/city-logos/${fileName}`
+            logoImageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT?.replace('https://', '')}/city-logos/${fileName}`
         } catch (error) {
             console.error('Error uploading file:', error)
             return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })

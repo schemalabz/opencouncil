@@ -74,15 +74,14 @@ export default function CityC({ city }: {
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
-
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-4">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+                <div className="flex flex-col md:flex-row items-center gap-4 md:space-x-6">
                     {city.logoImage ? (
-                        <Image src={city.logoImage} alt={`${city.name} logo`} width={64} height={64} className="object-contain hidden md:block" />
+                        <Image src={city.logoImage} alt={`${city.name} logo`} width={96} height={96} className="object-contain" />
                     ) : (
-                        <Building2 className="w-16 h-16 text-gray-400 hidden md:block" />
+                        <Building2 className="w-24 h-24 text-gray-400" />
                     )}
-                    <div>
+                    <div className="text-center md:text-left">
                         <h1 className="text-3xl font-bold">{city.name}</h1>
                         <div className="text-md text-gray-600">
                             {t('councilMeetingsTracked', { count: city.councilMeetings.length })}
