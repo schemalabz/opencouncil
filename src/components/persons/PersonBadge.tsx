@@ -57,6 +57,12 @@ export function PersonBadge({
         setIsEditingLabel(false);
     };
 
+    const switchOrder = (name: string | undefined) => {
+        if (!name) return null;
+        const parts = name.split(' ');
+        return parts.length > 1 ? parts.reverse().join(' ') : name;
+    };
+
     const badge = (
         <div
             className={cn(
@@ -68,8 +74,8 @@ export function PersonBadge({
         >
             <ImageOrInitials
                 imageUrl={person?.image || null}
-                width={40}
-                height={40}
+                width={48}
+                height={48}
                 name={person?.name_short || speakerTag?.label || ''}
                 color={partyColor}
             />
@@ -77,7 +83,7 @@ export function PersonBadge({
                 <div className="flex-col min-w-0 flex-1 overflow-hidden">
                     <div className="ml-2 font-semibold text-md">
                         <div className="truncate">
-                            {preferFullName ? person?.name || person?.name_short : person?.name_short || speakerTag?.label || ''}
+                            {preferFullName ? switchOrder(person?.name) || person?.name_short : person?.name_short || speakerTag?.label || ''}
                         </div>
                     </div>
                     {person?.role && (
