@@ -18,17 +18,17 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
     return NextResponse.json(people)
 }
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.json()
-    const name = formData.name as string
-    const name_en = formData.name_en as string
-    const name_short = formData.name_short as string
-    const name_short_en = formData.name_short_en as string
-    const role = formData.role as string
-    const role_en = formData.role_en as string
-    const image = formData.image as File | null
-    const partyId = formData.partyId as string | null
-    const isAdministrativeRole = formData.isAdministrativeRole as boolean
-    const profileUrl = formData.profileUrl as string | null
+    const formData = await request.formData()
+    const name = formData.get('name') as string
+    const name_en = formData.get('name_en') as string
+    const name_short = formData.get('name_short') as string
+    const name_short_en = formData.get('name_short_en') as string
+    const role = formData.get('role') as string
+    const role_en = formData.get('role_en') as string
+    const image = formData.get('image') as File | null
+    const partyId = formData.get('partyId') as string
+    const isAdministrativeRole = formData.get('isAdministrativeRole') === 'true'
+    const profileUrl = formData.get('profileUrl') as string
 
     let imageUrl: string | undefined = undefined
 
@@ -64,12 +64,12 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         name_short_en,
         role,
         role_en,
-        activeFrom: new Date(),
-        activeTo: null,
+        activeFrom: formData.get('activeFrom') ? new Date(formData.get('activeFrom') as string) : new Date(),
+        activeTo: formData.get('activeTo') ? new Date(formData.get('activeTo') as string) : null,
         image: imageUrl || null,
         partyId: partyId || null,
         isAdministrativeRole,
-        profileUrl
+        profileUrl: profileUrl || null
     });
 
     return NextResponse.json(person)
