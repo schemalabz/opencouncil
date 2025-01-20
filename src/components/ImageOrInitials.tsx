@@ -31,22 +31,24 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                fontSize: '1.5rem',
+                fontSize: Math.min(width, height) * 0.4,
                 fontWeight: 'bold',
                 color: '#fff',
                 backgroundColor: '#ccc',
+                position: 'relative',
             }}
         >
             {imageUrl ? (
                 <Image
                     src={imageUrl}
                     alt={name ?? ''}
-                    width={width}
-                    height={height}
-                    className={`object-cover ${square ? 'rounded' : 'rounded-full'} no-underline`}
+                    fill
+                    sizes={`${Math.max(width, height)}px`}
+                    className={`object-cover ${square ? 'rounded' : 'rounded-full'}`}
+                    style={{ objectPosition: 'center center' }}
                 />
             ) : (
-                <div className="w-full h-full flex items-center justify-center text-sm">
+                <div className="w-full h-full flex items-center justify-center">
                     {name && displayInitials}
                 </div>
             )}

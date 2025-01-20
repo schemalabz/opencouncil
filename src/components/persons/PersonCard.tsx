@@ -50,6 +50,7 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
                         person={{ ...person, party: person.party }}
                         className="!text-base sm:!text-lg"
                         preferFullName
+                        size="lg"
                     />
                     {formatActiveDates(person.activeFrom, person.activeTo) && (
                         <p className="text-xs sm:text-sm text-muted-foreground">
