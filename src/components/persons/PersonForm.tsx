@@ -91,28 +91,24 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
         setIsSubmitting(true)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
-        const jsonData = {
-            name: values.name,
-            name_en: values.name_en,
-            name_short: values.name_short,
-            name_short_en: values.name_short_en,
-            role: values.role || "",
-            role_en: values.role_en || "",
-            image: image,
-            cityId: cityId,
-            partyId: values.partyId || "",
-            isAdministrativeRole: values.isAdministrativeRole || false,
-            activeFrom: values.activeFrom,
-            activeTo: values.activeTo,
-        }
+        const formData = new FormData()
+        formData.append('name', values.name)
+        formData.append('name_en', values.name_en)
+        formData.append('name_short', values.name_short)
+        formData.append('name_short_en', values.name_short_en)
+        formData.append('role', values.role || "")
+        formData.append('role_en', values.role_en || "")
+        formData.append('cityId', cityId)
+        formData.append('partyId', values.partyId || "")
+        formData.append('isAdministrativeRole', String(values.isAdministrativeRole || false))
+        if (values.activeFrom) formData.append('activeFrom', values.activeFrom.toISOString())
+        if (values.activeTo) formData.append('activeTo', values.activeTo.toISOString())
+        if (image) formData.append('image', image)
 
         try {
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(jsonData),
+                body: formData,
             })
 
             if (response.ok) {
