@@ -28,6 +28,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
     const image = formData.image as File | null
     const partyId = formData.partyId as string | null
     const isAdministrativeRole = formData.isAdministrativeRole as boolean
+    const profileUrl = formData.profileUrl as string | null
 
     let imageUrl: string | undefined = undefined
 
@@ -68,6 +69,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         image: imageUrl || null,
         partyId: partyId || null,
         isAdministrativeRole,
+        profileUrl
     });
 
     return NextResponse.json(person)
