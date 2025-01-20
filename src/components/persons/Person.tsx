@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { PersonBadge } from './PersonBadge';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { ExternalLink } from "lucide-react";
 
 export default function PersonC({ city, person, parties }: { city: City, person: Person & { party: Party | null }, parties: Party[] }) {
     const t = useTranslations('Person');
@@ -95,16 +96,28 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                     </BreadcrumbItem>
                 </BreadcrumbList>
             </Breadcrumb>
-
             <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center space-x-4">
-                    <PersonBadge
-                        person={{ ...person, party: person.party }}
-                    />
-                    {formatActiveDates(person.activeFrom, person.activeTo) && (
-                        <p className="text-sm text-gray-600">
-                            {formatActiveDates(person.activeFrom, person.activeTo)}
-                        </p>
+                <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-4">
+                        <PersonBadge
+                            person={{ ...person, party: person.party }}
+                        />
+                        {formatActiveDates(person.activeFrom, person.activeTo) && (
+                            <p className="text-sm text-gray-600">
+                                {formatActiveDates(person.activeFrom, person.activeTo)}
+                            </p>
+                        )}
+                    </div>
+                    {person.profileUrl && (
+                        <a
+                            href={person.profileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground flex items-center space-x-1 text-sm"
+                        >
+                            <ExternalLink className="h-3 w-3" />
+                            <span>Βιογραφικό</span>
+                        </a>
                     )}
                 </div>
                 {canEdit && (

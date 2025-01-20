@@ -52,6 +52,7 @@ const formSchema = z.object({
     isAdministrativeRole: z.boolean().optional(),
     activeFrom: z.date().nullable(),
     activeTo: z.date().nullable(),
+    profileUrl: z.string().url().optional().or(z.literal('')),
 })
 
 interface PersonFormProps {
@@ -84,6 +85,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             isAdministrativeRole: person?.isAdministrativeRole || false,
             activeFrom: person?.activeFrom || null,
             activeTo: person?.activeTo || null,
+            profileUrl: person?.profileUrl || "",
         },
     })
 
@@ -104,6 +106,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
         if (values.activeFrom) formData.append('activeFrom', values.activeFrom.toISOString())
         if (values.activeTo) formData.append('activeTo', values.activeTo.toISOString())
         if (image) formData.append('image', image)
+        formData.append('profileUrl', values.profileUrl || "")
 
         try {
             const response = await fetch(url, {
@@ -130,6 +133,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                     isAdministrativeRole: false,
                     activeFrom: null,
                     activeTo: null,
+                    profileUrl: "",
                 })
                 setImage(null)
                 setImagePreview(null)
@@ -363,6 +367,22 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                                 </PopoverContent>
                             </Popover>
                             <FormDescription>{t('activeToDescription')}</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="profileUrl"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('profileUrl')}</FormLabel>
+                            <FormControl>
+                                <Input {...field} type="url" placeholder="https://..." />
+                            </FormControl>
+                            <FormDescription>
+                                {t('profileUrlDescription')}
+                            </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}

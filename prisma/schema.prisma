@@ -75,6 +75,7 @@ model Person {
   activeTo DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  profileUrl String?
 
   speakerTags SpeakerTag[]
 

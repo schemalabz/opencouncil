@@ -32,6 +32,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const activeFrom = formData.get('activeFrom') ? new Date(formData.get('activeFrom') as string) : null
     const activeTo = formData.get('activeTo') ? new Date(formData.get('activeTo') as string) : null
     const image = formData.get('image') as File | null
+    const profileUrl = formData.get('profileUrl') as string
 
     let imageUrl: string | undefined = undefined
 
@@ -71,6 +72,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         activeFrom,
         activeTo,
         ...(imageUrl && { image: imageUrl }),
+        profileUrl: profileUrl || null,
     })
 
     return NextResponse.json(person)
