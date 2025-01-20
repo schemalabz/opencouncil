@@ -101,6 +101,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                     <div className="flex items-center space-x-4">
                         <PersonBadge
                             person={{ ...person, party: person.party }}
+                            size="xl"
                         />
                         {formatActiveDates(person.activeFrom, person.activeTo) && (
                             <p className="text-sm text-gray-600">

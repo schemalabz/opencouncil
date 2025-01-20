@@ -25,6 +25,7 @@ interface PersonBadgeProps {
     withBorder?: boolean;
     isSelected?: boolean;
     preferFullName?: boolean; // If true, shows full name when space permits
+    size?: 'sm' | 'md' | 'lg' | 'xl'; // sm = 40px, md = 48px (default), lg = 64px, xl = 96px
 
     // For speaker tags
     editable?: boolean;
@@ -44,17 +45,33 @@ export function PersonBadge({
     onLabelChange,
     availablePeople,
     preferFullName = false,
+    size = 'md',
 }: PersonBadgeProps) {
     const router = useRouter();
     const partyColor = person?.party?.colorHex || 'gray';
     const [isEditingLabel, setIsEditingLabel] = useState(false);
     const [tempLabel, setTempLabel] = useState(speakerTag?.label || '');
 
+    const imageSizes = {
+        sm: 40,
+        md: 48,
+        lg: 64,
+        xl: 96
+    };
+
+    const imageSize = imageSizes[size];
+
     const handleLabelSubmit = () => {
         if (onLabelChange && tempLabel.trim()) {
             onLabelChange(tempLabel.trim());
         }
         setIsEditingLabel(false);
+    };
+
+    const switchOrder = (name: string | undefined) => {
+        if (!name) return null;
+        const parts = name.split(' ');
+        return parts.length > 1 ? parts.reverse().join(' ') : name;
     };
 
     const badge = (
@@ -68,20 +85,20 @@ export function PersonBadge({
         >
             <ImageOrInitials
                 imageUrl={person?.image || null}
-                width={40}
-                height={40}
+                width={imageSize}
+                height={imageSize}
                 name={person?.name_short || speakerTag?.label || ''}
                 color={partyColor}
             />
             {!short && (
                 <div className="flex-col min-w-0 flex-1 overflow-hidden">
-                    <div className="ml-2 font-semibold text-md">
+                    <div className={cn("ml-2 font-semibold", size === 'xl' ? 'text-xl' : size === 'lg' ? 'text-lg' : 'text-md')}>
                         <div className="truncate">
-                            {preferFullName ? person?.name || person?.name_short : person?.name_short || speakerTag?.label || ''}
+                            {preferFullName ? switchOrder(person?.name) || person?.name_short : person?.name_short || speakerTag?.label || ''}
                         </div>
                     </div>
                     {person?.role && (
-                        <div className="ml-2 text-muted-foreground text-sm overflow-hidden text-ellipsis">
+                        <div className={cn("ml-2 text-muted-foreground overflow-hidden text-ellipsis", size === 'xl' || size === 'lg' ? 'text-base' : 'text-sm')}>
                             {person.role}
                         </div>
                     )}
@@ -97,15 +114,19 @@ export function PersonBadge({
                     <div className="flex-shrink-0">
                         <ImageOrInitials
                             imageUrl={person?.image || null}
-                            width={48}
-                            height={48}
+                            width={imageSize}
+                            height={imageSize}
                             name={person?.name_short || speakerTag?.label || ''}
                             color={partyColor}
                         />
                     </div>
                     <div className="min-w-0">
-                        <div className="font-semibold truncate">{person?.name_short || speakerTag?.label || ''}</div>
-                        {person?.role && <div className="text-sm text-muted-foreground truncate">{person.role}</div>}
+                        <div className={cn("font-semibold truncate", size === 'xl' ? 'text-xl' : size === 'lg' ? 'text-lg' : 'text-md')}>
+                            {person?.name_short || speakerTag?.label || ''}
+                        </div>
+                        {person?.role && <div className={cn("text-muted-foreground truncate", size === 'xl' || size === 'lg' ? 'text-base' : 'text-sm')}>
+                            {person.role}
+                        </div>}
                     </div>
                 </div>
                 {person?.party && (
