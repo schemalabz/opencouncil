@@ -1,0 +1,25 @@
+diff --git a/node_modules/@auth/prisma-adapter/index.js b/node_modules/@auth/prisma-adapter/index.js
+index d1fb3c9..375c10f 100644
+--- a/node_modules/@auth/prisma-adapter/index.js
++++ b/node_modules/@auth/prisma-adapter/index.js
+@@ -46,17 +46,16 @@ export function PrismaAdapter(prisma) {
+         },
+         async useVerificationToken(identifier_token) {
+             try {
+-                const verificationToken = await p.verificationToken.delete({
++                const verificationToken = await p.verificationToken.findUnique({
+                     where: { identifier_token },
+                 });
+                 // @ts-expect-errors // MongoDB needs an ID, but we don't
+-                if (verificationToken.id)
++                if (verificationToken?.id)
+                     delete verificationToken.id;
+                 return verificationToken;
+             }
+             catch (error) {
+-                // If token already used/deleted, just return null
+-                // https://www.prisma.io/docs/reference/api-reference/error-reference#p2025
++                // If token not found, just return null
+                 if (error.code === "P2025")
+                     return null;
+                 throw error;
