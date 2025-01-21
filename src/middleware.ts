@@ -7,9 +7,6 @@ import { auth } from './auth'
 const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
 
 export default async function middleware(req: NextRequest) {
-    // Log headers
-    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
-
     // Basic auth check
     if (!isHttpBasicAuthAuthenticated(req)) {
         return new NextResponse('Authentication required', {
