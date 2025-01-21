@@ -77,12 +77,14 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
     }, [])
 
     useEffect(() => {
-        const date = form.getValues('date');
-        if (date) {
-            const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                .toLowerCase().replace(/\s/g, '').replace(',', '_');
-            form.setValue('meetingId', formattedDate);
-        }
+        const subscription = form.watch((value, { name }) => {
+            if (name === 'date' && value.date) {
+                const formattedDate = value.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    .toLowerCase().replace(/\s/g, '').replace(',', '_');
+                form.setValue('meetingId', formattedDate);
+            }
+        });
+        return () => subscription.unsubscribe();
     }, [form])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
