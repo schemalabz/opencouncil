@@ -21,7 +21,14 @@ const UtteranceC: React.FC<{ utterance: Utterance & { words?: Word[] } }> = Reac
 
     const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === utterance.id);
 
-    const className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
+    let className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
+    if (utterance.lastModifiedBy === 'task' && options.editable) {
+        className += ' text-blue-500 font-bold underline';
+    }
+    if (utterance.uncertain && options.editable) {
+        className += ' text-red-500 font-bold';
+    }
+    console.log('utterance.lastModifiedBy', utterance.lastModifiedBy);
 
     const memoizedContent = useMemo(() => {
         const handleClick = () => {

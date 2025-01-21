@@ -190,11 +190,18 @@ model Utterance {
   speakerSegment SpeakerSegment @relation(fields: [speakerSegmentId], references: [id], onDelete: Cascade)
   speakerSegmentId String
   uncertain Boolean @default(false)
+  lastModifiedBy LastModifiedBy?
 
   words Word[]
   highlightedUtterances HighlightedUtterance[]
   podcastPartAudioUtterances PodcastPartAudioUtterance[]
   @@index([speakerSegmentId, startTimestamp])
+}
+
+
+enum LastModifiedBy {
+  user
+  task
 }
 
 model Word {

@@ -17,23 +17,28 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
 
     // Update each utterance with its fixed text
     for (const update of result.updateUtterances) {
-        try {
-            await prisma.utterance.update({
-                where: { id: update.utteranceId },
-                data: {
-                    text: update.text,
-                    uncertain: update.markUncertain
-                }
-            });
-        } catch (error) {
-            // If the error is due to record not found
-            if (error instanceof Error && error.message.includes('Record to update not found')) {
-                nonExistentIds.push(update.utteranceId);
-            } else {
-                throw error; // Re-throw other errors
-            }
+        // First check if the utterance exists
+        const utterance = await prisma.utterance.findUnique({
+            where: { id: update.utteranceId }
+        });
+
+        if (!utterance) {
+            nonExistentIds.push(update.utteranceId);
+            continue;
         }
+
+        // Update the utterance if it exists
+        await prisma.utterance.update({
+            where: { id: update.utteranceId },
+            data: {
+                text: update.text,
+                uncertain: update.markUncertain,
+                lastModifiedBy: 'task'
+            }
+        });
     }
+
+    console.log(`Updated ${result.updateUtterances.length} utterances (${nonExistentIds.length} not found)`);
 
     if (nonExistentIds.length > 0) {
         console.warn(`Warning: The following utterance IDs were not found: ${nonExistentIds.join(', ')}`);
