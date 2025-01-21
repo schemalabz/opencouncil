@@ -1,147 +1,126 @@
 "use client";
-import { SpeakerTag, Utterance, Word } from "@prisma/client";
+import { SpeakerTag, Utterance } from "@prisma/client";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import React, { useEffect, useState, useMemo } from "react";
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
-import { editWord } from "@/lib/db/word";
+import { editUtterance } from "@/lib/db/utterance";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 
-const UtteranceC: React.FC<{ utterance: Utterance & { words?: Word[] } }> = React.memo(({ utterance }) => {
+const UtteranceC: React.FC<{
+    utterance: Utterance,
+    onUpdate?: (updatedUtterance: Utterance) => void
+}> = React.memo(({ utterance, onUpdate }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options, updateOptions } = useTranscriptOptions();
     const maxDrift = options.maxUtteranceDrift;
     const selectedHighlight = options.selectedHighlight;
+    const [isEditing, setIsEditing] = useState(false);
+    const [localUtterance, setLocalUtterance] = useState(utterance);
+    const [editedText, setEditedText] = useState(utterance.text);
+
+    // Update local state when prop changes
+    useEffect(() => {
+        setLocalUtterance(utterance);
+        setEditedText(utterance.text);
+    }, [utterance]);
 
     useEffect(() => {
-        const isActive = currentTime >= utterance.startTimestamp && currentTime <= utterance.endTimestamp;
+        const isActive = currentTime >= localUtterance.startTimestamp && currentTime <= localUtterance.endTimestamp;
         setIsActive(isActive);
-    }, [currentTime, utterance.startTimestamp, utterance.endTimestamp]);
+    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp]);
 
-    const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === utterance.id);
+    const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id);
 
     let className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
-    if (utterance.lastModifiedBy === 'task' && options.editable) {
-        className += ' text-blue-500 font-bold underline';
+    if (localUtterance.lastModifiedBy && options.editable && !options.selectedHighlight) {
+        if (localUtterance.lastModifiedBy === 'task') {
+            className += ' text-blue-500 font-bold underline';
+        } else {
+            className += ' text-green-500 font-bold underline';
+        }
     }
-    if (utterance.uncertain && options.editable) {
+    if (localUtterance.uncertain && options.editable && !options.selectedHighlight) {
         className += ' text-red-500 font-bold';
-    }
-    console.log('utterance.lastModifiedBy', utterance.lastModifiedBy);
-
-    const memoizedContent = useMemo(() => {
-        const handleClick = () => {
-            if (selectedHighlight) {
-                if (isHighlighted) {
-                    // Remove from highlight
-                    const updatedHighlight = {
-                        ...selectedHighlight,
-                        highlightedUtterances: selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== utterance.id)
-                    };
-                    updateOptions({ selectedHighlight: updatedHighlight });
-                } else {
-                    // Add to highlight
-                    const updatedHighlight = {
-                        ...selectedHighlight,
-                        highlightedUtterances: [...selectedHighlight.highlightedUtterances, { utteranceId: utterance.id }]
-                    };
-                    updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
-                }
-            } else {
-                seekTo(utterance.startTimestamp);
-            }
-        };
-
-        return (
-            <span className={className} id={utterance.id} onClick={handleClick}>
-                {isActive ? (
-                    (utterance.words ?
-                        (utterance.words.map((word) => <WordC word={word} key={word.id} />))
-                        : utterance.text + " ")
-                ) : (
-                    utterance.text + " "
-                )}
-            </span>
-        );
-    }, [isActive, utterance, className, selectedHighlight, isHighlighted, updateOptions, seekTo]);
-
-    if (utterance.drift > maxDrift) {
-        return <span id={utterance.id} className="over:bg-accent utterance" />;
-    }
-
-    return memoizedContent;
-});
-
-UtteranceC.displayName = 'UtteranceC';
-
-export default UtteranceC;
-
-const WordC: React.FC<{ word: Word }> = ({ word }) => {
-    let { currentTime, seekTo } = useVideo()
-    let [isActive, setIsActive] = useState(false)
-    let { options } = useTranscriptOptions();
-    let editable = options.editable;
-    let [isEditing, setIsEditing] = useState(false);
-    let [editedText, setEditedText] = useState(word.text.trim());
-
-    useEffect(() => {
-        let isActive = currentTime >= word.startTimestamp && currentTime <= word.endTimestamp;
-        setIsActive(isActive)
-    }, [currentTime, word.startTimestamp, word.endTimestamp])
-
-    let color = '#000';
-    if (options.highlightLowConfidenceWords && word.confidence < 0.3) {
-        color = getConfidenceColor(word.confidence);
     }
 
     const handleClick = () => {
-        if (editable) {
+        if (selectedHighlight) {
+            if (isHighlighted) {
+                // Remove from highlight
+                const updatedHighlight = {
+                    ...selectedHighlight,
+                    highlightedUtterances: selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== localUtterance.id)
+                };
+                updateOptions({ selectedHighlight: updatedHighlight });
+            } else {
+                // Add to highlight
+                const updatedHighlight = {
+                    ...selectedHighlight,
+                    highlightedUtterances: [...selectedHighlight.highlightedUtterances, { utteranceId: localUtterance.id }]
+                };
+                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
+            }
+        } else if (options.editable) {
             setIsEditing(true);
         } else {
-            seekTo(word.startTimestamp);
+            seekTo(localUtterance.startTimestamp);
         }
-    }
+    };
 
-    const handleEdit = (e: React.FormEvent) => {
+    const handleEdit = async (e: React.FormEvent) => {
         e.preventDefault();
-        editWord(word.id, editedText);
-        setIsEditing(false);
+        try {
+            const updatedUtterance = await editUtterance(localUtterance.id, editedText);
+            setLocalUtterance(updatedUtterance);
+            onUpdate?.(updatedUtterance);
+            setIsEditing(false);
+        } catch (error) {
+            console.error('Failed to edit utterance:', error);
+            // Optionally show an error message to the user
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            setIsEditing(false);
+            setEditedText(localUtterance.text);
+        }
+    };
+
+    if (localUtterance.drift > maxDrift) {
+        return <span id={localUtterance.id} className="hover:bg-accent utterance" />;
     }
 
     if (isEditing) {
+        // Calculate a reasonable width based on text length
+        const minWidth = 200; // minimum width in pixels
+        const charWidth = 8; // approximate width per character in pixels
+        const width = Math.max(minWidth, editedText.length * charWidth);
+
         return (
             <form onSubmit={handleEdit} className="inline-block">
                 <input
                     type="text"
                     value={editedText}
                     onChange={(e) => setEditedText(e.target.value)}
+                    onKeyDown={handleKeyDown}
                     className="border border-gray-300 rounded px-1 py-0.5 text-sm"
+                    style={{ width: `${width}px` }}
                     autoFocus
-                    size={editedText.length + 2}
                 />
             </form>
         );
     }
 
     return (
-        <span>
-            <span
-                onClick={handleClick}
-                style={{ color }}
-                className={`cursor-pointer hover:underline ${isActive ? 'underline font-bold' : ''}`}
-            >
-                {editedText}
-            </span>
-            {' '}
+        <span className={className} id={localUtterance.id} onClick={handleClick}>
+            {localUtterance.text + " "}
         </span>
     );
-}
+});
 
-WordC.displayName = 'WordC';
+UtteranceC.displayName = 'UtteranceC';
 
-function getConfidenceColor(confidence: number): string {
-    // Convert confidence to a value between 0 and 255
-    const redValue = Math.round(255 * (1 - confidence));
-    return `rgb(${redValue}, 0, 0)`;
-}
+export default UtteranceC;
