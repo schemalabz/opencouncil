@@ -41,8 +41,9 @@ export default async function CouncilMeetingPage({
     if (res.status !== 200) {
         notFound();
     }
+
     const data: MeetingData = await res.json();
-    if (!data || !data.city || !data.meeting || !data.people || !data.parties || !data.transcript || !data.subjects) {
+    if (!data || !data.city) {
         notFound();
     }
 
