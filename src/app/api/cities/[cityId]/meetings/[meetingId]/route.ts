@@ -7,7 +7,7 @@ import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 export const revalidate = 60;
 
 export async function generateStaticParams() {
-    const allCities = await getCities();
+    const allCities = await getCities({ includeUnlisted: true });
     const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
     return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId }));
 }
