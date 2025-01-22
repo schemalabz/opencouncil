@@ -3,6 +3,7 @@ import { getMeetingData } from '@/lib/getMeetingData';
 import { getCities } from '@/lib/db/cities';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
 
+/*
 // Revalidate every 1 minute
 export const revalidate = 60;
 
@@ -11,6 +12,7 @@ export async function generateStaticParams() {
     const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
     return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId }));
 }
+*/
 
 export async function GET(
     request: Request,
