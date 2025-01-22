@@ -260,7 +260,7 @@ export default function AboutPage() {
                     <h2 className="text-3xl font-bold text-center mb-8">Ποιοί είμαστε</h2>
                     <p className="text-center text-lg mb-8">
                         Είμαστε ομάδα δύο ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
-                        στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ' ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
+                        στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ&apos; ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
                     </p>
 
                     <div className="flex justify-center gap-12">
