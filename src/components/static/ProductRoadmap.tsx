@@ -2,45 +2,39 @@
 
 import { useEffect, useRef } from 'react'
 import { motion, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
-import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll } from 'lucide-react'
+import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll, MapIcon } from 'lucide-react'
 
 const features = [
     {
         name: "Ανοιχτός κώδικας",
-        date: "Δεκέμβριος 2024",
+        date: "Φεβρουάριος 2025",
         description: "Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια που επιτρέπει την εμπορική χρήση.",
         icon: Github
     },
     {
-        name: "Σύνδεση με την ημερήσια διάταξη",
-        date: "Δεκέμβριος 2024",
-        description: "Οι απομαγνητοφωνήσεις θα συνδέονται με την ημερήσια διάταξη του εκάστοτε δημοτικού συμβουλίου.",
-        icon: Scroll
+        name: "Χάρτης",
+        date: "Μάρτιος 2025",
+        description: "Διαδραστικός χάρτης πόλης με τις τοποθεσίες των θεμάτων που συζητούνται στις συνεδριάσεις.",
+        icon: MapIcon
     },
     {
         name: "Βοηθός συνομιλίας AI",
-        date: "Ιανουάριος 2025",
+        date: "Μάρτιος 2025",
         description: "Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.",
         icon: BotMessageSquare
     },
     {
         name: "Προσωποποιημένες ενημερώσεις",
-        date: "Ιανουάριος 2025",
+        date: "Απρίλιος 2025",
         description: "Αυτοματοποιημένη αποστολή εξατομικευμένων ενημερώσεων στους πολίτες, από την ημερήσια διάταξη της συνεδρίασης.",
         icon: Mail
     },
     {
         name: "Πολύγλωσσο",
-        date: "Φεβρουάριος 2025",
+        date: "Μάιος 2025",
         description: "Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.",
         icon: Globe
     },
-    {
-        name: "Καταγραφή παρουσιών και ψηφισμάτων",
-        date: "Μάρτιος 2025",
-        description: "Αυτόματη καταγραφή παρουσιών και ψηφισμάτων των μελών του συμβουλίου.",
-        icon: Vote
-    }
 ]
 
 function FeatureItem({ feature, index, progress }: { feature: any, index: number, progress: any }) {

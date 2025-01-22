@@ -1,6 +1,6 @@
 'use client'
 import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion'
-import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail } from 'lucide-react'
+import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail, Twitter, Linkedin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { useRef, useEffect, useState } from 'react'
@@ -15,6 +15,29 @@ import Particles from '../magicui/particles'
 import ShineBorder from '../magicui/shine-border'
 import AnimatedGradientText from '../magicui/animated-gradient-text'
 import ContactFormPopup from './ContactFormPopup'
+import { Link } from '@/i18n/routing'
+import Image from 'next/image'
+
+
+const people = [
+    {
+        name: "Χρήστος Πορίος",
+        image: "/people/christos.jpg",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/christos-porios-91297690/",
+            twitter: "https://twitter.com/christosporios",
+            email: "mailto:christos@schemalabs.gr"
+        }
+    },
+    {
+        name: "Μαρία Καψιτίδου",
+        image: "/people/maria.jpg",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/maria-kapsitidou/",
+            email: "mailto:maria@schemalabs.gr"
+        }
+    }
+]
 
 export default function AboutPage() {
     const t = useTranslations('AboutPage')
@@ -167,21 +190,21 @@ export default function AboutPage() {
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-3xl font-bold text-center mb-12">Χαρακτηριστικά</h2>
+                    <h2 className="text-3xl font-bold text-center mb-12">Τι κάνει το OpenCouncil</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {[
                             { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.' },
                             { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
                             { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.' },
                             { icon: Sparkles, title: 'Highlights', description: 'Αυτόματη δημιουργία ολιγόλεπτων βίντεο με τα πιό σημαντικά μέρη κάθε συνεδρίασης.' },
-                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Ιανουάριος 2025' },
-                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', releaseDate: 'Δεκέμβριος 2024' },
+                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Μάρτιος 2025' },
+                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', releaseDate: 'Φεβρουάριος 2024' },
                             { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.' },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Φεβρουάριος 2025' },
+                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Μάιος 2025' },
                             { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
-                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Αυτόματη αναγνώριση θεμάτων από την απομαγνητοφώνηση, και σύνδεση τους με την ημερήσια διάταξη της συνεδρίασης', releaseDate: 'Δεκέμβριος 2025' },
-                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Δεκέμβριος 2025' },
-                            { icon: Vote, title: 'Φυσική διαβούλευση', description: 'Κάντε μικρές διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Ιανουάριος 2025' }
+                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Αυτόματη αναγνώριση θεμάτων από την απομαγνητοφώνηση, και σύνδεση τους με την ημερήσια διάταξη της συνεδρίασης' },
+                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Απρίλιος 2025' },
+                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Φεβρουάριος 2025' }
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -226,6 +249,53 @@ export default function AboutPage() {
                     viewport={{ once: true }}
                 >
                     <ProductRoadmap />
+                </motion.section>
+                <motion.section
+                    className="py-16"
+                    initial={{ opacity: 0, y: 50 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true }}
+                >
+                    <h2 className="text-3xl font-bold text-center mb-8">Ποιοί είμαστε</h2>
+                    <p className="text-center text-lg mb-8">
+                        Είμαστε ομάδα δύο ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
+                        στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ' ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
+                    </p>
+
+                    <div className="flex justify-center gap-12">
+                        {people.map((person, index) => (
+                            <div key={index} className="flex flex-col items-center">
+                                <div className="w-24 h-24 mb-4 overflow-hidden rounded-full">
+                                    <Image
+                                        src={person.image}
+                                        alt={person.name}
+                                        width={96}
+                                        height={96}
+                                        className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"
+                                    />
+                                </div>
+                                <h3 className="text-lg font-medium text-center">{person.name}</h3>
+                                <div className="flex gap-4">
+                                    {person.socials.twitter && (
+                                        <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
+                                            <Twitter className="w-5 h-5" />
+                                        </a>
+                                    )}
+                                    {person.socials.linkedin && (
+                                        <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
+                                            <Linkedin className="w-5 h-5" />
+                                        </a>
+                                    )}
+                                    {person.socials.email && (
+                                        <a href={person.socials.email} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
+                                            <Mail className="w-5 h-5" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </motion.section>
 
 
@@ -280,17 +350,19 @@ export default function AboutPage() {
 }
 function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
     const cardContent = (
-        <Card className={`h-full ${badge ? 'border-none' : ''}`}>
+        <Card className={`h-full flex flex-col ${badge ? 'border-none' : ''}`}>
             <CardHeader>
                 <CardTitle className="flex items-center">
-                    {React.cloneElement(Icon, { className: "h-6 w-6 mr-2" })}
+                    <div className="flex-shrink-0">
+                        {React.cloneElement(Icon, { className: "h-6 w-6 mr-2" })}
+                    </div>
                     <span>{title}</span>
                 </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                 <p className="text-muted-foreground">{description}</p>
             </CardContent>
-            <CardFooter className="flex justify-end">
+            <CardFooter className="mt-auto flex justify-end">
                 {badge}
             </CardFooter>
         </Card>
@@ -302,7 +374,6 @@ function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.Re
                 className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden border bg-background md:shadow-xl"
                 color={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
             >
-
                 {cardContent}
             </ShineBorder>
         );
