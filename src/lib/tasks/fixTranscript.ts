@@ -36,6 +36,15 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
                 lastModifiedBy: 'task'
             }
         });
+
+        await prisma.utteranceEdit.create({
+            data: {
+                utteranceId: update.utteranceId,
+                beforeText: utterance.text,
+                afterText: update.text,
+                editedBy: 'task',
+            }
+        });
     }
 
     console.log(`Updated ${result.updateUtterances.length} utterances (${nonExistentIds.length} not found)`);

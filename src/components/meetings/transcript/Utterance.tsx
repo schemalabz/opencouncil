@@ -64,6 +64,7 @@ const UtteranceC: React.FC<{
             }
         } else if (options.editable) {
             setIsEditing(true);
+            seekTo(localUtterance.startTimestamp);
         } else {
             seekTo(localUtterance.startTimestamp);
         }

@@ -196,6 +196,7 @@ model Utterance {
   highlightedUtterances HighlightedUtterance[]
   podcastPartAudioUtterances PodcastPartAudioUtterance[]
   @@index([speakerSegmentId, startTimestamp])
+  utteranceEdits UtteranceEdit[]
 }
 
 
@@ -443,6 +444,7 @@ model User {
  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  utteranceEdits UtteranceEdit[]
 }
  
 model Account {
@@ -517,4 +519,21 @@ model Administers {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, cityId, partyId, personId])
+}
+
+model UtteranceEdit {
+  id        String   @id @default(cuid())
+  utterance Utterance @relation(fields: [utteranceId], references: [id], onDelete: Cascade)
+  utteranceId String
+
+  beforeText String
+  afterText String
+
+  editedBy LastModifiedBy
+  userId String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
