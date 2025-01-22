@@ -15,6 +15,7 @@ export async function POST(
 
     // Revalidate the API route
     revalidatePath(`/api/cities/${params.cityId}/meetings/${params.meetingId}`);
+    revalidatePath(`/${params.cityId}/${params.meetingId}`, 'layout');
 
     return NextResponse.json({ revalidated: true, now: Date.now() });
 } 
