@@ -1,3 +1,4 @@
+"use server";
 import { getPeopleForCity } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getCities, getCity } from '@/lib/db/cities';
@@ -14,7 +15,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { getStatisticsFor } from '@/lib/statistics';
-import { MeetingData } from '@/lib/getMeetingData';
+import { getMeetingData, MeetingData } from '@/lib/getMeetingData';
 
 /*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
@@ -35,14 +36,9 @@ export default async function CouncilMeetingPage({
 
     const t = performance.now();
     console.log("Getting data...");
-    //todo: think about auth here
-    const res = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${meetingId}`);
+    const data = await getMeetingData(cityId, meetingId);
     console.log(`Got data in ${performance.now() - t}ms`);
-    if (res.status !== 200) {
-        notFound();
-    }
 
-    const data: MeetingData = await res.json();
     if (!data || !data.city) {
         notFound();
     }
