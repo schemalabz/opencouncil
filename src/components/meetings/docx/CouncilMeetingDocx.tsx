@@ -22,7 +22,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             children: [
                 new TextRun({
                     text: meeting.name,
-                    size: 72, // 36pt
+                    size: 32, // 16pt
                     bold: true
                 })
             ],
@@ -32,7 +32,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             spacing: { after: 240 },
             children: [new TextRun({
                 text: city.name_municipality,
-                size: 56 // 28pt
+                size: 28 // 14pt
             })],
         }),
         new Paragraph({
@@ -40,7 +40,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             spacing: { after: 480 },
             children: [new TextRun({
                 text: format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: el }),
-                size: 48 // 24pt
+                size: 24 // 12pt
             })],
         }),
 
@@ -50,7 +50,8 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             children: [new TextRun({
                 text: 'Προσοχή: Ανεπίσημο έγγραφο',
                 color: 'FF6B00',
-                bold: true
+                bold: true,
+                size: 24 // 12pt
             })],
         }),
         new Paragraph({
@@ -58,7 +59,8 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             spacing: { after: 480 },
             children: [new TextRun({
                 text: 'Το παρόν δημιουργήθηκε αυτοματοποιημένα από το OpenCouncil.gr, και ενδέχεται να περιέχει λάθη',
-                color: '666666'
+                color: '666666',
+                size: 20 // 10pt
             })],
         }),
 
@@ -66,11 +68,15 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             alignment: AlignmentType.CENTER,
             spacing: { before: 480 },
             children: [
-                new TextRun('Προτιμήστε την online έκδοση: '),
+                new TextRun({
+                    text: 'Προτιμήστε την online έκδοση: ',
+                    size: 20 // 10pt
+                }),
                 new ExternalHyperlink({
                     children: [new TextRun({
                         text: `opencouncil.gr/${meeting.cityId}/${meeting.id}`,
-                        style: 'Hyperlink'
+                        style: 'Hyperlink',
+                        size: 20 // 10pt
                     })],
                     link: `https://opencouncil.gr/${meeting.cityId}/${meeting.id}`
                 }),
@@ -91,7 +97,7 @@ const createTranscriptSection = (transcript: Transcript, people: Person[], parti
             spacing: { before: 480, after: 240 },
             children: [new TextRun({
                 text: 'Αυτόματη απομαγνητοφώνηση',
-                size: 64 // 32pt
+                size: 28 // 14pt
             })],
         }),
     ];
@@ -105,28 +111,28 @@ const createTranscriptSection = (transcript: Transcript, people: Person[], parti
             new TextRun({
                 text: `${speakerName} ${party ? `(${party.name_short})` : ''} `,
                 bold: true,
-                size: 48 // 24pt
+                size: 24 // 12pt
             }),
         ];
 
         if (speaker?.role) {
             children.push(new TextRun({
                 text: `${speaker.role} `,
-                size: 40, // 20pt
+                size: 20, // 10pt
                 color: '666666'
             }));
         }
 
         children.push(new TextRun({
             text: formatTimestamp(speakerSegment.startTimestamp),
-            size: 40, // 20pt
+            size: 20, // 10pt
             color: '666666'
         }));
 
         // Add the utterance text with proper spacing
         children.push(new TextRun({
             text: '\n' + speakerSegment.utterances.map(u => u.text).join(' '),
-            size: 48 // 24pt
+            size: 24 // 12pt
         }));
 
         paragraphs.push(new Paragraph({
