@@ -2,7 +2,7 @@ import { City, CouncilMeeting, Party, Person, SpeakerTag } from '@prisma/client'
 import { Transcript } from '@/lib/db/transcript';
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
-import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType, PageBreak } from 'docx';
+import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
 
 const formatTimestamp = (timestamp: number) => {
     const hours = Math.floor(timestamp / 3600);
@@ -22,7 +22,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             children: [
                 new TextRun({
                     text: meeting.name,
-                    size: 36,
+                    size: 72, // 36pt
                     bold: true
                 })
             ],
@@ -32,7 +32,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             spacing: { after: 240 },
             children: [new TextRun({
                 text: city.name_municipality,
-                size: 28
+                size: 56 // 28pt
             })],
         }),
         new Paragraph({
@@ -40,7 +40,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             spacing: { after: 480 },
             children: [new TextRun({
                 text: format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: el }),
-                size: 24
+                size: 48 // 24pt
             })],
         }),
 
@@ -77,8 +77,9 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             ],
         }),
 
+        // Page break
         new Paragraph({
-            children: [new TextRun({ break: 1 })],
+            pageBreakBefore: true,
         }),
     ];
 };
@@ -90,7 +91,7 @@ const createTranscriptSection = (transcript: Transcript, people: Person[], parti
             spacing: { before: 480, after: 240 },
             children: [new TextRun({
                 text: 'Αυτόματη απομαγνητοφώνηση',
-                size: 32
+                size: 64 // 32pt
             })],
         }),
     ];
@@ -104,28 +105,28 @@ const createTranscriptSection = (transcript: Transcript, people: Person[], parti
             new TextRun({
                 text: `${speakerName} ${party ? `(${party.name_short})` : ''} `,
                 bold: true,
-                size: 24
+                size: 48 // 24pt
             }),
         ];
 
         if (speaker?.role) {
             children.push(new TextRun({
                 text: `${speaker.role} `,
-                size: 20,
+                size: 40, // 20pt
                 color: '666666'
             }));
         }
 
         children.push(new TextRun({
             text: formatTimestamp(speakerSegment.startTimestamp),
-            size: 20,
+            size: 40, // 20pt
             color: '666666'
         }));
 
+        // Add the utterance text with proper spacing
         children.push(new TextRun({
-            text: speakerSegment.utterances.map(u => u.text).join(' '),
-            break: 1,
-            size: 24
+            text: '\n' + speakerSegment.utterances.map(u => u.text).join(' '),
+            size: 48 // 24pt
         }));
 
         paragraphs.push(new Paragraph({
