@@ -7,6 +7,7 @@ const meetingSchema = z.object({
     name_en: z.string().min(2),
     date: z.string().datetime(),
     youtubeUrl: z.string().min(1).url(),
+    agendaUrl: z.string().min(1).url(),
     meetingId: z.string().min(1),
 });
 
@@ -16,7 +17,7 @@ export async function POST(
 ) {
     try {
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, meetingId } = meetingSchema.parse(body);
+        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
         const meeting = await createCouncilMeeting({
@@ -26,6 +27,7 @@ export async function POST(
             dateTime: new Date(date),
             cityId,
             youtubeUrl,
+            agendaUrl,
             released: false, // Set as unpublished by default
             muxPlaybackId: null,
         });

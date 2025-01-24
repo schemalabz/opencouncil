@@ -97,6 +97,7 @@ model CouncilMeeting {
   name_en   String
   dateTime  DateTime
   youtubeUrl String
+  agendaUrl String?
   videoUrl String?
   audioUrl String?
   muxPlaybackId String?

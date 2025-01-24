@@ -24,6 +24,7 @@ import { fetchVideos, Video } from "@/lib/fetchVideos"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import InputWithDerivatives from "../InputWithDerivatives"
+import { LinkOrDrop } from "../ui/link-or-drop"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 
@@ -41,6 +42,11 @@ const formSchema = z.object({
         message: "YouTube URL is required.",
     }).url({
         message: "Invalid YouTube URL.",
+    }),
+    agendaUrl: z.string().min(1, {
+        message: "Agenda URL is required.",
+    }).url({
+        message: "Invalid Agenda URL.",
     }),
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
@@ -174,6 +180,26 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                             </FormControl>
                             <FormDescription>
                                 {t('meetingVideoDescription')}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="agendaUrl"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('meetingAgenda')}</FormLabel>
+                            <FormControl>
+                                <LinkOrDrop
+                                    {...field}
+                                    placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
+                                    onUrlChange={(url) => field.onChange(url)}
+                                />
+                            </FormControl>
+                            <FormDescription>
+                                {t('meetingAgendaDescription')}
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
