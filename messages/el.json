@@ -1,11 +1,13 @@
 {
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
-        "withVideo": "Με βίντεο",
+        "withVideo": "Βίντεο",
         "withAudio": "Ήχος",
+        "withAgenda": "Διάταξη",
         "subjects": "θέματα",
         "moreSubjects": "και άλλα {count} θέματα",
-        "mostRecent": "Πιο πρόσφατη συνεδρίαση"
+        "mostRecent": "Πιο πρόσφατη συνεδρίαση",
+        "beingProcessed": "Επεξεργαζόμαστε τη συνεδρίαση"
     },
     "PilotPage": {
         "title": "To OpenCouncil λειτουργεί δοκιμαστικά με μερικά από τα τελευταία δημοτικά συμβούλια του Δήμου Αθηναίων.",

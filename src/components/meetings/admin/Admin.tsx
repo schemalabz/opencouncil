@@ -16,27 +16,31 @@ import { embedCouncilMeeting } from '@/lib/search/embed';
 import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 
 export default function AdminActions({
 }: {
     }) {
     const { toast } = useToast();
+    const { meeting } = useCouncilMeetingData();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
+    const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
     const [youtubeUrl, setYoutubeUrl] = React.useState('');
+    const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [isSummarizePopoverOpen, setIsSummarizePopoverOpen] = React.useState(false);
+    const [isAgendaPopoverOpen, setIsAgendaPopoverOpen] = React.useState(false);
     const [taskStatuses, setTaskStatuses] = React.useState<TaskStatus[]>([]);
     const [isLoadingTasks, setIsLoadingTasks] = React.useState(true);
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isEmbedding, setIsEmbedding] = React.useState(false);
-    const { meeting } = useCouncilMeetingData();
     const [isReleased, setIsReleased] = React.useState(meeting.released);
-
+    const [forceAgenda, setForceAgenda] = React.useState(false);
     React.useEffect(() => {
-        setYoutubeUrl(meeting.youtubeUrl);
+        setYoutubeUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
 
     const fetchTaskStatuses = React.useCallback(async () => {
@@ -184,6 +188,26 @@ export default function AdminActions({
         }
     };
 
+    const handleProcessAgenda = async (force: boolean = false) => {
+        setIsProcessingAgenda(true);
+        try {
+            await requestProcessAgenda(agendaUrl, meeting.id, meeting.cityId, { force });
+            toast({
+                title: "Agenda processing requested",
+                description: "The agenda processing has started.",
+            });
+            setIsAgendaPopoverOpen(false);
+        } catch (error) {
+            toast({
+                title: "Error processing agenda",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsProcessingAgenda(false);
+        }
+    };
+
     return (<div>
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
@@ -216,6 +240,35 @@ export default function AdminActions({
                                 </div>
                                 <Button onClick={handleTranscribe} disabled={isTranscribing}>
                                     {isTranscribing ? 'Starting...' : 'Transcribe'}
+                                </Button>
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+                <Popover open={isAgendaPopoverOpen} onOpenChange={setIsAgendaPopoverOpen}>
+                    <PopoverTrigger asChild>
+                        <Button>Process Agenda</Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <div className="space-y-4">
+                            <h4 className="font-medium">Enter Agenda URL</h4>
+                            <Input
+                                type="text"
+                                placeholder="https://..."
+                                value={agendaUrl}
+                                onChange={(e) => setAgendaUrl(e.target.value)}
+                            />
+                            <div className="flex items-center justify-between space-x-2 w-full">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="force-agenda"
+                                        checked={forceAgenda}
+                                        onCheckedChange={setForceAgenda}
+                                    />
+                                    <Label htmlFor="force-agenda">Force</Label>
+                                </div>
+                                <Button onClick={() => handleProcessAgenda(forceAgenda)} disabled={isProcessingAgenda}>
+                                    {isProcessingAgenda ? 'Starting...' : 'Process'}
                                 </Button>
                             </div>
                         </div>

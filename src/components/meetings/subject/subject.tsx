@@ -10,6 +10,7 @@ import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
+import { subjectToMapFeature } from "@/lib/utils";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
     const { topic, location, description, name, speakerSegments, agendaItemIndex } = subject;
@@ -22,7 +23,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
     })) || [];
 
     const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
-
+    console.log(subject.location);
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
             {/* Header */}
@@ -75,22 +76,20 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     <p className="text-muted-foreground">{description}</p>
                 )}
             </div>
-
             {/* Location Map */}
             {location && (
-                <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-                    <div className="p-6">
-                        <h3 className="text-lg font-semibold">Τοποθεσία</h3>
-                        <p className="text-sm text-muted-foreground mb-4">{location.text}</p>
-                        <div className="h-[300px] w-full rounded-md overflow-hidden">
-                            <Map
-                                center={[23.7275, 37.9838]} // You'll need to extract coordinates from location.coordinates
-                                zoom={15}
-                                animateRotation={false}
-                            />
-                        </div>
+                <>
+                    <h3 className="text-lg font-semibold">Τοποθεσία</h3>
+                    <p className="text-sm text-muted-foreground mb-4">{location.text}</p>
+                    <div className="h-[300px] w-full rounded-md overflow-hidden">
+                        <Map
+                            center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
+                            zoom={15}
+                            features={location ? [subjectToMapFeature(subject)].filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null) : []}
+                            animateRotation={false}
+                        />
                     </div>
-                </div>
+                </>
             )}
 
             {/* Speaker Segments */}

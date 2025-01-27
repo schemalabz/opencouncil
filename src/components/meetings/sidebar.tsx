@@ -1,5 +1,5 @@
 "use client"
-import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star } from "lucide-react"
+import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star, Map } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -38,6 +38,11 @@ export default function MeetingSidebar() {
             title: "Σύνοψη",
             icon: LayoutDashboard,
             url: `/${city.id}/${meeting.id}`
+        },
+        {
+            title: "Χάρτης",
+            icon: Map,
+            url: `/${city.id}/${meeting.id}/map`
         },
         {
             title: "Απομαγνητοφώνηση",

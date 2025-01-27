@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createCouncilMeeting } from '@/lib/db/meetings';
-
 const meetingSchema = z.object({
-    name: z.string().min(2),
-    name_en: z.string().min(2),
-    date: z.string().datetime(),
-    youtubeUrl: z.string().min(1).url(),
-    agendaUrl: z.string().min(1).url(),
-    meetingId: z.string().min(1),
+    name: z.string().min(2, {
+        message: "Meeting name must be at least 2 characters.",
+    }),
+    name_en: z.string().min(2, {
+        message: "Meeting name (English) must be at least 2 characters.",
+    }),
+    date: z.string().transform((str) => new Date(str)),
+    youtubeUrl: z.string().url({
+        message: "Invalid YouTube URL.",
+    }).optional().or(z.literal("")),
+    agendaUrl: z.string().url({
+        message: "Invalid Agenda URL.",
+    }).optional().or(z.literal("")),
+    meetingId: z.string().min(1, {
+        message: "Meeting ID is required.",
+    }),
 });
 
 export async function POST(
@@ -24,10 +33,10 @@ export async function POST(
             name,
             name_en,
             id: meetingId,
-            dateTime: new Date(date),
+            dateTime: date,
             cityId,
-            youtubeUrl,
-            agendaUrl,
+            youtubeUrl: youtubeUrl || null,
+            agendaUrl: agendaUrl || null,
             released: false, // Set as unpublished by default
             muxPlaybackId: null,
         });

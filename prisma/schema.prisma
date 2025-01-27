@@ -12,6 +12,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
   extensions = [pgvector(map: "vector"), postgis(version: "3.3.5")]
 }
+
 model City {
   id        String   @id @default(cuid())
   name      String   // Αθήνα
@@ -86,6 +87,7 @@ model Person {
   partyId String?
 
   administrators Administers[]
+  subjectsIntroduced Subject[]
 
   @@index([cityId])
   @@index([partyId])
@@ -96,7 +98,7 @@ model CouncilMeeting {
   name      String
   name_en   String
   dateTime  DateTime
-  youtubeUrl String
+  youtubeUrl String?
   agendaUrl String?
   videoUrl String?
   audioUrl String?
@@ -279,6 +281,9 @@ model Subject {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  personId String?
+  introducedBy Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   councilMeeting CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
   topic Topic? @relation(fields: [topicId], references: [id], onDelete: SetNull)

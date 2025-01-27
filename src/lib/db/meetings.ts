@@ -15,7 +15,7 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'agendaUrl'> & { audioUrl?: string, videoUrl?: string, agendaUrl?: string }): Promise<CouncilMeeting> {
+export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeeting> {
     withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     try {
         const newMeeting = await prisma.councilMeeting.create({

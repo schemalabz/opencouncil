@@ -28,7 +28,7 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
             <Card className={cn(
-                "flex flex-col hover:shadow-md transition-shadow h-full",
+                "flex flex-col hover:shadow-md transition-shadow h-[280px]",
                 fullWidth ? "w-full" : "w-full"
             )}>
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
@@ -39,22 +39,24 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
                         <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1">{subject.name}</CardTitle>
                     </div>
                     <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
                             <MapPin className="w-3.5 h-3.5 shrink-0" />
-                            {subject.location?.text || "Χωρίς τοποθεσία"}
+                            <span className="truncate">
+                                {subject.location?.text || "Χωρίς τοποθεσία"}
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                             <ScrollText className="w-3.5 h-3.5 shrink-0" />
                             {subject.agendaItemIndex ? `#${subject.agendaItemIndex}` : "Εκτός"}
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="flex-grow pb-2 max-w-full">
+                <CardContent className="flex-1 pb-2 max-w-full overflow-hidden">
                     {subject.description && (
                         <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">{subject.description}</div>
                     )}
                 </CardContent>
-                <CardFooter className="pt-0">
+                <CardFooter className="pt-0 mt-auto">
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
                             users={topSpeakers}

@@ -3,6 +3,7 @@ import { useRef, useEffect } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/lib/utils'
+import { createRoot } from 'react-dom/client'
 
 export interface MapFeature {
     id: string
@@ -24,6 +25,8 @@ interface MapProps {
     animateRotation?: boolean
     pitch?: number
     features?: MapFeature[]
+    onFeatureClick?: (feature: GeoJSON.Feature) => void
+    renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
@@ -64,10 +67,14 @@ export default function Map({
     zoom = 12, // Default zoom level
     animateRotation = true,
     pitch = 45,
-    features = []
+    features = [],
+    onFeatureClick,
+    renderPopup
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
+    const popup = useRef<mapboxgl.Popup | null>(null)
+    const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
 
     if (!center) {
         center = guessCenterFromFeatures(features);
@@ -122,8 +129,13 @@ export default function Map({
                             geometry: feature.geometry,
                             properties: {
                                 id: feature.id,
+                                subjectId: feature.id,
                                 ...feature.properties,
-                                style: feature.style
+                                fillColor: feature.style?.fillColor || '#627BBC',
+                                fillOpacity: feature.style?.fillOpacity || 0.4,
+                                strokeColor: feature.style?.strokeColor || '#627BBC',
+                                strokeWidth: feature.style?.strokeWidth || 2,
+                                label: feature.style?.label || ''
                             }
                         }))
                     }
@@ -135,18 +147,8 @@ export default function Map({
                     'type': 'fill',
                     'source': 'features',
                     'paint': {
-                        'fill-color': [
-                            'case',
-                            ['has', 'style', ['properties']],
-                            ['string', ['get', 'fillColor', ['get', 'style', ['properties']]]],
-                            '#627BBC'
-                        ],
-                        'fill-opacity': [
-                            'case',
-                            ['has', 'style', ['properties']],
-                            ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
-                            0.4
-                        ]
+                        'fill-color': ['get', 'fillColor'],
+                        'fill-opacity': ['get', 'fillOpacity']
                     }
                 });
 
@@ -156,18 +158,8 @@ export default function Map({
                     'type': 'line',
                     'source': 'features',
                     'paint': {
-                        'line-color': [
-                            'case',
-                            ['has', 'style', ['properties']],
-                            ['string', ['get', 'strokeColor', ['get', 'style', ['properties']]]],
-                            '#627BBC'
-                        ],
-                        'line-width': [
-                            'case',
-                            ['has', 'style', ['properties']],
-                            ['number', ['get', 'strokeWidth', ['get', 'style', ['properties']]]],
-                            2
-                        ]
+                        'line-color': ['get', 'strokeColor'],
+                        'line-width': ['get', 'strokeWidth']
                     }
                 });
 
@@ -177,49 +169,137 @@ export default function Map({
                     'type': 'symbol',
                     'source': 'features',
                     'layout': {
-                        'text-field': [
-                            'case',
-                            ['has', 'style', ['properties']],
-                            ['string', ['get', 'label', ['get', 'style', ['properties']]]],
-                            ''
-                        ],
+                        'text-field': ['get', 'label'],
                         'text-size': 12,
-                        'text-anchor': 'center',
-                        'text-optional': true
+                        'text-anchor': 'left',
+                        'text-offset': [1, 0],
+                        'text-padding': 5,
+                        'text-optional': true,
+                        'text-max-width': 24
                     },
                     'paint': {
-                        'text-color': '#000000'
+                        'text-color': '#000000',
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 2
                     }
                 });
 
-                // Add hover effect
-                map.current!.on('mousemove', 'feature-fills', (e) => {
+                // Add circle layer for points
+                map.current!.addLayer({
+                    'id': 'feature-points',
+                    'type': 'circle',
+                    'source': 'features',
+                    'filter': ['==', ['geometry-type'], 'Point'],
+                    'paint': {
+                        'circle-color': ['get', 'fillColor'],
+                        'circle-opacity': ['get', 'fillOpacity'],
+                        'circle-radius': ['get', 'strokeWidth'],
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': ['get', 'strokeColor']
+                    }
+                });
+
+                // Add hover effect for fills
+                map.current!.on('mousemove', 'feature-fills', handleFeatureHover);
+                map.current!.on('mouseleave', 'feature-fills', handleFeatureLeave);
+
+                // Add hover effect for points
+                map.current!.on('mousemove', 'feature-points', handleFeatureHover);
+                map.current!.on('mouseleave', 'feature-points', handleFeatureLeave);
+
+                // Add click handlers if needed
+                if (onFeatureClick) {
+                    map.current!.on('click', 'feature-fills', handleFeatureClick);
+                    map.current!.on('click', 'feature-points', handleFeatureClick);
+                }
+
+                function handleFeatureHover(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
                     if (e.features && e.features.length > 0 && e.features[0].properties) {
                         map.current!.getCanvas().style.cursor = 'pointer'
-                        const baseOpacity = e.features[0].properties.style?.fillOpacity ?? 0.4;
-                        map.current!.setPaintProperty('feature-fills', 'fill-opacity', [
-                            'case',
-                            ['==', ['get', 'id'], e.features[0].properties.id],
-                            Math.min(baseOpacity + 0.3, 1),
-                            [
-                                'case',
-                                ['has', 'style', ['properties']],
-                                ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
-                                0.4
-                            ]
-                        ])
-                    }
-                });
+                        const baseOpacity = e.features[0].properties.fillOpacity || 0.4;
 
-                map.current!.on('mouseleave', 'feature-fills', () => {
+                        // Highlight the hovered feature
+                        if (e.features[0].geometry.type === 'Point') {
+                            map.current!.setPaintProperty('feature-points', 'circle-opacity', [
+                                'case',
+                                ['==', ['get', 'id'], e.features[0].properties.id],
+                                Math.min(baseOpacity + 0.3, 1),
+                                ['get', 'fillOpacity']
+                            ]);
+                        } else {
+                            map.current!.setPaintProperty('feature-fills', 'fill-opacity', [
+                                'case',
+                                ['==', ['get', 'id'], e.features[0].properties.id],
+                                Math.min(baseOpacity + 0.3, 1),
+                                ['get', 'fillOpacity']
+                            ]);
+                        }
+
+                        // Show popup if we have a render function and the feature has a subjectId
+                        if (renderPopup && e.features[0].properties?.subjectId) {
+                            console.log("Showing popup for subject:", e.features[0].properties.subjectId);
+                            const coordinates = e.lngLat;
+
+                            if (!popup.current) {
+                                popup.current = new mapboxgl.Popup({
+                                    closeButton: false,
+                                    closeOnClick: false,
+                                    maxWidth: '400px',
+                                    className: 'subject-popup',
+                                    offset: [0, -15]
+                                });
+                            }
+
+                            const popupContent = renderPopup(e.features[0]);
+                            console.log("Popup content:", popupContent);
+                            const container = document.createElement('div');
+
+                            // Clean up previous root if it exists
+                            if (popupRoot.current) {
+                                popupRoot.current.unmount();
+                            }
+
+                            // Create new root and render content
+                            popupRoot.current = createRoot(container);
+                            popupRoot.current.render(popupContent);
+
+                            popup.current
+                                .setLngLat(coordinates)
+                                .setDOMContent(container)
+                                .addTo(map.current!);
+                        } else {
+                            console.log("Not showing popup:", {
+                                hasRenderPopup: !!renderPopup,
+                                subjectId: e.features[0].properties?.subjectId
+                            });
+                        }
+                    }
+                }
+
+                function handleFeatureLeave() {
                     map.current!.getCanvas().style.cursor = ''
-                    map.current!.setPaintProperty('feature-fills', 'fill-opacity', [
-                        'case',
-                        ['has', 'style', ['properties']],
-                        ['number', ['get', 'fillOpacity', ['get', 'style', ['properties']]]],
-                        0.4
-                    ])
-                });
+
+                    // Reset fill opacity
+                    map.current!.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
+
+                    // Reset point opacity
+                    map.current!.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
+
+                    // Clean up popup and root
+                    if (popupRoot.current) {
+                        popupRoot.current.unmount();
+                        popupRoot.current = null;
+                    }
+                    if (popup.current) {
+                        popup.current.remove();
+                    }
+                }
+
+                function handleFeatureClick(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
+                    if (e.features && e.features.length > 0 && onFeatureClick) {
+                        onFeatureClick(e.features[0]);
+                    }
+                }
             }
 
             // Add 3D buildings
@@ -228,43 +308,46 @@ export default function Map({
             const layers = style.layers;
             if (!layers) return;
 
-            map.current!.addLayer({
-                'id': '3d-buildings',
-                'source': 'composite',
-                'source-layer': 'building',
-                'filter': ['==', 'extrude', 'true'],
-                'type': 'fill-extrusion',
-                'minzoom': 15,
-                'paint': {
-                    'fill-extrusion-color': '#aaa',
-                    'fill-extrusion-height': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'height']
-                    ],
-                    'fill-extrusion-base': [
-                        'interpolate',
-                        ['linear'],
-                        ['zoom'],
-                        15,
-                        0,
-                        15.05,
-                        ['get', 'min_height']
-                    ],
-                    'fill-extrusion-opacity': 0.6
-                }
-            })
+            // Only add 3D buildings if the composite source exists
+            if (style.sources && style.sources.composite) {
+                map.current!.addLayer({
+                    'id': '3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            15,
+                            0,
+                            15.05,
+                            ['get', 'height']
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            15,
+                            0,
+                            15.05,
+                            ['get', 'min_height']
+                        ],
+                        'fill-extrusion-opacity': 0.6
+                    }
+                });
+            }
         })
 
         return () => {
             resizeObserver.disconnect()
             map.current?.remove()
         }
-    }, [center, zoom, animateRotation, pitch, features])
+    }, [center, zoom, animateRotation, pitch, features, onFeatureClick, renderPopup])
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />

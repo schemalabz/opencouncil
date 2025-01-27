@@ -5,12 +5,15 @@ import prisma from "../db/prisma";
 import { getSummarizeRequestBody } from "../db/utils";
 import { PodcastPart } from "@prisma/client";
 import { PodcastPart as ApiPodcastPart } from "../apiTypes";
+import { withUserAuthorizedToEdit } from "../auth";
 
 export async function requestGeneratePodcastSpec(cityId: string, councilMeetingId: string, subjects: {
     id: string;
     allocation: 'onlyMention' | 'skip' | number;
     allocatedMinutes: number;
 }[], additionalInstructions?: string) {
+    await withUserAuthorizedToEdit({ cityId });
+
     const baseBody = await getSummarizeRequestBody(councilMeetingId, cityId, []);
 
     const meeting = await prisma.councilMeeting.findUnique({

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Person, Party, SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn } from "@/lib/utils";
@@ -51,6 +51,8 @@ export function PersonBadge({
     const partyColor = person?.party?.colorHex || 'gray';
     const [isEditingLabel, setIsEditingLabel] = useState(false);
     const [tempLabel, setTempLabel] = useState(speakerTag?.label || '');
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+    const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
     const imageSizes = {
         sm: 40,
@@ -60,6 +62,28 @@ export function PersonBadge({
     };
 
     const imageSize = imageSizes[size];
+
+    const handleMouseEnter = () => {
+        if (hoverTimeout) clearTimeout(hoverTimeout);
+        setIsPopoverOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+        const timeout = setTimeout(() => {
+            setIsPopoverOpen(false);
+        }, 200);
+        setHoverTimeout(timeout);
+    };
+
+    const handleClick = () => {
+        setIsPopoverOpen(!isPopoverOpen);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+        };
+    }, [hoverTimeout]);
 
     const handleLabelSubmit = () => {
         if (onLabelChange && tempLabel.trim()) {
@@ -141,15 +165,24 @@ export function PersonBadge({
         );
 
         return (
-            <Popover>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                 <PopoverTrigger asChild>
-                    {badge}
+                    <div
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                        onClick={handleClick}
+                        className="cursor-pointer"
+                    >
+                        {badge}
+                    </div>
                 </PopoverTrigger>
                 <PopoverContent
                     className={cn(
                         "w-80",
                         person?.cityId && "cursor-pointer"
                     )}
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
                     onClick={() => {
                         if (person?.cityId && person?.id) {
                             router.push(`/${person.cityId}/people/${person.id}`);

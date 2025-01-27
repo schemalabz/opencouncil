@@ -9,13 +9,18 @@ import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
-import { getSummarizeRequestBody } from "../db/utils";
+import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody } from "../db/utils";
+import { createSubjectsForMeeting } from "../db/utils";
+import { withUserAuthorizedToEdit } from "../auth";
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string) {
+    await withUserAuthorizedToEdit({ cityId });
+
     const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions);
 
     return startTask('summarize', body, councilMeetingId, cityId);
 }
+
 export async function handleSummarizeResult(taskId: string, response: SummarizeResult) {
     const task = await prisma.taskStatus.findUnique({
         where: {
@@ -32,14 +37,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const { councilMeeting } = task;
 
-    const speakerSegments = await prisma.speakerSegment.findMany({
-        where: {
-            meetingId: councilMeeting.id,
-            cityId: councilMeeting.cityId
-        }
-    });
-
-    const availableSpeakerSegmentIds = speakerSegments.map(s => s.id);
+    const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
     // Speaker segment transaction
     await prisma.$transaction(async (prisma) => {
@@ -88,100 +86,11 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
         }
     });
 
-    // Combined Subject and Highlight transaction
-    const topics = await prisma.topic.findMany();
-    const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
-
-    await prisma.$transaction(async (prisma) => {
-        // Delete old highlights and subjects for this meeting
-        await prisma.highlight.deleteMany({
-            where: {
-                meetingId: councilMeeting.id,
-                cityId: councilMeeting.cityId
-            }
-        });
-        await prisma.subject.deleteMany({
-            where: {
-                councilMeetingId: councilMeeting.id,
-                cityId: councilMeeting.cityId
-            }
-        });
-        // Create new subjects and highlights
-        for (const subject of response.subjects) {
-            // Create location if provided
-            let locationId: string | undefined;
-            if (subject.location) {
-                // Create location using raw SQL since PostGIS geometry is unsupported in Prisma
-                const result = await prisma.$queryRaw<[{ id: string }]>`
-                    INSERT INTO "Location" (id, type, text, coordinates)
-                    VALUES (
-                        gen_random_cuid()::text,
-                        ${subject.location.type}::text,
-                        ${subject.location.text}::text,
-                        ST_GeomFromGeoJSON(${JSON.stringify({
-                    type: subject.location.type === 'point' ? 'Point' :
-                        subject.location.type === 'lineString' ? 'LineString' : 'Polygon',
-                    coordinates: subject.location.coordinates
-                })})
-                    )
-                    RETURNING id
-                `;
-                locationId = result[0].id;
-            }
-
-            // Debug logging
-            console.log('Subject speaker segments:', JSON.stringify(subject.speakerSegments, null, 2));
-
-            // Filter out invalid speaker segments and log warnings
-            const validSpeakerSegments = subject.speakerSegments.filter(segment => {
-                if (!segment.speakerSegmentId) {
-                    console.warn(`Warning: Found speaker segment with missing ID in subject "${subject.name}"`);
-                    return false;
-                }
-                // Check if the speaker segment exists in our available IDs
-                if (!availableSpeakerSegmentIds.includes(segment.speakerSegmentId)) {
-                    console.log(`Speaker segment ${segment.speakerSegmentId} does not exist -- ignoring`);
-                    return false;
-                }
-                return true;
-            });
-
-            const createdSubject = await prisma.subject.create({
-                data: {
-                    name: subject.name,
-                    description: subject.description,
-                    councilMeeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
-                    location: locationId ? { connect: { id: locationId } } : undefined,
-                    topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
-                        { connect: { id: topicsByName[subject.topicLabel].id } } :
-                        undefined,
-                    hot: subject.hot,
-                    agendaItemIndex: subject.agendaItemIndex,
-                    speakerSegments: validSpeakerSegments.length > 0 ? {
-                        create: validSpeakerSegments.map(segment => ({
-                            speakerSegment: { connect: { id: segment.speakerSegmentId } },
-                            summary: segment.summary
-                        }))
-                    } : undefined
-                }
-            });
-
-            const highlight = await prisma.highlight.create({
-                data: {
-                    name: subject.name,
-                    meeting: { connect: { cityId_id: { cityId: councilMeeting.cityId, id: councilMeeting.id } } },
-                    subject: { connect: { id: createdSubject.id } }
-                }
-            });
-
-            await prisma.highlightedUtterance.createMany({
-                data: subject.highlightedUtteranceIds.filter(id => id).map(utteranceId => ({
-                    utteranceId: utteranceId,
-                    highlightId: highlight.id
-                }))
-            });
-        }
-    });
+    await createSubjectsForMeeting(
+        response.subjects,
+        councilMeeting.cityId,
+        councilMeeting.id
+    );
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
 }

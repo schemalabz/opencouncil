@@ -6,6 +6,31 @@ import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 
+export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
+
+export function subjectToMapFeature(subject: SubjectWithRelations) {
+  if (!subject.location?.coordinates) return null;
+
+  return {
+    id: subject.id,
+    geometry: {
+      type: 'Point',
+      coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
+    },
+    properties: {
+      subjectId: subject.id,
+      name: subject.name
+    },
+    style: {
+      fillColor: SUBJECT_POINT_COLOR,
+      fillOpacity: 0.6,
+      strokeColor: SUBJECT_POINT_COLOR,
+      strokeWidth: 6,
+      label: subject.name
+    }
+  };
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

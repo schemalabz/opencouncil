@@ -6,7 +6,8 @@ import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
-import { RequestOnTranscript, SummarizeRequest, TranscribeRequest } from "../apiTypes";
+import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
+import prisma from "./prisma";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId);
@@ -61,4 +62,117 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
         requestedSubjects,
         additionalInstructions
     };
+}
+
+export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, cityId: string): Promise<string[]> {
+    const speakerSegments = await prisma.speakerSegment.findMany({
+        select: {
+            id: true
+        },
+        where: {
+            meetingId: councilMeetingId,
+            cityId
+        }
+    });
+    return speakerSegments.map(s => s.id);
+}
+
+export async function createSubjectsForMeeting(
+    subjects: Subject[],
+    cityId: string,
+    councilMeetingId: string,
+) {
+    const topics = await prisma.topic.findMany();
+    const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
+
+    const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeetingId, cityId);
+
+    await prisma.$transaction(async (prisma) => {
+        // Delete old highlights and subjects for this meeting
+        await prisma.highlight.deleteMany({
+            where: {
+                meetingId: councilMeetingId,
+                cityId
+            }
+        });
+        await prisma.subject.deleteMany({
+            where: {
+                councilMeetingId,
+                cityId
+            }
+        });
+
+        // Create new subjects and highlights
+        for (const subject of subjects) {
+            // Create location if provided
+            let locationId: string | undefined;
+            if (subject.location) {
+                // Create location using raw SQL since PostGIS geometry is unsupported in Prisma
+                const cuid = await prisma.$queryRaw<[{ cuid: string }]>`SELECT gen_random_uuid()::text as cuid`;
+                const result = await prisma.$queryRaw<[{ id: string }]>`
+                    INSERT INTO "Location" (id, type, text, coordinates)
+                    VALUES (
+                        ${cuid[0].cuid}::text,
+                        ${subject.location.type}::"LocationType",
+                        ${subject.location.text}::text,
+                        ST_GeomFromGeoJSON(${JSON.stringify({
+                    type: subject.location.type === 'point' ? 'Point' :
+                        subject.location.type === 'lineString' ? 'LineString' : 'Polygon',
+                    coordinates: subject.location.coordinates[0]
+                })})
+                    )
+                    RETURNING id
+                `;
+                locationId = result[0].id;
+            }
+
+            // Filter out invalid speaker segments
+            const validSpeakerSegments = subject.speakerSegments.filter(segment => {
+                if (!segment.speakerSegmentId) {
+                    console.warn(`Warning: Found speaker segment with missing ID in subject "${subject.name}"`);
+                    return false;
+                }
+                if (!availableSpeakerSegmentIds.includes(segment.speakerSegmentId)) {
+                    console.log(`Speaker segment ${segment.speakerSegmentId} does not exist -- ignoring`);
+                    return false;
+                }
+                return true;
+            });
+
+            const createdSubject = await prisma.subject.create({
+                data: {
+                    name: subject.name,
+                    description: subject.description,
+                    councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
+                    location: locationId ? { connect: { id: locationId } } : undefined,
+                    topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
+                        { connect: { id: topicsByName[subject.topicLabel].id } } :
+                        undefined,
+                    hot: subject.hot,
+                    agendaItemIndex: subject.agendaItemIndex,
+                    speakerSegments: validSpeakerSegments.length > 0 ? {
+                        create: validSpeakerSegments.map(segment => ({
+                            speakerSegment: { connect: { id: segment.speakerSegmentId } },
+                            summary: segment.summary
+                        }))
+                    } : undefined
+                }
+            });
+
+            const highlight = await prisma.highlight.create({
+                data: {
+                    name: subject.name,
+                    meeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
+                    subject: { connect: { id: createdSubject.id } }
+                }
+            });
+
+            await prisma.highlightedUtterance.createMany({
+                data: subject.highlightedUtteranceIds.filter(id => id).map(utteranceId => ({
+                    utteranceId: utteranceId,
+                    highlightId: highlight.id
+                }))
+            });
+        }
+    }, { timeout: 60000 });
 }

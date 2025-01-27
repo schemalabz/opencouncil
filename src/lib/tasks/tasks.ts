@@ -7,6 +7,7 @@ import prisma from '@/lib/db/prisma';
 import { handleGeneratePodcastSpecResult } from './generatePodcastSpec';
 import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
+import { handleProcessAgendaResult } from './processAgenda';
 
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
@@ -133,6 +134,8 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         await handleSplitMediaFileResult(taskId, JSON.parse(task.responseBody!));
     } else if (taskType === 'fixTranscript') {
         await handleFixTranscriptResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'processAgenda') {
+        await handleProcessAgendaResult(taskId, JSON.parse(task.responseBody!));
     } else {
         throw new Error(`Unsupported task type: ${taskType}`);
     }

@@ -4,20 +4,28 @@ import { useRouter } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState } from 'react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
-import { CalendarIcon, FileIcon, Loader2, VideoIcon } from 'lucide-react';
+import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban } from 'lucide-react';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
+import { Badge } from '../ui/badge';
 
 interface MeetingCardProps {
     item: CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] };
     editable: boolean;
     mostRecent?: boolean;
 }
+const LoadingDots = () => (
+    <span className="inline-flex gap-1">
+        <span className="animate-pulse rounded-full h-1 w-1 bg-muted-foreground">&nbsp;</span>
+        <span className="animate-pulse delay-150 rounded-full h-1 w-1 bg-muted-foreground">&nbsp;</span>
+        <span className="animate-pulse delay-300 rounded-full h-1 w-1 bg-muted-foreground">&nbsp;</span>
+    </span>
+);
 
 export default function MeetingCard({ item: meeting, editable, mostRecent }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
@@ -31,10 +39,19 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
     };
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
+    const isUpcoming = isFuture(meeting.dateTime);
+
+    const getMediaIcon = () => {
+        if (meeting.videoUrl) return <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
+        if (meeting.audioUrl) return <AudioLines className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
+        if (meeting.agendaUrl) return <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
+        return <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
+    };
 
     const getMediaStatus = () => {
         if (meeting.videoUrl) return t('withVideo');
         if (meeting.audioUrl) return t('withAudio');
+        if (meeting.agendaUrl) return t('withAgenda');
         return t('noVideo');
     };
 
@@ -52,18 +69,26 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                 </div>
             ) : (
                 <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
-                    <div className="space-y-3 sm:space-y-4 flex-grow">
+                    <div className="space-y-3 sm:space-y-4 flex flex-col flex-grow">
                         <div className="space-y-2">
-                            <h3 className="text-lg sm:text-xl font-bold group-hover:text-primary transition-colors line-clamp-2">
-                                {meeting.name}
-                            </h3>
+                            <div className="flex justify-between items-start gap-2">
+                                <h3 className="text-lg sm:text-xl font-bold group-hover:text-primary transition-colors line-clamp-2">
+                                    {meeting.name}
+                                </h3>
+                                {isUpcoming && (
+                                    <Badge variant="outline" className="shrink-0 flex items-center gap-1">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                    </Badge>
+                                )}
+                            </div>
                             <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1">
                                     <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                     {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    {getMediaIcon()}
                                     {getMediaStatus()}
                                 </div>
                                 <div className="flex items-center gap-1">
@@ -73,24 +98,33 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
-                            {meeting.subjects.slice(0, 3).map((subject) => (
-                                <SubjectBadge
-                                    key={subject.id}
-                                    subject={subject}
-                                    className="text-xs"
-                                />
-                            ))}
-                            {remainingSubjectsCount > 0 && (
-                                <Link
-                                    href={`/${meeting.cityId}/${meeting.id}/subjects`}
-                                    className="text-xs sm:text-sm text-muted-foreground hover:text-primary"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {t('moreSubjects', { count: remainingSubjectsCount })}
-                                </Link>
-                            )}
-                        </div>
+                        {meeting.subjects.length === 0 ? (
+                            <div className="flex-grow flex flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2 mb-2">
+                                    {t('beingProcessed')}
+                                </div>
+                                <LoadingDots />
+                            </div>
+                        ) : (
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
+                                {meeting.subjects.slice(0, 3).map((subject) => (
+                                    <SubjectBadge
+                                        key={subject.id}
+                                        subject={subject}
+                                        className="text-xs"
+                                    />
+                                ))}
+                                {remainingSubjectsCount > 0 && (
+                                    <Link
+                                        href={`/${meeting.cityId}/${meeting.id}/subjects`}
+                                        className="text-xs sm:text-sm text-muted-foreground hover:text-primary"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {t('moreSubjects', { count: remainingSubjectsCount })}
+                                    </Link>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {mostRecent && (

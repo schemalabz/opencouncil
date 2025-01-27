@@ -171,3 +171,23 @@ a:hover.unstyled {
 .mapboxgl-ctrl-logo {
   display: none !important;
 }
+
+/* Map popup styles */
+.subject-popup {
+    z-index: 1000;
+}
+
+.subject-popup .mapboxgl-popup-content {
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    pointer-events: auto;
+}
+
+.subject-popup .mapboxgl-popup-tip {
+    display: none;
+}
+
+.subject-popup .mapboxgl-popup-content > div {
+    pointer-events: auto;
+}

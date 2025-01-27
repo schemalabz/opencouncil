@@ -38,16 +38,12 @@ const formSchema = z.object({
     date: z.date({
         required_error: "Meeting date is required.",
     }),
-    youtubeUrl: z.string().min(1, {
-        message: "YouTube URL is required.",
-    }).url({
+    youtubeUrl: z.string().url({
         message: "Invalid YouTube URL.",
-    }),
-    agendaUrl: z.string().min(1, {
-        message: "Agenda URL is required.",
-    }).url({
+    }).optional().or(z.literal("")),
+    agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
-    }),
+    }).optional().or(z.literal("")),
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
     }),
@@ -158,7 +154,7 @@ export default function AddMeetingForm({ cityId, onSuccess }: AddMeetingFormProp
                                     }
                                 }}
                                 disabled={(date) =>
-                                    date > new Date() || date < new Date("1900-01-01")
+                                    date < new Date("2000-01-01")
                                 }
                                 initialFocus
                             />

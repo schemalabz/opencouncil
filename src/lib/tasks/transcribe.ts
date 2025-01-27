@@ -4,12 +4,15 @@ import { startTask } from "./tasks";
 import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
+import { withUserAuthorizedToEdit } from "../auth";
 
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, {
     force = false
 }: {
     force?: boolean;
 } = {}) {
+    await withUserAuthorizedToEdit({ cityId });
+
     console.log(`Requesting transcription for ${youtubeUrl}`);
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
