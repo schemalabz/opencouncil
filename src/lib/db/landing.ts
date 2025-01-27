@@ -50,7 +50,8 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
                             },
                             highlights: true,
                             location: true,
-                            topic: true
+                            topic: true,
+                            introducedBy: true
                         }
                     }
                 },

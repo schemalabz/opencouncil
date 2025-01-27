@@ -75,7 +75,8 @@ export async function getFullCity(cityId: string) {
                             },
                             highlights: true,
                             location: true,
-                            topic: true
+                            topic: true,
+                            introducedBy: true
                         }
                     }
                 }

@@ -69,7 +69,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: { cityId, released: includeUnreleased ? undefined : true },
-            orderBy: { dateTime: 'desc' },
+            orderBy: { dateTime: 'desc', createdAt: 'desc' },
         });
         return meetings;
     } catch (error) {

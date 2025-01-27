@@ -57,7 +57,13 @@ export default function CityC({ city }: {
 
     const orderedMeetings = [...city.councilMeetings]
         .filter(meeting => canEdit || meeting.released)
-        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+        .sort((a, b) => {
+            const timeCompare = new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
+            if (timeCompare === 0) {
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }
+            return timeCompare;
+        });
 
     const orderedPersons = [...city.persons]
         .sort((a, b) => {

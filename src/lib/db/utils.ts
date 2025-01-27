@@ -150,6 +150,9 @@ export async function createSubjectsForMeeting(
                         undefined,
                     hot: subject.hot,
                     agendaItemIndex: subject.agendaItemIndex,
+                    introducedBy: subject.introducedByPersonId ?
+                        { connect: { id: subject.introducedByPersonId } } :
+                        undefined,
                     speakerSegments: validSpeakerSegments.length > 0 ? {
                         create: validSpeakerSegments.map(segment => ({
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },

@@ -291,6 +291,8 @@ model Subject {
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
   speakerSegments SubjectSpeakerSegment[]
+
+  @@index([cityId, councilMeetingId])
 }
 
 enum LocationType {

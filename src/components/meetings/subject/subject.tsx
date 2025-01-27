@@ -13,7 +13,7 @@ import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
 
 export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
-    const { topic, location, description, name, speakerSegments, agendaItemIndex } = subject;
+    const { topic, location, description, name, speakerSegments, agendaItemIndex, introducedBy } = subject;
     const { getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
 
@@ -76,6 +76,19 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     <p className="text-muted-foreground">{description}</p>
                 )}
             </div>
+
+            {introducedBy && (
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Εισηγητής:</span>
+                    <PersonBadge
+                        person={{
+                            ...introducedBy,
+                            party: introducedBy.partyId ? getParty(introducedBy.partyId) ?? null : null
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Location Map */}
             {location && (
                 <>
