@@ -52,13 +52,13 @@ export async function getStatisticsFor(
                     partyId: partyId
                 } : undefined
             },
-            subjects: {
+            subjects: subjectId ? {
                 // TODO: this is somewhat incorrect, as a speaker segment can have multiple subjects.
                 //       We should probably use the highlighted utterances instead.
                 some: {
                     subjectId: subjectId
                 }
-            }
+            } : undefined,
         },
         include: {
             speakerTag: {
