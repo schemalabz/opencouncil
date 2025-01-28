@@ -186,6 +186,7 @@ export interface FixTranscriptResult {
 
 export interface SummarizeRequest extends RequestOnTranscript {
     requestedSubjects: string[];
+    existingSubjects: Subject[];
     additionalInstructions?: string;
 }
 

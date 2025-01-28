@@ -84,7 +84,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                 }
             }
         }
-    });
+    }, { timeout: 60000 });
 
     await createSubjectsForMeeting(
         response.subjects,

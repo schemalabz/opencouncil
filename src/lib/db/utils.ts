@@ -8,6 +8,7 @@ import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
 import prisma from "./prisma";
+import { getSubjectsForMeeting } from "./subject";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId);
@@ -56,10 +57,21 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
 
 export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
-
+    const existingSubjects = await getSubjectsForMeeting(councilMeetingId, cityId);
     return {
         ...baseRequest,
         requestedSubjects,
+        existingSubjects: existingSubjects.map(s => ({
+            ...s,
+            highlightedUtteranceIds: [],
+            introducedByPersonId: s.introducedBy?.id || null,
+            topicLabel: s.topic?.name || null,
+            location: s.location && s.location.coordinates ? {
+                type: s.location.type,
+                text: s.location.text,
+                coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
+            } : null,
+        })),
         additionalInstructions
     };
 }
