@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback } from 'react';
 import { CouncilMeeting, Utterance, Word } from "@prisma/client";
 import { Video } from './Video';
+import { useTranscriptOptions } from './options/OptionsContext';
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -40,10 +41,11 @@ interface VideoProviderProps {
     utterances: Utterance[];
 }
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
+    const { options } = useTranscriptOptions();
     const [isPlaying, setIsPlaying] = useState(false);
     const currentTimeRef = useRef(0);
     const [duration, setDuration] = useState(0);
-    const [playbackSpeed, setPlaybackSpeed] = useState("1");
+    const [playbackSpeed, setPlaybackSpeed] = useState(options.playbackSpeed.toString());
     const [isSeeking, setIsSeeking] = useState(false);
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
     const playerRef = useRef<HTMLVideoElement | null>(null);
@@ -97,6 +99,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             }
         }
     }, [utterances, scrollToUtterance]);
+
+    useEffect(() => {
+        if (playerRef.current) {
+            playerRef.current.playbackRate = options.playbackSpeed;
+        }
+    }, [options.playbackSpeed]);
 
     const playVideo = async () => {
         if (playerRef.current) {

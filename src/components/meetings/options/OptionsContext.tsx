@@ -10,6 +10,7 @@ export interface TranscriptOptions {
     highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
     selectedHighlight: HighlightWithUtterances | null;
+    playbackSpeed: number;
 }
 
 interface TranscriptOptionsContextType {
@@ -25,7 +26,8 @@ const defaultOptions: TranscriptOptions = {
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
     selectedHighlight: null,
-    maxUtteranceDrift: 500
+    maxUtteranceDrift: 500,
+    playbackSpeed: 1
 };
 
 function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {
