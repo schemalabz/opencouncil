@@ -1,5 +1,12 @@
 import { ImageResponse } from 'next/og';
 import { getMeetingData } from '@/lib/getMeetingData';
+import fs from 'fs';
+import path from 'path';
+
+// Load and convert the logo to base64
+const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+const logo = fs.readFileSync(logoPath);
+const logoBase64 = `data:image/png;base64,${logo.toString('base64')}`;
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -25,28 +32,47 @@ export async function GET(request: Request) {
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         backgroundColor: '#fff',
-                        padding: '40px 60px',
-                        position: 'relative',
+                        padding: '60px',
                     }}
                 >
-                    {/* Logo */}
+                    {/* Header */}
                     <div style={{
-                        position: 'absolute',
-                        top: 40,
                         display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '12px'
+                        width: '100%',
+                        marginBottom: 80,
                     }}>
-                        <span style={{
-                            fontSize: 32,
-                            fontWeight: 700,
+                        {/* Logo and name */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '20px'
+                        }}>
+                            <img
+                                src={logoBase64}
+                                width="120"
+                                height="120"
+                                alt="OpenCouncil Logo"
+                            />
+                            <span style={{
+                                fontSize: 42,
+                                fontWeight: 700,
+                                color: '#000',
+                            }}>
+                                OpenCouncil
+                            </span>
+                        </div>
+
+                        {/* City name */}
+                        <div style={{
+                            fontSize: 64,
+                            fontWeight: 600,
                             color: '#000',
                         }}>
-                            OpenCouncil
-                        </span>
+                            {data.city.name}
+                        </div>
                     </div>
 
                     {/* Main Content */}
@@ -55,42 +81,21 @@ export async function GET(request: Request) {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginTop: 60,
-                            marginBottom: 20,
+                            flex: 1,
                         }}
                     >
                         <h1
                             style={{
-                                fontSize: 60,
+                                fontSize: 72,
                                 fontWeight: 800,
                                 color: '#000',
                                 lineHeight: 1.2,
                                 textAlign: 'center',
+                                maxWidth: '90%',
                             }}
                         >
                             {data.meeting.name}
                         </h1>
-                    </div>
-                    <div
-                        style={{
-                            display: 'flex',
-                            fontSize: 40,
-                            fontWeight: 600,
-                            color: '#000',
-                            marginTop: 10,
-                        }}
-                    >
-                        {data.city.name}
-                    </div>
-                    <div
-                        style={{
-                            display: 'flex',
-                            fontSize: 30,
-                            color: '#000',
-                            marginTop: 10,
-                        }}
-                    >
-                        {new Date(data.meeting.dateTime).toLocaleDateString()}
                     </div>
                 </div>
             ),
