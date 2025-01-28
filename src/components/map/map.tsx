@@ -209,8 +209,17 @@ export default function Map({
 
                 // Add click handlers if needed
                 if (onFeatureClick) {
-                    map.current!.on('click', 'feature-fills', handleFeatureClick);
-                    map.current!.on('click', 'feature-points', handleFeatureClick);
+                    const handleMapFeatureClick = (e: mapboxgl.MapMouseEvent | mapboxgl.MapTouchEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+                        if (e.features && e.features.length > 0 && onFeatureClick) {
+                            onFeatureClick(e.features[0]);
+                        }
+                    };
+
+                    map.current!.on('click', 'feature-fills', handleMapFeatureClick);
+                    map.current!.on('click', 'feature-points', handleMapFeatureClick);
+                    // Add touch handlers for mobile
+                    map.current!.on('touchend', 'feature-fills', handleMapFeatureClick);
+                    map.current!.on('touchend', 'feature-points', handleMapFeatureClick);
                 }
 
                 function handleFeatureHover(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
@@ -292,12 +301,6 @@ export default function Map({
                     }
                     if (popup.current) {
                         popup.current.remove();
-                    }
-                }
-
-                function handleFeatureClick(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
-                    if (e.features && e.features.length > 0 && onFeatureClick) {
-                        onFeatureClick(e.features[0]);
                     }
                 }
             }
