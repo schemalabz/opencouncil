@@ -61,6 +61,7 @@
     "@react-three/fiber": "^8.17.6",
     "@types/react-pdf": "^7.0.0",
     "@types/react-timeago": "^4.1.7",
+    "@vercel/og": "^0.6.5",
     "axios": "^1.7.6",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

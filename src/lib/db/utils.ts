@@ -57,7 +57,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
 
 export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
-    const existingSubjects = await getSubjectsForMeeting(councilMeetingId, cityId);
+    const existingSubjects = await getSubjectsForMeeting(cityId, councilMeetingId);
     return {
         ...baseRequest,
         requestedSubjects,

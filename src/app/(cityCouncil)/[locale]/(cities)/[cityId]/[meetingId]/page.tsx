@@ -51,9 +51,8 @@ export default function MeetingPage() {
                                 <AlertTriangleIcon className="w-5 h-5 text-yellow-500" />
                                 <span className="font-medium">Αυτή η συνεδρίαση δεν έχει γίνει ακόμα.</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span>Μπορείτε</span>
-                                <Link
+                            <div>
+                                Μπορείτε <Link
                                     href={meeting.agendaUrl}
                                     target="_blank"
                                     className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
