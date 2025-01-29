@@ -9,7 +9,7 @@ import { Topic } from "@prisma/client"
 import TopicBadge from "./transcript/Topic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { BarChartIcon, FileIcon, Loader2, PieChartIcon } from "lucide-react"
+import { BarChart2, BarChartIcon, Clock, FileBarChart2, FileIcon, Loader2, PieChartIcon } from "lucide-react"
 
 export function Statistics() {
     const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null)
@@ -71,6 +71,16 @@ export function Statistics() {
             <Loader2 className="w-8 h-8 animate-spin" />
         </div>
     )
+
+    if (totalMinutes === 0) {
+        return <div className="container py-8">
+            <BarChart2 className="w-12 h-12 mx-auto text-muted-foreground" />
+            <div className="text-center text-base text-muted-foreground py-8">
+                Τα στατιστικά δεν είναι ακόμη διαθέσιμα.
+            </div>
+
+        </div>
+    }
 
     return (
         <div className="flex flex-col w-full p-6">

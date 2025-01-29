@@ -118,7 +118,7 @@ export default async function CouncilMeetingPage({
                     {children}
                 </div>
             </div>
-            <TranscriptControls />
+            {data.meeting.muxPlaybackId && <TranscriptControls />}
         </SidebarProvider>
     </CouncilMeetingWrapper >
 }

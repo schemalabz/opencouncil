@@ -24,7 +24,8 @@ export default function MapPage() {
                         geometry: city.geometry,
                         properties: {
                             name: city.name,
-                            name_en: city.name_en
+                            name_en: city.name_en,
+                            type: 'city'
                         },
                         style: {
                             fillColor: '#627BBC',
@@ -37,7 +38,7 @@ export default function MapPage() {
                 ]}
                 animateRotation={false}
                 onFeatureClick={(feature: Feature) => {
-                    if (feature.properties?.subjectId) {
+                    if (feature.properties?.subjectId && feature.properties?.type !== 'city') {
                         router.push(`subjects/${feature.properties.subjectId}`);
                     }
                 }}

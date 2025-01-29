@@ -8,6 +8,7 @@ import { Transcript as TranscriptType } from "@/lib/db/transcript";
 import { useInView } from 'react-intersection-observer';
 import { debounce } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { BarChart2, FileIcon, ScrollText } from "lucide-react";
 
 export default function Transcript() {
     const { transcript: speakerSegments } = useCouncilMeetingData();
@@ -49,6 +50,16 @@ export default function Transcript() {
 
         return () => observer.disconnect();
     }, [speakerSegments, debouncedSetCurrentScrollInterval]);
+
+    if (speakerSegments.length === 0) {
+        return <div className="container py-8">
+            <ScrollText className="w-12 h-12 mx-auto text-muted-foreground" />
+            <div className="text-center text-base text-muted-foreground py-8">
+                Η απομαγνητοφώνηση δεν είναι ακόμη διαθέσιμη.
+            </div>
+
+        </div>
+    }
 
     return (
         <div className="container" ref={containerRef} >

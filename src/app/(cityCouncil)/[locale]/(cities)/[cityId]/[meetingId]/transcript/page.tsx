@@ -6,8 +6,6 @@ import TranscriptControls from "@/components/meetings/TranscriptControls";
 import { useEffect, useState } from "react";
 
 export default function TranscriptPage() {
-    const { transcript: speakerSegments } = useCouncilMeetingData();
-
     return <>
         <Transcript />
         <CurrentTimeButton />
