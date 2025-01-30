@@ -86,8 +86,8 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     )}
                 </div>
                 <div className='font-mono pl-4 text-justify w-full overflow-x-hidden'>
-                    {renderMock ? <div className='w-full h-full bg-none'>
-                        {utterances.map((u, i) => <span className='bg-none' id={u.id} key={u.id}>{u.text}</span>)}
+                    {renderMock ? <div className='w-full break-words whitespace-pre-wrap'>
+                        {utterances.map((u, i) => <span className='break-words' id={u.id} key={u.id}>{u.text} </span>)}
                     </div> : (
                         <>
                             {utterances.map((u) => <UtteranceC utterance={u} key={u.id} />)}
