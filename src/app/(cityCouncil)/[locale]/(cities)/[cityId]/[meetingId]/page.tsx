@@ -10,7 +10,7 @@ import { Link } from "@/i18n/routing";
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects)
-        .slice(0, Math.max(5, subjects.filter(s => s.hot).length));
+        .slice(0, Math.max(9, subjects.filter(s => s.hot).length));
     const isOldVersion = subjects.length === 0;
 
     // Convert all subjects with locations to map features

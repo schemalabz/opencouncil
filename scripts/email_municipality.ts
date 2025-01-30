@@ -62,32 +62,25 @@ const emailBodyToPerson = async ({
     return `
     <p>${greeting}</p>
 
-    <p>Λέγομαι Χρήστος Πόριος, και σας στέλνω σχετικά με το ${await link(homeLink, 'opencouncil.gr')}, μια πλατφόρμα που κάνει
-    ${await link(tweetLink, 'τις συνεδριάσεις δημοτικών συμβουλίων πιο κατανοητές και προσβάσιμες για όλους')}, με χρήση τεχνητής νοημοσύνης.
-    Οι πρόσφατες συνεδριάσεις του δημοτικού συμβουλίου της τρέχουσας δημοτικής περιόδου του δήμου Αθηναίων είναι ήδη
-    ${await link(cityLink(), 'διαθέσιμες και αναζητήσιμες εδώ')}.</p>
+    <p><b>Επισυνάπτω τα ανεπίσημα, αυτόματα πρακτικά του OpenCouncil από την χθεσινή συνεδρίαση του δημοτικού συμβουλίου.</b></p>
 
-    ${personId && partyId ? `<p>Μπορείτε να δείτε στατιστικά για τη συμμετοχή σας στα ΔΣ, καθώς και τις πρόσφατες
-    τοποθετήσεις σας ${await link(personLink(personId), 'στη σελίδα σας στο ΟpenCouncil')}.
-    Μπορείτε επίσης να δείτε ${await link(partyLink(partyId), 'στατιστικά για τη παράταξη σας εδώ')}.</p>` : ''}
+    <p>
+        Το OpenCouncil χρησιμοποιεί <b>τεχνητή νοημοσύνη</b> για να <b>κάνει τα δημοτικά συμβούλια πιο απλά και κατανοητά</b>.
+        Τα πρακτικά που επισυνάπτουμε φτιάχτηκαν αυτόματα από το live streaming στο YouTube και την ημερήσια διάταξη. Μπορείτε να δείτε μια ψηφιακή σύνοψη της χθεσινής συνεδρίασης στο ${await link('https://opencouncil.gr/athens/jan29_2025', 'opencouncil.gr/athens/jan29_2025')}.
+        Μπορείτε επίσης να δείτε τις τελευταίες 17 συνεδριάσεις του δημοτικού συμβουλίου της Αθήνας στο ${await link('https://opencouncil.gr/athens/', 'opencouncil.gr/athens/')}
+        ${partyId && `καθώς και τις τοποθετήσεις της παράταξης σας ${await link(partyLink(partyId), 'πατώντας εδώ')}`}.
+    </p>
 
-    <p>Το OpenCouncil κάνει <b>αυτόματη απομαγνητοφώνηση</b> στις συνεδριάσεις του δήμου, <b>αναγνωρίζει ομιλητές</b>,
-    φτιάχνει <b>περιλήψεις τοποθετήσεων</b>, <b>εξάγει στατιστικά</b>, προσφέρει τη δυνατότητα <b>γρήγορης αναζήτησης</b> σε ό,τι έχει ειπωθεί στα δημοτικά συμβούλια,
-    και παράγει αυτόματα <b>βίντεο reels</b> για θέματα που συζητούνται σε κάθε δημοτικό συμβούλιο.</p>
+    <p>Μπορείτε να διαβάσετε περισσότερα για το OpenCouncil σε ${await link(`https://schemalabs.substack.com/p/pencouncil`, 'αυτό')} και ${await link(`https://schemalabs.substack.com/p/funds-product-motives`, 'αυτό')} το blog post.</p>
 
-    <p>Θέλω να κάνω το OpenCouncil όσο το δυνατόν πιο χρήσιμο για εσάς, το δήμο και τους δημότες.
-    Θα χαιρόμουν ιδιαίτερα αν είχατε λίγο χρόνο για να σας δείξω τις βασικές λειτουργίες του OpenCouncil
-    και να μου πείτε τις ιδέες σας για το πως μπορεί να γίνει ακόμα πιο χρήσιμο.</p>
+    <p>Είμαστε μια μικρή ομάδα, μέρος της νεοσύστατης ${await link('https://schemalabs.gr', 'Schema Labs')}, μιας μη-κερδοσκοπικής εταιρείας που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
+    Δουλεύουμε καθημερινά στο να κάνουμε το OpenCouncil καλύτερο και πιο χρήσιμο, και θέλουμε τη βοήθεια σας: Παρακαλώ απαντήστε μου σε αυτό το email με όποια σχόλια έχετε,
+    ή καλέστε με στο κινητό μου στο ${await link('tel:+306980586851', '6980586851')}. Θα χαρώ να σας ακούσω ή και να κάνουμε μια συνάντηση δια ζώσης, ώστε να σας εξηγήσουμε όλες τις τωρινές και επερχόμενες λειτουργίες του OpenCouncil
+    (αυτόματη παραγωγή podcast, video reels, κατέβασμα αποσπασμάτων και πρακτικών, άτυπες διαβουλεύσεις κατοίκων για τα θέματα της ημερήσιας διάταξης από το WhatsApp και πολλά ακόμη)
+    </p>
 
-    <p>${role ?
-            `Είμαι στη διάθεση σας για να κανονίσουμε μια συνάντηση από κοντά, το κινητό μου είναι το ${await link('tel:+306980586851', '+30 6980586851')}.
-             Εναλλακτικά, μπορείτε να μου απαντήσετε με το ποιές ώρες σας βολεύουν για κάνουμε μια διαδικτυακή συνάντηση,
-             ή να κλείσετε χρόνο μαζί μου στο ${await link(calendlyLink, 'calendly')}.`
-            :
-            `Είμαι στη διάθεση σας για μια διαδικτυακή συνάντηση. Μπορείτε να βρείτε χρόνο που σας βολεύει στο ${await link(calendlyLink, 'calendly')}.`
-        }</p>
-
-        <p>Χρήστος</p>
+    <p>Με εκτίμηση,</p>
+    <p>Χρήστος Πόριος</p>
         `;
 }
 async function sendEmail(to: string, subject: string, html: string, dryRun: boolean, testSendAddress: string | undefined) {
@@ -105,6 +98,14 @@ async function sendEmail(to: string, subject: string, html: string, dryRun: bool
                 replyTo: 'christos@opencouncil.gr',
                 subject,
                 html,
+                attachments: [
+                    {
+                        "filename": "συνεδρίαση_29_ιαν_opencouncil.docx",
+                        "path": "https://data.opencouncil.gr/input-files/council_meeting%20(13).docx"
+
+                    }
+                ]
+
             });
             console.log(`Email sent to ${recipients.join(', ')}. Result:`, result);
         } catch (error) {
@@ -139,7 +140,7 @@ async function processCSV(filePath: string, dryRun: boolean, testSendAddress: st
 
                 await sendEmail(
                     row.email,
-                    'Σχετικά με το OpenCouncil.gr',
+                    '🤖 📄✨ Αυτόματα πρακτικά χθεσινού ΔΣ | OpenCouncil',
                     emailContent,
                     dryRun,
                     testSendAddress
