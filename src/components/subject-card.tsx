@@ -5,7 +5,7 @@ import { SubjectWithRelations } from "@/lib/db/subject";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { ColorPercentageRing } from "./ui/color-percentage-ring";
 import Icon from "./icon";
-import { MapPin, ScrollText } from "lucide-react";
+import { MapPin, ScrollText, PresentationIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
@@ -24,6 +24,17 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
             ...p.item,
             party: p.item.partyId ? parties.find(party => party.id === p.item.partyId) || null : null
         })) || [];
+
+    // Add the introducer at the start if they exist and aren't already in top speakers
+    const introducerWithParty = subject.introducedBy ? {
+        ...subject.introducedBy,
+        party: subject.introducedBy.partyId ? parties.find(party => party.id === subject.introducedBy.partyId) || null : null,
+        isIntroducer: true
+    } : null;
+
+    const displayedSpeakers = introducerWithParty
+        ? [introducerWithParty, ...topSpeakers.filter(s => s.id !== introducerWithParty.id)]
+        : topSpeakers;
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
@@ -59,7 +70,7 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
                 <CardFooter className="pt-0 mt-auto">
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
-                            users={topSpeakers}
+                            users={displayedSpeakers}
                         />
                     </div>
                 </CardFooter>
