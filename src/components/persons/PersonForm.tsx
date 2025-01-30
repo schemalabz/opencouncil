@@ -232,7 +232,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                         <FormItem>
                             <FormLabel>{t('party')}</FormLabel>
                             <FormControl>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} defaultValue={field.value}>
                                     <SelectTrigger>
                                         <SelectValue placeholder={t('selectParty')} />
                                     </SelectTrigger>

@@ -31,6 +31,11 @@ export async function createPerson(personData: Omit<Person, 'id' | 'createdAt' |
 export async function editPerson(id: string, personData: Partial<Omit<Person, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Person> {
     withUserAuthorizedToEdit({ personId: id });
     try {
+        // Convert empty partyId to null
+        if (personData.partyId === '') {
+            personData.partyId = null;
+        }
+
         const updatedPerson = await prisma.person.update({
             where: { id },
             data: personData,
