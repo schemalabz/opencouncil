@@ -28,7 +28,7 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
     // Add the introducer at the start if they exist and aren't already in top speakers
     const introducerWithParty = subject.introducedBy ? {
         ...subject.introducedBy,
-        party: subject.introducedBy.partyId ? parties.find(party => party.id === subject.introducedBy.partyId) || null : null,
+        party: subject.introducedBy?.partyId ? parties.find(party => party.id === subject.introducedBy!.partyId) || null : null,
         isIntroducer: true
     } : null;
 
