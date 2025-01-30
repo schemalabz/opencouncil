@@ -95,10 +95,29 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
                 currentTimeRef.current = seconds;
-                setTimeout(() => scrollToUtterance(seconds), 1000);
+                // Add a longer delay and retry mechanism for scrolling
+                const scrollAttempt = (attemptsLeft: number) => {
+                    setTimeout(() => {
+                        const utteranceElement = utterances
+                            .filter(u => u.startTimestamp <= seconds)
+                            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
+
+                        if (utteranceElement) {
+                            const element = document.getElementById(utteranceElement.id);
+                            if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            } else if (attemptsLeft > 0) {
+                                // If element not found, retry with one less attempt
+                                scrollAttempt(attemptsLeft - 1);
+                            }
+                        }
+                    }, 500);
+                };
+
+                scrollAttempt(3); // Try up to 3 times
             }
         }
-    }, [utterances, scrollToUtterance]);
+    }, [utterances]);
 
     useEffect(() => {
         if (playerRef.current) {

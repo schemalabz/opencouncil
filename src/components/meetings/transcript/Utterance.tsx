@@ -29,6 +29,21 @@ const UtteranceC: React.FC<{
     useEffect(() => {
         const isActive = currentTime >= localUtterance.startTimestamp && currentTime <= localUtterance.endTimestamp;
         setIsActive(isActive);
+
+        // Check if this utterance should be initially active based on URL param
+        const urlParams = new URLSearchParams(window.location.search);
+        const timeParam = urlParams.get('t');
+        if (timeParam) {
+            const seconds = parseInt(timeParam, 10);
+            if (!isNaN(seconds) && seconds >= localUtterance.startTimestamp && seconds <= localUtterance.endTimestamp) {
+                setIsActive(true);
+                // If this is the target utterance, ensure it's visible
+                const element = document.getElementById(localUtterance.id);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
     }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp]);
 
     const isHighlighted = selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id);

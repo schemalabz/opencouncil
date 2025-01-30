@@ -12,8 +12,38 @@ import { BarChart2, FileIcon, ScrollText } from "lucide-react";
 
 export default function Transcript() {
     const { transcript: speakerSegments } = useCouncilMeetingData();
-    const { setCurrentScrollInterval } = useVideo();
+    const { setCurrentScrollInterval, currentTime } = useVideo();
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Add effect to handle initial scroll position
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const timeParam = urlParams.get('t');
+
+        if (timeParam && containerRef.current) {
+            const seconds = parseInt(timeParam, 10);
+            if (!isNaN(seconds)) {
+                // Force an immediate scroll update
+                const updateScrollInterval = () => {
+                    const visibleSegments = Array.from(containerRef.current!.children)
+                        .filter((child) => {
+                            const rect = child.getBoundingClientRect();
+                            return rect.top < window.innerHeight && rect.bottom >= 0;
+                        })
+                        .map((child) => speakerSegments[parseInt(child.id.split('-')[2])]);
+
+                    if (visibleSegments.length > 0) {
+                        const firstVisible = visibleSegments[0];
+                        const lastVisible = visibleSegments[visibleSegments.length - 1];
+                        setCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
+                    }
+                };
+
+                // Update scroll interval after a short delay to ensure components are rendered
+                setTimeout(updateScrollInterval, 100);
+            }
+        }
+    }, [speakerSegments, setCurrentScrollInterval]);
 
     const debouncedSetCurrentScrollInterval = useMemo(
         () => debounce(setCurrentScrollInterval, 500),
