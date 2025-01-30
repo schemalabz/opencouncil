@@ -75,6 +75,7 @@ export default function Map({
     const map = useRef<mapboxgl.Map | null>(null)
     const popup = useRef<mapboxgl.Popup | null>(null)
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
+    const animationFrame = useRef<number | null>(null)
 
     if (!center) {
         center = guessCenterFromFeatures(features);
@@ -89,8 +90,8 @@ export default function Map({
         if (!map.current) return
         // Rotate camera by timestamp/100 degrees, clamped between 0-360
         map.current.rotateTo((timestamp / ANIMATE_ROTATION_SPEED) % 360, { duration: 0 })
-        // Request next animation frame
-        requestAnimationFrame(rotateCamera)
+        // Request next animation frame and store the ID
+        animationFrame.current = requestAnimationFrame(rotateCamera)
     }
 
     useEffect(() => {
@@ -115,7 +116,7 @@ export default function Map({
 
         map.current.on('load', () => {
             if (animateRotation) {
-                rotateCamera(0)
+                animationFrame.current = requestAnimationFrame(rotateCamera)
             }
 
             // Add features source and layers if we have features
@@ -199,30 +200,8 @@ export default function Map({
                     }
                 });
 
-                // Add hover effect for fills
-                map.current!.on('mousemove', 'feature-fills', handleFeatureHover);
-                map.current!.on('mouseleave', 'feature-fills', handleFeatureLeave);
-
-                // Add hover effect for points
-                map.current!.on('mousemove', 'feature-points', handleFeatureHover);
-                map.current!.on('mouseleave', 'feature-points', handleFeatureLeave);
-
-                // Add click handlers if needed
-                if (onFeatureClick) {
-                    const handleMapFeatureClick = (e: mapboxgl.MapMouseEvent | mapboxgl.MapTouchEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
-                        if (e.features && e.features.length > 0 && onFeatureClick) {
-                            onFeatureClick(e.features[0]);
-                        }
-                    };
-
-                    map.current!.on('click', 'feature-fills', handleMapFeatureClick);
-                    map.current!.on('click', 'feature-points', handleMapFeatureClick);
-                    // Add touch handlers for mobile
-                    map.current!.on('touchend', 'feature-fills', handleMapFeatureClick);
-                    map.current!.on('touchend', 'feature-points', handleMapFeatureClick);
-                }
-
-                function handleFeatureHover(e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) {
+                // Define event handlers first
+                const handleFeatureHover = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
                     if (e.features && e.features.length > 0 && e.features[0].properties) {
                         map.current!.getCanvas().style.cursor = 'pointer'
                         const baseOpacity = e.features[0].properties.fillOpacity || 0.4;
@@ -246,7 +225,6 @@ export default function Map({
 
                         // Show popup if we have a render function and the feature has a subjectId
                         if (renderPopup && e.features[0].properties?.subjectId) {
-                            console.log("Showing popup for subject:", e.features[0].properties.subjectId);
                             const coordinates = e.lngLat;
 
                             if (!popup.current) {
@@ -260,7 +238,6 @@ export default function Map({
                             }
 
                             const popupContent = renderPopup(e.features[0]);
-                            console.log("Popup content:", popupContent);
                             const container = document.createElement('div');
 
                             // Clean up previous root if it exists
@@ -276,23 +253,19 @@ export default function Map({
                                 .setLngLat(coordinates)
                                 .setDOMContent(container)
                                 .addTo(map.current!);
-                        } else {
-                            console.log("Not showing popup:", {
-                                hasRenderPopup: !!renderPopup,
-                                subjectId: e.features[0].properties?.subjectId
-                            });
                         }
                     }
-                }
+                };
 
-                function handleFeatureLeave() {
-                    map.current!.getCanvas().style.cursor = ''
+                const handleFeatureLeave = () => {
+                    if (!map.current) return;
+                    map.current.getCanvas().style.cursor = '';
 
                     // Reset fill opacity
-                    map.current!.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
+                    map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
 
                     // Reset point opacity
-                    map.current!.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
+                    map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
 
                     // Clean up popup and root
                     if (popupRoot.current) {
@@ -302,6 +275,71 @@ export default function Map({
                     if (popup.current) {
                         popup.current.remove();
                     }
+                };
+
+                const handleMapFeatureClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+                    if (e.features && e.features.length > 0 && onFeatureClick) {
+                        onFeatureClick(e.features[0]);
+                    }
+                };
+
+                const handleMapFeatureTouch = (e: mapboxgl.MapTouchEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+                    if (e.features && e.features.length > 0 && onFeatureClick) {
+                        onFeatureClick(e.features[0]);
+                    }
+                };
+
+                // Add event listeners
+                if (onFeatureClick) {
+                    map.current!.on('click', 'feature-fills', handleMapFeatureClick);
+                    map.current!.on('click', 'feature-points', handleMapFeatureClick);
+                    map.current!.on('touchend', 'feature-fills', handleMapFeatureTouch);
+                    map.current!.on('touchend', 'feature-points', handleMapFeatureTouch);
+                }
+
+                // Add hover effect for fills and points
+                map.current!.on('mousemove', 'feature-fills', handleFeatureHover);
+                map.current!.on('mouseleave', 'feature-fills', handleFeatureLeave);
+                map.current!.on('mousemove', 'feature-points', handleFeatureHover);
+                map.current!.on('mouseleave', 'feature-points', handleFeatureLeave);
+
+                return () => {
+                    // Cancel any ongoing animation frame
+                    if (animationFrame.current) {
+                        cancelAnimationFrame(animationFrame.current);
+                        animationFrame.current = null;
+                    }
+
+                    // Remove event listeners if they were added
+                    if (map.current) {
+                        // Remove feature click handlers
+                        if (onFeatureClick) {
+                            map.current.off('click', 'feature-fills', handleMapFeatureClick);
+                            map.current.off('click', 'feature-points', handleMapFeatureClick);
+                            map.current.off('touchend', 'feature-fills', handleMapFeatureTouch);
+                            map.current.off('touchend', 'feature-points', handleMapFeatureTouch);
+                        }
+
+                        // Remove hover handlers
+                        map.current.off('mousemove', 'feature-fills', handleFeatureHover);
+                        map.current.off('mouseleave', 'feature-fills', handleFeatureLeave);
+                        map.current.off('mousemove', 'feature-points', handleFeatureHover);
+                        map.current.off('mouseleave', 'feature-points', handleFeatureLeave);
+                    }
+
+                    // Clean up popup and root
+                    if (popupRoot.current) {
+                        popupRoot.current.unmount();
+                        popupRoot.current = null;
+                    }
+                    if (popup.current) {
+                        popup.current.remove();
+                        popup.current = null;
+                    }
+
+                    resizeObserver.disconnect();
+                    map.current?.remove();
+                    map.current = null;
                 }
             }
 
@@ -345,11 +383,6 @@ export default function Map({
                 });
             }
         })
-
-        return () => {
-            resizeObserver.disconnect()
-            map.current?.remove()
-        }
     }, [center, zoom, animateRotation, pitch, features, onFeatureClick, renderPopup])
 
     return (
