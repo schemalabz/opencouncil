@@ -101,7 +101,7 @@ async function sendEmail(to: string, subject: string, html: string, dryRun: bool
                 attachments: [
                     {
                         "filename": "συνεδρίαση_29_ιαν_opencouncil.docx",
-                        "path": "https://data.opencouncil.gr/input-files/council_meeting%20(13).docx"
+                        "path": "https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/council_meeting%20(14).docx"
 
                     }
                 ]
