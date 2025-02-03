@@ -1,5 +1,5 @@
 "use client";
-import { City, CouncilMeeting, Party, Person, Subject, Topic } from '@prisma/client';
+import { AdministrativeBody, City, CouncilMeeting, Party, Person, Subject, Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Suspense, useEffect, useState } from 'react';
@@ -28,7 +28,7 @@ import { Badge } from '@/components/ui/badge'
 
 export default function CityC({ city }: {
     city: City & {
-        councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[] })[],
+        councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[], administrativeBody: AdministrativeBody | null })[],
         parties: (Party & { persons: Person[] })[],
         persons: (Person & { party: Party | null })[]
     }
@@ -38,6 +38,15 @@ export default function CityC({ city }: {
     const [searchQuery, setSearchQuery] = useState("");
     const router = useRouter();
     const [canEdit, setCanEdit] = useState(false);
+    const administrativeBodies = Array.from(new Map(city.councilMeetings
+        .map(meeting => [
+            meeting.administrativeBody?.id,
+            {
+                value: meeting.administrativeBody?.id,
+                label: meeting.administrativeBody?.name || "Χωρίς διοικητικό όργανο"
+            }
+        ])
+    ).values());
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -152,6 +161,8 @@ export default function CityC({ city }: {
                             FormComponent={AddMeetingForm}
                             formProps={{ cityId: city.id }}
                             t={useTranslations('CouncilMeeting')}
+                            filterAvailableValues={administrativeBodies}
+                            filter={(selectedValues, meeting) => selectedValues.includes(meeting.administrativeBody?.id)}
                             smColumns={1}
                             mdColumns={2}
                             lgColumns={3}

@@ -78,7 +78,8 @@ export async function getFullCity(cityId: string) {
                             topic: true,
                             introducedBy: true
                         }
-                    }
+                    },
+                    administrativeBody: true
                 }
             },
             parties: {

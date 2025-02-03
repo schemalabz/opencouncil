@@ -6,33 +6,37 @@ import { FileIcon } from "lucide-react";
 import { SubjectCard } from "../subject-card";
 import { cn } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { MultiSelectDropdown, Option } from "@/components/ui/multi-select-dropdown";
 import { useState } from "react";
 
-type FilterType = "all" | "agenda" | "non-agenda";
+type FilterType = "agenda" | "non-agenda";
+
+const filterOptions: Option<FilterType>[] = [
+    { value: "agenda", label: "Ημερησίας Διάταξης" },
+    { value: "non-agenda", label: "Εκτός και προ ημερησίας" },
+];
 
 export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics?: Statistics })[], totalSubjects?: number, fullWidth?: boolean }) {
     const { city, meeting, parties } = useCouncilMeetingData();
-    const [filter, setFilter] = useState<FilterType>("all");
+    const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([]);
 
     // Filter and sort subjects based on selected filter
     const filteredSubjects = subjects.filter(subject => {
-        if (filter === "all") return true;
-        if (filter === "agenda") return subject.agendaItemIndex !== null;
-        return subject.agendaItemIndex === null; // non-agenda
+        if (selectedFilters.length === 0) return true; // Show all when no filters selected
+        if (selectedFilters.includes("agenda") && subject.agendaItemIndex !== null) return true;
+        if (selectedFilters.includes("non-agenda") && subject.agendaItemIndex === null) return true;
+        return false;
     }).sort((a, b) => {
         // Only sort by agendaItemIndex when viewing agenda items
-        if (filter === "agenda" && a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+        if (selectedFilters.includes("agenda") && a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
             return a.agendaItemIndex - b.agendaItemIndex;
         }
         return 0;
     });
+
+    const handleFilterChange = (values: FilterType[]) => {
+        setSelectedFilters(values);
+    };
 
     return (
         <section className="w-full max-w-4xl mx-auto mt-12">
@@ -42,16 +46,13 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
                     Θέματα
                 </h3>
                 <div className="flex items-center gap-4">
-                    <Select value={filter} onValueChange={(value: FilterType) => setFilter(value)}>
-                        <SelectTrigger className="w-[320px] h-9 px-3">
-                            <SelectValue placeholder="Επιλέξτε φίλτρο" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all" className="py-2">Όλα</SelectItem>
-                            <SelectItem value="agenda" className="py-2">Ημερησίας Διάταξης</SelectItem>
-                            <SelectItem value="non-agenda" className="py-2">Εκτός και προ ημερησίας</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <MultiSelectDropdown
+                        options={filterOptions}
+                        defaultValues={filterOptions.map(option => option.value)}
+                        onChange={handleFilterChange}
+                        className="w-[320px] h-9 px-3 justify-between"
+                        placeholder="Επιλέξτε φίλτρο"
+                    />
                     <p className="text-sm text-muted-foreground">
                         {totalSubjects ? (
                             <>{filteredSubjects.length} από <Link href={`/${city.id}/${meeting.id}/subjects`} className="underline hover:text-foreground">{totalSubjects} συνολικά θέματα</Link></>

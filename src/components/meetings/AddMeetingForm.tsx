@@ -28,7 +28,6 @@ import { LinkOrDrop } from "../ui/link-or-drop"
 import { CouncilMeeting } from '@prisma/client'
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
-
 const formSchema = z.object({
     name: z.string().min(2, {
         message: "Meeting name must be at least 2 characters.",
@@ -48,7 +47,9 @@ const formSchema = z.object({
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
     }),
-    administrativeBodyId: z.union([z.literal("none"), z.string()]).transform(value => value === "none" ? null : value),
+    administrativeBodyId: z.string({
+        required_error: "Administrative body is required.",
+    }),
 })
 
 interface AddMeetingFormProps {

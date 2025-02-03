@@ -1,7 +1,11 @@
 "use server";
-import { CouncilMeeting, TaskStatus } from '@prisma/client';
+import { CouncilMeeting, TaskStatus, AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
+
+type CouncilMeetingWithAdminBody = CouncilMeeting & {
+    administrativeBody: AdministrativeBody | null
+}
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     withUserAuthorizedToEdit({ councilMeetingId: id });
@@ -15,11 +19,14 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeeting> {
+export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     try {
         const newMeeting = await prisma.councilMeeting.create({
             data: meetingData,
+            include: {
+                administrativeBody: true
+            }
         });
         return newMeeting;
     } catch (error) {
@@ -28,12 +35,15 @@ export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'cr
     }
 }
 
-export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeeting> {
+export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
     withUserAuthorizedToEdit({ councilMeetingId: id });
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
             data: meetingData,
+            include: {
+                administrativeBody: true
+            }
         });
         return updatedMeeting;
     } catch (error) {
@@ -42,14 +52,16 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
     }
 }
 
-export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeeting | null> {
+export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeetingWithAdminBody | null> {
     const startTime = performance.now();
     try {
         const meeting = await prisma.councilMeeting.findUnique({
             where: { cityId_id: { cityId, id } },
+            include: {
+                administrativeBody: true
+            }
         });
         const endTime = performance.now();
-
 
         if (meeting && !meeting.released && !withUserAuthorizedToEdit({ cityId })) {
             return null;
@@ -61,7 +73,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeeting[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBody[]> {
     if (includeUnreleased) {
         withUserAuthorizedToEdit({ cityId });
     }
@@ -70,6 +82,9 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
         const meetings = await prisma.councilMeeting.findMany({
             where: { cityId, released: includeUnreleased ? undefined : true },
             orderBy: { dateTime: 'desc', createdAt: 'desc' },
+            include: {
+                administrativeBody: true
+            }
         });
         return meetings;
     } catch (error) {
@@ -78,12 +93,15 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
     }
 }
 
-export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeeting> {
+export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     withUserAuthorizedToEdit({ councilMeetingId: id });
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
             data: { released },
+            include: {
+                administrativeBody: true
+            }
         });
         return updatedMeeting;
     } catch (error) {
