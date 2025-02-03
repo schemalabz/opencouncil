@@ -34,6 +34,7 @@ model City {
   persons        Person[]
   councilMeetings CouncilMeeting[]
   administrators Administers[]
+  administrativeBodies AdministrativeBody[]
 
   @@index([isPending, isListed])
 }
@@ -41,6 +42,27 @@ model City {
 enum AuthorityType {
   municipality
   region
+}
+
+enum AdministrativeBodyType {
+  council      // Συμβούλιο (π.χ. Δημοτικό Συμβούλιο)
+  committee    // Επιτροπή (π.χ. Δημοτική Επιτροπή)
+  community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
+}
+
+model AdministrativeBody {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "5η Δημοτική Κοινότητα"
+  name_en   String   // e.g. "5th Municipal Community"
+  type      AdministrativeBodyType
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId    String
+  meetings  CouncilMeeting[]
+
+  @@index([cityId])
 }
 
 model Party {
@@ -110,6 +132,9 @@ model CouncilMeeting {
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
 
+  administrativeBody AdministrativeBody? @relation(fields: [administrativeBodyId], references: [id], onDelete: SetNull)
+  administrativeBodyId String?
+
   taskStatuses TaskStatus[]
   speakerSegments SpeakerSegment[]
   highlights Highlight[]
@@ -121,6 +146,7 @@ model CouncilMeeting {
 
   @@index([dateTime])
   @@index([released])
+  @@index([administrativeBodyId])
 }
 
 model TaskStatus {

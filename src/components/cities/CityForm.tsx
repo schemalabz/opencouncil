@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
-import { City } from '@prisma/client'
+import { City, AdministrativeBodyType } from '@prisma/client'
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -25,6 +25,7 @@ import { useTranslations } from 'next-intl'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
+import AdministrativeBodiesList from './AdministrativeBodiesList'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -66,12 +67,28 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [timezones, setTimezones] = useState<string[]>([])
     const t = useTranslations('CityForm')
+    const [administrativeBodies, setAdministrativeBodies] = useState<Array<{
+        id: string;
+        name: string;
+        name_en: string;
+        type: AdministrativeBodyType;
+    }>>([])
+    const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
 
     useEffect(() => {
         // Get all available timezones
         const allTimezones = Intl.supportedValuesOf('timeZone')
         setTimezones(allTimezones)
     }, [])
+
+    useEffect(() => {
+        if (city) {
+            fetch(`/api/cities/${city.id}/administrative-bodies`)
+                .then(res => res.json())
+                .then(data => setAdministrativeBodies(data))
+                .catch(err => console.error('Failed to fetch administrative bodies:', err));
+        }
+    }, [city])
 
     const idifyName = (name: string) => {
         return name.toLowerCase().replace(/[^a-z]/g, '')
@@ -150,6 +167,15 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
             reader.readAsDataURL(file)
         } else {
             setLogoPreview(city?.logoImage || null)
+        }
+    }
+
+    const refreshAdminBodies = () => {
+        if (city) {
+            fetch(`/api/cities/${city.id}/administrative-bodies`)
+                .then(res => res.json())
+                .then(data => setAdministrativeBodies(data))
+                .catch(err => console.error('Failed to fetch administrative bodies:', err));
         }
     }
 
@@ -301,6 +327,36 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                         />
                     </CollapsibleContent>
                 </Collapsible>
+                {city && (
+                    <Collapsible
+                        open={isAdminBodiesOpen}
+                        onOpenChange={setIsAdminBodiesOpen}
+                        className="space-y-2"
+                    >
+                        <div className="flex items-center justify-between space-x-4 px-4">
+                            <h4 className="text-sm font-semibold">
+                                {t('administrativeBodies')}
+                            </h4>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="w-9 p-0">
+                                    {isAdminBodiesOpen ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                    )}
+                                    <span className="sr-only">{t('toggle')}</span>
+                                </Button>
+                            </CollapsibleTrigger>
+                        </div>
+                        <CollapsibleContent className="space-y-2">
+                            <AdministrativeBodiesList
+                                cityId={city.id}
+                                bodies={administrativeBodies}
+                                onUpdate={refreshAdminBodies}
+                            />
+                        </CollapsibleContent>
+                    </Collapsible>
+                )}
                 <div className="flex justify-between">
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (

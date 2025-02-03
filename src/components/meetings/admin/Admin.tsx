@@ -17,6 +17,9 @@ import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import AddMeetingForm from '@/components/meetings/AddMeetingForm';
+import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function AdminActions({
 }: {
@@ -209,6 +212,35 @@ export default function AdminActions({
     };
 
     return (<div>
+        <div className="mt-6">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Meeting Details</h3>
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit Meeting
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="sm:max-w-2xl overflow-y-auto">
+                        <SheetHeader>
+                            <SheetTitle>Edit Meeting</SheetTitle>
+                        </SheetHeader>
+                        <div className="mt-4 pb-8">
+                            <AddMeetingForm
+                                cityId={meeting.cityId}
+                                meeting={meeting}
+                                onSuccess={() => {
+                                    // Refresh the page to show updated data
+                                    window.location.reload();
+                                }}
+                            />
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
+        </div>
+
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
             <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />

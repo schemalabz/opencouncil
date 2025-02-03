@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createCouncilMeeting } from '@/lib/db/meetings';
+
 const meetingSchema = z.object({
     name: z.string().min(2, {
         message: "Meeting name must be at least 2 characters.",
@@ -18,6 +19,7 @@ const meetingSchema = z.object({
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
     }),
+    administrativeBodyId: z.string().optional(),
 });
 
 export async function POST(
@@ -26,7 +28,7 @@ export async function POST(
 ) {
     try {
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId } = meetingSchema.parse(body);
+        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId, administrativeBodyId } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
         const meeting = await createCouncilMeeting({
@@ -39,6 +41,7 @@ export async function POST(
             agendaUrl: agendaUrl || null,
             released: false, // Set as unpublished by default
             muxPlaybackId: null,
+            administrativeBodyId: administrativeBodyId || null,
         });
 
         return NextResponse.json(meeting, { status: 201 });

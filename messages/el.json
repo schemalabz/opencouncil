@@ -66,7 +66,8 @@
         "cityMunicipalityEnDescription": "Εισάγετε το όνομα του δήμου στα Αγγλικά.",
         "authorityType": "Τύπος Αρχής",
         "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
-        "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί"
+        "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί",
+        "administrativeBodies": "Διοικητικά Όργανα"
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
@@ -102,7 +103,16 @@
         "meetingId": "Αναγνωριστικό Συνεδρίασης",
         "meetingIdDescription": "Το αναγνωριστικό θα χρησιμοποιηθεί στη διεύθυνση URL της συνεδρίασης.",
         "meetingNameEnPlaceholder": "Εισάγετε το όνομα της συνεδρίασης στα Αγγλικά",
-        "meetingNameEnDescription": "Δώστε το όνομα της συνεδρίασης στα Αγγλικά."
+        "meetingNameEnDescription": "Δώστε το όνομα της συνεδρίασης στα Αγγλικά.",
+        "administrativeBody": "Διοικητικό Όργανο",
+        "selectAdministrativeBody": "Επιλέξτε διοικητικό όργανο",
+        "noAdministrativeBody": "Χωρίς διοικητικό όργανο",
+        "administrativeBodyDescription": "Επιλέξτε το διοικητικό όργανο στο οποίο ανήκει η συνεδρίαση",
+        "administrativeBodyType": {
+            "council": "Δημοτικό Συμβούλιο",
+            "committee": "Δημοτική Επιτροπή",
+            "community": "Δημοτική Κοινότητα"
+        }
     },
     "NotFoundPage": {
         "title": "Δεν βρέθηκε",
@@ -411,5 +421,29 @@
         "onboardingDescription": "Παρακαλούμε συμπληρώστε τις παρακάτω πληροφορίες για να ξεκινήσετε",
         "saving": "Αποθήκευση...",
         "saveProfile": "Αποθήκευση Προφίλ"
+    },
+    "AdministrativeBodiesList": {
+        "addNew": "Προσθήκη Νέου Οργάνου",
+        "editBody": "Επεξεργασία Οργάνου",
+        "addBody": "Προσθήκη Οργάνου",
+        "namePlaceholder": "Όνομα Οργάνου",
+        "nameDescription": "Εισάγετε το όνομα του οργάνου",
+        "nameEnPlaceholder": "Όνομα Οργάνου (Αγγλικά)",
+        "nameEnDescription": "Εισάγετε το όνομα του οργάνου στα Αγγλικά",
+        "type": "Τύπος Οργάνου",
+        "selectType": "Επιλέξτε τύπο οργάνου",
+        "typeDescription": "Επιλέξτε τον τύπο του διοικητικού οργάνου",
+        "types": {
+            "council": "Δημοτικό Συμβούλιο",
+            "committee": "Δημοτική Επιτροπή",
+            "community": "Δημοτική Κοινότητα"
+        },
+        "submitting": "Υποβολή...",
+        "update": "Ενημέρωση",
+        "create": "Δημιουργία",
+        "failedToSave": "Αποτυχία αποθήκευσης οργάνου",
+        "failedToDelete": "Αποτυχία διαγραφής οργάνου",
+        "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το όργανο;",
+        "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα"
     }
 }
