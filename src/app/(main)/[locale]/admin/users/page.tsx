@@ -9,6 +9,7 @@ import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
+import { UserStats } from "@/components/admin/users/user-stats"
 
 interface UserWithAdministers extends Omit<User, 'administers'> {
     administers: Array<{
@@ -25,6 +26,11 @@ export default function UsersPage() {
     const [selectedUser, setSelectedUser] = useState<UserWithAdministers | undefined>()
     const [loading, setLoading] = useState(true)
     const [resendingInvite, setResendingInvite] = useState<string | null>(null)
+
+    // Calculate stats
+    const totalUsers = users.length
+    const onboardedUsers = users.filter(user => user.onboarded).length
+    const contactableUsers = users.filter(user => user.allowContact).length
 
     async function refreshUsers() {
         try {
@@ -136,6 +142,12 @@ export default function UsersPage() {
                     Create User
                 </Button>
             </div>
+
+            <UserStats
+                totalUsers={totalUsers}
+                onboardedUsers={onboardedUsers}
+                contactableUsers={contactableUsers}
+            />
 
             <Card>
                 <CardHeader>
