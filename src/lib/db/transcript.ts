@@ -32,7 +32,7 @@ export async function getLightTranscript(meetingId: string, cityId: string): Pro
 }
 
 export async function getTranscript(meetingId: string, cityId: string, {
-  joinAdjacentSameSpeakerSegments = true,
+  joinAdjacentSameSpeakerSegments = false,
 }: {
   joinAdjacentSameSpeakerSegments?: boolean;
 } = {}): Promise<Transcript> {
