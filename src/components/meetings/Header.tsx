@@ -12,7 +12,7 @@ export default function Header() {
     const { city, meeting } = useCouncilMeetingData();
     return (
         <motion.header
-            className={`sticky top-0 z-10 bg-background border-b p-4 flex justify-between items-center`}
+            className={`sticky top-0 z-50 bg-background border-b p-4 flex justify-between items-center`}
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}

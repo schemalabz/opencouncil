@@ -2,6 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
+import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
@@ -16,6 +17,9 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
     selectedHighlight: HighlightWithUtterances | null;
     setSelectedHighlight: (highlight: HighlightWithUtterances | null) => void;
+    createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
+    moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
+    moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -27,12 +31,14 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const peopleMap = useMemo(() => new Map(data.people.map(person => [person.id, person])), [data.people]);
     const partiesMap = useMemo(() => new Map(data.parties.map(party => [party.id, party])), [data.parties]);
     const [speakerTags, setSpeakerTags] = useState(data.speakerTags);
+    const [transcript, setTranscript] = useState(data.transcript);
     const [selectedHighlight, setSelectedHighlight] = useState<HighlightWithUtterances | null>(null);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
-    const speakerSegmentsMap = useMemo(() => new Map(data.transcript.map(segment => [segment.id, segment])), [data.transcript]);
+    const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
 
     const contextValue = useMemo(() => ({
         ...data,
+        transcript,
         speakerTags,
         selectedHighlight,
         setSelectedHighlight,
@@ -61,7 +67,82 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 )
             );
         },
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight]);
+        createEmptySegmentAfter: async (afterSegmentId: string) => {
+            const newSegment = await createEmptySpeakerSegmentAfter(
+                afterSegmentId,
+                data.meeting.cityId,
+                data.meeting.id
+            );
+
+            // Find the index of the segment we're inserting after
+            const segmentIndex = transcript.findIndex(s => s.id === afterSegmentId);
+            if (segmentIndex === -1) return;
+
+            // Insert the new segment after it
+            setTranscript(prev => [
+                ...prev.slice(0, segmentIndex + 1),
+                newSegment,
+                ...prev.slice(segmentIndex + 1)
+            ]);
+
+            // Add the new speaker tag to our state
+            setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
+        },
+        moveUtterancesToPrevious: async (utteranceId: string, currentSegmentId: string) => {
+            const result = await moveUtterancesToPreviousSegment(utteranceId, currentSegmentId);
+
+            if (!result.previousSegment || !result.currentSegment) return;
+
+            // Update the transcript state with the modified segments
+            setTranscript(prev => {
+                const updated = [...prev];
+                const prevIndex = updated.findIndex(s => s.id === result.previousSegment?.id);
+                const currIndex = updated.findIndex(s => s.id === result.currentSegment?.id);
+
+                // Only update if we found both segments and they're not null
+                if (prevIndex !== -1 && currIndex !== -1 && result.previousSegment && result.currentSegment) {
+                    updated[prevIndex] = {
+                        ...updated[prevIndex],
+                        ...result.previousSegment,
+                        utterances: result.previousSegment.utterances || []
+                    };
+                    updated[currIndex] = {
+                        ...updated[currIndex],
+                        ...result.currentSegment,
+                        utterances: result.currentSegment.utterances || []
+                    };
+                }
+                return updated;
+            });
+        },
+        moveUtterancesToNext: async (utteranceId: string, currentSegmentId: string) => {
+            const result = await moveUtterancesToNextSegment(utteranceId, currentSegmentId);
+
+            if (!result.currentSegment || !result.nextSegment) return;
+
+            // Update the transcript state with the modified segments
+            setTranscript(prev => {
+                const updated = [...prev];
+                const currIndex = updated.findIndex(s => s.id === result.currentSegment?.id);
+                const nextIndex = updated.findIndex(s => s.id === result.nextSegment?.id);
+
+                // Only update if we found both segments and they're not null
+                if (currIndex !== -1 && nextIndex !== -1 && result.currentSegment && result.nextSegment) {
+                    updated[currIndex] = {
+                        ...updated[currIndex],
+                        ...result.currentSegment,
+                        utterances: result.currentSegment.utterances || []
+                    };
+                    updated[nextIndex] = {
+                        ...updated[nextIndex],
+                        ...result.nextSegment,
+                        utterances: result.nextSegment.utterances || []
+                    };
+                }
+                return updated;
+            });
+        }
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight, transcript]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>

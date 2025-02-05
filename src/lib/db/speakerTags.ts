@@ -80,3 +80,65 @@ export async function assignSpeakerSegmentToNewSpeakerTag(speakerSegmentId: stri
 
     return newSpeakerTag;
 }
+
+export async function createEmptySpeakerSegmentAfter(
+    afterSegmentId: string,
+    speakerTagId: string,
+    cityId: string,
+    meetingId: string
+) {
+    // First get the segment we're inserting after to get its end timestamp
+    const afterSegment = await prisma.speakerSegment.findUnique({
+        where: { id: afterSegmentId },
+        include: { utterances: true }
+    });
+
+    if (!afterSegment) {
+        throw new Error('Segment not found');
+    }
+
+    // Create a new segment starting at the end of the previous one
+    // We'll create it with a 10 second duration initially
+    const startTimestamp = afterSegment.endTimestamp;
+    const endTimestamp = startTimestamp + 10;
+
+    // Create the new segment
+    const newSegment = await prisma.speakerSegment.create({
+        data: {
+            startTimestamp,
+            endTimestamp,
+            cityId,
+            meetingId,
+            speakerTagId,
+            // Create an initial empty utterance
+            utterances: {
+                create: {
+                    startTimestamp,
+                    endTimestamp,
+                    text: '',
+                    lastModifiedBy: 'user'
+                }
+            }
+        },
+        include: {
+            utterances: true,
+            speakerTag: {
+                include: {
+                    person: {
+                        include: {
+                            party: true
+                        }
+                    }
+                }
+            },
+            summary: true,
+            topicLabels: {
+                include: {
+                    topic: true
+                }
+            }
+        }
+    });
+
+    return newSegment;
+}
