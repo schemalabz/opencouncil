@@ -199,6 +199,27 @@ async function moveUtterancesToSegment(
         : { currentSegment: updatedSegments[0], nextSegment: updatedSegments[1] };
 }
 
+export async function updateSegmentTimestamps(segmentId: string) {
+    const segment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: { utterances: true }
+    });
+
+    if (!segment) {
+        throw new Error('Segment not found');
+    }
+
+    withUserAuthorizedToEdit({ cityId: segment.cityId });
+
+    const earliestStart = Math.min(...segment.utterances.map(u => u.startTimestamp));
+    const latestEnd = Math.max(...segment.utterances.map(u => u.endTimestamp));
+
+    await prisma.speakerSegment.update({
+        where: { id: segmentId },
+        data: { startTimestamp: earliestStart, endTimestamp: latestEnd }
+    });
+}
+
 export async function moveUtterancesToPreviousSegment(
     utteranceId: string,
     currentSegmentId: string,
@@ -260,7 +281,10 @@ export async function deleteEmptySpeakerSegment(
 
     withUserAuthorizedToEdit({ cityId });
 
-    if (segment.utterances.length > 0) {
+    const text = segment.utterances.map((u) => u.text).join(" ");
+    const isOnlyWhitespace = text.trim().length === 0;
+
+    if (segment.utterances.length > 0 && !isOnlyWhitespace) {
         throw new Error('Cannot delete non-empty segment');
     }
 

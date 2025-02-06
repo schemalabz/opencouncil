@@ -163,20 +163,24 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
   }
 
   const joinedSegments = [];
-  let currentSegment = speakerSegments[0];
+  let currentSegment = { ...speakerSegments[0] }; // Create a copy of the first segment
 
   for (let i = 1; i < speakerSegments.length; i++) {
-    if (speakerSegments[i].speakerTag.personId && currentSegment.speakerTag.personId
-      && speakerSegments[i].speakerTag.personId === currentSegment.speakerTag.personId
-      && speakerSegments[i].startTimestamp >= currentSegment.startTimestamp) {
+    const nextSegment = speakerSegments[i];
+    if (nextSegment.speakerTag.personId && currentSegment.speakerTag.personId
+      && nextSegment.speakerTag.personId === currentSegment.speakerTag.personId
+      && nextSegment.startTimestamp >= currentSegment.startTimestamp) {
       // Join adjacent segments with the same speaker
-      currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, speakerSegments[i].endTimestamp);
-      currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
-      currentSegment.topicLabels = [...currentSegment.topicLabels, ...speakerSegments[i].topicLabels];
+      currentSegment = {
+        ...currentSegment,
+        endTimestamp: Math.max(currentSegment.endTimestamp, nextSegment.endTimestamp),
+        utterances: [...currentSegment.utterances, ...nextSegment.utterances],
+        topicLabels: [...currentSegment.topicLabels, ...nextSegment.topicLabels]
+      };
     } else {
       // Push the current segment and start a new one
       joinedSegments.push(currentSegment);
-      currentSegment = speakerSegments[i];
+      currentSegment = { ...nextSegment };
     }
   }
 

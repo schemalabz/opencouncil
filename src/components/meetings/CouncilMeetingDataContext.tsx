@@ -8,7 +8,6 @@ import { MeetingData } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
 
 export interface CouncilMeetingDataContext extends MeetingData {
-    getFullTranscript: () => Promise<Transcript>;
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
@@ -47,9 +46,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
-        getFullTranscript: async () => {
-            return await getTranscript(data.meeting.id, data.meeting.cityId);
-        },
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
             await updateSpeakerTag(tagId, { personId });
