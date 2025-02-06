@@ -103,13 +103,6 @@ const UtteranceC: React.FC<{
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Escape') {
-            setIsEditing(false);
-            setEditedText(localUtterance.text);
-        }
-    };
-
     const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
         e.stopPropagation();
         toast({
@@ -159,21 +152,32 @@ const UtteranceC: React.FC<{
     }
 
     if (isEditing) {
-        // Calculate a reasonable width based on text length
-        const minWidth = 200; // minimum width in pixels
-        const charWidth = 8; // approximate width per character in pixels
-        const width = Math.max(minWidth, editedText.length * charWidth);
-
         return (
-            <form onSubmit={handleEdit} className="inline-block">
-                <input
-                    type="text"
+            <form onSubmit={handleEdit} className="w-full py-1">
+                <textarea
                     value={editedText}
                     onChange={(e) => setEditedText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="border border-gray-300 rounded px-1 py-0.5 text-sm"
-                    style={{ width: `${width}px` }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleEdit(e);
+                        } else if (e.key === 'Escape') {
+                            setIsEditing(false);
+                            setEditedText(localUtterance.text);
+                        }
+                    }}
+                    className="w-full resize-none border border-gray-300 rounded px-2 py-1 text-sm min-h-[2.5em]"
                     autoFocus
+                    rows={Math.max(1, editedText.split('\n').length)}
+                    style={{
+                        height: 'auto',
+                        overflow: 'hidden'
+                    }}
+                    onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = target.scrollHeight + 'px';
+                    }}
                 />
             </form>
         );
