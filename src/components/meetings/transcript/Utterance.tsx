@@ -10,6 +10,7 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const UtteranceC: React.FC<{
     utterance: Utterance,
@@ -22,6 +23,7 @@ const UtteranceC: React.FC<{
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
+    const { toast } = useToast();
 
     // Update local state when prop changes
     useEffect(() => {
@@ -108,6 +110,50 @@ const UtteranceC: React.FC<{
         }
     };
 
+    const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        toast({
+            title: "Move utterances?",
+            description: "Move this and previous utterances to the previous segment?",
+            action: (
+                <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                        moveUtterancesToPrevious(localUtterance.id, localUtterance.speakerSegmentId);
+                        toast({
+                            description: "Utterances moved successfully",
+                        });
+                    }}
+                >
+                    Confirm
+                </Button>
+            ),
+        });
+    };
+
+    const handleMoveUtterancesToNext = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        toast({
+            title: "Move utterances?",
+            description: "Move this and following utterances to the next segment?",
+            action: (
+                <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                        moveUtterancesToNext(localUtterance.id, localUtterance.speakerSegmentId);
+                        toast({
+                            description: "Utterances moved successfully",
+                        });
+                    }}
+                >
+                    Confirm
+                </Button>
+            ),
+        });
+    };
+
     if (localUtterance.drift > options.maxUtteranceDrift) {
         return <span id={localUtterance.id} className="hover:bg-accent utterance" />;
     }
@@ -139,41 +185,30 @@ const UtteranceC: React.FC<{
                 {localUtterance.text + ' '}
             </span>
             {options.editable && (
-                <span className="absolute -top-4 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-20">
+                <span className="absolute top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2" style={{ zIndex: 9999 }}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 bg-white hover:bg-gray-100"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveUtterancesToPrevious(localUtterance.id, localUtterance.speakerSegmentId);
-                                }}
-                            >
-                                <ArrowLeftToLine className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 bg-white hover:bg-gray-100 border border-gray-200"
+                                    onClick={handleMoveUtterancesToPrevious}
+                                >
+                                    <ArrowLeftToLine className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 bg-white hover:bg-gray-100 border border-gray-200"
+                                    onClick={handleMoveUtterancesToNext}
+                                >
+                                    <ArrowRightToLine className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>Move this and previous utterances to previous segment</p>
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 bg-white hover:bg-gray-100"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveUtterancesToNext(localUtterance.id, localUtterance.speakerSegmentId);
-                                }}
-                            >
-                                <ArrowRightToLine className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Move this and following utterances to next segment</p>
+                            <p>Move utterances between segments (← to previous, → to next)</p>
                         </TooltipContent>
                     </Tooltip>
                 </span>
