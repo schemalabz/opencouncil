@@ -22,6 +22,7 @@ import HighlightView from './highlightView/HighlightView'
 import { SubjectWithRelations } from '@/lib/db/subject'
 import Subjects from './Subjects'
 import { MeetingData } from '@/lib/getMeetingData'
+import { KeyboardShortcuts } from './KeyboardShortcuts'
 
 type CouncilMeetingWrapperProps = {
     editable: boolean,
@@ -93,6 +94,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                        <KeyboardShortcuts />
                         {children}
                     </VideoProvider>
                 </TranscriptOptionsProvider>

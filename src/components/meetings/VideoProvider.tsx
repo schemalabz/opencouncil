@@ -14,6 +14,7 @@ interface VideoContextType {
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
+    seekToWithoutScroll: (time: number) => void;
     seekToAndPlay: (time: number) => void;
     scrollToUtterance: (time: number) => void;
     playerRef: React.MutableRefObject<HTMLVideoElement | null>;
@@ -212,6 +213,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
+    const seekToWithoutScroll = (time: number) => {
+        if (playerRef.current) {
+            if (hasStartedPlaying) {
+                playerRef.current.currentTime = time;
+            }
+            currentTimeRef.current = time;
+        }
+    };
+
     const value = {
         isPlaying,
         currentTime: currentTimeRef.current,
@@ -222,6 +232,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         togglePlayPause,
         handleSpeedChange,
         seekTo,
+        seekToWithoutScroll,
         scrollToUtterance,
         playerRef,
         seekToAndPlay,
