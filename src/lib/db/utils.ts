@@ -11,7 +11,7 @@ import prisma from "./prisma";
 import { getSubjectsForMeeting } from "./subject";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
-    const transcript = await getTranscript(councilMeetingId, cityId);
+    const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
     const people = await getPeopleForCity(cityId);
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();

@@ -1,5 +1,6 @@
 import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic } from "@prisma/client";
 import prisma from "./prisma";
+import { joinTranscriptSegments } from "../utils";
 
 export type Transcript = (SpeakerSegment & {
   utterances: Utterance[];
@@ -143,35 +144,6 @@ export async function getTranscript(meetingId: string, cityId: string, {
   return speakerSegments;
     */
 
-}
-
-export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {
-  if (speakerSegments.length === 0) {
-    return speakerSegments;
-  }
-
-  const joinedSegments = [];
-  let currentSegment = speakerSegments[0];
-
-  for (let i = 1; i < speakerSegments.length; i++) {
-    if (speakerSegments[i].speakerTag.personId && currentSegment.speakerTag.personId
-      && speakerSegments[i].speakerTag.personId === currentSegment.speakerTag.personId
-      && speakerSegments[i].startTimestamp >= currentSegment.startTimestamp) {
-      // Join adjacent segments with the same speaker
-      currentSegment.endTimestamp = Math.max(currentSegment.endTimestamp, speakerSegments[i].endTimestamp);
-      currentSegment.utterances = [...currentSegment.utterances, ...speakerSegments[i].utterances];
-      currentSegment.topicLabels = [...currentSegment.topicLabels, ...speakerSegments[i].topicLabels];
-    } else {
-      // Push the current segment and start a new one
-      joinedSegments.push(currentSegment);
-      currentSegment = speakerSegments[i];
-    }
-  }
-
-  // Push the last segment
-  joinedSegments.push(currentSegment);
-
-  return joinedSegments;
 }
 
 

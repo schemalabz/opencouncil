@@ -10,7 +10,7 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -43,7 +43,7 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
 };
 
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson, updateSpeakerTagLabel } = useCouncilMeetingData();
+    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
 
@@ -59,6 +59,8 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     if (!utterances) {
         return null;
     }
+
+    const isEmpty = utterances.length === 0;
 
     const summary = segment.summary;
 
@@ -104,8 +106,27 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                             />
                                         )}
                                     </div>
-                                    <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
-                                        {formatTimestamp(segment.startTimestamp)}
+                                    <div className='flex items-center gap-2'>
+                                        {options.editable && isEmpty && !renderMock && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={() => deleteEmptySegment(segment.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Delete empty segment</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                        <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
+                                            {formatTimestamp(segment.startTimestamp)}
+                                        </div>
                                     </div>
                                 </div>
                                 {summary ?
@@ -128,7 +149,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     </div>
                 </div>
             </div>
-            {!renderMock && <AddSegmentButton segmentId={segment.id} />}
+            {!renderMock && options.editable && <AddSegmentButton segmentId={segment.id} />}
         </>
     );
 });

@@ -235,4 +235,40 @@ async function getSegmentWithIncludes(segmentId: string) {
             }
         }
     });
+}
+
+export async function deleteEmptySpeakerSegment(
+    segmentId: string,
+    cityId: string
+) {
+    // Get the segment and verify it's empty
+    const segment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: {
+            utterances: true,
+            speakerTag: true
+        }
+    });
+
+    if (!segment) {
+        throw new Error('Segment not found');
+    }
+
+    if (segment.cityId !== cityId) {
+        throw new Error('City ID mismatch');
+    }
+
+    withUserAuthorizedToEdit({ cityId });
+
+    if (segment.utterances.length > 0) {
+        throw new Error('Cannot delete non-empty segment');
+    }
+
+    // Delete the segment and its speaker tag
+    console.log(`Deleting segment ${segmentId}`);
+    await prisma.speakerSegment.delete({
+        where: { id: segmentId }
+    })
+
+    return segmentId;
 } 

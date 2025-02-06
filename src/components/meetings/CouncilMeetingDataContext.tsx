@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
@@ -20,6 +20,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
+    deleteEmptySegment: (segmentId: string) => Promise<void>;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -141,6 +142,18 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 }
                 return updated;
             });
+        },
+        deleteEmptySegment: async (segmentId: string) => {
+            await deleteEmptySpeakerSegment(segmentId, data.meeting.cityId);
+
+            // Remove the segment from the transcript
+            setTranscript(prev => prev.filter(s => s.id !== segmentId));
+
+            // Remove the associated speaker tag
+            const segment = speakerSegmentsMap.get(segmentId);
+            if (segment) {
+                setSpeakerTags(prev => prev.filter(t => t.id !== segment.speakerTagId));
+            }
         }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight, transcript]);
 
