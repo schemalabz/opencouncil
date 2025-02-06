@@ -62,8 +62,8 @@ export function Options({ editable }: { editable: boolean }) {
                                         <Slider
                                             id="playback-speed"
                                             min={0.5}
-                                            max={2}
-                                            step={0.25}
+                                            max={4}
+                                            step={0.1}
                                             value={[options.playbackSpeed]}
                                             onValueChange={handlePlaybackSpeedChange}
                                             className="w-[200px]"
