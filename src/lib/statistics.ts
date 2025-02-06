@@ -1,7 +1,6 @@
 "use server"
 import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, TopicLabel } from "@prisma/client";
 import prisma from "./db/prisma";
-import { joinTranscriptSegments } from "./db/transcript";
 
 export type TopicStatistics = Required<Pick<Statistics, 'topics'>> & Omit<Statistics, 'topics'>;
 export type PartyStatistics = Required<Pick<Statistics, 'parties'>> & Omit<Statistics, 'parties'>;
