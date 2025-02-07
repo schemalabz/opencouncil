@@ -10,7 +10,7 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Bot } from "lucide-react";
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -86,13 +86,13 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
     return (
         <>
-            <div className='my-4 flex flex-col items-start w-full' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
+            <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
-                    <div className='sticky top-[80px] flex flex-row items-center justify-between w-full border-b border-gray-300 bg-white z-30'>
-                        {renderMock ? <div className='w-full h-full bg-gray-100' /> : (
-                            <div className='flex flex-col w-full mb-4'>
-                                <div className='flex flex-row justify-around w-full items-center'>
-                                    <div className='flex-grow overflow-hidden ml-2'>
+                    <div className='sticky top-[80px] flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 pb-3'>
+                        {renderMock ? <div className='w-full h-full bg-muted' /> : (
+                            <div className='flex flex-col w-full space-y-3'>
+                                <div className='flex items-center justify-between w-full px-4 pt-2'>
+                                    <div className='flex-grow overflow-hidden'>
                                         {memoizedData.speakerTag && (
                                             <PersonBadge
                                                 person={memoizedData.person ? { ...memoizedData.person, party: memoizedData.party || null } : undefined}
@@ -108,14 +108,14 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                             />
                                         )}
                                     </div>
-                                    <div className='flex items-center gap-2'>
+                                    <div className='flex items-center gap-3 ml-4'>
                                         {options.editable && isEmpty && !renderMock && (
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
                                                         onClick={() => deleteEmptySegment(segment.id)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -126,24 +126,42 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
-                                        <div className='flex-shrink-0 border-l-2 border-gray-300 pl-2 ml-4 text-xs'>
-                                            {formatTimestamp(segment.startTimestamp)}
+                                        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+                                            <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
                                         </div>
                                     </div>
                                 </div>
-                                {summary ?
-                                    <div className='ml-4 text-sm font-semibold'>
-                                        {summary.text}
-                                        {segment.topicLabels.map(tl => <TopicBadge topic={tl.topic} key={tl.topic.id} />)}
+                                {summary && (
+                                    <div className='px-4 space-y-2'>
+                                        <div className='text-sm'>
+                                            {summary.text}
+                                        </div>
+                                        <div className='flex items-center justify-between'>
+                                            {segment.topicLabels.length > 0 && (
+                                                <div className='flex flex-wrap gap-2'>
+                                                    {segment.topicLabels.map(tl => 
+                                                        <TopicBadge topic={tl.topic} key={tl.topic.id} />
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div className='flex items-center gap-1 text-xs text-muted-foreground ml-auto'>
+                                                <Bot className="h-3 w-3" />
+                                                <span>Αυτόματη σύνοψη</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    : null}
+                                )}
                             </div>
                         )}
                     </div>
-                    <div className='font-mono pl-4 text-justify w-full'>
-                        {renderMock ? <div className='w-full break-words whitespace-pre-wrap'>
-                            {utterances.map((u, i) => <span className='break-words' id={u.id} key={u.id}>{u.text} </span>)}
-                        </div> : (
+                    <div className='font-mono px-4 py-3 text-justify w-full leading-relaxed'>
+                        {renderMock ? (
+                            <div className='w-full break-words whitespace-pre-wrap'>
+                                {utterances.map((u, i) => 
+                                    <span className='break-words' id={u.id} key={u.id}>{u.text} </span>
+                                )}
+                            </div>
+                        ) : (
                             <>
                                 {utterances.map((u) => <UtteranceC utterance={u} key={u.id} />)}
                             </>
