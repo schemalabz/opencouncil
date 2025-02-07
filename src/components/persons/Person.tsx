@@ -20,6 +20,8 @@ import { PersonBadge } from './PersonBadge';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { ExternalLink } from "lucide-react";
+import { motion } from 'framer-motion';
+import { ImageOrInitials } from '@/components/ImageOrInitials'
 
 export default function PersonC({ city, person, parties }: { city: City, person: Person & { party: Party | null }, parties: Party[] }) {
     const t = useTranslations('Person');
@@ -76,86 +78,197 @@ export default function PersonC({ city, person, parties }: { city: City, person:
     };
 
     return (
-        <div className="container mx-auto py-8">
-            <Breadcrumb className="mb-4">
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                            <Link href="/">Αρχική</Link>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                            <Link href={`/${city.id}`}>{city.name}</Link>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink href={`/${city.id}/persons/${person.id}`}>{person.name}</BreadcrumbLink>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb>
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex flex-col space-y-2">
-                    <div className="flex items-center space-x-4">
-                        <PersonBadge
-                            person={{ ...person, party: person.party }}
-                            size="xl"
-                        />
-                        {formatActiveDates(person.activeFrom, person.activeTo) && (
-                            <p className="text-sm text-gray-600">
-                                {formatActiveDates(person.activeFrom, person.activeTo)}
-                            </p>
+        <div className="relative min-h-screen">
+            <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <Breadcrumb className="mb-8">
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href="/">Αρχική</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href={`/${city.id}`}>{city.name}</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink href={`/${city.id}/persons/${person.id}`}>{person.name}</BreadcrumbLink>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+
+                    {/* Hero Section */}
+                    <div className="flex flex-col md:flex-row items-start justify-between mb-12 gap-6">
+                        <motion.div
+                            className="flex flex-col md:flex-row items-center gap-6 md:space-x-8"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            <div className="relative w-32 h-32 md:w-40 md:h-40">
+                                <ImageOrInitials
+                                    imageUrl={person.image}
+                                    name={person.name}
+                                    width={160}
+                                    height={160}
+                                    className="rounded-full"
+                                />
+                            </div>
+                            <div className="text-center md:text-left space-y-3">
+                                <motion.h1
+                                    className="text-4xl md:text-5xl font-normal tracking-tight"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                >
+                                    {person.name}
+                                </motion.h1>
+                                <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
+                                    {person.party && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.3 }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Link
+                                                href={`/${person.cityId}/parties/${person.party.id}`}
+                                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                            >
+                                                <div className="relative w-6 h-6">
+                                                    <ImageOrInitials
+                                                        imageUrl={person.party.logo}
+                                                        name={person.party.name_short}
+                                                        color={person.party.colorHex}
+                                                        width={24}
+                                                        height={24}
+                                                    />
+                                                </div>
+                                                <span className="text-lg text-muted-foreground">
+                                                    {person.party.name}
+                                                </span>
+                                            </Link>
+                                        </motion.div>
+                                    )}
+                                    {person.role && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.4 }}
+                                            className="text-lg text-muted-foreground"
+                                        >
+                                            {person.role}
+                                        </motion.div>
+                                    )}
+                                </div>
+                                {person.profileUrl && (
+                                    <motion.a
+                                        href={person.profileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.5 }}
+                                    >
+                                        <ExternalLink className="h-4 w-4" />
+                                        <span>Βιογραφικό</span>
+                                    </motion.a>
+                                )}
+                            </div>
+                        </motion.div>
+                        {canEdit && (
+                            <motion.div
+                                className="flex items-center gap-3"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.5 }}
+                            >
+                                <FormSheet
+                                    FormComponent={PersonForm}
+                                    formProps={{
+                                        person,
+                                        cityId: person.cityId,
+                                        parties
+                                    }}
+                                    title={t('editPerson')}
+                                    type="edit"
+                                />
+                                <Button variant="destructive" onClick={onDelete}>
+                                    {t('deletePerson')}
+                                </Button>
+                            </motion.div>
                         )}
                     </div>
-                    {person.profileUrl && (
-                        <a
-                            href={person.profileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-foreground flex items-center space-x-1 text-sm"
-                        >
-                            <ExternalLink className="h-3 w-3" />
-                            <span>Βιογραφικό</span>
-                        </a>
-                    )}
-                </div>
-                {canEdit && (
-                    <div className="flex items-center space-x-4">
-                        <FormSheet
-                            FormComponent={PersonForm}
-                            formProps={{ person, cityId: city.id, parties }}
-                            title={t('editPerson')}
-                            type="edit"
+
+                    {/* Search Section */}
+                    <motion.form
+                        onSubmit={handleSearch}
+                        className="relative mb-12 max-w-2xl mx-auto"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                    >
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            placeholder={t('searchForPerson', { personName: person.name })}
+                            className="pl-12 w-full h-12 text-lg"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                        <Button onClick={onDelete}>{t('deletePerson')}</Button>
-                    </div>
-                )}
-            </div>
-            <form onSubmit={handleSearch} className="relative mt-8 mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                <Input
-                    placeholder={t('searchForPerson', { personName: person.name })}
-                    className="pl-10 w-full"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </form>
+                    </motion.form>
 
-            <div className="mt-8">
-                <h2 className="text-2xl font-semibold mb-4">{t('statistics')}</h2>
-                <Statistics type="person" id={person.id} cityId={city.id} />
-            </div>
+                    {/* Statistics Section */}
+                    <motion.div
+                        className="mb-12"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                    >
+                        <h2 className="text-2xl font-normal tracking-tight mb-6">{t('statistics')}</h2>
+                        <div className="bg-card rounded-lg border shadow-sm p-6">
+                            <Statistics type="person" id={person.id} cityId={city.id} />
+                        </div>
+                    </motion.div>
 
-            <div className="mt-8">
-                <h2 className="text-2xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>
-                {latestSegments.map((result, index) => (
-                    <Result key={index} result={result} className="mb-4" />
-                ))}
-                {latestSegments.length < totalCount && (
-                    <Button onClick={() => setPage(prevPage => prevPage + 1)}>Περισσότερα</Button>
-                )}
+                    {/* Recent Segments Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                    >
+                        <h2 className="text-2xl font-normal tracking-tight mb-6">Πρόσφατες τοποθετήσεις</h2>
+                        <div className="space-y-4">
+                            {latestSegments.map((result, index) => (
+                                <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 * index }}
+                                >
+                                    <Result result={result} />
+                                </motion.div>
+                            ))}
+                        </div>
+                        {latestSegments.length < totalCount && (
+                            <Button
+                                onClick={() => setPage(prevPage => prevPage + 1)}
+                                variant="outline"
+                                className="mt-6"
+                            >
+                                Περισσότερα
+                            </Button>
+                        )}
+                    </motion.div>
+                </motion.div>
             </div>
         </div>
     );

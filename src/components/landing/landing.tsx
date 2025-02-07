@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
-import { FloatingPathsBackground } from './floating-paths';
+import { FloatingPathsBackground } from '@/components/ui/floating-paths';
 import { ChevronDown } from 'lucide-react';
 
 interface LandingProps {

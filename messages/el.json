@@ -239,8 +239,14 @@
     "Party": {
         "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
         "addItem": "Προσθήκη Παράταξης",
-        "searchInParty": "Αναζήτηση στα πρακτικά που αφορούν την παράταξη",
-        "statistics": "Στατιστικά Παράταξης",
+        "searchInParty": "Αναζήτηση στην παράταξη {partyName}",
+        "statistics": "Στατιστικά",
+        "recentSegments": "Πρόσφατες τοποθετήσεις",
+        "loadMore": "Περισσότερα",
+        "membersCount": "{count, plural, =0 {Κανένα μέλος} one {# μέλος} other {# μέλη}}",
+        "editParty": "Επεξεργασία Παράταξης",
+        "deleteParty": "Διαγραφή Παράταξης",
+        "partyDeleted": "Η παράταξη {name} διαγράφηκε",
         "searchItems": "Αναζητήστε ονόματα παρατάξεων",
         "noItems": "Δεν υπάρχουν παράταξεις"
     },

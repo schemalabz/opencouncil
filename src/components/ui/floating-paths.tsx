@@ -1,6 +1,7 @@
 import { motion } from "framer-motion"
+import { cn } from "@/lib/utils"
 
-function FloatingPaths({ position }: { position: number }) {
+function FloatingPaths({ position, className }: { position: number, className?: string }) {
     const paths = Array.from({ length: 24 }, (_, i) => ({
         id: i,
         d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${
@@ -16,7 +17,7 @@ function FloatingPaths({ position }: { position: number }) {
     return (
         <div className="absolute inset-0 pointer-events-none">
             <svg 
-                className="w-full h-full text-primary" 
+                className={cn("w-full h-full text-primary", className)} 
                 viewBox="0 0 696 316" 
                 fill="none"
                 preserveAspectRatio="xMidYMid slice"
@@ -47,11 +48,11 @@ function FloatingPaths({ position }: { position: number }) {
     )
 }
 
-export function FloatingPathsBackground() {
+export function FloatingPathsBackground({ className }: { className?: string }) {
     return (
         <div className="absolute inset-0 overflow-hidden">
-            <FloatingPaths position={1} />
-            <FloatingPaths position={-1} />
+            <FloatingPaths position={1} className={className} />
+            <FloatingPaths position={-1} className={className} />
         </div>
     )
 }

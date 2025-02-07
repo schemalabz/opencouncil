@@ -46,7 +46,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
     };
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full">
             <div
                 className={cn(
                     "relative shrink-0",
@@ -80,8 +80,8 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 />
             </div>
             {!short && (
-                <div className="flex flex-col min-w-0">
-                    <div className="truncate">
+                <div className="flex flex-col justify-center min-w-0 flex-1">
+                    <div className="break-words">
                         {person ? (
                             preferFullName ? person.name : switchOrder(person.name)
                         ) : (
@@ -93,10 +93,9 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm truncate">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
                         {person?.party && (
                             <span
-                                className="truncate"
                                 style={{ color: partyColor }}
                             >
                                 {person.party.name_short}
@@ -105,7 +104,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                         {person?.role && (
                             <>
                                 {person.party && <span className="text-muted-foreground">·</span>}
-                                <span className="text-muted-foreground truncate">
+                                <span className="text-muted-foreground break-words">
                                     {person.role}
                                 </span>
                             </>

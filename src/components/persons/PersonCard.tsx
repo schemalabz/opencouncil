@@ -1,13 +1,14 @@
 'use client'
 import { Person, Party } from '@prisma/client';
 import { useRouter } from '../../i18n/routing';
-import { Card, CardContent, CardFooter } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
-import React from 'react';
 import { useLocale } from 'next-intl';
 import { format } from 'date-fns';
 import { PersonBadge } from './PersonBadge';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+import { CalendarClock } from 'lucide-react';
 
 interface PersonCardProps {
     item: Person & { party: Party | null };
@@ -19,7 +20,6 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
     const t = useTranslations('PersonCard');
     const locale = useLocale();
     const router = useRouter();
-    let localizedRole = locale === 'el' ? person.role : person.role_en;
 
     const handleClick = () => {
         router.push(`/${person.cityId}/people/${person.id}`);
@@ -28,38 +28,48 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
     const formatActiveDates = (from: Date | null, to: Date | null) => {
         if (!to && !from) return null;
         if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
-        if (from && to) return `${t('active')}: ${formatDate(from)} - ${formatDate(to)}`;
+        if (from && to) return `${formatDate(from)} - ${formatDate(to)}`;
         return null;
     };
 
     return (
-        <Card
-            className={cn(
-                "group relative h-full overflow-hidden transition-all duration-300",
-                "hover:shadow-lg hover:scale-[1.01] cursor-pointer",
-                "border-l-8"
-            )}
-            style={{
-                borderLeftColor: person.party?.colorHex || 'gray'
-            }}
-            onClick={handleClick}
+        <motion.div
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="h-full"
         >
-            <CardContent className="relative h-full flex flex-col justify-center p-4 sm:p-6">
-                <div className="space-y-2 sm:space-y-3">
-                    <PersonBadge
-                        person={{ ...person, party: person.party }}
-                        className="!text-base sm:!text-lg"
-                        preferFullName
-                        size="lg"
-                    />
-                    {formatActiveDates(person.activeFrom, person.activeTo) && (
-                        <p className="text-xs sm:text-sm text-muted-foreground">
-                            {formatActiveDates(person.activeFrom, person.activeTo)}
-                        </p>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
+            <Card
+                className={cn(
+                    "group relative h-full",
+                    "hover:shadow-lg cursor-pointer",
+                    "border-l-8 bg-background/60 backdrop-blur-sm",
+                )}
+                style={{
+                    borderLeftColor: person.party?.colorHex || 'gray'
+                }}
+                onClick={handleClick}
+            >
+                <CardContent className="h-full p-6">
+                    <div className="flex flex-col justify-center h-full">
+                        <div className="flex flex-col gap-4">
+                            <PersonBadge
+                                person={{ ...person, party: person.party }}
+                                className="!text-lg sm:!text-xl"
+                                preferFullName
+                                size="lg"
+                            />
+
+                            {formatActiveDates(person.activeFrom, person.activeTo) && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <CalendarClock className="w-4 h-4 flex-shrink-0" />
+                                    <span>{formatActiveDates(person.activeFrom, person.activeTo)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
     );
 }
 
