@@ -14,45 +14,21 @@ import { useRouter } from "next/navigation";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 
-interface PersonBadgeProps {
-    // Core data
+interface PersonDisplayProps {
     person?: Person & { party: Party | null };
     speakerTag?: SpeakerTag;
-
-    // Display options
-    short?: boolean; // If true, only shows avatar
+    segmentCount?: number;
+    short?: boolean;
     className?: string;
-    withBorder?: boolean;
-    isSelected?: boolean;
-    preferFullName?: boolean; // If true, shows full name when space permits
-    size?: 'sm' | 'md' | 'lg' | 'xl'; // sm = 40px, md = 48px (default), lg = 64px, xl = 96px
-
-    // For speaker tags
+    preferFullName?: boolean;
+    size?: 'sm' | 'md' | 'lg' | 'xl';
     editable?: boolean;
-    onPersonChange?: (personId: string | null) => void;
-    onLabelChange?: (label: string) => void;
-    availablePeople?: (Person & { party: Party | null })[];
+    onClick?: () => void;
 }
 
-export function PersonBadge({
-    person,
-    speakerTag,
-    short = false,
-    className,
-    isSelected = false,
-    editable = false,
-    onPersonChange,
-    onLabelChange,
-    availablePeople,
-    preferFullName = false,
-    size = 'md',
-}: PersonBadgeProps) {
-    const router = useRouter();
+// A simpler version of PersonBadge used in search results
+function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
     const partyColor = person?.party?.colorHex || 'gray';
-    const [isEditingLabel, setIsEditingLabel] = useState(false);
-    const [tempLabel, setTempLabel] = useState(speakerTag?.label || '');
-    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-    const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
 
     const imageSizes = {
         sm: 40,
@@ -63,230 +39,238 @@ export function PersonBadge({
 
     const imageSize = imageSizes[size];
 
-    const handleMouseEnter = () => {
-        if (hoverTimeout) clearTimeout(hoverTimeout);
-        setIsPopoverOpen(true);
-    };
-
-    const handleMouseLeave = () => {
-        const timeout = setTimeout(() => {
-            setIsPopoverOpen(false);
-        }, 200);
-        setHoverTimeout(timeout);
-    };
-
-    const handleClick = () => {
-        setIsPopoverOpen(!isPopoverOpen);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (hoverTimeout) clearTimeout(hoverTimeout);
-        };
-    }, [hoverTimeout]);
-
-    const handleLabelSubmit = () => {
-        if (onLabelChange && tempLabel.trim()) {
-            onLabelChange(tempLabel.trim());
-        }
-        setIsEditingLabel(false);
-    };
-
     const switchOrder = (name: string | undefined) => {
         if (!name) return null;
         const parts = name.split(' ');
         return parts.length > 1 ? parts.reverse().join(' ') : name;
     };
 
-    const badge = (
-        <div
-            className={cn(
-                "inline-flex items-center py-1 pr-1 cursor-pointer z-10",
-                "transform-gpu hover:translate-y-[-2px] transition-transform duration-200", // Fixed scaling with translate
-                isSelected && "bg-gray-100",
-                className
-            )}
-        >
-            <ImageOrInitials
-                imageUrl={person?.image || null}
-                width={imageSize}
-                height={imageSize}
-                name={person?.name_short || speakerTag?.label || ''}
-                color={partyColor}
-            />
-            {!short && (
-                <div className="flex-col min-w-0 flex-1 overflow-hidden">
-                    <div className={cn("ml-2 font-semibold", size === 'xl' ? 'text-xl' : size === 'lg' ? 'text-lg' : 'text-md')}>
-                        <div className="truncate">
-                            {preferFullName ? switchOrder(person?.name) || person?.name_short : person?.name_short || speakerTag?.label || ''}
-                        </div>
-                    </div>
-                    {person?.role && (
-                        <div className={cn("ml-2 text-muted-foreground overflow-hidden text-ellipsis", size === 'xl' || size === 'lg' ? 'text-base' : 'text-sm')}>
-                            {person.role}
-                        </div>
+    return (
+        <div className="flex items-center gap-2">
+            <div
+                className={cn(
+                    "relative shrink-0",
+                    size === 'sm' && "w-10 h-10",
+                    size === 'md' && "w-12 h-12",
+                    size === 'lg' && "w-16 h-16",
+                    size === 'xl' && "w-24 h-24",
+                    !editable && "cursor-pointer"
+                )}
+                onClick={onClick}
+                role="button"
+                tabIndex={0}
+                onKeyPress={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        onClick?.();
+                    }
+                }}
+            >
+                <div
+                    className={cn(
+                        "absolute inset-0 rounded-full opacity-20",
+                        person?.party && `bg-[${partyColor}]`
                     )}
+                />
+                <ImageOrInitials
+                    imageUrl={person?.image || null}
+                    name={person?.name || "Unknown"}
+                    width={imageSize}
+                    height={imageSize}
+                    color={partyColor}
+                />
+            </div>
+            {!short && (
+                <div className="flex flex-col min-w-0">
+                    <div className="truncate">
+                        {person ? (
+                            preferFullName ? person.name : switchOrder(person.name)
+                        ) : (
+                            speakerTag?.label
+                        )}
+                        {editable && segmentCount !== undefined && (
+                            <span className="ml-2 text-muted-foreground">
+                                ({segmentCount} {segmentCount === 1 ? 'segment' : 'segments'})
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm truncate">
+                        {person?.party && (
+                            <span
+                                className="truncate"
+                                style={{ color: partyColor }}
+                            >
+                                {person.party.name_short}
+                            </span>
+                        )}
+                        {person?.role && (
+                            <>
+                                {person.party && <span className="text-muted-foreground">·</span>}
+                                <span className="text-muted-foreground truncate">
+                                    {person.role}
+                                </span>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
     );
+}
 
-    if (!editable) {
-        const content = (
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                    <div className="flex-shrink-0">
-                        <ImageOrInitials
-                            imageUrl={person?.image || null}
-                            width={imageSize}
-                            height={imageSize}
-                            name={person?.name_short || speakerTag?.label || ''}
-                            color={partyColor}
-                        />
-                    </div>
-                    <div className="min-w-0">
-                        <div className={cn("font-semibold truncate", size === 'xl' ? 'text-xl' : size === 'lg' ? 'text-lg' : 'text-md')}>
-                            {person?.name_short || speakerTag?.label || ''}
-                        </div>
-                        {person?.role && <div className={cn("text-muted-foreground truncate", size === 'xl' || size === 'lg' ? 'text-base' : 'text-sm')}>
-                            {person.role}
-                        </div>}
-                    </div>
-                </div>
-                {person?.party && (
-                    <Badge
-                        style={{ backgroundColor: person.party.colorHex }}
-                        className="text-foreground w-fit hover:bg-background/80"
-                    >
-                        {person.party.name}
-                    </Badge>
-                )}
-            </div>
-        );
+interface PersonBadgeProps extends PersonDisplayProps {
+    withBorder?: boolean;
+    isSelected?: boolean;
+    onPersonChange?: (personId: string | null) => void;
+    onLabelChange?: (label: string) => void;
+    availablePeople?: (Person & { party: Party | null })[];
+}
 
-        return (
-            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <PopoverTrigger asChild>
-                    <div
-                        onMouseEnter={handleMouseEnter}
-                        onMouseLeave={handleMouseLeave}
-                        onClick={handleClick}
-                        className="cursor-pointer"
-                    >
-                        {badge}
-                    </div>
-                </PopoverTrigger>
-                <PopoverContent
-                    className={cn(
-                        "w-80",
-                        person?.cityId && "cursor-pointer"
-                    )}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={handleMouseLeave}
-                    onClick={() => {
-                        if (person?.cityId && person?.id) {
-                            router.push(`/${person.cityId}/people/${person.id}`);
-                        }
+function PersonBadge({
+    person,
+    speakerTag,
+    segmentCount,
+    short = false,
+    className,
+    withBorder,
+    isSelected = false,
+    editable = false,
+    onPersonChange,
+    onLabelChange,
+    availablePeople,
+    preferFullName = false,
+    size = 'md',
+}: PersonBadgeProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [editMode, setEditMode] = useState(false);
+    const router = useRouter();
+
+    const handlePersonClick = () => {
+        if (editable) {
+            setIsOpen(true);
+        } else if (person) {
+            router.push(`/${person.cityId}/people/${person.id}`);
+        }
+    };
+
+    const badge = (
+        <div
+            className={cn(
+                "relative flex items-center gap-2 rounded-lg p-1",
+                withBorder && "border",
+                isSelected && "bg-accent",
+                editable && "cursor-pointer hover:bg-accent/50",
+                !editable && "cursor-pointer hover:bg-accent/20",
+                className
+            )}
+            onClick={handlePersonClick}
+            role="button"
+            tabIndex={0}
+            onKeyPress={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    handlePersonClick();
+                }
+            }}
+        >
+            <PersonDisplay
+                person={person}
+                speakerTag={speakerTag}
+                segmentCount={segmentCount}
+                short={short}
+                preferFullName={preferFullName}
+                size={size}
+                editable={editable}
+            />
+            {editable && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-8 w-8"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
                     }}
                 >
-                    {content}
+                    <Edit2 className="h-4 w-4" />
+                </Button>
+            )}
+        </div>
+    );
+
+    if (editable && availablePeople) {
+        return (
+            <Popover open={isOpen} onOpenChange={setIsOpen}>
+                <PopoverTrigger asChild>
+                    {badge}
+                </PopoverTrigger>
+                <PopoverContent className="p-0" align="start">
+                    <Command>
+                        <CommandInput
+                            placeholder="Search people..."
+                            value={searchQuery}
+                            onValueChange={setSearchQuery}
+                        />
+                        <CommandList>
+                            <CommandEmpty>No results found</CommandEmpty>
+                            <CommandGroup>
+                                {availablePeople.map((p) => (
+                                    <CommandItem
+                                        key={p.id}
+                                        onSelect={() => {
+                                            onPersonChange?.(p.id);
+                                            setIsOpen(false);
+                                        }}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <Check
+                                            className={cn(
+                                                "shrink-0 h-4 w-4",
+                                                person?.id === p.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        <PersonDisplay
+                                            person={p}
+                                            size="sm"
+                                        />
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                            {searchQuery && (
+                                <CommandGroup>
+                                    <CommandItem
+                                        onSelect={() => {
+                                            onPersonChange?.(null);
+                                            onLabelChange?.(searchQuery);
+                                            setIsOpen(false);
+                                        }}
+                                    >
+                                        <Edit2 className="mr-2 h-4 w-4" />
+                                        Set label to &quot;{searchQuery}&quot;
+                                    </CommandItem>
+                                </CommandGroup>
+                            )}
+                            {person && (
+                                <CommandGroup>
+                                    <CommandItem
+                                        onSelect={() => {
+                                            onPersonChange?.(null);
+                                            setIsOpen(false);
+                                        }}
+                                        className="text-destructive"
+                                    >
+                                        <X className="mr-2 h-4 w-4" />
+                                        Remove person
+                                    </CommandItem>
+                                </CommandGroup>
+                            )}
+                        </CommandList>
+                    </Command>
                 </PopoverContent>
             </Popover>
         );
     }
 
-    // Editable speaker tag mode
-    return (
-        <Popover>
-            <PopoverTrigger asChild>
-                {badge}
-            </PopoverTrigger>
-            <PopoverContent className="w-96">
-                {isEditingLabel ? (
-                    <div className="flex flex-col gap-2">
-                        <Input
-                            value={tempLabel}
-                            onChange={(e) => setTempLabel(e.target.value)}
-                            placeholder="Enter speaker label"
-                            className="w-full"
-                        />
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setIsEditingLabel(false)}>
-                                Cancel
-                            </Button>
-                            <Button size="sm" onClick={handleLabelSubmit}>
-                                Save
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <Command>
-                        <CommandInput placeholder="Search speaker..." />
-                        <CommandList>
-                            <CommandEmpty>
-                                <div className="flex flex-col gap-2 p-2">
-                                    <span>No speaker found.</span>
-                                    {!person && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setIsEditingLabel(true)}
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Edit2 className="h-4 w-4" />
-                                            Edit Label
-                                        </Button>
-                                    )}
-                                </div>
-                            </CommandEmpty>
-                            <CommandGroup>
-                                {speakerTag && (
-                                    <CommandItem
-                                        onSelect={() => onPersonChange?.(null)}
-                                        className="text-red-500 hover:bg-red-100"
-                                    >
-                                        <X className="mr-2 h-4 w-4" />
-                                        <span>Unassign speaker</span>
-                                    </CommandItem>
-                                )}
-                                {availablePeople?.map((availablePerson) => (
-                                    <CommandItem
-                                        key={availablePerson.id}
-                                        value={`${availablePerson.name} ${availablePerson.name_short}`}
-                                        onSelect={() => onPersonChange?.(availablePerson.id)}
-                                    >
-                                        <div className="flex items-center">
-                                            <div
-                                                className="mr-2"
-                                                style={{
-                                                    borderLeft: availablePerson.party ?
-                                                        `4px solid ${availablePerson.party.colorHex || 'transparent'}` :
-                                                        'none',
-                                                    paddingLeft: '4px'
-                                                }}
-                                            >
-                                                <ImageOrInitials
-                                                    imageUrl={availablePerson.image || null}
-                                                    width={32}
-                                                    height={32}
-                                                    name={availablePerson.name_short}
-                                                />
-                                            </div>
-                                            <span className="text-base">{availablePerson.name_short}</span>
-                                        </div>
-                                        <Check
-                                            className={cn(
-                                                "ml-auto h-4 w-4",
-                                                speakerTag?.personId === availablePerson.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                        </CommandList>
-                    </Command>
-                )}
-            </PopoverContent>
-        </Popover>
-    );
+    return badge;
 }
+
+export { PersonBadge };

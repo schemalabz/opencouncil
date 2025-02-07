@@ -43,7 +43,7 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
 };
 
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getParty, getSpeakerTag, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+    const { getPerson, getParty, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
 
@@ -52,8 +52,9 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
         const party = person?.partyId ? getParty(person.partyId) : undefined;
         const borderColor = party?.colorHex || '#D3D3D3';
-        return { speakerTag, person, party, borderColor };
-    }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag]);
+        const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
+        return { speakerTag, person, party, borderColor, segmentCount };
+    }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag, getSpeakerSegmentCount]);
 
     const utterances = segment.utterances;
     if (!utterances) {
@@ -96,6 +97,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                             <PersonBadge
                                                 person={memoizedData.person ? { ...memoizedData.person, party: memoizedData.party || null } : undefined}
                                                 speakerTag={memoizedData.speakerTag}
+                                                segmentCount={memoizedData.segmentCount}
                                                 editable={options.editable}
                                                 onPersonChange={handlePersonChange}
                                                 onLabelChange={handleLabelChange}

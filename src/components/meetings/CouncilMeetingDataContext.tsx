@@ -11,6 +11,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     getPerson: (id: string) => Person | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
+    getSpeakerSegmentCount: (tagId: string) => number;
     getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
@@ -36,6 +37,16 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
 
+    // Create a map of speaker tag IDs to their segment counts
+    const speakerTagSegmentCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        transcript.forEach(segment => {
+            const count = counts.get(segment.speakerTag.id) || 0;
+            counts.set(segment.speakerTag.id, count + 1);
+        });
+        return counts;
+    }, [transcript]);
+
     const contextValue = useMemo(() => ({
         ...data,
         transcript,
@@ -45,6 +56,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getPerson: (id: string) => peopleMap.get(id),
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
+        getSpeakerSegmentCount: (tagId: string) => speakerTagSegmentCounts.get(tagId) || 0,
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
