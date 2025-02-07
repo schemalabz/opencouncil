@@ -19,11 +19,14 @@ export function Landing({ publicCities }: LandingProps) {
     const [allCities, setAllCities] = useState<LandingPageCity[]>(publicCities);
     const [isLoading, setIsLoading] = useState(false);
     const { scrollY } = useScroll();
-    const backgroundOpacity = useTransform(
-        scrollY,
-        [0, window.innerHeight], 
-        [0.5, 0]
-    );
+    const [windowHeight, setWindowHeight] = useState(0);
+
+    useEffect(() => {
+        setWindowHeight(window.innerHeight);
+        const handleResize = () => setWindowHeight(window.innerHeight);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         if (session?.user) {
@@ -41,6 +44,12 @@ export function Landing({ publicCities }: LandingProps) {
         if (a.isListed === b.isListed) return 0;
         return a.isListed ? -1 : 1;
     });
+
+    const backgroundOpacity = useTransform(
+        scrollY,
+        [0, windowHeight || 1], 
+        [0.5, 0]
+    );
 
     return (
         <div className="min-h-screen">
