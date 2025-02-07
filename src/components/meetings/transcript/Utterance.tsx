@@ -55,7 +55,7 @@ const UtteranceC: React.FC<{
                 }
             }
         }
-    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp]);
+    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
 
     const isHighlighted = options.selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id);
 

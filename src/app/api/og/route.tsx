@@ -50,6 +50,7 @@ export async function GET(request: Request) {
                             alignItems: 'center',
                             gap: '20px'
                         }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={logoBase64}
                                 width="120"

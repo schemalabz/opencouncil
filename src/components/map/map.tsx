@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn } from '@/lib/utils'
@@ -86,13 +86,13 @@ export default function Map({
 
     console.log(center);
 
-    function rotateCamera(timestamp: number) {
+    const rotateCamera = useCallback((timestamp: number) => {
         if (!map.current) return
         // Rotate camera by timestamp/100 degrees, clamped between 0-360
         map.current.rotateTo((timestamp / ANIMATE_ROTATION_SPEED) % 360, { duration: 0 })
         // Request next animation frame and store the ID
         animationFrame.current = requestAnimationFrame(rotateCamera)
-    }
+    }, [map, animationFrame])
 
     useEffect(() => {
         mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN!
@@ -383,7 +383,7 @@ export default function Map({
                 });
             }
         })
-    }, [center, zoom, animateRotation, pitch, features, onFeatureClick, renderPopup])
+    }, [center, zoom, animateRotation, pitch, features, onFeatureClick, renderPopup, rotateCamera])
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />

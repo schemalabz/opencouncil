@@ -12,7 +12,7 @@ export function WordRotator({ words }: { words: string[] }) {
             setCurrentIndex((prev) => (prev + 1) % words.length)
         }, 2000)
         return () => clearInterval(timer)
-    }, [])
+    }, [words.length])
 
     return (
         <div className="h-[60px] overflow-hidden">
@@ -31,4 +31,3 @@ export function WordRotator({ words }: { words: string[] }) {
         </div>
     )
 }
-

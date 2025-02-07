@@ -33,7 +33,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
             }
         };
         checkEditPermissions();
-    }, [currentEntity?.cityId, session?.user]);
+    }, [currentEntity?.cityId, session?.user, currentEntity]);
 
     if (status === "loading") {
         return (

@@ -33,18 +33,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
             setIsDragging(false)
         }, [])
 
-        const handleDrop = React.useCallback(async (e: React.DragEvent) => {
-            e.preventDefault()
-            e.stopPropagation()
-            setIsDragging(false)
-
-            const file = e.dataTransfer.files[0]
-            if (file) {
-                await handleFileUpload(file)
-            }
-        }, [])
-
-        const handleFileUpload = async (file: File) => {
+        const handleFileUpload = React.useCallback(async (file: File) => {
             setIsUploading(true)
             try {
                 const formData = new FormData()
@@ -71,14 +60,26 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
             } finally {
                 setIsUploading(false)
             }
-        }
+        }, [combinedRef, onUrlChange])
+
+        const handleDrop = React.useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsDragging(false)
+
+            const file = e.dataTransfer.files[0]
+            if (file) {
+                await handleFileUpload(file)
+            }
+        }, [handleFileUpload])
+
 
         const handleFileSelect = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0]
             if (file) {
                 handleFileUpload(file)
             }
-        }, [])
+        }, [handleFileUpload])
 
         return (
             <div

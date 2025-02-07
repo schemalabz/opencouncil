@@ -46,7 +46,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
         return meetingData.transcript.map((u) => u.utterances).flat()
     }, [meetingData.transcript]);
 
-    const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting.id]);
+    const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting]);
 
     useEffect(() => {
         const checkSize = () => {

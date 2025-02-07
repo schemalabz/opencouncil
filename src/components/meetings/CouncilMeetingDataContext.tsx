@@ -163,7 +163,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 setSpeakerTags(prev => prev.filter(t => t.id !== segment.speakerTagId));
             }
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight, transcript]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight, transcript, speakerTagSegmentCounts]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>
