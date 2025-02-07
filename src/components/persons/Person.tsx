@@ -119,7 +119,6 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                     name={person.name}
                                     width={160}
                                     height={160}
-                                    className="rounded-full"
                                 />
                             </div>
                             <div className="text-center md:text-left space-y-3">
