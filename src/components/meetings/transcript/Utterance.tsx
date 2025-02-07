@@ -11,6 +11,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 const UtteranceC: React.FC<{
     utterance: Utterance,
@@ -184,40 +190,25 @@ const UtteranceC: React.FC<{
     }
 
     return (
-        <span className="group relative inline">
-            <span className={className} id={localUtterance.id} onClick={handleClick}>
-                {localUtterance.text + ' '}
-            </span>
-            {options.editable && (
-                <span className="absolute top-6 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2" style={{ zIndex: 9999 }}>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 bg-white hover:bg-gray-100 border border-gray-200"
-                                    onClick={handleMoveUtterancesToPrevious}
-                                >
-                                    <ArrowLeftToLine className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 bg-white hover:bg-gray-100 border border-gray-200"
-                                    onClick={handleMoveUtterancesToNext}
-                                >
-                                    <ArrowRightToLine className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Move utterances between segments (← to previous, → to next)</p>
-                        </TooltipContent>
-                    </Tooltip>
+        <ContextMenu>
+            <ContextMenuTrigger>
+                <span className={className} id={localUtterance.id} onClick={handleClick}>
+                    {localUtterance.text + ' '}
                 </span>
+            </ContextMenuTrigger>
+            {options.editable && (
+                <ContextMenuContent>
+                    <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
+                        <ArrowLeftToLine className="h-4 w-4 mr-2" />
+                        Move to previous segment
+                    </ContextMenuItem>
+                    <ContextMenuItem onClick={handleMoveUtterancesToNext}>
+                        <ArrowRightToLine className="h-4 w-4 mr-2" />
+                        Move to next segment
+                    </ContextMenuItem>
+                </ContextMenuContent>
             )}
-        </span>
+        </ContextMenu>
     );
 });
 
