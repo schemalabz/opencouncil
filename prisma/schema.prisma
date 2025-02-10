@@ -36,6 +36,8 @@ model City {
   administrators Administers[]
   administrativeBodies AdministrativeBody[]
 
+  roles Role[]
+
   @@index([isPending, isListed])
 }
 
@@ -62,6 +64,8 @@ model AdministrativeBody {
   cityId    String
   meetings  CouncilMeeting[]
 
+  roles Role[]
+
   @@index([cityId])
 }
 
@@ -76,9 +80,13 @@ model Party {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // TODO: remove the persons relation -- deprecated
   persons Person[]
+
   city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
+
+  roles Role[]
 
   administrators Administers[]
 
@@ -92,8 +100,13 @@ model Person {
   name_short String
   name_short_en String
   image     String?
+  
+  // TODO: remove the textual roles -- deprecated
   role      String?
   role_en   String?
+
+  roles Role[]
+
   isAdministrativeRole Boolean @default(false)
   activeFrom DateTime?
   activeTo DateTime?
@@ -571,4 +584,38 @@ model UtteranceEdit {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Role {
+  id        String   @id @default(cuid())
+
+  personId String
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  cityId String?
+  city City? @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  partyId String?
+  party Party? @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  administrativeBodyId String?
+  administrativeBody AdministrativeBody? @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
+
+  isHead Boolean @default(false)
+  name String
+  name_en String
+
+  startDate DateTime?
+  endDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([personId])
+  @@index([cityId])
+  @@index([partyId])
+  @@index([administrativeBodyId])
+
+  // Only one role per person and {city, party, administrativeBody}
+  @@unique([personId, cityId, partyId, administrativeBodyId])
 }

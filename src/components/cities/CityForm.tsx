@@ -46,8 +46,8 @@ const formSchema = z.object({
     logoImage: z.instanceof(File).optional(),
     id: z.string().min(2, {
         message: "ID must be at least 2 characters.",
-    }).regex(/^[a-z]+$/, {
-        message: "ID must contain only lowercase letters a-z.",
+    }).regex(/^[a-z-]+$/, {
+        message: "ID must contain only lowercase letters a-z and dashes.",
     }),
     authorityType: z.enum(['municipality', 'region'])
 })
