@@ -41,20 +41,20 @@ export function Landing({ publicCities }: LandingProps) {
 
     // Sort cities: public first, then non-public
     const sortedCities = [...allCities].sort((a, b) => {
-        if (a.isListed === b.isListed) return 0;
+        if (a.isListed === b.isListed) return a.name.localeCompare(b.name);
         return a.isListed ? -1 : 1;
     });
 
     const backgroundOpacity = useTransform(
         scrollY,
-        [0, windowHeight || 1], 
+        [0, windowHeight || 1],
         [0.5, 0]
     );
 
     return (
         <div className="min-h-screen">
             {/* Floating Paths Background */}
-            <motion.div 
+            <motion.div
                 className="fixed inset-0 -z-10"
                 style={{ opacity: backgroundOpacity }}
             >
@@ -72,7 +72,7 @@ export function Landing({ publicCities }: LandingProps) {
                     className="relative -mt-16 flex flex-col items-center gap-3 cursor-pointer group"
                     onClick={() => window.scrollTo({ top: window.innerHeight - 100, behavior: 'smooth' })}
                 >
-                    <motion.span 
+                    <motion.span
                         className="text-base sm:text-lg font-medium text-muted-foreground/80 group-hover:text-primary transition-colors"
                         whileHover={{ scale: 1.05 }}
                     >
@@ -96,7 +96,7 @@ export function Landing({ publicCities }: LandingProps) {
 
                 <div className="container mx-auto px-4 py-8 sm:py-12">
                     {/* Cities */}
-                    <motion.section 
+                    <motion.section
                         className="space-y-12 sm:space-y-16 mt-12 sm:mt-20"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
