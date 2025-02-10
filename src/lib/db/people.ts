@@ -1,7 +1,8 @@
 "use server";
-import { Person, Party } from '@prisma/client';
+import { Person, Party, Role } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { PersonWithRelations } from '../getMeetingData';
 
 export async function deletePerson(id: string): Promise<void> {
     withUserAuthorizedToEdit({ personId: id });
@@ -47,12 +48,13 @@ export async function editPerson(id: string, personData: Partial<Omit<Person, 'i
     }
 }
 
-export async function getPerson(id: string): Promise<(Person & { party: Party | null }) | null> {
+export async function getPerson(id: string): Promise<PersonWithRelations | null> {
     try {
         const person = await prisma.person.findUnique({
             where: { id },
             include: {
                 party: true,
+                roles: true,
             }
         });
         return person;
@@ -62,12 +64,13 @@ export async function getPerson(id: string): Promise<(Person & { party: Party | 
     }
 }
 
-export async function getPeopleForCity(cityId: string): Promise<(Person & { party: Party | null })[]> {
+export async function getPeopleForCity(cityId: string): Promise<PersonWithRelations[]> {
     try {
         const people = await prisma.person.findMany({
             where: { cityId },
             include: {
                 party: true,
+                roles: true,
             }
         });
         return people.sort(() => Math.random() - 0.5);

@@ -9,8 +9,9 @@ import { MapPin, ScrollText, PresentationIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
+import { PersonWithRelations } from "@/lib/getMeetingData";
 
-export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, city: City, meeting: CouncilMeeting, parties: Party[], fullWidth?: boolean }) {
+export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, city: City, meeting: CouncilMeeting, parties: Party[], persons: PersonWithRelations[], fullWidth?: boolean }) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
@@ -35,6 +36,10 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
     const displayedSpeakers = introducerWithParty
         ? [introducerWithParty, ...topSpeakers.filter(s => s.id !== introducerWithParty.id)]
         : topSpeakers;
+
+    const fullDisplayedSpeakers = displayedSpeakers
+        .map(s => persons.find(p => p.id === s.id))
+        .filter((p): p is PersonWithRelations => p !== undefined);
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
@@ -70,7 +75,7 @@ export function SubjectCard({ subject, city, meeting, parties, fullWidth }: { su
                 <CardFooter className="pt-0 mt-auto">
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
-                            users={displayedSpeakers}
+                            users={fullDisplayedSpeakers}
                         />
                     </div>
                 </CardFooter>

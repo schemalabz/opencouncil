@@ -85,10 +85,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                     <div>
                         <h3 className="text-lg font-semibold mb-4">Εισηγητής</h3>
                         <PersonBadge
-                            person={{
-                                ...introducedBy,
-                                party: introducedBy.partyId ? getParty(introducedBy.partyId) ?? null : null
-                            }}
+                            person={getPerson(introducedBy.id)}
                         />
                     </div>
                 )}

@@ -7,6 +7,7 @@ import prisma from "./prisma";
 import { SubjectWithRelations } from "./subject";
 import { sortSubjectsByImportance } from "../utils";
 import { getStatisticsFor, Statistics } from "../statistics";
+import { PersonWithRelations } from "../getMeetingData";
 
 
 export type LandingPageCity = City & {
@@ -18,6 +19,7 @@ export type LandingPageCity = City & {
     partyCount: number;
     meetingCount: number;
     parties: Party[];
+    persons: PersonWithRelations[];
 };
 
 export async function getLandingPageData({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<LandingPageCity[]> {
@@ -33,6 +35,12 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
         },
         include: {
             parties: true,
+            persons: {
+                include: {
+                    party: true,
+                    roles: true
+                }
+            },
             councilMeetings: {
                 where: {
                     released: true,
@@ -51,7 +59,12 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
                             highlights: true,
                             location: true,
                             topic: true,
-                            introducedBy: true
+                            introducedBy: {
+                                include: {
+                                    party: true,
+                                    roles: true
+                                }
+                            }
                         }
                     }
                 },
@@ -95,7 +108,8 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
             partyCount: city._count.parties,
             meetingCount: city._count.councilMeetings,
             mostRecentMeeting: city.councilMeetings[0],
-            recentSubjects: sortedRecentSubjectsWithStats
+            recentSubjects: sortedRecentSubjectsWithStats,
+            persons: city.persons
         };
     }));
 

@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { getEmbeddings, rerankDocuments } from "@/lib/voyage/voyage";
 import { getCities } from "../db/cities";
+import { PersonWithRelations } from "../getMeetingData";
 
 export type SearchRequest = {
     query: string;
@@ -17,7 +18,7 @@ export type SearchResult = {
     councilMeeting: CouncilMeeting;
     relevanceScore?: number;
     speakerSegment: (SpeakerSegment & {
-        person?: Person;
+        person?: PersonWithRelations;
         personLabel?: string;
         party?: Party;
         summary?: { text: string };
@@ -55,7 +56,8 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
                     include: {
                         person: {
                             include: {
-                                party: true
+                                party: true,
+                                roles: true
                             }
                         }
                     }
@@ -145,7 +147,8 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
                     include: {
                         person: {
                             include: {
-                                party: true
+                                party: true,
+                                roles: true
                             }
                         }
                     }
@@ -337,7 +340,8 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
                     include: {
                         person: {
                             include: {
-                                party: true
+                                party: true,
+                                roles: true
                             }
                         }
                     }

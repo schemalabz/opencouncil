@@ -7,14 +7,17 @@ import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
 import { cn } from '@/lib/utils';
+import { getPeopleForCity } from '@/lib/db/people';
+import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
 
 interface PartyCardProps {
-    item: Party & { persons: Person[] };
+    item: Party
     editable: boolean;
 }
 
 export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const t = useTranslations('PartyCard');
+    const { getPersonsForParty } = useCouncilMeetingData();
     const router = useRouter();
 
     const handleClick = () => {
@@ -22,10 +25,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     };
 
     // Add party info to each person
-    const personsWithParty = party.persons.map(person => ({
-        ...person,
-        party
-    }));
+    const personsWithParty = getPersonsForParty(party.id);
 
     return (
         <Card
@@ -57,7 +57,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                         <PersonAvatarList
                             users={personsWithParty}
                             maxDisplayed={5}
-                            numMore={party.persons.length > 5 ? party.persons.length - 5 : 0}
+                            numMore={personsWithParty.length > 5 ? personsWithParty.length - 5 : 0}
                         />
                     </div>
                 </div>

@@ -23,7 +23,6 @@ import ShareC from './Share'
 import Summary from './Summary'
 import Highlights from '../Highlights'
 import { HighlightWithUtterances } from '@/lib/db/highlights'
-import HighlightView from './highlightView/HighlightView'
 import { SubjectWithRelations } from '@/lib/db/subject'
 import Subjects from './Subjects'
 import { MeetingData } from '@/lib/getMeetingData'
@@ -129,8 +128,7 @@ export default function CouncilMeetingC({ meetingData, editable }: CouncilMeetin
                                 </div>
                             )}
                         </div>
-                    ) : (
-                        <HighlightView initialHighlightId={highlightId ?? ''} data={meetingData} switchToTranscript={() => setMode('transcript')} />
+                    ) : (<></>
                     )}
                 </VideoProvider>
             </TranscriptOptionsProvider>

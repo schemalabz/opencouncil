@@ -1,10 +1,10 @@
-import { Person, Party } from "@prisma/client";
 import { PersonBadge } from "./PersonBadge";
 import { cn } from "@/lib/utils";
 import { Pen } from "lucide-react";
+import { PersonWithRelations } from "@/lib/getMeetingData";
 
 interface PersonAvatarListProps {
-    users: (Person & { party: Party | null, isIntroducer?: boolean })[];
+    users: (PersonWithRelations & { isIntroducer?: boolean })[];
     className?: string;
     maxDisplayed?: number;
     numMore?: number;

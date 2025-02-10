@@ -8,16 +8,16 @@ import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highl
 import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { CouncilMeeting, SpeakerTag, TaskStatus } from '@prisma/client';
-import { Party, Person } from '@prisma/client';
+import { Party, Person, Role } from '@prisma/client';
 import { City } from '@prisma/client';
-import { getTasksForMeeting } from './db/tasks';
 
+export type PersonWithRelations = Person & { party: Party | null, roles: Role[] };
 
 export type MeetingData = {
     meeting: CouncilMeeting;
     transcript: Transcript;
     city: City & { geometry?: GeoJSON.FeatureCollection };
-    people: Person[];
+    people: PersonWithRelations[];
     parties: Party[];
     highlights: HighlightWithUtterances[];
     subjects: (SubjectWithRelations & { statistics?: Statistics })[];

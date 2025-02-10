@@ -76,21 +76,23 @@ export async function getFullCity(cityId: string) {
                             highlights: true,
                             location: true,
                             topic: true,
-                            introducedBy: true
+                            introducedBy: {
+                                include: {
+                                    party: true,
+                                    roles: true
+                                }
+                            }
                         }
                     },
                     administrativeBody: true
                 }
             },
-            parties: {
-                include: {
-                    persons: true
-                }
-            },
+            parties: true,
             persons: {
                 include: {
                     party: true,
-                    speakerTags: true
+                    speakerTags: true,
+                    roles: true
                 }
             },
             administrators: {

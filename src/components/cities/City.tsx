@@ -26,12 +26,13 @@ import { SubjectWithRelations } from '@/lib/db/subject';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge'
 import { motion, useScroll, useTransform } from 'framer-motion';
+import { PersonWithRelations } from '@/lib/getMeetingData';
 
 export default function CityC({ city }: {
     city: City & {
         councilMeetings: (CouncilMeeting & { subjects: SubjectWithRelations[], administrativeBody: AdministrativeBody | null })[],
-        parties: (Party & { persons: Person[] })[],
-        persons: (Person & { party: Party | null })[]
+        parties: Party[],
+        persons: PersonWithRelations[]
     }
 }) {
     const t = useTranslations('City');
@@ -85,8 +86,12 @@ export default function CityC({ city }: {
             return aLastWord.localeCompare(bLastWord);
         })
 
+    const personCountForParty = (party: Party) => {
+        return city.persons.filter(person => person.partyId === party.id).length;
+    }
+
     const orderedParties = [...city.parties]
-        .sort((a, b) => b.persons.length - a.persons.length);
+        .sort((a, b) => personCountForParty(b) - personCountForParty(a));
 
     return (
         <div className="relative min-h-screen">

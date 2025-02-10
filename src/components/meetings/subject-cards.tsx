@@ -17,7 +17,7 @@ const filterOptions: Option<FilterType>[] = [
 ];
 
 export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics?: Statistics })[], totalSubjects?: number, fullWidth?: boolean }) {
-    const { city, meeting, parties } = useCouncilMeetingData();
+    const { city, meeting, parties, people } = useCouncilMeetingData();
     const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([]);
 
     // Filter and sort subjects based on selected filter
@@ -76,6 +76,7 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
                         city={city}
                         meeting={meeting}
                         parties={parties}
+                        persons={people}
                         fullWidth={fullWidth}
                     />
                 ))}

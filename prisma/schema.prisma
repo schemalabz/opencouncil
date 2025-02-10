@@ -602,8 +602,8 @@ model Role {
   administrativeBody AdministrativeBody? @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
 
   isHead Boolean @default(false)
-  name String
-  name_en String
+  name String?
+  name_en String?
 
   startDate DateTime?
   endDate DateTime?

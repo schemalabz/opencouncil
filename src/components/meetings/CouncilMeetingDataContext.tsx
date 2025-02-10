@@ -4,11 +4,11 @@ import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
-import { MeetingData } from '@/lib/getMeetingData';
+import { MeetingData, PersonWithRelations } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
 
 export interface CouncilMeetingDataContext extends MeetingData {
-    getPerson: (id: string) => Person | undefined;
+    getPerson: (id: string) => PersonWithRelations | undefined;
     getParty: (id: string) => Party | undefined;
     getSpeakerTag: (id: string) => SpeakerTag | undefined;
     getSpeakerSegmentCount: (tagId: string) => number;
@@ -21,6 +21,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     deleteEmptySegment: (segmentId: string) => Promise<void>;
+    getPersonsForParty: (partyId: string) => PersonWithRelations[];
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -58,6 +59,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
         getSpeakerSegmentCount: (tagId: string) => speakerTagSegmentCounts.get(tagId) || 0,
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
+        getPersonsForParty: (partyId: string) => data.people.filter(person => person.partyId === partyId),
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
             await updateSpeakerTag(tagId, { personId });

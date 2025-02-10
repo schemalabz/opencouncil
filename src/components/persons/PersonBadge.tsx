@@ -13,9 +13,10 @@ import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { PersonWithRelations } from '@/lib/getMeetingData';
 
 interface PersonDisplayProps {
-    person?: Person & { party: Party | null };
+    person?: PersonWithRelations;
     speakerTag?: SpeakerTag;
     segmentCount?: number;
     short?: boolean;
@@ -36,6 +37,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
         lg: 64,
         xl: 96
     };
+
 
     const imageSize = imageSizes[size];
 
@@ -121,7 +123,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
     isSelected?: boolean;
     onPersonChange?: (personId: string | null) => void;
     onLabelChange?: (label: string) => void;
-    availablePeople?: (Person & { party: Party | null })[];
+    availablePeople?: PersonWithRelations[];
 }
 
 function PersonBadge({

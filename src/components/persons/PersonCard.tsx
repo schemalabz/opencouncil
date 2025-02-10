@@ -9,9 +9,9 @@ import { PersonBadge } from './PersonBadge';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { CalendarClock } from 'lucide-react';
-
+import { PersonWithRelations } from '@/lib/getMeetingData';
 interface PersonCardProps {
-    item: Person & { party: Party | null };
+    item: PersonWithRelations;
     editable: boolean;
     parties: Party[];
 }
@@ -53,7 +53,7 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
                     <div className="flex flex-col justify-center h-full">
                         <div className="flex flex-col gap-4">
                             <PersonBadge
-                                person={{ ...person, party: person.party }}
+                                person={person}
                                 className="!text-lg sm:!text-xl"
                                 preferFullName
                                 size="lg"

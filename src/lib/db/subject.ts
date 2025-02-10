@@ -1,7 +1,7 @@
 import prisma from "./prisma";
 import { Subject, SubjectSpeakerSegment, SpeakerSegment, Highlight, Location, Topic, Person } from "@prisma/client";
 import { Prisma } from "@prisma/client";
-
+import { PersonWithRelations } from "../getMeetingData";
 // Type for location with coordinates
 type LocationWithCoordinates = Location & {
     coordinates?: {
@@ -17,7 +17,7 @@ export type SubjectWithRelations = Subject & {
     highlights: Highlight[];
     location: LocationWithCoordinates | null;
     topic: Topic | null;
-    introducedBy: Person | null;
+    introducedBy: PersonWithRelations | null;
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
@@ -32,7 +32,12 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 highlights: true,
                 location: true,
                 topic: true,
-                introducedBy: true,
+                introducedBy: {
+                    include: {
+                        party: true,
+                        roles: true
+                    }
+                },
             },
         });
         return subjects;
@@ -61,7 +66,12 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                         },
                     },
                 },
-                introducedBy: true,
+                introducedBy: {
+                    include: {
+                        party: true,
+                        roles: true
+                    }
+                },
                 highlights: true,
                 location: true,
                 topic: true,
