@@ -18,7 +18,7 @@ export default function CurrentTimeButton() {
                 variant="outline"
             >
                 <Icon className="w-4 h-4 mr-2" />
-                Go to current time
+                Μεταφορά στον τρέχοντα χρόνο
             </Button>
         );
     } else {

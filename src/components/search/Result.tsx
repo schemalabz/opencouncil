@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import { format } from "date-fns";
+import { useLocale } from "next-intl";
+import { el, enUS } from "date-fns/locale";
 
 export function Result({ result, className }: { result: SearchResult, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const locale = useLocale();
 
     const formatTimestamp = (timestamp: number) => {
         const hours = Math.floor(timestamp / 3600);
@@ -41,7 +44,7 @@ export function Result({ result, className }: { result: SearchResult, className?
                                 href={`/${result.city.id}/${result.councilMeeting.id}`}
                                 className="hover:text-foreground"
                             >
-                                {format(new Date(result.councilMeeting.dateTime), 'PPP')}
+                                {format(new Date(result.councilMeeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
                             </Link>
                             <span>•</span>
                             <span>{formatTimestamp(result.speakerSegment.startTimestamp)}</span>
