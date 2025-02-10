@@ -56,10 +56,9 @@ export function Hero() {
                         </span>
                     </motion.h1>
                 </motion.div>
-
                 <motion.p
                     variants={item}
-                    className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed"
+                    className="text-sm sm:text-base md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed"
                 >
                     To OpenCouncil χρησιμοποιεί{' '}
                     <motion.em
