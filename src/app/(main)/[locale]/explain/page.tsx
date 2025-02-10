@@ -42,8 +42,8 @@ export default function ExplainPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.8, duration: 0.5 }}
                 >
-                    <Button 
-                        asChild 
+                    <Button
+                        asChild
                         size="lg"
                         className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
                     >

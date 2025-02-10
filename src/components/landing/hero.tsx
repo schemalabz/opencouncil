@@ -38,10 +38,10 @@ export function Hero() {
                         variants={item}
                         className="text-4xl sm:text-5xl md:text-7xl font-normal tracking-tight"
                     >
-                        Κάνουμε την αυτοδιοίκηση{' '}
+                        TL;DR — ο Δήμος σου,{' '}
                         <span className="relative">
                             <span className="relative z-10 italic text-primary">
-                                απλή
+                                απλά
                             </span>
                             <motion.span
                                 className="absolute inset-0 bg-primary/20 -z-10 blur-2xl"

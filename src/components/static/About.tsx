@@ -73,9 +73,11 @@ export default function AboutPage() {
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.8 }}
                 >
-                    <div className="flex flex-col items-center justify-center space-y-6 sm:space-y-8">
-                        <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight">
-                            Ανοιχτή Αυτοδιοίκηση
+                    <div className="flex flex-col items-center justify-center space-y-6">
+                        <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight text-center">
+                            Κάνουμε τους δημότες
+                            <div className="font-medium">να νοιάζονται</div>
+                            για το δήμο τους
                         </h1>
                         <motion.p
                             className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed"
@@ -83,7 +85,7 @@ export default function AboutPage() {
                             animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                             transition={{ delay: 0.5, duration: 0.8 }}
                         >
-                            Κάνουμε τους δημότες να νοιάζονται για το δήμο τους
+                            Η πρώτη ΑΙ πλατφόρμα συμμετοχικότητας για την αυτοδιοίκηση
                         </motion.p>
                         <motion.div
                             className="flex flex-col sm:flex-row justify-center gap-4"
