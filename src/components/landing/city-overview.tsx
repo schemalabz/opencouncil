@@ -108,14 +108,14 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
 
             {/* Subjects Marquee */}
             {city.recentSubjects.length > 0 && (
-                <motion.div 
+                <motion.div
                     variants={item}
-                    className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/50"
+                    className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/50 z-0"
                 >
-                    <Marquee 
-                        pauseOnHover 
-                        repeat={2} 
-                        className="[--duration:200s] py-4" 
+                    <Marquee
+                        pauseOnHover
+                        repeat={2}
+                        className="[--duration:200s] py-4"
                         label="Πρόσφατα θέματα"
                     >
                         <div className="flex gap-4">
@@ -135,8 +135,8 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                             ))}
                         </div>
                     </Marquee>
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-background to-transparent"></div>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-background to-transparent"></div>
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-background to-transparent z-10"></div>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-background to-transparent z-10"></div>
                 </motion.div>
             )}
         </motion.div>

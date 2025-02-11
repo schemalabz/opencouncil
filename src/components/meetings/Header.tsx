@@ -26,6 +26,7 @@ export default function Header() {
             transition={{ duration: 0.2 }}
         >
             <div className="flex items-center gap-4">
+                <SidebarTrigger />
                 <Link href="/" className="hidden md:block">
                     <Image width={48} height={48} src='/logo.png' alt='logo' />
                 </Link>

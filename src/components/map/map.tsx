@@ -64,7 +64,7 @@ const guessCenterFromFeatures = (features: MapFeature[]): [number, number] | und
 export default function Map({
     className,
     center = undefined,
-    zoom = 12, // Default zoom level
+    zoom = 10, // Default zoom level
     animateRotation = true,
     pitch = 45,
     features = [],

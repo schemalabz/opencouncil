@@ -25,18 +25,18 @@ export function Hero() {
     };
 
     return (
-        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-24 sm:pt-32">
+        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-24 sm:pt-32 w-full">
             <motion.div
                 style={{ opacity, y }}
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 px-4 max-w-5xl mx-auto"
+                className="relative text-center space-y-8 sm:space-y-10 w-full"
             >
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1
                         variants={item}
-                        className="text-4xl sm:text-5xl md:text-7xl font-normal tracking-tight"
+                        className="text-3xl sm:text-5xl md:text-7xl font-normal tracking-tight"
                     >
                         TL;DR — ο Δήμος σου,{' '}
                         <span className="relative">
@@ -58,12 +58,12 @@ export function Hero() {
                 </motion.div>
                 <motion.p
                     variants={item}
-                    className="text-sm sm:text-base md:text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed"
+                    className="text-xs sm:text-sm md:text-base text-muted-foreground mx-auto leading-relaxed"
                 >
                     To OpenCouncil χρησιμοποιεί{' '}
                     <motion.em
                         whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 rounded-md text-primary"
+                        className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md text-primary"
                     >
                         🤖 τεχνητή νοημοσύνη
                     </motion.em>{' '}
