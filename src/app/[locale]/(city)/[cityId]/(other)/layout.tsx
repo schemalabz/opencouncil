@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getMeetingData } from "@/lib/getMeetingData";
 import { PathElement } from "@/components/layout/Header";
 import { getCity } from "@/lib/db/cities";
+import Footer from "@/components/layout/Footer";
 
 export default async function CityInnerLayout({
     children,
@@ -50,6 +51,7 @@ export default async function CityInnerLayout({
                 currentEntity={{ cityId: city.id }}
             />
             {children}
+            <Footer />
         </>
     );
 }

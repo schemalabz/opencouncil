@@ -1,5 +1,5 @@
 'use client'
-import { motion, useScroll, useTransform, useSpring, useInView } from 'framer-motion'
+import { motion, useScroll, useSpring, useTransform, useInView, useAnimation } from 'framer-motion'
 import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail, Twitter, Linkedin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
@@ -38,6 +38,112 @@ const people = [
         }
     }
 ]
+function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
+    const heroRef = useRef(null)
+    const isHeroInView = useInView(heroRef, { once: true })
+    const glowControls = useAnimation()
+
+    React.useEffect(() => {
+        glowControls.start({
+            textShadow: [
+                "0 0 3px rgba(255, 150, 150, 0.2), 0 0 6px rgba(255, 150, 150, 0.1), 0 0 9px rgba(255, 150, 150, 0.05)",
+                "0 0 4px rgba(255, 150, 150, 0.3), 0 0 8px rgba(255, 150, 150, 0.2), 0 0 12px rgba(255, 150, 150, 0.1)",
+                "0 0 3px rgba(255, 150, 150, 0.2), 0 0 6px rgba(255, 150, 150, 0.1), 0 0 9px rgba(255, 150, 150, 0.05)",
+            ],
+            transition: {
+                duration: 3,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+            },
+        })
+    }, [glowControls])
+
+    return (
+        <motion.section
+            ref={heroRef}
+            className="relative py-16 sm:py-24 flex flex-col justify-center items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+        >
+            <div className="flex flex-col items-center justify-center space-y-6">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight text-center">
+                    Κάνουμε τους δημότες
+                    <motion.div
+                        className="font-medium mt-2 md:mt-4 relative"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5, duration: 0.6 }}
+                    >
+                        <motion.span
+                            className="relative inline-block text-black"
+                            animate={glowControls}
+                            whileHover={{
+                                scale: 1.03,
+                                transition: { duration: 0.3 },
+                            }}
+                        >
+                            να νοιάζονται
+                        </motion.span>
+                    </motion.div>
+                    για το δήμο τους
+                </h1>
+                <motion.p
+                    className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
+                    transition={{ delay: 0.7, duration: 0.8 }}
+                >
+                    Η πρώτη ΑΙ πλατφόρμα συμμετοχικότητας για την αυτοδιοίκηση
+                </motion.p>
+                <motion.div
+                    className="flex flex-col sm:flex-row justify-center gap-4"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
+                    transition={{ delay: 0.9, duration: 0.8 }}
+                >
+                    <Button
+                        size="lg"
+                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
+                        onClick={() => setIsContactFormOpen(true)}
+                    >
+                        <span className="relative z-10 flex items-center gap-2">
+                            <CalendarClock className="h-4 w-4" />
+                            Προγραμματίστε μια κλήση
+                        </span>
+                        <motion.div
+                            className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                            whileHover={{
+                                boxShadow: "0 0 30px rgba(var(--primary), 0.5)"
+                            }}
+                        />
+                    </Button>
+                    <a
+                        href="tel:+302111980212"
+                        className="inline-flex items-center justify-center no-underline"
+                    >
+                        <Button
+                            size="lg"
+                            variant="outline"
+                            className="text-base sm:text-lg px-8 py-6 rounded-xl hover:bg-primary/5 transition-colors duration-300"
+                        >
+                            <PhoneCall className="mr-2 h-4 w-4" />
+                            +30 2111980212
+                        </Button>
+                    </a>
+                </motion.div>
+            </div>
+            <motion.div
+                className="absolute bottom-4 left-1/2 transform -translate-x-1/2"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 0.5, y: 0 }}
+                transition={{ delay: 1.2, duration: 0.8, repeat: Number.POSITIVE_INFINITY, repeatType: "reverse" }}
+            >
+                <ChevronDown className="h-6 w-6 text-muted-foreground" />
+            </motion.div>
+        </motion.section>
+    )
+}
 
 export default function AboutPage() {
     const t = useTranslations('AboutPage')
@@ -48,8 +154,6 @@ export default function AboutPage() {
         restDelta: 0.001
     })
 
-    const heroRef = useRef(null)
-    const isHeroInView = useInView(heroRef, { once: true })
     const [isContactFormOpen, setIsContactFormOpen] = useState(false)
 
     useEffect(() => {
@@ -66,73 +170,7 @@ export default function AboutPage() {
             />
             <div className="container mx-auto px-2 sm:px-4">
                 {/* Hero Section */}
-                <motion.section
-                    ref={heroRef}
-                    className="relative py-16 sm:py-24 flex flex-col justify-center items-center"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8 }}
-                >
-                    <div className="flex flex-col items-center justify-center space-y-6">
-                        <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight text-center">
-                            Κάνουμε τους δημότες
-                            <div className="font-medium">να νοιάζονται</div>
-                            για το δήμο τους
-                        </h1>
-                        <motion.p
-                            className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed"
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
-                            transition={{ delay: 0.5, duration: 0.8 }}
-                        >
-                            Η πρώτη ΑΙ πλατφόρμα συμμετοχικότητας για την αυτοδιοίκηση
-                        </motion.p>
-                        <motion.div
-                            className="flex flex-col sm:flex-row justify-center gap-4"
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
-                            transition={{ delay: 0.7, duration: 0.8 }}
-                        >
-                            <Button
-                                size="lg"
-                                className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
-                                onClick={() => setIsContactFormOpen(true)}
-                            >
-                                <span className="relative z-10 flex items-center gap-2">
-                                    <CalendarClock className="h-4 w-4" />
-                                    Προγραμματίστε μια κλήση
-                                </span>
-                                <motion.div
-                                    className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                    whileHover={{
-                                        boxShadow: "0 0 30px rgba(var(--primary), 0.5)"
-                                    }}
-                                />
-                            </Button>
-                            <a
-                                href="tel:+302111980212"
-                                className="inline-flex items-center justify-center no-underline"
-                            >
-                                <Button
-                                    size="lg"
-                                    variant="outline"
-                                    className="text-base sm:text-lg px-8 py-6 rounded-xl hover:bg-primary/5 transition-colors duration-300"
-                                >
-                                    <PhoneCall className="mr-2 h-4 w-4" />
-                                    +30 2111980212
-                                </Button>
-                            </a>
-                        </motion.div>
-                    </div>
-                    <motion.div
-                        className="absolute bottom-4 left-1/2 transform -translate-x-1/2"
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 0.5, y: 0 }}
-                        transition={{ delay: 1, duration: 0.8, repeat: Infinity, repeatType: 'reverse' }}
-                    >
-                        <ChevronDown className="h-6 w-6 text-muted-foreground" />
-                    </motion.div>
-                </motion.section>
+                <Hero setIsContactFormOpen={setIsContactFormOpen} />
 
                 {/* Why OpenCouncil Section */}
                 <motion.section
