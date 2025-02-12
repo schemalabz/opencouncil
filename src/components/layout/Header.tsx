@@ -24,8 +24,6 @@ interface HeaderProps {
 }
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children }: HeaderProps) => {
-    const locale = useLocale()
-
     return (
         <motion.header
             className="sticky top-0 z-50 bg-background border-b flex justify-between items-center min-h-[80px]"
@@ -36,15 +34,15 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children }: H
             <div className="flex items-center w-full px-2 md:px-4">
                 <div className="flex items-center gap-2 md:gap-4">
                     {showSidebarTrigger && <SidebarTrigger />}
-                    <Link href="/" className="hidden md:flex items-center gap-3 shrink-0">
-                        <Image width={48} height={48} src='/logo.png' alt='logo' />
+                    <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
+                        <Image width={40} height={40} className="md:w-[48px] md:h-[48px]" src='/logo.png' alt='logo' />
                         {path.length === 0 && (
-                            <span className="text-xl">OpenCouncil</span>
+                            <span className="text-lg md:text-xl">OpenCouncil</span>
                         )}
                     </Link>
                 </div>
 
-                {path.length > 0 && <Separator orientation="vertical" className="h-12 hidden md:block mx-6" />}
+                {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
 
                 <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                     <div className="flex items-center flex-1 min-w-0">
