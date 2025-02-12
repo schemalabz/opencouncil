@@ -140,13 +140,14 @@ export default async function CouncilMeetingPage({
                         ]}
                         showSidebarTrigger={true}
                         currentEntity={{ cityId: data.city.id }}
+                        noContainer={true}
                     >
                         <EditSwitch />
                     </Header>
                     <div className="flex flex-1 min-h-0 w-full">
                         <MeetingSidebar />
                         <div className="flex flex-col flex-1">
-                            <div className='flex-1'>
+                            <div className='flex-1 pb-20'>
                                 {children}
                             </div>
                             {data.meeting.muxPlaybackId && <TranscriptControls />}
