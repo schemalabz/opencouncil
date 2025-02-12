@@ -97,19 +97,6 @@ export default function CityC({ city }: {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <Breadcrumb className="mb-6 md:mb-8">
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <Link href="/">Αρχική</Link>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href={`/${city.id}`}>{city.name}</BreadcrumbLink>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
 
                     {/* Hero Section */}
                     <div className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-12 gap-6">

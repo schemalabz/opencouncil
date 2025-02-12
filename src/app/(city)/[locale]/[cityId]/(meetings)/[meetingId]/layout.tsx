@@ -10,13 +10,17 @@ import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
-import Header from '@/components/meetings/Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { getStatisticsFor } from '@/lib/statistics';
 import { getMeetingData, MeetingData } from '@/lib/getMeetingData';
 import { cache } from 'react'
+import Header from '@/components/layout/Header';
+import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon } from 'lucide-react';
+import { Link } from '@/i18n/routing';
+import { formatDate } from 'date-fns';
+import { el, enUS } from 'date-fns/locale';
 
 /*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
@@ -109,16 +113,45 @@ export default async function CouncilMeetingPage({
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
     const editable = await isUserAuthorizedToEdit({ councilMeetingId: data.meeting.id });
-    return <CouncilMeetingWrapper meetingData={data} editable={editable}>
-        <SidebarProvider>
-            <MeetingSidebar />
-            <div className="flex flex-col flex-1">
-                <Header />
-                <div className='mr-16 md:mr-0 md:mb-16'>
-                    {children}
+
+    // Format meeting description to include more info
+    const meetingDescription = [
+        formatDate(new Date(data.meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS }),
+        data.meeting.videoUrl ? "Βίντεο διαθέσιμο" : null,
+        `${data.subjects.length} θέματα`
+    ].filter(Boolean).join(' · ');
+
+    return (
+        <CouncilMeetingWrapper meetingData={data} editable={editable}>
+            <SidebarProvider>
+                <div className="flex min-h-screen flex-col w-full">
+                    <Header
+                        path={[
+                            {
+                                name: data.city.name,
+                                link: `/${cityId}`,
+                                city: data.city
+                            },
+                            {
+                                name: data.meeting.name,
+                                link: `/${cityId}/meetings/${meetingId}`,
+                                description: meetingDescription
+                            }
+                        ]}
+                        showSidebarTrigger={true}
+                        currentEntity={{ cityId: data.city.id }}
+                    />
+                    <div className="flex flex-1 min-h-0 w-full">
+                        <MeetingSidebar />
+                        <div className="flex flex-col flex-1">
+                            <div className='flex-1'>
+                                {children}
+                            </div>
+                            {data.meeting.muxPlaybackId && <TranscriptControls />}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            {data.meeting.muxPlaybackId && <TranscriptControls />}
-        </SidebarProvider>
-    </CouncilMeetingWrapper >
+            </SidebarProvider>
+        </CouncilMeetingWrapper>
+    );
 }

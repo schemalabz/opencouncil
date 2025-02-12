@@ -1,3 +1,4 @@
+"use client"
 import { Users, Building2, CalendarDays } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
