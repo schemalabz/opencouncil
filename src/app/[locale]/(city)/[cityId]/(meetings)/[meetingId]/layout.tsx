@@ -6,7 +6,6 @@ import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
-import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
@@ -102,7 +101,6 @@ export default async function CouncilMeetingPage({
     params: { meetingId: string; cityId: string, locale: string },
     children: React.ReactNode
 }) {
-    unstable_setRequestLocale(locale);
 
     const data = await getMeetingDataCached(cityId, meetingId);
 
@@ -134,7 +132,7 @@ export default async function CouncilMeetingPage({
                             },
                             {
                                 name: data.meeting.name,
-                                link: `/${cityId}/meetings/${meetingId}`,
+                                link: `/${cityId}/${meetingId}`,
                                 description: meetingDescription
                             }
                         ]}

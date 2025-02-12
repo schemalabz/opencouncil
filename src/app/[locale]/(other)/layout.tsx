@@ -2,7 +2,6 @@ import React from "react"
 import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
 import { Toaster } from "@/components/ui/toaster";
-import { unstable_setRequestLocale } from "next-intl/server";
 
 export default async function Layout({
   children,
@@ -11,7 +10,6 @@ export default async function Layout({
   children: React.ReactNode,
   params: { locale: string }
 }) {
-  unstable_setRequestLocale(locale);
 
   return (
     <>

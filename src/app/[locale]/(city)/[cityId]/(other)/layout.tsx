@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { getMeetingData } from "@/lib/getMeetingData";
 import { PathElement } from "@/components/layout/Header";
 import { getCity } from "@/lib/db/cities";
-import { unstable_setRequestLocale } from "next-intl/server";
 
 export default async function CityInnerLayout({
     children,
@@ -12,7 +11,6 @@ export default async function CityInnerLayout({
     children: React.ReactNode,
     params: { locale: string, cityId: string }
 }) {
-    unstable_setRequestLocale(locale);
 
     const city = await getCity(cityId);
     if (!city) return null;

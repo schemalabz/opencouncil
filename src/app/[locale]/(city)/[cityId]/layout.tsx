@@ -1,6 +1,5 @@
 import { getCity } from "@/lib/db/cities";
 import { notFound } from "next/navigation";
-import { unstable_setRequestLocale } from "next-intl/server";
 
 export default async function CityLayout({
     children,
@@ -9,7 +8,6 @@ export default async function CityLayout({
     children: React.ReactNode,
     params: { locale: string, cityId: string }
 }) {
-    unstable_setRequestLocale(locale);
 
     const city = await getCity(cityId);
     if (!city) {
