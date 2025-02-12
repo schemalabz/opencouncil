@@ -31,7 +31,7 @@ export function Hero() {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 w-full"
+                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8"
             >
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1
@@ -58,7 +58,7 @@ export function Hero() {
                 </motion.div>
                 <motion.p
                     variants={item}
-                    className="text-xs sm:text-sm md:text-base text-muted-foreground mx-auto leading-relaxed"
+                    className="text-sm sm:text-lg md:text-xl lg:text-2xl text-muted-foreground mx-auto leading-relaxed"
                 >
                     To OpenCouncil χρησιμοποιεί{' '}
                     <motion.em

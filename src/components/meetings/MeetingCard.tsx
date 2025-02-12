@@ -108,19 +108,31 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
 
                     <div className="space-y-3 sm:space-y-4 flex flex-col flex-grow">
                         <div className="space-y-2">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {mostRecent && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className="inline-flex items-center gap-1 text-xs sm:text-sm text-primary font-medium"
+                                        >
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                            {t('mostRecent')}
+                                        </motion.div>
+                                    )}
+                                    {isUpcoming && (
+                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                        </Badge>
+                                    )}
+                                </div>
                                 <motion.h3
                                     className="text-lg sm:text-xl font-bold text-foreground/90 line-clamp-2"
                                     animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
                                 >
                                     {meeting.name}
                                 </motion.h3>
-                                {isUpcoming && (
-                                    <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
-                                        <Clock className="w-3.5 h-3.5" />
-                                        Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
-                                    </Badge>
-                                )}
                             </div>
                             <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
                                 <motion.div
@@ -172,13 +184,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                             </div>
                         )}
                     </div>
-                    {mostRecent && (
-                        <div className="absolute -top-3 -right-3 z-10">
-                            <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
-                                {t('mostRecent')}
-                            </Badge>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
         </motion.div>
