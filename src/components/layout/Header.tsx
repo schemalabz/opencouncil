@@ -22,7 +22,6 @@ interface HeaderProps {
     currentEntity?: { cityId: string }
     children?: React.ReactNode
 }
-
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children }: HeaderProps) => {
     return (
         <motion.header
@@ -87,10 +86,10 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children }: H
                             </div>
                         ))}
                     </div>
-                    {children}
                 </div>
 
                 <div className="flex items-center gap-4 flex-shrink-0 ml-2 md:ml-4">
+                    {children}
                     <UserDropdown currentEntity={currentEntity} />
                 </div>
             </div>

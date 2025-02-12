@@ -20,6 +20,8 @@ import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon } from 'lucid
 import { Link } from '@/i18n/routing';
 import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
+import { Switch } from '@/components/ui/switch';
+import EditSwitch from '@/components/meetings/edit-switch';
 
 /*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
@@ -138,7 +140,9 @@ export default async function CouncilMeetingPage({
                         ]}
                         showSidebarTrigger={true}
                         currentEntity={{ cityId: data.city.id }}
-                    />
+                    >
+                        <EditSwitch />
+                    </Header>
                     <div className="flex flex-1 min-h-0 w-full">
                         <MeetingSidebar />
                         <div className="flex flex-col flex-1">
