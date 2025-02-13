@@ -13,7 +13,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
     const isRegion = offer.recipientName.startsWith("Περιφέρεια"); // awful, fix this
 
     const CTABox = () => (
-        <Card className="my-8 bg-blue-50 print:break-inside-avoid print:my-6">
+        <Card className="my-8 bg-blue-50 print:break-inside-avoid print:my-6 print:bg-blue-50">
             <CardContent className="p-6">
                 <p className="text-center">
                     Για να απαντήσετε σε αυτή τη προσφορά, στείλτε μoυ ένα email στο <a href={`mailto:${offer.respondToEmail}`}>{offer.respondToEmail}</a>.
@@ -424,11 +424,13 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 }
 
 export function OfferLetterNotice({ offer }: { offer: Offer }) {
+    const [qrLoaded, setQrLoaded] = useState(false);
+
     return (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-transparent print:border-none">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-blue-50 print:border-none">
             <div>
                 <p className="hidden print:block">
-                    Μπορείτε να δείτε αυτή τη προσφορά ηλεκτρονικά σκανάροντας το QR code.
+                    Μπορείτε να δείτε τη πιο πρόσφατη έκδοση αυτής της προσφοράς ηλεκτρονικά σκανάροντας το QR code.
                 </p>
                 <p className="print:hidden">
                     Αυτή η προσφορά μπορεί να εκτυπωθεί και να αποθηκευτεί σαν PDF, ή μπορείτε να τη μοιραστείτε με συνεργάτες
@@ -441,6 +443,9 @@ export function OfferLetterNotice({ offer }: { offer: Offer }) {
                     alt="QR Code"
                     width={100}
                     height={100}
+                    onLoad={() => setQrLoaded(true)}
+                    priority
+                    className={qrLoaded ? 'opacity-100' : 'opacity-0'}
                     unoptimized
                 />
             </div>
