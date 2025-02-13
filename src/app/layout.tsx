@@ -15,6 +15,12 @@ const fontSans = FontSans({
 export const metadata = {
     title: 'OpenCouncil',
     description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+    viewport: {
+        width: 'device-width',
+        initialScale: 1,
+        maximumScale: 1,
+        userScalable: false,
+    },
     icons: {
         icon: '/favicon.ico',
     },
@@ -55,6 +61,9 @@ export default async function RootLayout({
 
     return (
         <html lang={locale} suppressHydrationWarning>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+            </head>
             <body
                 className={cn(
                     "min-h-screen bg-background font-sans antialiased",

@@ -124,7 +124,7 @@ export default async function CouncilMeetingPage({
     return (
         <CouncilMeetingWrapper meetingData={data} editable={editable}>
             <SidebarProvider>
-                <div className="flex min-h-screen flex-col w-full">
+                <div className="h-screen w-full flex flex-col overflow-hidden">
                     <Header
                         path={[
                             {
@@ -144,10 +144,10 @@ export default async function CouncilMeetingPage({
                     >
                         <EditSwitch />
                     </Header>
-                    <div className="flex flex-1 min-h-0 w-full">
+                    <div className="flex-1 flex min-h-0">
                         <MeetingSidebar />
-                        <div className="flex flex-col flex-1">
-                            <div className='flex-1 pb-20'>
+                        <div className="flex-1 overflow-auto">
+                            <div className='pb-20'>
                                 {children}
                             </div>
                             {data.meeting.muxPlaybackId && <TranscriptControls />}

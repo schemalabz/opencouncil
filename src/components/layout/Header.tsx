@@ -29,7 +29,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
     return (
         <motion.header
-            className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex justify-between items-center min-h-[80px] relative"
+            className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-full flex justify-between items-center min-h-[80px] relative"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
@@ -162,7 +162,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 flex-shrink-0 ml-2 md:ml-4">
+                        <div className="flex items-center gap-4 flex-shrink-0">
                             {children}
                             <UserDropdown currentEntity={currentEntity} />
                         </div>
