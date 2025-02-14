@@ -126,6 +126,11 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                                             Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
                                         </Badge>
                                     )}
+                                    {!meeting.released && (
+                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-destructive/5 text-destructive border-destructive/20">
+                                            {t('notPublic')}
+                                        </Badge>
+                                    )}
                                 </div>
                                 <motion.h3
                                     className="text-lg sm:text-xl font-bold text-foreground/90 line-clamp-2"
