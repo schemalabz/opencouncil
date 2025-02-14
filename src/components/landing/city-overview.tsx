@@ -1,3 +1,4 @@
+"use client"
 import { Users, Building2, CalendarDays } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
@@ -110,7 +111,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             {city.recentSubjects.length > 0 && (
                 <motion.div
                     variants={item}
-                    className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/50"
+                    className="relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/50 z-0"
                 >
                     <Marquee
                         pauseOnHover
@@ -136,8 +137,8 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                             ))}
                         </div>
                     </Marquee>
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-background to-transparent"></div>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-background to-transparent"></div>
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-background to-transparent z-10"></div>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-background to-transparent z-10"></div>
                 </motion.div>
             )}
         </motion.div>

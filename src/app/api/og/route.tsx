@@ -97,9 +97,11 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={data.city.logoImage}
-                            width="80"
                             height="80"
                             alt="City Logo"
+                            style={{
+                                objectFit: 'contain',
+                            }}
                         />
                     )}
                     <div style={{
@@ -258,7 +260,6 @@ const CityOGImage = async (cityId: string) => {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={city.logoImage}
-                            width="160"
                             height="160"
                             alt={`${city.name} logo`}
                             style={{

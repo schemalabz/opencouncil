@@ -229,8 +229,11 @@
         "noVideo": "No media",
         "withVideo": "With video",
         "withAudio": "Audio",
+        "withAgenda": "With agenda",
         "subjects": "subjects",
         "moreSubjects": "and {count} more subjects",
-        "mostRecent": "Most recent meeting"
+        "mostRecent": "Most recent meeting",
+        "loading": "Loading...",
+        "notPublic": "Not public"
     }
 }

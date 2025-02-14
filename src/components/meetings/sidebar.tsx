@@ -78,11 +78,11 @@ export default function MeetingSidebar() {
     ]
 
     return (
-        <Sidebar collapsible="icon" className="h-full">
-            <SidebarHeader className="p-4">
+        <Sidebar collapsible="icon" className="h-[calc(100vh-theme(spacing.14))] flex flex-col">
+            <SidebarHeader className="flex-none p-4">
                 <ControlsWidget />
             </SidebarHeader>
-            <SidebarContent>
+            <SidebarContent className="flex-1 min-h-0">
                 <SidebarGroup>
                     <SidebarGroupContent>
                         <SidebarMenu>
@@ -131,9 +131,8 @@ export default function MeetingSidebar() {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+                <div className="h-20 shrink-0" />
             </SidebarContent>
-            <SidebarFooter className="p-4">
-            </SidebarFooter>
         </Sidebar>
     )
 }

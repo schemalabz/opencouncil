@@ -6,17 +6,22 @@ import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
-import { unstable_setRequestLocale } from 'next-intl/server';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
-import Header from '@/components/meetings/Header';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { getStatisticsFor } from '@/lib/statistics';
 import { getMeetingData, MeetingData } from '@/lib/getMeetingData';
 import { cache } from 'react'
+import Header from '@/components/layout/Header';
+import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon } from 'lucide-react';
+import { Link } from '@/i18n/routing';
+import { formatDate } from 'date-fns';
+import { el, enUS } from 'date-fns/locale';
+import { Switch } from '@/components/ui/switch';
+import EditSwitch from '@/components/meetings/edit-switch';
 
 /*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
@@ -98,7 +103,6 @@ export default async function CouncilMeetingPage({
     params: { meetingId: string; cityId: string, locale: string },
     children: React.ReactNode
 }) {
-    unstable_setRequestLocale(locale);
 
     const data = await getMeetingDataCached(cityId, meetingId);
 
@@ -109,16 +113,48 @@ export default async function CouncilMeetingPage({
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
     const editable = await isUserAuthorizedToEdit({ councilMeetingId: data.meeting.id });
-    return <CouncilMeetingWrapper meetingData={data} editable={editable}>
-        <SidebarProvider>
-            <MeetingSidebar />
-            <div className="flex flex-col flex-1">
-                <Header />
-                <div className='mr-16 md:mr-0 md:mb-16'>
-                    {children}
+
+    // Format meeting description to include more info
+    const meetingDescription = [
+        formatDate(new Date(data.meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS }),
+        data.meeting.videoUrl ? "Βίντεο διαθέσιμο" : null,
+        `${data.subjects.length} θέματα`
+    ].filter(Boolean).join(' · ');
+
+    return (
+        <CouncilMeetingWrapper meetingData={data} editable={editable}>
+            <SidebarProvider>
+                <div className="h-screen w-full flex flex-col overflow-hidden">
+                    <Header
+                        path={[
+                            {
+                                name: data.city.name,
+                                link: `/${cityId}`,
+                                city: data.city
+                            },
+                            {
+                                name: data.meeting.name,
+                                link: `/${cityId}/${meetingId}`,
+                                description: meetingDescription
+                            }
+                        ]}
+                        showSidebarTrigger={true}
+                        currentEntity={{ cityId: data.city.id }}
+                        noContainer={true}
+                    >
+                        <EditSwitch />
+                    </Header>
+                    <div className="flex-1 flex min-h-0">
+                        <MeetingSidebar />
+                        <div className="flex-1 overflow-auto">
+                            <div className='pb-20'>
+                                {children}
+                            </div>
+                            {data.meeting.muxPlaybackId && <TranscriptControls />}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            {data.meeting.muxPlaybackId && <TranscriptControls />}
-        </SidebarProvider>
-    </CouncilMeetingWrapper >
+            </SidebarProvider>
+        </CouncilMeetingWrapper>
+    );
 }

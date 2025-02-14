@@ -3,12 +3,8 @@
 import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Play, Pause, MessageSquare, FileText, CheckCircle, BotMessageSquare, NotepadText, Settings2, LayoutList, Sparkles, X, Wrench, Share, Loader, Menu, ChartArea, BarChart, BarChart2, BarChart3, MessageSquareQuote } from "lucide-react"
-import { SpeakerTag, Utterance, Word, CouncilMeeting, City, Person, Party, HighlightedUtterance } from '@prisma/client'
 import AdminActions from './admin/Admin'
-import Navbar from './Navbar'
-import TranscriptControls from './TranscriptControls'
 import { useVideo, VideoProvider } from './VideoProvider'
-import Header from './Header'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Options } from './options/Options'
 import { TranscriptOptionsProvider } from './options/OptionsContext'

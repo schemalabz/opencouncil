@@ -4,6 +4,8 @@ import { cn } from "../lib/utils"
 import React from "react"
 import PlausibleProvider from 'next-plausible'
 import { SessionProvider } from "next-auth/react"
+import { Toaster } from "@/components/ui/toaster";
+import { routing } from "@/i18n/routing";
 
 const fontSans = FontSans({
     subsets: ["latin"],
@@ -13,6 +15,12 @@ const fontSans = FontSans({
 export const metadata = {
     title: 'OpenCouncil',
     description: 'Ανοιχτή τοπική αυτοδιοίκηση',
+    viewport: {
+        width: 'device-width',
+        initialScale: 1,
+        maximumScale: 1,
+        userScalable: false,
+    },
     icons: {
         icon: '/favicon.ico',
     },
@@ -39,14 +47,23 @@ export const metadata = {
     },
 }
 
-type RootLayoutProps = {
-    children: React.ReactNode
-    params: { locale: string }
+export function generateStaticParams() {
+    return routing.locales.map((locale) => ({ locale }));
 }
 
-export default async function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({
+    children,
+    params: { locale }
+}: {
+    children: React.ReactNode,
+    params: { locale: string }
+}) {
+
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html lang={locale} suppressHydrationWarning>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+            </head>
             <body
                 className={cn(
                     "min-h-screen bg-background font-sans antialiased",
@@ -56,9 +73,10 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                 <SessionProvider>
                     <PlausibleProvider domain="opencouncil.gr">
                         {children}
+                        <Toaster />
                     </PlausibleProvider>
                 </SessionProvider>
             </body>
-        </html >
-    )
+        </html>
+    );
 }

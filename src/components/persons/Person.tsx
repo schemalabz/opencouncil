@@ -78,14 +78,15 @@ export default function PersonC({ city, person, parties }: { city: City, person:
     };
 
     return (
-        <div className="relative min-h-screen">
-            <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8">
+        <div className="relative min-h-screen bg-background">
+            <div className="relative max-w-7xl mx-auto py-6 sm:py-12 px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
+                    className="space-y-6 sm:space-y-12"
                 >
-                    <Breadcrumb className="mb-8">
+                    <Breadcrumb className="mb-4 sm:mb-8">
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
@@ -106,14 +107,14 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                     </Breadcrumb>
 
                     {/* Hero Section */}
-                    <div className="flex flex-col md:flex-row items-start justify-between mb-12 gap-6">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
                         <motion.div
-                            className="flex flex-col md:flex-row items-center gap-6 md:space-x-8"
+                            className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 w-full"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                         >
-                            <div className="relative w-32 h-32 md:w-40 md:h-40">
+                            <div className="relative w-32 h-32 sm:w-40 sm:h-40 shrink-0">
                                 <ImageOrInitials
                                     imageUrl={person.image}
                                     name={person.name}
@@ -121,16 +122,16 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                     height={160}
                                 />
                             </div>
-                            <div className="text-center md:text-left space-y-3">
+                            <div className="text-center sm:text-left space-y-4 flex-grow">
                                 <motion.h1
-                                    className="text-4xl md:text-5xl font-normal tracking-tight"
+                                    className="text-3xl sm:text-4xl lg:text-5xl font-normal tracking-tight"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2 }}
                                 >
                                     {person.name}
                                 </motion.h1>
-                                <div className="flex flex-col md:flex-row items-center md:items-start gap-3">
+                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4">
                                     {person.party && (
                                         <motion.div
                                             initial={{ opacity: 0 }}
@@ -142,7 +143,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                                 href={`/${person.cityId}/parties/${person.party.id}`}
                                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                             >
-                                                <div className="relative w-6 h-6">
+                                                <div className="relative w-5 h-5 sm:w-6 sm:h-6">
                                                     <ImageOrInitials
                                                         imageUrl={person.party.logo}
                                                         name={person.party.name_short}
@@ -151,7 +152,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                                         height={24}
                                                     />
                                                 </div>
-                                                <span className="text-lg text-muted-foreground">
+                                                <span className="text-base sm:text-lg text-muted-foreground">
                                                     {person.party.name}
                                                 </span>
                                             </Link>
@@ -162,7 +163,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.4 }}
-                                            className="text-lg text-muted-foreground"
+                                            className="text-base sm:text-lg text-muted-foreground"
                                         >
                                             {person.role}
                                         </motion.div>
@@ -173,7 +174,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                         href={person.profileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm sm:text-base"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.5 }}
@@ -183,35 +184,35 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                     </motion.a>
                                 )}
                             </div>
+                            {canEdit && (
+                                <motion.div
+                                    className="flex items-center gap-3 sm:ml-auto"
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.5 }}
+                                >
+                                    <FormSheet
+                                        FormComponent={PersonForm}
+                                        formProps={{
+                                            person,
+                                            cityId: person.cityId,
+                                            parties
+                                        }}
+                                        title={t('editPerson')}
+                                        type="edit"
+                                    />
+                                    <Button variant="destructive" onClick={onDelete}>
+                                        {t('deletePerson')}
+                                    </Button>
+                                </motion.div>
+                            )}
                         </motion.div>
-                        {canEdit && (
-                            <motion.div
-                                className="flex items-center gap-3"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                <FormSheet
-                                    FormComponent={PersonForm}
-                                    formProps={{
-                                        person,
-                                        cityId: person.cityId,
-                                        parties
-                                    }}
-                                    title={t('editPerson')}
-                                    type="edit"
-                                />
-                                <Button variant="destructive" onClick={onDelete}>
-                                    {t('deletePerson')}
-                                </Button>
-                            </motion.div>
-                        )}
                     </div>
 
                     {/* Search Section */}
                     <motion.form
                         onSubmit={handleSearch}
-                        className="relative mb-12 max-w-2xl mx-auto"
+                        className="relative max-w-2xl mx-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 }}
@@ -219,7 +220,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                         <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
                             placeholder={t('searchForPerson', { personName: person.name })}
-                            className="pl-12 w-full h-12 text-lg"
+                            className="pl-12 w-full h-12 text-base sm:text-lg"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -227,13 +228,13 @@ export default function PersonC({ city, person, parties }: { city: City, person:
 
                     {/* Statistics Section */}
                     <motion.div
-                        className="mb-12"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
+                        className="rounded-xl overflow-hidden"
                     >
-                        <h2 className="text-2xl font-normal tracking-tight mb-6">{t('statistics')}</h2>
-                        <div className="bg-card rounded-lg border shadow-sm p-6">
+                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('statistics')}</h2>
+                        <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6">
                             <Statistics type="person" id={person.id} cityId={city.id} />
                         </div>
                     </motion.div>
@@ -244,14 +245,14 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 }}
                     >
-                        <h2 className="text-2xl font-normal tracking-tight mb-6">Πρόσφατες τοποθετήσεις</h2>
-                        <div className="space-y-4">
+                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">Πρόσφατες τοποθετήσεις</h2>
+                        <div className="space-y-3 sm:space-y-4">
                             {latestSegments.map((result, index) => (
                                 <motion.div
                                     key={index}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 * index }}
+                                    transition={{ delay: 0.1 * index }}
                                 >
                                     <Result result={result} />
                                 </motion.div>

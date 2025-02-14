@@ -1,6 +1,6 @@
 'use client'
 import { CouncilMeeting, Subject, Topic } from '@prisma/client';
-import { useRouter } from '../../i18n/routing';
+import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState } from 'react';
@@ -45,12 +45,18 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
+    const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
-    const handleClick = () => {
+    useEffect(() => {
+        setIsLoading(false);
+    }, [pathname]);
+
+    const handleClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
         setIsLoading(true);
-        router.push(`/${meeting.cityId}/${meeting.id}`);
+        await router.push(`/${meeting.cityId}/${meeting.id}`);
     };
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
@@ -84,84 +90,106 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                 )}
                 onClick={handleClick}
             >
-                {isLoading ? (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm"
-                    >
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    </motion.div>
-                ) : (
-                    <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
-                        <div className="space-y-3 sm:space-y-4 flex flex-col flex-grow">
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-start gap-2">
-                                    <motion.h3 
-                                        className="text-lg sm:text-xl font-bold text-foreground/90 line-clamp-2"
-                                        animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
-                                    >
-                                        {meeting.name}
-                                    </motion.h3>
+                <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
+                    {isLoading && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="absolute inset-0 left-0 top-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-20"
+                        >
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                <span className="text-sm text-muted-foreground animate-pulse">
+                                    {t('loading')}
+                                </span>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    <div className="space-y-3 sm:space-y-4 flex flex-col flex-grow">
+                        <div className="space-y-2">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {mostRecent && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.8 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className="inline-flex items-center gap-1 text-xs sm:text-sm text-primary font-medium"
+                                        >
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                            {t('mostRecent')}
+                                        </motion.div>
+                                    )}
                                     {isUpcoming && (
-                                        <Badge variant="outline" className="shrink-0 flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
+                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
                                             <Clock className="w-3.5 h-3.5" />
                                             Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
                                         </Badge>
                                     )}
-                                </div>
-                                <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
-                                    <motion.div 
-                                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                        whileHover={{ scale: 1.05 }}
-                                    >
-                                        <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                        {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
-                                    </motion.div>
-                                    <motion.div 
-                                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                        whileHover={{ scale: 1.05 }}
-                                    >
-                                        {getMediaIcon()}
-                                        {getMediaStatus()}
-                                    </motion.div>
-                                    <motion.div 
-                                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                        whileHover={{ scale: 1.05 }}
-                                    >
-                                        <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                        {meeting.subjects.length} {t('subjects')}
-                                    </motion.div>
-                                </div>
-                            </div>
-
-                            {meeting.subjects.length > 0 && (
-                                <div className="space-y-2">
-                                    <div className="flex flex-col gap-1.5">
-                                        {meeting.subjects.slice(0, 3).map((subject) => (
-                                            <motion.div
-                                                key={subject.id}
-                                                whileHover={{ x: 4 }}
-                                                className="flex items-center gap-2"
-                                            >
-                                                <SubjectBadge subject={subject} />
-                                            </motion.div>
-                                        ))}
-                                    </div>
-                                    {remainingSubjectsCount > 0 && (
-                                        <motion.div
-                                            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
-                                            whileHover={{ x: 4 }}
-                                        >
-                                            <span>+{remainingSubjectsCount} ακόμα θέματα</span>
-                                            <ChevronRight className="w-4 h-4" />
-                                        </motion.div>
+                                    {!meeting.released && (
+                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-destructive/5 text-destructive border-destructive/20">
+                                            {t('notPublic')}
+                                        </Badge>
                                     )}
                                 </div>
-                            )}
+                                <motion.h3
+                                    className="text-lg sm:text-xl font-bold text-foreground/90 line-clamp-2"
+                                    animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
+                                >
+                                    {meeting.name}
+                                </motion.h3>
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
+                                <motion.div
+                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
+                                    whileHover={{ scale: 1.05 }}
+                                >
+                                    <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
+                                </motion.div>
+                                <motion.div
+                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
+                                    whileHover={{ scale: 1.05 }}
+                                >
+                                    {getMediaIcon()}
+                                    {getMediaStatus()}
+                                </motion.div>
+                                <motion.div
+                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
+                                    whileHover={{ scale: 1.05 }}
+                                >
+                                    <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    {meeting.subjects.length} {t('subjects')}
+                                </motion.div>
+                            </div>
                         </div>
-                    </CardContent>
-                )}
+
+                        {meeting.subjects.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5">
+                                    {meeting.subjects.slice(0, 3).map((subject) => (
+                                        <motion.div
+                                            key={subject.id}
+                                            whileHover={{ x: 4 }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <SubjectBadge subject={subject} />
+                                        </motion.div>
+                                    ))}
+                                </div>
+                                {remainingSubjectsCount > 0 && (
+                                    <motion.div
+                                        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
+                                        whileHover={{ x: 4 }}
+                                    >
+                                        <span>+{remainingSubjectsCount} ακόμα θέματα</span>
+                                        <ChevronRight className="w-4 h-4" />
+                                    </motion.div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
             </Card>
         </motion.div>
     );

@@ -1,5 +1,5 @@
 "use client"
-import { Play, Pause, Loader, Maximize2 } from "lucide-react"
+import { Play, Pause, Loader, Maximize2, ChevronLeft, ChevronRight, SlidersHorizontal, Youtube } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
 import { SpeakerTag } from "@prisma/client";
@@ -17,6 +17,7 @@ export default function TranscriptControls({ className }: { className?: string }
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
     const [isWide, setIsWide] = useState(false);
+    const [isControlsVisible, setIsControlsVisible] = useState(true);
 
     useEffect(() => {
         const checkSize = () => {
@@ -97,13 +98,30 @@ export default function TranscriptControls({ className }: { className?: string }
 
     return (
         <>
+            {!isWide && (
+                <button
+                    onClick={() => setIsControlsVisible(prev => !prev)}
+                    className={`fixed bottom-4 ${isControlsVisible ? 'right-[4.5rem]' : 'right-2'} 
+                    z-50 bg-white hover:bg-gray-50 opacity-95 border shadow-lg transition-all duration-200
+                    p-2 rounded-lg flex items-center gap-1.5`}
+                    aria-label={isControlsVisible ? "Hide controls" : "Show controls"}
+                >
+                    <Youtube className="w-4 h-4" />
+                    {isControlsVisible ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+                </button>
+            )}
             <div
                 onMouseEnter={() => setIsSliderHovered(true)}
                 onMouseLeave={() => {
                     setIsSliderHovered(false);
                     handleMouseLeave();
                 }}
-                className={cn(`cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 right-2 bottom-2 w-16'} flex ${isWide ? 'flex-row' : 'flex-col'} items-center z-50 `, className)}>
+                className={cn(
+                    `cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 right-2 bottom-2 w-16'} 
+                    flex ${isWide ? 'flex-row' : 'flex-col'} items-center z-50 transition-transform duration-200`,
+                    !isWide && !isControlsVisible && 'translate-x-[4.5rem]',
+                    className
+                )}>
 
                 <button
                     onClick={togglePlayPause}

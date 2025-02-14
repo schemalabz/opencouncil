@@ -96,28 +96,15 @@ export default function CityC({ city }: {
     return (
         <div className="relative min-h-screen">
             {/* Main Content */}
-            <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8">
+            <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8 z-0">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <Breadcrumb className="mb-8">
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <Link href="/">Αρχική</Link>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href={`/${city.id}`}>{city.name}</BreadcrumbLink>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
 
                     {/* Hero Section */}
-                    <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+                    <div className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-12 gap-6">
                         <motion.div
                             className="flex flex-col md:flex-row items-center gap-6 md:space-x-8"
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -191,7 +178,7 @@ export default function CityC({ city }: {
                     {/* Search Section */}
                     <motion.form
                         onSubmit={handleSearch}
-                        className="relative mb-12 max-w-2xl mx-auto"
+                        className="relative mb-8 md:mb-12 max-w-2xl mx-auto"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 }}
@@ -216,22 +203,22 @@ export default function CityC({ city }: {
                                 <Loader2 className="w-6 h-6 animate-spin" />
                             </div>
                         }>
-                            <Tabs defaultValue="meetings" className="space-y-8">
+                            <Tabs defaultValue="meetings" className="space-y-6 md:space-y-8">
                                 <div className="flex justify-center">
-                                    <TabsList className="gap-8 p-1 bg-background/80 backdrop-blur-sm">
-                                        <TabsTrigger value="meetings" className="px-6 py-2 text-base">
+                                    <TabsList className="gap-2 sm:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full flex justify-center">
+                                        <TabsTrigger value="meetings" className="px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap">
                                             {t('councilMeetings')}
                                         </TabsTrigger>
-                                        <TabsTrigger value="members" className="px-6 py-2 text-base">
+                                        <TabsTrigger value="members" className="px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap">
                                             {t('members')}
                                         </TabsTrigger>
-                                        <TabsTrigger value="parties" className="px-6 py-2 text-base">
+                                        <TabsTrigger value="parties" className="px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap">
                                             {t('parties')}
                                         </TabsTrigger>
                                     </TabsList>
                                 </div>
 
-                                <TabsContent value="meetings" className="space-y-6">
+                                <TabsContent value="meetings" className="space-y-4 md:space-y-6">
                                     <List
                                         items={orderedMeetings}
                                         editable={canEdit}
@@ -247,7 +234,7 @@ export default function CityC({ city }: {
                                     />
                                 </TabsContent>
 
-                                <TabsContent value="members" className="space-y-6">
+                                <TabsContent value="members" className="space-y-4 md:space-y-6">
                                     <List
                                         items={orderedPersons}
                                         editable={canEdit}
@@ -261,7 +248,7 @@ export default function CityC({ city }: {
                                     />
                                 </TabsContent>
 
-                                <TabsContent value="parties" className="space-y-6">
+                                <TabsContent value="parties" className="space-y-4 md:space-y-6">
                                     <List
                                         items={orderedParties}
                                         editable={canEdit}

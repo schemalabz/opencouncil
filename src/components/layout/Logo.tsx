@@ -3,9 +3,9 @@ import Image from 'next/image'
 import { Link } from '@/i18n/routing';
 import { cn } from "@/lib/utils"
 
-const Logo = () => {
+const Logo = ({ className }: { className?: string }) => {
     return (
-        <Link href="/" className={cn("flex items-center")}>
+        <Link href="/" className={cn("flex items-center", className)}>
             <Image
                 src="/logo.png"
                 alt="OpenCouncil Logo"

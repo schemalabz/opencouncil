@@ -44,6 +44,9 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
             councilMeetings: {
                 where: {
                     released: true,
+                    dateTime: {
+                        lte: new Date()
+                    },
                 },
                 orderBy: {
                     dateTime: 'desc'

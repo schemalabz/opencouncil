@@ -13,7 +13,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
     const isRegion = offer.recipientName.startsWith("Περιφέρεια"); // awful, fix this
 
     const CTABox = () => (
-        <Card className="my-8 bg-blue-50 print:break-inside-avoid">
+        <Card className="my-8 bg-blue-50 print:break-inside-avoid print:my-6 print:bg-blue-50">
             <CardContent className="p-6">
                 <p className="text-center">
                     Για να απαντήσετε σε αυτή τη προσφορά, στείλτε μoυ ένα email στο <a href={`mailto:${offer.respondToEmail}`}>{offer.respondToEmail}</a>.
@@ -23,9 +23,9 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
         </Card>
     )
     return (
-        <div className="mx-auto sm:p-8 print:p-4 space-y-8 print:space-y-4 print:text-sm">
+        <div className="max-w-7xl mx-auto sm:p-8 print:p-0 print:py-8 print:px-12 space-y-8 print:space-y-6 print:text-sm">
             <OfferLetterNotice offer={offer} />
-            <header className="text-center space-y-4">
+            <header className="text-center space-y-4 print:break-after-avoid">
                 <div className="flex items-center justify-center gap-4">
                     <Image
                         src="/logo.png"
@@ -47,18 +47,18 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </p>
             </header>
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid">
                 <h3 className="text-2xl font-semibold mb-4">Περίοδος παροχής υπηρεσιών</h3>
                 <p>Από <span className="font-bold">{formatDate(offer.startDate)}</span> έως <span className="font-bold">{formatDate(offer.endDate)}</span> (τιμολογείται ως <span className="font-bold">{months} μήνες</span>).</p>
                 <p>Δωρεάν δοκιμαστική περίοδος μέχρι τότε.</p>
             </section>
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page bg-white">
                 <h3 className="text-2xl font-semibold mb-4">Κόστος</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[500px] print:text-xs">
+                <div className="overflow-x-auto bg-white">
+                    <table className="w-full min-w-[500px] print:text-xs print:w-full bg-white">
                         <thead>
-                            <tr className="border-b">
+                            <tr className="border-b bg-white">
                                 <th className="text-left py-2">Υπηρεσία</th>
                                 <th className="text-right py-2">Μονάδα</th>
                                 <th className="text-right py-2">Τιμή</th>
@@ -66,43 +66,43 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr className="border-b">
+                            <tr className="border-b bg-white">
                                 <td className="py-2">Πλατφόρμα OpenCouncil</td>
                                 <td className="text-right">{months} μήνες</td>
                                 <td className="text-right">{formatCurrency(offer.platformPrice)}/μήνα</td>
                                 <td className="text-right">{formatCurrency(platformTotal)}</td>
                             </tr>
-                            <tr className="border-b">
+                            <tr className="border-b bg-white">
                                 <td className="py-2">Ψηφιοποίηση συνεδριάσεων</td>
                                 <td className="text-right">{offer.hoursToIngest} ώρες</td>
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
                             {offer.correctnessGuarantee && offer.meetingsToIngest && (
-                                <tr className="border-b">
+                                <tr className="border-b bg-white">
                                     <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
                                     <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
                                     <td className="text-right">{formatCurrency(correctnessGuaranteeCost / offer.meetingsToIngest)}/συνεδρίαση</td>
                                     <td className="text-right">{formatCurrency(correctnessGuaranteeCost)}</td>
                                 </tr>
                             )}
-                            <tr>
+                            <tr className="bg-white">
                                 <td className="py-2">Πιλοτικές λειτουργίες</td>
                                 <td className="text-right">∞</td>
                                 <td className="text-right">{formatCurrency(0)}</td>
                                 <td className="text-right">{formatCurrency(0)}</td>
                             </tr>
-                            <tr className="border-b">
+                            <tr className="border-b bg-white">
                                 <td colSpan={3} className="text-right py-2">Μερικό Σύνολο</td>
                                 <td className="text-right">{formatCurrency(subtotal)}</td>
                             </tr>
                             {discount > 0 && (
-                                <tr className="border-b">
+                                <tr className="border-b bg-white">
                                     <td colSpan={3} className="text-right py-2">Έκπτωση για {isRegion ? "την" : "το"} {offer.recipientName} ({offer.discountPercentage}%)</td>
                                     <td className="text-right">-{formatCurrency(discount)}</td>
                                 </tr>
                             )}
-                            <tr>
+                            <tr className="bg-white">
                                 <td colSpan={3} className="text-right py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
                                 <td className="text-right font-bold">{formatCurrency(total)}</td>
                             </tr>
@@ -112,24 +112,24 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <p className="mt-4 text-sm text-gray-600">* Οι τιμές δεν περιλαμβάνουν ΦΠΑ</p>
             </section>
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page bg-white">
                 <h3 className="text-2xl font-semibold mb-4">Προτεινόμενο πλάνο πληρωμών</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[500px] print:text-xs">
+                <div className="overflow-x-auto bg-white">
+                    <table className="w-full min-w-[500px] print:text-xs print:w-full bg-white">
                         <thead>
-                            <tr className="border-b">
+                            <tr className="border-b bg-white">
                                 <th className="text-left py-2">Ημερομηνία</th>
                                 <th className="text-right py-2">Ποσό</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paymentPlan.map((payment, i) => (
-                                <tr key={i} className="border-b">
+                                <tr key={i} className="border-b bg-white">
                                     <td className="py-2">{formatDate(payment.dueDate)}</td>
                                     <td className="text-right">{formatCurrency(payment.amount)}</td>
                                 </tr>
                             ))}
-                            <tr>
+                            <tr className="bg-white">
                                 <td className="py-2 font-bold">Σύνολο (χωρίς ΦΠΑ)</td>
                                 <td className="text-right font-bold">{formatCurrency(total)}</td>
                             </tr>
@@ -141,16 +141,17 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 
             <CTABox />
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page">
                 <h3 className="text-2xl font-semibold mb-4">Επεξήγηση</h3>
                 <p className="mb-4">Αυτή η προσφορά αφορά κατά βάση δύο υπηρεσίες. Την εισαγωγή δημοσίων συνεδριάσεων (π.χ. {isRegion ? 'περιφερειακών' : 'δημοτικών'} συμβουλίων) στη πλατφόρμα του OpenCouncil, και την δυνατότητα ελεύθερης χρήσης της πλατφόρμας OpenCouncil από {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'} {isRegion ? 'της περιφέρειας' : 'του δήμου'} κατά τη διάρκεια της περιόδου παροχής υπηρεσιών.</p>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-2 gap-4 print:gap-6">
 
                     <ModuleCard
                         title="Ψηφιοποίηση συνεδριάσεων"
                         subtitle="Απομαγνητοφώνηση δημοσίων συνεδριάσεων και ενσωμάτωσή τους στη πλατφόρμα OpenCouncil"
                         icon={<FileText className="w-10 h-10 mb-2" />}
                         restriction={`Μέχρι ${offer.hoursToIngest} ώρες δημόσιων συνεδριάσεων`}
+                        className="print:break-inside-avoid"
                     >
                         <p>
                             Η ψηφιοποίηση συνεδριάσεων αφορά τη διαδικασία μετατροπής του βίντεο μιας συνεδρίασης σε μορφή κειμένου που είναι αναγνώσιμη από μηχανές,
@@ -246,7 +247,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </div>
             </section>
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page">
                 <h3 className="text-2xl font-semibold mb-4">Τεχνικές προδιαγραφές</h3>
 
                 <ul className="space-y-2">
@@ -289,7 +290,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </ul>
             </section>
 
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page">
                 <h3 className="text-2xl font-semibold mb-4">Συμμετοχή σε πιλοτικές λειτουργίες</h3>
                 <p className="mb-4">
                     <em>Εφόσων και όταν το επιθυμείτε, θα έχετε τη δυνατότητα να ενεργοποιήσετε τις ακόλουθες πιλοτικές λειτουργίες του OpenCouncil</em> κατά τη διάρκεια της περιόδου παροχής υπηρεσιών.
@@ -297,7 +298,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     Οι λειτουργίες αυτές δεν είναι εγγυημένες αλλά θα παρέχονται κατόπιν προηγούμενης συνεννόησης. Η συμμετοχή στις πιλοτικές λειτουργίες θα είναι δωρεάν,
                     με τους περιορισμούς που περιγράφονται παρκάτω.
                 </p>
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid md:grid-cols-3 gap-4 print:gap-6">
                     <ModuleCard
                         title="Άμεση ενημέρωση και διαβούλευση"
                         subtitle="Αυτόματη δημιουργία και αποστολή προσωποποιημένων μηνυμάτων σε πολίτες"
@@ -358,9 +359,9 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     </ModuleCard>
                 </div>
             </section >
-            <section className="mb-8">
+            <section className="mb-8 print:break-inside-avoid-page">
                 <h3 className="text-2xl font-semibold mb-4">Επιπλέον δωρεάν προνόμια</h3>
-                <ul className="grid md:grid-cols-2 gap-4">
+                <ul className="grid md:grid-cols-2 gap-4 print:gap-6">
                     <li className="flex items-center">
                         <Phone className="w-5 h-5 mr-2" />
                         <span>Άμεση τηλεφωνική υποστήριξη για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τα μέλη των συμβουλίων</span>
@@ -396,8 +397,8 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </ul>
             </section>
 
-            <div className="print:block">
-                <section className="mb-8">
+            <div className="print:mt-12 print:break-before-page print:block">
+                <section className="mb-8 print:break-inside-avoid">
                     <h3 className="text-2xl font-semibold mb-4">Στοιχεία Εταιρείας</h3>
                     <p className="">
                         <em className="no-underline">OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.</em><br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
@@ -407,8 +408,8 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     </p>
                 </section>
                 <CTABox />
-                <footer className="mt-8 text-right">
-                    <p className="mb-4">Με εκτίμηση,<br />εκ μέρους της ΟpenCouncil,</p>
+                <footer className="mt-8 text-right print:mt-12">
+                    <p className="mb-4 print:mb-6">Με εκτίμηση,<br />εκ μέρους της ΟpenCouncil,</p>
                     <p className="font-bold">{offer.respondToName}</p>
                     <p>{offer.respondToEmail}</p>
                     <p>{offer.respondToPhone}</p>
@@ -423,11 +424,13 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 }
 
 export function OfferLetterNotice({ offer }: { offer: Offer }) {
+    const [qrLoaded, setQrLoaded] = useState(false);
+
     return (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-transparent print:border-none">
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8 flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center print:bg-blue-50 print:border-none">
             <div>
                 <p className="hidden print:block">
-                    Μπορείτε να δείτε αυτή τη προσφορά ηλεκτρονικά σκανάροντας το QR code.
+                    Μπορείτε να δείτε τη πιο πρόσφατη έκδοση αυτής της προσφοράς ηλεκτρονικά σκανάροντας το QR code.
                 </p>
                 <p className="print:hidden">
                     Αυτή η προσφορά μπορεί να εκτυπωθεί και να αποθηκευτεί σαν PDF, ή μπορείτε να τη μοιραστείτε με συνεργάτες
@@ -440,6 +443,9 @@ export function OfferLetterNotice({ offer }: { offer: Offer }) {
                     alt="QR Code"
                     width={100}
                     height={100}
+                    onLoad={() => setQrLoaded(true)}
+                    priority
+                    className={qrLoaded ? 'opacity-100' : 'opacity-0'}
                     unoptimized
                 />
             </div>
@@ -475,9 +481,17 @@ function CopyToClipboardButton({ offer }: { offer: Offer }) {
         </Button>
     );
 }
-function ModuleCard({ title, subtitle, icon, restriction, children, piloting }: { title: string, subtitle: string, icon: React.ReactNode, restriction: string, children?: React.ReactNode, piloting?: boolean }) {
+function ModuleCard({ title, subtitle, icon, restriction, children, piloting, className }: {
+    title: string,
+    subtitle: string,
+    icon: React.ReactNode,
+    restriction: string,
+    children?: React.ReactNode,
+    piloting?: boolean,
+    className?: string
+}) {
     return (
-        <Card className="print:break-inside-avoid p-4 flex flex-col">
+        <Card className={`print:break-inside-avoid p-4 flex flex-col ${className || ''}`}>
             <CardHeader>
                 {icon}
                 <div className="flex items-center gap-2">

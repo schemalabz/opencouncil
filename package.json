@@ -19,6 +19,7 @@
     "production:build": "patch-package && prisma generate && prisma migrate deploy && next build",
     "production:start": "next start",
     "email": "tsx scripts/email_municipality.ts",
+    "import:people": "tsx scripts/insert_people.ts",
     "import:fill": "tsx prisma/import_administrations.ts --mode fill",
     "import:import": "tsx prisma/import_administrations.ts --mode import"
   },
@@ -81,7 +82,7 @@
     "mux": "^0.0.2",
     "next": "14.2.7",
     "next-auth": "^5.0.0-beta.25",
-    "next-intl": "^3.19.0",
+    "next-intl": "^3.26.3",
     "next-plausible": "^3.12.2",
     "pg": "^8.13.1",
     "querystring": "^0.2.1",

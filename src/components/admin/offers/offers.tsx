@@ -276,92 +276,14 @@ export default function Offers({ initialOffers }: { initialOffers: Offer[] }) {
                     <SheetTrigger asChild>
                         <Button className="mt-4">Add Offer</Button>
                     </SheetTrigger>
-                    <SheetContent>
+                    <SheetContent className="h-full overflow-y-auto">
                         <SheetHeader>
                             <SheetTitle>Add New Offer</SheetTitle>
                         </SheetHeader>
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            // Mock form submission
-                            const formData = new FormData(e.target as HTMLFormElement);
-                            const newOffer: Offer = {
-                                id: String(offers.length + 1),
-                                createdAt: new Date(),
-                                updatedAt: new Date(),
-                                type: 'pilot',
-                                startDate: new Date(formData.get('startDate') as string),
-                                endDate: new Date(formData.get('endDate') as string),
-                                recipientName: formData.get('recipientName') as string,
-                                platformPrice: parseFloat(formData.get('platformPrice') as string),
-                                ingestionPerHourPrice: parseFloat(formData.get('ingestionPerHourPrice') as string),
-                                hoursToIngest: parseInt(formData.get('hoursToIngest') as string),
-                                discountPercentage: parseFloat(formData.get('discountPercentage') as string),
-                                meetingsToIngest: parseInt(formData.get('meetingsToIngest') as string),
-                                cityId: formData.get('cityId') as string,
-                                correctnessGuarantee: formData.get('correctnessGuarantee') === 'true',
-                                respondToEmail: formData.get('respondToEmail') as string,
-                                respondToPhone: formData.get('respondToPhone') as string,
-                                respondToName: formData.get('respondToName') as string,
-                            };
-                            setOffers([...offers, newOffer]);
-                        }} className="space-y-4 mt-4">
-                            <div>
-                                <label htmlFor="recipientName" className="block text-sm font-medium text-gray-700">Recipient Name</label>
-                                <input type="text" id="recipientName" name="recipientName" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
-                                <input type="date" id="startDate" name="startDate" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
-                                <input type="date" id="endDate" name="endDate" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="platformPrice" className="block text-sm font-medium text-gray-700">Platform Price</label>
-                                <input type="number" id="platformPrice" name="platformPrice" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="ingestionPerHourPrice" className="block text-sm font-medium text-gray-700">Ingestion Per Hour Price</label>
-                                <input type="number" id="ingestionPerHourPrice" name="ingestionPerHourPrice" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="hoursToIngest" className="block text-sm font-medium text-gray-700">Hours to Ingest</label>
-                                <input type="number" id="hoursToIngest" name="hoursToIngest" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="discountPercentage" className="block text-sm font-medium text-gray-700">Discount Percentage</label>
-                                <input type="number" id="discountPercentage" name="discountPercentage" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="meetingsToIngest" className="block text-sm font-medium text-gray-700">Meetings to Ingest</label>
-                                <input type="number" id="meetingsToIngest" name="meetingsToIngest" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="cityId" className="block text-sm font-medium text-gray-700">City</label>
-                                <input type="text" id="cityId" name="cityId" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="correctnessGuarantee" className="block text-sm font-medium text-gray-700">Correctness Guarantee</label>
-                                <select id="correctnessGuarantee" name="correctnessGuarantee" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                    <option value="true">Yes</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="respondToEmail" className="block text-sm font-medium text-gray-700">Respond To Email</label>
-                                <input type="email" id="respondToEmail" name="respondToEmail" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="respondToPhone" className="block text-sm font-medium text-gray-700">Respond To Phone</label>
-                                <input type="tel" id="respondToPhone" name="respondToPhone" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <div>
-                                <label htmlFor="respondToName" className="block text-sm font-medium text-gray-700">Respond To Name</label>
-                                <input type="text" id="respondToName" name="respondToName" required className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" />
-                            </div>
-                            <Button type="submit" className="w-full">Add Offer</Button>
-                        </form>
+                        <OfferForm onSuccess={() => {
+                            // Refresh the offers list
+                            getOffers().then(newOffers => setOffers(newOffers));
+                        }} />
                     </SheetContent>
                 </Sheet>
             </Suspense>
