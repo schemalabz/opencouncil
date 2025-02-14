@@ -81,17 +81,34 @@ export async function generateMetadata({
         };
     }
 
+    // Create an optimized title between 30-60 characters
+    const optimizedTitle = `${data.city.name} - ${data.meeting.name} | OpenCouncil`;
+
+    // Use the hero text for description, which is already optimized for Greek audience
+    const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
+
+    const imageUrl = `/api/og?meetingId=${meetingId}&cityId=${cityId}`;
+
     return {
-        title: data.meeting.name,
-        description: `${data.meeting.name} | ${data.meeting.name} | OpenCouncil`,
+        title: optimizedTitle,
+        description,
         openGraph: {
-            title: data.meeting.name,
-            description: `${data.meeting.name} | ${data.city.name}`,
+            title: optimizedTitle,
+            description,
             images: [{
-                url: `/api/og?meetingId=${meetingId}&cityId=${cityId}`,
+                url: imageUrl,
                 width: 1200,
                 height: 630,
+                alt: `${data.meeting.name} - ${data.city.name} Δημοτικό Συμβούλιο`
             }]
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: optimizedTitle,
+            description,
+            images: [imageUrl],
+            creator: '@opencouncil',
+            site: '@opencouncil'
         }
     };
 }
