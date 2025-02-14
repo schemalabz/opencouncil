@@ -189,54 +189,14 @@ export default function Map({
 
         resizeObserver.observe(mapContainer.current);
 
+        // Wait for map to load before initializing features
         map.current.on('load', () => {
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
             }
-        });
 
-        return () => {
-            if (animationFrame.current) {
-                cancelAnimationFrame(animationFrame.current);
-            }
-            if (popupRoot.current) {
-                popupRoot.current.unmount();
-            }
-            if (popup.current) {
-                popup.current.remove();
-            }
-            resizeObserver.disconnect();
-            map.current?.remove();
-            map.current = null;
-        };
-    }, []); // Empty dependency array - only run once
-
-    // Handle feature updates
-    useEffect(() => {
-        if (!map.current || !map.current.loaded()) return;
-
-        // Update source data if it exists
-        if (map.current.getSource('features')) {
-            (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
-                type: 'FeatureCollection',
-                features: features.map(feature => ({
-                    type: 'Feature',
-                    geometry: feature.geometry,
-                    properties: {
-                        id: feature.id,
-                        subjectId: feature.id,
-                        ...feature.properties,
-                        fillColor: feature.style?.fillColor || '#627BBC',
-                        fillOpacity: feature.style?.fillOpacity || 0.4,
-                        strokeColor: feature.style?.strokeColor || '#627BBC',
-                        strokeWidth: feature.style?.strokeWidth || 2,
-                        label: feature.style?.label || ''
-                    }
-                }))
-            });
-        } else {
-            // Initial setup of source and layers
-            map.current.addSource('features', {
+            // Initialize source and layers
+            map.current?.addSource('features', {
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
@@ -257,8 +217,8 @@ export default function Map({
                 }
             });
 
-            // Add layers only once
-            map.current.addLayer({
+            // Add layers
+            map.current?.addLayer({
                 'id': 'feature-fills',
                 'type': 'fill',
                 'source': 'features',
@@ -268,7 +228,7 @@ export default function Map({
                 }
             });
 
-            map.current.addLayer({
+            map.current?.addLayer({
                 'id': 'feature-borders',
                 'type': 'line',
                 'source': 'features',
@@ -278,7 +238,7 @@ export default function Map({
                 }
             });
 
-            map.current.addLayer({
+            map.current?.addLayer({
                 'id': 'feature-labels',
                 'type': 'symbol',
                 'source': 'features',
@@ -298,7 +258,7 @@ export default function Map({
                 }
             });
 
-            map.current.addLayer({
+            map.current?.addLayer({
                 'id': 'feature-points',
                 'type': 'circle',
                 'source': 'features',
@@ -314,16 +274,55 @@ export default function Map({
 
             // Add event listeners
             if (onFeatureClick) {
-                map.current.on('click', 'feature-fills', handleMapFeatureClick);
-                map.current.on('click', 'feature-points', handleMapFeatureClick);
+                map.current?.on('click', 'feature-fills', handleMapFeatureClick);
+                map.current?.on('click', 'feature-points', handleMapFeatureClick);
             }
 
-            map.current.on('mousemove', 'feature-fills', handleFeatureHover);
-            map.current.on('mouseleave', 'feature-fills', handleFeatureLeave);
-            map.current.on('mousemove', 'feature-points', handleFeatureHover);
-            map.current.on('mouseleave', 'feature-points', handleFeatureLeave);
-        }
-    }, [features, handleFeatureHover, handleFeatureLeave, handleMapFeatureClick]);
+            map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
+            map.current?.on('mouseleave', 'feature-fills', handleFeatureLeave);
+            map.current?.on('mousemove', 'feature-points', handleFeatureHover);
+            map.current?.on('mouseleave', 'feature-points', handleFeatureLeave);
+        });
+
+        return () => {
+            if (animationFrame.current) {
+                cancelAnimationFrame(animationFrame.current);
+            }
+            if (popupRoot.current) {
+                popupRoot.current.unmount();
+            }
+            if (popup.current) {
+                popup.current.remove();
+            }
+            resizeObserver.disconnect();
+            map.current?.remove();
+            map.current = null;
+        };
+    }, [features, centerCoords, zoom, pitch, animateRotation, handleFeatureHover, handleFeatureLeave, handleMapFeatureClick, onFeatureClick, rotateCamera]); // Add all dependencies
+
+    // Handle feature updates
+    useEffect(() => {
+        if (!map.current || !map.current.loaded() || !map.current.getSource('features')) return;
+
+        // Update source data
+        (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
+            type: 'FeatureCollection',
+            features: features.map(feature => ({
+                type: 'Feature',
+                geometry: feature.geometry,
+                properties: {
+                    id: feature.id,
+                    subjectId: feature.id,
+                    ...feature.properties,
+                    fillColor: feature.style?.fillColor || '#627BBC',
+                    fillOpacity: feature.style?.fillOpacity || 0.4,
+                    strokeColor: feature.style?.strokeColor || '#627BBC',
+                    strokeWidth: feature.style?.strokeWidth || 2,
+                    label: feature.style?.label || ''
+                }
+            }))
+        });
+    }, [features]);
 
     // Update map position when center/zoom changes
     useEffect(() => {

@@ -10,25 +10,92 @@ interface ColorPercentageRingProps {
     size?: number;
     thickness?: number;
     children?: React.ReactNode;
+    emptyColor?: string;
 }
 
 export const ColorPercentageRing: React.FC<ColorPercentageRingProps> = ({
     data,
     size = 100,
     thickness = 10,
-    children
+    children,
+    emptyColor = '#e5e7eb' // Default gray color for empty space
 }) => {
     const radius = size / 2;
     let startAngle = 0;
 
+    // Calculate total percentage
+    const totalPercentage = data.reduce((sum, item) => sum + item.percentage, 0);
+
+    // Create a copy of data with sorted percentages (largest first) for better visual appearance
+    const sortedData = [...data].sort((a, b) => b.percentage - a.percentage);
+
+    // Add remaining percentage if total is less than 100
+    const dataWithEmpty = totalPercentage < 100
+        ? [...sortedData, { color: emptyColor, percentage: 100 - totalPercentage }]
+        : sortedData;
+
     return (
         <div className="relative inline-block">
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-                {data.map((item, index) => {
+            <svg
+                width={size}
+                height={size}
+                viewBox={`0 0 ${size} ${size}`}
+                className="transform -rotate-90" // Start from top instead of right
+            >
+                {/* Background circle */}
+                <path
+                    d={describeArc(
+                        radius,
+                        radius,
+                        radius,
+                        0,
+                        360,
+                        thickness
+                    )}
+                    fill="#f3f4f6" // Lighter background
+                    className="transition-colors"
+                />
+
+                {dataWithEmpty.map((item, index) => {
                     const endAngle = startAngle + (item.percentage / 100) * 360;
-                    const path = describeArc(radius, radius, radius, startAngle, endAngle, thickness);
+                    const path = describeArc(
+                        radius,
+                        radius,
+                        radius,
+                        startAngle,
+                        endAngle,
+                        thickness
+                    );
+                    const currentStartAngle = startAngle;
                     startAngle = endAngle;
-                    return <path key={index} d={path} fill={item.color} />;
+
+                    return (
+                        <path
+                            key={index}
+                            d={path}
+                            fill={item.color}
+                            className="transition-all duration-300 ease-in-out"
+                            // Optional: Add hover effect with title
+                            {...(item.color !== emptyColor && {
+                                onMouseEnter: (e) => {
+                                    const path = e.target as SVGPathElement;
+                                    path.style.opacity = '0.8';
+                                },
+                                onMouseLeave: (e) => {
+                                    const path = e.target as SVGPathElement;
+                                    path.style.opacity = '1';
+                                }
+                            })}
+                        >
+                            {/* Optional: Add title for accessibility */}
+                            <title>
+                                {item.color === emptyColor
+                                    ? `Remaining: ${item.percentage.toFixed(1)}%`
+                                    : `${item.percentage.toFixed(1)}%`
+                                }
+                            </title>
+                        </path>
+                    );
                 })}
             </svg>
             {children && (
@@ -40,7 +107,14 @@ export const ColorPercentageRing: React.FC<ColorPercentageRingProps> = ({
     );
 };
 
-function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number, thickness: number): string {
+function describeArc(
+    x: number,
+    y: number,
+    radius: number,
+    startAngle: number,
+    endAngle: number,
+    thickness: number
+): string {
     const innerStart = polarToCartesian(x, y, radius - thickness, endAngle);
     const innerEnd = polarToCartesian(x, y, radius - thickness, startAngle);
     const outerStart = polarToCartesian(x, y, radius, endAngle);
@@ -58,7 +132,12 @@ function describeArc(x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 }
 
-function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
+function polarToCartesian(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number
+): { x: number; y: number } {
     const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
     return {
         x: centerX + (radius * Math.cos(angleInRadians)),
