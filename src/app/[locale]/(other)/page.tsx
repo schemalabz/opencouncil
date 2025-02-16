@@ -6,7 +6,6 @@ export default async function HomePage({
 }: {
     params: { locale: string }
 }) {
-
-    const cities = await getLandingPageData();
-    return <Landing publicCities={cities} />;
+    const data = await getLandingPageData();
+    return <Landing publicCities={data.cities} latestPost={data.latestPost} />;
 } 

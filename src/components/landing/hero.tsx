@@ -2,8 +2,14 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { ChevronDown } from 'lucide-react';
+import { SubstackBadge } from './substack-badge';
+import { SubstackPost } from '@/lib/db/landing';
 
-export function Hero() {
+interface HeroProps {
+    latestPost?: SubstackPost;
+}
+
+export function Hero({ latestPost }: HeroProps) {
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -25,13 +31,24 @@ export function Hero() {
     };
 
     return (
-        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-24 sm:pt-32 w-full">
+        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
+            {latestPost && (
+                <motion.div
+                    className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8"
+                    variants={item}
+                    initial="hidden"
+                    animate="show"
+                >
+                    <SubstackBadge post={latestPost} />
+                </motion.div>
+            )}
+
             <motion.div
                 style={{ opacity, y }}
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8"
+                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20"
             >
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1

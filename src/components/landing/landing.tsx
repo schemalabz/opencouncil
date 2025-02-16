@@ -2,19 +2,21 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { getLandingPageData, type LandingPageCity } from "@/lib/db/landing";
+import { getLandingPageData, SubstackPost, type LandingPageCity, type LandingPageData } from "@/lib/db/landing";
 import { Loader2 } from "lucide-react";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
+import { SubstackBadge } from "./substack-badge";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { FloatingPathsBackground } from '@/components/ui/floating-paths';
 import { ChevronDown } from 'lucide-react';
 
 interface LandingProps {
     publicCities: LandingPageCity[];
+    latestPost: SubstackPost | undefined;
 }
 
-export function Landing({ publicCities }: LandingProps) {
+export function Landing({ publicCities, latestPost }: LandingProps) {
     const { data: session } = useSession();
     const [allCities, setAllCities] = useState<LandingPageCity[]>(publicCities);
     const [isLoading, setIsLoading] = useState(false);
@@ -32,8 +34,8 @@ export function Landing({ publicCities }: LandingProps) {
         if (session?.user) {
             // If we're signed in, re-fetch data to get non-public cities
             setIsLoading(true);
-            getLandingPageData({ includeUnlisted: true }).then(cities => {
-                setAllCities(cities);
+            getLandingPageData({ includeUnlisted: true }).then(newData => {
+                setAllCities(newData.cities);
                 setIsLoading(false);
             });
         }
@@ -62,7 +64,7 @@ export function Landing({ publicCities }: LandingProps) {
             </motion.div>
 
             {/* Hero Section - Full Width */}
-            <Hero />
+            <Hero latestPost={latestPost} />
 
             {/* Scroll Indicator */}
             <motion.div
