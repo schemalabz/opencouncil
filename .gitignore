@@ -47,3 +47,6 @@ response.txt
 *.geojson
 scripts/hydrate.sh
 scripts/clear_advisory_locks.sh
+
+*.csv
+*.txt
