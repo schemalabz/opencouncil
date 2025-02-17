@@ -19,7 +19,7 @@ export function SubstackBadge({ post }: SubstackBadgeProps) {
             href={post.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative mx-auto max-w-2xl flex items-center gap-2 rounded-full border border-primary/20 bg-white/50 px-3 py-1.5 sm:px-4 sm:py-2 text-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-sm"
+            className="group relative mx-auto max-w-2xl flex items-center gap-2 rounded-full border border-primary/20 bg-white/50 px-3 py-1.5 sm:px-4 sm:py-2 text-sm backdrop-blur-sm transition-all hover:bg-white hover:shadow-sm no-underline hover:no-underline"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.5 }}
