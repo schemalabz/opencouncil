@@ -33,14 +33,9 @@ export function Hero({ latestPost }: HeroProps) {
     return (
         <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
             {latestPost && (
-                <motion.div
-                    className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8"
-                    variants={item}
-                    initial="hidden"
-                    animate="show"
-                >
+                <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8">
                     <SubstackBadge post={latestPost} />
-                </motion.div>
+                </div>
             )}
 
             <motion.div
