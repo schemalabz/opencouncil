@@ -280,8 +280,6 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
                                     data: {
                                         personId: person.id,
                                         administrativeBodyId: cityCouncilId,
-                                        name: 'Μέλος Δημοτικού Συμβουλίου',
-                                        name_en: 'City Council Member',
                                         isHead: false,
                                     },
                                 });
@@ -294,8 +292,6 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
                                     data: {
                                         personId: person.id,
                                         administrativeBodyId: cityCouncilId,
-                                        name: 'Μέλος Δημοτικού Συμβουλίου',
-                                        name_en: 'City Council Member',
                                         isHead: false,
                                     },
                                 });
@@ -309,8 +305,6 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
                                 data: {
                                     personId: person.id,
                                     partyId: person.partyId,
-                                    name: 'Μέλος',
-                                    name_en: 'Member',
                                 },
                             });
                             stats.rolesCreated++;

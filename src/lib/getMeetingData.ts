@@ -10,8 +10,15 @@ import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { CouncilMeeting, SpeakerTag, TaskStatus } from '@prisma/client';
 import { Party, Person, Role } from '@prisma/client';
 import { City } from '@prisma/client';
+import { AdministrativeBody } from '@prisma/client';
 
-export type PersonWithRelations = Person & { party: Party | null, roles: Role[] };
+export type PersonWithRelations = Person & {
+    roles: (Role & {
+        party?: Party | null;
+        city?: City | null;
+        administrativeBody?: AdministrativeBody | null;
+    })[];
+};
 
 export type MeetingData = {
     meeting: CouncilMeeting;

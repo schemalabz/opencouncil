@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { CalendarClock } from 'lucide-react';
 import { PersonWithRelations } from '@/lib/getMeetingData';
+import { filterActiveRoles } from '@/lib/utils';
+import { useMemo } from 'react';
+
 interface PersonCardProps {
     item: PersonWithRelations;
     editable: boolean;
@@ -17,62 +20,60 @@ interface PersonCardProps {
 }
 
 export default function PersonCard({ item: person, editable, parties }: PersonCardProps) {
-    const t = useTranslations('PersonCard');
-    const locale = useLocale();
+    const t = useTranslations('Person');
     const router = useRouter();
+    const locale = useLocale();
+
+    const activeRoles = useMemo(() => filterActiveRoles(person.roles), [person.roles]);
 
     const handleClick = () => {
         router.push(`/${person.cityId}/people/${person.id}`);
     };
 
-    const formatActiveDates = (from: Date | null, to: Date | null) => {
-        if (!to && !from) return null;
-        if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
-        if (from && to) return `${formatDate(from)} - ${formatDate(to)}`;
-        return null;
-    };
-
     return (
-        <motion.div
-            whileHover={{ scale: 1.02 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            className="h-full"
+        <Card
+            className={cn(
+                "group relative h-full overflow-hidden transition-all duration-300",
+                "hover:shadow-lg hover:scale-[1.01] cursor-pointer"
+            )}
+            onClick={handleClick}
         >
-            <Card
-                className={cn(
-                    "group relative h-full",
-                    "hover:shadow-lg cursor-pointer",
-                    "border-l-8 bg-background/60 backdrop-blur-sm",
-                )}
-                style={{
-                    borderLeftColor: person.party?.colorHex || 'gray'
-                }}
-                onClick={handleClick}
-            >
-                <CardContent className="h-full p-6">
-                    <div className="flex flex-col justify-center h-full">
-                        <div className="flex flex-col gap-4">
-                            <PersonBadge
-                                person={person}
-                                className="!text-lg sm:!text-xl"
-                                preferFullName
-                                size="lg"
-                            />
+            <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
+                <div className="space-y-3 sm:space-y-4 flex-grow">
+                    <PersonBadge
+                        person={person}
+                        size="lg"
+                        preferFullName
+                    />
 
-                            {formatActiveDates(person.activeFrom, person.activeTo) && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <CalendarClock className="w-4 h-4 flex-shrink-0" />
-                                    <span>{formatActiveDates(person.activeFrom, person.activeTo)}</span>
-                                </div>
-                            )}
-                        </div>
+                    {/* Active Roles */}
+                    <div className="space-y-2">
+                        {activeRoles.map((role) => (
+                            <div key={role.id} className="text-sm text-muted-foreground">
+                                {role.party && (
+                                    <span>
+                                        {role.party.name}
+                                        {role.isHead && ` (${t('partyLeader')})`}
+                                        {role.name && ` - ${role.name}`}
+                                    </span>
+                                )}
+                                {role.city && (
+                                    <span>
+                                        {role.isHead ? t('mayor') : role.name}
+                                    </span>
+                                )}
+                                {role.administrativeBody && (
+                                    <span>
+                                        {role.administrativeBody.name}
+                                        {role.isHead && ` (${t('president')})`}
+                                        {role.name && ` - ${role.name}`}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                </CardContent>
-            </Card>
-        </motion.div>
+                </div>
+            </CardContent>
+        </Card>
     );
 }
-
-const formatDate = (date: Date | null) => {
-    return date ? format(date, 'dd/MM/yyyy') : '-';
-};

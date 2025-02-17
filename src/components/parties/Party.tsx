@@ -1,13 +1,13 @@
 'use client';
 import { useTranslations } from 'next-intl';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
-import { City, Party, Person } from '@prisma/client';
+import { City, Party, Person, Role } from '@prisma/client';
 import Image from 'next/image';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
-import { deleteParty } from '@/lib/db/parties';
+import { deleteParty, PartyWithPersons } from '@/lib/db/parties';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { Search } from "lucide-react";
@@ -20,8 +20,10 @@ import { getLatestSegmentsForParty } from '@/lib/search/search';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
+import PersonCard from '../persons/PersonCard';
+import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
 
-export default function PartyC({ city, party }: { city: City, party: Party & { persons: Person[] } }) {
+export default function PartyC({ city, party }: { city: City, party: PartyWithPersons }) {
     const t = useTranslations('Party');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +31,12 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
+
+    const persons = Array.from(new Map(party.roles.map(role => [role.person.id, role.person])).values());
+
+    // Split roles into active and inactive
+    const activeRoles = useMemo(() => filterActiveRoles(party.roles), [party.roles]);
+    const inactiveRoles = useMemo(() => filterInactiveRoles(party.roles), [party.roles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -101,9 +109,9 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
                             transition={{ duration: 0.5 }}
                         >
                             <div className="relative w-32 h-32 md:w-40 md:h-40">
-                                <ImageOrInitials 
-                                    imageUrl={party.logo} 
-                                    name={party.name_short} 
+                                <ImageOrInitials
+                                    imageUrl={party.logo}
+                                    name={party.name_short}
                                     color={party.colorHex}
                                     width={160}
                                     height={160}
@@ -124,7 +132,7 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.3 }}
                                 >
-                                    {t('membersCount', { count: party.persons.length })}
+                                    {t('membersCount', { count: persons.length })}
                                 </motion.div>
                             </div>
                         </motion.div>
@@ -135,11 +143,11 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.5 }}
                             >
-                                <FormSheet 
-                                    FormComponent={PartyForm} 
-                                    formProps={{ party, cityId: city.id }} 
-                                    title={t('editParty')} 
-                                    type="edit" 
+                                <FormSheet
+                                    FormComponent={PartyForm}
+                                    formProps={{ party, cityId: city.id }}
+                                    title={t('editParty')}
+                                    type="edit"
                                 />
                                 <Button variant="destructive" onClick={onDelete}>{t('deleteParty')}</Button>
                             </motion.div>
@@ -176,6 +184,100 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
                         </div>
                     </motion.div>
 
+                    {/* Current Members Section */}
+                    <motion.div
+                        className="mb-12"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                    >
+                        <h2 className="text-2xl font-normal tracking-tight mb-6">{t('currentMembers')}</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {activeRoles
+                                .sort((a, b) => {
+                                    // Sort by isHead first (true comes before false)
+                                    if (a.isHead && !b.isHead) return -1;
+                                    if (!a.isHead && b.isHead) return 1;
+                                    // Then sort by name
+                                    return a.person.name.localeCompare(b.person.name);
+                                })
+                                .map(role => {
+                                    const personWithRelations = {
+                                        ...role.person,
+                                        party,
+                                        roles: [role]
+                                    };
+                                    return (
+                                        <PersonCard
+                                            key={role.person.id}
+                                            item={personWithRelations}
+                                            editable={canEdit}
+                                            parties={[party]}
+                                        />
+                                    );
+                                })}
+                        </div>
+                    </motion.div>
+
+                    {/* Past Members Section - only show if there are inactive roles */}
+                    {inactiveRoles.length > 0 && (
+                        <motion.div
+                            className="mb-12"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.8 }}
+                        >
+                            <h2 className="text-2xl font-normal tracking-tight mb-6">{t('pastMembers')}</h2>
+                            <div className="space-y-4">
+                                {inactiveRoles
+                                    .sort((a, b) => {
+                                        // Sort by most recent end date first
+                                        const aEnd = a.endDate ? new Date(a.endDate).getTime() : 0;
+                                        const bEnd = b.endDate ? new Date(b.endDate).getTime() : 0;
+                                        if (aEnd !== bEnd) return bEnd - aEnd;
+                                        // Then sort by name
+                                        return a.person.name.localeCompare(b.person.name);
+                                    })
+                                    .map(role => (
+                                        <motion.div
+                                            key={role.id}
+                                            className="p-4 border rounded-lg"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <Link
+                                                    href={`/${city.id}/people/${role.person.id}`}
+                                                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                                                >
+                                                    <div className="relative w-10 h-10">
+                                                        <ImageOrInitials
+                                                            imageUrl={role.person.image}
+                                                            name={role.person.name}
+                                                            width={40}
+                                                            height={40}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium">{role.person.name}</div>
+                                                        <div className="text-sm text-muted-foreground">
+                                                            {role.isHead && t('partyLeader')}
+                                                            {role.name && !role.isHead && role.name}
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                                <span className="text-sm text-muted-foreground ml-auto">
+                                                    {role.startDate && formatDate(role.startDate)}
+                                                    {' - '}
+                                                    {role.endDate && formatDate(role.endDate)}
+                                                </span>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* Recent Segments Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -196,7 +298,7 @@ export default function PartyC({ city, party }: { city: City, party: Party & { p
                             ))}
                         </div>
                         {latestSegments.length < totalCount && (
-                            <Button 
+                            <Button
                                 onClick={() => setPage(prevPage => prevPage + 1)}
                                 variant="outline"
                                 className="mt-6"

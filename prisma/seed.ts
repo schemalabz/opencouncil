@@ -48,8 +48,14 @@ const SEED_DATA = {
       name_en: 'Georgios Dimitriou',
       name_short: 'Γ. Δημητρίου',
       name_short_en: 'G. Dimitriou',
-      role: 'Δήμαρχος',
-      role_en: 'Mayor',
+      roles: [
+        {
+          type: 'city',
+          name: 'Δήμαρχος',
+          name_en: 'Mayor',
+          isHead: true
+        }
+      ],
       isAdministrativeRole: true,
       partyIndex: 0,
       speakerLabel: 'Δήμαρχος'
@@ -60,8 +66,14 @@ const SEED_DATA = {
       name_en: 'Andreas Antoniou',
       name_short: 'Α. Αντωνίου',
       name_short_en: 'A. Antoniou',
-      role: 'Δημοτικός Σύμβουλος',
-      role_en: 'Council Member',
+      roles: [
+        {
+          type: 'administrative',
+          name: 'Μέλος Δημοτικού Συμβουλίου',
+          name_en: 'City Council Member',
+          isHead: false
+        }
+      ],
       partyIndex: 1,
       speakerLabel: 'Δημοτικός Σύμβουλος'
     },
@@ -71,8 +83,14 @@ const SEED_DATA = {
       name_en: 'Eleni Pappa',
       name_short: 'Ε. Παππά',
       name_short_en: 'E. Pappa',
-      role: 'Δημοτική Σύμβουλος',
-      role_en: 'Council Member',
+      roles: [
+        {
+          type: 'administrative',
+          name: 'Μέλος Δημοτικού Συμβουλίου',
+          name_en: 'City Council Member',
+          isHead: false
+        }
+      ],
       partyIndex: 2,
       speakerLabel: 'Δημοτική Σύμβουλος'
     }
@@ -182,6 +200,24 @@ async function main() {
     create: SEED_DATA.city
   })
 
+  // Create city council
+  const cityCouncil = await prisma.administrativeBody.upsert({
+    where: { id: 'seed-city-council' },
+    update: {
+      name: 'Δημοτικό Συμβούλιο',
+      name_en: 'City Council',
+      type: 'council',
+      cityId: city.id
+    },
+    create: {
+      id: 'seed-city-council',
+      name: 'Δημοτικό Συμβούλιο',
+      name_en: 'City Council',
+      type: 'council',
+      cityId: city.id
+    }
+  })
+
   // Create parties
   const parties = await Promise.all(
     SEED_DATA.parties.map(party =>
@@ -208,17 +244,17 @@ async function main() {
     )
   )
 
-  // Create people
+  // Create people with roles
   const people = await Promise.all(
-    SEED_DATA.people.map(person =>
-      prisma.person.upsert({
+    SEED_DATA.people.map(async person => {
+      // First create the person
+      const createdPerson = await prisma.person.upsert({
         where: { id: person.id },
         update: {
           name: person.name,
           name_en: person.name_en,
           name_short: person.name_short,
           name_short_en: person.name_short_en,
-          partyId: parties[person.partyIndex].id,
           isAdministrativeRole: person.isAdministrativeRole || false,
           cityId: city.id
         },
@@ -228,12 +264,38 @@ async function main() {
           name_en: person.name_en,
           name_short: person.name_short,
           name_short_en: person.name_short_en,
-          partyId: parties[person.partyIndex].id,
           isAdministrativeRole: person.isAdministrativeRole || false,
           cityId: city.id
         }
       })
-    )
+
+      // Then create their roles
+      for (const role of person.roles) {
+        await prisma.role.create({
+          data: {
+            personId: createdPerson.id,
+            ...(role.type === 'city' ? { cityId: city.id } : {}),
+            ...(role.type === 'administrative' ? { administrativeBodyId: cityCouncil.id } : {}),
+            name: role.name,
+            name_en: role.name_en,
+            isHead: role.isHead
+          }
+        })
+      }
+
+      // Create party role if they belong to a party
+      if (typeof person.partyIndex !== 'undefined') {
+        await prisma.role.create({
+          data: {
+            personId: createdPerson.id,
+            partyId: parties[person.partyIndex].id,
+            isHead: false
+          }
+        });
+      }
+
+      return createdPerson
+    })
   )
 
   // Create speaker tags

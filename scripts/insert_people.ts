@@ -28,23 +28,48 @@ async function processCSV(filePath: string, cityId: string, dryRun: boolean) {
                     }
 
                     for (const person of results) {
+                        // First create the person without the deprecated fields
                         const personData = {
                             name: person.name,
                             name_en: person.name_en,
                             name_short: person.name_short,
                             name_short_en: person.name_short_en,
-                            role: person.role || null,
-                            role_en: person.role_en || null,
                             isAdministrativeRole: person.role ? true : false,
                             cityId: cityId,
-                            partyId: person.partyId || null
                         };
 
                         try {
+                            // Create the person
                             const createdPerson = await prisma.person.create({
                                 data: personData
                             });
                             console.log(`Created person: ${createdPerson.name}`);
+
+                            // If they have a role, create it
+                            if (person.role) {
+                                await prisma.role.create({
+                                    data: {
+                                        personId: createdPerson.id,
+                                        cityId: cityId,
+                                        name: person.role,
+                                        name_en: person.role_en,
+                                        isHead: false,
+                                    }
+                                });
+                                console.log(`Created city role for ${createdPerson.name}`);
+                            }
+
+                            // If they have a party, create a party role
+                            if (person.partyId) {
+                                await prisma.role.create({
+                                    data: {
+                                        personId: createdPerson.id,
+                                        partyId: person.partyId,
+                                        isHead: false,
+                                    }
+                                });
+                                console.log(`Created party role for ${createdPerson.name}`);
+                            }
                         } catch (error) {
                             console.error(`Failed to create person ${person.name}:`, error);
                         }

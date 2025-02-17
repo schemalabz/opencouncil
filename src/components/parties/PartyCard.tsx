@@ -9,23 +9,41 @@ import { PersonAvatarList } from '../persons/PersonAvatarList';
 import { cn } from '@/lib/utils';
 import { getPeopleForCity } from '@/lib/db/people';
 import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
+import { PartyWithPersons } from '@/lib/db/parties';
+import { filterActiveRoles } from '@/lib/utils';
+import { useMemo } from 'react';
 
 interface PartyCardProps {
-    item: Party
+    item: PartyWithPersons
     editable: boolean;
 }
 
 export default function PartyCard({ item: party, editable }: PartyCardProps) {
-    const t = useTranslations('PartyCard');
-    const { getPersonsForParty } = useCouncilMeetingData();
+    const t = useTranslations('Party');
     const router = useRouter();
+
+    // Get active roles and sort them
+    const activeRoles = useMemo(() => {
+        const roles = filterActiveRoles(party.roles);
+        return roles.sort((a, b) => {
+            if (a.isHead && !b.isHead) return -1;
+            if (!b.isHead && a.isHead) return 1;
+            return a.person.name.localeCompare(b.person.name);
+        });
+    }, [party.roles]);
+
+    // Transform roles into PersonWithRelations for PersonAvatarList
+    const activePersons = useMemo(() =>
+        activeRoles.map(role => ({
+            ...role.person,
+            party,
+            roles: [role]
+        }))
+        , [activeRoles, party]);
 
     const handleClick = () => {
         router.push(`/${party.cityId}/parties/${party.id}`);
     };
-
-    // Add party info to each person
-    const personsWithParty = getPersonsForParty(party.id);
 
     return (
         <Card
@@ -55,9 +73,9 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
-                            users={personsWithParty}
+                            users={activePersons}
                             maxDisplayed={5}
-                            numMore={personsWithParty.length > 5 ? personsWithParty.length - 5 : 0}
+                            numMore={activePersons.length > 5 ? activePersons.length - 5 : 0}
                         />
                     </div>
                 </div>

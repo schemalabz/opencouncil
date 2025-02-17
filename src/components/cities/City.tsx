@@ -2,7 +2,7 @@
 import { AdministrativeBody, City, CouncilMeeting, Party, Person, Subject, Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import AddMeetingForm from "@/components/meetings/AddMeetingForm";
 import { Link } from '@/i18n/routing';
@@ -27,6 +27,7 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge'
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PartyWithPersons } from '@/lib/db/parties';
 
 export default function CityC({ city }: {
     city: City & {
@@ -42,6 +43,30 @@ export default function CityC({ city }: {
     const [canEdit, setCanEdit] = useState(false);
     const { scrollY } = useScroll();
     const headerOpacity = useTransform(scrollY, [0, 200], [1, 0.8]);
+
+    // Reconstruct parties with their roles from persons data
+    const partiesWithRoles = useMemo(() => {
+        const partyMap = new Map(city.parties.map(party => [party.id, { ...party, roles: [] as any[] }]));
+
+        city.persons.forEach(person => {
+            person.roles.forEach(role => {
+                if (role.partyId) {
+                    const party = partyMap.get(role.partyId);
+                    if (party) {
+                        party.roles.push({
+                            ...role,
+                            person: {
+                                ...person,
+                                roles: person.roles
+                            }
+                        });
+                    }
+                }
+            });
+        });
+
+        return Array.from(partyMap.values()) as PartyWithPersons[];
+    }, [city.parties, city.persons]);
 
     const administrativeBodies = Array.from(new Map(city.councilMeetings
         .map(meeting => [
@@ -84,14 +109,23 @@ export default function CityC({ city }: {
             const aLastWord = a.name.split(' ').pop() || '';
             const bLastWord = b.name.split(' ').pop() || '';
             return aLastWord.localeCompare(bLastWord);
-        })
+        });
 
-    const personCountForParty = (party: Party) => {
-        return city.persons.filter(person => person.partyId === party.id).length;
-    }
+    const orderedParties = [...partiesWithRoles]
+        .sort((a, b) => {
+            // Sort by member count first
+            const memberCountDiff = b.roles.length - a.roles.length;
+            if (memberCountDiff !== 0) return memberCountDiff;
 
-    const orderedParties = [...city.parties]
-        .sort((a, b) => personCountForParty(b) - personCountForParty(a));
+            // If same member count, sort by party head
+            const aHasHead = a.roles.some(role => role.isHead);
+            const bHasHead = b.roles.some(role => role.isHead);
+            if (aHasHead && !bHasHead) return -1;
+            if (!aHasHead && bHasHead) return 1;
+
+            // If still tied, sort by name
+            return a.name.localeCompare(b.name);
+        });
 
     return (
         <div className="relative min-h-screen">

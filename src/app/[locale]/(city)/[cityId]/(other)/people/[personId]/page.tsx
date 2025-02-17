@@ -4,8 +4,8 @@ import { getPartiesForCity } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
-export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
 
+export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
     const person = await getPerson(params.personId);
     const city = await getCity(params.cityId);
     const parties = await getPartiesForCity(params.cityId);

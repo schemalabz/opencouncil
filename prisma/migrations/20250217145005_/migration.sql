@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Role" ALTER COLUMN "name" DROP NOT NULL,
+ALTER COLUMN "name_en" DROP NOT NULL;

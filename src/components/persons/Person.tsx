@@ -1,15 +1,15 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { City, Party, Person } from '@prisma/client';
+import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { deletePerson } from '@/lib/db/people';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search } from "lucide-react";
+import { Search, ExternalLink } from "lucide-react";
 import { Input } from '../ui/input';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
@@ -19,11 +19,18 @@ import { format } from 'date-fns';
 import { PersonBadge } from './PersonBadge';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
-import { ExternalLink } from "lucide-react";
 import { motion } from 'framer-motion';
-import { ImageOrInitials } from '@/components/ImageOrInitials'
+import { ImageOrInitials } from '@/components/ImageOrInitials';
+import { PersonWithRelations } from '@/lib/getMeetingData';
+import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
 
-export default function PersonC({ city, person, parties }: { city: City, person: Person & { party: Party | null }, parties: Party[] }) {
+type RoleWithRelations = Role & {
+    party?: Party | null;
+    city?: City | null;
+    administrativeBody?: AdministrativeBody | null;
+};
+
+export default function PersonC({ city, person, parties }: { city: City, person: PersonWithRelations, parties: Party[] }) {
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +38,26 @@ export default function PersonC({ city, person, parties }: { city: City, person:
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
+
+    // Group roles by type and active status
+    const roles = useMemo(() => {
+        const allRoles = person.roles as RoleWithRelations[];
+        const activeRoles = filterActiveRoles(allRoles);
+        const inactiveRoles = filterInactiveRoles(allRoles);
+
+        return {
+            active: {
+                cityRoles: activeRoles.filter(role => role.cityId),
+                partyRoles: activeRoles.filter(role => role.partyId),
+                adminBodyRoles: activeRoles.filter(role => role.administrativeBodyId)
+            },
+            inactive: {
+                cityRoles: inactiveRoles.filter(role => role.cityId),
+                partyRoles: inactiveRoles.filter(role => role.partyId),
+                adminBodyRoles: inactiveRoles.filter(role => role.administrativeBodyId)
+            }
+        };
+    }, [person.roles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -71,10 +98,6 @@ export default function PersonC({ city, person, parties }: { city: City, person:
         if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
         if (from && to) return `${t('active')}: ${formatDate(from)} - ${formatDate(to)}`;
         return null;
-    };
-
-    const formatDate = (date: Date | null) => {
-        return date ? format(date, 'dd/MM/yyyy') : '-';
     };
 
     return (
@@ -131,43 +154,67 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                 >
                                     {person.name}
                                 </motion.h1>
-                                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4">
-                                    {person.party && (
+                                <div className="flex flex-col gap-4">
+                                    {/* Active Party Roles */}
+                                    {roles.active.partyRoles.map((role) => (
                                         <motion.div
+                                            key={role.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.3 }}
                                             className="flex items-center gap-2"
                                         >
-                                            <Link
-                                                href={`/${person.cityId}/parties/${person.party.id}`}
-                                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                                            >
-                                                <div className="relative w-5 h-5 sm:w-6 sm:h-6">
-                                                    <ImageOrInitials
-                                                        imageUrl={person.party.logo}
-                                                        name={person.party.name_short}
-                                                        color={person.party.colorHex}
-                                                        width={24}
-                                                        height={24}
-                                                    />
-                                                </div>
-                                                <span className="text-base sm:text-lg text-muted-foreground">
-                                                    {person.party.name}
-                                                </span>
-                                            </Link>
+                                            {role.party && (
+                                                <Link
+                                                    href={`/${city.id}/parties/${role.party.id}`}
+                                                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                >
+                                                    <div className="relative w-5 h-5 sm:w-6 sm:h-6">
+                                                        <ImageOrInitials
+                                                            imageUrl={role.party.logo}
+                                                            name={role.party.name_short}
+                                                            color={role.party.colorHex}
+                                                            width={24}
+                                                            height={24}
+                                                        />
+                                                    </div>
+                                                    <span className="text-base sm:text-lg text-muted-foreground">
+                                                        {role.party.name}
+                                                        {role.isHead && ` (${t('partyLeader')})`}
+                                                        {role.name && ` - ${role.name}`}
+                                                    </span>
+                                                </Link>
+                                            )}
                                         </motion.div>
-                                    )}
-                                    {person.role && (
+                                    ))}
+
+                                    {/* Active City Roles */}
+                                    {roles.active.cityRoles.map((role) => (
                                         <motion.div
+                                            key={role.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.4 }}
                                             className="text-base sm:text-lg text-muted-foreground"
                                         >
-                                            {person.role}
+                                            {role.isHead ? t('mayor') : role.name}
                                         </motion.div>
-                                    )}
+                                    ))}
+
+                                    {/* Active Administrative Body Roles */}
+                                    {roles.active.adminBodyRoles.map((role) => (
+                                        <motion.div
+                                            key={role.id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.4 }}
+                                            className="text-base sm:text-lg text-muted-foreground"
+                                        >
+                                            {role.administrativeBody?.name}
+                                            {role.isHead && ` (${t('president')})`}
+                                            {role.name && ` - ${role.name}`}
+                                        </motion.div>
+                                    ))}
                                 </div>
                                 {person.profileUrl && (
                                     <motion.a
@@ -238,6 +285,99 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                             <Statistics type="person" id={person.id} cityId={city.id} />
                         </div>
                     </motion.div>
+
+                    {/* History Section - only show if there are inactive roles */}
+                    {(roles.inactive.cityRoles.length > 0 ||
+                        roles.inactive.partyRoles.length > 0 ||
+                        roles.inactive.adminBodyRoles.length > 0) && (
+                            <motion.div
+                                className="mb-12"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.7 }}
+                            >
+                                <h2 className="text-2xl font-normal tracking-tight mb-6">{t('history')}</h2>
+                                <div className="space-y-4">
+                                    {/* Past Party Roles */}
+                                    {roles.inactive.partyRoles.map((role) => (
+                                        <motion.div
+                                            key={role.id}
+                                            className="p-4 border rounded-lg"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                        >
+                                            {role.party && (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative w-5 h-5">
+                                                        <ImageOrInitials
+                                                            imageUrl={role.party.logo}
+                                                            name={role.party.name_short}
+                                                            color={role.party.colorHex}
+                                                            width={20}
+                                                            height={20}
+                                                        />
+                                                    </div>
+                                                    <span className="text-muted-foreground">
+                                                        {role.party.name}
+                                                        {role.isHead && ` (${t('partyLeader')})`}
+                                                        {role.name && ` - ${role.name}`}
+                                                    </span>
+                                                    <span className="text-sm text-muted-foreground ml-auto">
+                                                        {role.startDate && formatDate(role.startDate)}
+                                                        {' - '}
+                                                        {role.endDate && formatDate(role.endDate)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    ))}
+
+                                    {/* Past City Roles */}
+                                    {roles.inactive.cityRoles.map((role) => (
+                                        <motion.div
+                                            key={role.id}
+                                            className="p-4 border rounded-lg"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">
+                                                    {role.isHead ? t('mayor') : role.name}
+                                                </span>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {role.startDate && formatDate(role.startDate)}
+                                                    {' - '}
+                                                    {role.endDate && formatDate(role.endDate)}
+                                                </span>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+
+                                    {/* Past Administrative Body Roles */}
+                                    {roles.inactive.adminBodyRoles.map((role) => (
+                                        <motion.div
+                                            key={role.id}
+                                            className="p-4 border rounded-lg"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-muted-foreground">
+                                                    {role.administrativeBody?.name}
+                                                    {role.isHead && ` (${t('president')})`}
+                                                    {role.name && ` - ${role.name}`}
+                                                </span>
+                                                <span className="text-sm text-muted-foreground">
+                                                    {role.startDate && formatDate(role.startDate)}
+                                                    {' - '}
+                                                    {role.endDate && formatDate(role.endDate)}
+                                                </span>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
 
                     {/* Recent Segments Section */}
                     <motion.div

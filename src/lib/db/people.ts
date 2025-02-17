@@ -53,8 +53,28 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
         const person = await prisma.person.findUnique({
             where: { id },
             include: {
-                party: true,
-                roles: true,
+                roles: {
+                    include: {
+                        party: true,
+                        city: true,
+                        administrativeBody: true
+                    },
+                    where: {
+                        OR: [
+                            // Both dates are null (ongoing role)
+                            { startDate: null, endDate: null },
+                            // Only start date is set and it's in the past
+                            { startDate: { lte: new Date() }, endDate: null },
+                            // Only end date is set and it's in the future
+                            { startDate: null, endDate: { gt: new Date() } },
+                            // Both dates are set and current time is within range
+                            {
+                                startDate: { lte: new Date() },
+                                endDate: { gt: new Date() }
+                            }
+                        ]
+                    }
+                }
             }
         });
         return person;
@@ -69,8 +89,28 @@ export async function getPeopleForCity(cityId: string): Promise<PersonWithRelati
         const people = await prisma.person.findMany({
             where: { cityId },
             include: {
-                party: true,
-                roles: true,
+                roles: {
+                    include: {
+                        party: true,
+                        city: true,
+                        administrativeBody: true
+                    },
+                    where: {
+                        OR: [
+                            // Both dates are null (ongoing role)
+                            { startDate: null, endDate: null },
+                            // Only start date is set and it's in the past
+                            { startDate: { lte: new Date() }, endDate: null },
+                            // Only end date is set and it's in the future
+                            { startDate: null, endDate: { gt: new Date() } },
+                            // Both dates are set and current time is within range
+                            {
+                                startDate: { lte: new Date() },
+                                endDate: { gt: new Date() }
+                            }
+                        ]
+                    }
+                }
             }
         });
         return people.sort(() => Math.random() - 0.5);

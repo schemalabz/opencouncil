@@ -189,3 +189,37 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
 
   return joinedSegments;
 }
+
+
+export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
+  const now = new Date();
+
+  // Both dates null = active
+  if (!role.startDate && !role.endDate) return true;
+
+  // Only start date set - active if in past
+  if (role.startDate && !role.endDate) {
+    return role.startDate <= now;
+  }
+
+  // Only end date set - active if in future
+  if (!role.startDate && role.endDate) {
+    return role.endDate > now;
+  }
+
+  // Both dates set - active if current time is within range
+  if (role.startDate && role.endDate) {
+    return role.startDate <= now && role.endDate > now;
+  }
+
+  return false;
+}
+
+
+export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
+  return roles.filter(isRoleActive);
+}
+
+export function filterInactiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
+  return roles.filter(role => !isRoleActive(role));
+}

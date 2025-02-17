@@ -254,7 +254,9 @@
         "deleteParty": "Διαγραφή Παράταξης",
         "partyDeleted": "Η παράταξη {name} διαγράφηκε",
         "searchItems": "Αναζητήστε ονόματα παρατάξεων",
-        "noItems": "Δεν υπάρχουν παράταξεις"
+        "noItems": "Δεν υπάρχουν παράταξεις",
+        "currentMembers": "Μέλη",
+        "pastMembers": "Ανενεργά Μέλη"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
@@ -281,7 +283,11 @@
         "statistics": "Στατιστικά Μέλους",
         "searchItems": "Αναζητήστε μέλη",
         "activeUntil": "Μέλος έως",
-        "active": "Μέλος"
+        "active": "Μέλος",
+        "partyLeader": "Πρόεδρος",
+        "mayor": "Δήμαρχος",
+        "president": "Πρόεδρος",
+        "history": "Ιστορικό"
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
