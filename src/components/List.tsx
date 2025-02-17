@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import FormSheet from './FormSheet';
 import { Search, ChevronDown } from "lucide-react";
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { cn, normalizeText } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -54,13 +54,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     const filteredItems = items.filter((item) => {
         // First check search query
-        const matchesSearch = Object.values(item).some(
-            (value) =>
-                typeof value === 'string' &&
-                value.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        if (searchQuery) {
+            const normalizedQuery = normalizeText(searchQuery);
+            const matchesSearch = Object.values(item).some(
+                (value) =>
+                    typeof value === 'string' &&
+                    normalizeText(value).includes(normalizedQuery)
+            );
 
-        if (!matchesSearch) return false;
+            if (!matchesSearch) return false;
+        }
 
         // Then apply filter if it exists and there are selected filters
         if (filter) {

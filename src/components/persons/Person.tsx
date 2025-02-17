@@ -12,6 +12,7 @@ import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
+import { Statistics as StatisticsType } from "@/lib/statistics";
 import { Statistics } from '../Statistics';
 import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
 import { SearchResult } from '@/lib/search/search';
@@ -30,7 +31,13 @@ type RoleWithRelations = Role & {
     administrativeBody?: AdministrativeBody | null;
 };
 
-export default function PersonC({ city, person, parties }: { city: City, person: PersonWithRelations, parties: Party[] }) {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics }: {
+    city: City,
+    person: PersonWithRelations,
+    parties: Party[],
+    administrativeBodies: AdministrativeBody[],
+    statistics: StatisticsType
+}) {
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -243,7 +250,8 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                                         formProps={{
                                             person,
                                             cityId: person.cityId,
-                                            parties
+                                            parties,
+                                            administrativeBodies
                                         }}
                                         title={t('editPerson')}
                                         type="edit"
@@ -282,7 +290,7 @@ export default function PersonC({ city, person, parties }: { city: City, person:
                     >
                         <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('statistics')}</h2>
                         <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6">
-                            <Statistics type="person" id={person.id} cityId={city.id} />
+                            <Statistics type="person" id={person.id} cityId={city.id} initialData={statistics} />
                         </div>
                     </motion.div>
 

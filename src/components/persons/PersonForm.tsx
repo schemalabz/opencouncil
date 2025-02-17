@@ -17,20 +17,15 @@ import {
 } from "../../components/ui/form"
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
-import { Party, Person } from '@prisma/client'
-import { Loader2, Check, CalendarIcon } from "lucide-react"
+import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
+import { Loader2, Check } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import React, { useRef } from "react"
 import InputWithDerivatives from "../../components/InputWithDerivatives"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { Switch } from '../ui/switch'
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
+import RolesList from './RolesList'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -45,29 +40,25 @@ const formSchema = z.object({
     name_short_en: z.string().min(2, {
         message: "Short name (English) must be at least 2 characters.",
     }),
-    role: z.string().optional(),
-    role_en: z.string().optional(),
     image: z.instanceof(File).optional(),
-    partyId: z.string().optional(),
-    isAdministrativeRole: z.boolean().optional(),
-    activeFrom: z.date().nullable(),
-    activeTo: z.date().nullable(),
     profileUrl: z.string().url().optional().or(z.literal('')),
 })
 
 interface PersonFormProps {
-    person?: Person
+    person?: Person & { roles?: (Role & { party?: Party | null, administrativeBody?: AdministrativeBody | null })[] }
     onSuccess?: () => void
     cityId: string,
     parties: Party[]
+    administrativeBodies: AdministrativeBody[]
 }
 
-export default function PersonForm({ person, parties, onSuccess, cityId }: PersonFormProps) {
+export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId }: PersonFormProps) {
     const router = useRouter()
     const [image, setImage] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
+    const [roles, setRoles] = useState<(Role & { party?: Party | null, administrativeBody?: AdministrativeBody | null })[]>(person?.roles || [])
     const t = useTranslations('PersonForm')
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
@@ -79,12 +70,6 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
             name_en: person?.name_en || "",
             name_short: person?.name_short || "",
             name_short_en: person?.name_short_en || "",
-            role: person?.role || "",
-            role_en: person?.role_en || "",
-            partyId: person?.partyId || "",
-            isAdministrativeRole: person?.isAdministrativeRole || false,
-            activeFrom: person?.activeFrom || null,
-            activeTo: person?.activeTo || null,
             profileUrl: person?.profileUrl || "",
         },
     })
@@ -93,32 +78,66 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
         setIsSubmitting(true)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
+
+        // Validate image size
+        if (image && image.size > 5 * 1024 * 1024) { // 5MB limit
+            toast({
+                title: t('error'),
+                description: 'Image size must be less than 5MB',
+                variant: "destructive",
+            })
+            setIsSubmitting(false)
+            return
+        }
+
         const formData = new FormData()
+        console.log('Creating FormData object...')
 
         // Append all form values
         formData.append('name', values.name)
         formData.append('name_en', values.name_en)
         formData.append('name_short', values.name_short)
         formData.append('name_short_en', values.name_short_en)
-        formData.append('role', values.role || "")
-        formData.append('role_en', values.role_en || "")
         formData.append('cityId', cityId)
-        formData.append('partyId', values.partyId || "")
-        formData.append('isAdministrativeRole', String(values.isAdministrativeRole || false))
-        if (values.activeFrom) formData.append('activeFrom', values.activeFrom.toISOString())
-        if (values.activeTo) formData.append('activeTo', values.activeTo.toISOString())
         formData.append('profileUrl', values.profileUrl || "")
 
-        // Only append image if it exists
+        // Clean up roles data before sending
+        const cleanRoles = roles.map(role => ({
+            id: role.id,
+            personId: role.personId,
+            cityId: role.cityId,
+            partyId: role.partyId,
+            administrativeBodyId: role.administrativeBodyId,
+            isHead: role.isHead,
+            name: role.name,
+            name_en: role.name_en,
+            startDate: role.startDate,
+            endDate: role.endDate
+        }))
+
+        console.log('Roles to be sent:', cleanRoles)
+        formData.append('roles', JSON.stringify(cleanRoles))
+
+        // Only append image if it exists and is valid
         if (image) {
+            console.log('Appending image:', image.name, image.size)
             formData.append('image', image)
         }
 
+        console.log('FormData created, sending request to:', url)
+
         try {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
             const response = await fetch(url, {
                 method,
                 body: formData,
+                signal: controller.signal
             })
+
+            clearTimeout(timeoutId)
+            console.log('Response received:', response.status)
 
             if (response.ok) {
                 setIsSuccess(true)
@@ -127,23 +146,24 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                     onSuccess()
                 }
                 router.refresh() // Refresh the page to show updated data
-                form.reset({
-                    name: "",
-                    name_en: "",
-                    name_short: "",
-                    name_short_en: "",
-                    role: "",
-                    role_en: "",
-                    image: undefined,
-                    partyId: values.partyId,
-                    isAdministrativeRole: false,
-                    activeFrom: null,
-                    activeTo: null,
-                    profileUrl: "",
-                })
-                setImage(null)
-                setImagePreview(null)
-                nameInputRef.current?.focus()
+
+                // Only reset form if it's a new person (not in edit mode)
+                if (!person) {
+                    form.reset({
+                        name: "",
+                        name_en: "",
+                        name_short: "",
+                        name_short_en: "",
+                        image: undefined,
+                        profileUrl: "",
+                    })
+                    setImage(null)
+                    setImagePreview(null)
+                    // Do not reset roles ever, for easier data entry
+                    // setRoles([])
+                    nameInputRef.current?.focus()
+                }
+
                 toast({
                     title: t('success'),
                     description: person ? t('personUpdated') : t('personCreated'),
@@ -153,10 +173,14 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                 throw new Error(errorData.message || t('failedToSavePerson'))
             }
         } catch (error) {
-            console.error(t('failedToSavePerson'), error)
+            console.error('Error in form submission:', error)
             toast({
                 title: t('error'),
-                description: error instanceof Error ? error.message : t('unexpectedError'),
+                description: error instanceof Error
+                    ? (error.name === 'AbortError'
+                        ? 'Request timed out. Please try again.'
+                        : error.message)
+                    : t('unexpectedError'),
                 variant: "destructive",
             })
         } finally {
@@ -211,50 +235,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                     ]}
                     form={form}
                 />
-                <InputWithDerivatives
-                    baseName="role"
-                    basePlaceholder={t('rolePlaceholder')}
-                    baseDescription={t('roleDescription')}
-                    derivatives={[
-                        {
-                            name: 'role_en',
-                            calculate: (baseValue) => toGreeklish(baseValue),
-                            placeholder: t('roleEnPlaceholder'),
-                            description: t('roleEnDescription'),
-                        },
-                    ]}
-                    form={form}
-                />
-                <FormField
-                    control={form.control}
-                    name="partyId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('party')}</FormLabel>
-                            <FormControl>
-                                <Select onValueChange={(value) => field.onChange(value === "none" ? "" : value)} defaultValue={field.value}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectParty')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="none">
-                                            {t('noParty')}
-                                        </SelectItem>
-                                        {(parties || []).map((party) => (
-                                            <SelectItem key={party.id} value={party.id}>
-                                                {party.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </FormControl>
-                            <FormDescription>
-                                {t('partyDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+
                 <FormField
                     control={form.control}
                     name="image"
@@ -277,106 +258,7 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                         </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="isAdministrativeRole"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('isAdministrativeRole')}</FormLabel>
-                            <FormControl>
-                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                            </FormControl>
-                            <FormDescription>
-                                {t('isAdministrativeRoleDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="activeFrom"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>{t('activeFrom')}</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[240px] pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>{t('pickADate')}</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value || undefined}
-                                        onSelect={field.onChange}
-                                        disabled={(date) =>
-                                            date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            <FormDescription>{t('activeFromDescription')}</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="activeTo"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>{t('activeTo')}</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-[240px] pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>{t('pickADate')}</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value || undefined}
-                                        onSelect={(date) => field.onChange(date)}
-                                        disabled={(date) =>
-                                            date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                            <FormDescription>{t('activeToDescription')}</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+
                 <FormField
                     control={form.control}
                     name="profileUrl"
@@ -393,6 +275,19 @@ export default function PersonForm({ person, parties, onSuccess, cityId }: Perso
                         </FormItem>
                     )}
                 />
+
+                <div className="space-y-2">
+                    <h3 className="text-lg font-medium">{t('roles')}</h3>
+                    <RolesList
+                        personId={person?.id}
+                        cityId={cityId}
+                        roles={roles}
+                        parties={parties}
+                        administrativeBodies={administrativeBodies}
+                        onUpdate={setRoles}
+                    />
+                </div>
+
                 <div className="flex justify-between">
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (

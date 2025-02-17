@@ -16,11 +16,49 @@ export async function deletePerson(id: string): Promise<void> {
     }
 }
 
-export async function createPerson(personData: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>): Promise<Person> {
-    withUserAuthorizedToEdit({ cityId: personData.cityId });
+export async function createPerson(data: {
+    cityId: string;
+    name: string;
+    name_en: string;
+    name_short: string;
+    name_short_en: string;
+    image: string | null;
+    profileUrl: string | null;
+    roles: Role[];
+}): Promise<Person> {
+    withUserAuthorizedToEdit({ cityId: data.cityId });
     try {
         const newPerson = await prisma.person.create({
-            data: personData,
+            data: {
+                cityId: data.cityId,
+                name: data.name,
+                name_en: data.name_en,
+                name_short: data.name_short,
+                name_short_en: data.name_short_en,
+                image: data.image,
+                profileUrl: data.profileUrl,
+                roles: {
+                    create: data.roles.map(role => ({
+                        cityId: role.cityId,
+                        partyId: role.partyId,
+                        administrativeBodyId: role.administrativeBodyId,
+                        name: role.name,
+                        name_en: role.name_en,
+                        isHead: role.isHead,
+                        startDate: role.startDate,
+                        endDate: role.endDate
+                    }))
+                }
+            },
+            include: {
+                roles: {
+                    include: {
+                        party: true,
+                        city: true,
+                        administrativeBody: true
+                    }
+                }
+            }
         });
         return newPerson;
     } catch (error) {
@@ -29,17 +67,56 @@ export async function createPerson(personData: Omit<Person, 'id' | 'createdAt' |
     }
 }
 
-export async function editPerson(id: string, personData: Partial<Omit<Person, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Person> {
+export async function editPerson(id: string, data: {
+    name: string;
+    name_en: string;
+    name_short: string;
+    name_short_en: string;
+    image?: string;
+    profileUrl: string | null;
+    roles: Role[];
+}): Promise<Person> {
     withUserAuthorizedToEdit({ personId: id });
     try {
-        // Convert empty partyId to null
-        if (personData.partyId === '') {
-            personData.partyId = null;
-        }
+        const updatedPerson = await prisma.$transaction(async (tx) => {
+            // First delete all existing roles
+            await tx.role.deleteMany({
+                where: { personId: id }
+            });
 
-        const updatedPerson = await prisma.person.update({
-            where: { id },
-            data: personData,
+            // Then update the person and create new roles
+            return await tx.person.update({
+                where: { id },
+                data: {
+                    name: data.name,
+                    name_en: data.name_en,
+                    name_short: data.name_short,
+                    name_short_en: data.name_short_en,
+                    ...(data.image && { image: data.image }),
+                    profileUrl: data.profileUrl,
+                    roles: {
+                        create: data.roles.map(role => ({
+                            cityId: role.cityId,
+                            partyId: role.partyId,
+                            administrativeBodyId: role.administrativeBodyId,
+                            name: role.name,
+                            name_en: role.name_en,
+                            isHead: role.isHead,
+                            startDate: role.startDate,
+                            endDate: role.endDate
+                        }))
+                    }
+                },
+                include: {
+                    roles: {
+                        include: {
+                            party: true,
+                            city: true,
+                            administrativeBody: true
+                        }
+                    }
+                }
+            });
         });
         return updatedPerson;
     } catch (error) {
@@ -58,21 +135,6 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
                         party: true,
                         city: true,
                         administrativeBody: true
-                    },
-                    where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
                     }
                 }
             }
@@ -94,21 +156,6 @@ export async function getPeopleForCity(cityId: string): Promise<PersonWithRelati
                         party: true,
                         city: true,
                         administrativeBody: true
-                    },
-                    where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
                     }
                 }
             }

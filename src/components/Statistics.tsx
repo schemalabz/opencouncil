@@ -14,18 +14,21 @@ type StatisticsProps = {
     id: string
     cityId: string
     color?: string
+    initialData?: StatisticsOfPerson | StatisticsOfParty
 }
 
-export function Statistics({ type, id, cityId, color }: StatisticsProps) {
-    const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(null)
+export function Statistics({ type, id, cityId, color, initialData }: StatisticsProps) {
+    const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(initialData || null)
     const t = useTranslations('Statistics')
 
     useEffect(() => {
-        const params = type === 'person' ? { personId: id, cityId } : { partyId: id, cityId }
-        getStatisticsFor(params, ['topic', 'person', 'party']).then((s) => {
-            setStatistics(s as StatisticsOfPerson | StatisticsOfParty)
-        })
-    }, [type, id, cityId])
+        if (!initialData) {
+            const params = type === 'person' ? { personId: id, cityId } : { partyId: id, cityId }
+            getStatisticsFor(params, ['topic', 'person', 'party']).then((s) => {
+                setStatistics(s as StatisticsOfPerson | StatisticsOfParty)
+            })
+        }
+    }, [type, id, cityId, initialData])
 
     const topicChartData = useMemo(() => {
         if (!statistics || !statistics.topics) return []
