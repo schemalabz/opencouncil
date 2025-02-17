@@ -88,10 +88,10 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
         <>
             <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
-                    <div className='sticky top-[80px] flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 pb-3'>
+                    <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30'>
                         {renderMock ? <div className='w-full h-full bg-muted' /> : (
-                            <div className='flex flex-col w-full space-y-3'>
-                                <div className='flex items-center justify-between w-full px-4 pt-2'>
+                            <div className='flex flex-col w-full space-y-2 py-2'>
+                                <div className='flex items-center justify-between w-full px-4'>
                                     <div className='flex-grow overflow-hidden'>
                                         {memoizedData.speakerTag && (
                                             <PersonBadge
@@ -139,7 +139,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                         <div className='flex items-center justify-between'>
                                             {segment.topicLabels.length > 0 && (
                                                 <div className='flex flex-wrap gap-2'>
-                                                    {segment.topicLabels.map(tl => 
+                                                    {segment.topicLabels.map(tl =>
                                                         <TopicBadge topic={tl.topic} key={tl.topic.id} />
                                                     )}
                                                 </div>
@@ -157,7 +157,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     <div className='font-mono px-4 py-3 text-justify w-full leading-relaxed'>
                         {renderMock ? (
                             <div className='w-full break-words whitespace-pre-wrap'>
-                                {utterances.map((u, i) => 
+                                {utterances.map((u, i) =>
                                     <span className='break-words' id={u.id} key={u.id}>{u.text} </span>
                                 )}
                             </div>

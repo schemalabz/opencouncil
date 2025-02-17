@@ -1,6 +1,7 @@
 User-agent: *
-Disallow: /
+Allow: /
 
-User-agent: *
-Allow: /$
-Allow: /about$
+# Prevent indexing of transcript pages
+Disallow: */meetings/*/transcript
+
+Sitemap: https://opencouncil.co/sitemap.xml

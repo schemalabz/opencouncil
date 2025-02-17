@@ -9,6 +9,11 @@ import { sortSubjectsByImportance } from "../utils";
 import { getStatisticsFor, Statistics } from "../statistics";
 import { PersonWithRelations } from "../getMeetingData";
 
+export type SubstackPost = {
+    title: string;
+    url: string;
+    publishDate: Date;
+};
 
 export type LandingPageCity = City & {
     mostRecentMeeting: CouncilMeeting & {
@@ -22,7 +27,44 @@ export type LandingPageCity = City & {
     persons: PersonWithRelations[];
 };
 
-export async function getLandingPageData({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<LandingPageCity[]> {
+export type LandingPageData = {
+    cities: LandingPageCity[];
+    latestPost?: SubstackPost;
+};
+
+async function fetchLatestSubstackPost(): Promise<SubstackPost | undefined> {
+    try {
+        const response = await fetch('https://schemalabs.substack.com/feed', {
+            next: { revalidate: 3600 } // Revalidate every hour
+        });
+        const text = await response.text();
+
+        // Find the first item in the feed
+        const itemMatch = text.match(/<item>[\s\S]*?<\/item>/);
+        if (!itemMatch) return undefined;
+
+        const item = itemMatch[0];
+
+        // Extract title and date from the item
+        const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
+        const linkMatch = item.match(/<link>(.*?)<\/link>/);
+        const dateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+
+        if (titleMatch && linkMatch && dateMatch) {
+            return {
+                title: titleMatch[1],
+                url: linkMatch[1],
+                publishDate: new Date(dateMatch[1])
+            };
+        }
+        return undefined;
+    } catch (error) {
+        console.error('Error fetching Substack feed:', error);
+        return undefined;
+    }
+}
+
+export async function getLandingPageData({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<LandingPageData> {
     const startTime = performance.now();
     if (includeUnlisted) {
         await isUserAuthorizedToEdit({});
@@ -118,5 +160,10 @@ export async function getLandingPageData({ includeUnlisted = false }: { includeU
 
     console.log(`Landing page data fetched in ${performance.now() - startTime}ms`);
 
-    return citiesWithStats;
+    const latestPost = await fetchLatestSubstackPost();
+
+    return {
+        cities: citiesWithStats,
+        latestPost
+    };
 }
