@@ -109,7 +109,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     >
                         <span className="relative z-10 flex items-center gap-2">
                             <CalendarClock className="h-4 w-4" />
-                            Προγραμματίστε μια κλήση
+                            Επικοινωνήστε μαζί μας
                         </span>
                         <motion.div
                             className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -388,7 +388,7 @@ export default function AboutPage() {
                             className="bg-white/90 hover:bg-white text-primary hover:text-primary/90 transition-colors duration-300"
                         >
                             <CalendarClock className="mr-2 h-4 w-4" />
-                            Προγραμματίστε μια κλήση
+                            Επικοινωνήστε μαζί μας
                         </Button>
                         <a
                             href="tel:+302111980212"
