@@ -61,6 +61,8 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
     const isUpcoming = isFuture(meeting.dateTime);
+    const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const isTodayWithoutVideo = isToday && !meeting.videoUrl;
 
     const getMediaIcon = () => {
         if (meeting.videoUrl) return <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
@@ -121,9 +123,15 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                                         </motion.div>
                                     )}
                                     {isUpcoming && (
-                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-primary/5 text-primary border-primary/20">
+                                        <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-primary/90 text-primary-foreground font-medium shadow-sm hover:bg-primary">
                                             <Clock className="w-3.5 h-3.5" />
-                                            Σε {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                            {t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                        </Badge>
+                                    )}
+                                    {isTodayWithoutVideo && !isUpcoming && (
+                                        <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-orange-500/90 text-white font-medium shadow-sm hover:bg-orange-500">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {t('today')}
                                         </Badge>
                                     )}
                                     {!meeting.released && (

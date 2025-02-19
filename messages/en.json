@@ -234,6 +234,8 @@
         "moreSubjects": "and {count} more subjects",
         "mostRecent": "Most recent meeting",
         "loading": "Loading...",
-        "notPublic": "Not public"
+        "notPublic": "Not public",
+        "upcoming": "Upcoming",
+        "today": "Today's meeting"
     }
 }
