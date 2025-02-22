@@ -35,9 +35,6 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
                 speakerTag: {
                     personId: personId
                 },
-                summary: {
-                    isNot: null
-                },
                 utterances: {
                     some: {
                         text: {

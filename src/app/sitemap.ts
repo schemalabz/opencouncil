@@ -11,21 +11,45 @@ export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
             url: baseUrl,
             changeFrequency: 'daily',
             priority: 1,
+            alternates: {
+                languages: {
+                    el: baseUrl,
+                    en: `${baseUrl}/en`
+                }
+            }
         },
         {
             url: `${baseUrl}/about`,
             changeFrequency: 'weekly',
             priority: 0.8,
+            alternates: {
+                languages: {
+                    el: `${baseUrl}/about`,
+                    en: `${baseUrl}/en/about`
+                }
+            }
         },
         {
             url: `${baseUrl}/explain`,
             changeFrequency: 'weekly',
             priority: 0.8,
+            alternates: {
+                languages: {
+                    el: `${baseUrl}/explain`,
+                    en: `${baseUrl}/en/explain`
+                }
+            }
         },
         {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',
             priority: 0.8,
+            alternates: {
+                languages: {
+                    el: `${baseUrl}/corrections`,
+                    en: `${baseUrl}/en/corrections`
+                }
+            }
         },
     ]
 }
@@ -37,6 +61,12 @@ export async function generateCitiesSitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${baseUrl}/${city.id}`,
         changeFrequency: 'daily',
         priority: 0.9,
+        alternates: {
+            languages: {
+                el: `${baseUrl}/${city.id}`,
+                en: `${baseUrl}/en/${city.id}`
+            }
+        }
     }))
 }
 
@@ -52,6 +82,12 @@ export async function generateMeetingsSitemap(): Promise<MetadataRoute.Sitemap> 
                 url: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
                 changeFrequency: 'weekly',
                 priority: 0.7,
+                alternates: {
+                    languages: {
+                        el: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
+                        en: `${baseUrl}/en/${city.id}/meetings/${meeting.id}`
+                    }
+                }
             })
         }
     }
@@ -73,6 +109,12 @@ export async function generateSubjectsSitemap(): Promise<MetadataRoute.Sitemap> 
                     url: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
                     changeFrequency: 'weekly',
                     priority: 0.6,
+                    alternates: {
+                        languages: {
+                            el: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
+                            en: `${baseUrl}/en/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`
+                        }
+                    }
                 })
             }
         }

@@ -133,7 +133,7 @@ export default async function CouncilMeetingPage({
 
     // Format meeting description to include more info
     const meetingDescription = [
-        formatDate(new Date(data.meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS }),
+        formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
         data.meeting.videoUrl ? "Βίντεο διαθέσιμο" : null,
         `${data.subjects.length} θέματα`
     ].filter(Boolean).join(' · ');
