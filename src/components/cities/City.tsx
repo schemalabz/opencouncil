@@ -289,6 +289,7 @@ export default function CityC({ city }: {
                                         smColumns={1}
                                         mdColumns={2}
                                         lgColumns={3}
+                                        allText="Όλα τα όργανα"
                                     />
                                 </TabsContent>
 
@@ -311,6 +312,7 @@ export default function CityC({ city }: {
                                         smColumns={1}
                                         mdColumns={2}
                                         lgColumns={3}
+                                        allText="Όλα τα όργανα"
                                     />
                                 </TabsContent>
 

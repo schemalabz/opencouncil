@@ -79,7 +79,7 @@
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
         "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις",
-        "members": "Μέλη",
+        "members": "Πρόσωπα",
         "parties": "Παρατάξεις",
         "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
         "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
@@ -258,7 +258,9 @@
         "deleteParty": "Διαγραφή Παράταξης",
         "partyDeleted": "Η παράταξη {name} διαγράφηκε",
         "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
-        "statistics": "Στατιστικά Παράταξης"
+        "statistics": "Στατιστικά Παράταξης",
+        "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
+        "searchItems": "Αναζητήστε παρατάξεις"
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
@@ -321,5 +323,9 @@
         "topicsList": "Θέματα",
         "topSpeakers": "Κορυφαίοι Ομιλητές",
         "minutes": "λεπτά"
+    },
+    "CouncilMeeting": {
+        "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
+        "searchItems": "Αναζητήστε συνεδριάσεις"
     }
 }

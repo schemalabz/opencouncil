@@ -26,6 +26,7 @@ interface ListProps<T, P = {}, F = string | undefined> {
     smColumns?: number;
     mdColumns?: number;
     lgColumns?: number;
+    allText?: string;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -41,6 +42,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     smColumns = 1,
     mdColumns = 2,
     lgColumns = 3,
+    allText = "Όλα",
 }: ListProps<T, P, F>) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedFilters, setSelectedFilters] = useState<F[]>(filterAvailableValues.map(value => value.value));
@@ -83,7 +85,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     const getFilterButtonText = () => {
         if (selectedFilters.length === 0) return "Καμία επιλογή";
-        if (selectedFilters.length === filterAvailableValues.length) return "Όλα";
+        if (selectedFilters.length === filterAvailableValues.length) return allText;
 
         const firstFilter = filterAvailableValues.find(f => f.value === selectedFilters[0]);
         if (selectedFilters.length === 1) return firstFilter?.label;
@@ -110,6 +112,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         defaultValues={filterAvailableValues.map(value => value.value)}
                         onChange={setSelectedFilters}
                         className="w-full sm:w-[300px] justify-between"
+                        allText={allText}
                     />
                 )}
                 <div className="relative flex-1">

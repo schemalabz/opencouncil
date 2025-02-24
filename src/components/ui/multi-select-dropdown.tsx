@@ -20,6 +20,7 @@ interface MultiSelectDropdownProps<T> {
     defaultValues?: T[];
     className?: string;
     placeholder?: string;
+    allText?: string;
 }
 
 export function MultiSelectDropdown<T>({
@@ -27,7 +28,8 @@ export function MultiSelectDropdown<T>({
     onChange,
     defaultValues = [],
     className,
-    placeholder = "Select options..."
+    placeholder = "Select options...",
+    allText = "Όλα"
 }: MultiSelectDropdownProps<T>) {
     const [selectedValues, setSelectedValues] = useState<T[]>(defaultValues);
 
@@ -46,7 +48,7 @@ export function MultiSelectDropdown<T>({
 
     const getButtonText = () => {
         if (selectedValues.length === 0) return placeholder;
-        if (selectedValues.length === options.length) return "Όλα";
+        if (selectedValues.length === options.length) return allText;
 
         const firstValue = options.find(opt => opt.value === selectedValues[0]);
         if (selectedValues.length === 1) return firstValue?.label;
