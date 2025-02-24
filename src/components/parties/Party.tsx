@@ -23,6 +23,10 @@ import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
 
+type RoleWithPerson = Role & {
+    person: Person;
+};
+
 export default function PartyC({ city, party }: { city: City, party: PartyWithPersons }) {
     const t = useTranslations('Party');
     const router = useRouter();
@@ -37,6 +41,9 @@ export default function PartyC({ city, party }: { city: City, party: PartyWithPe
     // Split roles into active and inactive
     const activeRoles = useMemo(() => filterActiveRoles(party.roles), [party.roles]);
     const inactiveRoles = useMemo(() => filterInactiveRoles(party.roles), [party.roles]);
+
+    // Find the current party leader
+    const partyLeader = useMemo(() => activeRoles.find((role: RoleWithPerson) => role.isHead), [activeRoles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -126,6 +133,21 @@ export default function PartyC({ city, party }: { city: City, party: PartyWithPe
                                 >
                                     {party.name}
                                 </motion.h1>
+                                {partyLeader && (
+                                    <motion.div
+                                        className="text-lg"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.25 }}
+                                    >
+                                        <Link
+                                            href={`/${city.id}/people/${partyLeader.person.id}`}
+                                            className="hover:underline text-muted-foreground"
+                                        >
+                                            {partyLeader.person.name}
+                                        </Link>
+                                    </motion.div>
+                                )}
                                 <motion.div
                                     className="text-lg text-muted-foreground"
                                     initial={{ opacity: 0 }}
@@ -205,7 +227,7 @@ export default function PartyC({ city, party }: { city: City, party: PartyWithPe
                                     const personWithRelations = {
                                         ...role.person,
                                         party,
-                                        roles: [role]
+                                        roles: [{ ...role, party }]
                                     };
                                     return (
                                         <PersonCard
