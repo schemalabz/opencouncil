@@ -23,7 +23,7 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/getMeetingData';
-import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 import { StatisticsOfPerson } from "@/lib/statistics";
 
 type RoleWithRelations = Role & {
@@ -103,8 +103,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     const formatActiveDates = (from: Date | null, to: Date | null) => {
         if (!to && !from) return null;
-        if (to && !from) return `${t('activeUntil')} ${formatDate(to)}`;
-        if (from && to) return `${t('active')}: ${formatDate(from)} - ${formatDate(to)}`;
+        if (to && !from) return `${t('activeUntil')} ${formatDateRange(null, to, t)}`;
+        if (from && to) return `${t('active')}: ${formatDateRange(from, to, t)}`;
         return null;
     };
 
@@ -315,24 +315,31 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         >
                                             {role.party && (
                                                 <div className="flex items-center gap-2">
-                                                    <div className="relative w-5 h-5">
-                                                        <ImageOrInitials
-                                                            imageUrl={role.party.logo}
-                                                            name={role.party.name_short}
-                                                            color={role.party.colorHex}
-                                                            width={20}
-                                                            height={20}
-                                                        />
-                                                    </div>
-                                                    <span className="text-muted-foreground">
-                                                        {role.party.name}
-                                                        {role.isHead && ` (${t('partyLeader')})`}
-                                                        {role.name && ` - ${role.name}`}
-                                                    </span>
+                                                    <Link
+                                                        href={`/${city.id}/parties/${role.party.id}`}
+                                                        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                    >
+                                                        <div className="relative w-5 h-5">
+                                                            <ImageOrInitials
+                                                                imageUrl={role.party.logo}
+                                                                name={role.party.name_short}
+                                                                color={role.party.colorHex}
+                                                                width={20}
+                                                                height={20}
+                                                            />
+                                                        </div>
+                                                        <span className="text-muted-foreground">
+                                                            {role.party.name}
+                                                            {role.isHead && ` (${t('partyLeader')})`}
+                                                            {role.name && ` - ${role.name}`}
+                                                        </span>
+                                                    </Link>
                                                     <span className="text-sm text-muted-foreground ml-auto">
-                                                        {role.startDate && formatDate(role.startDate)}
-                                                        {' - '}
-                                                        {role.endDate && formatDate(role.endDate)}
+                                                        {formatDateRange(
+                                                            role.startDate ? new Date(role.startDate) : null,
+                                                            role.endDate ? new Date(role.endDate) : null,
+                                                            t
+                                                        )}
                                                     </span>
                                                 </div>
                                             )}
@@ -352,9 +359,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     {role.isHead ? t('mayor') : role.name}
                                                 </span>
                                                 <span className="text-sm text-muted-foreground">
-                                                    {role.startDate && formatDate(role.startDate)}
-                                                    {' - '}
-                                                    {role.endDate && formatDate(role.endDate)}
+                                                    {formatDateRange(
+                                                        role.startDate ? new Date(role.startDate) : null,
+                                                        role.endDate ? new Date(role.endDate) : null,
+                                                        t
+                                                    )}
                                                 </span>
                                             </div>
                                         </motion.div>
@@ -375,9 +384,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     {role.name && ` - ${role.name}`}
                                                 </span>
                                                 <span className="text-sm text-muted-foreground">
-                                                    {role.startDate && formatDate(role.startDate)}
-                                                    {' - '}
-                                                    {role.endDate && formatDate(role.endDate)}
+                                                    {formatDateRange(
+                                                        role.startDate ? new Date(role.startDate) : null,
+                                                        role.endDate ? new Date(role.endDate) : null,
+                                                        t
+                                                    )}
                                                 </span>
                                             </div>
                                         </motion.div>

@@ -27,6 +27,19 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 
+const formatDateRange = (startDate: Date | null, endDate: Date | null, t: any) => {
+    if (startDate && endDate) {
+        return `${format(startDate, "PPP")} - ${format(endDate, "PPP")}`
+    }
+    if (startDate) {
+        return `${t('from')} ${format(startDate, "PPP")}`
+    }
+    if (endDate) {
+        return `${t('until')} ${format(endDate, "PPP")}`
+    }
+    return null
+}
+
 const formSchema = z.object({
     name: z.string().optional(),
     name_en: z.string().optional(),
@@ -54,6 +67,8 @@ interface RolesListProps {
 
 export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate }: RolesListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [startDateOpen, setStartDateOpen] = useState(false)
+    const [endDateOpen, setEndDateOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
 
@@ -117,26 +132,30 @@ export default function RolesList({ personId, cityId, roles, parties, administra
         <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setEditingRole(null)
-                        form.reset({
-                            name: "",
-                            name_en: "",
-                            isHead: false,
-                            startDate: null,
-                            endDate: null,
-                            type: 'city',
-                            partyId: undefined,
-                            administrativeBodyId: undefined,
-                        })
-                        setIsDialogOpen(true)
-                    }}>
+                    <Button
+                        variant="outline"
+                        className="w-full mb-4 hover:bg-accent"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingRole(null)
+                            form.reset({
+                                name: "",
+                                name_en: "",
+                                isHead: false,
+                                startDate: null,
+                                endDate: null,
+                                type: 'city',
+                                partyId: undefined,
+                                administrativeBodyId: undefined,
+                            })
+                            setIsDialogOpen(true)
+                        }}
+                    >
                         {t('addNew')}
                     </Button>
                 </DialogTrigger>
-                <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogContent className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                     <DialogHeader>
                         <DialogTitle>
                             {editingRole ? t('editRole') : t('addRole')}
@@ -283,10 +302,11 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col flex-1">
                                             <FormLabel>{t('startDate')}</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
+                                            <Dialog open={startDateOpen} onOpenChange={setStartDateOpen}>
+                                                <DialogTrigger asChild>
                                                     <FormControl>
                                                         <Button
+                                                            type="button"
                                                             variant={"outline"}
                                                             className={cn(
                                                                 "w-full pl-3 text-left font-normal",
@@ -301,16 +321,20 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                         </Button>
                                                     </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
+                                                </DialogTrigger>
+                                                <DialogContent className="p-0 w-auto">
                                                     <Calendar
                                                         mode="single"
                                                         selected={field.value || undefined}
-                                                        onSelect={field.onChange}
+                                                        onSelect={(date) => {
+                                                            field.onChange(date);
+                                                            setStartDateOpen(false);
+                                                        }}
                                                         initialFocus
+                                                        className="rounded-md border"
                                                     />
-                                                </PopoverContent>
-                                            </Popover>
+                                                </DialogContent>
+                                            </Dialog>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -322,10 +346,11 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col flex-1">
                                             <FormLabel>{t('endDate')}</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
+                                            <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
+                                                <DialogTrigger asChild>
                                                     <FormControl>
                                                         <Button
+                                                            type="button"
                                                             variant={"outline"}
                                                             className={cn(
                                                                 "w-full pl-3 text-left font-normal",
@@ -340,16 +365,20 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                         </Button>
                                                     </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
+                                                </DialogTrigger>
+                                                <DialogContent className="p-0 w-auto">
                                                     <Calendar
                                                         mode="single"
                                                         selected={field.value || undefined}
-                                                        onSelect={field.onChange}
+                                                        onSelect={(date) => {
+                                                            field.onChange(date);
+                                                            setEndDateOpen(false);
+                                                        }}
                                                         initialFocus
+                                                        className="rounded-md border"
                                                     />
-                                                </PopoverContent>
-                                            </Popover>
+                                                </DialogContent>
+                                            </Dialog>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -364,69 +393,84 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                 </DialogContent>
             </Dialog>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
                 {roles.map((role) => (
-                    <Card key={role.id} onClick={(e) => e.stopPropagation()}>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
-                                {role.name || (
-                                    role.party?.name ||
-                                    role.administrativeBody?.name ||
-                                    t('cityRole')
-                                )}
-                                {role.isHead && ` (${t('head')})`}
-                            </CardTitle>
-                            <div className="flex space-x-2">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setEditingRole(role)
-                                        form.reset({
-                                            name: role.name || "",
-                                            name_en: role.name_en || "",
-                                            isHead: role.isHead,
-                                            startDate: role.startDate,
-                                            endDate: role.endDate,
-                                            type: role.partyId ? 'party' : role.administrativeBodyId ? 'administrativeBody' : 'city',
-                                            partyId: role.partyId || undefined,
-                                            administrativeBodyId: role.administrativeBodyId || undefined,
-                                        })
-                                        setIsDialogOpen(true)
-                                    }}
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleDelete(role)
-                                    }}
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                    <Card
+                        key={role.id}
+                        className="hover:bg-accent/5 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <CardHeader className="p-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <CardTitle className="text-base font-medium">
+                                            {role.name || (
+                                                role.party?.name ||
+                                                role.administrativeBody?.name ||
+                                                t('cityRole')
+                                            )}
+                                        </CardTitle>
+                                        {role.isHead && (
+                                            <span className="text-sm text-muted-foreground">
+                                                ({t('head')})
+                                            </span>
+                                        )}
+                                    </div>
+                                    {(role.name_en || role.party?.name_en || role.administrativeBody?.name_en) && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {role.name_en || role.party?.name_en || role.administrativeBody?.name_en}
+                                        </p>
+                                    )}
+                                    {(role.startDate || role.endDate) && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {formatDateRange(
+                                                role.startDate ? new Date(role.startDate) : null,
+                                                role.endDate ? new Date(role.endDate) : null,
+                                                t
+                                            )}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 hover:bg-accent"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setEditingRole(role)
+                                            form.reset({
+                                                name: role.name || "",
+                                                name_en: role.name_en || "",
+                                                isHead: role.isHead,
+                                                startDate: role.startDate,
+                                                endDate: role.endDate,
+                                                type: role.partyId ? 'party' : role.administrativeBodyId ? 'administrativeBody' : 'city',
+                                                partyId: role.partyId || undefined,
+                                                administrativeBodyId: role.administrativeBodyId || undefined,
+                                            })
+                                            setIsDialogOpen(true)
+                                        }}
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            handleDelete(role)
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="text-xs text-muted-foreground space-y-1">
-                                <p>
-                                    {role.name_en && `${role.name_en} - `}
-                                    {role.party?.name_en || role.administrativeBody?.name_en || t('cityRole')}
-                                </p>
-                                {(role.startDate || role.endDate) && (
-                                    <p>
-                                        {role.startDate && format(new Date(role.startDate), "PPP")}
-                                        {' - '}
-                                        {role.endDate ? format(new Date(role.endDate), "PPP") : t('present')}
-                                    </p>
-                                )}
-                            </div>
-                        </CardContent>
                     </Card>
                 ))}
             </div>

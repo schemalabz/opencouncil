@@ -79,6 +79,19 @@ export function formatDate(date: Date): string {
   }
 }
 
+export function formatDateRange(startDate: Date | null, endDate: Date | null, t: any): string {
+  if (startDate && endDate) {
+    return `${t('from')} ${formatDate(startDate)} ${t('until')} ${formatDate(endDate)}`;
+  }
+  if (startDate && !endDate) {
+    return `${t('from')} ${formatDate(startDate)} ${t('until')} ${t('present')}`;
+  }
+  if (!startDate && endDate) {
+    return `${t('until')} ${formatDate(endDate)}`;
+  }
+  return '';
+}
+
 export function sortSubjectsByImportance<T extends Subject & { topic?: Topic | null, statistics?: Statistics }>(subjects: T[]) {
   return [...subjects].sort((a, b) => {
     // First priority: hot subjects

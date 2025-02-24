@@ -48,6 +48,7 @@ TABLES=(
     "Party"
     "AdministrativeBody"
     "Person"
+    "Role"
     "CouncilMeeting"
     "SpeakerTag"
     "SpeakerSegment"

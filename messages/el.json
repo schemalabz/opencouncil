@@ -247,7 +247,9 @@
         "statistics": "Στατιστικά Μέλους",
         "searchItems": "Αναζητήστε μέλη",
         "activeUntil": "Μέλος έως",
-        "active": "Μέλος"
+        "active": "Μέλος",
+        "from": "από",
+        "until": "έως"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -313,10 +315,12 @@
         "submitting": "Αποθήκευση...",
         "update": "Ενημέρωση",
         "create": "Δημιουργία",
-        "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το ρόλο;",
-        "cityRole": "Ρόλος Δήμου",
+        "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον ρόλο;",
+        "cityRole": "Δημοτικός Σύμβουλος",
         "head": "Επικεφαλής",
-        "present": "Σήμερα"
+        "present": "σήμερα",
+        "from": "από",
+        "until": "έως"
     },
     "Statistics": {
         "totalMinutes": "λεπτά ομιλίας",

@@ -21,7 +21,7 @@ import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -289,9 +289,11 @@ export default function PartyC({ city, party }: { city: City, party: PartyWithPe
                                                     </div>
                                                 </Link>
                                                 <span className="text-sm text-muted-foreground ml-auto">
-                                                    {role.startDate && formatDate(role.startDate)}
-                                                    {' - '}
-                                                    {role.endDate && formatDate(role.endDate)}
+                                                    {formatDateRange(
+                                                        role.startDate ? new Date(role.startDate) : null,
+                                                        role.endDate ? new Date(role.endDate) : null,
+                                                        t
+                                                    )}
                                                 </span>
                                             </div>
                                         </motion.div>
