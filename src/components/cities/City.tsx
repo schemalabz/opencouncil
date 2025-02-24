@@ -55,9 +55,13 @@ export default function CityC({ city }: {
                     if (party) {
                         party.roles.push({
                             ...role,
+                            party,
                             person: {
                                 ...person,
-                                roles: person.roles
+                                roles: person.roles.map(r => ({
+                                    ...r,
+                                    party: r.partyId ? partyMap.get(r.partyId) : null
+                                }))
                             }
                         });
                     }

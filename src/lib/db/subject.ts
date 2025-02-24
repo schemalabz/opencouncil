@@ -34,8 +34,13 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 topic: true,
                 introducedBy: {
                     include: {
-                        party: true,
-                        roles: true
+                        roles: {
+                            include: {
+                                party: true,
+                                city: true,
+                                administrativeBody: true
+                            }
+                        }
                     }
                 },
             },
@@ -69,7 +74,13 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 introducedBy: {
                     include: {
                         party: true,
-                        roles: true
+                        roles: {
+                            include: {
+                                party: true,
+                                city: true,
+                                administrativeBody: true
+                            }
+                        }
                     }
                 },
                 highlights: true,

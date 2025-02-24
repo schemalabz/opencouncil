@@ -92,7 +92,13 @@ export async function getFullCity(cityId: string) {
                 include: {
                     party: true,
                     speakerTags: true,
-                    roles: true
+                    roles: {
+                        include: {
+                            party: true,
+                            city: true,
+                            administrativeBody: true
+                        }
+                    }
                 }
             },
             administrators: {
