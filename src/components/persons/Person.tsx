@@ -188,7 +188,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     </div>
                                                     <span className="text-base sm:text-lg text-muted-foreground">
                                                         {role.party.name}
-                                                        {role.isHead && ` (${t('partyLeader')})`}
                                                         {role.name && ` - ${role.name}`}
                                                     </span>
                                                 </Link>
