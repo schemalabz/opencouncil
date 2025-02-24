@@ -95,7 +95,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                     <div className='flex-grow overflow-hidden'>
                                         {memoizedData.speakerTag && (
                                             <PersonBadge
-                                                person={memoizedData.person ? { ...memoizedData.person, party: memoizedData.party || null } : undefined}
+                                                person={memoizedData.person}
                                                 speakerTag={memoizedData.speakerTag}
                                                 segmentCount={memoizedData.segmentCount}
                                                 editable={options.editable}

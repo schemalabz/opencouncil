@@ -138,7 +138,7 @@ export default function Subjects() {
                                                 <li key={segment.id} className="text-sm">
                                                     <div onClick={() => handleSpeakerClick(segment.speakerSegment.id)} className="cursor-pointer flex items-center">
                                                         <PersonBadge
-                                                            person={person ? { ...person, party: party || null } : undefined}
+                                                            person={person || undefined}
                                                             speakerTag={speakerTag}
                                                         />
                                                         {segmentTimestamp !== undefined && (

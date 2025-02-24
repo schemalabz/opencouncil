@@ -24,6 +24,7 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/getMeetingData';
 import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
+import { StatisticsOfPerson } from "@/lib/statistics";
 
 type RoleWithRelations = Role & {
     party?: Party | null;
@@ -290,7 +291,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     >
                         <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('statistics')}</h2>
                         <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6">
-                            <Statistics type="person" id={person.id} cityId={city.id} initialData={statistics} />
+                            <Statistics type="person" id={person.id} cityId={city.id} initialData={statistics as StatisticsOfPerson} />
                         </div>
                     </motion.div>
 

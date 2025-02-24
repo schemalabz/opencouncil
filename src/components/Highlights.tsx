@@ -214,7 +214,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                             return (
                                 <div key={index} className="flex items-center space-x-2">
                                     {speakerTag && <PersonBadge
-                                        person={person ? { ...person, party: party || null } : undefined}
+                                        person={person}
                                         speakerTag={speakerTag}
                                         className="ml-2"
                                     />}

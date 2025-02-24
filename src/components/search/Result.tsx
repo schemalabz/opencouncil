@@ -52,7 +52,7 @@ export function Result({ result, className }: { result: SearchResult, className?
                     </div>
 
                     <PersonBadge
-                        person={result.speakerSegment.person ? { ...result.speakerSegment.person, party: result.speakerSegment.party || null } : undefined}
+                        person={result.speakerSegment.person}
                     />
                 </div>
 

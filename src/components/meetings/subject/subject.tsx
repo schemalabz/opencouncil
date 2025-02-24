@@ -95,10 +95,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                                 <div className="pt-4 border-t">
                                     <div className="text-sm font-medium text-muted-foreground mb-2">Εισηγητής</div>
                                     <PersonBadge
-                                        person={{
-                                            ...introducedBy,
-                                            party: introducedBy.partyId ? getParty(introducedBy.partyId) ?? null : null
-                                        }}
+                                        person={introducedBy}
                                     />
                                 </div>
                             )}
@@ -156,7 +153,7 @@ export default function Subject({ subject }: { subject: SubjectWithRelations & {
                                         <div className="p-4">
                                             <div className="flex flex-col md:flex-row md:items-center gap-4">
                                                 <PersonBadge
-                                                    person={person ? { ...person, party: party || null } : undefined}
+                                                    person={person}
                                                     speakerTag={speakerTag}
                                                 />
                                                 <div className="flex gap-2 md:ml-auto">

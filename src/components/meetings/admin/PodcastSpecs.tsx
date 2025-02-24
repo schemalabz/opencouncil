@@ -121,7 +121,7 @@ export default function PodcastSpecs() {
                                                 return (
                                                     <div key={index} className="flex items-center space-x-2">
                                                         <PersonBadge
-                                                            person={person ? { ...person, party: party || null } : undefined}
+                                                            person={person || undefined}
                                                             speakerTag={speakerTag || undefined}
                                                         />
                                                         <p className="text-sm">{utterance.utterance.text}</p>

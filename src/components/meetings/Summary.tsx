@@ -92,7 +92,7 @@ export default function Summary() {
                                 <div className="w-full sm:w-1/3 flex-shrink-0 overflow-hidden mb-2 sm:mb-0">
                                     <div className="flex items-center space-x-2">
                                         <PersonBadge
-                                            person={person ? { ...person, party: party || null } : undefined}
+                                            person={person || undefined}
                                             speakerTag={segment.speakerTag}
                                         />
                                         <p className="text-sm">{segment.summary.text}</p>
