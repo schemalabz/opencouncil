@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Person, Party, SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
-import { cn } from "@/lib/utils";
+import { cn, filterActiveRoles } from "@/lib/utils";
 import {
     Popover,
     PopoverContent,
@@ -29,7 +29,9 @@ interface PersonDisplayProps {
 
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
-    const partyColor = person?.party?.colorHex || 'gray';
+    const activeRoles = useMemo(() => person ? filterActiveRoles(person.roles) : [], [person?.roles]);
+    const activePartyRole = useMemo(() => activeRoles.find(role => role.party), [activeRoles]);
+    const partyColor = activePartyRole?.party?.colorHex || 'gray';
 
     const imageSizes = {
         sm: 40,
@@ -37,7 +39,6 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
         lg: 64,
         xl: 96
     };
-
 
     const imageSize = imageSizes[size];
 
@@ -70,7 +71,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 <div
                     className={cn(
                         "absolute inset-0 rounded-full opacity-20",
-                        person?.party && `bg-[${partyColor}]`
+                        activePartyRole?.party && `bg-[${partyColor}]`
                     )}
                 />
                 <ImageOrInitials
@@ -96,21 +97,36 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                         )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
-                        {person?.party && (
-                            <span
-                                style={{ color: partyColor }}
-                            >
-                                {person.party.name_short}
-                            </span>
-                        )}
-                        {person?.role && (
+                        {activePartyRole?.party && (
                             <>
-                                {person.party && <span className="text-muted-foreground">·</span>}
-                                <span className="text-muted-foreground break-words">
-                                    {person.role}
+                                <span style={{ color: partyColor }}>
+                                    {activePartyRole.party.name_short}
                                 </span>
+                                {activePartyRole.name && (
+                                    <span className="text-muted-foreground">
+                                        {` (${activePartyRole.name})`}
+                                    </span>
+                                )}
                             </>
                         )}
+                        {activeRoles
+                            .filter(role => role.id !== activePartyRole?.id)
+                            .map((role, index) => (
+                                <React.Fragment key={role.id}>
+                                    {index > 0 || activePartyRole?.party ? <span className="text-muted-foreground">·</span> : null}
+                                    <span className="text-muted-foreground break-words">
+                                        {role.cityId ? (
+                                            role.name || "Μέλος"
+                                        ) : role.party ? (
+                                            `${role.party.name} (${role.name || "Μέλος"})`
+                                        ) : role.administrativeBody ? (
+                                            `${role.administrativeBody.name} (${role.name || "Μέλος"})`
+                                        ) : (
+                                            role.name || "Μέλος"
+                                        )}
+                                    </span>
+                                </React.Fragment>
+                            ))}
                     </div>
                 </div>
             )}

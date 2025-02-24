@@ -251,7 +251,14 @@
     },
     "Party": {
         "currentMembers": "Μέλη",
-        "pastMembers": "Πρώην Μέλη"
+        "pastMembers": "Πρώην Μέλη",
+        "membersCount": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
+        "partyLeader": "Επικεφαλής",
+        "editParty": "Επεξεργασία Παράταξης",
+        "deleteParty": "Διαγραφή Παράταξης",
+        "partyDeleted": "Η παράταξη {name} διαγράφηκε",
+        "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
+        "statistics": "Στατιστικά Παράταξης"
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
@@ -308,5 +315,11 @@
         "cityRole": "Ρόλος Δήμου",
         "head": "Επικεφαλής",
         "present": "Σήμερα"
+    },
+    "Statistics": {
+        "totalMinutes": "λεπτά ομιλίας",
+        "topicsList": "Θέματα",
+        "topSpeakers": "Κορυφαίοι Ομιλητές",
+        "minutes": "λεπτά"
     }
 }
