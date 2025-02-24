@@ -205,7 +205,11 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
                 isPending: false,
             },
             include: {
-                persons: true,
+                persons: {
+                    include: {
+                        roles: true // Include existing roles
+                    }
+                },
             },
         });
 
@@ -249,45 +253,60 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
 
                         // Create roles based on the determination
                         if (roleInfo.attachToCity) {
-                            const data: any = {
-                                personId: person.id,
-                                cityId: city.id,
-                                isHead: roleInfo.isHead,
-                            };
-                            if (roleInfo.name) data.name = roleInfo.name;
-                            if (roleInfo.name_en) data.name_en = roleInfo.name_en;
+                            // Check if city role already exists
+                            const existingCityRole = person.roles.find(r =>
+                                r.cityId === city.id &&
+                                r.name === roleInfo.name &&
+                                r.name_en === roleInfo.name_en
+                            );
 
-                            await prisma.role.create({ data });
-                            stats.rolesCreated++;
-                        }
-
-                        if (roleInfo.attachToAdminBody) {
-                            // Create their special role (if any)
-                            if (roleInfo.name) {
+                            if (!existingCityRole) {
                                 const data: any = {
                                     personId: person.id,
-                                    administrativeBodyId: cityCouncilId,
+                                    cityId: city.id,
                                     isHead: roleInfo.isHead,
-                                    name: roleInfo.name,
                                 };
+                                if (roleInfo.name) data.name = roleInfo.name;
                                 if (roleInfo.name_en) data.name_en = roleInfo.name_en;
 
                                 await prisma.role.create({ data });
                                 stats.rolesCreated++;
-                            } else {
-                                // Regular council member
-                                await prisma.role.create({
-                                    data: {
+                            }
+                        }
+
+                        if (roleInfo.attachToAdminBody || roleInfo.isAlsoCouncilMember) {
+                            // Check if special role already exists - but ONLY if we're attaching to admin body
+                            // (not for isAlsoCouncilMember alone)
+                            if (roleInfo.name && roleInfo.attachToAdminBody) {
+                                const existingSpecialRole = person.roles.find(r =>
+                                    r.administrativeBodyId === cityCouncilId &&
+                                    r.name === roleInfo.name &&
+                                    r.name_en === roleInfo.name_en
+                                );
+
+                                if (!existingSpecialRole) {
+                                    const data: any = {
                                         personId: person.id,
                                         administrativeBodyId: cityCouncilId,
-                                        isHead: false,
-                                    },
-                                });
-                                stats.rolesCreated++;
+                                        isHead: roleInfo.isHead,
+                                        name: roleInfo.name,
+                                    };
+                                    if (roleInfo.name_en) data.name_en = roleInfo.name_en;
+
+                                    await prisma.role.create({ data });
+                                    stats.rolesCreated++;
+                                }
                             }
 
-                            // If they should also be a regular council member, create that role
-                            if (roleInfo.isAlsoCouncilMember) {
+                            // Check if regular council member role exists
+                            // This applies to both regular council members and those who should also be council members
+                            const existingCouncilRole = person.roles.find(r =>
+                                r.administrativeBodyId === cityCouncilId &&
+                                !r.name &&
+                                !r.isHead
+                            );
+
+                            if (!existingCouncilRole) {
                                 await prisma.role.create({
                                     data: {
                                         personId: person.id,
@@ -301,13 +320,18 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
 
                         // Create party role if person belongs to a party
                         if (person.partyId) {
-                            await prisma.role.create({
-                                data: {
-                                    personId: person.id,
-                                    partyId: person.partyId,
-                                },
-                            });
-                            stats.rolesCreated++;
+                            // Check if party role already exists
+                            const existingPartyRole = person.roles.find(r => r.partyId === person.partyId);
+
+                            if (!existingPartyRole) {
+                                await prisma.role.create({
+                                    data: {
+                                        personId: person.id,
+                                        partyId: person.partyId,
+                                    },
+                                });
+                                stats.rolesCreated++;
+                            }
                         }
 
                         stats.peopleProcessed++;

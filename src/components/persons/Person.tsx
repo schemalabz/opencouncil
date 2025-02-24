@@ -219,7 +219,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             className="text-base sm:text-lg text-muted-foreground"
                                         >
                                             {role.administrativeBody?.name}
-                                            {role.isHead && ` (${t('president')})`}
                                             {role.name && ` - ${role.name}`}
                                         </motion.div>
                                     ))}
