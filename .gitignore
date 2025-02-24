@@ -50,3 +50,4 @@ scripts/clear_advisory_locks.sh
 
 *.csv
 *.txt
+*.swp
