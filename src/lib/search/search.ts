@@ -115,12 +115,41 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
 export async function getLatestSegmentsForParty(partyId: string, page: number = 1, pageSize: number = 5): Promise<{ results: SearchResult[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
+    type SegmentWithRelations = Prisma.SpeakerSegmentGetPayload<{
+        include: {
+            meeting: {
+                include: {
+                    city: true
+                }
+            },
+            speakerTag: {
+                include: {
+                    person: {
+                        include: {
+                            roles: {
+                                include: {
+                                    party: true
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            utterances: true,
+            summary: true
+        }
+    }>;
+
     const [segments, totalCount] = await Promise.all([
         prisma.speakerSegment.findMany({
             where: {
                 speakerTag: {
                     person: {
-                        partyId: partyId
+                        roles: {
+                            some: {
+                                partyId: partyId
+                            }
+                        }
                     }
                 },
                 summary: {
@@ -144,8 +173,14 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
                     include: {
                         person: {
                             include: {
-                                party: true,
-                                roles: true
+                                roles: {
+                                    where: {
+                                        partyId: partyId
+                                    },
+                                    include: {
+                                        party: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -165,12 +200,16 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
             ],
             skip: skip,
             take: pageSize
-        }),
+        }) as Promise<SegmentWithRelations[]>,
         prisma.speakerSegment.count({
             where: {
                 speakerTag: {
                     person: {
-                        partyId: partyId
+                        roles: {
+                            some: {
+                                partyId: partyId
+                            }
+                        }
                     }
                 },
                 utterances: {
@@ -185,22 +224,43 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
     ]);
 
     const results = segments
-        .filter(segment => segment.utterances.reduce((acc, u) => acc + u.text.length, 0) >= 100)
-        .map(segment => ({
-            city: segment.meeting.city,
-            councilMeeting: segment.meeting,
-            speakerSegment: {
-                ...segment,
-                person: segment.speakerTag?.person || undefined,
-                party: segment.speakerTag?.person?.party || undefined,
-                summary: segment.summary ? { text: segment.summary.text } : undefined,
-                text: segment.utterances.map(u => u.text).join(' ')
+        .filter((segment: SegmentWithRelations) => {
+            const totalLength = segment.utterances.reduce((acc: number, u: { text: string }) => acc + u.text.length, 0);
+            return totalLength >= 100;
+        })
+        .map((segment: SegmentWithRelations) => {
+            // Find the active role at the time of the meeting
+            const activeRole = segment.speakerTag?.person?.roles.find(role => {
+                const meetingDate = new Date(segment.meeting.dateTime);
+                const startDate = role.startDate ? new Date(role.startDate) : null;
+                const endDate = role.endDate ? new Date(role.endDate) : null;
+
+                return (!startDate || startDate <= meetingDate) &&
+                    (!endDate || endDate >= meetingDate);
+            });
+
+            // Only include segments where the person had an active role in the party at the time of the meeting
+            if (!activeRole) {
+                return null;
             }
-        }));
+
+            return {
+                city: segment.meeting.city,
+                councilMeeting: segment.meeting,
+                speakerSegment: {
+                    ...segment,
+                    person: segment.speakerTag?.person || undefined,
+                    party: activeRole.party || undefined,
+                    summary: segment.summary ? { text: segment.summary.text } : undefined,
+                    text: segment.utterances.map(u => u.text).join(' ')
+                }
+            };
+        })
+        .filter((result): result is NonNullable<typeof result> => result !== null);
 
     return {
         results,
-        totalCount
+        totalCount: results.length // Update totalCount to reflect filtered results
     };
 }
 
