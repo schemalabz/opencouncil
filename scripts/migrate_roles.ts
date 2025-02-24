@@ -275,6 +275,7 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
                         }
 
                         if (roleInfo.attachToAdminBody || roleInfo.isAlsoCouncilMember) {
+                            let hasSpecialRole = false;
                             // Check if special role already exists - but ONLY if we're attaching to admin body
                             // (not for isAlsoCouncilMember alone)
                             if (roleInfo.name && roleInfo.attachToAdminBody) {
@@ -295,26 +296,32 @@ async function migrateRoles(dryRun: boolean): Promise<MigrationStats> {
 
                                     await prisma.role.create({ data });
                                     stats.rolesCreated++;
+                                    hasSpecialRole = true;
+                                } else {
+                                    hasSpecialRole = true;
                                 }
                             }
 
-                            // Check if regular council member role exists
-                            // This applies to both regular council members and those who should also be council members
-                            const existingCouncilRole = person.roles.find(r =>
-                                r.administrativeBodyId === cityCouncilId &&
-                                !r.name &&
-                                !r.isHead
-                            );
+                            // Only create regular council member role if they don't have a special role
+                            // and either they should be a regular member or should also be a council member
+                            if (!hasSpecialRole && (roleInfo.attachToAdminBody || roleInfo.isAlsoCouncilMember)) {
+                                // Check if regular council member role exists
+                                const existingCouncilRole = person.roles.find(r =>
+                                    r.administrativeBodyId === cityCouncilId &&
+                                    !r.name &&
+                                    !r.isHead
+                                );
 
-                            if (!existingCouncilRole) {
-                                await prisma.role.create({
-                                    data: {
-                                        personId: person.id,
-                                        administrativeBodyId: cityCouncilId,
-                                        isHead: false,
-                                    },
-                                });
-                                stats.rolesCreated++;
+                                if (!existingCouncilRole) {
+                                    await prisma.role.create({
+                                        data: {
+                                            personId: person.id,
+                                            administrativeBodyId: cityCouncilId,
+                                            isHead: false,
+                                        },
+                                    });
+                                    stats.rolesCreated++;
+                                }
                             }
                         }
 
