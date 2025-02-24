@@ -69,11 +69,29 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 }
 
 export function formatDate(date: Date): string {
-  console.log(`formatDate: ${date}`);
   if (date instanceof Date) {
     return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
   } else if (typeof date === 'string') {
     return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(new Date(date));
+  } else {
+    throw new Error(`Invalid date: ${date}`);
+  }
+}
+
+export function formatDateTime(date: Date, timezone?: string): string {
+  const options: Intl.DateTimeFormatOptions = {
+    dateStyle: 'long',
+    timeStyle: 'short'
+  };
+  
+  if (timezone) {
+    options.timeZone = timezone;
+  }
+  
+  if (date instanceof Date) {
+    return new Intl.DateTimeFormat('el-GR', options).format(date);
+  } else if (typeof date === 'string') {
+    return new Intl.DateTimeFormat('el-GR', options).format(new Date(date));
   } else {
     throw new Error(`Invalid date: ${date}`);
   }

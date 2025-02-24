@@ -9,7 +9,11 @@ const meetingSchema = z.object({
     name_en: z.string().min(2, {
         message: "Meeting name (English) must be at least 2 characters.",
     }),
-    date: z.string().transform((str) => new Date(str)),
+    date: z.string()
+        .refine(val => !isNaN(new Date(val).getTime()), {
+            message: "Invalid date/time format"
+        })
+        .transform((str) => new Date(str)),
     youtubeUrl: z.string().url({
         message: "Invalid YouTube URL.",
     }).optional().or(z.literal("")),

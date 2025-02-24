@@ -76,7 +76,7 @@ export const TitlePage = ({ meeting, city }: { meeting: CouncilMeeting, city: Ci
                 <View style={{ flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: 30 }}>
                     <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{meeting.name}</Text>
                     <Text style={{ fontSize: 12, fontWeight: 'normal' }}>{city.name_municipality}</Text>
-                    <Text style={{ fontSize: 12, fontWeight: 'normal' }}>{format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: el })}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: 'normal' }}>{format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: el })}</Text>
                 </View>
             </View>
         </View>

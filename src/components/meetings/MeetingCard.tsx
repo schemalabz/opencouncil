@@ -8,7 +8,7 @@ import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
 import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -19,6 +19,7 @@ interface MeetingCardProps {
     item: CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] };
     editable: boolean;
     mostRecent?: boolean;
+    cityTimezone?: string;
 }
 
 const LoadingDots = () => (
@@ -41,7 +42,7 @@ const LoadingDots = () => (
     </div>
 );
 
-export default function MeetingCard({ item: meeting, editable, mostRecent }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
@@ -153,7 +154,11 @@ export default function MeetingCard({ item: meeting, editable, mostRecent }: Mee
                                     whileHover={{ scale: 1.05 }}
                                 >
                                     <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    {format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
+                                    {(isUpcoming || isToday) 
+                                      ? (cityTimezone 
+                                          ? formatDateTime(meeting.dateTime, cityTimezone)
+                                          : format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: locale === 'el' ? el : enUS }))
+                                      : format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
                                 </motion.div>
                                 <motion.div
                                     className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"

@@ -39,7 +39,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
             alignment: AlignmentType.CENTER,
             spacing: { after: 480 },
             children: [new TextRun({
-                text: format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: el }),
+                text: format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: el }),
                 size: 24 // 12pt
             })],
         }),

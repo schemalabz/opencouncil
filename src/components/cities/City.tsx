@@ -281,6 +281,7 @@ export default function CityC({ city }: {
                                         items={orderedMeetings}
                                         editable={canEdit}
                                         ItemComponent={MeetingCard}
+                                        itemProps={{ cityTimezone: city.timezone }}
                                         FormComponent={AddMeetingForm}
                                         formProps={{ cityId: city.id }}
                                         t={useTranslations('CouncilMeeting')}

@@ -23,6 +23,7 @@ import { Calendar } from "../ui/calendar"
 import { fetchVideos, Video } from "@/lib/fetchVideos"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { format, parse, setHours, setMinutes } from "date-fns"
 import InputWithDerivatives from "../InputWithDerivatives"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { CouncilMeeting } from '@prisma/client'
@@ -37,6 +38,9 @@ const formSchema = z.object({
     }),
     date: z.date({
         required_error: "Meeting date is required.",
+    }),
+    time: z.string({
+        required_error: "Meeting time is required.",
     }),
     youtubeUrl: z.string().url({
         message: "Invalid YouTube URL.",
@@ -73,6 +77,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             name: meeting?.name || "",
             name_en: meeting?.name_en || "",
             date: meeting ? new Date(meeting.dateTime) : new Date(),
+            time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
             meetingId: meeting?.id || "",
@@ -114,6 +119,14 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
         const method = meeting ? 'PUT' : 'POST'
 
         try {
+            // Parse time and combine with date
+            const [hours, minutes] = values.time.split(':').map(Number)
+            const dateTime = new Date(values.date)
+            dateTime.setHours(hours)
+            dateTime.setMinutes(minutes)
+            dateTime.setSeconds(0)
+            dateTime.setMilliseconds(0)
+
             const response = await fetch(url, {
                 method,
                 headers: {
@@ -121,7 +134,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                 },
                 body: JSON.stringify({
                     ...values,
-                    date: values.date.toISOString(),
+                    date: dateTime.toISOString(),
                 }),
             })
 
@@ -194,7 +207,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                         control={form.control}
                         name="date"
                         render={({ field }) => (
-                            <FormItem className="flex flex-col">
+                            <FormItem className="flex flex-col mb-4">
                                 <FormLabel>{t('meetingDate')}</FormLabel>
                                 <Calendar
                                     mode="single"
@@ -208,9 +221,31 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                         date < new Date("2000-01-01")
                                     }
                                     initialFocus
+                                    className="mb-2"
                                 />
                                 <FormDescription>
                                     {t('meetingDateDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    <FormField
+                        control={form.control}
+                        name="time"
+                        render={({ field }) => (
+                            <FormItem className="mb-6">
+                                <FormLabel>{t('meetingTime')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="time"
+                                        {...field}
+                                        className="text-xl p-4 h-12 w-full max-w-xs"
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    {t('meetingTimeDescription')}
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
