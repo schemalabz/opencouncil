@@ -82,6 +82,26 @@ export default function CityC({ city }: {
         ])
     ).values());
 
+    const peopleAdministrativeBodies = [
+        ...Array.from(new Map(
+            city.persons
+                .flatMap(person => person.roles
+                    .filter(role => role.administrativeBody)
+                    .map(role => [
+                        role.administrativeBody!.id,
+                        {
+                            value: role.administrativeBody!.id,
+                            label: role.administrativeBody!.name
+                        }
+                    ])
+                )
+        ).values()),
+        ...(city.persons.some(person => person.roles.some(role => !role.administrativeBody)) ? [{
+            value: null,
+            label: "Χωρίς διοικητικό όργανο"
+        }] : [])
+    ];
+
     useEffect(() => {
         const checkEditPermissions = async () => {
             const hasPermission = await isUserAuthorizedToEdit({ cityId: city.id });
@@ -280,6 +300,14 @@ export default function CityC({ city }: {
                                         FormComponent={PersonForm}
                                         formProps={{ cityId: city.id, parties: city.parties }}
                                         t={useTranslations('Person')}
+                                        filterAvailableValues={peopleAdministrativeBodies}
+                                        filter={(selectedValues, person) =>
+                                            selectedValues.length === 0 ||
+                                            (selectedValues.includes(null) && !person.roles.some(role => role.administrativeBody)) ||
+                                            person.roles.some(role =>
+                                                role.administrativeBody && selectedValues.includes(role.administrativeBody.id)
+                                            )
+                                        }
                                         smColumns={1}
                                         mdColumns={2}
                                         lgColumns={3}
