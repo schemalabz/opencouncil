@@ -85,7 +85,11 @@
         "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
         "addCity": "Προσθήκη Πόλης",
         "editCity": "Επεξεργασία Πόλης",
-        "searchInCity": "Αναζήτηση στις συνεδριάσεις"
+        "searchInCity": "Αναζήτηση στις συνεδριάσεις",
+        "item": "πόλη",
+        "addItem": "Προσθήκη Πόλης",
+        "noItems": "Δεν υπάρχουν πόλεις στο OpenCouncil.",
+        "allAdministrativeBodies": "Όλα τα όργανα"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",
@@ -253,7 +257,8 @@
         "activeUntil": "Μέλος έως",
         "active": "Μέλος",
         "from": "από",
-        "until": "έως"
+        "until": "έως",
+        "item": "μέλος"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -266,7 +271,10 @@
         "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
         "statistics": "Στατιστικά Παράταξης",
         "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
-        "searchItems": "Αναζητήστε παρατάξεις"
+        "searchItems": "Αναζητήστε παρατάξεις",
+        "item": "παράταξη",
+        "addItem": "Προσθήκη Παράταξης",
+        "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil."
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
@@ -334,6 +342,29 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
-        "searchItems": "Αναζητήστε συνεδριάσεις"
+        "searchItems": "Αναζητήστε συνεδριάσεις",
+        "item": "συνεδρίαση",
+        "addItem": "Προσθήκη Συνεδρίασης",
+        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil."
+    },
+    "Profile": {
+        "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",
+        "personalInfo": "Προσωπικές Πληροφορίες",
+        "onboardingDescription": "Παρακαλούμε συμπληρώστε τις παρακάτω πληροφορίες για να ολοκληρώσετε την εγγραφή σας.",
+        "fullName": "Ονοματεπώνυμο",
+        "email": "Email",
+        "phone": "Τηλέφωνο",
+        "allowContact": "Επιτρέπω την επικοινωνία",
+        "allowContactDescription": "Επιτρέπω στο OpenCouncil να επικοινωνήσει μαζί μου για σημαντικές ενημερώσεις και ανακοινώσεις.",
+        "saving": "Αποθήκευση...",
+        "saveProfile": "Αποθήκευση Προφίλ",
+        "administration": "Διαχείριση",
+        "superAdminAccess": "Έχετε πρόσβαση διαχειριστή συστήματος",
+        "goToAdmin": "Μετάβαση στη Διαχείριση",
+        "noAdminAccess": "Δεν έχετε δικαιώματα διαχείρισης.",
+        "contactForAccess": "Για να αποκτήσετε πρόσβαση διαχείρισης, επικοινωνήστε μαζί μας:",
+        "adminCity": "Διαχείριση Πόλης",
+        "adminParty": "Διαχείριση Παράταξης",
+        "adminPerson": "Διαχείριση Μέλους"
     }
 }
