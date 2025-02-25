@@ -1,6 +1,6 @@
 "use server";
 
-import { isUserAuthorizedToEdit } from "../auth";
+import { getCurrentUser } from "../auth";
 import { getCities } from "./cities";
 import { City, CouncilMeeting, Subject, Person, Party } from "@prisma/client";
 import prisma from "./prisma";
@@ -66,15 +66,44 @@ async function fetchLatestSubstackPost(): Promise<SubstackPost | undefined> {
 
 export async function getLandingPageData({ includeUnlisted = false }: { includeUnlisted?: boolean } = {}): Promise<LandingPageData> {
     const startTime = performance.now();
-    if (includeUnlisted) {
-        await isUserAuthorizedToEdit({});
+
+    // Get the current user if we need to include unlisted cities
+    const currentUser = includeUnlisted ? await getCurrentUser() : null;
+
+    // If includeUnlisted is true but user is not authorized, throw an error
+    if (includeUnlisted && !currentUser) {
+        throw new Error("Not authorized to view unlisted cities");
     }
 
+    // Determine which cities to include based on authorization
+    let cityFilter: any = {
+        isPending: false
+    };
+
+    if (!includeUnlisted) {
+        // For public view, only show listed cities
+        cityFilter.isListed = true;
+    } else if (!currentUser?.isSuperAdmin) {
+        // For non-superadmins, only show cities they can administer
+        const administerableCityIds = currentUser?.administers
+            .filter(a => a.cityId)
+            .map(a => a.cityId) || [];
+
+        cityFilter = {
+            ...cityFilter,
+            OR: [
+                { isListed: true },
+                {
+                    isListed: false,
+                    id: { in: administerableCityIds }
+                }
+            ]
+        };
+    }
+    // For superadmins, show all non-pending cities (no additional filter needed)
+
     const cities = await prisma.city.findMany({
-        where: {
-            isListed: includeUnlisted ? undefined : true,
-            isPending: false
-        },
+        where: cityFilter,
         include: {
             parties: true,
             persons: {
