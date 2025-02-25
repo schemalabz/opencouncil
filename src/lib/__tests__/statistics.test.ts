@@ -1,5 +1,5 @@
-import { 
-  getStatisticsFor, 
+import {
+  getStatisticsFor,
   getStatisticsForTranscript,
   Statistics,
   Stat
@@ -51,11 +51,11 @@ describe('Statistics', () => {
           ]
         }
       ];
-      
+
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue(mockSegments);
-      
+
       await getStatisticsFor({ meetingId: 'meeting-1', cityId: 'city-1' }, ['person', 'party', 'topic']);
-      
+
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith({
         where: {
           meetingId: 'meeting-1',
@@ -75,9 +75,9 @@ describe('Statistics', () => {
 
     it('should call prisma with correct parameters for person statistics', async () => {
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
-      
+
       await getStatisticsFor({ personId: 'person-1' }, ['topic']);
-      
+
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           speakerTag: expect.objectContaining({
@@ -89,9 +89,9 @@ describe('Statistics', () => {
 
     it('should call prisma with correct parameters for party statistics', async () => {
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
-      
+
       await getStatisticsFor({ partyId: 'party-1' }, ['person', 'topic']);
-      
+
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           speakerTag: expect.objectContaining({
@@ -105,15 +105,29 @@ describe('Statistics', () => {
 
     it('should call prisma with correct parameters for subject statistics', async () => {
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
-      
+
       await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
-      
+
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           subjects: {
             some: {
               subjectId: 'subject-1'
             }
+          }
+        })
+      }));
+    });
+
+    it('should call prisma with correct parameters for administrative body statistics', async () => {
+      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
+
+      await getStatisticsFor({ administrativeBodyId: 'admin-body-1' }, ['person', 'party', 'topic']);
+
+      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          meeting: {
+            administrativeBodyId: 'admin-body-1'
           }
         })
       }));
@@ -136,9 +150,9 @@ describe('Statistics', () => {
           topicLabels: []
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, []);
-      
+
       expect(stats.speakingSeconds).toBe(60);
     });
 
@@ -157,9 +171,9 @@ describe('Statistics', () => {
           topicLabels: []
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, []);
-      
+
       expect(stats.speakingSeconds).toBe(0);
     });
 
@@ -199,17 +213,17 @@ describe('Statistics', () => {
           topicLabels: []
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, ['person']);
-      
+
       expect(stats.people).toBeDefined();
       expect(stats.people!.length).toBe(2);
-      
+
       const johnStats = stats.people!.find(p => p.item.id === 'person-1');
       expect(johnStats).toBeDefined();
       expect(johnStats!.speakingSeconds).toBe(60); // 30 + 30
       expect(johnStats!.count).toBe(2);
-      
+
       const janeStats = stats.people!.find(p => p.item.id === 'person-2');
       expect(janeStats).toBeDefined();
       expect(janeStats!.speakingSeconds).toBe(40); // 100 - 60
@@ -264,16 +278,16 @@ describe('Statistics', () => {
           topicLabels: []
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, ['party']);
-      
+
       expect(stats.parties).toBeDefined();
       expect(stats.parties!.length).toBe(2);
-      
+
       const partyAStats = stats.parties!.find(p => p.item.id === 'party-1');
       expect(partyAStats).toBeDefined();
       expect(partyAStats!.speakingSeconds).toBe(50); // Only non-administrative role time (50)
-      
+
       const partyBStats = stats.parties!.find(p => p.item.id === 'party-2');
       expect(partyBStats).toBeDefined();
       expect(partyBStats!.speakingSeconds).toBe(30); // 100 - 70
@@ -301,15 +315,15 @@ describe('Statistics', () => {
           ]
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, ['topic']);
-      
+
       expect(stats.topics).toBeDefined();
       expect(stats.topics!.length).toBe(2);
-      
+
       const topic1Stats = stats.topics!.find(t => t.item.id === 'topic-1');
       const topic2Stats = stats.topics!.find(t => t.item.id === 'topic-2');
-      
+
       expect(topic1Stats!.speakingSeconds).toBe(30); // 60 / 2
       expect(topic2Stats!.speakingSeconds).toBe(30); // 60 / 2
     });
@@ -325,7 +339,7 @@ describe('Statistics', () => {
         {
           startTimestamp: 30,
           endTimestamp: 60,
-          speakerTag: { 
+          speakerTag: {
             person: {
               id: 'person-1',
               name: 'John Doe',
@@ -335,9 +349,9 @@ describe('Statistics', () => {
           topicLabels: [] // No topics
         }
       ] as any;
-      
+
       const stats = await getStatisticsForTranscript(transcript, ['person', 'party', 'topic']);
-      
+
       expect(stats.speakingSeconds).toBe(60);
       expect(stats.people!.length).toBe(1);
       expect(stats.parties!.length).toBe(0);

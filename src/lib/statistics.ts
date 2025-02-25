@@ -36,7 +36,14 @@ type SpeakerSegmentInfo = SpeakerSegment & {
 }
 
 export async function getStatisticsFor(
-    { personId, partyId, meetingId, cityId, subjectId }: { personId?: Person["id"], partyId?: Party["id"], meetingId?: CouncilMeeting["id"], cityId?: City["id"], subjectId?: Subject["id"] },
+    { personId, partyId, meetingId, cityId, subjectId, administrativeBodyId }: {
+        personId?: Person["id"],
+        partyId?: Party["id"],
+        meetingId?: CouncilMeeting["id"],
+        cityId?: City["id"],
+        subjectId?: Subject["id"],
+        administrativeBodyId?: string | null
+    },
     groupBy: ("person" | "topic" | "party")[]
 ): Promise<Statistics> {
     let transcript: SpeakerSegmentInfo[];
@@ -58,6 +65,9 @@ export async function getStatisticsFor(
                     subjectId: subjectId
                 }
             } : undefined,
+            meeting: administrativeBodyId ? {
+                administrativeBodyId: administrativeBodyId
+            } : undefined
         },
         include: {
             speakerTag: {

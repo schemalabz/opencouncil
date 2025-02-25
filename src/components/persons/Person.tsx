@@ -25,6 +25,7 @@ import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/getMeetingData';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 import { StatisticsOfPerson } from "@/lib/statistics";
+import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 
 type RoleWithRelations = Role & {
     party?: Party | null;
@@ -46,6 +47,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
+    const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
+    const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
     // Group roles by type and active status
     const roles = useMemo(() => {
@@ -77,12 +80,47 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     useEffect(() => {
         const fetchLatestSegments = async () => {
-            const { results, totalCount } = await getLatestSegmentsForSpeaker(person.id, page);
-            setLatestSegments(prevSegments => [...prevSegments, ...results]);
-            setTotalCount(totalCount);
+            try {
+                setIsLoadingSegments(true);
+                setLatestSegments([]);
+                const { results, totalCount } = await getLatestSegmentsForSpeaker(
+                    person.id,
+                    1,
+                    5,
+                    selectedAdminBodyId
+                );
+                setLatestSegments(results);
+                setTotalCount(totalCount);
+                setPage(1);
+            } catch (error) {
+                console.error('Error fetching segments:', error);
+            } finally {
+                setIsLoadingSegments(false);
+            }
         };
         fetchLatestSegments();
-    }, [person.id, page]);
+    }, [person.id, selectedAdminBodyId]);
+
+    useEffect(() => {
+        const loadMoreSegments = async () => {
+            if (page === 1) return;
+            try {
+                setIsLoadingSegments(true);
+                const { results } = await getLatestSegmentsForSpeaker(
+                    person.id,
+                    page,
+                    5,
+                    selectedAdminBodyId
+                );
+                setLatestSegments(prevSegments => [...prevSegments, ...results]);
+            } catch (error) {
+                console.error('Error loading more segments:', error);
+            } finally {
+                setIsLoadingSegments(false);
+            }
+        };
+        loadMoreSegments();
+    }, [person.id, page, selectedAdminBodyId]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,6 +144,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         if (to && !from) return `${t('activeUntil')} ${formatDateRange(null, to, t)}`;
         if (from && to) return `${t('active')}: ${formatDateRange(from, to, t)}`;
         return null;
+    };
+
+    // Handler for administrative body selection
+    const handleAdminBodySelect = (adminBodyId: string | null) => {
+        setSelectedAdminBodyId(adminBodyId);
     };
 
     return (
@@ -280,16 +323,32 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         />
                     </motion.form>
 
+                    {/* Administrative Body Filter */}
+                    {administrativeBodies.length > 0 && (
+                        <AdministrativeBodyFilter
+                            administrativeBodies={administrativeBodies}
+                            selectedAdminBodyId={selectedAdminBodyId}
+                            onSelectAdminBody={handleAdminBodySelect}
+                            personRelatedOnly={true}
+                            person={person}
+                        />
+                    )}
+
                     {/* Statistics Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
-                        className="rounded-xl overflow-hidden"
+                        className="mb-12 rounded-xl overflow-hidden"
                     >
                         <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('statistics')}</h2>
-                        <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6">
-                            <Statistics type="person" id={person.id} cityId={city.id} initialData={statistics as StatisticsOfPerson} />
+                        <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
+                            <Statistics
+                                type="person"
+                                id={person.id}
+                                cityId={city.id}
+                                administrativeBodyId={selectedAdminBodyId}
+                            />
                         </div>
                     </motion.div>
 
@@ -402,27 +461,57 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8 }}
+                        className="relative"
                     >
                         <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">Πρόσφατες τοποθετήσεις</h2>
-                        <div className="space-y-3 sm:space-y-4">
-                            {latestSegments.map((result, index) => (
-                                <motion.div
-                                    key={index}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.1 * index }}
-                                >
-                                    <Result result={result} />
-                                </motion.div>
-                            ))}
-                        </div>
-                        {latestSegments.length < totalCount && (
+
+                        {isLoadingSegments && latestSegments.length === 0 ? (
+                            <div className="flex justify-center items-center py-12">
+                                <div className="flex flex-col items-center space-y-4">
+                                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                                    <p className="text-sm text-muted-foreground">{t('loadingSegments')}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 sm:space-y-4">
+                                {latestSegments.map((result, index) => (
+                                    <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.1 * index }}
+                                    >
+                                        <Result result={result} />
+                                    </motion.div>
+                                ))}
+
+                                {latestSegments.length === 0 && !isLoadingSegments && (
+                                    <div className="text-center py-8">
+                                        <p className="text-muted-foreground">{t('noSegmentsFound')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {isLoadingSegments && latestSegments.length > 0 && (
+                            <div className="flex justify-center items-center py-4">
+                                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                            </div>
+                        )}
+
+                        {!isLoadingSegments && latestSegments.length < totalCount && (
                             <Button
                                 onClick={() => setPage(prevPage => prevPage + 1)}
                                 variant="outline"
                                 className="mt-6"
+                                disabled={isLoadingSegments}
                             >
-                                Περισσότερα
+                                {isLoadingSegments ? (
+                                    <>
+                                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                                        {t('loading')}
+                                    </>
+                                ) : t('loadMore')}
                             </Button>
                         )}
                     </motion.div>

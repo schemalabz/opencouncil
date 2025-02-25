@@ -15,20 +15,40 @@ type StatisticsProps = {
     cityId: string
     color?: string
     initialData?: StatisticsOfPerson | StatisticsOfParty
+    administrativeBodyId?: string | null
 }
 
-export function Statistics({ type, id, cityId, color, initialData }: StatisticsProps) {
+export function Statistics({ type, id, cityId, color, initialData, administrativeBodyId }: StatisticsProps) {
     const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(initialData || null)
+    const [isLoading, setIsLoading] = useState<boolean>(!initialData)
     const t = useTranslations('Statistics')
 
     useEffect(() => {
-        if (!initialData) {
-            const params = type === 'person' ? { personId: id, cityId } : { partyId: id, cityId }
-            getStatisticsFor(params, ['topic', 'person', 'party']).then((s) => {
-                setStatistics(s as StatisticsOfPerson | StatisticsOfParty)
-            })
+        if (initialData) {
+            setStatistics(initialData);
+            setIsLoading(false);
         }
-    }, [type, id, cityId, initialData])
+    }, [initialData]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            const params = type === 'person'
+                ? { personId: id, cityId, administrativeBodyId }
+                : { partyId: id, cityId, administrativeBodyId }
+
+            try {
+                const data = await getStatisticsFor(params, ['topic', 'person', 'party']);
+                setStatistics(data as StatisticsOfPerson | StatisticsOfParty);
+            } catch (error) {
+                console.error("Error fetching statistics:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [type, id, cityId, administrativeBodyId])
 
     const topicChartData = useMemo(() => {
         if (!statistics || !statistics.topics) return []
@@ -71,11 +91,13 @@ export function Statistics({ type, id, cityId, color, initialData }: StatisticsP
         parseInt(barColor.replace('#', ''), 16) > 0xffffff / 2 ? '#000000' : '#ffffff'
         : "hsl(var(--foreground))"
 
-    if (!statistics) return (
-        <div className="flex justify-center items-center w-full h-full">
-            <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
-    )
+    if (isLoading || !statistics) {
+        return (
+            <div className="flex justify-center items-center w-full h-full min-h-[300px]">
+                <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col items-center space-y-8">
@@ -91,7 +113,7 @@ export function Statistics({ type, id, cityId, color, initialData }: StatisticsP
                     ))}
                 </ul>
             </div>
-            {type === 'party' && 'people' in statistics && (
+            {type === 'party' && 'people' in statistics && statistics.people && statistics.people.length > 0 && (
                 <div className="w-full">
                     <h3 className="text-lg font-medium mb-4">{t('topSpeakers')}</h3>
                     <ResponsiveContainer width="100%" height={400}>

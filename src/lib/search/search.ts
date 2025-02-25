@@ -26,7 +26,12 @@ export type SearchResult = {
     });
 };
 
-export async function getLatestSegmentsForSpeaker(personId: string, page: number = 1, pageSize: number = 5): Promise<{ results: SearchResult[], totalCount: number }> {
+export async function getLatestSegmentsForSpeaker(
+    personId: string,
+    page: number = 1,
+    pageSize: number = 5,
+    administrativeBodyId?: string | null
+): Promise<{ results: SearchResult[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
     const [segments, totalCount] = await Promise.all([
@@ -41,7 +46,10 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
                             gt: ''
                         }
                     }
-                }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
             },
             include: {
                 meeting: {
@@ -62,18 +70,11 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
                 utterances: true,
                 summary: true
             },
-            orderBy: [
-                {
-                    meeting: {
-                        dateTime: 'desc'
-                    }
-                },
-                {
-                    startTimestamp: 'desc'
-                }
-            ],
-            skip: skip,
-            take: pageSize
+            orderBy: {
+                startTimestamp: 'desc'
+            },
+            take: pageSize,
+            skip
         }),
         prisma.speakerSegment.count({
             where: {
@@ -86,7 +87,10 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
                             gt: ''
                         }
                     }
-                }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
             }
         })
     ]);
@@ -112,7 +116,12 @@ export async function getLatestSegmentsForSpeaker(personId: string, page: number
     };
 }
 
-export async function getLatestSegmentsForParty(partyId: string, page: number = 1, pageSize: number = 5): Promise<{ results: SearchResult[], totalCount: number }> {
+export async function getLatestSegmentsForParty(
+    partyId: string,
+    page: number = 1,
+    pageSize: number = 5,
+    administrativeBodyId?: string | null
+): Promise<{ results: SearchResult[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
     type SegmentWithRelations = Prisma.SpeakerSegmentGetPayload<{
@@ -152,16 +161,16 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
                         }
                     }
                 },
-                summary: {
-                    isNot: null
-                },
                 utterances: {
                     some: {
                         text: {
                             gt: ''
                         }
                     }
-                }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
             },
             include: {
                 meeting: {
@@ -188,18 +197,11 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
                 utterances: true,
                 summary: true
             },
-            orderBy: [
-                {
-                    meeting: {
-                        dateTime: 'desc'
-                    }
-                },
-                {
-                    startTimestamp: 'desc'
-                }
-            ],
-            skip: skip,
-            take: pageSize
+            orderBy: {
+                startTimestamp: 'desc'
+            },
+            take: pageSize,
+            skip
         }) as Promise<SegmentWithRelations[]>,
         prisma.speakerSegment.count({
             where: {
@@ -218,7 +220,10 @@ export async function getLatestSegmentsForParty(partyId: string, page: number = 
                             gt: ''
                         }
                     }
-                }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
             }
         })
     ]);

@@ -26,16 +26,18 @@ export default function PersonCard({ item: person, editable, parties }: PersonCa
         <Card
             className={cn(
                 "group relative h-full overflow-hidden transition-all duration-300",
-                "hover:shadow-lg hover:scale-[1.01] cursor-pointer"
+                "hover:shadow-lg hover:scale-[1.01] cursor-pointer border-muted"
             )}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
-                <div className="space-y-3 sm:space-y-4 flex-grow">
+            <CardContent className="relative h-full flex flex-col p-5 sm:p-6">
+                <div className="flex-grow">
                     <PersonBadge
                         person={person}
                         size="lg"
                         preferFullName
+                        className="hover:bg-transparent"
+                        withBorder={false}
                     />
                 </div>
             </CardContent>

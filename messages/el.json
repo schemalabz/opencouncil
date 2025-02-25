@@ -89,7 +89,8 @@
         "item": "πόλη",
         "addItem": "Προσθήκη Πόλης",
         "noItems": "Δεν υπάρχουν πόλεις στο OpenCouncil.",
-        "allAdministrativeBodies": "Όλα τα όργανα"
+        "allAdministrativeBodies": "Όλα τα όργανα",
+        "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",
@@ -258,7 +259,12 @@
         "active": "Μέλος",
         "from": "από",
         "until": "έως",
-        "item": "μέλος"
+        "item": "μέλος",
+        "loadingStatistics": "Φόρτωση στατιστικών...",
+        "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
+        "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
+        "loading": "Φόρτωση...",
+        "loadMore": "Περισσότερα"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -274,7 +280,12 @@
         "searchItems": "Αναζητήστε παρατάξεις",
         "item": "παράταξη",
         "addItem": "Προσθήκη Παράταξης",
-        "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil."
+        "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil.",
+        "loadingStatistics": "Φόρτωση στατιστικών...",
+        "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
+        "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
+        "loading": "Φόρτωση...",
+        "loadMore": "Περισσότερα"
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",

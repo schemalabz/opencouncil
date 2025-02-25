@@ -48,8 +48,11 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
         return parts.length > 1 ? parts.reverse().join(' ') : name;
     };
 
+    const nameTextSize = size === 'lg' || size === 'xl' ? 'text-lg' : 'text-base';
+    const roleTextSize = size === 'sm' ? 'text-xs' : 'text-sm';
+
     return (
-        <div className="flex items-center gap-2 w-full">
+        <div className="flex items-center gap-3 w-full">
             <div
                 className={cn(
                     "relative shrink-0",
@@ -84,37 +87,42 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
             </div>
             {!short && (
                 <div className="flex flex-col justify-center min-w-0 flex-1">
-                    <div className="break-words">
+                    <div className={cn("font-medium text-foreground break-words", nameTextSize)}>
                         {person ? (
                             preferFullName ? person.name : switchOrder(person.name)
                         ) : (
                             speakerTag?.label
                         )}
                         {editable && segmentCount !== undefined && (
-                            <span className="ml-2 text-muted-foreground">
+                            <span className="ml-2 text-muted-foreground font-normal">
                                 ({segmentCount} {segmentCount === 1 ? 'segment' : 'segments'})
                             </span>
                         )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
+
+                    {/* Improved roles layout */}
+                    <div className={cn("flex flex-wrap gap-y-1 mt-1.5", roleTextSize)}>
                         {activePartyRole?.party && (
-                            <>
-                                <span style={{ color: partyColor }}>
+                            <div className="flex items-center mr-2">
+                                <span className="font-medium" style={{ color: partyColor }}>
                                     {activePartyRole.party.name_short}
                                 </span>
                                 {activePartyRole.name && (
-                                    <span className="text-muted-foreground">
-                                        {` (${activePartyRole.name})`}
+                                    <span className="text-muted-foreground ml-1">
+                                        {`(${activePartyRole.name})`}
                                     </span>
                                 )}
-                            </>
+                            </div>
                         )}
+
                         {activeRoles
                             .filter(role => role.id !== activePartyRole?.id)
                             .map((role, index) => (
-                                <React.Fragment key={role.id}>
-                                    {index > 0 || activePartyRole?.party ? <span className="text-muted-foreground">·</span> : null}
-                                    <span className="text-muted-foreground break-words">
+                                <div key={role.id} className="flex items-center">
+                                    {index > 0 || activePartyRole?.party ? (
+                                        <span className="text-muted-foreground mx-1.5 opacity-70">•</span>
+                                    ) : null}
+                                    <span className="text-muted-foreground break-words whitespace-normal">
                                         {role.cityId ? (
                                             role.name || "Μέλος"
                                         ) : role.party ? (
@@ -125,7 +133,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                                             role.name || "Μέλος"
                                         )}
                                     </span>
-                                </React.Fragment>
+                                </div>
                             ))}
                     </div>
                 </div>
@@ -173,7 +181,7 @@ function PersonBadge({
     const badge = (
         <div
             className={cn(
-                "relative flex items-center gap-2 rounded-lg p-1",
+                "relative flex items-center gap-2 rounded-lg p-2",
                 withBorder && "border",
                 isSelected && "bg-accent",
                 editable && "cursor-pointer hover:bg-accent/50",
@@ -202,7 +210,7 @@ function PersonBadge({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 h-8 w-8"
+                    className="shrink-0 h-8 w-8 ml-auto"
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsOpen(true);
