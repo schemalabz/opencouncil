@@ -8,6 +8,7 @@ import { ChartContainer, ChartConfig, ChartTooltipContent } from "@/components/u
 import { BarChart2, Loader2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import NumberTicker from "./magicui/number-ticker"
+import { Link, useRouter } from "@/i18n/routing"
 
 type StatisticsProps = {
     type: 'person' | 'party'
@@ -23,6 +24,7 @@ export function Statistics({ type, id, cityId, color, initialData, administrativ
     const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(initialData || null)
     const [isLoading, setIsLoading] = useState<boolean>(!initialData)
     const t = useTranslations('Statistics')
+    const router = useRouter()
 
     useEffect(() => {
         if (initialData) {
@@ -66,6 +68,7 @@ export function Statistics({ type, id, cityId, color, initialData, administrativ
             .sort((a, b) => b.speakingSeconds - a.speakingSeconds)
             .slice(0, 10)
             .map(person => ({
+                id: person.item.id,
                 name: person.item.name,
                 minutes: Math.round(person.speakingSeconds / 60),
             }))
@@ -142,7 +145,9 @@ export function Statistics({ type, id, cityId, color, initialData, administrativ
                                 <YAxis dataKey="name" type="category" hide />
                                 <XAxis type="number" hide />
                                 <Tooltip content={<ChartTooltipContent />} />
-                                <Bar dataKey="minutes" fill={barColor} radius={4}>
+                                <Bar dataKey="minutes" fill={barColor} radius={4} cursor="pointer" onClick={() => {
+                                    router.push(`/${cityId}/people/${speakerChartData[0].id}`)
+                                }}>
                                     <LabelList dataKey="name" position="insideLeft" fill={textColor} />
                                     <LabelList dataKey="minutes" position="right" fill={textColor} />
                                 </Bar>
