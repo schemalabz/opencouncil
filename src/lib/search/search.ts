@@ -70,9 +70,16 @@ export async function getLatestSegmentsForSpeaker(
                 utterances: true,
                 summary: true
             },
-            orderBy: {
-                startTimestamp: 'desc'
-            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
             take: pageSize,
             skip
         }),
@@ -197,9 +204,16 @@ export async function getLatestSegmentsForParty(
                 utterances: true,
                 summary: true
             },
-            orderBy: {
-                startTimestamp: 'desc'
-            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
             take: pageSize,
             skip
         }) as Promise<SegmentWithRelations[]>,
