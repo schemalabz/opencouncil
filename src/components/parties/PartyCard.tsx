@@ -1,5 +1,5 @@
 'use client'
-import { Party, Person } from '@prisma/client';
+import { Party, Person, Role } from '@prisma/client';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
 import { Card, CardContent } from "../ui/card";
@@ -22,24 +22,32 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const t = useTranslations('Party');
     const router = useRouter();
 
-    // Get active roles and sort them
-    const activeRoles = useMemo(() => {
-        const roles = filterActiveRoles(party.roles);
-        return roles.sort((a, b) => {
-            if (a.isHead && !b.isHead) return -1;
-            if (!b.isHead && a.isHead) return 1;
-            return a.person.name.localeCompare(b.person.name);
+    // Get active people with party roles
+    const activePeople = useMemo(() => {
+        return party.people.filter(person =>
+            person.roles.some(role =>
+                role.partyId === party.id &&
+                (!role.endDate || new Date(role.endDate) > new Date())
+            )
+        ).sort((a, b) => {
+            // Sort by isHead first (true comes before false)
+            const aIsHead = a.roles.some(role => role.partyId === party.id && role.isHead);
+            const bIsHead = b.roles.some(role => role.partyId === party.id && role.isHead);
+            if (aIsHead && !bIsHead) return -1;
+            if (!aIsHead && bIsHead) return 1;
+            // Then sort by name
+            return a.name.localeCompare(b.name);
         });
-    }, [party.roles]);
+    }, [party.people, party.id]);
 
-    // Transform roles into PersonWithRelations for PersonAvatarList
-    const activePersons = useMemo(() =>
-        activeRoles.map(role => ({
-            ...role.person,
+    // Transform people into PersonWithRelations for PersonAvatarList
+    const activePersonsForAvatarList = useMemo(() =>
+        activePeople.map(person => ({
+            ...person,
             party,
-            roles: [role]
+            roles: person.roles.filter(role => role.partyId === party.id)
         }))
-        , [activeRoles, party]);
+        , [activePeople, party]);
 
     const handleClick = () => {
         router.push(`/${party.cityId}/parties/${party.id}`);
@@ -73,9 +81,9 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
-                            users={activePersons}
+                            users={activePersonsForAvatarList}
                             maxDisplayed={5}
-                            numMore={activePersons.length > 5 ? activePersons.length - 5 : 0}
+                            numMore={activePersonsForAvatarList.length > 5 ? activePersonsForAvatarList.length - 5 : 0}
                         />
                     </div>
                 </div>

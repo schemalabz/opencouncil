@@ -44,29 +44,41 @@ export default function CityC({ city }: {
     const { scrollY } = useScroll();
     const headerOpacity = useTransform(scrollY, [0, 200], [1, 0.8]);
 
-    // Reconstruct parties with their roles from persons data
-    const partiesWithRoles = useMemo(() => {
-        const partyMap = new Map(city.parties.map(party => [party.id, { ...party, roles: [] as any[] }]));
+    // Create a map of parties with their people
+    const partiesWithPeople = useMemo(() => {
+        const partyMap = new Map<string, any>();
 
+        // Initialize parties
+        city.parties.forEach(party => {
+            partyMap.set(party.id, {
+                ...party,
+                people: []
+            });
+        });
+
+        // Add people to their parties
         city.persons.forEach(person => {
-            person.roles.forEach(role => {
-                if (role.partyId) {
-                    const party = partyMap.get(role.partyId);
-                    if (party) {
-                        party.roles.push({
-                            ...role,
-                            party,
-                            person: {
+            if (person.roles) {
+                person.roles.forEach(role => {
+                    if (role.partyId && partyMap.has(role.partyId)) {
+                        const party = partyMap.get(role.partyId);
+
+                        // Check if person is already in the party's people array
+                        const existingPersonIndex = party.people.findIndex((p: any) => p.id === person.id);
+
+                        if (existingPersonIndex === -1) {
+                            // Add person if not already in the array
+                            party.people.push({
                                 ...person,
                                 roles: person.roles.map(r => ({
                                     ...r,
                                     party: r.partyId ? partyMap.get(r.partyId) : null
                                 }))
-                            }
-                        });
+                            });
+                        }
                     }
-                }
-            });
+                });
+            }
         });
 
         return Array.from(partyMap.values()) as PartyWithPersons[];
@@ -135,19 +147,23 @@ export default function CityC({ city }: {
             return aLastWord.localeCompare(bLastWord);
         });
 
-    const orderedParties = [...partiesWithRoles]
+    const orderedParties = [...partiesWithPeople]
         .sort((a, b) => {
             // Sort by member count first
-            const memberCountDiff = b.roles.length - a.roles.length;
+            const memberCountDiff = b.people.length - a.people.length;
             if (memberCountDiff !== 0) return memberCountDiff;
 
             // If same member count, sort by party head
-            const aHasHead = a.roles.some(role => role.isHead);
-            const bHasHead = b.roles.some(role => role.isHead);
+            const aHasHead = a.people.some(person =>
+                person.roles.some(role => role.partyId === a.id && role.isHead)
+            );
+            const bHasHead = b.people.some(person =>
+                person.roles.some(role => role.partyId === b.id && role.isHead)
+            );
             if (aHasHead && !bHasHead) return -1;
             if (!aHasHead && bHasHead) return 1;
 
-            // If still tied, sort by name
+            // If still tied, sort alphabetically
             return a.name.localeCompare(b.name);
         });
 

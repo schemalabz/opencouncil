@@ -102,39 +102,20 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
 
                     {/* Improved roles layout */}
                     <div className={cn("flex flex-wrap gap-y-1 mt-1.5", roleTextSize)}>
-                        {activePartyRole?.party && (
-                            <div className="flex items-center mr-2">
-                                <span className="font-medium" style={{ color: partyColor }}>
-                                    {activePartyRole.party.name_short}
+                        {activeRoles.filter(role => role.city || role.administrativeBody).map((role, index) => (
+                            <div key={role.id} className="flex items-center">
+                                {index > 0 ? (
+                                    <span className="text-muted-foreground mx-1.5 opacity-70">•</span>
+                                ) : null}
+                                <span className="text-muted-foreground break-words whitespace-normal">
+                                    {role.city ? (
+                                        `${role.name || "Μέλος"}`
+                                    ) : role.administrativeBody ? (
+                                        `${role.administrativeBody.name} (${role.name || "Μέλος"})`
+                                    ) : <></>}
                                 </span>
-                                {activePartyRole.name && (
-                                    <span className="text-muted-foreground ml-1">
-                                        {`(${activePartyRole.name})`}
-                                    </span>
-                                )}
                             </div>
-                        )}
-
-                        {activeRoles
-                            .filter(role => role.id !== activePartyRole?.id)
-                            .map((role, index) => (
-                                <div key={role.id} className="flex items-center">
-                                    {index > 0 || activePartyRole?.party ? (
-                                        <span className="text-muted-foreground mx-1.5 opacity-70">•</span>
-                                    ) : null}
-                                    <span className="text-muted-foreground break-words whitespace-normal">
-                                        {role.cityId ? (
-                                            role.name || "Μέλος"
-                                        ) : role.party ? (
-                                            `${role.party.name} (${role.name || "Μέλος"})`
-                                        ) : role.administrativeBody ? (
-                                            `${role.administrativeBody.name} (${role.name || "Μέλος"})`
-                                        ) : (
-                                            role.name || "Μέλος"
-                                        )}
-                                    </span>
-                                </div>
-                            ))}
+                        ))}
                     </div>
                 </div>
             )}

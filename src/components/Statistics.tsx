@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react"
 import { Cell, Label, Pie, PieChart, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts"
 import TopicBadge from "./meetings/transcript/Topic"
 import { ChartContainer, ChartConfig, ChartTooltipContent } from "@/components/ui/chart"
-import { Loader2 } from "lucide-react"
+import { BarChart2, Loader2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import NumberTicker from "./magicui/number-ticker"
 
@@ -16,9 +16,10 @@ type StatisticsProps = {
     color?: string
     initialData?: StatisticsOfPerson | StatisticsOfParty
     administrativeBodyId?: string | null
+    emptyStateMessage?: string
 }
 
-export function Statistics({ type, id, cityId, color, initialData, administrativeBodyId }: StatisticsProps) {
+export function Statistics({ type, id, cityId, color, initialData, administrativeBodyId, emptyStateMessage }: StatisticsProps) {
     const [statistics, setStatistics] = useState<StatisticsOfPerson | StatisticsOfParty | null>(initialData || null)
     const [isLoading, setIsLoading] = useState<boolean>(!initialData)
     const t = useTranslations('Statistics')
@@ -91,10 +92,22 @@ export function Statistics({ type, id, cityId, color, initialData, administrativ
         parseInt(barColor.replace('#', ''), 16) > 0xffffff / 2 ? '#000000' : '#ffffff'
         : "hsl(var(--foreground))"
 
-    if (isLoading || !statistics) {
+    if (isLoading) {
         return (
             <div className="flex justify-center items-center w-full h-full min-h-[300px]">
                 <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+        )
+    }
+
+    // Show empty state message if no statistics or total speaking minutes is 0
+    if (!statistics || totalSpeakingMinutes === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px]">
+                <BarChart2 className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-center text-muted-foreground">
+                    {emptyStateMessage || t('noStatisticsAvailable', { fallback: 'Δεν υπάρχουν διαθέσιμα στατιστικά.' })}
+                </p>
             </div>
         )
     }

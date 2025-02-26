@@ -1,7 +1,8 @@
 "use server";
-import { Party, Person, Role } from '@prisma/client';
+import { City, AdministrativeBody, Party, Person, Role } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { PersonWithRelations } from '../getMeetingData';
 
 export async function deleteParty(id: string): Promise<void> {
     withUserAuthorizedToEdit({ partyId: id });
@@ -42,10 +43,14 @@ export async function editParty(id: string, partyData: Partial<Omit<Party, 'id' 
     }
 }
 
-export type PartyWithPersons = Party & {
-    roles: (Role & {
-        person: Person
-    })[]
+export type PartyWithPersons = Omit<Party, 'roles'> & {
+    people: (Person & {
+        roles: (Role & {
+            city?: City | null;
+            administrativeBody?: AdministrativeBody | null;
+            party?: Party | null;
+        })[]
+    })[];
 }
 
 export async function getParty(id: string): Promise<PartyWithPersons | null> {
@@ -55,7 +60,17 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
             include: {
                 roles: {
                     include: {
-                        person: true
+                        person: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        city: true,
+                                        administrativeBody: true,
+                                        party: true
+                                    }
+                                }
+                            }
+                        }
                     },
                     where: {
                         OR: [
@@ -78,7 +93,18 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
 
         if (!party) return null;
 
-        return party;
+        // Extract people from roles and include all their roles
+        const people = party.roles.map(role => role.person);
+
+        // Create a new object without the roles property
+        const { roles, ...partyWithoutRoles } = party;
+
+        const partyWithPersons = {
+            ...partyWithoutRoles,
+            people
+        };
+
+        return partyWithPersons as PartyWithPersons;
     } catch (error) {
         console.error('Error fetching party:', error);
         throw new Error('Failed to fetch party');
@@ -92,7 +118,17 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
             include: {
                 roles: {
                     include: {
-                        person: true
+                        person: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        city: true,
+                                        administrativeBody: true,
+                                        party: true
+                                    }
+                                }
+                            }
+                        }
                     },
                     where: {
                         OR: [
@@ -113,7 +149,16 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
             }
         });
 
-        return parties;
+        // Add people property to each party and remove roles
+        const partiesWithPeople = parties.map(party => {
+            const { roles, ...partyWithoutRoles } = party;
+            return {
+                ...partyWithoutRoles,
+                people: roles.map(role => role.person)
+            };
+        });
+
+        return partiesWithPeople as PartyWithPersons[];
     } catch (error) {
         console.error('Error fetching parties for city:', error);
         throw new Error('Failed to fetch parties for city');

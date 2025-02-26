@@ -7,7 +7,7 @@ import PersonForm from './PersonForm';
 import { deletePerson } from '@/lib/db/people';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink } from "lucide-react";
+import { Search, ExternalLink, FileText } from "lucide-react";
 import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -49,6 +49,13 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [canEdit, setCanEdit] = useState(false);
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
+
+    // Filter administrative bodies to only include those related to the person
+    const personRelatedAdminBodies = useMemo(() =>
+        administrativeBodies.filter(adminBody =>
+            person.roles.some(role => role.administrativeBodyId === adminBody.id)
+        ),
+        [administrativeBodies, person.roles]);
 
     // Group roles by type and active status
     const roles = useMemo(() => {
@@ -323,8 +330,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         />
                     </motion.form>
 
-                    {/* Administrative Body Filter */}
-                    {administrativeBodies.length > 0 && (
+                    {/* Administrative Body Filter - only show if there's more than one related to the person */}
+                    {personRelatedAdminBodies.length > 1 && (
                         <AdministrativeBodyFilter
                             administrativeBodies={administrativeBodies}
                             selectedAdminBodyId={selectedAdminBodyId}
@@ -348,6 +355,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 id={person.id}
                                 cityId={city.id}
                                 administrativeBodyId={selectedAdminBodyId}
+                                emptyStateMessage={t('noStatisticsAvailable')}
                             />
                         </div>
                     </motion.div>
@@ -463,10 +471,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         transition={{ delay: 0.8 }}
                         className="relative"
                     >
-                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">Πρόσφατες τοποθετήσεις</h2>
+                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('recentSegments', { fallback: 'Πρόσφατες τοποθετήσεις' })}</h2>
 
                         {isLoadingSegments && latestSegments.length === 0 ? (
-                            <div className="flex justify-center items-center py-12">
+                            <div className="flex justify-center items-center py-12 border rounded-xl bg-card/50">
                                 <div className="flex flex-col items-center space-y-4">
                                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                                     <p className="text-sm text-muted-foreground">{t('loadingSegments')}</p>
@@ -486,8 +494,12 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 ))}
 
                                 {latestSegments.length === 0 && !isLoadingSegments && (
-                                    <div className="text-center py-8">
-                                        <p className="text-muted-foreground">{t('noSegmentsFound')}</p>
+                                    <div className="flex flex-col items-center justify-center py-12 px-4 border rounded-xl bg-card/50">
+                                        <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+                                        <div className="text-muted-foreground text-center space-y-2">
+                                            <p className="text-lg">{t('noSegmentsFound')}</p>
+                                            <p className="text-sm max-w-md mx-auto">{t('tryDifferentFilter', { fallback: 'Δοκιμάστε να αλλάξετε το φίλτρο ή ελέγξτε αργότερα για νέες τοποθετήσεις.' })}</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>

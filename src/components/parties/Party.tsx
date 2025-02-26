@@ -24,6 +24,7 @@ import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PersonWithRelations } from '@/lib/getMeetingData';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -33,17 +34,36 @@ type RoleWithPerson = Role & {
 function PartyMembersTab({
     city,
     party,
-    activeRoles,
-    inactiveRoles,
+    people,
     canEdit
 }: {
     city: City,
     party: PartyWithPersons,
-    activeRoles: RoleWithPerson[],
-    inactiveRoles: RoleWithPerson[],
+    people: PersonWithRelations[],
     canEdit: boolean
 }) {
     const t = useTranslations('Party');
+
+    // Filter people to only include those with active party roles
+    const activePeople = useMemo(() =>
+        people.filter(person =>
+            person.roles.some(role =>
+                role.partyId === party.id &&
+                (!role.endDate || new Date(role.endDate) > new Date())
+            )
+        ),
+        [people, party.id]);
+
+    // Filter people to only include those with inactive party roles
+    const inactivePeople = useMemo(() =>
+        people.filter(person =>
+            person.roles.some(role =>
+                role.partyId === party.id &&
+                role.endDate &&
+                new Date(role.endDate) <= new Date()
+            )
+        ),
+        [people, party.id]);
 
     return (
         <div className="space-y-12">
@@ -56,38 +76,29 @@ function PartyMembersTab({
             >
                 <h2 className="text-2xl font-normal tracking-tight mb-6">{t('currentMembers')}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {activeRoles
+                    {activePeople
                         .sort((a, b) => {
                             // Sort by isHead first (true comes before false)
-                            if (a.isHead && !b.isHead) return -1;
-                            if (!a.isHead && b.isHead) return 1;
+                            const aIsHead = a.roles.some((role: Role) => role.partyId === party.id && role.isHead);
+                            const bIsHead = b.roles.some((role: Role) => role.partyId === party.id && role.isHead);
+                            if (aIsHead && !bIsHead) return -1;
+                            if (!aIsHead && bIsHead) return 1;
                             // Then sort by name
-                            return a.person.name.localeCompare(b.person.name);
+                            return a.name.localeCompare(b.name);
                         })
-                        .map(role => {
-                            // Get all roles for this person, not just the current one
-                            const allPersonRoles = party.roles.filter(r => r.person.id === role.person.id);
-
-                            const personWithRelations = {
-                                ...role.person,
-                                party,
-                                roles: allPersonRoles.map(r => ({ ...r, party }))
-                            };
-
-                            return (
-                                <PersonCard
-                                    key={role.person.id}
-                                    item={personWithRelations}
-                                    editable={canEdit}
-                                    parties={[party]}
-                                />
-                            );
-                        })}
+                        .map(person => (
+                            <PersonCard
+                                key={person.id}
+                                item={person}
+                                editable={canEdit}
+                                parties={[party]}
+                            />
+                        ))}
                 </div>
             </motion.div>
 
-            {/* Past Members Section - only show if there are inactive roles */}
-            {inactiveRoles.length > 0 && (
+            {/* Past Members Section - only show if there are inactive people */}
+            {inactivePeople.length > 0 && (
                 <motion.div
                     className="mb-12"
                     initial={{ opacity: 0, y: 20 }}
@@ -96,47 +107,60 @@ function PartyMembersTab({
                 >
                     <h2 className="text-2xl font-normal tracking-tight mb-6">{t('pastMembers')}</h2>
                     <div className="space-y-4">
-                        {inactiveRoles
+                        {inactivePeople
                             .sort((a, b) => {
                                 // Sort by most recent end date first
-                                const aEnd = a.endDate ? new Date(a.endDate).getTime() : 0;
-                                const bEnd = b.endDate ? new Date(b.endDate).getTime() : 0;
+                                const aEnd = Math.max(...a.roles
+                                    .filter(role => role.partyId === party.id && role.endDate)
+                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0));
+                                const bEnd = Math.max(...b.roles
+                                    .filter(role => role.partyId === party.id && role.endDate)
+                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0));
                                 if (aEnd !== bEnd) return bEnd - aEnd;
                                 // Then sort by name
-                                return a.person.name.localeCompare(b.person.name);
+                                return a.name.localeCompare(b.name);
                             })
-                            .map(role => (
+                            .map(person => (
                                 <motion.div
-                                    key={role.id}
+                                    key={person.id}
                                     className="p-4 border rounded-lg"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                 >
                                     <div className="flex items-center gap-4">
                                         <Link
-                                            href={`/${city.id}/people/${role.person.id}`}
+                                            href={`/${city.id}/people/${person.id}`}
                                             className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                                         >
                                             <div className="relative w-10 h-10">
                                                 <ImageOrInitials
-                                                    imageUrl={role.person.image}
-                                                    name={role.person.name}
+                                                    imageUrl={person.image}
+                                                    name={person.name}
                                                     width={40}
                                                     height={40}
                                                 />
                                             </div>
                                             <div>
-                                                <div className="font-medium">{role.person.name}</div>
+                                                <div className="font-medium">{person.name}</div>
                                                 <div className="text-sm text-muted-foreground">
-                                                    {role.isHead && t('partyLeader')}
-                                                    {role.name && !role.isHead && role.name}
+                                                    {person.roles
+                                                        .filter(role => role.partyId === party.id)
+                                                        .some(role => role.isHead) && t('partyLeader')}
+                                                    {person.roles
+                                                        .filter(role => role.partyId === party.id && role.name)
+                                                        .map(role => role.name)
+                                                        .join(', ')}
                                                 </div>
                                             </div>
                                         </Link>
                                         <span className="text-sm text-muted-foreground ml-auto">
                                             {formatDateRange(
-                                                role.startDate ? new Date(role.startDate) : null,
-                                                role.endDate ? new Date(role.endDate) : null,
+                                                new Date(Math.min(...person.roles
+                                                    .filter(role => role.partyId === party.id && role.startDate)
+                                                    .map(role => role.startDate ? new Date(role.startDate).getTime() : Infinity))),
+                                                new Date(Math.max(...person.roles
+                                                    .filter(role => role.partyId === party.id && role.endDate)
+                                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0))),
                                                 t
                                             )}
                                         </span>
@@ -199,8 +223,8 @@ function StatisticsAndSegmentsTab({
                 />
             </motion.form>
 
-            {/* Administrative Body Filter */}
-            {administrativeBodies.length > 0 && (
+            {/* Administrative Body Filter - only show if there's more than one */}
+            {administrativeBodies.length > 1 && (
                 <AdministrativeBodyFilter
                     administrativeBodies={administrativeBodies}
                     selectedAdminBodyId={selectedAdminBodyId}
@@ -305,11 +329,33 @@ export default function PartyC({ city, party, administrativeBodies }: {
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
-    const persons = Array.from(new Map(party.roles.map(role => [role.person.id, role.person])).values());
+    // Use people directly from the party object
+    const persons = useMemo(() => party.people, [party.people]);
+
+    // Filter administrative bodies to only include those related to the party's people
+    const partyRelatedAdminBodies = useMemo(() =>
+        administrativeBodies.filter(adminBody =>
+            persons.some(person =>
+                person.roles.some(role => role.administrativeBodyId === adminBody.id)
+            )
+        ),
+        [administrativeBodies, persons]);
+
+    // Create roles with person objects for compatibility with existing code
+    const rolesWithPersons = useMemo(() => {
+        return persons.flatMap(person =>
+            person.roles
+                .filter(role => role.partyId === party.id)
+                .map(role => ({
+                    ...role,
+                    person: person
+                }))
+        ) as RoleWithPerson[];
+    }, [persons, party.id]);
 
     // Split roles into active and inactive
-    const activeRoles = useMemo(() => filterActiveRoles(party.roles), [party.roles]);
-    const inactiveRoles = useMemo(() => filterInactiveRoles(party.roles), [party.roles]);
+    const activeRoles = useMemo(() => filterActiveRoles(rolesWithPersons), [rolesWithPersons]);
+    const inactiveRoles = useMemo(() => filterInactiveRoles(rolesWithPersons), [rolesWithPersons]);
 
     // Find the current party leader
     const partyLeader = useMemo(() => activeRoles.find((role: RoleWithPerson) => role.isHead), [activeRoles]);
@@ -502,8 +548,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             <PartyMembersTab
                                 city={city}
                                 party={party}
-                                activeRoles={activeRoles}
-                                inactiveRoles={inactiveRoles}
+                                people={persons}
                                 canEdit={canEdit}
                             />
                         </TabsContent>
@@ -512,7 +557,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             <StatisticsAndSegmentsTab
                                 city={city}
                                 party={party}
-                                administrativeBodies={administrativeBodies}
+                                administrativeBodies={partyRelatedAdminBodies}
                                 selectedAdminBodyId={selectedAdminBodyId}
                                 onSelectAdminBody={handleAdminBodySelect}
                                 latestSegments={latestSegments}
