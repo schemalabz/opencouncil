@@ -1,7 +1,7 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Twitter, Instagram } from 'lucide-react';
 import { SubstackBadge } from './substack-badge';
 import { SubstackPost } from '@/lib/db/landing';
 
@@ -32,11 +32,71 @@ export function Hero({ latestPost }: HeroProps) {
 
     return (
         <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
-            {latestPost && (
-                <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8">
-                    <SubstackBadge post={latestPost} />
+            {/* Mobile view */}
+            <div className="absolute top-0 left-0 right-0 px-4 sm:hidden">
+                <div className="flex flex-col items-center">
+                    {latestPost && (
+                        <div className="rounded-full border border-border bg-background/80 backdrop-blur-sm max-w-[calc(100vw-32px)]">
+                            <div className="truncate max-w-[calc(100vw-32px)]">
+                                <SubstackBadge post={latestPost} />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mt-2">
+                        <a
+                            href="https://twitter.com/opencouncil_gr"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background/80 backdrop-blur-sm hover:bg-background/95 transition-colors"
+                            aria-label="Twitter"
+                        >
+                            <Twitter className="w-3.5 h-3.5 text-muted-foreground" />
+                        </a>
+
+                        <a
+                            href="https://instagram.com/opencouncil_gr"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background/80 backdrop-blur-sm hover:bg-background/95 transition-colors"
+                            aria-label="Instagram"
+                        >
+                            <Instagram className="w-3.5 h-3.5 text-muted-foreground" />
+                        </a>
+                    </div>
                 </div>
-            )}
+            </div>
+
+            {/* Desktop view */}
+            <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block">
+                <div className="flex justify-center items-center max-w-screen-xl mx-auto">
+                    <div className="inline-flex items-center rounded-full border border-border bg-background/80 backdrop-blur-sm">
+                        {latestPost && <SubstackBadge post={latestPost} />}
+
+                        <div className="flex items-center gap-1 pr-1 ml-1">
+                            <a
+                                href="https://twitter.com/opencouncil_gr"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-background/95 transition-colors"
+                                aria-label="Twitter"
+                            >
+                                <Twitter className="w-3.5 h-3.5 text-muted-foreground" />
+                            </a>
+
+                            <a
+                                href="https://instagram.com/opencouncil_gr"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-background/95 transition-colors"
+                                aria-label="Instagram"
+                            >
+                                <Instagram className="w-3.5 h-3.5 text-muted-foreground" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <motion.div
                 style={{ opacity, y }}
