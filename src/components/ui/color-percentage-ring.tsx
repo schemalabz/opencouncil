@@ -5,7 +5,7 @@ interface ColorPercentage {
     percentage: number;
 }
 
-interface ColorPercentageRingProps {
+export interface ColorPercentageRingProps {
     data: ColorPercentage[];
     size?: number;
     thickness?: number;
