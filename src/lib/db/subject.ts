@@ -33,7 +33,6 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
 };
 
-// Define a type for the OG data we need, with just the raw data without calculations
 export type SubjectOgData = {
     subject: SubjectWithRelations;
     city: City;

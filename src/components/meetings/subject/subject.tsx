@@ -1,6 +1,5 @@
+"use client";
 import Map from "@/components/map/map";
-import { SubjectWithRelations } from "@/lib/db/subject";
-import { Statistics } from "@/lib/statistics";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
@@ -11,12 +10,21 @@ import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { notFound } from "next/navigation";
 
-export default function Subject({ subject }: { subject: SubjectWithRelations & { statistics?: Statistics } }) {
-    const { topic, location, description, name, speakerSegments, agendaItemIndex, introducedBy } = subject;
-    const { getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
+export default function Subject({ subjectId }: { subjectId?: string }) {
+    const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
+
+    // If subjectId is provided, find the subject in the context
+    const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
+
+    // If no subject is found, return 404
+    if (!subject) {
+        notFound();
+    }
+
+    const { topic, location, description, name, speakerSegments, agendaItemIndex, introducedBy } = subject;
 
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,

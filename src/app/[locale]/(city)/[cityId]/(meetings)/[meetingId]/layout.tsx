@@ -22,6 +22,7 @@ import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { Switch } from '@/components/ui/switch';
 import EditSwitch from '@/components/meetings/edit-switch';
+import { getMeetingDataCached } from '@/lib/cachedData';
 
 /*
 export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
@@ -31,13 +32,6 @@ export async function generateStaticParams({ params }: { params: { meetingId: st
 }
 */
 
-const getMeetingDataCached = cache(async (cityId: string, meetingId: string) => {
-    const t = performance.now();
-    console.log("Getting data...");
-    const data = await getMeetingData(cityId, meetingId);
-    console.log(`Got data in ${performance.now() - t}ms`);
-    return data;
-});
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
