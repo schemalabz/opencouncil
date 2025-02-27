@@ -27,10 +27,10 @@ const OpenCouncilWatermark = () => (
         }}
     >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src={logoBase64} width="20" height="20" alt="OpenCouncil" />
+        <img src={logoBase64} width='40' height='40' alt='OpenCouncil' />
         <span
             style={{
-                fontSize: 14,
+                fontSize: 21,
                 fontWeight: 500,
                 color: "#6b7280",
             }}
@@ -101,8 +101,8 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={city.logoImage}
-            height="80"
-            alt="City Logo"
+                        height="80"
+                        alt="City Logo"
                         style={{
                             objectFit: "contain",
                         }}
@@ -117,7 +117,7 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                 >
                     <span
                         style={{
-                            fontSize: 28,
+                            fontSize: 32,
                             fontWeight: 600,
                             color: "#1f2937",
                             display: "flex",
@@ -152,7 +152,7 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                     >
                         <span
                             style={{
-                                fontSize: 20,
+                                fontSize: 28,
                                 color: "#6b7280",
                                 display: "flex",
                                 whiteSpace: "nowrap",
@@ -164,7 +164,7 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                         </span>
                         <span
                             style={{
-                                fontSize: 16,
+                                fontSize: 20,
                                 color: "#9ca3af",
                                 display: "flex",
                             }}

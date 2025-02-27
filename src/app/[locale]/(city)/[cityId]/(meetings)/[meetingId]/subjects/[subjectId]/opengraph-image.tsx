@@ -124,7 +124,7 @@ function ColorPercentageRing({
             >
                 <div
                     style={{
-                        fontSize: 48,
+                        fontSize: 56,
                         fontWeight: 600,
                         color: "#111827",
                         display: "flex",
@@ -134,7 +134,7 @@ function ColorPercentageRing({
                 </div>
                 <div
                     style={{
-                        fontSize: 18,
+                        fontSize: 22,
                         color: "#6b7280",
                         display: "flex",
                     }}
@@ -227,8 +227,8 @@ export default async function SubjectOgImage({
                     <ColorPercentageRing
                         data={colorPercentages}
                         totalMinutes={totalMinutes}
-                        size={150}
-                        thickness={18}
+                        size={180}
+                        thickness={20}
                     />
                 </div>
 
@@ -254,14 +254,14 @@ export default async function SubjectOgImage({
                     {/* Subject name with padding on the right to make room for the ring */}
                     <h1
                         style={{
-                            fontSize: 48,
+                            fontSize: 56,
                             fontWeight: 700,
                             color: "#111827",
                             lineHeight: 1.3,
                             margin: 0,
                             marginBottom: "24px",
                             paddingTop: "8px",
-                            paddingRight: "140px", // Make room for the ring
+                            paddingRight: "180px", // Make room for the ring
                             display: "flex",
                         }}
                     >
@@ -289,15 +289,15 @@ export default async function SubjectOgImage({
                                     padding: "8px 16px",
                                     borderRadius: "6px",
                                     color: "#ffffff",
-                                    fontSize: 22,
+                                    fontSize: 28,
                                     fontWeight: 600,
                                 }}
                             >
                                 {/* Circle indicator */}
                                 <div
                                     style={{
-                                        width: "12px",
-                                        height: "12px",
+                                        width: "14px",
+                                        height: "14px",
                                         borderRadius: "50%",
                                         backgroundColor: "#ffffff",
                                         display: "flex",
@@ -318,7 +318,7 @@ export default async function SubjectOgImage({
                                     padding: "8px 16px",
                                     borderRadius: "6px",
                                     color: "#4b5563",
-                                    fontSize: 22,
+                                    fontSize: 28,
                                     fontWeight: 500,
                                 }}
                             >
@@ -380,15 +380,15 @@ export default async function SubjectOgImage({
                                             <div
                                                 style={{
                                                     position: "relative",
-                                                    width: "88px",
-                                                    height: "88px",
+                                                    width: "100px",
+                                                    height: "100px",
                                                     borderRadius: "50%",
                                                     backgroundColor: "#ffffff",
                                                     display: "flex",
                                                     alignItems: "center",
                                                     justifyContent: "center",
                                                     overflow: "hidden",
-                                                    border: `4px solid ${partyColor || "#e5e7eb"}`,
+                                                    border: `5px solid ${partyColor || "#e5e7eb"}`,
                                                     boxShadow:
                                                         "0 6px 8px -1px rgba(0, 0, 0, 0.12), 0 4px 6px -1px rgba(0, 0, 0, 0.08)",
                                                 }}
@@ -397,15 +397,15 @@ export default async function SubjectOgImage({
                                                     <img
                                                         src={person.image}
                                                         alt={person.name}
-                                                        width='88'
-                                                        height='88'
+                                                        width='100'
+                                                        height='100'
                                                         style={{ objectFit: "cover" }}
                                                     />
                                                 ) : (
                                                     <span
                                                         style={{
                                                             color: partyColor || "#6b7280",
-                                                            fontSize: "30px",
+                                                            fontSize: "36px",
                                                             fontWeight: 600,
                                                             display: "flex",
                                                         }}
@@ -424,8 +424,8 @@ export default async function SubjectOgImage({
                                                         left: "0",
                                                         backgroundColor: "#ffffff",
                                                         borderRadius: "50%",
-                                                        width: "30px",
-                                                        height: "30px",
+                                                        width: "36px",
+                                                        height: "36px",
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent: "center",
@@ -436,7 +436,7 @@ export default async function SubjectOgImage({
                                                     <span
                                                         style={{
                                                             display: "flex",
-                                                            fontSize: "18px",
+                                                            fontSize: "22px",
                                                         }}
                                                     >
                                                         ✏️
@@ -458,18 +458,18 @@ export default async function SubjectOgImage({
                                     >
                                         <div
                                             style={{
-                                                width: "88px",
-                                                height: "88px",
+                                                width: "100px",
+                                                height: "100px",
                                                 borderRadius: "50%",
                                                 backgroundColor: "#f3f4f6",
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
-                                                border: "4px solid #ffffff",
+                                                border: "5px solid #ffffff",
                                                 boxShadow:
                                                     "0 6px 8px -1px rgba(0, 0, 0, 0.12), 0 4px 6px -1px rgba(0, 0, 0, 0.08)",
                                                 color: "#6b7280",
-                                                fontSize: "24px",
+                                                fontSize: "30px",
                                                 fontWeight: "600",
                                             }}
                                         >

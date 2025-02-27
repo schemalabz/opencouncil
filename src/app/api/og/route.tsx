@@ -47,7 +47,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                 paddingTop: '8px',
             }}>
                 <h1 style={{
-                    fontSize: 48,
+                    fontSize: 56,
                     fontWeight: 700,
                     color: '#111827',
                     lineHeight: 1.3,
@@ -62,7 +62,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                     alignItems: 'center',
                     gap: '24px',
                     color: '#4b5563',
-                    fontSize: 22,
+                    fontSize: 28,
                     marginTop: '8px',
                 }}>
                     <div style={{
@@ -107,7 +107,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                                 padding: '10px 20px',
                                 borderRadius: '9999px',
                                 color: '#ffffff',
-                                fontSize: 18,
+                                fontSize: 22,
                                 fontWeight: 600,
                                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                                 maxWidth: '85%',
@@ -126,7 +126,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                                 alignItems: 'center',
                                 gap: '4px',
                                 color: '#6b7280',
-                                fontSize: 16,
+                                fontSize: 18,
                                 marginTop: '4px',
                             }}>
                                 <span style={{
