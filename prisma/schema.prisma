@@ -173,6 +173,8 @@ model TaskStatus {
   requestBody String
   responseBody String?
 
+  version Int?
+
   councilMeeting   CouncilMeeting @relation(fields: [councilMeetingId, cityId], references: [id, cityId], onDelete: Cascade)
   councilMeetingId String
   cityId            String

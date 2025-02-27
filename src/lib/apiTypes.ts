@@ -7,6 +7,7 @@ export interface TaskUpdate<T> {
     status: "processing" | "success" | "error";
     stage: string;
     progressPercent: number;
+    version: number | undefined;
     result?: T;
     error?: string;
 }

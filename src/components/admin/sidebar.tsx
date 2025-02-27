@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files, Rocket } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Settings, ShoppingBag, Files, Rocket, List } from "lucide-react"
 import Link from "next/link"
 import {
     Sidebar,
@@ -37,6 +37,11 @@ const menuItems = [
         title: "Waitlist",
         icon: Rocket,
         url: "/admin/waitlist"
+    },
+    {
+        title: "Tasks",
+        icon: List,
+        url: "/admin/tasks"
     },
     {
         title: "Settings",
