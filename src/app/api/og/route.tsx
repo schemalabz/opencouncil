@@ -6,56 +6,7 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import fs from 'fs';
-import path from 'path';
-
-// Load and convert the logo to base64
-const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-const logo = fs.readFileSync(logoPath);
-const logoBase64 = `data:image/png;base64,${logo.toString('base64')}`;
-
-// Shared components
-const OpenCouncilWatermark = () => (
-    <div style={{
-        position: 'absolute',
-        bottom: 40,
-        right: 40,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        opacity: 0.7,
-    }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-            src={logoBase64}
-            width="20"
-            height="20"
-            alt="OpenCouncil"
-        />
-        <span style={{
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#6b7280',
-        }}>
-            OpenCouncil
-        </span>
-    </div>
-);
-
-const Container = ({ children }: { children: React.ReactNode }) => (
-    <div style={{
-        height: '100%',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#ffffff',
-        padding: '48px',
-        position: 'relative',
-    }}>
-        {children}
-        <OpenCouncilWatermark />
-    </div>
-);
+import { Container, OgHeader } from '@/components/og/shared-components';
 
 // Meeting OG Image
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
@@ -80,45 +31,12 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
 
     return (
         <Container>
-            {/* Header */}
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                width: '100%',
-                marginBottom: 32,
-            }}>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '20px'
-                }}>
-                    {data.city.logoImage && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={data.city.logoImage}
-                            height="80"
-                            alt="City Logo"
-                            style={{
-                                objectFit: 'contain',
-                            }}
-                        />
-                    )}
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                    }}>
-                        <span style={{
-                            fontSize: 28,
-                            fontWeight: 600,
-                            color: '#1f2937',
-                        }}>
-                            {data.city.name_municipality}
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <OgHeader 
+                city={{
+                    name: data.city.name_municipality,
+                    logoImage: data.city.logoImage
+                }}
+            />
 
             {/* Main Content */}
             <div style={{
@@ -404,4 +322,4 @@ export async function GET(request: Request) {
         console.error(e);
         return new Response('Failed to generate image', { status: 500 });
     }
-} 
+}
