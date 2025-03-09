@@ -136,6 +136,12 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
                         city: true,
                         administrativeBody: true
                     }
+                },
+                voicePrints: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
+                    take: 1 // Only get the most recent voiceprint
                 }
             }
         });
@@ -157,6 +163,12 @@ export async function getPeopleForCity(cityId: string): Promise<PersonWithRelati
                         city: true,
                         administrativeBody: true
                     }
+                },
+                voicePrints: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
+                    take: 1 // Only get the most recent voiceprint
                 }
             }
         });
