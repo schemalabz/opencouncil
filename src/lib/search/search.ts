@@ -4,7 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { getEmbeddings, rerankDocuments } from "@/lib/voyage/voyage";
 import { getCities } from "../db/cities";
-import { PersonWithRelations } from "../getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 
 export type SearchRequest = {
     query: string;

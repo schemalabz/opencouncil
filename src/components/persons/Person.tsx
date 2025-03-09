@@ -22,7 +22,7 @@ import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDate } from '@/lib/utils';
 import { StatisticsOfPerson } from "@/lib/statistics";
 

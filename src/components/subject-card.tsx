@@ -9,7 +9,7 @@ import { MapPin, ScrollText, PresentationIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
-import { PersonWithRelations } from "@/lib/getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 
 export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, city: City, meeting: CouncilMeeting, parties: Party[], persons: PersonWithRelations[], fullWidth?: boolean }) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({

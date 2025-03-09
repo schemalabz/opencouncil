@@ -3,7 +3,7 @@ import { Container, OgHeader } from "@/components/og/shared-components";
 import { getSubjectDataForOG } from "@/lib/db/subject";
 import { formatDate } from "date-fns";
 import { el, enUS } from "date-fns/locale";
-import { PersonWithRelations } from "@/lib/getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
 // Image configuration

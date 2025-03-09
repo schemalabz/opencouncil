@@ -1,4 +1,4 @@
-import { PersonWithRelations } from "@/lib/getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 
 /**
  * Sorts an array of Person objects by the last word in their name (typically last name)

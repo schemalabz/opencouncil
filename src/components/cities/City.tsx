@@ -26,7 +26,7 @@ import { SubjectWithRelations } from '@/lib/db/subject';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge'
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { sortPersonsByLastName } from '@/components/utils';
 

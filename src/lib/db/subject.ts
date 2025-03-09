@@ -9,7 +9,7 @@ import {
     City,
     CouncilMeeting,
 } from '@prisma/client';
-import { PersonWithRelations } from '../getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
 import { getPeopleForCity } from './people';

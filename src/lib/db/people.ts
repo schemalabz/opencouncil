@@ -1,8 +1,16 @@
 "use server";
-import { Person, Party, Role } from '@prisma/client';
+import { Person, Party, Role, AdministrativeBody, City, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { PersonWithRelations } from '../getMeetingData';
+
+export type PersonWithRelations = Person & {
+    roles: (Role & {
+        party?: Party | null;
+        city?: City | null;
+        administrativeBody?: AdministrativeBody | null;
+    })[];
+    voicePrints?: VoicePrint[];
+};
 
 export async function deletePerson(id: string): Promise<void> {
     withUserAuthorizedToEdit({ personId: id });
