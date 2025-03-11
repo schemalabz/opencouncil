@@ -5,9 +5,10 @@ import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
-import { PersonWithRelations } from "@/lib/getMeetingData";
+import { PersonWithRelations } from "@/lib/db/people";
 import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
+import { VoiceprintActions } from "./voiceprint-actions";
 
 interface PeopleProps {
     people: PersonWithRelations[];
@@ -33,6 +34,8 @@ export default function People({ people, currentCityName }: PeopleProps) {
             totalPeople: filteredPeople.length,
             peopleWithRoles: filteredPeople.filter(person => person.roles.length > 0).length,
             peopleWithImages: filteredPeople.filter(person => person.image !== null).length,
+            peopleWithVoiceprints: filteredPeople.filter(person => person.voicePrints && person.voicePrints.length > 0)
+                .length,
         }),
         [filteredPeople],
     );
@@ -53,6 +56,7 @@ export default function People({ people, currentCityName }: PeopleProps) {
                 totalPeople={stats.totalPeople}
                 peopleWithRoles={stats.peopleWithRoles}
                 peopleWithImages={stats.peopleWithImages}
+                peopleWithVoiceprints={stats.peopleWithVoiceprints}
             />
 
             <Card>
@@ -71,6 +75,13 @@ export default function People({ people, currentCityName }: PeopleProps) {
                                 <div key={person.id} className='flex items-center justify-between border-b pb-2'>
                                     <div className='flex-1'>
                                         <PersonBadge person={person} size='sm' />
+                                    </div>
+                                    <div className='flex gap-2 items-center'>
+                                        <VoiceprintActions
+                                            personId={person.id}
+                                            personName={person.name}
+                                            voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
+                                        />
                                     </div>
                                 </div>
                             ))}

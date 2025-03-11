@@ -8,6 +8,7 @@ import { handleGeneratePodcastSpecResult } from './generatePodcastSpec';
 import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
+import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
@@ -136,6 +137,8 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         await handleFixTranscriptResult(taskId, JSON.parse(task.responseBody!));
     } else if (taskType === 'processAgenda') {
         await handleProcessAgendaResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'generateVoiceprint') {
+        await handleGenerateVoiceprintResult(taskId, JSON.parse(task.responseBody!));
     } else {
         throw new Error(`Unsupported task type: ${taskType}`);
     }

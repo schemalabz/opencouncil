@@ -2,6 +2,7 @@
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { VoicePrint } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 
 export async function createVoicePrint(
     voiceprint: Omit<VoicePrint, "id" | "createdAt" | "updatedAt">,
@@ -26,6 +27,8 @@ export async function createVoicePrint(
                     endTimestamp: voiceprint.endTimestamp,
                 },
             });
+
+            revalidatePath(`/admin/people`, "page");
 
             console.log(`Created voice print with ID: ${voicePrint.id}`);
             return voicePrint.id;
@@ -60,6 +63,7 @@ export async function deleteVoicePrint(voicePrintId: string): Promise<void> {
         await prisma.voicePrint.delete({
             where: { id: voicePrintId },
         });
+        revalidatePath(`/admin/people`, "page");
     } catch (error) {
         console.error("Error deleting voice print:", error);
         throw new Error("Failed to delete voice print");

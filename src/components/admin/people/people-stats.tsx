@@ -1,13 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ImageIcon, Award } from "lucide-react";
+import { Users, ImageIcon, Award, Volume2 } from "lucide-react";
 
 interface PeopleStatsProps {
     totalPeople: number;
     peopleWithRoles: number;
     peopleWithImages: number;
+    peopleWithVoiceprints: number;
 }
 
-export function PeopleStats({ totalPeople, peopleWithRoles, peopleWithImages }: PeopleStatsProps) {
+export function PeopleStats({
+    totalPeople,
+    peopleWithRoles,
+    peopleWithImages,
+    peopleWithVoiceprints,
+}: PeopleStatsProps) {
     const statsItems = [
         {
             title: "Total People",
@@ -29,10 +35,17 @@ export function PeopleStats({ totalPeople, peopleWithRoles, peopleWithImages }: 
             icon: <ImageIcon className='h-5 w-5' />,
             description: "People with uploaded profile images",
         },
+        {
+            title: "With Voiceprints",
+            value: peopleWithVoiceprints,
+            percent: totalPeople ? Math.round((peopleWithVoiceprints / totalPeople) * 100) : 0,
+            icon: <Volume2 className='h-5 w-5' />,
+            description: "People with generated voiceprints",
+        },
     ];
 
     return (
-        <div className='grid gap-4 md:grid-cols-3 mb-6'>
+        <div className='grid gap-4 md:grid-cols-4 mb-6'>
             {statsItems.map(item => (
                 <Card key={item.title}>
                     <CardHeader className='flex flex-row items-center justify-between pb-2'>

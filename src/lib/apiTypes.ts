@@ -1,6 +1,5 @@
-
 /*
- * Generic task types 
+ * Generic task types
  */
 
 export interface TaskUpdate<T> {
@@ -15,6 +14,8 @@ export interface TaskRequest {
     callbackUrl: string;
 }
 
+export type MediaType = "audio" | "video";
+
 /*
  * Task: Transcribe
  */
@@ -24,7 +25,6 @@ export interface TranscribeRequest extends TaskRequest {
     customVocabulary?: string[];
     customPrompt?: string;
 }
-
 
 export type TranscriptWithUtteranceDrifts = Transcript & {
     transcription: {
@@ -86,12 +86,12 @@ export interface Subject {
     }[];
     highlightedUtteranceIds: string[];
     location: {
-        type: 'point' | 'lineString' | 'polygon';
+        type: "point" | "lineString" | "polygon";
         text: string; // e.g. an area, an address, a road name
         coordinates: number[][]; // a sequence of coordinates. just one coordinate for a point, more for a line or polygon
     } | null;
     topicLabel: string | null;
-};
+}
 
 export interface ProcessAgendaResult {
     subjects: Subject[];
@@ -169,8 +169,7 @@ export interface RequestOnTranscript extends TaskRequest {
  * Fix Transcript
  */
 
-export interface FixTranscriptRequest extends RequestOnTranscript {
-}
+export interface FixTranscriptRequest extends RequestOnTranscript {}
 
 export interface FixTranscriptResult {
     updateUtterances: {
@@ -181,8 +180,8 @@ export interface FixTranscriptResult {
 }
 
 /*
-* Summarize
-*/
+ * Summarize
+ */
 
 export interface SummarizeRequest extends RequestOnTranscript {
     requestedSubjects: string[];
@@ -200,7 +199,6 @@ export interface SummarizeResult {
     subjects: Subject[];
 }
 
-
 /*
  * Produce Podcast
  */
@@ -211,7 +209,7 @@ export interface GeneratePodcastSpecRequest extends RequestOnTranscript {
         description: string;
         speakerSegmentIds: string[];
         highlightedUtteranceIds: string[];
-        allocation: 'onlyMention' | 'skip' | 'full';
+        allocation: "onlyMention" | "skip" | "full";
         allocatedMinutes: number;
     }[];
 
@@ -219,13 +217,15 @@ export interface GeneratePodcastSpecRequest extends RequestOnTranscript {
     additionalInstructions?: string;
 }
 
-export type PodcastPart = {
-    type: "host";
-    text: string;
-} | {
-    type: "audio";
-    utteranceIds: string[];
-};
+export type PodcastPart =
+    | {
+          type: "host";
+          text: string;
+      }
+    | {
+          type: "audio";
+          utteranceIds: string[];
+      };
 
 export interface GeneratePodcastSpecResult {
     parts: PodcastPart[];
@@ -237,10 +237,12 @@ export interface GeneratePodcastSpecResult {
 
 export interface SplitMediaFileRequest extends TaskRequest {
     url: string; // an mp4 or mp3 url
-    type: 'audio' | 'video';
-    parts: { // a part of the file, consisting of multiple contiguous segments
+    type: MediaType;
+    parts: {
+        // a part of the file, consisting of multiple contiguous segments
         id: string;
-        segments: { // a contiguous segments of the media file
+        segments: {
+            // a contiguous segments of the media file
             startTimestamp: number;
             endTimestamp: number;
         }[];
@@ -251,9 +253,29 @@ export interface SplitMediaFileResult {
     parts: {
         id: string;
         url: string;
-        type: 'audio' | 'video';
+        type: MediaType;
         duration: number;
         startTimestamp: number;
         endTimestamp: number;
     }[];
+}
+
+/*
+ * Generate Voiceprint Task
+ */
+
+export interface GenerateVoiceprintRequest extends TaskRequest {
+    mediaUrl: string; // URL to audio or video source
+    segmentId: string; // Speaker segment ID used for the voiceprint
+    startTimestamp: number; // Start timestamp in the media file
+    endTimestamp: number; // End timestamp in the media file
+    // Used only for file naming in S3
+    cityId: string;
+    personId: string;
+}
+
+export interface GenerateVoiceprintResult {
+    audioUrl: string; // URL to the extracted audio
+    voiceprint: string; // Voiceprint embedding vector in base64
+    duration: number; // Duration of the audio
 }
