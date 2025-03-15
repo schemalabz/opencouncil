@@ -24,6 +24,7 @@ export interface TranscribeRequest extends TaskRequest {
     youtubeUrl: string;
     customVocabulary?: string[];
     customPrompt?: string;
+    voiceprints?: Voiceprint[];
 }
 
 export type TranscriptWithUtteranceDrifts = Transcript & {
@@ -32,11 +33,22 @@ export type TranscriptWithUtteranceDrifts = Transcript & {
     };
 };
 
+// Processed speaker information in the final transcript
+export interface SpeakerIdentificationResult extends DiarizationSpeakerMatch {
+    speaker: number;  // Numeric speaker ID used in utterances
+}
+
+export type TranscriptWithSpeakerIdentification = TranscriptWithUtteranceDrifts & {
+    transcription: {
+        speakers: SpeakerIdentificationResult[];
+    };
+}
+
 export interface TranscribeResult {
     videoUrl: string;
     audioUrl: string;
     muxPlaybackId: string;
-    transcript: Transcript;
+    transcript: TranscriptWithSpeakerIdentification;
 }
 
 /*
@@ -45,10 +57,16 @@ export interface TranscribeResult {
 
 export interface DiarizeRequest extends TaskRequest {
     audioUrl: string;
+    voiceprints?: Voiceprint[];
 }
 
-export interface DiarizeResult {
-    diarization: Diarization;
+interface DiarizationSpeakerMatch {
+    match: string | null;  // The identified personId if there's a match
+    confidence: { [personId: string]: number; };
+}
+
+export interface DiarizationSpeaker extends DiarizationSpeakerMatch {
+    speaker: string;  // The speaker ID from diarization (may include SEG prefix)
 }
 
 export type Diarization = {
@@ -56,6 +74,16 @@ export type Diarization = {
     end: number;
     speaker: string;
 }[];
+
+export type DiarizeResult = {
+    diarization: Diarization;
+    speakers: DiarizationSpeaker[];
+};
+
+export type Voiceprint = {
+    personId: string;
+    voiceprint: string;
+}
 
 /*
  * Task: Process Agenda
