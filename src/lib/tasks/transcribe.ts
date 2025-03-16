@@ -70,9 +70,9 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
             personId: person.id,
             voiceprint: person.voicePrints![0].embedding
         }));
-    
+
     console.log(`Found ${voiceprints.length} voiceprints for people in the city`);
-    
+
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {
         youtubeUrl,
         customVocabulary: vocabulary,
@@ -124,17 +124,17 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     }
 
     await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl, muxPlaybackId);
-    
+
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
         // Create speaker tags with person identification when available
         const speakerTags = new Map<number, string>();
         let identifiedSpeakersCount = 0;
-        
+
         // Process speaker identification results
         if (response.transcript.transcription.speakers && response.transcript.transcription.speakers.length > 0) {
             console.log(`Found ${response.transcript.transcription.speakers.length} speakers in the response`);
-            
+
             // Create speaker tags for all speakers
             for (const speakerInfo of response.transcript.transcription.speakers) {
                 const speakerTag = await prisma.speakerTag.create({
@@ -144,23 +144,23 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                         ...(speakerInfo.match ? { person: { connect: { id: speakerInfo.match } } } : {})
                     }
                 });
-                
+
                 if (speakerInfo.match) {
                     identifiedSpeakersCount++;
                 }
-                
+
                 speakerTags.set(speakerInfo.speaker, speakerTag.id);
             }
         } else {
             throw new Error('No speakers found. Process cannot continue');
         }
-        
+
         console.log(`Created ${speakerTags.size} speaker tags (${identifiedSpeakersCount} identified with persons)`);
 
         // Sanity check: Make sure we have a speaker tag for each unique speaker in the utterances
         const uniqueSpeakersInUtterances = new Set(response.transcript.transcription.utterances.map(u => u.speaker));
         let missingSpeakerTagsCount = 0;
-        
+
         for (const speaker of uniqueSpeakersInUtterances) {
             if (!speakerTags.has(speaker)) {
                 console.warn(`Missing speaker tag for speaker ${speaker} found in utterances. Creating it now.`);
@@ -173,7 +173,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                 missingSpeakerTagsCount++;
             }
         }
-        
+
         if (missingSpeakerTagsCount > 0) {
             console.log(`Created ${missingSpeakerTagsCount} additional speaker tags from sanity check`);
         } else {
@@ -199,33 +199,34 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                 u => u.start >= segment.startTimestamp && u.end <= segment.endTimestamp
             );
 
-            for (const utterance of segmentUtterances) {
-                const createdUtterance = await prisma.utterance.create({
-                    data: {
-                        startTimestamp: utterance.start,
-                        endTimestamp: utterance.end,
-                        text: utterance.text,
-                        drift: utterance.drift,
-                        speakerSegment: { connect: { id: createdSegment.id } },
-                    }
-                });
+            // Use createMany for better performance instead of individual creates
+            await prisma.utterance.createMany({
+                data: segmentUtterances.map(utterance => ({
+                    startTimestamp: utterance.start,
+                    endTimestamp: utterance.end,
+                    text: utterance.text,
+                    drift: utterance.drift,
+                    speakerSegmentId: createdSegment.id,
+                }))
+            });
 
-                // Add words for this utterance
-                await prisma.word.createMany({
-                    data: utterance.words.map(word => ({
-                        text: word.word,
-                        startTimestamp: word.start,
-                        endTimestamp: word.end,
-                        utteranceId: createdUtterance.id,
-                        confidence: word.confidence,
-                    }))
-                });
-            }
+            /* no longer add words
+            // Add words for this utterance
+            await prisma.word.createMany({
+                data: utterance.words.map(word => ({
+                    text: word.word,
+                    startTimestamp: word.start,
+                    endTimestamp: word.end,
+                    utteranceId: createdUtterance.id,
+                    confidence: word.confidence,
+                }))
+            });
+            */
         }
 
         console.log(`Created ${speakerSegments.length} speaker segments`);
     }, {
-        timeout: 120000 // Increased timeout due to more complex operations
+        timeout: 10 * 60 * 1000 // Increased timeout due to more complex operations
     });
 }
 
