@@ -1,8 +1,16 @@
 "use server";
-import { Person, Party, Role } from '@prisma/client';
+import { Person, Party, Role, AdministrativeBody, City, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { PersonWithRelations } from '../getMeetingData';
+
+export type PersonWithRelations = Person & {
+    roles: (Role & {
+        party?: Party | null;
+        city?: City | null;
+        administrativeBody?: AdministrativeBody | null;
+    })[];
+    voicePrints?: VoicePrint[];
+};
 
 export async function deletePerson(id: string): Promise<void> {
     withUserAuthorizedToEdit({ personId: id });
@@ -136,6 +144,12 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
                         city: true,
                         administrativeBody: true
                     }
+                },
+                voicePrints: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
+                    take: 1 // Only get the most recent voiceprint
                 }
             }
         });
@@ -157,6 +171,12 @@ export async function getPeopleForCity(cityId: string): Promise<PersonWithRelati
                         city: true,
                         administrativeBody: true
                     }
+                },
+                voicePrints: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    },
+                    take: 1 // Only get the most recent voiceprint
                 }
             }
         });

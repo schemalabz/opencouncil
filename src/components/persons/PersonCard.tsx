@@ -6,7 +6,7 @@ import { useLocale } from 'next-intl';
 import { PersonBadge } from './PersonBadge';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 
 interface PersonCardProps {
     item: PersonWithRelations;

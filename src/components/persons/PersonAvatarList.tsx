@@ -1,7 +1,7 @@
 import { PersonBadge } from "./PersonBadge";
 import { cn } from "@/lib/utils";
 import { Pen } from "lucide-react";
-import { PersonWithRelations } from "@/lib/getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 
 interface PersonAvatarListProps {
     users: (PersonWithRelations & { isIntroducer?: boolean })[];

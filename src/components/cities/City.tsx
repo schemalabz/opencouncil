@@ -26,8 +26,9 @@ import { SubjectWithRelations } from '@/lib/db/subject';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge'
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 import { PartyWithPersons } from '@/lib/db/parties';
+import { sortPersonsByLastName } from '@/components/utils';
 
 export default function CityC({ city }: {
     city: City & {
@@ -128,12 +129,7 @@ export default function CityC({ city }: {
             return timeCompare;
         });
 
-    const orderedPersons = [...city.persons]
-        .sort((a, b) => {
-            const aLastWord = a.name.split(' ').pop() || '';
-            const bLastWord = b.name.split(' ').pop() || '';
-            return aLastWord.localeCompare(bLastWord);
-        });
+    const orderedPersons = sortPersonsByLastName(city.persons)
 
     const orderedParties = [...partiesWithRoles]
         .sort((a, b) => {

@@ -4,8 +4,9 @@ import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
-import { MeetingData, PersonWithRelations } from '@/lib/getMeetingData';
+import { MeetingData } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
+import { PersonWithRelations } from '@/lib/db/people';
 
 export interface CouncilMeetingDataContext extends MeetingData {
     getPerson: (id: string) => PersonWithRelations | undefined;

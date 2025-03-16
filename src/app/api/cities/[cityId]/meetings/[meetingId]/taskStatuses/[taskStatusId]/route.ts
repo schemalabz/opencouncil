@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { handleTranscribeResult } from '@/lib/tasks/transcribe';
-import { FixTranscriptResult, GeneratePodcastSpecResult, ProcessAgendaResult, SplitMediaFileResult, SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
+import { FixTranscriptResult, GeneratePodcastSpecResult, GenerateVoiceprintResult, ProcessAgendaResult, SplitMediaFileResult, SummarizeResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
 import { handleSummarizeResult } from '@/lib/tasks/summarize';
 import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
 import { handleGeneratePodcastSpecResult } from '@/lib/tasks/generatePodcastSpec';
 import { handleSplitMediaFileResult } from '@/lib/tasks/splitMediaFile';
 import { handleFixTranscriptResult } from '@/lib/tasks/fixTranscript';
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda';
+import { handleGenerateVoiceprintResult } from '@/lib/tasks/generateVoiceprint';
 
 export async function GET(
     request: NextRequest,
@@ -77,6 +78,8 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<FixTranscriptResult>, handleFixTranscriptResult);
         } else if (taskStatus.type === 'processAgenda') {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<ProcessAgendaResult>, handleProcessAgendaResult);
+        } else if (taskStatus.type === 'generateVoiceprint') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<GenerateVoiceprintResult>, handleGenerateVoiceprintResult);
         } else {
             // Handle other task types here if needed
             throw new Error(`Unsupported task type: ${taskStatus.type}`);
