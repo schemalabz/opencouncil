@@ -39,16 +39,31 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 style={{ opacity: borderOpacity }}
             />
             {noContainer ? (
-                <div className="flex items-center w-full px-4">
-                    <div className="flex items-center gap-2 md:gap-4">
+                <div className="flex items-center w-full px-4 relative">
+                    <div className="flex items-center gap-2 md:gap-4 z-10">
                         {showSidebarTrigger && <SidebarTrigger />}
                         <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
-                            <Image width={40} height={40} className="md:w-[48px] md:h-[48px]" src='/logo.png' alt='logo' />
+                            <div className="relative w-10 h-10 md:w-12 md:h-12">
+                                <Image
+                                    src='/logo.png'
+                                    alt='logo'
+                                    fill
+                                    sizes="(max-width: 768px) 40px, 48px"
+                                    style={{ objectFit: 'contain' }}
+                                    className="transition-transform"
+                                />
+                            </div>
                             {path.length === 0 && (
-                                <span className="text-lg md:text-xl">OpenCouncil</span>
+                                <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
                             )}
                         </Link>
                     </div>
+
+                    {path.length === 0 && (
+                        <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
+                            <span className="text-xl font-medium">OpenCouncil</span>
+                        </div>
+                    )}
 
                     {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
 
@@ -69,14 +84,14 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                         >
                                             <div className="flex items-center gap-2 md:gap-4">
                                                 {element.city && (
-                                                    <div className="h-[48px] md:h-[60px] flex-shrink-0">
+                                                    <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
                                                         <Image
                                                             src={element.city.logoImage || '/logo.png'}
-                                                            height={60}
-                                                            width={200}
-                                                            style={{ height: '100%', width: 'auto' }}
                                                             alt={element.city.name}
-                                                            className="h-full w-auto"
+                                                            fill
+                                                            sizes="(max-width: 768px) 48px, 60px"
+                                                            style={{ objectFit: 'contain' }}
+                                                            priority
                                                         />
                                                     </div>
                                                 )}
@@ -104,16 +119,31 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 </div>
             ) : (
                 <div className="container mx-auto">
-                    <div className="flex items-center w-full px-4">
-                        <div className="flex items-center gap-2 md:gap-4">
+                    <div className="flex items-center w-full px-4 relative">
+                        <div className="flex items-center gap-2 md:gap-4 z-10">
                             {showSidebarTrigger && <SidebarTrigger />}
                             <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
-                                <Image width={40} height={40} className="md:w-[48px] md:h-[48px]" src='/logo.png' alt='logo' />
+                                <div className="relative w-10 h-10 md:w-12 md:h-12">
+                                    <Image
+                                        src='/logo.png'
+                                        alt='logo'
+                                        fill
+                                        sizes="(max-width: 768px) 40px, 48px"
+                                        style={{ objectFit: 'contain' }}
+                                        className="transition-transform"
+                                    />
+                                </div>
                                 {path.length === 0 && (
-                                    <span className="text-lg md:text-xl">OpenCouncil</span>
+                                    <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
                                 )}
                             </Link>
                         </div>
+
+                        {path.length === 0 && (
+                            <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
+                                <span className="text-xl font-medium">OpenCouncil</span>
+                            </div>
+                        )}
 
                         {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
 
@@ -134,14 +164,14 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                             >
                                                 <div className="flex items-center gap-2 md:gap-4">
                                                     {element.city && (
-                                                        <div className="h-[48px] md:h-[60px] flex-shrink-0">
+                                                        <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
                                                             <Image
                                                                 src={element.city.logoImage || '/logo.png'}
-                                                                height={60}
-                                                                width={200}
-                                                                style={{ height: '100%', width: 'auto' }}
                                                                 alt={element.city.name}
-                                                                className="h-full w-auto"
+                                                                fill
+                                                                sizes="(max-width: 768px) 48px, 60px"
+                                                                style={{ objectFit: 'contain' }}
+                                                                priority
                                                             />
                                                         </div>
                                                     )}

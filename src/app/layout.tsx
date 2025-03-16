@@ -7,6 +7,7 @@ import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
 
+// Keep Inter as a fallback font
 const fontSans = FontSans({
     subsets: ["latin"],
     variable: "--font-sans",

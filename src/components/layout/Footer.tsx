@@ -11,7 +11,11 @@ export default function Footer() {
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     <div className="flex flex-col items-center md:items-start space-y-4">
-                        <Logo className="w-32 h-auto" />
+                        <Logo
+                            className="flex-shrink-0"
+                            imageClassName="w-20 h-14"
+                            textClassName="text-lg"
+                        />
                         <p className="text-xs text-muted-foreground md:text-left text-center max-w-sm">
                             Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.
                         </p>
