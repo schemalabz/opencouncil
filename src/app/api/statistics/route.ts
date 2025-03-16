@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStatisticsFor } from '@/lib/statistics';
 
+// This route uses dynamic data from request params and can't be statically optimized
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;

@@ -4,7 +4,6 @@ import { ProcessAgendaRequest, ProcessAgendaResult } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { createSubjectsForMeeting } from "../db/utils";
-import { Prisma } from "@prisma/client";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getAllTopics } from "../db/topics";
 

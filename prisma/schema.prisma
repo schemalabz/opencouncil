@@ -317,6 +317,7 @@ model Subject {
 
   hot Boolean @default(false)
   agendaItemIndex Int?
+  nonAgendaReason NonAgendaReason?
   topicId String?
   locationId String?
 
@@ -334,6 +335,11 @@ model Subject {
   speakerSegments SubjectSpeakerSegment[]
 
   @@index([cityId, councilMeetingId])
+}
+
+enum NonAgendaReason {
+  beforeAgenda
+  outOfAgenda
 }
 
 enum LocationType {

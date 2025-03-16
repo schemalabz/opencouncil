@@ -9,7 +9,7 @@ import { getCouncilMeeting } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
 import prisma from "./prisma";
 import { getSubjectsForMeeting } from "./subject";
-
+import { Subject as DbSubject } from "@prisma/client";
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
     const people = await getPeopleForCity(cityId);
@@ -55,6 +55,16 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     };
 }
 
+let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" => {
+    if (subject.agendaItemIndex) return subject.agendaItemIndex;
+
+    if (!subject.nonAgendaReason) {
+        throw new Error(`Subject ${subject.name} (${subject.id}) has no agenda item index and no non-agenda reason`);
+    }
+
+    return subject.nonAgendaReason === "beforeAgenda" ? "BEFORE_AGENDA" : "OUT_OF_AGENDA";
+}
+
 export async function getSummarizeRequestBody(councilMeetingId: string, cityId: string, requestedSubjects: string[], additionalInstructions?: string): Promise<Omit<SummarizeRequest, 'callbackUrl'>> {
     const baseRequest = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
     const existingSubjects = await getSubjectsForMeeting(cityId, councilMeetingId);
@@ -71,6 +81,7 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
                 text: s.location.text,
                 coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
             } : null,
+            agendaItemIndex: getAgendaItemIndex(s)
         })),
         additionalInstructions
     };
@@ -160,8 +171,8 @@ export async function createSubjectsForMeeting(
                     topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
                         { connect: { id: topicsByName[subject.topicLabel].id } } :
                         undefined,
-                    hot: subject.hot,
-                    agendaItemIndex: subject.agendaItemIndex,
+                    agendaItemIndex: typeof subject.agendaItemIndex === "number" ? subject.agendaItemIndex : undefined,
+                    nonAgendaReason: subject.agendaItemIndex === "BEFORE_AGENDA" ? "beforeAgenda" : "outOfAgenda",
                     introducedBy: subject.introducedByPersonId ?
                         { connect: { id: subject.introducedByPersonId } } :
                         undefined,
