@@ -168,7 +168,7 @@ export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprint
                                     {result.failed > 0 ? (
                                         <p className="text-amber-700 mt-2">Failed to start {result.failed} tasks.</p>
                                     ) : (
-                                        <p className="text-gray-600 mt-2">You can track individual task progress from each person's voiceprint dialog.</p>
+                                        <p className="text-gray-600 mt-2">You can track individual task progress from each person&apos;s voiceprint dialog.</p>
                                     )}
                                     <p className="text-gray-600 mt-2 text-sm">This page will refresh in a moment...</p>
                                 </>
