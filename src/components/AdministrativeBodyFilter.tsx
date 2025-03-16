@@ -2,8 +2,8 @@ import { AdministrativeBody } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { Button } from './ui/button';
 import { motion } from 'framer-motion';
-import { PersonWithRelations } from '@/lib/getMeetingData';
 import { cn } from '@/lib/utils';
+import { PersonWithRelations } from '@/lib/db/people';
 
 interface AdministrativeBodyFilterProps {
     administrativeBodies: AdministrativeBody[];

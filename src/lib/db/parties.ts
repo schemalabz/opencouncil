@@ -2,7 +2,6 @@
 import { City, AdministrativeBody, Party, Person, Role } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { PersonWithRelations } from '../getMeetingData';
 
 export async function deleteParty(id: string): Promise<void> {
     withUserAuthorizedToEdit({ partyId: id });

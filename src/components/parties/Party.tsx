@@ -24,7 +24,7 @@ import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 
 type RoleWithPerson = Role & {
     person: Person;
