@@ -3,9 +3,12 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
 @font-face {
   font-family: 'Relative Book Pro';
-  src: url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.ttf') format('truetype');
+  src: url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.woff2') format('woff2'),
+       url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.woff') format('woff'),
+       url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
