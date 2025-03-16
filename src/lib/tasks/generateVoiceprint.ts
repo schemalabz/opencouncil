@@ -11,6 +11,99 @@ import { createVoicePrint } from "@/lib/db/voiceprints";
 const VOICEPRINT_DURATION = 30;
 
 /**
+ * Find all people in a city who are eligible for voiceprint generation
+ * Eligible means: they have at least one speaker segment longer than VOICEPRINT_DURATION
+ * and they don't already have a voiceprint
+ */
+export async function findEligiblePeopleForVoiceprintGeneration(cityId: string): Promise<{
+    eligiblePeople: Array<{ id: string; name: string }>;
+    count: number;
+}> {
+    withUserAuthorizedToEdit({ cityId });
+
+    // First, get all people in this city who don't have voiceprints
+    const peopleWithoutVoiceprints = await prisma.person.findMany({
+        where: {
+            cityId,
+            voicePrints: {
+                none: {}
+            }
+        },
+        select: {
+            id: true,
+            name: true,
+            speakerTags: {
+                include: {
+                    speakerSegments: true
+                }
+            }
+        }
+    });
+
+    // Filter to only those with segments longer than VOICEPRINT_DURATION
+    const eligiblePeople = peopleWithoutVoiceprints.filter(person => {
+        // Flatten all segments from all speaker tags
+        const allSegments: SpeakerSegment[] = [];
+        for (const tag of person.speakerTags) {
+            allSegments.push(...tag.speakerSegments);
+        }
+
+        // Check if any segment is long enough
+        return allSegments.some(segment =>
+            segment.endTimestamp - segment.startTimestamp >= VOICEPRINT_DURATION
+        );
+    });
+
+    return {
+        eligiblePeople: eligiblePeople.map(person => ({ id: person.id, name: person.name })),
+        count: eligiblePeople.length
+    };
+}
+
+/**
+ * Request to generate voiceprints for all eligible people in a city
+ */
+export async function requestGenerateVoiceprintsForCity(cityId: string) {
+    withUserAuthorizedToEdit({ cityId });
+
+    const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId);
+
+    if (eligiblePeople.length === 0) {
+        throw new Error("No eligible people found for voiceprint generation");
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Process each eligible person
+    for (const person of eligiblePeople) {
+        try {
+            const task = await requestGenerateVoiceprint(person.id);
+            results.push({
+                personId: person.id,
+                personName: person.name,
+                taskId: task.id,
+                status: 'pending'
+            });
+        } catch (error) {
+            errors.push({
+                personId: person.id,
+                personName: person.name,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    return {
+        results,
+        errors,
+        totalRequested: eligiblePeople.length,
+        successful: results.length,
+        failed: errors.length
+    };
+}
+
+/**
  * Request to generate a voiceprint for a person
  */
 export async function requestGenerateVoiceprint(personId: string) {

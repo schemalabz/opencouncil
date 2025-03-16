@@ -9,6 +9,7 @@ import { PersonWithRelations } from "@/lib/db/people";
 import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
+import { BulkVoiceprintDialog } from "./bulk-voiceprint-dialog";
 
 interface PeopleProps {
     people: PersonWithRelations[];
@@ -40,6 +41,9 @@ export default function People({ people, currentCityName }: PeopleProps) {
         [filteredPeople],
     );
 
+    // Get the cityId from the first person or use empty string as fallback
+    const cityId = people.length > 0 ? people[0].cityId : "";
+
     return (
         <>
             <div className='relative flex-1 mb-6'>
@@ -63,7 +67,10 @@ export default function People({ people, currentCityName }: PeopleProps) {
                 <CardHeader>
                     <CardTitle className='flex justify-between'>
                         <span>People</span>
-                        <span className='text-muted-foreground text-sm'>{currentCityName}</span>
+                        <div className='flex items-center'>
+                            {cityId && <BulkVoiceprintDialog cityId={cityId} currentCityName={currentCityName} />}
+                            <span className='text-muted-foreground text-sm ml-4'>{currentCityName}</span>
+                        </div>
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
