@@ -7,7 +7,7 @@ import prisma from "./prisma";
 import { SubjectWithRelations } from "./subject";
 import { sortSubjectsByImportance } from "../utils";
 import { getStatisticsFor, Statistics } from "../statistics";
-import { PersonWithRelations } from "../getMeetingData";
+import { PersonWithRelations } from '@/lib/db/people';
 
 export type SubstackPost = {
     title: string;

@@ -46,3 +46,34 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
         throw new Error('Failed to delete task status');
     }
 }
+
+/**
+ * Get voiceprint generation tasks for a specific person
+ */
+export async function getVoiceprintTasksForPerson(personId: string): Promise<TaskStatus[]> {
+    try {
+        const tasks = await prisma.taskStatus.findMany({
+            where: {
+                type: "generateVoiceprint",
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+        
+        // Filter tasks that contain this personId in their requestBody
+        const personTasks = tasks.filter(task => {
+            try {
+                const requestBody = JSON.parse(task.requestBody);
+                return requestBody.personId === personId;
+            } catch {
+                return false;
+            }
+        });
+        
+        return personTasks;
+    } catch (error) {
+        console.error('Error fetching voiceprint tasks:', error);
+        throw new Error('Failed to fetch voiceprint tasks for person');
+    }
+}

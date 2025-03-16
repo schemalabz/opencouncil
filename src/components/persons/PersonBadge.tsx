@@ -13,7 +13,7 @@ import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { PersonWithRelations } from '@/lib/getMeetingData';
+import { PersonWithRelations } from '@/lib/db/people';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;

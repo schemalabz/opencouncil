@@ -2,23 +2,14 @@ import { unstable_cache } from 'next/cache';
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { getCitiesWithGeometry, getCity } from '@/lib/db/cities';
-import { getPeopleForCity } from '@/lib/db/people';
+import { getPeopleForCity, PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { CouncilMeeting, SpeakerTag, TaskStatus } from '@prisma/client';
-import { Party, Person, Role } from '@prisma/client';
+import { Party } from '@prisma/client';
 import { City } from '@prisma/client';
-import { AdministrativeBody } from '@prisma/client';
-
-export type PersonWithRelations = Person & {
-    roles: (Role & {
-        party?: Party | null;
-        city?: City | null;
-        administrativeBody?: AdministrativeBody | null;
-    })[];
-};
 
 export type MeetingData = {
     meeting: CouncilMeeting;

@@ -115,7 +115,7 @@ model Person {
   profileUrl String?
 
   speakerTags SpeakerTag[]
-
+  voicePrints VoicePrint[]
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
   party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
@@ -182,6 +182,26 @@ model TaskStatus {
   @@index([councilMeetingId, cityId])
 }
 
+model VoicePrint {
+  id                  String    @id @default(cuid())
+  embedding           String    @db.Text
+  sourceAudioUrl      String    // URL to the audio source used for the voiceprint
+  startTimestamp      Float     // Start time of the extracted audio in the original media
+  endTimestamp        Float     // End time of the extracted audio in the original media
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  person              Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId            String
+  
+  // Reference to the speaker segment used to generate this voiceprint
+  sourceSegment       SpeakerSegment @relation(fields: [sourceSegmentId], references: [id], onDelete: Cascade)
+  sourceSegmentId     String
+  
+  @@index([personId])
+  @@index([sourceSegmentId])
+}
+
 model SpeakerTag {
   id              String   @id @default(cuid())
   createdAt       DateTime @default(now())
@@ -217,10 +237,11 @@ model SpeakerSegment {
   summary Summary?
 
   subjects SubjectSpeakerSegment[]
+  
+  usedForVoiceprints VoicePrint[]
 
   @@index([meetingId, cityId, startTimestamp])
   @@index([speakerTagId])
-
 }
 
 model Utterance {

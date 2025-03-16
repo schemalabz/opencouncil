@@ -1,10 +1,11 @@
 "use server";
-import { TranscribeRequest, TranscribeResult } from "../apiTypes";
+import { TranscribeRequest, TranscribeResult, Voiceprint } from "../apiTypes";
 import { startTask } from "./tasks";
 import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { getPeopleForCity } from "@/lib/db/people";
 
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, {
     force = false
@@ -61,10 +62,22 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
     const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)].flatMap(s => s.split(' '));
     const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίας του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
 
+    // Get voiceprints for people in the city
+    const people = await getPeopleForCity(cityId);
+    const voiceprints: Voiceprint[] = people
+        .filter(person => person.voicePrints && person.voicePrints.length > 0)
+        .map(person => ({
+            personId: person.id,
+            voiceprint: person.voicePrints![0].embedding
+        }));
+    
+    console.log(`Found ${voiceprints.length} voiceprints for people in the city`);
+    
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {
         youtubeUrl,
         customVocabulary: vocabulary,
         customPrompt: prompt,
+        voiceprints: voiceprints.length > 0 ? voiceprints : undefined,
     }
 
     await prisma.councilMeeting.update({
@@ -111,21 +124,61 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     }
 
     await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl, muxPlaybackId);
+    
     // Start a transaction
     await prisma.$transaction(async (prisma) => {
-        // Create speaker tags
+        // Create speaker tags with person identification when available
         const speakerTags = new Map<number, string>();
-        for (const utterance of response.transcript.transcription.utterances) {
-            if (!speakerTags.has(utterance.speaker)) {
+        let identifiedSpeakersCount = 0;
+        
+        // Process speaker identification results
+        if (response.transcript.transcription.speakers && response.transcript.transcription.speakers.length > 0) {
+            console.log(`Found ${response.transcript.transcription.speakers.length} speakers in the response`);
+            
+            // Create speaker tags for all speakers
+            for (const speakerInfo of response.transcript.transcription.speakers) {
                 const speakerTag = await prisma.speakerTag.create({
                     data: {
-                        label: `SPEAKER_${utterance.speaker}`,
+                        label: `SPEAKER_${speakerInfo.speaker}`,
+                        // Connect to person if matched
+                        ...(speakerInfo.match ? { person: { connect: { id: speakerInfo.match } } } : {})
                     }
                 });
-                speakerTags.set(utterance.speaker, speakerTag.id);
+                
+                if (speakerInfo.match) {
+                    identifiedSpeakersCount++;
+                }
+                
+                speakerTags.set(speakerInfo.speaker, speakerTag.id);
+            }
+        } else {
+            throw new Error('No speakers found. Process cannot continue');
+        }
+        
+        console.log(`Created ${speakerTags.size} speaker tags (${identifiedSpeakersCount} identified with persons)`);
+
+        // Sanity check: Make sure we have a speaker tag for each unique speaker in the utterances
+        const uniqueSpeakersInUtterances = new Set(response.transcript.transcription.utterances.map(u => u.speaker));
+        let missingSpeakerTagsCount = 0;
+        
+        for (const speaker of uniqueSpeakersInUtterances) {
+            if (!speakerTags.has(speaker)) {
+                console.warn(`Missing speaker tag for speaker ${speaker} found in utterances. Creating it now.`);
+                const speakerTag = await prisma.speakerTag.create({
+                    data: {
+                        label: `SPEAKER_${speaker}`
+                    }
+                });
+                speakerTags.set(speaker, speakerTag.id);
+                missingSpeakerTagsCount++;
             }
         }
-        console.log(`Created ${speakerTags.size} speaker tags`);
+        
+        if (missingSpeakerTagsCount > 0) {
+            console.log(`Created ${missingSpeakerTagsCount} additional speaker tags from sanity check`);
+        } else {
+            console.log(`Sanity check passed: All speakers in utterances have corresponding speaker tags`);
+        }
 
         // Generate speaker segments
         const speakerSegments = getSpeakerSegmentsFromUtterances(response.transcript.transcription.utterances);
