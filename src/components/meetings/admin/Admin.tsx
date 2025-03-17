@@ -20,6 +20,7 @@ import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { LinkOrDrop } from '@/components/ui/link-or-drop';
 
 export default function AdminActions({
 }: {
@@ -29,7 +30,7 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
-    const [youtubeUrl, setYoutubeUrl] = React.useState('');
+    const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [isSummarizePopoverOpen, setIsSummarizePopoverOpen] = React.useState(false);
@@ -43,7 +44,7 @@ export default function AdminActions({
     const [isReleased, setIsReleased] = React.useState(meeting.released);
     const [forceAgenda, setForceAgenda] = React.useState(false);
     React.useEffect(() => {
-        setYoutubeUrl(meeting.youtubeUrl || '');
+        setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
 
     const fetchTaskStatuses = React.useCallback(async () => {
@@ -71,13 +72,13 @@ export default function AdminActions({
     const handleTranscribe = async () => {
         setIsTranscribing(true);
         try {
-            await requestTranscribe(youtubeUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
+            await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
             toast({
                 title: "Transcription requested",
                 description: "The transcription process has started.",
             });
             setIsPopoverOpen(false);
-            setYoutubeUrl('');
+            setMediaUrl('');
         } catch (error) {
             console.log('toasting');
             toast({
@@ -254,12 +255,12 @@ export default function AdminActions({
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
-                            <h4 className="font-medium">Enter YouTube URL</h4>
-                            <Input
-                                type="text"
-                                placeholder="https://www.youtube.com/watch?v=..."
-                                value={youtubeUrl}
-                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                            <h4 className="font-medium">Enter Media URL</h4>
+                            <LinkOrDrop
+                                placeholder="https://... (YouTube, mp4, mp3)"
+                                value={mediaUrl}
+                                onChange={(e) => setMediaUrl(e.target.value)}
+                                onUrlChange={(url) => setMediaUrl(url)}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">
@@ -284,11 +285,11 @@ export default function AdminActions({
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
                             <h4 className="font-medium">Enter Agenda URL</h4>
-                            <Input
-                                type="text"
+                            <LinkOrDrop
                                 placeholder="https://..."
                                 value={agendaUrl}
                                 onChange={(e) => setAgendaUrl(e.target.value)}
+                                onUrlChange={(url) => setAgendaUrl(url)}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">

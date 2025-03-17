@@ -43,7 +43,7 @@ const formSchema = z.object({
         required_error: "Meeting time is required.",
     }),
     youtubeUrl: z.string().url({
-        message: "Invalid YouTube URL.",
+        message: "Invalid media URL.",
     }).optional().or(z.literal("")),
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
@@ -258,7 +258,11 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                             <FormItem>
                                 <FormLabel>{t('meetingVideo')}</FormLabel>
                                 <FormControl>
-                                    <Input {...field} placeholder="https://www.youtube.com/watch?v=..." />
+                                    <LinkOrDrop
+                                        {...field}
+                                        placeholder="https://... (YouTube, Vimeo, etc.)"
+                                        onUrlChange={(url) => field.onChange(url)}
+                                    />
                                 </FormControl>
                                 <FormDescription>
                                     {t('meetingVideoDescription')}
