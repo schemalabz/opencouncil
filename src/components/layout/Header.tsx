@@ -26,17 +26,18 @@ interface HeaderProps {
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false }: HeaderProps) => {
     const { scrollY } = useScroll();
     const borderOpacity = useTransform(scrollY, [0, 10], [0, 1], { clamp: true });
+    const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
 
     return (
         <motion.header
-            className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 w-full flex justify-between items-center min-h-[80px] relative"
+            className="sticky top-0 z-50 w-full flex justify-between items-center min-h-[80px] relative"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
         >
             <motion.div
-                className="absolute bottom-0 left-0 right-0 h-[1px] bg-border"
-                style={{ opacity: borderOpacity }}
+                className="absolute inset-0 backdrop-blur bg-background/50"
+                style={{ opacity: blurBackgroundOpacity }}
             />
             {noContainer ? (
                 <div className="flex items-center w-full px-4 relative">

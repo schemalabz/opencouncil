@@ -66,10 +66,10 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     const isTodayWithoutVideo = isToday && !meeting.videoUrl;
 
     const getMediaIcon = () => {
-        if (meeting.videoUrl) return <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
-        if (meeting.audioUrl) return <AudioLines className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
-        if (meeting.agendaUrl) return <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
-        return <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4" />;
+        if (meeting.videoUrl) return <VideoIcon className="w-4 h-4" />;
+        if (meeting.audioUrl) return <AudioLines className="w-4 h-4" />;
+        if (meeting.agendaUrl) return <FileText className="w-4 h-4" />;
+        return <Ban className="w-4 h-4" />;
     };
 
     const getMediaStatus = () => {
@@ -87,13 +87,14 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         >
             <Card
                 className={cn(
-                    "relative h-full overflow-hidden transition-all duration-300",
-                    "hover:shadow-lg cursor-pointer border-l-4",
-                    mostRecent ? "border-l-primary" : "border-l-muted"
+                    "relative h-full overflow-hidden transition-all duration-300 group",
+                    "hover:shadow-lg hover:shadow-[#a4c0e1]/20 cursor-pointer",
+                    mostRecent ? "border-0" : "border-0"
                 )}
                 onClick={handleClick}
             >
-                <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
+                <CardContent className="p-0">
+                    {/* Loading overlay */}
                     {isLoading && (
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -109,96 +110,130 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                         </motion.div>
                     )}
 
-                    <div className="space-y-3 sm:space-y-4 flex flex-col flex-grow">
-                        <div className="space-y-2">
-                            <div className="flex flex-col gap-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {mostRecent && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.8 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            className="inline-flex items-center gap-1 text-xs sm:text-sm text-primary font-medium"
-                                        >
-                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                            {t('mostRecent')}
-                                        </motion.div>
-                                    )}
-                                    {isUpcoming && (
-                                        <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-primary/90 text-primary-foreground font-medium shadow-sm hover:bg-primary">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            {t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
-                                        </Badge>
-                                    )}
-                                    {isTodayWithoutVideo && !isUpcoming && (
-                                        <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-orange-500/90 text-white font-medium shadow-sm hover:bg-orange-500">
-                                            <Clock className="w-3.5 h-3.5" />
-                                            {t('today')}
-                                        </Badge>
-                                    )}
-                                    {!meeting.released && (
-                                        <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-destructive/5 text-destructive border-destructive/20">
-                                            {t('notPublic')}
-                                        </Badge>
-                                    )}
-                                </div>
-                                <motion.h3
-                                    className="text-lg sm:text-xl font-bold text-foreground/90 line-clamp-2"
-                                    animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
+                    <div className="px-5">
+                        {/* Card header - Status badges */}
+                        <div className="pt-4 pb-1 flex flex-wrap items-center gap-2">
+                            {mostRecent && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="inline-flex items-center gap-1 text-xs font-medium relative overflow-hidden rounded-md px-2 py-1"
                                 >
-                                    {meeting.name}
-                                </motion.h3>
+                                    <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-20"></span>
+                                    <span className="relative z-10 flex items-center gap-1">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                        {t('mostRecent')}
+                                    </span>
+                                </motion.div>
+                            )}
+                            {isUpcoming && (
+                                <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 relative overflow-hidden">
+                                    <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-50"></span>
+                                    <span className="relative z-10 flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        {t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                    </span>
+                                </Badge>
+                            )}
+                            {isTodayWithoutVideo && !isUpcoming && (
+                                <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-orange-500/90 text-white font-medium shadow-sm hover:bg-orange-500">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {t('today')}
+                                </Badge>
+                            )}
+                            {!meeting.released && (
+                                <Badge variant="outline" className="shrink-0 w-fit flex items-center gap-1 bg-destructive/5 text-destructive border-destructive/20">
+                                    {t('notPublic')}
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Meeting title */}
+                        <div className="pb-1">
+                            <motion.h3
+                                className="text-xl sm:text-2xl text-foreground/90 line-clamp-2 tracking-tight"
+                                animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
+                            >
+                                {meeting.name}
+                            </motion.h3>
+                        </div>
+
+                        {/* Meeting metadata - more compact */}
+                        <div className="mt-1 mb-1 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
+                                <span>{(isUpcoming || isToday)
+                                    ? (cityTimezone
+                                        ? formatDateTime(meeting.dateTime, cityTimezone)
+                                        : format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: locale === 'el' ? el : enUS }))
+                                    : format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
+                                </span>
                             </div>
-                            <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground">
-                                <motion.div
-                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    {(isUpcoming || isToday) 
-                                      ? (cityTimezone 
-                                          ? formatDateTime(meeting.dateTime, cityTimezone)
-                                          : format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: locale === 'el' ? el : enUS }))
-                                      : format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
-                                </motion.div>
-                                <motion.div
-                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    {getMediaIcon()}
-                                    {getMediaStatus()}
-                                </motion.div>
-                                <motion.div
-                                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50"
-                                    whileHover={{ scale: 1.05 }}
-                                >
-                                    <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    {meeting.subjects.length} {t('subjects')}
-                                </motion.div>
+                            <div className="flex items-center gap-1">
+                                {getMediaIcon()}
+                                <span>{getMediaStatus()}</span>
                             </div>
                         </div>
 
+                        {/* Subjects list - more compact */}
                         {meeting.subjects.length > 0 && (
-                            <div className="space-y-2">
-                                <div className="flex flex-col gap-1.5">
-                                    {meeting.subjects.slice(0, 3).map((subject) => (
-                                        <motion.div
-                                            key={subject.id}
-                                            whileHover={{ x: 4 }}
-                                            className="flex items-center gap-2"
+                            <div className="mt-2 pb-3">
+                                <div className="pt-2 border-t">
+                                    <div className="flex flex-col">
+                                        {meeting.subjects.slice(0, 3).map((subject) => (
+                                            <div
+                                                key={subject.id}
+                                                className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"
+                                                style={{
+                                                    transform: 'none',
+                                                    transition: 'none',
+                                                    animation: 'none',
+                                                    willChange: 'auto'
+                                                }}
+                                            >
+                                                {/* Extremely aggressive approach to preventing animations */}
+                                                <div
+                                                    style={{
+                                                        transform: 'none',
+                                                        transition: 'none',
+                                                        animation: 'none',
+                                                        userSelect: 'none',
+                                                        pointerEvents: 'none',
+                                                        willChange: 'auto'
+                                                    }}
+                                                    className="w-full"
+                                                >
+                                                    <div
+                                                        style={{
+                                                            transform: 'none',
+                                                            transition: 'none',
+                                                            animation: 'none',
+                                                            pointerEvents: 'auto',
+                                                            willChange: 'auto'
+                                                        }}
+                                                    >
+                                                        <SubjectBadge subject={subject} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {remainingSubjectsCount > 0 && (
+                                        <div
+                                            className="flex items-center justify-between py-1.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/10 cursor-pointer"
+                                            style={{
+                                                transform: 'none',
+                                                transition: 'none',
+                                                animation: 'none',
+                                                willChange: 'auto'
+                                            }}
                                         >
-                                            <SubjectBadge subject={subject} />
-                                        </motion.div>
-                                    ))}
+                                            <span>{t('moreSubjects', { count: remainingSubjectsCount })}</span>
+                                            <ChevronRight className="w-3.5 h-3.5" style={{ transform: 'none' }} />
+                                        </div>
+                                    )}
                                 </div>
-                                {remainingSubjectsCount > 0 && (
-                                    <motion.div
-                                        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
-                                        whileHover={{ x: 4 }}
-                                    >
-                                        <span>+{remainingSubjectsCount} ακόμα θέματα</span>
-                                        <ChevronRight className="w-4 h-4" />
-                                    </motion.div>
-                                )}
                             </div>
                         )}
                     </div>

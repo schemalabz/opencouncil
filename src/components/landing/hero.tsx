@@ -33,7 +33,7 @@ export function Hero({ latestPost }: HeroProps) {
     return (
         <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
             {/* Mobile view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:hidden">
+            <div className="absolute top-0 left-0 right-0 px-4 sm:hidden z-10">
                 <div className="flex flex-col items-center">
                     {latestPost && (
                         <div className="rounded-full border border-border bg-background/80 backdrop-blur-sm max-w-[calc(100vw-32px)]">
@@ -68,7 +68,7 @@ export function Hero({ latestPost }: HeroProps) {
             </div>
 
             {/* Desktop view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block">
+            <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block z-10">
                 <div className="flex justify-center items-center max-w-screen-xl mx-auto">
                     <div className="inline-flex items-center rounded-full border border-border bg-background/80 backdrop-blur-sm">
                         {latestPost && <SubstackBadge post={latestPost} />}
@@ -103,16 +103,16 @@ export function Hero({ latestPost }: HeroProps) {
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20"
+                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20 z-10"
             >
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1
                         variants={item}
-                        className="text-3xl sm:text-5xl md:text-7xl font-normal tracking-tight"
+                        className="text-3xl sm:text-5xl md:text-7xl font-normal"
                     >
                         TL;DR — ο Δήμος σου,{' '}
                         <span className="relative">
-                            <span className="relative z-10 italic text-primary">
+                            <span className="relative z-10 text-primary">
                                 απλά
                             </span>
                             <motion.span
@@ -135,28 +135,28 @@ export function Hero({ latestPost }: HeroProps) {
                     To OpenCouncil χρησιμοποιεί{' '}
                     <motion.em
                         whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md text-primary"
+                        className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 text-primary"
                     >
                         🤖 τεχνητή νοημοσύνη
                     </motion.em>{' '}
                     για να{' '}
                     <motion.em
                         whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 rounded-md text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
                     >
                         👀 παρακολουθεί
                     </motion.em>{' '}
                     τα{' '}
                     <motion.em
                         whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 rounded-md text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
                     >
                         🏛️ δημοτικά συμβούλια
                     </motion.em>{' '}
                     και να τα κάνει{' '}
                     <motion.em
                         whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 rounded-md text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
                     >
                         💡 απλά και κατανοητά
                     </motion.em>

@@ -7,7 +7,6 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { editUtterance } from "@/lib/db/utterance";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";

@@ -58,7 +58,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative cursor-pointer">
+                <Button variant="ghost" className="relative cursor-pointer hover:text-accent">
                     <span className="hidden md:inline">
                         {greeting}
                     </span>

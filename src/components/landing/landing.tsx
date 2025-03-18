@@ -10,6 +10,7 @@ import { SubstackBadge } from "./substack-badge";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { FloatingPathsBackground } from '@/components/ui/floating-paths';
 import { ChevronDown } from 'lucide-react';
+import Aurora from './aurora';
 
 interface LandingProps {
     publicCities: LandingPageCity[];
@@ -54,14 +55,11 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
     );
 
     return (
-        <div className="min-h-screen">
-            {/* Floating Paths Background */}
-            <motion.div
-                className="fixed inset-0 -z-10"
-                style={{ opacity: backgroundOpacity }}
-            >
-                <FloatingPathsBackground />
-            </motion.div>
+        <div className="min-h-screen relative">
+            {/* Global Aurora background at the very top level */}
+            <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
+                <Aurora className="w-full h-full" />
+            </div>
 
             {/* Hero Section - Full Width */}
             <Hero latestPost={latestPost} />
@@ -97,7 +95,7 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
             </motion.div>
 
             {/* Cities Section - Contained */}
-            <div className="container mx-auto px-4 py-8 sm:py-12">
+            <div className="container mx-auto px-4 py-8 sm:py-12 relative z-10">
                 <motion.section
                     className="space-y-12 sm:space-y-16 mt-12 sm:mt-20"
                     initial={{ opacity: 0, y: 20 }}
