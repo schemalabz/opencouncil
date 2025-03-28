@@ -2,12 +2,18 @@
 
 import { Link } from "@/i18n/routing"
 import Logo from "./Logo"
-import { Phone, Twitter, Instagram, Facebook, BookOpen, Mail } from "lucide-react"
+import { Phone, Twitter, Instagram, Facebook, BookOpen, Mail, ExternalLink } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
-export default function Footer() {
+interface FooterProps {
+    className?: string;
+}
+
+export default function Footer({ className }: FooterProps = {}) {
     return (
-        <footer className="w-full bg-background border-t print:hidden">
+        <footer className={cn("w-full bg-background border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     <div className="flex flex-col items-center md:items-start space-y-4">
@@ -119,7 +125,24 @@ export default function Footer() {
                         </div>
                     </div>
                 </div>
-                <div className="mt-12 pt-6 border-t border-border text-center text-xs text-muted-foreground">
+                <div className="mt-8 pt-6 flex flex-col items-center">
+                    <Button
+                        variant="gradient"
+                        className="group"
+                        asChild
+                    >
+                        <a
+                            href="https://github.com/schemalabs/opencouncil"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2"
+                        >
+                            <span>Συνεισφέρετε στο GitHub</span>
+                            <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                        </a>
+                    </Button>
+                </div>
+                <div className="mt-6 pt-6 border-t border-border text-center text-xs text-muted-foreground">
                     © {new Date().getFullYear()} OpenCouncil
                 </div>
             </div>

@@ -22,15 +22,16 @@ interface HeaderProps {
     currentEntity?: { cityId: string }
     children?: React.ReactNode
     noContainer?: boolean
+    className?: string
 }
-const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false }: HeaderProps) => {
+const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
     const { scrollY } = useScroll();
     const borderOpacity = useTransform(scrollY, [0, 10], [0, 1], { clamp: true });
     const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
 
     return (
         <motion.header
-            className="sticky top-0 z-50 w-full flex justify-between items-center min-h-[80px] relative"
+            className={`sticky top-0 z-50 w-full flex justify-between items-stretch min-h-[80px] h-20 relative ${className || ''}`}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
@@ -41,15 +42,15 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             />
             {noContainer ? (
                 <div className="flex items-center w-full px-4 relative">
-                    <div className="flex items-center gap-2 md:gap-4 z-10">
+                    <div className="flex items-stretch gap-2 md:gap-4 z-10 h-full">
                         {showSidebarTrigger && <SidebarTrigger />}
-                        <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
-                            <div className="relative w-10 h-10 md:w-12 md:h-12">
+                        <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
+                            <div className="relative h-full aspect-square p-0">
                                 <Image
                                     src='/logo.png'
                                     alt='logo'
                                     fill
-                                    sizes="(max-width: 768px) 40px, 48px"
+                                    sizes="(max-width: 768px) 80px, 80px"
                                     style={{ objectFit: 'contain' }}
                                     className="transition-transform"
                                 />
@@ -62,7 +63,9 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
                     {path.length === 0 && (
                         <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
-                            <span className="text-xl font-medium">OpenCouncil</span>
+                            <Link href="/" className="pointer-events-auto hover:no-underline">
+                                <span className="text-xl font-medium">OpenCouncil</span>
+                            </Link>
                         </div>
                     )}
 
@@ -119,17 +122,17 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                     </div>
                 </div>
             ) : (
-                <div className="container mx-auto">
-                    <div className="flex items-center w-full px-4 relative">
-                        <div className="flex items-center gap-2 md:gap-4 z-10">
+                <div className="container mx-auto h-full">
+                    <div className="flex items-center w-full px-4 relative h-full">
+                        <div className="flex items-stretch gap-2 md:gap-4 z-10 h-full">
                             {showSidebarTrigger && <SidebarTrigger />}
-                            <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0">
-                                <div className="relative w-10 h-10 md:w-12 md:h-12">
+                            <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
+                                <div className="relative h-full aspect-square p-0">
                                     <Image
                                         src='/logo.png'
                                         alt='logo'
                                         fill
-                                        sizes="(max-width: 768px) 40px, 48px"
+                                        sizes="(max-width: 768px) 80px, 80px"
                                         style={{ objectFit: 'contain' }}
                                         className="transition-transform"
                                     />
@@ -142,7 +145,9 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
                         {path.length === 0 && (
                             <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
-                                <span className="text-xl font-medium">OpenCouncil</span>
+                                <Link href="/" className="pointer-events-auto hover:underline">
+                                    <span className="text-xl font-medium">OpenCouncil</span>
+                                </Link>
                             </div>
                         )}
 

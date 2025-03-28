@@ -9,6 +9,8 @@ const nextConfig = {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@'],
+    // Development optimizations
+    swcMinify: true,
 };
 
 export default withNextIntl(nextConfig);

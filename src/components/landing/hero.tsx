@@ -1,9 +1,9 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { ChevronDown, Twitter, Instagram } from 'lucide-react';
-import { SubstackBadge } from './substack-badge';
+import { ChevronDown } from 'lucide-react';
 import { SubstackPost } from '@/lib/db/landing';
+import { HeaderBar } from './header-bar';
 
 interface HeroProps {
     latestPost?: SubstackPost;
@@ -34,67 +34,22 @@ export function Hero({ latestPost }: HeroProps) {
         <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
             {/* Mobile view */}
             <div className="absolute top-0 left-0 right-0 px-4 sm:hidden z-10">
-                <div className="flex flex-col items-center">
-                    {latestPost && (
-                        <div className="rounded-full border border-border bg-background/80 backdrop-blur-sm max-w-[calc(100vw-32px)]">
-                            <div className="truncate max-w-[calc(100vw-32px)]">
-                                <SubstackBadge post={latestPost} />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2 mt-2">
-                        <a
-                            href="https://twitter.com/opencouncil_gr"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background/80 backdrop-blur-sm hover:bg-background/95 transition-colors"
-                            aria-label="Twitter"
-                        >
-                            <Twitter className="w-3.5 h-3.5 text-muted-foreground" />
-                        </a>
-
-                        <a
-                            href="https://instagram.com/opencouncil_gr"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-center w-6 h-6 rounded-full border border-border bg-background/80 backdrop-blur-sm hover:bg-background/95 transition-colors"
-                            aria-label="Instagram"
-                        >
-                            <Instagram className="w-3.5 h-3.5 text-muted-foreground" />
-                        </a>
-                    </div>
+                <div className="flex justify-center items-center">
+                    <HeaderBar
+                        latestPost={latestPost}
+                        isMobile={true}
+                        className="mt-2"
+                    />
                 </div>
             </div>
 
             {/* Desktop view */}
             <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block z-10">
                 <div className="flex justify-center items-center max-w-screen-xl mx-auto">
-                    <div className="inline-flex items-center rounded-full border border-border bg-background/80 backdrop-blur-sm">
-                        {latestPost && <SubstackBadge post={latestPost} />}
-
-                        <div className="flex items-center gap-1 pr-1 ml-1">
-                            <a
-                                href="https://twitter.com/opencouncil_gr"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-background/95 transition-colors"
-                                aria-label="Twitter"
-                            >
-                                <Twitter className="w-3.5 h-3.5 text-muted-foreground" />
-                            </a>
-
-                            <a
-                                href="https://instagram.com/opencouncil_gr"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-background/95 transition-colors"
-                                aria-label="Instagram"
-                            >
-                                <Instagram className="w-3.5 h-3.5 text-muted-foreground" />
-                            </a>
-                        </div>
-                    </div>
+                    <HeaderBar
+                        latestPost={latestPost}
+                        className="mt-4"
+                    />
                 </div>
             </div>
 
@@ -111,20 +66,8 @@ export function Hero({ latestPost }: HeroProps) {
                         className="text-3xl sm:text-5xl md:text-7xl font-normal"
                     >
                         TL;DR — ο Δήμος σου,{' '}
-                        <span className="relative">
-                            <span className="relative z-10 text-primary">
-                                απλά
-                            </span>
-                            <motion.span
-                                className="absolute inset-0 bg-primary/20 -z-10 blur-2xl"
-                                initial={{ opacity: 0, scale: 0.5 }}
-                                animate={{ opacity: 1, scale: 1.2 }}
-                                transition={{
-                                    duration: 1,
-                                    repeat: Infinity,
-                                    repeatType: "reverse"
-                                }}
-                            />
+                        <span className="relative z-10 text-[hsl(var(--orange))]">
+                            απλά
                         </span>
                     </motion.h1>
                 </motion.div>
@@ -134,29 +77,25 @@ export function Hero({ latestPost }: HeroProps) {
                 >
                     To OpenCouncil χρησιμοποιεί{' '}
                     <motion.em
-                        whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 text-primary"
+                        className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 text-foreground"
                     >
                         🤖 τεχνητή νοημοσύνη
                     </motion.em>{' '}
                     για να{' '}
                     <motion.em
-                        whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-foreground"
                     >
                         👀 παρακολουθεί
                     </motion.em>{' '}
                     τα{' '}
                     <motion.em
-                        whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-foreground"
                     >
                         🏛️ δημοτικά συμβούλια
                     </motion.em>{' '}
                     και να τα κάνει{' '}
                     <motion.em
-                        whileHover={{ scale: 1.1 }}
-                        className="not-italic inline-flex items-center px-2 py-1 text-primary"
+                        className="not-italic inline-flex items-center px-2 py-1 text-foreground"
                     >
                         💡 απλά και κατανοητά
                     </motion.em>
@@ -168,15 +107,15 @@ export function Hero({ latestPost }: HeroProps) {
                 >
                     <Button
                         asChild
-                        size="lg"
-                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
+                        size="xl"
+                        className="group transition-all duration-300"
                     >
                         <Link href="/explain">
                             <span className="relative z-10">📖 Μάθε πώς δουλεύει</span>
                             <motion.div
-                                className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
                                 whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--primary), 0.5)"
+                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
                                 }}
                             />
                         </Link>
@@ -185,7 +124,7 @@ export function Hero({ latestPost }: HeroProps) {
                         asChild
                         variant="link"
                         size="lg"
-                        className="text-base sm:text-lg hover:text-primary transition-colors duration-300"
+                        className="text-base sm:text-lg text-accent hover:text-accent/80 transition-colors duration-300"
                     >
                         <Link href="/about">
                             Πληροφορίες για δήμους και περιφέρειες

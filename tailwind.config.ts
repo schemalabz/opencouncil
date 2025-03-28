@@ -67,7 +67,8 @@ const config = {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				orange: 'hsl(var(--orange))'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -125,6 +126,17 @@ const config = {
 					to: {
 						transform: 'translateY(calc(-100% - var(--gap)))'
 					}
+				},
+				gradientFlow: {
+					'0%': {
+						'background-position': '0% 50%'
+					},
+					'50%': {
+						'background-position': '100% 50%'
+					},
+					'100%': {
+						'background-position': '0% 50%'
+					}
 				}
 			},
 			animation: {
@@ -132,7 +144,8 @@ const config = {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				shimmer: 'shimmer 8s infinite',
 				marquee: 'marquee var(--duration) infinite linear',
-				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite'
+				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
+				'gradientFlow': 'gradientFlow 3s ease infinite'
 			},
 			fontFamily: {
 				sans: [

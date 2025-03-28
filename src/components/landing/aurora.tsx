@@ -1,14 +1,24 @@
+"use client";
 import { useEffect, useRef } from 'react';
 
 interface AuroraProps {
     className?: string;
     // You can uncomment these props to make the aurora configurable from outside
-    speed?: 0.5;  // Animation speed (0.01-1.0, default: 0.3)
-    intensity?: 0.8;
+    speed?: number;  // Animation speed (0.01-1.0, default: 0.3)
+    intensity?: number;
 }
 
-export default function Aurora({ className = "" }: AuroraProps) {
+export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }: AuroraProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    // Use refs instead of state for performance-critical values that don't need re-renders
+    const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
+    const mouseHistoryRef = useRef<Array<{ x: number; y: number; age: number }>>([]);
+    const pulseTimeRef = useRef(0);
+    const hasMouseSupportRef = useRef(false);
+    const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const rafIdRef = useRef<number>(0);
+    const lastTimeRef = useRef(0);
+    const resizedRef = useRef(false);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -20,6 +30,29 @@ export default function Aurora({ className = "" }: AuroraProps) {
         // Colors from globals.css
         const orangeColor = '#fc550a'; // 252, 85, 10
         const blueColor = '#a4c0e1';   // 164, 192, 225
+        // Add a highlight color for mouse interaction
+        const highlightColor = '#ff9a47'; // Bright orange highlight
+
+        // Create offscreen canvas only once
+        if (!offscreenCanvasRef.current) {
+            offscreenCanvasRef.current = document.createElement('canvas');
+        }
+        const offscreenCanvas = offscreenCanvasRef.current;
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+        if (!offscreenCtx) return;
+
+        // Parse colors once
+        const orangeR = parseInt(orangeColor.slice(1, 3), 16);
+        const orangeG = parseInt(orangeColor.slice(3, 5), 16);
+        const orangeB = parseInt(orangeColor.slice(5, 7), 16);
+
+        const blueR = parseInt(blueColor.slice(1, 3), 16);
+        const blueG = parseInt(blueColor.slice(3, 5), 16);
+        const blueB = parseInt(blueColor.slice(5, 7), 16);
+
+        const highlightR = parseInt(highlightColor.slice(1, 3), 16);
+        const highlightG = parseInt(highlightColor.slice(3, 5), 16);
+        const highlightB = parseInt(highlightColor.slice(5, 7), 16);
 
         // ==============================================
         // Aurora animation control variables
@@ -27,26 +60,19 @@ export default function Aurora({ className = "" }: AuroraProps) {
 
         /**
          * Controls the speed of the aurora animation
-         * - Lower values (0.00005) = very slow, gentle movement
-         * - Higher values (0.001) = faster, more dynamic movement
-         * - Default: 0.0001
+         * - Higher value = faster movement
          */
-        const auroraSpeed = 0.0001;
+        const auroraSpeed = 0.0003 * speed;
 
         /**
          * Controls the visual intensity of the aurora effect
-         * - Lower values (0.1-0.3) = subtle, faint colors
-         * - Higher values (0.7-1.0) = vibrant, intense colors
-         * - Default: 0.6
-         * 
-         * This affects:
-         * - Color vividness (less white mixing at higher values)
-         * - Overall opacity
-         * - Pattern density
+         * - Higher values = more vibrant, intense colors
          */
-        const auroraIntensity = 0.6;
+        const auroraIntensity = 0.9 * intensity;
 
-        let animationFrameId: number;
+        // Detect mouse support - if a pointer event is detected, 
+        // we'll assume mouse support is available
+        hasMouseSupportRef.current = window.matchMedia('(pointer: fine)').matches;
 
         // Function to handle canvas resize
         const handleResize = () => {
@@ -54,8 +80,21 @@ export default function Aurora({ className = "" }: AuroraProps) {
             if (!parentElement) return;
 
             // Set canvas size to match parent container
-            canvas.width = parentElement.offsetWidth;
-            canvas.height = parentElement.offsetHeight;
+            const width = parentElement.offsetWidth;
+            const height = parentElement.offsetHeight;
+
+            // Only update if size actually changed
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width;
+                canvas.height = height;
+
+                // Set offscreen canvas size once on resize
+                const scaleFactor = 0.25; // Higher factor for smoother visuals
+                offscreenCanvas.width = canvas.width * scaleFactor;
+                offscreenCanvas.height = canvas.height * scaleFactor;
+
+                resizedRef.current = true;
+            }
         };
 
         // Initialize canvas size
@@ -64,21 +103,109 @@ export default function Aurora({ className = "" }: AuroraProps) {
         // Add resize listener
         window.addEventListener('resize', handleResize);
 
-        // Animation parameters
-        const noiseScale = 0.002; // Even bigger patterns
-        const noiseSpeed = auroraSpeed; // Using our configurable speed variable
+        // Mouse movement handler
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!hasMouseSupportRef.current) return;
 
-        // Create smooth noise function
+            const rect = canvas.getBoundingClientRect();
+            const newPosition = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+
+            mousePositionRef.current = newPosition;
+
+            // Add to history for trail effect
+            const newHistory = [...mouseHistoryRef.current, { ...newPosition, age: 0 }];
+            mouseHistoryRef.current = newHistory.slice(-6);
+
+            // Reset pulse time for ripple effect
+            pulseTimeRef.current = 0;
+        };
+
+        // Add mouse move listener only on devices with mouse support
+        if (hasMouseSupportRef.current) {
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseleave', () => {
+                mousePositionRef.current = null;
+                mouseHistoryRef.current = [];
+            });
+        }
+
+        // Animation parameters
+        const noiseScale = 0.0028;
+        const noiseSpeed = auroraSpeed;
+
+        // Smoother noise function that creates fewer visual artifacts
         const noise = (x: number, y: number, z: number) => {
-            // Smoother noise function with multiple octaves
             let value = 0;
             let amplitude = 1;
             let frequency = 1;
 
-            // Add multiple sine waves at different frequencies for smoother noise
-            for (let i = 0; i < 3; i++) {
-                value += amplitude * Math.sin(x * noiseScale * frequency + z * (i * 0.1 + 0.5)) *
-                    Math.sin(y * noiseScale * frequency + z * (i * 0.15 + 0.3));
+            // Add mouse influence when available
+            let mouseInfluence = 0;
+            let rippleEffect = 0;
+
+            if (hasMouseSupportRef.current && mousePositionRef.current) {
+                const mousePos = mousePositionRef.current;
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+
+                // Normalize coordinates
+                const mouseX = mousePos.x / canvasWidth;
+                const mouseY = mousePos.y / canvasHeight;
+                const pointX = x / canvasWidth;
+                const pointY = y / canvasHeight;
+
+                // Calculate distance
+                const dx = pointX - mouseX;
+                const dy = pointY - mouseY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Influence range
+                const maxInfluenceRange = 0.55;
+                mouseInfluence = Math.max(0, 1 - (distance / maxInfluenceRange));
+                mouseInfluence = Math.pow(mouseInfluence, 2);
+
+                // Add ripple effect
+                if (pulseTimeRef.current < 2.0) {
+                    const rippleRadius = pulseTimeRef.current * 0.2;
+                    const rippleWidth = 0.03;
+                    const distanceInRipple = Math.abs(distance - rippleRadius);
+
+                    if (distanceInRipple < rippleWidth) {
+                        rippleEffect = (1 - distanceInRipple / rippleWidth) * (1 - pulseTimeRef.current / 2.0) * 1.3;
+                    }
+                }
+
+                // Add trail effect
+                mouseHistoryRef.current.forEach(pos => {
+                    if (pos.age > 1.0) return;
+
+                    const historyX = pos.x / canvasWidth;
+                    const historyY = pos.y / canvasHeight;
+                    const historyDx = pointX - historyX;
+                    const historyDy = pointY - historyY;
+                    const historyDistance = Math.sqrt(historyDx * historyDx + historyDy * historyDy);
+
+                    const trailInfluence = Math.max(0, 1 - (historyDistance / (maxInfluenceRange * 0.7)));
+                    const ageFactor = 1 - pos.age;
+                    mouseInfluence = Math.max(mouseInfluence, trailInfluence * ageFactor * 0.7);
+                });
+            }
+
+            // Use smooth sine waves
+            for (let i = 0; i < 3; i++) { // Back to 3 octaves for smoother noise
+                const mouseFrequencyBoost = hasMouseSupportRef.current && mousePositionRef.current ?
+                    mouseInfluence * 5 + rippleEffect * 10 : 0;
+
+                const rippleDisplacement = rippleEffect * 0.6;
+
+                // Use actual Math.sin for better precision
+                value += amplitude *
+                    Math.sin(x * noiseScale * (frequency + mouseFrequencyBoost) + z * (i * 0.1 + 0.5) + rippleDisplacement) *
+                    Math.sin(y * noiseScale * (frequency + mouseFrequencyBoost * 0.5) + z * (i * 0.15 + 0.3) + rippleDisplacement);
+
                 amplitude *= 0.5;
                 frequency *= 2;
             }
@@ -86,98 +213,194 @@ export default function Aurora({ className = "" }: AuroraProps) {
             return 0.5 + 0.5 * value;
         };
 
-        // Pre-render to an offscreen canvas with smaller size for blur effect
-        const offscreenCanvas = document.createElement('canvas');
-        const offscreenCtx = offscreenCanvas.getContext('2d');
-
-        if (!offscreenCtx) return;
-
         // Animation function
         const animate = (time: number) => {
+            // Calculate delta time for consistent animation
+            const deltaTime = time - lastTimeRef.current;
+            lastTimeRef.current = time;
+
+            // Update pulse time
+            if (mousePositionRef.current) {
+                pulseTimeRef.current += deltaTime * 0.001;
+            }
+
+            // Update mouse history
+            mouseHistoryRef.current = mouseHistoryRef.current
+                .map(pos => ({ ...pos, age: pos.age + deltaTime * 0.001 }))
+                .filter(pos => pos.age < 1.5);
+
             // Clear main canvas
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Set up offscreen canvas at a smaller size (for blur effect)
-            const scaleFactor = 0.25; // Even smaller for more blur
-            offscreenCanvas.width = canvas.width * scaleFactor;
-            offscreenCanvas.height = canvas.height * scaleFactor;
+            // Setup for drawing
+            const scaleFactor = 0.25;
+
+            // Only resize offscreen canvas when main canvas is resized
+            if (resizedRef.current) {
+                offscreenCanvas.width = canvas.width * scaleFactor;
+                offscreenCanvas.height = canvas.height * scaleFactor;
+                resizedRef.current = false;
+            }
 
             // Clear offscreen canvas
             offscreenCtx.fillStyle = 'white';
             offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
             // Drawing parameters
-            const dotSize = 15; // Even larger dots for softer effect
-            const stepSize = 12; // Larger step for more spacing (less density)
+            const dotSize = 14.5;
+            const stepSize = 11;
 
             // Only draw in top 1/3 of the screen
             const heightLimit = offscreenCanvas.height * 0.33;
 
-            // Intensity affects dot threshold - higher intensity = more dots
-            const noiseThreshold = 0.4 - (auroraIntensity * 0.15);
+            // Threshold balancing more coverage with white spaces
+            const noiseThreshold = 0.42 - (auroraIntensity * 0.15);
 
-            // Draw to offscreen canvas - limited to first third
+            // Draw to offscreen canvas
             for (let x = 0; x < offscreenCanvas.width; x += stepSize) {
-                for (let y = 0; y < offscreenCanvas.height; y += stepSize) {
-                    // Skip drawing if beyond the first third
-                    if (y > heightLimit) continue;
-
-                    // Calculate noise value based on position and time
+                for (let y = 0; y < heightLimit; y += stepSize) {
+                    // Calculate noise with temporal stability
                     const noiseValue = noise(
                         x / scaleFactor,
                         y / scaleFactor,
                         time * noiseSpeed
                     );
 
-                    // Only draw some dots based on noise value (creates more white space)
-                    if (noiseValue < noiseThreshold) continue;
+                    // Smoother transition for dot appearance
+                    if (noiseValue < noiseThreshold - 0.05) continue;
+
+                    // Gradual fade-in near threshold for smoother appearance
+                    const thresholdFade = Math.min(1, (noiseValue - (noiseThreshold - 0.05)) / 0.05);
+
+                    // Track mouse influence
+                    let mouseEffect = 0;
+                    let isInRipple = false;
+
+                    if (hasMouseSupportRef.current && mousePositionRef.current) {
+                        const mouseX = mousePositionRef.current.x * scaleFactor;
+                        const mouseY = mousePositionRef.current.y * scaleFactor;
+                        const dx = x - mouseX;
+                        const dy = y - mouseY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        const mouseInfluenceRadius = offscreenCanvas.width * 0.3;
+                        if (distance < mouseInfluenceRadius) {
+                            mouseEffect = 1 - (distance / mouseInfluenceRadius);
+                            mouseEffect = Math.pow(mouseEffect, 1.5);
+
+                            // Check for ripple effect
+                            if (pulseTimeRef.current < 2.0) {
+                                const rippleRadius = pulseTimeRef.current * mouseInfluenceRadius * 0.5;
+                                const rippleWidth = mouseInfluenceRadius * 0.06;
+                                const distanceFromRipple = Math.abs(distance - rippleRadius);
+
+                                if (distanceFromRipple < rippleWidth) {
+                                    isInRipple = true;
+                                }
+                            }
+                        }
+
+                        // Check trail points
+                        mouseHistoryRef.current.forEach(pos => {
+                            if (pos.age > 1.0) return;
+
+                            const trailX = pos.x * scaleFactor;
+                            const trailY = pos.y * scaleFactor;
+                            const trailDx = x - trailX;
+                            const trailDy = y - trailY;
+                            const trailDistance = Math.sqrt(trailDx * trailDx + trailDy * trailDy);
+
+                            const trailRadius = offscreenCanvas.width * 0.2;
+                            if (trailDistance < trailRadius) {
+                                const trailEffect = (1 - trailDistance / trailRadius) * (1 - pos.age);
+                                mouseEffect = Math.max(mouseEffect, trailEffect * 0.7);
+                            }
+                        });
+                    }
 
                     // Use noise to mix between orange and blue
-                    const ratio = noiseValue;
+                    // Modified to favor blue colors slightly
+                    let ratio = noiseValue * 1.2;
+                    ratio = Math.min(ratio, 1);
 
-                    // Create more intense colors by reducing white mix
-                    // Higher intensity means less white mixing (more vivid colors)
-                    const whiteMix = 0.8 - (auroraIntensity * 0.5);
+                    // Less white mixing for more intense colors
+                    const whiteMix = 0.7 - (auroraIntensity * 0.5);
+                    let enhancedWhiteMix = whiteMix;
 
-                    // Linear interpolation (lerp) between colors
-                    let r = Math.floor(parseInt(orangeColor.slice(1, 3), 16) * (1 - ratio) +
-                        parseInt(blueColor.slice(1, 3), 16) * ratio);
-                    let g = Math.floor(parseInt(orangeColor.slice(3, 5), 16) * (1 - ratio) +
-                        parseInt(blueColor.slice(3, 5), 16) * ratio);
-                    let b = Math.floor(parseInt(orangeColor.slice(5, 7), 16) * (1 - ratio) +
-                        parseInt(blueColor.slice(5, 7), 16) * ratio);
+                    let r, g, b;
+
+                    if (mouseEffect > 0) {
+                        enhancedWhiteMix = whiteMix * (1 - (mouseEffect * 0.85));
+
+                        if (isInRipple) {
+                            r = highlightR;
+                            g = highlightG;
+                            b = highlightB;
+                        } else {
+                            // Bias ratio towards orange for mouse-influenced areas
+                            ratio = ratio * (1 - mouseEffect * 0.7);
+
+                            // Linear interpolation between colors
+                            r = Math.floor(orangeR * (1 - ratio) + blueR * ratio);
+                            g = Math.floor(orangeG * (1 - ratio) + blueG * ratio);
+                            b = Math.floor(orangeB * (1 - ratio) + blueB * ratio);
+
+                            // Blend with highlight color
+                            r = Math.floor(r * (1 - mouseEffect * 0.5) + highlightR * (mouseEffect * 0.5));
+                            g = Math.floor(g * (1 - mouseEffect * 0.5) + highlightG * (mouseEffect * 0.5));
+                            b = Math.floor(b * (1 - mouseEffect * 0.5) + highlightB * (mouseEffect * 0.5));
+                        }
+                    } else {
+                        // Linear interpolation between colors
+                        r = Math.floor(orangeR * (1 - ratio) + blueR * ratio);
+                        g = Math.floor(orangeG * (1 - ratio) + blueG * ratio);
+                        b = Math.floor(orangeB * (1 - ratio) + blueB * ratio);
+                    }
 
                     // Mix with white
-                    r = Math.floor(r * (1 - whiteMix) + 255 * whiteMix);
-                    g = Math.floor(g * (1 - whiteMix) + 255 * whiteMix);
-                    b = Math.floor(b * (1 - whiteMix) + 255 * whiteMix);
+                    if (!isInRipple) {
+                        r = Math.floor(r * (1 - enhancedWhiteMix) + 255 * enhancedWhiteMix);
+                        g = Math.floor(g * (1 - enhancedWhiteMix) + 255 * enhancedWhiteMix);
+                        b = Math.floor(b * (1 - enhancedWhiteMix) + 255 * enhancedWhiteMix);
+                    }
 
                     // Calculate opacity based on y-position and noise
-                    // Strong fade out toward the bottom third
                     const yRatio = y / heightLimit;
-                    // Use cubic function for sharper fade
                     const fadeOut = 1 - Math.pow(yRatio, 3);
 
-                    // Higher intensity means higher base opacity
-                    const baseAlpha = 0.08 + (auroraIntensity * 0.12);
-                    const alpha = baseAlpha * fadeOut * (0.5 + 0.5 * noiseValue);
+                    // Higher base alpha for more intensity
+                    const baseAlpha = (0.1 + (auroraIntensity * 0.15)) * thresholdFade;
+                    let alpha = baseAlpha * fadeOut * (0.5 + 0.5 * noiseValue);
 
-                    // Draw gradient point with rounded shape for smoother appearance
+                    // Increase alpha near mouse
+                    if (mouseEffect > 0) {
+                        alpha *= (1 + (mouseEffect * 2.2));
+
+                        if (isInRipple) {
+                            alpha *= 2.8;
+                        }
+                    }
+
+                    // Draw gradient point
                     offscreenCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+                    // Make dots larger near the mouse
+                    const dynamicDotSize = dotSize * (1 + (mouseEffect * 0.6));
+                    const finalDotSize = isInRipple ? dynamicDotSize * 1.5 : dynamicDotSize;
+
                     offscreenCtx.beginPath();
-                    offscreenCtx.arc(x, y, dotSize, 0, Math.PI * 2);
+                    offscreenCtx.arc(x, y, finalDotSize, 0, Math.PI * 2);
                     offscreenCtx.fill();
                 }
             }
 
-            // Apply blur to the offscreen canvas
-            // Less blur for higher intensity (more definition at higher intensities)
-            const blurAmount = 20 - (auroraIntensity * 4);
+            // Apply blur - less blur for more definition
+            const blurAmount = 15 - (auroraIntensity * 3.5);
             offscreenCtx.filter = `blur(${blurAmount}px)`;
             offscreenCtx.drawImage(offscreenCanvas, 0, 0);
 
-            // Add additional white gradient to enhance fade out
+            // Add fade-out gradient
             const gradient = offscreenCtx.createLinearGradient(0, heightLimit * 0.6, 0, heightLimit);
             gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
             gradient.addColorStop(1, 'rgba(255, 255, 255, 1)');
@@ -193,18 +416,25 @@ export default function Aurora({ className = "" }: AuroraProps) {
             );
 
             // Continue animation
-            animationFrameId = requestAnimationFrame(animate);
+            rafIdRef.current = requestAnimationFrame(animate);
         };
 
         // Start animation
-        animationFrameId = requestAnimationFrame(animate);
+        rafIdRef.current = requestAnimationFrame(animate);
 
         // Cleanup function
         return () => {
             window.removeEventListener('resize', handleResize);
-            cancelAnimationFrame(animationFrameId);
+            if (hasMouseSupportRef.current) {
+                canvas.removeEventListener('mousemove', handleMouseMove);
+                canvas.removeEventListener('mouseleave', () => {
+                    mousePositionRef.current = null;
+                    mouseHistoryRef.current = [];
+                });
+            }
+            cancelAnimationFrame(rafIdRef.current);
         };
-    }, []);
+    }, [speed, intensity]);
 
     return (
         <canvas

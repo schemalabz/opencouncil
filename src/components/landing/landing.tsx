@@ -6,11 +6,9 @@ import { getLandingPageData, SubstackPost, type LandingPageCity, type LandingPag
 import { Loader2 } from "lucide-react";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
-import { SubstackBadge } from "./substack-badge";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { FloatingPathsBackground } from '@/components/ui/floating-paths';
 import { ChevronDown } from 'lucide-react';
-import Aurora from './aurora';
 
 interface LandingProps {
     publicCities: LandingPageCity[];
@@ -56,11 +54,6 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
 
     return (
         <div className="min-h-screen relative">
-            {/* Global Aurora background at the very top level */}
-            <div className="fixed inset-0 w-full h-full z-0 pointer-events-none">
-                <Aurora className="w-full h-full" />
-            </div>
-
             {/* Hero Section - Full Width */}
             <Hero latestPost={latestPost} />
 

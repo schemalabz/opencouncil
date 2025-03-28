@@ -58,7 +58,7 @@ const UtteranceC: React.FC<{
 
     const isHighlighted = options.selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id);
 
-    let className = `cursor-pointer hover:bg-accent utterance ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
+    let className = `cursor-pointer hover:bg-accent utterance transcript-text ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
     if (localUtterance.lastModifiedBy && options.editable && !options.selectedHighlight) {
         if (localUtterance.lastModifiedBy === 'task') {
             className += ' text-blue-500 font-bold underline';
@@ -153,7 +153,7 @@ const UtteranceC: React.FC<{
     };
 
     if (localUtterance.drift > options.maxUtteranceDrift) {
-        return <span id={localUtterance.id} className="hover:bg-accent utterance" />;
+        return <span id={localUtterance.id} className="hover:bg-accent utterance transcript-text" />;
     }
 
     if (isEditing) {
@@ -171,7 +171,7 @@ const UtteranceC: React.FC<{
                             setEditedText(localUtterance.text);
                         }
                     }}
-                    className="w-full resize-none border border-gray-300 rounded px-2 py-1 text-sm min-h-[2.5em]"
+                    className="w-full resize-none border border-gray-300 rounded px-2 py-1 text-sm min-h-[2.5em] transcript-text"
                     autoFocus
                     rows={Math.max(1, editedText.split('\n').length)}
                     style={{
