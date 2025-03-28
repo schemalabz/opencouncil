@@ -230,7 +230,6 @@ a:hover.unstyled {
 
 .subject-popup .mapboxgl-popup-content > div {
     pointer-events: auto;
-<<<<<<< Updated upstream
 }
 
 /* Gradient animation */
@@ -245,6 +244,3 @@ a:hover.unstyled {
   background-size: 200% 200%;
   animation: gradientFlow 3s ease infinite;
 }
-=======
-}t 
->>>>>>> Stashed changes

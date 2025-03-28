@@ -9,12 +9,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "relative group rounded-lg shadow-sm overflow-hidden",
+      "relative group rounded-lg shadow-sm overflow-hidden isolate",
       className
     )}
-    style={{
-      border: "0px solid transparent",
-    }}
     {...props}
   >
     {/* Background gradient for the border effect - only visible on hover */}
@@ -28,7 +25,10 @@ const Card = React.forwardRef<
 
     {/* Main card content */}
     <div
-      className="relative bg-card rounded-lg m-[1px] transition-all duration-300"
+      className="relative h-full bg-card rounded-lg transition-all duration-300"
+      style={{
+        margin: "1.5px"
+      }}
     >
       {props.children}
     </div>

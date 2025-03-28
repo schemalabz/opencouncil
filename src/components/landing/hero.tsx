@@ -65,7 +65,7 @@ export function Hero({ latestPost }: HeroProps) {
                         variants={item}
                         className="text-3xl sm:text-5xl md:text-7xl font-normal"
                     >
-                        TL;DR — ο Δήμος σου,{' '}
+                        Ο Δήμος σου,{' '}
                         <span className="relative z-10 text-[hsl(var(--orange))]">
                             απλά
                         </span>

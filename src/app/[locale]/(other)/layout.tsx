@@ -20,7 +20,7 @@ export default async function Layout({
       <div className="relative overflow-hidden">
         {/* Aurora at the very top of the page */}
         <div className="absolute top-0 left-0 w-full h-[100vh] z-0 pointer-events-none">
-          <Aurora className="w-full h-full" />
+          <Aurora className="w-full h-full" quality="low" speed={0.15} intensity={1.2} />
         </div>
 
         <Header path={[]} className="relative z-10" />

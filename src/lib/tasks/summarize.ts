@@ -46,16 +46,19 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                 console.log(`Speaker segment ${segmentSummary.speakerSegmentId} not found`);
                 continue;
             }
+
             // Update or create summary
             await prisma.summary.upsert({
                 where: {
                     speakerSegmentId: segmentSummary.speakerSegmentId
                 },
                 update: {
-                    text: segmentSummary.summary || ''
+                    text: segmentSummary.summary || '',
+                    type: segmentSummary.type === "PROCEDURAL" ? "procedural" : "substantive"
                 },
                 create: {
                     text: segmentSummary.summary || '',
+                    type: segmentSummary.type === "PROCEDURAL" ? "procedural" : "substantive",
                     speakerSegment: { connect: { id: segmentSummary.speakerSegmentId } }
                 }
             });
@@ -84,7 +87,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                 }
             }
         }
-    }, { timeout: 60000 });
+    }, { timeout: 120000 });
 
     await createSubjectsForMeeting(
         response.subjects,

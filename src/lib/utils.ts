@@ -83,11 +83,11 @@ export function formatDateTime(date: Date, timezone?: string): string {
     dateStyle: 'long',
     timeStyle: 'short'
   };
-  
+
   if (timezone) {
     options.timeZone = timezone;
   }
-  
+
   if (date instanceof Date) {
     return new Intl.DateTimeFormat('el-GR', options).format(date);
   } else if (typeof date === 'string') {
@@ -204,6 +204,14 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
       // Join adjacent segments with the same speaker
       currentSegment = {
         ...currentSegment,
+        summary: currentSegment.summary || nextSegment.summary ? {
+          id: currentSegment.summary?.id || nextSegment.summary?.id || '',
+          createdAt: currentSegment.summary?.createdAt || nextSegment.summary?.createdAt || new Date(),
+          updatedAt: currentSegment.summary?.updatedAt || nextSegment.summary?.updatedAt || new Date(),
+          speakerSegmentId: currentSegment.summary?.speakerSegmentId || nextSegment.summary?.speakerSegmentId || currentSegment.id,
+          text: [currentSegment.summary?.text, nextSegment.summary?.text].filter(Boolean).join(" || ") || '',
+          type: currentSegment.summary?.type === 'substantive' || nextSegment.summary?.type === 'substantive' ? 'substantive' : 'procedural'
+        } : null,
         endTimestamp: Math.max(currentSegment.endTimestamp, nextSegment.endTimestamp),
         utterances: [...currentSegment.utterances, ...nextSegment.utterances],
         topicLabels: [...currentSegment.topicLabels, ...nextSegment.topicLabels]

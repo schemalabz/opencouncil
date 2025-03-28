@@ -6,9 +6,15 @@ interface AuroraProps {
     // You can uncomment these props to make the aurora configurable from outside
     speed?: number;  // Animation speed (0.01-1.0, default: 0.3)
     intensity?: number;
+    quality?: 'low' | 'medium' | 'high';
 }
 
-export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }: AuroraProps) {
+export default function Aurora({
+    className = "",
+    speed = 0.2,
+    intensity = 1.0,
+    quality = 'medium'
+}: AuroraProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     // Use refs instead of state for performance-critical values that don't need re-renders
     const mousePositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -24,7 +30,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { alpha: false });
         if (!ctx) return;
 
         // Colors from globals.css
@@ -38,7 +44,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
             offscreenCanvasRef.current = document.createElement('canvas');
         }
         const offscreenCanvas = offscreenCanvasRef.current;
-        const offscreenCtx = offscreenCanvas.getContext('2d');
+        const offscreenCtx = offscreenCanvas.getContext('2d', { alpha: false });
         if (!offscreenCtx) return;
 
         // Parse colors once
@@ -57,6 +63,30 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
         // ==============================================
         // Aurora animation control variables
         // ==============================================
+
+        // Quality settings
+        const qualitySettings = {
+            low: {
+                dotSize: 20,
+                stepSize: 18,
+                blurAmount: 10,
+                octaves: 2
+            },
+            medium: {
+                dotSize: 16,
+                stepSize: 14,
+                blurAmount: 12,
+                octaves: 2
+            },
+            high: {
+                dotSize: 14,
+                stepSize: 10,
+                blurAmount: 15,
+                octaves: 3
+            }
+        };
+
+        const settings = qualitySettings[quality];
 
         /**
          * Controls the speed of the aurora animation
@@ -89,9 +119,9 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                 canvas.height = height;
 
                 // Set offscreen canvas size once on resize
-                const scaleFactor = 0.25; // Higher factor for smoother visuals
-                offscreenCanvas.width = canvas.width * scaleFactor;
-                offscreenCanvas.height = canvas.height * scaleFactor;
+                const scaleFactor = quality === 'low' ? 0.15 : quality === 'medium' ? 0.2 : 0.25;
+                offscreenCanvas.width = Math.floor(canvas.width * scaleFactor);
+                offscreenCanvas.height = Math.floor(canvas.height * scaleFactor);
 
                 resizedRef.current = true;
             }
@@ -100,32 +130,56 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
         // Initialize canvas size
         handleResize();
 
+        // Throttled resize handler
+        let resizeTimeout: number;
+        const throttledResize = () => {
+            if (resizeTimeout) return;
+            resizeTimeout = window.setTimeout(() => {
+                handleResize();
+                resizeTimeout = 0;
+            }, 200);
+        };
+
         // Add resize listener
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', throttledResize);
 
         // Mouse movement handler
         const handleMouseMove = (e: MouseEvent) => {
             if (!hasMouseSupportRef.current) return;
 
             const rect = canvas.getBoundingClientRect();
-            const newPosition = {
+            mousePositionRef.current = {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
             };
 
-            mousePositionRef.current = newPosition;
+            // Add to history for trail effect - limit to fewer points
+            mouseHistoryRef.current.push({
+                ...mousePositionRef.current,
+                age: 0
+            });
 
-            // Add to history for trail effect
-            const newHistory = [...mouseHistoryRef.current, { ...newPosition, age: 0 }];
-            mouseHistoryRef.current = newHistory.slice(-6);
+            if (mouseHistoryRef.current.length > 4) {
+                mouseHistoryRef.current.shift();
+            }
 
             // Reset pulse time for ripple effect
             pulseTimeRef.current = 0;
         };
 
+        // Throttled mouse move handler
+        let mouseMoveThrottleTimeout: number;
+        const throttledMouseMove = (e: MouseEvent) => {
+            if (mouseMoveThrottleTimeout) return;
+            mouseMoveThrottleTimeout = window.setTimeout(() => {
+                handleMouseMove(e);
+                mouseMoveThrottleTimeout = 0;
+            }, 30); // 30ms throttle
+        };
+
         // Add mouse move listener only on devices with mouse support
         if (hasMouseSupportRef.current) {
-            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mousemove', throttledMouseMove);
             canvas.addEventListener('mouseleave', () => {
                 mousePositionRef.current = null;
                 mouseHistoryRef.current = [];
@@ -136,7 +190,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
         const noiseScale = 0.0028;
         const noiseSpeed = auroraSpeed;
 
-        // Smoother noise function that creates fewer visual artifacts
+        // Optimized noise function
         const noise = (x: number, y: number, z: number) => {
             let value = 0;
             let amplitude = 1;
@@ -163,7 +217,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 // Influence range
-                const maxInfluenceRange = 0.55;
+                const maxInfluenceRange = 0.45;
                 mouseInfluence = Math.max(0, 1 - (distance / maxInfluenceRange));
                 mouseInfluence = Math.pow(mouseInfluence, 2);
 
@@ -178,7 +232,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                     }
                 }
 
-                // Add trail effect
+                // Add trail effect - simplified
                 mouseHistoryRef.current.forEach(pos => {
                     if (pos.age > 1.0) return;
 
@@ -188,20 +242,17 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                     const historyDy = pointY - historyY;
                     const historyDistance = Math.sqrt(historyDx * historyDx + historyDy * historyDy);
 
-                    const trailInfluence = Math.max(0, 1 - (historyDistance / (maxInfluenceRange * 0.7)));
+                    const trailInfluence = Math.max(0, 1 - (historyDistance / (maxInfluenceRange * 0.6)));
                     const ageFactor = 1 - pos.age;
-                    mouseInfluence = Math.max(mouseInfluence, trailInfluence * ageFactor * 0.7);
+                    mouseInfluence = Math.max(mouseInfluence, trailInfluence * ageFactor * 0.6);
                 });
             }
 
-            // Use smooth sine waves
-            for (let i = 0; i < 3; i++) { // Back to 3 octaves for smoother noise
-                const mouseFrequencyBoost = hasMouseSupportRef.current && mousePositionRef.current ?
-                    mouseInfluence * 5 + rippleEffect * 10 : 0;
+            // Reduced octaves for better performance
+            for (let i = 0; i < settings.octaves; i++) {
+                const mouseFrequencyBoost = mouseInfluence * 3 + rippleEffect * 8;
+                const rippleDisplacement = rippleEffect * 0.5;
 
-                const rippleDisplacement = rippleEffect * 0.6;
-
-                // Use actual Math.sin for better precision
                 value += amplitude *
                     Math.sin(x * noiseScale * (frequency + mouseFrequencyBoost) + z * (i * 0.1 + 0.5) + rippleDisplacement) *
                     Math.sin(y * noiseScale * (frequency + mouseFrequencyBoost * 0.5) + z * (i * 0.15 + 0.3) + rippleDisplacement);
@@ -213,10 +264,22 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
             return 0.5 + 0.5 * value;
         };
 
+        // Optimize frame rate based on device capability
+        const maxFPS = 30;
+        const frameInterval = 1000 / maxFPS;
+        let lastFrameTime = 0;
+
         // Animation function
         const animate = (time: number) => {
+            // Throttle frame rate
+            if (time - lastFrameTime < frameInterval) {
+                rafIdRef.current = requestAnimationFrame(animate);
+                return;
+            }
+            lastFrameTime = time;
+
             // Calculate delta time for consistent animation
-            const deltaTime = time - lastTimeRef.current;
+            const deltaTime = Math.min(33, time - lastTimeRef.current); // Cap delta time to avoid jumps
             lastTimeRef.current = time;
 
             // Update pulse time
@@ -224,22 +287,22 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                 pulseTimeRef.current += deltaTime * 0.001;
             }
 
-            // Update mouse history
+            // Update mouse history with fewer calculations
             mouseHistoryRef.current = mouseHistoryRef.current
                 .map(pos => ({ ...pos, age: pos.age + deltaTime * 0.001 }))
-                .filter(pos => pos.age < 1.5);
+                .filter(pos => pos.age < 1.2);
 
             // Clear main canvas
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Setup for drawing
-            const scaleFactor = 0.25;
+            const scaleFactor = quality === 'low' ? 0.15 : quality === 'medium' ? 0.2 : 0.25;
 
             // Only resize offscreen canvas when main canvas is resized
             if (resizedRef.current) {
-                offscreenCanvas.width = canvas.width * scaleFactor;
-                offscreenCanvas.height = canvas.height * scaleFactor;
+                offscreenCanvas.width = Math.floor(canvas.width * scaleFactor);
+                offscreenCanvas.height = Math.floor(canvas.height * scaleFactor);
                 resizedRef.current = false;
             }
 
@@ -248,13 +311,13 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
             offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
 
             // Drawing parameters
-            const dotSize = 14.5;
-            const stepSize = 11;
+            const dotSize = settings.dotSize;
+            const stepSize = settings.stepSize;
 
             // Only draw in top 1/3 of the screen
             const heightLimit = offscreenCanvas.height * 0.33;
 
-            // Threshold balancing more coverage with white spaces
+            // Threshold balancing
             const noiseThreshold = 0.42 - (auroraIntensity * 0.15);
 
             // Draw to offscreen canvas
@@ -267,7 +330,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                         time * noiseSpeed
                     );
 
-                    // Smoother transition for dot appearance
+                    // Skip drawing for values well below threshold
                     if (noiseValue < noiseThreshold - 0.05) continue;
 
                     // Gradual fade-in near threshold for smoother appearance
@@ -284,10 +347,10 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                         const dy = y - mouseY;
                         const distance = Math.sqrt(dx * dx + dy * dy);
 
-                        const mouseInfluenceRadius = offscreenCanvas.width * 0.3;
+                        const mouseInfluenceRadius = offscreenCanvas.width * 0.25;
                         if (distance < mouseInfluenceRadius) {
                             mouseEffect = 1 - (distance / mouseInfluenceRadius);
-                            mouseEffect = Math.pow(mouseEffect, 1.5);
+                            mouseEffect = mouseEffect * mouseEffect; // Squared for efficiency
 
                             // Check for ripple effect
                             if (pulseTimeRef.current < 2.0) {
@@ -301,22 +364,24 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                             }
                         }
 
-                        // Check trail points
-                        mouseHistoryRef.current.forEach(pos => {
-                            if (pos.age > 1.0) return;
+                        // Simplified trail points check
+                        if (mouseHistoryRef.current.length > 0 && !isInRipple) {
+                            // Just check the most recent trail point
+                            const pos = mouseHistoryRef.current[mouseHistoryRef.current.length - 1];
+                            if (pos.age < 0.8) {
+                                const trailX = pos.x * scaleFactor;
+                                const trailY = pos.y * scaleFactor;
+                                const trailDx = x - trailX;
+                                const trailDy = y - trailY;
+                                const trailDistance = Math.sqrt(trailDx * trailDx + trailDy * trailDy);
 
-                            const trailX = pos.x * scaleFactor;
-                            const trailY = pos.y * scaleFactor;
-                            const trailDx = x - trailX;
-                            const trailDy = y - trailY;
-                            const trailDistance = Math.sqrt(trailDx * trailDx + trailDy * trailDy);
-
-                            const trailRadius = offscreenCanvas.width * 0.2;
-                            if (trailDistance < trailRadius) {
-                                const trailEffect = (1 - trailDistance / trailRadius) * (1 - pos.age);
-                                mouseEffect = Math.max(mouseEffect, trailEffect * 0.7);
+                                const trailRadius = offscreenCanvas.width * 0.18;
+                                if (trailDistance < trailRadius) {
+                                    const trailEffect = (1 - trailDistance / trailRadius) * (1 - pos.age);
+                                    mouseEffect = Math.max(mouseEffect, trailEffect * 0.5);
+                                }
                             }
-                        });
+                        }
                     }
 
                     // Use noise to mix between orange and blue
@@ -367,7 +432,7 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
 
                     // Calculate opacity based on y-position and noise
                     const yRatio = y / heightLimit;
-                    const fadeOut = 1 - Math.pow(yRatio, 3);
+                    const fadeOut = 1 - yRatio * yRatio; // Square is faster than pow()
 
                     // Higher base alpha for more intensity
                     const baseAlpha = (0.1 + (auroraIntensity * 0.15)) * thresholdFade;
@@ -386,17 +451,18 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
                     offscreenCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
                     // Make dots larger near the mouse
-                    const dynamicDotSize = dotSize * (1 + (mouseEffect * 0.6));
-                    const finalDotSize = isInRipple ? dynamicDotSize * 1.5 : dynamicDotSize;
+                    const dynamicDotSize = isInRipple ?
+                        dotSize * 1.3 :
+                        dotSize * (1 + (mouseEffect * 0.4));
 
                     offscreenCtx.beginPath();
-                    offscreenCtx.arc(x, y, finalDotSize, 0, Math.PI * 2);
+                    offscreenCtx.arc(x, y, dynamicDotSize, 0, Math.PI * 2);
                     offscreenCtx.fill();
                 }
             }
 
             // Apply blur - less blur for more definition
-            const blurAmount = 15 - (auroraIntensity * 3.5);
+            const blurAmount = settings.blurAmount - (auroraIntensity * 3);
             offscreenCtx.filter = `blur(${blurAmount}px)`;
             offscreenCtx.drawImage(offscreenCanvas, 0, 0);
 
@@ -424,17 +490,19 @@ export default function Aurora({ className = "", speed = 0.7, intensity = 1.4 }:
 
         // Cleanup function
         return () => {
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', throttledResize);
             if (hasMouseSupportRef.current) {
-                canvas.removeEventListener('mousemove', handleMouseMove);
+                canvas.removeEventListener('mousemove', throttledMouseMove);
                 canvas.removeEventListener('mouseleave', () => {
                     mousePositionRef.current = null;
                     mouseHistoryRef.current = [];
                 });
             }
             cancelAnimationFrame(rafIdRef.current);
+            clearTimeout(resizeTimeout);
+            clearTimeout(mouseMoveThrottleTimeout);
         };
-    }, [speed, intensity]);
+    }, [speed, intensity, quality]);
 
     return (
         <canvas

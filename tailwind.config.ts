@@ -137,6 +137,22 @@ const config = {
 					'100%': {
 						'background-position': '0% 50%'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0'
+					},
+					'100%': {
+						opacity: '1'
+					}
+				},
+				bounce: {
+					'0%, 100%': {
+						transform: 'translateY(0)'
+					},
+					'50%': {
+						transform: 'translateY(5px)'
+					}
 				}
 			},
 			animation: {
@@ -145,7 +161,9 @@ const config = {
 				shimmer: 'shimmer 8s infinite',
 				marquee: 'marquee var(--duration) infinite linear',
 				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
-				'gradientFlow': 'gradientFlow 3s ease infinite'
+				'gradientFlow': 'gradientFlow 3s ease infinite',
+				'fade-in': 'fade-in 0.5s ease-out forwards',
+				'bounce': 'bounce 2s ease-in-out infinite'
 			},
 			fontFamily: {
 				sans: [

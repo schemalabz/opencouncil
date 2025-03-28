@@ -96,6 +96,7 @@
     "react-hook-form": "^7.53.0",
     "react-international-phone": "^4.4.0",
     "react-intersection-observer": "^9.13.1",
+    "react-markdown": "^10.1.0",
     "react-pdf": "^9.1.0",
     "react-timeago": "^7.2.0",
     "react-tweet": "^3.2.1",

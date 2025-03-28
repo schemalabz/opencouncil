@@ -44,15 +44,15 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
             <Card className={cn(
-                "flex flex-col hover:shadow-md transition-shadow h-[280px]",
+                "flex flex-col group/card hover:shadow-md transition-all duration-300 h-[280px]",
                 fullWidth ? "w-full" : "w-full"
             )}>
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
                     <div className="flex flex-row items-center gap-1.5">
-                        <div className="p-1.5 rounded-full shrink-0" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
+                        <div className="p-1.5 rounded-full shrink-0 transition-colors duration-300" style={{ backgroundColor: subject.topic?.colorHex ? subject.topic.colorHex + "20" : "#e5e7eb" }}>
                             <Icon name={subject.topic?.icon as any || "Hash"} color={subject.topic?.colorHex || "#9ca3af"} size={16} />
                         </div>
-                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1">{subject.name}</CardTitle>
+                        <CardTitle className="text-sm sm:text-base line-clamp-2 flex-1 group-hover/card:text-accent-foreground transition-colors duration-300">{subject.name}</CardTitle>
                     </div>
                     <div className="flex flex-row justify-between gap-2 text-xs text-muted-foreground">
                         <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -63,13 +63,20 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                             <ScrollText className="w-3.5 h-3.5 shrink-0" />
-                            {subject.agendaItemIndex ? `#${subject.agendaItemIndex}` : "Εκτός"}
+                            <div className="text-xs text-muted-foreground">
+                                {subject.agendaItemIndex ?
+                                    `#${subject.agendaItemIndex}` :
+                                    subject.nonAgendaReason === 'beforeAgenda' ?
+                                        "Προ ημερησίας" :
+                                        "Εκτός ημερησίας"
+                                }
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 pb-2 max-w-full overflow-hidden">
                     {subject.description && (
-                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">{subject.description}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{subject.description}</div>
                     )}
                 </CardContent>
                 <CardFooter className="pt-0 mt-auto">

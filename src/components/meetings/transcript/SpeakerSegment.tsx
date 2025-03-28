@@ -144,9 +144,16 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                     )}
                                                 </div>
                                             )}
-                                            <div className='flex items-center gap-1 text-xs text-muted-foreground ml-auto'>
-                                                <Bot className="h-3 w-3" />
-                                                <span>Αυτόματη σύνοψη</span>
+                                            <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
+                                                {summary?.type === 'procedural' && (
+                                                    <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                        Διαδικαστικό
+                                                    </span>
+                                                )}
+                                                <div className='flex items-center gap-1'>
+                                                    <Bot className="h-3 w-3" />
+                                                    <span>Αυτόματη σύνοψη</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
