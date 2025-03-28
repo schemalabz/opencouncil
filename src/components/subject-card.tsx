@@ -63,7 +63,14 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                             <ScrollText className="w-3.5 h-3.5 shrink-0" />
-                            {subject.agendaItemIndex ? `#${subject.agendaItemIndex}` : "Εκτός"}
+                            <div className="text-xs text-muted-foreground">
+                                {subject.agendaItemIndex ?
+                                    `#${subject.agendaItemIndex}` :
+                                    subject.nonAgendaReason === 'beforeAgenda' ?
+                                        "Προ ημερησίας" :
+                                        "Εκτός ημερησίας"
+                                }
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
