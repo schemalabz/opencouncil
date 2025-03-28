@@ -81,7 +81,11 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
                 text: s.location.text,
                 coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
             } : null,
-            agendaItemIndex: getAgendaItemIndex(s)
+            agendaItemIndex: getAgendaItemIndex(s),
+            context: s.context ? {
+                text: s.context,
+                citationUrls: s.contextCitationUrls
+            } : null
         })),
         additionalInstructions
     };
@@ -181,7 +185,9 @@ export async function createSubjectsForMeeting(
                             speakerSegment: { connect: { id: segment.speakerSegmentId } },
                             summary: segment.summary
                         }))
-                    } : undefined
+                    } : undefined,
+                    context: subject.context?.text,
+                    contextCitationUrls: subject.context?.citationUrls
                 }
             });
 

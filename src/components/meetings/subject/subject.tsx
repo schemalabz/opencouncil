@@ -11,6 +11,7 @@ import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
+import { SubjectContext } from "./context";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -127,6 +128,11 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             />
                         </div>
                     </div>
+                )}
+
+                {/* Context Section */}
+                {subject.context && (
+                    <SubjectContext subject={subject} />
                 )}
 
                 {/* Speaker Segments Section */}

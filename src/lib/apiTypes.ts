@@ -6,9 +6,9 @@ export interface TaskUpdate<T> {
     status: "processing" | "success" | "error";
     stage: string;
     progressPercent: number;
-    version: number | undefined;
     result?: T;
     error?: string;
+    version: number | undefined;
 }
 
 export interface TaskRequest {
@@ -103,6 +103,11 @@ export interface ProcessAgendaRequest extends TaskRequest {
     date: string;
 }
 
+export interface SubjectContext {
+    text: string;
+    citationUrls: string[];
+}
+
 export interface Subject {
     name: string;
     description: string;
@@ -123,6 +128,7 @@ export interface Subject {
     } | null;
 
     topicLabel: string | null;
+    context: SubjectContext | null;
 }
 
 export interface ProcessAgendaResult {
@@ -131,6 +137,7 @@ export interface ProcessAgendaResult {
 
 /*
  * Transcript
+ * see https://docs.gladia.io/api-reference/v2/transcription/get#response-result
  */
 
 export interface Transcript {
@@ -201,7 +208,7 @@ export interface RequestOnTranscript extends TaskRequest {
  * Fix Transcript
  */
 
-export interface FixTranscriptRequest extends RequestOnTranscript {}
+export interface FixTranscriptRequest extends RequestOnTranscript { }
 
 export interface FixTranscriptResult {
     updateUtterances: {
@@ -252,13 +259,13 @@ export interface GeneratePodcastSpecRequest extends RequestOnTranscript {
 
 export type PodcastPart =
     | {
-          type: "host";
-          text: string;
-      }
+        type: "host";
+        text: string;
+    }
     | {
-          type: "audio";
-          utteranceIds: string[];
-      };
+        type: "audio";
+        utteranceIds: string[];
+    };
 
 export interface GeneratePodcastSpecResult {
     parts: PodcastPart[];
@@ -293,8 +300,8 @@ export interface SplitMediaFileResult {
     }[];
 }
 
-/*
- * Generate Voiceprint Task
+/**
+ * Generate Voiceprint Task Types
  */
 
 export interface GenerateVoiceprintRequest extends TaskRequest {

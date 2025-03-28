@@ -244,6 +244,11 @@ model SpeakerSegment {
   @@index([speakerTagId])
 }
 
+enum SpeakerSegmentType {
+  procedural
+  substantive
+}
+
 model Utterance {
   id              String   @id @default(cuid())
   startTimestamp  Float
@@ -324,6 +329,8 @@ model Summary {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  type SpeakerSegmentType?
 
   @@index([speakerSegmentId])
 }
@@ -354,6 +361,9 @@ model Subject {
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
   speakerSegments SubjectSpeakerSegment[]
+
+  context String?
+  contextCitationUrls String[]
 
   @@index([cityId, councilMeetingId])
 }

@@ -9,11 +9,12 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { MultiSelectDropdown, Option } from "@/components/ui/multi-select-dropdown";
 import { useState } from "react";
 
-type FilterType = "agenda" | "non-agenda";
+type FilterType = "agenda" | "beforeAgenda" | "outOfAgenda";
 
 const filterOptions: Option<FilterType>[] = [
     { value: "agenda", label: "Ημερησίας Διάταξης" },
-    { value: "non-agenda", label: "Εκτός και προ ημερησίας" },
+    { value: "beforeAgenda", label: "Προ ημερησίας" },
+    { value: "outOfAgenda", label: "Εκτός ημερησίας" },
 ];
 
 export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects: (SubjectWithRelations & { statistics?: Statistics })[], totalSubjects?: number, fullWidth?: boolean }) {
@@ -23,11 +24,14 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
     // Filter and sort subjects based on selected filter
     const filteredSubjects = subjects.filter(subject => {
         if (selectedFilters.length === 0) return true; // Show all when no filters selected
+
         if (selectedFilters.includes("agenda") && subject.agendaItemIndex !== null) return true;
-        if (selectedFilters.includes("non-agenda") && subject.agendaItemIndex === null) return true;
+        if (selectedFilters.includes("beforeAgenda") && subject.nonAgendaReason === 'beforeAgenda') return true;
+        if (selectedFilters.includes("outOfAgenda") && subject.nonAgendaReason === 'outOfAgenda') return true;
+
         return false;
     }).sort((a, b) => {
-        // Only sort by agendaItemIndex when viewing agenda items
+        // Sort by agendaItemIndex when viewing agenda items
         if (selectedFilters.includes("agenda") && a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
             return a.agendaItemIndex - b.agendaItemIndex;
         }
