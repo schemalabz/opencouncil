@@ -4,6 +4,7 @@ import { Link } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
 import { type LandingPageCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
+import { cn } from "@/lib/utils";
 
 interface CityOverviewProps {
     city: LandingPageCity;
@@ -13,18 +14,31 @@ interface CityOverviewProps {
 export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
     const latestMeeting = city.mostRecentMeeting;
 
-    const statCard = (icon: React.ReactNode, title: string, subtitle: string, href: string) => (
-        <Link href={href} className="block p-4 sm:p-5 relative overflow-hidden rounded-xl bg-gradient-to-br from-background to-muted/50 hover:shadow-lg transition-all duration-300 group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="relative space-y-2">
-                <div className="flex items-center gap-2 text-primary">
-                    {icon}
-                    <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
+    const statCard = (icon: React.ReactNode, title: string, subtitle: string, href: string, index: number) => {
+        // Use accent color for all icons but maintain alternating border colors
+        const isAccent = index % 2 === 0;
+        const hoverBorderClass = isAccent ? "hover:border-accent/30" : "hover:border-orange/30";
+
+        return (
+            <Link href={href} className={cn(
+                "block p-4 sm:p-5 relative overflow-hidden rounded-xl",
+                "bg-gradient-to-br from-background to-muted/50",
+                "border border-border", hoverBorderClass,
+                "hover:shadow-md transition-all duration-300 group"
+            )}>
+                <div className="absolute inset-0 bg-gradient-to-r from-accent/5 via-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-gradientFlow" />
+                <div className="relative space-y-2">
+                    <div className="flex items-center gap-3">
+                        <div className="text-accent">
+                            {icon}
+                        </div>
+                        <h3 className="text-base sm:text-lg font-semibold text-primary group-hover:text-primary/90 transition-colors">{title}</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground group-hover:text-secondary-foreground transition-colors ml-0.5">{subtitle}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-            </div>
-        </Link>
-    );
+            </Link>
+        );
+    };
 
     return (
         <div className="space-y-6 sm:space-y-8">
@@ -53,24 +67,27 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-3 lg:w-72">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:w-80">
                     {statCard(
                         <Users className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city.personCount} Πρόσωπα`,
                         "Δείτε όλα τα πρόσωπα",
-                        `/${city.id}?tab=members`
+                        `/${city.id}?tab=members`,
+                        0
                     )}
                     {statCard(
                         <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city.partyCount} Παρατάξεις`,
                         "Δείτε όλες τις παρατάξεις",
-                        `/${city.id}?tab=parties`
+                        `/${city.id}?tab=parties`,
+                        1
                     )}
                     {statCard(
                         <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city.meetingCount || 0} Συνεδριάσεις`,
                         "Δείτε όλες τις συνεδριάσεις",
-                        `/${city.id}?tab=meetings`
+                        `/${city.id}?tab=meetings`,
+                        2
                     )}
                 </div>
             </div>
