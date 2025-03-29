@@ -79,7 +79,7 @@
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
         "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις",
-        "members": "Πρόσωπα",
+        "people": "Πρόσωπα",
         "parties": "Παρατάξεις",
         "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
         "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
