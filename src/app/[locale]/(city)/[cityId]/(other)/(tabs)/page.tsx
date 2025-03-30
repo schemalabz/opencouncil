@@ -1,14 +1,18 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getFullCity } from "@/lib/db/cities";
+import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
+import { getCity } from "@/lib/db/cities";
 
 export default async function MeetingsPage({
     params: { cityId }
 }: {
     params: { cityId: string }
 }) {
-    const city = await getFullCity(cityId);
+    const [city, councilMeetings] = await Promise.all([
+        getCity(cityId),
+        getCouncilMeetingsForCity(cityId)
+    ]);
 
     if (!city) {
         notFound();
@@ -18,7 +22,7 @@ export default async function MeetingsPage({
 
     return (
         <CityMeetings 
-            councilMeetings={city.councilMeetings}
+            councilMeetings={councilMeetings}
             cityId={cityId}
             timezone={city.timezone}
             canEdit={canEdit}

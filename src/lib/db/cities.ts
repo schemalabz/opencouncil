@@ -45,6 +45,7 @@ export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | '
 }
 
 export async function getCity(id: string): Promise<City | null> {
+    console.log(`[${new Date().toISOString()}] getCity: ${id}`);
     try {
         const city = await prisma.city.findUnique({
             where: { id },

@@ -1,16 +1,12 @@
 "use client";
-import { AdministrativeBody, CouncilMeeting } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import List from '@/components/List';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { SubjectWithRelations } from '@/lib/db/subject';
+import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 
 type CityMeetingsProps = {
-    councilMeetings: (CouncilMeeting & { 
-        subjects: SubjectWithRelations[], 
-        administrativeBody: AdministrativeBody | null 
-    })[],
+    councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
     cityId: string,
     timezone: string,
     canEdit: boolean
@@ -54,7 +50,7 @@ export default function CityMeetings({
             formProps={{ cityId }}
             t={t}
             filterAvailableValues={administrativeBodies}
-            filter={(selectedValues, meeting) => selectedValues.includes(meeting.administrativeBody?.id)}
+            filter={(selectedValues, meeting: CouncilMeetingWithAdminBodyAndSubjects) => selectedValues.includes(meeting.administrativeBody?.id)}
             smColumns={1}
             mdColumns={2}
             lgColumns={3}

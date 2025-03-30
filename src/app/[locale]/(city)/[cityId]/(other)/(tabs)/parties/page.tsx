@@ -1,16 +1,16 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityParties from "@/components/cities/CityParties";
-import { getFullCity } from "@/lib/db/cities";
+import { getPartiesForCity } from "@/lib/db/parties";
 
 export default async function PartiesPage({
     params: { cityId }
 }: {
     params: { cityId: string }
 }) {
-    const city = await getFullCity(cityId);
+    const partiesWithPersons = await getPartiesForCity(cityId);
 
-    if (!city) {
+    if (!partiesWithPersons || partiesWithPersons.length === 0) {
         notFound();
     }
 
@@ -18,8 +18,7 @@ export default async function PartiesPage({
 
     return (
         <CityParties 
-            parties={city.parties}
-            persons={city.persons}
+            partiesWithPersons={partiesWithPersons}
             cityId={cityId}
             canEdit={canEdit}
         />

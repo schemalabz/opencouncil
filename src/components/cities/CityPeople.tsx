@@ -1,26 +1,41 @@
 "use client";
-import { Party } from '@prisma/client';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import List from '@/components/List';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { PersonWithRelations } from '@/lib/db/people';
 import { sortPersonsByLastName } from '@/components/utils';
+import { PartyWithPersons } from '@/lib/db/parties';
 
 type CityPeopleProps = {
-    persons: PersonWithRelations[],
-    parties: Party[],
+    partiesWithPersons: PartyWithPersons[],
     cityId: string,
     canEdit: boolean
 };
 
 export default function CityPeople({ 
-    persons, 
-    parties, 
+    partiesWithPersons, 
     cityId, 
     canEdit 
 }: CityPeopleProps) {
     const t = useTranslations('Person');
+
+    // Extract all persons and parties from partiesWithPersons
+    const { persons, parties } = useMemo(() => {
+        // Extract all persons from all parties
+        const allPersons = partiesWithPersons.flatMap(party => 
+            party.people as PersonWithRelations[]
+        );
+        
+        // Extract just the party data without the people property
+        const partiesData = partiesWithPersons.map(({ people, ...party }) => party);
+        
+        return {
+            persons: allPersons,
+            parties: partiesData
+        };
+    }, [partiesWithPersons]);
 
     const orderedPersons = sortPersonsByLastName(persons);
 
