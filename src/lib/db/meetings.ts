@@ -79,9 +79,6 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
 
 export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
     console.log(`[${new Date().toISOString()}] getCouncilMeetingsForCity: ${cityId} (includeUnreleased: ${includeUnreleased})`);
-    if (includeUnreleased) {
-        withUserAuthorizedToEdit({ cityId });
-    }
 
     try {
         const meetings = await prisma.councilMeeting.findMany({

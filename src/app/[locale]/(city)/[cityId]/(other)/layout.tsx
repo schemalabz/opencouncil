@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
-import { getCity } from "@/lib/db/cities";
 import Footer from "@/components/layout/Footer";
+import { getCityCached } from "@/lib/cachedData";
 
 export default async function CityInnerLayout({
     children,
@@ -11,7 +11,7 @@ export default async function CityInnerLayout({
     params: { locale: string, cityId: string }
 }) {
 
-    const city = await getCity(cityId);
+    const city = await getCityCached(cityId);
     if (!city) return null;
 
     // Build the path elements

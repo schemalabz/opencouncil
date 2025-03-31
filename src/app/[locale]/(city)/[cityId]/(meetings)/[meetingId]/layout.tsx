@@ -5,7 +5,6 @@ import { getCities, getCity } from '@/lib/db/cities';
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
-import { getCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
@@ -23,15 +22,6 @@ import { el, enUS } from 'date-fns/locale';
 import { Switch } from '@/components/ui/switch';
 import EditSwitch from '@/components/meetings/edit-switch';
 import { getMeetingDataCached } from '@/lib/cachedData';
-
-/*
-export async function generateStaticParams({ params }: { params: { meetingId: string, cityId: string, locale: string } }) {
-    const allCities = await getCities();
-    const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
-    return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId, locale: "el" }));
-}
-*/
-
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }

@@ -1,5 +1,5 @@
 "use client"
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CouncilMeeting, TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -361,31 +361,61 @@ export default function AdminActions({
         </div>
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Cache Management</h3>
-            <Button
-                onClick={async () => {
-                    try {
-                        const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/revalidate`, {
-                            method: 'POST',
-                        });
-                        if (response.ok) {
-                            toast({
-                                title: "Cache Invalidated",
-                                description: "The meeting data will be refreshed on the next request.",
+            <div className="flex space-x-3">
+                <Button
+                    onClick={async () => {
+                        try {
+                            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/revalidate`, {
+                                method: 'POST',
                             });
-                        } else {
-                            throw new Error('Failed to invalidate cache');
+                            if (response.ok) {
+                                toast({
+                                    title: "Meeting Cache Invalidated",
+                                    description: "The meeting data will be refreshed on the next request.",
+                                });
+                            } else {
+                                throw new Error('Failed to invalidate meeting cache');
+                            }
+                        } catch (error) {
+                            toast({
+                                title: "Error",
+                                description: "Failed to invalidate meeting cache",
+                                variant: "destructive"
+                            });
                         }
-                    } catch (error) {
-                        toast({
-                            title: "Error",
-                            description: "Failed to invalidate cache",
-                            variant: "destructive"
-                        });
-                    }
-                }}
-            >
-                Refresh Cache
-            </Button>
+                    }}
+                >
+                    Refresh Meeting Cache
+                </Button>
+                
+                <Button
+                    variant="outline"
+                    onClick={async () => {
+                        try {
+                            const response = await fetch(`/api/cities/${meeting.cityId}/revalidate`, {
+                                method: 'POST',
+                            });
+                            if (response.ok) {
+                                toast({
+                                    title: "City Cache Invalidated",
+                                    description: "The city data will be refreshed on the next request.",
+                                });
+                            } else {
+                                const data = await response.json();
+                                throw new Error(data.error || 'Failed to invalidate city cache');
+                            }
+                        } catch (error) {
+                            toast({
+                                title: "Error",
+                                description: error instanceof Error ? error.message : "Failed to invalidate city cache",
+                                variant: "destructive"
+                            });
+                        }
+                    }}
+                >
+                    Refresh City Cache
+                </Button>
+            </div>
         </div>
         <PodcastSpecs />
     </div>
