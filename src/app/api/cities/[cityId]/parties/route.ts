@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import { getPartiesForCity, createParty, editParty, deleteParty } from '@/lib/db/parties'
+import { getPartiesForCity, createParty } from '@/lib/db/parties'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -62,6 +63,8 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         logo: logoUrl || null,
         cityId: params.cityId,
     })
+
+    revalidateTag(`city:${params.cityId}:parties`);
 
     return NextResponse.json(party)
 }

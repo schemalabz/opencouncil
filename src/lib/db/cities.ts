@@ -45,6 +45,7 @@ export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | '
 }
 
 export async function getCity(id: string): Promise<City | null> {
+    console.log(`[${new Date().toISOString()}] getCity: ${id}`);
     try {
         const city = await prisma.city.findUnique({
             where: { id },
@@ -57,6 +58,7 @@ export async function getCity(id: string): Promise<City | null> {
 }
 
 export async function getFullCity(cityId: string) {
+    console.log(`[${new Date().toISOString()}] getFullCity: ${cityId}`);
     const canEdit = await isUserAuthorizedToEdit({ cityId });
     return await prisma.city.findUnique({
         where: { id: cityId },
