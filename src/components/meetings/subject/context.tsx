@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
+import React from "react"
 
 // Maximum height in pixels before collapsing
 const MAX_CONTENT_HEIGHT = 120
@@ -30,26 +31,80 @@ export function SubjectContext({ subject }: { subject: Subject }) {
         h2: ({ node, ...props }) => <h2 className="text-left text-base font-semibold mt-3 mb-2" {...props} />,
         h3: ({ node, ...props }) => <h3 className="text-left text-sm font-medium mt-2 mb-1.5" {...props} />,
         h4: ({ node, ...props }) => <h3 className="text-left text-sm font-medium mt-2 mb-1.5" {...props} />,
-        p: ({ node, children, ...props }) => (
-            <p className="text-left my-2 leading-relaxed" {...props}>
-                {typeof children === 'string' ? (
-                    <CitationText text={children} urls={subject.contextCitationUrls} />
-                ) : (
-                    children
-                )}
-            </p>
-        ),
+        p: ({ node, children, ...props }) => {
+            // Reuse the same processContent function logic
+            const processContent = (content: React.ReactNode): React.ReactNode => {
+                if (typeof content === 'string') {
+                    return <CitationText text={content} urls={subject.contextCitationUrls} />;
+                }
+
+                if (React.isValidElement(content)) {
+                    const childrenArray = React.Children.toArray(content.props.children);
+
+                    if (childrenArray.length === 0) {
+                        return content;
+                    }
+
+                    const processedChildren = React.Children.map(
+                        childrenArray,
+                        child => processContent(child)
+                    );
+
+                    return React.cloneElement(content, { ...content.props }, processedChildren);
+                }
+
+                if (Array.isArray(content)) {
+                    return React.Children.map(content, processContent);
+                }
+
+                return content;
+            };
+
+            return (
+                <p className="text-left my-2 leading-relaxed" {...props}>
+                    {processContent(children)}
+                </p>
+            );
+        },
         ul: ({ node, ...props }) => <ul className="list-disc pl-5 my-2" {...props} />,
         ol: ({ node, ...props }) => <ol className="list-decimal pl-5 my-2" {...props} />,
-        li: ({ node, children, ...props }) => (
-            <li className="my-1" {...props}>
-                {typeof children === 'string' ? (
-                    <CitationText text={children} urls={subject.contextCitationUrls} />
-                ) : (
-                    children
-                )}
-            </li>
-        )
+        li: ({ node, children, ...props }) => {
+            // Helper function to process content recursively
+            const processContent = (content: React.ReactNode): React.ReactNode => {
+                if (typeof content === 'string') {
+                    return <CitationText text={content} urls={subject.contextCitationUrls} />;
+                }
+
+                if (React.isValidElement(content)) {
+                    // Process children of React elements recursively
+                    const childrenArray = React.Children.toArray(content.props.children);
+
+                    if (childrenArray.length === 0) {
+                        return content;
+                    }
+
+                    const processedChildren = React.Children.map(
+                        childrenArray,
+                        child => processContent(child)
+                    );
+
+                    return React.cloneElement(content, { ...content.props }, processedChildren);
+                }
+
+                // If it's an array (like React fragments), process each item
+                if (Array.isArray(content)) {
+                    return React.Children.map(content, processContent);
+                }
+
+                return content;
+            };
+
+            return (
+                <li className="my-1" {...props}>
+                    {processContent(children)}
+                </li>
+            );
+        }
     }
 
     // Check if content needs collapse/expand functionality
@@ -154,12 +209,13 @@ export function SubjectContext({ subject }: { subject: Subject }) {
 }
 
 function CitationText({ text, urls }: { text: string, urls: string[] | null | undefined }) {
-    const parts = text.split(/(\[\d+\])/g)
+    // Enhanced regex to catch citations with or without spaces
+    const parts = text.split(/(\[\s*\d+\s*\])/g)
 
     return (
         <>
             {parts.map((part, i) => {
-                const match = part.match(/\[(\d+)\]/)
+                const match = part.match(/\[\s*(\d+)\s*\]/)
                 if (match) {
                     const index = parseInt(match[1]) - 1
                     if (index >= 0 && urls?.[index]) {
