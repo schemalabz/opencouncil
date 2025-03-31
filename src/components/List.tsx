@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import FormSheet from './FormSheet';
-import { Search, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 
@@ -44,8 +38,22 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     lgColumns = 3,
     allText = "Όλα",
 }: ListProps<T, P, F>) {
-    const [searchQuery, setSearchQuery] = useState("");
-    const [selectedFilters, setSelectedFilters] = useState<F[]>(filterAvailableValues.map(value => value.value));
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Get filter and search values from URL
+    const searchQuery = searchParams.get('search') || '';
+    const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+
+    // Local state for search input
+    const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
+    // Convert filter labels to values
+    const selectedFilters = selectedFilterLabels.length > 0
+        ? selectedFilterLabels.map(label => 
+            filterAvailableValues.find(f => f.label === label)?.value
+        ).filter((value): value is F => value !== undefined)
+        : filterAvailableValues.map(f => f.value);
 
     const gridClasses = cn(
         "grid gap-4 sm:gap-6",
@@ -75,28 +83,43 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
-    const handleFilterChange = (value: F, checked: boolean) => {
-        setSelectedFilters(prev =>
-            checked
-                ? [...prev, value]
-                : prev.filter(v => v !== value)
-        );
+    // Debounced URL update for search
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            const params = new URLSearchParams(searchParams.toString());
+            if (localSearchQuery) {
+                params.set('search', localSearchQuery);
+            } else {
+                params.delete('search');
+            }
+            router.replace(`?${params.toString()}`);
+        }, 300); // 300ms debounce delay
+
+        return () => clearTimeout(timeoutId);
+    }, [localSearchQuery, router, searchParams]);
+
+    // Update URL with new search or filter values
+    const handleSearchChange = (query: string) => {
+        setLocalSearchQuery(query);
     };
 
-    const getFilterButtonText = () => {
-        if (selectedFilters.length === 0) return "Καμία επιλογή";
-        if (selectedFilters.length === filterAvailableValues.length) return allText;
-
-        const firstFilter = filterAvailableValues.find(f => f.value === selectedFilters[0]);
-        if (selectedFilters.length === 1) return firstFilter?.label;
-
-        return (
-            <div className="flex items-center gap-2">
-                {firstFilter?.label}
-                <Badge variant="secondary" className="ml-1">+{selectedFilters.length - 1}</Badge>
-            </div>
-        );
+    const handleFilterChange = (selectedValues: F[]) => {
+        const params = new URLSearchParams(searchParams.toString());
+        
+        // If all filters are selected or no filters are selected, remove the filter parameter
+        if (selectedValues.length === filterAvailableValues.length || selectedValues.length === 0) {
+            params.delete('filters');
+        } else {
+            // Convert values to labels for URL
+            const selectedLabels = selectedValues
+                .map(value => filterAvailableValues.find(f => f.value === value)?.label)
+                .filter((label): label is string => label !== undefined);
+            params.set('filters', selectedLabels.join(','));
+        }
+        
+        router.replace(`?${params.toString()}`);
     };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -109,8 +132,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 {filterAvailableValues && filterAvailableValues.length > 0 && (
                     <MultiSelectDropdown
                         options={filterAvailableValues}
-                        defaultValues={filterAvailableValues.map(value => value.value)}
-                        onChange={setSelectedFilters}
+                        defaultValues={selectedFilters}
+                        onChange={handleFilterChange}
                         className="w-full sm:w-[300px] justify-between"
                         allText={allText}
                     />
@@ -120,8 +143,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     <Input
                         placeholder={t('searchItems')}
                         className="pl-10 w-full h-9"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        value={localSearchQuery}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                     />
                 </div>
             </div>
