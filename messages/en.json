@@ -62,7 +62,7 @@
         "addCouncilMeeting": "Add Council Meeting",
         "councilMeetingsTracked": "{count, plural, =0 {No council meetings on OpenCouncil} =1 {1 council meeting on OpenCouncil} other {# council meetings on OpenCouncil}}",
         "councilMeetings": "Council Meetings",
-        "members": "Members",
+        "people": "People",
         "parties": "Parties",
         "membersComingSoon": "Members will be available soon",
         "partiesComingSoon": "Parties will be available soon",

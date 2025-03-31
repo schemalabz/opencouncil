@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -156,6 +157,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         })
 
         console.log('Person updated successfully')
+        revalidateTag(`city:${params.cityId}:people`);
+
         return NextResponse.json(person)
     } catch (error) {
         console.error('Error updating person:', error)

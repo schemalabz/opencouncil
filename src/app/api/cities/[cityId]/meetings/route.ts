@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { createCouncilMeeting } from '@/lib/db/meetings';
 
@@ -47,6 +48,8 @@ export async function POST(
             muxPlaybackId: null,
             administrativeBodyId: administrativeBodyId || null,
         });
+
+        revalidateTag(`city:${cityId}:meetings`);
 
         return NextResponse.json(meeting, { status: 201 });
     } catch (error) {

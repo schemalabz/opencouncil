@@ -1,19 +1,8 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getMeetingData } from '@/lib/getMeetingData';
-import { getCities } from '@/lib/db/cities';
-import { getCouncilMeetingsForCity, editCouncilMeeting } from '@/lib/db/meetings';
+import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
-
-/*
-// Revalidate every 1 minute
-export const revalidate = 60;
-
-export async function generateStaticParams() {
-    const allCities = await getCities({ includeUnlisted: true });
-    const allMeetings = await Promise.all(allCities.map((city) => getCouncilMeetingsForCity(city.id)));
-    return allMeetings.flat().map((meeting) => ({ meetingId: meeting.id, cityId: meeting.cityId }));
-}
-*/
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -63,6 +52,8 @@ export async function PUT(
             agendaUrl: agendaUrl || null,
             administrativeBodyId: administrativeBodyId || null,
         });
+
+        revalidateTag(`city:${params.cityId}:meetings`);
 
         return NextResponse.json(meeting);
     } catch (error) {

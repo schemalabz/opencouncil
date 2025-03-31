@@ -1,4 +1,4 @@
-import { getCity } from "@/lib/db/cities";
+import { getCityCached } from "@/lib/cachedData";
 import { notFound } from "next/navigation";
 
 export default async function CityLayout({
@@ -9,7 +9,7 @@ export default async function CityLayout({
     params: { locale: string, cityId: string }
 }) {
 
-    const city = await getCity(cityId);
+    const city = await getCityCached(cityId);
     if (!city) {
         notFound();
     }

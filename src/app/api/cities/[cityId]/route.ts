@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
@@ -64,6 +65,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         ...(logoImageUrl && { logoImage: logoImageUrl }),
         authorityType
     });
+
+    revalidateTag(`city:${params.cityId}:basic`);
 
     return NextResponse.json(city)
 }
