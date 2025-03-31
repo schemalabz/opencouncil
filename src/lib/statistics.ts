@@ -67,7 +67,13 @@ export async function getStatisticsFor(
             } : undefined,
             meeting: administrativeBodyId ? {
                 administrativeBodyId: administrativeBodyId
-            } : undefined
+            } : undefined,
+            NOT: {
+                summary: {
+                    type: "procedural"
+                }
+            }
+
         },
         include: {
             speakerTag: {
