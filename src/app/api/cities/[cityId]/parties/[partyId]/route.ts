@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -70,6 +71,9 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             colorHex,
             ...(logoUrl && { logo: logoUrl }),
         })
+
+        revalidateTag(`city:${params.cityId}:parties`);
+
         return NextResponse.json(party)
     } catch (error) {
         console.error('Error editing party:', error)

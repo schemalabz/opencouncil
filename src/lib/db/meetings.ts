@@ -1,10 +1,14 @@
 "use server";
-import { CouncilMeeting, TaskStatus, AdministrativeBody } from '@prisma/client';
+import { CouncilMeeting, Subject, AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
 
 type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
+}
+
+export type CouncilMeetingWithAdminBodyAndSubjects = CouncilMeetingWithAdminBody & {
+    subjects: Subject[]
 }
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
@@ -73,10 +77,8 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBody[]> {
-    if (includeUnreleased) {
-        withUserAuthorizedToEdit({ cityId });
-    }
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+    console.log(`[${new Date().toISOString()}] getCouncilMeetingsForCity: ${cityId} (includeUnreleased: ${includeUnreleased})`);
 
     try {
         const meetings = await prisma.councilMeeting.findMany({
@@ -86,6 +88,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
                 { createdAt: 'desc' }
             ],
             include: {
+                subjects: true,
                 administrativeBody: true
             }
         });
@@ -114,6 +117,7 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
 }
 
 export async function getCouncilMeetingsCountForCity(cityId: string): Promise<number> {
+    console.log(`[${new Date().toISOString()}] getCouncilMeetingsCountForCity: ${cityId}`);
     try {
         const count = await prisma.councilMeeting.count({
             where: {
