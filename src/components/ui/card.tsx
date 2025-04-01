@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { disableHover?: boolean }
+>(({ className, disableHover, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
@@ -15,19 +15,21 @@ const Card = React.forwardRef<
     {...props}
   >
     {/* Background gradient for the border effect - only visible on hover */}
-    <div
-      className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#fc550a] via-[#a4c0e1] to-[#fc550a] bg-[length:200%_100%] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-      style={{
-        animation: "gradientFlow 5s ease infinite",
-        zIndex: -1
-      }}
-    />
+    {!disableHover && (
+      <div
+        className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#fc550a] via-[#a4c0e1] to-[#fc550a] bg-[length:200%_100%] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          animation: "gradientFlow 5s ease infinite",
+          zIndex: -1
+        }}
+      />
+    )}
 
     {/* Main card content */}
     <div
       className="relative h-full bg-card rounded-lg transition-all duration-300"
       style={{
-        margin: "1.5px"
+        margin: disableHover ? "0" : "1.5px"
       }}
     >
       {props.children}
