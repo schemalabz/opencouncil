@@ -13,9 +13,9 @@ interface HighlightCardsProps {
 
 export function HighlightCards({ subjects }: HighlightCardsProps) {
     const { city, meeting, parties, people } = useCouncilMeetingData();
-    // Filter subjects to only include those that have highlights with video
+    // Filter subjects to only include those that have showcased highlights with video
     const subjectsWithVideo = subjects.filter(subject => 
-        subject.highlights.some(highlight => highlight.muxPlaybackId)
+        subject.highlights.some(highlight => highlight.muxPlaybackId && highlight.isShowcased)
     );
 
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -25,7 +25,7 @@ export function HighlightCards({ subjects }: HighlightCardsProps) {
     }
 
     const currentSubject = subjectsWithVideo[currentIndex];
-    const videoHighlight = currentSubject.highlights.find(h => h.muxPlaybackId) as HighlightWithUtterances;
+    const videoHighlight = currentSubject.highlights.find(h => h.muxPlaybackId && h.isShowcased) as HighlightWithUtterances;
 
     const handlePrevious = () => {
         setCurrentIndex((prev) => (prev === 0 ? subjectsWithVideo.length - 1 : prev - 1));

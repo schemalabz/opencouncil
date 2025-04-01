@@ -164,3 +164,32 @@ export async function removeHighlightFromSubject({ subjectId, highlightId }: { s
         throw new Error('Failed to remove highlight from subject');
     }
 }
+
+export async function toggleHighlightShowcase(id: Highlight["id"]) {
+    try {
+        const highlight = await prisma.highlight.findUnique({
+            where: { id },
+            select: { isShowcased: true, muxPlaybackId: true, cityId: true }
+        });
+
+        if (!highlight) {
+            throw new Error('Highlight not found');
+        }
+
+        withUserAuthorizedToEdit({ cityId: highlight.cityId });
+
+        if (!highlight.muxPlaybackId) {
+            throw new Error('Cannot showcase highlight without video');
+        }
+
+        const updatedHighlight = await prisma.highlight.update({
+            where: { id },
+            data: { isShowcased: !highlight.isShowcased }
+        });
+
+        return updatedHighlight;
+    } catch (error) {
+        console.error('Error toggling highlight showcase:', error);
+        throw new Error('Failed to toggle highlight showcase');
+    }
+}
