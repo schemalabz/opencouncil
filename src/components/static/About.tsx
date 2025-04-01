@@ -36,6 +36,15 @@ const people = [
             linkedin: "https://www.linkedin.com/in/maria-kapsitidou/",
             email: "mailto:maria@schemalabs.gr"
         }
+    },
+    {
+        name: "Ανδρέας Κούλουμος",
+        image: "/people/andreas.jpg",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/kouloumos/",
+            twitter: "https://twitter.com/kouloumos",
+            email: "mailto:andreas@schemalabs.gr"
+          }
     }
 ]
 function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
@@ -320,7 +329,7 @@ export default function AboutPage() {
                         Ποιοί είμαστε
                     </h2>
                     <p className="text-center text-lg sm:text-xl mb-8 text-muted-foreground">
-                        Είμαστε ομάδα δύο ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
+                        Είμαστε ομάδα τριών ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
                         στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ&apos; ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
                     </p>
 
