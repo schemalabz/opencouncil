@@ -10,14 +10,14 @@ export default async function PartiesPage({
 }) {
     const partiesWithPersons = await getPartiesForCityCached(cityId);
 
-    if (!partiesWithPersons || partiesWithPersons.length === 0) {
+    if (!partiesWithPersons) {
         notFound();
     }
 
     const canEdit = await isUserAuthorizedToEdit({ cityId });
 
     return (
-        <CityParties 
+        <CityParties
             partiesWithPersons={partiesWithPersons}
             cityId={cityId}
             canEdit={canEdit}
