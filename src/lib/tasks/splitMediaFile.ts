@@ -134,7 +134,8 @@ export async function handleSplitMediaFileResult(taskId: string, response: Split
                     await prisma.highlight.update({
                         where: { id: part.id },
                         data: {
-                            videoUrl: part.url
+                            videoUrl: part.url,
+                            ...(part.muxPlaybackId && { muxPlaybackId: part.muxPlaybackId })
                         }
                     });
                     console.log(`Updated highlight ${part.id} for meeting ${councilMeeting.id}`);

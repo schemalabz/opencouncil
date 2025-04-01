@@ -420,6 +420,7 @@ model Highlight {
   subjectId String?
 
   videoUrl String?
+  muxPlaybackId String?
 
   @@index([meetingId, cityId])
 }

@@ -297,6 +297,7 @@ export interface SplitMediaFileResult {
         duration: number;
         startTimestamp: number;
         endTimestamp: number;
+        muxPlaybackId?: string;
     }[];
 }
 
