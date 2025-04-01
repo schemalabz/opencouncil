@@ -22,7 +22,7 @@ async function generateSignInLink(email: string) {
     })
 
     // Generate the sign-in URL
-    const signInUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify?token=${token}&email=${encodeURIComponent(email)}`
+    const signInUrl = `${process.env.NEXT_PUBLIC_URL}/auth/verify?token=${token}&email=${encodeURIComponent(email)}`
     return signInUrl
 }
 
