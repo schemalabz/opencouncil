@@ -10,10 +10,12 @@ import TopicBadge from "./transcript/Topic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { BarChart2, BarChartIcon, Clock, FileBarChart2, FileIcon, Loader2, PieChartIcon } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 export function Statistics() {
     const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null)
-    const { meeting, getParty } = useCouncilMeetingData()
+    const { meeting, getParty } = useCouncilMeetingData();
+    const t = useTranslations('Statistics');
 
     useEffect(() => {
         getStatisticsFor({ meetingId: meeting.id, cityId: meeting.cityId }, ['topic', 'person', 'party']).then((s) => {
@@ -58,7 +60,7 @@ export function Statistics() {
 
     const chartConfig: ChartConfig = {
         minutes: {
-            label: "Minutes",
+            label: t('minutes'),
             color: "hsl(var(--chart-1))",
         },
         label: {
