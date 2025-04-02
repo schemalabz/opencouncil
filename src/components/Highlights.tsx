@@ -1,10 +1,10 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Download, Trash, Users } from "lucide-react";
+import { Clock, Download, Trash, Users, Star } from "lucide-react";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./meetings/options/OptionsContext";
-import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, upsertHighlight } from "@/lib/db/highlights";
+import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, toggleHighlightShowcase, upsertHighlight } from "@/lib/db/highlights";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
 import { PersonBadge } from "./persons/PersonBadge";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { HighlightVideo } from '@/components/meetings/HighlightVideo';
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean, canEdit: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
@@ -131,6 +132,27 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
         }
     };
 
+    const handleToggleShowcase = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!canEdit) return;
+        try {
+            await toggleHighlightShowcase(highlight.id);
+            requestUpdate();
+            toast({
+                title: "Success",
+                description: highlight.isShowcased ? "Highlight removed from showcase." : "Highlight added to showcase.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error('Failed to toggle showcase:', error);
+            toast({
+                title: "Error",
+                description: "Failed to toggle showcase status. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
     return (
         <Card
             className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''}`}
@@ -138,9 +160,17 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
         >
             <CardContent className="p-2">
                 <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className="text-xs font-normal">
-                        {highlight.name}
-                    </Badge>
+                    <div className="flex items-center space-x-2">
+                        <Badge variant="outline" className="text-xs font-normal">
+                            {highlight.name}
+                        </Badge>
+                        {highlight.isShowcased && (
+                            <Badge variant="secondary" className="text-xs font-normal flex items-center">
+                                <Star className="w-3 h-3 mr-1" />
+                                Showcased
+                            </Badge>
+                        )}
+                    </div>
                     <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
                             <Clock className="h-3 w-3 text-muted-foreground" />
@@ -152,6 +182,16 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         </div>
                         {canEdit && (
                             <div className="flex items-center space-x-1">
+                                {highlight.muxPlaybackId && (
+                                    <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        onClick={handleToggleShowcase}
+                                        className={highlight.isShowcased ? "text-yellow-500" : ""}
+                                    >
+                                        <Star className="h-3 w-3" />
+                                    </Button>
+                                )}
                                 <Button size="icon" variant="ghost" onClick={(e) => {
                                     e.stopPropagation();
                                     deleteHighlight(highlight.id);
@@ -269,6 +309,15 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                                 )}
                             </div>
                         </div>
+                        {highlight.muxPlaybackId && (
+                            <div className="mb-4">
+                                <HighlightVideo
+                                    id={highlight.id}
+                                    title={highlight.name}
+                                    playbackId={highlight.muxPlaybackId}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
             </CardContent>
@@ -348,20 +397,44 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
         }
     }, [meeting.cityId, meeting.id]);
 
+    const showcasedHighlights = highlights.filter(h => h.isShowcased);
+    const regularHighlights = highlights.filter(h => !h.isShowcased);
+
     return (
         <div>
             {canEdit && <AddHighlightButton onHighlightAdded={reloadHighlights} />}
-            {highlights.length > 0 ? (
-                highlights.map(highlight => (
-                    <SingleHighlight
-                        key={highlight.id}
-                        highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
-                        requestUpdate={reloadHighlights}
-                        showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
-                        canEdit={canEdit}
-                    />
-                ))
-            ) : (
+            {showcasedHighlights.length > 0 && (
+                <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Star className="w-4 h-4 mr-2 text-yellow-500" />
+                        Showcased Highlights
+                    </h3>
+                    {showcasedHighlights.map(highlight => (
+                        <SingleHighlight
+                            key={highlight.id}
+                            highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
+                            requestUpdate={reloadHighlights}
+                            showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
+                            canEdit={canEdit}
+                        />
+                    ))}
+                </div>
+            )}
+            {regularHighlights.length > 0 && (
+                <div>
+                    <h3 className="text-lg font-semibold mb-4">All Highlights</h3>
+                    {regularHighlights.map(highlight => (
+                        <SingleHighlight
+                            key={highlight.id}
+                            highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
+                            requestUpdate={reloadHighlights}
+                            showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
+                            canEdit={canEdit}
+                        />
+                    ))}
+                </div>
+            )}
+            {highlights.length === 0 && (
                 <div className="text-muted-foreground">No highlights available</div>
             )}
         </div>

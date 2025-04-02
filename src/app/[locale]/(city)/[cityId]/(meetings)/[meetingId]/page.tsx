@@ -6,6 +6,7 @@ import { formatDate } from "date-fns";
 import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, VideoIcon } from "lucide-react";
 import { cn, sortSubjectsByImportance, subjectToMapFeature } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
+import { HighlightCards } from "@/components/meetings/highlight-cards";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
@@ -64,6 +65,7 @@ export default function MeetingPage() {
                         </div>
                     )
                 }
+                <HighlightCards subjects={subjects} />
                 <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />
             </div>
         </div>

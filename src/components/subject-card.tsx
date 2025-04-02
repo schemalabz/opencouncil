@@ -10,8 +10,21 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
+import { HighlightVideo } from "./meetings/HighlightVideo";
+import { HighlightWithUtterances } from "@/lib/db/highlights";
 
-export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth }: { subject: SubjectWithRelations & { statistics?: Statistics }, city: City, meeting: CouncilMeeting, parties: Party[], persons: PersonWithRelations[], fullWidth?: boolean }) {
+interface SubjectCardProps {
+    subject: SubjectWithRelations & { statistics?: Statistics };
+    city: City;
+    meeting: CouncilMeeting;
+    parties: Party[];
+    persons: PersonWithRelations[];
+    fullWidth?: boolean;
+    highlight?: HighlightWithUtterances;
+    disableHover?: boolean;
+}
+
+export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover }: SubjectCardProps) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
@@ -43,9 +56,11 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
 
     return (
         <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
-            <Card className={cn(
-                "flex flex-col group/card hover:shadow-md transition-all duration-300 h-[280px]",
-                fullWidth ? "w-full" : "w-full"
+            <Card disableHover={disableHover} className={cn(
+                "flex flex-col group/card hover:shadow-md transition-all duration-300",
+                fullWidth ? "w-full" : "w-full",
+                highlight?.muxPlaybackId ? "h-auto" : "h-[280px]",
+                disableHover ? "hover:shadow-none" : ""
             )}>
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
                     <div className="flex flex-row items-center gap-1.5">
@@ -75,6 +90,15 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 pb-2 max-w-full overflow-hidden">
+                    {highlight?.muxPlaybackId && (
+                        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+                            <HighlightVideo
+                                id={highlight.id}
+                                title={highlight.name}
+                                playbackId={highlight.muxPlaybackId}
+                            />
+                        </div>
+                    )}
                     {subject.description && (
                         <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{subject.description}</div>
                     )}

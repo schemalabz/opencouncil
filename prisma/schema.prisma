@@ -420,6 +420,9 @@ model Highlight {
   subjectId String?
 
   videoUrl String?
+  muxPlaybackId String?
+
+  isShowcased Boolean @default(false)
 
   @@index([meetingId, cityId])
 }
