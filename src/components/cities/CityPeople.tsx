@@ -1,6 +1,7 @@
 "use client";
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { AdministrativeBody } from '@prisma/client'
 import List from '@/components/List';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
@@ -10,12 +11,14 @@ import { PartyWithPersons } from '@/lib/db/parties';
 
 type CityPeopleProps = {
     partiesWithPersons: PartyWithPersons[],
+    administrativeBodies: AdministrativeBody[],
     cityId: string,
     canEdit: boolean
 };
 
 export default function CityPeople({ 
-    partiesWithPersons, 
+    partiesWithPersons,
+    administrativeBodies,
     cityId, 
     canEdit 
 }: CityPeopleProps) {
@@ -65,7 +68,7 @@ export default function CityPeople({
             editable={canEdit}
             ItemComponent={PersonCard}
             FormComponent={PersonForm}
-            formProps={{ cityId, parties }}
+            formProps={{ cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={peopleAdministrativeBodies}
             filter={(selectedValues, person) =>
