@@ -5,12 +5,13 @@ import { useEffect, useState, useMemo } from "react"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { Cell, Label, Pie, PieChart, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts"
 import { getAllTopics } from "@/lib/db/topics"
-import { Topic } from "@prisma/client"
+import { Topic, Role } from "@prisma/client"
 import TopicBadge from "./transcript/Topic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { BarChart2, BarChartIcon, Clock, FileBarChart2, FileIcon, Loader2, PieChartIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { PersonWithRelations } from "@/lib/db/people"
 
 export function Statistics() {
     const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null)
@@ -54,7 +55,7 @@ export function Statistics() {
             .map(person => ({
                 name: person.item.name,
                 minutes: Math.round(person.speakingSeconds / 60),
-                fill: (person.item.partyId && getParty(person.item.partyId)?.colorHex) ?? "gray"
+                fill: person.item.roles?.find((role: Role) => role.partyId)?.partyId ? getParty(person.item.roles.find((role: Role) => role.partyId)!.partyId!)?.colorHex ?? "gray" : "gray"
             }));
     }, [statistics, getParty]);
 
