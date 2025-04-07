@@ -5,6 +5,8 @@ import { getCity } from "@/lib/db/cities";
 import { getCouncilMeetingsCountForCity, getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getPeopleForCity } from "@/lib/db/people";
+import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 
 /**
  * Cached version of getMeetingData that fetches and caches all data for a meeting
@@ -82,5 +84,27 @@ export async function getPartiesForCityCached(cityId: string) {
         async () => getPartiesForCity(cityId),
         ['city', cityId, 'parties'],
         { tags: [`city`, `city:${cityId}`, `city:${cityId}:parties`, `city:${cityId}:people`] }
+    )();
+}
+
+/**
+ * Cached version of getPeopleForCity that fetches and caches all people for a city
+ */
+export async function getPeopleForCityCached(cityId: string) {
+    return unstable_cache(
+        async () => getPeopleForCity(cityId),
+        ['city', cityId, 'people'],
+        { tags: [`city`, `city:${cityId}`, `city:${cityId}:people`] }
+    )();
+}
+
+/**
+ * Cached version of getAdministrativeBodiesForCity that fetches and caches all administrative bodies for a city
+ */
+export async function getAdministrativeBodiesForCityCached(cityId: string) {
+    return unstable_cache(
+        async () => getAdministrativeBodiesForCity(cityId),
+        ['city', cityId, 'administrativeBodies'],
+        { tags: [`city`, `city:${cityId}`, `city:${cityId}:administrativeBodies`] }
     )();
 } 

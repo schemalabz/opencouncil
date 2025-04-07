@@ -161,6 +161,7 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
 }
 
 export async function getPeopleForCity(cityId: string): Promise<PersonWithRelations[]> {
+    console.log(`getPeopleForCity: ${cityId}`);
     try {
         const people = await prisma.person.findMany({
             where: { cityId },

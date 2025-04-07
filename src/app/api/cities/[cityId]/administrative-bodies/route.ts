@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getAdministrativeBodiesForCity, createAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
@@ -54,6 +55,8 @@ export async function POST(
             type,
             cityId,
         });
+
+        revalidateTag(`city:${cityId}:administrativeBodies`);
 
         return NextResponse.json(newBody, { status: 201 });
     } catch (error) {

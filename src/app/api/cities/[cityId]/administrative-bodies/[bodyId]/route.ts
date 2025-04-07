@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { z } from 'zod';
 
@@ -26,6 +27,8 @@ export async function PUT(
             type,
         });
 
+        revalidateTag(`city:${params.cityId}:administrativeBodies`);
+
         return NextResponse.json(updatedBody);
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -45,6 +48,7 @@ export async function DELETE(
 ) {
     try {
         await deleteAdministrativeBody(params.bodyId);
+        revalidateTag(`city:${params.cityId}:administrativeBodies`);
         return new NextResponse(null, { status: 204 });
     } catch (error) {
         console.error('Failed to delete administrative body:', error);

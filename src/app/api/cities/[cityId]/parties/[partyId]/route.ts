@@ -84,6 +84,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 export async function DELETE(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
     try {
         await deleteParty(params.partyId)
+        revalidateTag(`city:${params.cityId}:parties`);
         return NextResponse.json({ message: 'Party deleted successfully' })
     } catch (error) {
         console.error('Error deleting party:', error)

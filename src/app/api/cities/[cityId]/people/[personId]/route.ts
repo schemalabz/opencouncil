@@ -169,6 +169,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
     try {
         await deletePerson(params.personId)
+        revalidateTag(`city:${params.cityId}:people`);
         return NextResponse.json({ message: 'Person deleted successfully' })
     } catch (error) {
         console.error('Error deleting person:', error)

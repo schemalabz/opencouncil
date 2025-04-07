@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
-import { getPartiesForCityCached } from "@/lib/cachedData";
-import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
-import { getPeopleForCity } from "@/lib/db/people";
+import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached } from "@/lib/cachedData";
 
 export default async function PeoplePage({
     params: { cityId }
@@ -12,8 +10,8 @@ export default async function PeoplePage({
 }) {
     const [partiesWithPersons, administrativeBodies, allPeople] = await Promise.all([
         getPartiesForCityCached(cityId),
-        getAdministrativeBodiesForCity(cityId),
-        getPeopleForCity(cityId)
+        getAdministrativeBodiesForCityCached(cityId),
+        getPeopleForCityCached(cityId)
     ]);
 
     if (!partiesWithPersons) {
