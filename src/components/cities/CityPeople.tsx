@@ -10,41 +10,33 @@ import { sortPersonsByLastName } from '@/components/utils';
 import { PartyWithPersons } from '@/lib/db/parties';
 
 type CityPeopleProps = {
+    allPeople: PersonWithRelations[],
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: AdministrativeBody[],
     cityId: string,
     canEdit: boolean
 };
 
-export default function CityPeople({ 
+export default function CityPeople({
+    allPeople,
     partiesWithPersons,
     administrativeBodies,
     cityId, 
-    canEdit 
+    canEdit
 }: CityPeopleProps) {
     const t = useTranslations('Person');
 
-    // Extract all persons and parties from partiesWithPersons
-    const { persons, parties } = useMemo(() => {
-        // Extract all persons from all parties
-        const allPersons = partiesWithPersons.flatMap(party => 
-            party.people as PersonWithRelations[]
-        );
-        
-        // Extract just the party data without the people property
-        const partiesData = partiesWithPersons.map(({ people, ...party }) => party);
-        
-        return {
-            persons: allPersons,
-            parties: partiesData
-        };
-    }, [partiesWithPersons]);
+    // Extract just the party data without the people property
+    const parties = useMemo(() => 
+        partiesWithPersons.map(({ people, ...party }) => party),
+        [partiesWithPersons]
+    );
 
-    const orderedPersons = sortPersonsByLastName(persons);
+    const orderedPersons = sortPersonsByLastName(allPeople);
 
     const peopleAdministrativeBodies = [
         ...Array.from(new Map(
-            persons
+            allPeople
                 .flatMap(person => person.roles
                     .filter(role => role.administrativeBody)
                     .map(role => [
@@ -56,7 +48,7 @@ export default function CityPeople({
                     ])
                 )
         ).values()),
-        ...(persons.some(person => person.roles.some(role => !role.administrativeBody)) ? [{
+        ...(allPeople.some(person => person.roles.some(role => !role.administrativeBody)) ? [{
             value: null,
             label: "Χωρίς διοικητικό όργανο"
         }] : [])
