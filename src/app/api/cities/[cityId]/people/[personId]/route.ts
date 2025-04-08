@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -170,6 +170,9 @@ export async function DELETE(request: Request, { params }: { params: { cityId: s
     try {
         await deletePerson(params.personId)
         revalidateTag(`city:${params.cityId}:people`);
+        revalidatePath(`/${params.cityId}/people`);
+        revalidatePath(`/${params.cityId}/parties`);
+        revalidatePath(`/admin/people`);
         return NextResponse.json({ message: 'Person deleted successfully' })
     } catch (error) {
         console.error('Error deleting person:', error)

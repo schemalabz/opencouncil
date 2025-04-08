@@ -7,7 +7,7 @@ import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
 import Image from 'next/image';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
-import { deleteParty, PartyWithPersons } from '@/lib/db/parties';
+import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { Search } from "lucide-react";
@@ -421,13 +421,28 @@ export default function PartyC({ city, party, administrativeBodies }: {
     };
 
     const onDelete = async () => {
-        await deleteParty(party.id).then(() => {
-            toast({
-                title: t('partyDeleted', { name: party.name }),
+        try {
+            const response = await fetch(`/api/cities/${city.id}/parties/${party.id}`, {
+                method: 'DELETE',
             });
-            router.push(`/${city.id}`);
-        });
-    }
+            
+            if (response.ok) {
+                toast({
+                    title: t('partyDeleted', { name: party.name }),
+                });
+                router.push(`/${city.id}`);
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete party');
+            }
+        } catch (error) {
+            console.error('Error deleting party:', error);
+            toast({
+                title: error instanceof Error ? error.message : 'An unexpected error occurred',
+                variant: 'destructive'
+            });
+        }
+}
 
     // Handler for administrative body selection
     const handleAdminBodySelect = (adminBodyId: string | null) => {

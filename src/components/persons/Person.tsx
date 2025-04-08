@@ -4,7 +4,6 @@ import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
-import { deletePerson } from '@/lib/db/people';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Search, ExternalLink, FileText } from "lucide-react";
@@ -138,12 +137,27 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     };
 
     const onDelete = async () => {
-        await deletePerson(person.id).then(() => {
-            toast({
-                title: t('personDeleted', { name: person.name }),
+        try {
+            const response = await fetch(`/api/cities/${city.id}/people/${person.id}`, {
+                method: 'DELETE',
             });
-            router.push(`/${city.id}`);
-        });
+            
+            if (response.ok) {
+                toast({
+                    title: t('personDeleted', { name: person.name }),
+                });
+                router.push(`/${city.id}`);
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete person');
+            }
+        } catch (error) {
+            console.error('Error deleting person:', error);
+            toast({
+                title: error instanceof Error ? error.message : 'An unexpected error occurred',
+                variant: 'destructive'
+            });
+        }
     }
 
     const formatActiveDates = (from: Date | null, to: Date | null) => {

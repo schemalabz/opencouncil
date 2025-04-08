@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
@@ -85,6 +85,8 @@ export async function DELETE(request: Request, { params }: { params: { cityId: s
     try {
         await deleteParty(params.partyId)
         revalidateTag(`city:${params.cityId}:parties`);
+        revalidatePath(`/${params.cityId}/people`);
+        revalidatePath(`/${params.cityId}/parties`);
         return NextResponse.json({ message: 'Party deleted successfully' })
     } catch (error) {
         console.error('Error deleting party:', error)
