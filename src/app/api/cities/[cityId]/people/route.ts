@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { Upload } from "@aws-sdk/lib-storage"
 import { S3 } from '@aws-sdk/client-s3'
@@ -126,6 +126,8 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         });
 
         revalidateTag(`city:${params.cityId}:people`);
+        revalidatePath(`/${params.cityId}/people`);
+        revalidatePath(`/${params.cityId}/parties`);
 
         return NextResponse.json(person)
     } catch (error) {

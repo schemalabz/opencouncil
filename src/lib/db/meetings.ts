@@ -1,5 +1,6 @@
 "use server";
 import { CouncilMeeting, Subject, AdministrativeBody } from '@prisma/client';
+import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
 
@@ -113,6 +114,9 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
                 administrativeBody: true
             }
         });
+        // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
+        revalidateTag(`city:${cityId}:meetings`);
+        revalidatePath(`/${cityId}`, "layout");
         return updatedMeeting;
     } catch (error) {
         console.error('Error toggling council meeting release:', error);

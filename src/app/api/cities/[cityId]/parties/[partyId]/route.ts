@@ -73,6 +73,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         })
 
         revalidateTag(`city:${params.cityId}:parties`);
+        revalidatePath(`/${params.cityId}/people`);
+        revalidatePath(`/${params.cityId}/parties`);
 
         return NextResponse.json(party)
     } catch (error) {
