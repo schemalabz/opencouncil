@@ -156,7 +156,7 @@ export default function TranscriptControls({ className }: { className?: string }
                     {speakerSegments.map((segment, index) => {
                         const speakerTag = getSpeakerTag(segment.speakerTagId);
                         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                        const party = person?.partyId ? getParty(person.partyId) : undefined;
+                        const party = person?.roles?.find(role => role.party)?.party;
                         let speakerColor = party?.colorHex || '#D3D3D3';
                         let speakerName = person ? person.name_short : speakerTag?.label;
 

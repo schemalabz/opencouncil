@@ -28,7 +28,7 @@ export const UserInviteEmail = ({ name, inviteUrl }: UserInviteEmailProps) => {
                     <Heading style={h1}>Καλώς ήρθατε στο OpenCouncil</Heading>
                     <Text style={text}>Γεια σας {klitiki(name)},</Text>
                     <Text style={text}>
-                        Έχετε προσκληθεί να συμμετάσχετε στο OpenCouncil ως διαχειριστής. Κάντε κλικ στον
+                        Έχετε προσκληθεί για να εγγραφείτε στο OpenCouncil. Κάντε κλικ στον
                         παρακάτω σύνδεσμο για να συνδεθείτε και να ξεκινήσετε:
                     </Text>
                     <Link

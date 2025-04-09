@@ -10,7 +10,7 @@ import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
 import { CheckCircle, CopyIcon, FileDown, LinkIcon, Loader2 } from "lucide-react";
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
-
+import { useTranscriptOptions } from './options/OptionsContext';
 export default function ShareC() {
     const { currentTime } = useVideo();
     const [url, setUrl] = useState('');
@@ -18,6 +18,7 @@ export default function ShareC() {
     const [copySuccess, setCopySuccess] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isExportingDocx, setIsExportingDocx] = useState(false);
+    const { options } = useTranscriptOptions();
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -130,35 +131,37 @@ export default function ShareC() {
                     </div>
                 </div>
 
-                <div>
-                    <h3 className="text-xl font-bold text-left mb-2">
-                        <FileDown className="w-4 h-4 inline-block mr-2" />
-                        Εξαγωγή
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                        Κατεβάστε τα πρακτικά της συνεδρίασης
-                    </p>
+                {options.editsAllowed && (
+                    <div>
+                        <h3 className="text-xl font-bold text-left mb-2">
+                            <FileDown className="w-4 h-4 inline-block mr-2" />
+                            Εξαγωγή
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Κατεβάστε την απομαγνητοφώνηση της συνεδρίασης
+                        </p>
 
-                    <div className="space-y-2 sm:space-y-0 sm:space-x-2">
-                        <Button onClick={handleExportToPDF} className="w-full sm:w-auto" disabled={isExporting}>
-                            {isExporting ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <FileDown className="w-4 h-4 mr-2" />
-                            )}
-                            <span>Εξαγωγή σε PDF</span>
-                        </Button>
+                        <div className="space-y-2 sm:space-y-0 sm:space-x-2">
+                            <Button onClick={handleExportToPDF} className="w-full sm:w-auto" disabled={isExporting}>
+                                {isExporting ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileDown className="w-4 h-4 mr-2" />
+                                )}
+                                <span>Εξαγωγή σε PDF</span>
+                            </Button>
 
-                        <Button onClick={handleExportToDocx} className="w-full sm:w-auto" disabled={isExportingDocx}>
-                            {isExportingDocx ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                                <FileDown className="w-4 h-4 mr-2" />
-                            )}
-                            <span>Εξαγωγή σε DOCX</span>
-                        </Button>
+                            <Button onClick={handleExportToDocx} className="w-full sm:w-auto" disabled={isExportingDocx}>
+                                {isExportingDocx ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileDown className="w-4 h-4 mr-2" />
+                                )}
+                                <span>Εξαγωγή σε DOCX</span>
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                )}
             </section>
         </div>
     );

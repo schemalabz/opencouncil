@@ -42,7 +42,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             />
             {noContainer ? (
                 <div className="flex items-center w-full px-4 relative">
-                    <div className="flex items-stretch gap-2 md:gap-4 z-10 h-full">
+                    <div className="flex items-center gap-2 md:gap-4 z-10 h-full">
                         {showSidebarTrigger && <SidebarTrigger />}
                         <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
                             <div className="relative h-full aspect-square p-0">
@@ -124,7 +124,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             ) : (
                 <div className="container mx-auto h-full">
                     <div className="flex items-center w-full px-4 relative h-full">
-                        <div className="flex items-stretch gap-2 md:gap-4 z-10 h-full">
+                        <div className="flex items-center gap-2 md:gap-4 z-10 h-full">
                             {showSidebarTrigger && <SidebarTrigger />}
                             <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
                                 <div className="relative h-full aspect-square p-0">
