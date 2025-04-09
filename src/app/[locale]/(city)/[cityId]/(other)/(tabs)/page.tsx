@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cachedData";
+import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 
 export default async function MeetingsPage({
     params: { cityId }

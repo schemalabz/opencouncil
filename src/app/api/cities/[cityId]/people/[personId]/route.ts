@@ -158,6 +158,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
         console.log('Person updated successfully')
         revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:parties`);
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 
@@ -172,6 +173,7 @@ export async function DELETE(request: Request, { params }: { params: { cityId: s
     try {
         await deletePerson(params.personId)
         revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:parties`);
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
         revalidatePath(`/admin/people`);

@@ -126,6 +126,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         });
 
         revalidateTag(`city:${params.cityId}:people`);
+        revalidateTag(`city:${params.cityId}:parties`);
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 

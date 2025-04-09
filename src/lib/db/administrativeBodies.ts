@@ -4,7 +4,6 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
-    console.log(`getAdministrativeBodiesForCity: ${cityId}`);
     try {
         const administrativeBodies = await prisma.administrativeBody.findMany({
             where: { cityId },

@@ -1,7 +1,7 @@
 import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { getCityCached } from "@/lib/cachedData";
+import { getCityCached } from "@/lib/cache";
 
 export default async function CityInnerLayout({
     children,

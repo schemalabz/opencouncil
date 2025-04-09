@@ -21,7 +21,7 @@ import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { Switch } from '@/components/ui/switch';
 import EditSwitch from '@/components/meetings/edit-switch';
-import { getMeetingDataCached } from '@/lib/cachedData';
+import { getMeetingDataCached } from '@/lib/cache';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }

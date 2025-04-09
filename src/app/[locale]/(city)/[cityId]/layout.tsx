@@ -1,4 +1,4 @@
-import { getCityCached } from "@/lib/cachedData";
+import { getCityCached } from "@/lib/cache";
 import { notFound } from "next/navigation";
 
 export default async function CityLayout({

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityParties from "@/components/cities/CityParties";
-import { getPartiesForCityCached } from "@/lib/cachedData";
+import { getPartiesForCityCached } from "@/lib/cache";
 
 export default async function PartiesPage({
     params: { cityId }
