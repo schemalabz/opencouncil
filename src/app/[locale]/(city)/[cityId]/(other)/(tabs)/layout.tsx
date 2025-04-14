@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityHeader } from "@/components/cities/CityHeader";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCouncilMeetingsCountForCityCached } from "@/lib/cachedData";
+import { getCityCached, getCouncilMeetingsCountForCityCached } from "@/lib/cache";
 export default async function TabsLayout({
     children,
     params: { cityId }

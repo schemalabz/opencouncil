@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function POST(
@@ -14,9 +14,8 @@ export async function POST(
     console.log('Revalidating cache for city', cityId);
 
     // Revalidate the main city tag - this will invalidate all cached entries for this city
-    const mainTag = `city:${cityId}`;
-    console.log(`Revalidating tag: ${mainTag}`);
-    revalidateTag(mainTag);
+    revalidateTag(`city:${cityId}`);
+    revalidatePath(`/${cityId}`, "layout");
 
     return NextResponse.json({ 
         revalidated: true, 

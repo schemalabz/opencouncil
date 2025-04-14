@@ -111,7 +111,6 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
 }
 
 export async function getPartiesForCity(cityId: string): Promise<PartyWithPersons[]> {
-    console.log(`[${new Date().toISOString()}] getPartiesForCity: ${cityId}`);
     try {
         const parties = await prisma.party.findMany({
             where: { cityId },

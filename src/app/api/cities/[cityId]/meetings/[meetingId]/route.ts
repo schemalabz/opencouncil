@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { getMeetingData } from '@/lib/getMeetingData';
 import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
@@ -54,6 +54,7 @@ export async function PUT(
         });
 
         revalidateTag(`city:${params.cityId}:meetings`);
+        revalidatePath(`/${params.cityId}`, "layout");
 
         return NextResponse.json(meeting);
     } catch (error) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
@@ -67,6 +67,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     });
 
     revalidateTag(`city:${params.cityId}:basic`);
+    revalidatePath(`/${params.cityId}`, "layout");
 
     return NextResponse.json(city)
 }
