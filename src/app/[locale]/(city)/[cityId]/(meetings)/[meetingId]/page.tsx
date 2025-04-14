@@ -7,6 +7,9 @@ import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, Vide
 import { cn, sortSubjectsByImportance, subjectToMapFeature } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
+import { el } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
+import { useLocale } from "next-intl";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
@@ -74,6 +77,7 @@ export default function MeetingPage() {
 
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
+    const locale = useLocale();
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
@@ -81,7 +85,7 @@ function MeetingInfo() {
                 <div className="flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">
                     <div className="flex items-center">
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                        {formatDate(new Date(meeting.dateTime), 'PPP')}
+                        {formatDate(new Date(meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
                     </div>
                     {meeting.videoUrl && (
                         <div className="flex items-center">

@@ -135,12 +135,27 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         if (response.transcript.transcription.speakers && response.transcript.transcription.speakers.length > 0) {
             console.log(`Found ${response.transcript.transcription.speakers.length} speakers in the response`);
 
+            // First, validate all person IDs before creating any speaker tags
+            for (const speakerInfo of response.transcript.transcription.speakers) {
+                if (speakerInfo.match) {
+                    // Verify the person exists before attempting to connect
+                    const personExists = await prisma.person.findUnique({
+                        where: { id: speakerInfo.match }
+                    });
+                    
+                    if (!personExists) {
+                        console.warn(`Warning: Person with ID ${speakerInfo.match} not found. Skipping person connection for speaker ${speakerInfo.speaker}`);
+                        speakerInfo.match = null; // Remove the invalid match
+                    }
+                }
+            }
+
             // Create speaker tags for all speakers
             for (const speakerInfo of response.transcript.transcription.speakers) {
                 const speakerTag = await prisma.speakerTag.create({
                     data: {
                         label: `SPEAKER_${speakerInfo.speaker}`,
-                        // Connect to person if matched
+                        // Only connect if we verified the person exists
                         ...(speakerInfo.match ? { person: { connect: { id: speakerInfo.match } } } : {})
                     }
                 });

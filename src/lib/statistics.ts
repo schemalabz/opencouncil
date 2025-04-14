@@ -1,6 +1,7 @@
 "use server"
-import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, TopicLabel } from "@prisma/client";
+import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, TopicLabel, Role } from "@prisma/client";
 import prisma from "./db/prisma";
+import { PersonWithRelations } from "./db/people";
 
 export type TopicStatistics = Required<Pick<Statistics, 'topics'>> & Omit<Statistics, 'topics'>;
 export type PartyStatistics = Required<Pick<Statistics, 'parties'>> & Omit<Statistics, 'parties'>;
@@ -22,12 +23,14 @@ export interface Statistics {
     speakingSeconds: number;
     topics?: Stat<Topic>[]
     parties?: Stat<Party>[]
-    people?: Stat<Person>[]
+    people?: Stat<PersonWithRelations>[]
 }
 type SpeakerSegmentInfo = SpeakerSegment & {
     speakerTag: {
         person: (Person & {
-            party: Party | null;
+            roles: (Role & {
+                party: Party | null;
+            })[];
         }) | null;
     },
     topicLabels: (TopicLabel & {
@@ -67,14 +70,24 @@ export async function getStatisticsFor(
             } : undefined,
             meeting: administrativeBodyId ? {
                 administrativeBodyId: administrativeBodyId
-            } : undefined
+            } : undefined,
+            NOT: {
+                summary: {
+                    type: "procedural"
+                }
+            }
+
         },
         include: {
             speakerTag: {
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true
+                                }
+                            }
                         }
                     }
                 }
@@ -150,16 +163,18 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         }
 
         // Handle party statistics
-        if (groupBy.includes("party") && segment.speakerTag.person?.party) {
-            const partyStatistics = statistics.parties!.find(p => p.item.id === segment.speakerTag.person?.party?.id);
-            if (!segment.speakerTag.person.isAdministrativeRole) { // e.g. council chair
-                if (partyStatistics) {
-                    partyStatistics.speakingSeconds += segmentDuration;
-                    partyStatistics.count++;
-                } else {
-                    statistics.parties!.push({ item: segment.speakerTag.person.party, speakingSeconds: segmentDuration, count: 1 });
+        if (groupBy.includes("party") && segment.speakerTag.person?.roles) {
+            segment.speakerTag.person.roles.forEach((role) => {
+                if (role.party && !segment.speakerTag.person?.isAdministrativeRole) { // e.g. council chair
+                    const partyStatistics = statistics.parties!.find(p => p.item.id === role.party!.id);
+                    if (partyStatistics) {
+                        partyStatistics.speakingSeconds += segmentDuration;
+                        partyStatistics.count++;
+                    } else {
+                        statistics.parties!.push({ item: role.party, speakingSeconds: segmentDuration, count: 1 });
+                    }
                 }
-            }
+            });
         }
 
         // Handle topic statistics

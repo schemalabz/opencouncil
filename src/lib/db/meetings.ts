@@ -88,7 +88,11 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
                 { createdAt: 'desc' }
             ],
             include: {
-                subjects: true,
+                subjects: {
+                    include: {
+                        topic: true
+                    }
+                },
                 administrativeBody: true
             }
         });

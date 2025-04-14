@@ -166,6 +166,7 @@ export async function createSubjectsForMeeting(
                 return true;
             });
 
+            console.log(`Creating subject "${subject.name}" with ${validSpeakerSegments.length} speaker segments -- introduced by ${subject.introducedByPersonId}`);
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,

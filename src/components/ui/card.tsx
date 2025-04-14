@@ -9,30 +9,26 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "relative group rounded-lg shadow-sm overflow-hidden isolate",
+      "relative group rounded-lg shadow-sm overflow-hidden",
       className
     )}
     {...props}
   >
-    {/* Background gradient for the border effect - only visible on hover */}
-    {!disableHover && (
-      <div
-        className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#fc550a] via-[#a4c0e1] to-[#fc550a] bg-[length:200%_100%] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{
-          animation: "gradientFlow 5s ease infinite",
-          zIndex: -1
-        }}
-      />
-    )}
-
-    {/* Main card content */}
+    {/* Card content with gradient border */}
     <div
-      className="relative h-full bg-card rounded-lg transition-all duration-300"
+      className={cn(
+        "w-full h-full rounded-lg p-[1.5px] transition-all duration-300 bg-gradient-to-r from-gray-300/70 via-gray-200/50 to-gray-300/70",
+        !disableHover && "group-hover:from-[#fc550a] group-hover:via-[#a4c0e1] group-hover:to-[#fc550a] group-hover:bg-[length:200%_100%] group-hover:[animation-play-state:running]"
+      )}
       style={{
-        margin: disableHover ? "0" : "1.5px"
+        animation: "gradientFlow 5s ease infinite",
+        animationPlayState: "paused",
+        borderRadius: "0.5rem",
       }}
     >
-      {props.children}
+      <div className="w-full h-full bg-card" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+        {props.children}
+      </div>
     </div>
   </div>
 ))
