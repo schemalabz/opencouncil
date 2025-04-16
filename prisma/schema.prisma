@@ -487,6 +487,7 @@ model Offer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   type      String   @default("pilot")
+  version   Int?     @default(1)
 
   startDate DateTime
   endDate DateTime
@@ -496,14 +497,14 @@ model Offer {
   ingestionPerHourPrice Float
   hoursToIngest Int
   discountPercentage Float
-  meetingsToIngest Int?
+  meetingsToIngest Int?  // Keep for backward compatibility
+  hoursToGuarantee Int?  // New field for version 2
   cityId String?
 
   correctnessGuarantee Boolean @default(false)
   respondToEmail String
   respondToPhone String
   respondToName String
-
 }
 
 model Waitlist {

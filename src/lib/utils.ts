@@ -132,14 +132,31 @@ export const calculateOfferTotals = (offer: Offer): {
   subtotal: number,
   discount: number,
   total: number,
-  meetingsToIngest: number,
+  hoursToGuarantee: number,
   correctnessGuaranteeCost: number,
   paymentPlan: { dueDate: Date, amount: number }[]
 } => {
   const months = monthsBetween(offer.startDate, offer.endDate)
   const platformTotal = offer.platformPrice * months
   const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest
-  const correctnessGuaranteeCost = offer.correctnessGuarantee && offer.meetingsToIngest ? offer.meetingsToIngest * 80 : 0
+
+  // Calculate correctness guarantee cost based on version
+  let correctnessGuaranteeCost = 0
+  let hoursToGuarantee = 0
+
+  if (offer.correctnessGuarantee) {
+    if (offer.version === 2) {
+      // Version 2: Price per hour
+      hoursToGuarantee = offer.hoursToGuarantee || 0
+      correctnessGuaranteeCost = hoursToGuarantee * 20 // 20 EUR per hour
+    } else {
+      // Version 1: Price per meeting
+      const meetingsToIngest = offer.meetingsToIngest || 0
+      correctnessGuaranteeCost = meetingsToIngest * 80 // 80 EUR per meeting
+      hoursToGuarantee = meetingsToIngest // For display purposes
+    }
+  }
+
   const subtotal = platformTotal + ingestionTotal + correctnessGuaranteeCost
   const discount = subtotal * (offer.discountPercentage / 100)
   const total = subtotal - discount
@@ -181,7 +198,7 @@ export const calculateOfferTotals = (offer: Offer): {
     subtotal,
     discount,
     total,
-    meetingsToIngest: offer.meetingsToIngest || 0,
+    hoursToGuarantee,
     correctnessGuaranteeCost,
     paymentPlan
   }

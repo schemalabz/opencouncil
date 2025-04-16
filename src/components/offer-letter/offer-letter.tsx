@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan, correctnessGuaranteeCost } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, subtotal, discount, total, hoursToGuarantee, correctnessGuaranteeCost, paymentPlan } = calculateOfferTotals(offer)
     const isRegion = offer.recipientName.startsWith("Περιφέρεια"); // awful, fix this
 
     const CTABox = () => (
@@ -78,11 +78,21 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
-                            {offer.correctnessGuarantee && offer.meetingsToIngest && (
+                            {offer.correctnessGuarantee && hoursToGuarantee && (
                                 <tr className="border-b bg-white">
-                                    <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
-                                    <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
-                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost / offer.meetingsToIngest)}/συνεδρίαση</td>
+                                    <td className="py-2">Έλεγχος απομαγνητοφωνήσεων από άνθρωπο</td>
+                                    <td className="text-right">
+                                        {offer.version === 2
+                                            ? `${hoursToGuarantee} ώρες`
+                                            : `${hoursToGuarantee} συνεδριάσεις`
+                                        }
+                                    </td>
+                                    <td className="text-right">
+                                        {offer.version === 2
+                                            ? `${formatCurrency(20)}/ώρα`
+                                            : `${formatCurrency(80)}/συνεδρίαση`
+                                        }
+                                    </td>
                                     <td className="text-right">{formatCurrency(correctnessGuaranteeCost)}</td>
                                 </tr>
                             )}
@@ -220,7 +230,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Εξαγωγή πρακτικών σε PDF για κάθε συνεδρίαση.</span>
+                                <span>Εξαγωγή απομαγνητοφωνήσεων σε PDF για κάθε συνεδρίαση.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -228,7 +238,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Εύκολη αναζήτηση των πρακτικών.</span>
+                                <span>Εύκολη αναζήτηση των θεμάτων και απομαγνητοφωνήσεων.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
