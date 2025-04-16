@@ -1,22 +1,62 @@
-version: '3.8'
-
 services:
+  base:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: opencouncil-base
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
     ports:
       - "3000:3000"
+    env_file:
+      - ${ENV_FILE:-.env}
     environment:
-      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}
+      - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
+      - APP_ENV=production
     depends_on:
-      - db
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
+        required: false  # Makes this dependency optional
+    profiles: ["prod"]
+
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
+    ports:
+      - "3000:3000"
+    env_file:
+      - ${ENV_FILE:-.env}
+    environment:
+      - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
+      - APP_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      base:
+        condition: service_started
+      db:
+        condition: service_healthy
+        required: false  # Makes this dependency optional
+    profiles: ["dev"]
+
+  # Local database service
   db:
     build:
       context: ./db
       dockerfile: Dockerfile.db
     volumes:
-      - ./db/data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${DATABASE_USER}
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
@@ -24,6 +64,12 @@ services:
     ports:
       - "5432:5432"
     command: -c 'max_connections=200'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
+      interval: 10s
+      retries: 5
+      timeout: 10s
+    profiles: ["with-db"]
 
 volumes:
   pgdata:

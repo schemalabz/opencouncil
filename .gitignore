@@ -9,6 +9,7 @@
 # testing
 /coverage
 /og-previews
+/prisma/seed_data.json
 
 # next.js
 /.next/
@@ -29,6 +30,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.last_docker_config
 
 # vercel
 .vercel
