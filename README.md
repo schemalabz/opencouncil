@@ -25,31 +25,70 @@ This is a [Next.js](https://nextjs.org/) web application:
 
 ## Development Setup
 
+Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+Then edit the file to include your specific configuration values.
+
+### Docker Setup (Recommended)
+
+The easiest way to get started is using our Docker setup:
+
+Start the application with the local database:
+   ```bash
+   ./run.sh
+   ```
+
+This will automatically:
+- Start the dockerized PostgreSQL database
+- Apply database migrations
+- Seed the database with sample data
+- Run the application in development mode
+
+For more advanced Docker configuration options, see [Docker Usage Guide](./docs/docker-usage.md).
+
+### Manual Setup
+
+If you prefer to run without Docker:
+
 1. Install dependencies:
    ```bash
    npm install
    ```
 
-2. Start a dockerized PostgreSQL database with the pgvector and postgis extensions installed by using the docker file (alternatively, you can use your own DB):
-   ```bash
-   docker compose up db -d
-   ```
+2. Set up your database connection:
+   - For local development, you can use the dockerized PostgreSQL database:
+     ```bash
+     docker compose up db -d
+     ```
+   - Alternatively, you can connect to any PostgreSQL database (local or remote) by setting the `DATABASE_URL` environment variable in your `.env` file:
+     ```
+     DATABASE_URL="postgresql://user:password@host:port/database"
+     ```
+     The database must have the `pgvector` and `postgis` extensions installed.
 
-3. Set up your environment variables by copying `.env.example` to `.env` and filling in the values:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Set up the database:
+3. Set up the database:
    ```bash
    # Run migrations
-   npm run prisma:migrate
-
+   npx prisma migrate deploy
+   
+   # Generate Prisma client
+   npx prisma generate
+   
    # Optionally, seed the database with sample data
-   npm run prisma:seed
+   npx prisma db seed
    ```
 
-5. Start the development server:
+4. Start the development server:
    ```bash
    npm run dev
    ```
+
+## Database Management
+
+The database is automatically seeded with sample data during setup. The seed data provides a realistic development environment while excluding sensitive information.
+
+During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
+
+For detailed information about database seeding, including how to generate custom seed data, see [Database Seeding Guide](./docs/database-seeding.md).

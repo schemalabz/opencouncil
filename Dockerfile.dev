@@ -5,14 +5,14 @@ ARG USE_LOCAL_DB=true
 
 # Set environment variables
 ENV USE_LOCAL_DB=${USE_LOCAL_DB}
-ENV APP_ENV=production
+ENV APP_ENV=development
 
-# Copy the rest of the application code
-COPY . .
+# The actual source code will be mounted as a volume
+# We don't copy the code in the Dockerfile
 
 # Prepare start script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Start the application
+# Start the application in development mode
 ENTRYPOINT ["docker-entrypoint.sh"]

@@ -15,15 +15,19 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:migrate:reset": "prisma migrate reset",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "prisma:seedTopics": "tsx prisma/seed_topics.ts",
-    "production:build": "patch-package && prisma generate && prisma migrate deploy && next build",
+    "db:deploy": "prisma migrate deploy && prisma generate",
+    "db:deploy:seed": "npm run db:deploy && prisma db seed",
+    "production:build": "patch-package && next build",
     "production:start": "next start",
     "email": "tsx scripts/email_municipality.ts",
     "import:people": "tsx scripts/insert_people.ts",
     "import:fill": "tsx prisma/import_administrations.ts --mode fill",
     "import:import": "tsx prisma/import_administrations.ts --mode import",
-    "test:og": "tsx scripts/test_og_images.ts"
+    "test:og": "tsx scripts/test_og_images.ts",
+    "generate-seed": "tsx scripts/generate_seed_dump.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",
