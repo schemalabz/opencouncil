@@ -23,7 +23,8 @@
     "import:people": "tsx scripts/insert_people.ts",
     "import:fill": "tsx prisma/import_administrations.ts --mode fill",
     "import:import": "tsx prisma/import_administrations.ts --mode import",
-    "test:og": "tsx scripts/test_og_images.ts"
+    "test:og": "tsx scripts/test_og_images.ts",
+    "generate-seed": "tsx scripts/generate_seed_dump.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.33.1",

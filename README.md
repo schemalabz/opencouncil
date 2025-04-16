@@ -53,3 +53,11 @@ This is a [Next.js](https://nextjs.org/) web application:
    ```bash
    npm run dev
    ```
+
+## Database Management
+
+The database is automatically seeded with sample data during setup. The seed data provides a realistic development environment while excluding sensitive information.
+
+During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
+
+For detailed information about database seeding, including how to generate custom seed data, see [Database Seeding Guide](./docs/database-seeding.md).
