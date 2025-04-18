@@ -115,22 +115,19 @@ async function extractDataForPairs(prisma: PrismaClient, pairsArg: string[]) {
   });
   
   return {
+    // Metadata
+    metadata: {
+      extractedAt: new Date().toISOString(),
+      pairs: pairs.map(p => `${p.cityId}/${p.meetingId}`),
+      schema_version: "1.0"
+    },
     // Core entities
     topics,
     cities,
     administrativeBodies,
     parties,
     persons,
-    meetings,
-    
-    // Metadata
-    metadata: {
-      extractedAt: new Date().toISOString(),
-      cityIds,
-      meetingIds,
-      pairs: pairs.map(p => `${p.cityId}/${p.meetingId}`),
-      schema_version: "1.0"
-    }
+    meetings
   };
 }
 
@@ -350,7 +347,8 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
         },
         
         // Task statuses - these belong to the meeting (one-to-many)
-        taskStatuses: true,
+        // TODO: Add task statuses to the seed data in a manageable way
+        taskStatuses: false,
         
         // Speaker segments with carefully selected relations
         speakerSegments: {
