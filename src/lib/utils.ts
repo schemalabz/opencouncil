@@ -145,7 +145,11 @@ export const calculateOfferTotals = (offer: Offer): {
   let hoursToGuarantee = 0
 
   if (offer.correctnessGuarantee) {
-    if (offer.version === 2) {
+    if (offer.version === 3) {
+      // Version 3: Price per hour
+      hoursToGuarantee = offer.hoursToGuarantee || 0
+      correctnessGuaranteeCost = hoursToGuarantee * 11 // 11 EUR per hour
+    } else if (offer.version === 2) {
       // Version 2: Price per hour
       hoursToGuarantee = offer.hoursToGuarantee || 0
       correctnessGuaranteeCost = hoursToGuarantee * 20 // 20 EUR per hour

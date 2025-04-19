@@ -82,14 +82,14 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <tr className="border-b bg-white">
                                     <td className="py-2">Έλεγχος απομαγνητοφωνήσεων από άνθρωπο</td>
                                     <td className="text-right">
-                                        {offer.version === 2
+                                        {offer.version !== null && offer.version > 1
                                             ? `${hoursToGuarantee} ώρες`
                                             : `${hoursToGuarantee} συνεδριάσεις`
                                         }
                                     </td>
                                     <td className="text-right">
-                                        {offer.version === 2
-                                            ? `${formatCurrency(20)}/ώρα`
+                                        {offer.version !== null && offer.version > 1
+                                            ? `${formatCurrency(offer.version === 2 ? 20 : 11)}/ώρα`
                                             : `${formatCurrency(80)}/συνεδρίαση`
                                         }
                                     </td>

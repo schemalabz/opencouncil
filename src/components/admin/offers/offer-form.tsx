@@ -116,7 +116,7 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
     })
 
     const watchedValues = form.watch()
-    const { total } = calculateOfferTotals(watchedValues as Offer)
+    const { total } = calculateOfferTotals({ ...watchedValues, version: 3 } as Offer)
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -127,9 +127,9 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     ...values,
                     cityId: values.cityId || null,
                     meetingsToIngest: values.correctnessGuarantee && offer.version === 1 ? values.meetingsToIngest : null,
-                    hoursToGuarantee: values.correctnessGuarantee && offer.version === 2 ? values.hoursToGuarantee : null,
+                    hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
                     correctnessGuarantee: values.correctnessGuarantee,
-                    version: 2
+                    version: 3
                 })
             } else {
                 await createOffer({
@@ -138,7 +138,7 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
                     correctnessGuarantee: values.correctnessGuarantee,
-                    version: 2
+                    version: 3
                 })
             }
 
