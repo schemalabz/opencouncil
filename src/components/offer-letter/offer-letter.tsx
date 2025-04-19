@@ -411,7 +411,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <section className="mb-8 print:break-inside-avoid">
                     <h3 className="text-2xl font-semibold mb-4">Στοιχεία Εταιρείας</h3>
                     <p className="">
-                        <em className="no-underline">OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.</em><br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
+                        OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.<br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
                     </p>
                     <p className="mt-2">
                         H OpenCouncil ανήκει στην <a href="https://schemalabs.gr" className="underline">Schema Labs Αστική Μη Κερδοσκοπική Εταιρεία</a>.
