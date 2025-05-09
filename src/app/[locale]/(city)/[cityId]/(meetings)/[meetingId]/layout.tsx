@@ -144,6 +144,7 @@ export default async function CouncilMeetingPage({
                         showSidebarTrigger={true}
                         currentEntity={{ cityId: data.city.id }}
                         noContainer={true}
+                        className="relative z-10 bg-white dark:bg-gray-950"
                     >
                         <EditSwitch />
                     </Header>
