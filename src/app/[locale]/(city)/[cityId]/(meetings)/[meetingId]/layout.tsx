@@ -13,7 +13,7 @@ import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { getStatisticsFor } from '@/lib/statistics';
 import { getMeetingData, MeetingData } from '@/lib/getMeetingData';
-import { cache } from 'react'
+import { cache, Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon } from 'lucide-react';
 import { Link } from '@/i18n/routing';
@@ -22,6 +22,7 @@ import { el, enUS } from 'date-fns/locale';
 import { Switch } from '@/components/ui/switch';
 import EditSwitch from '@/components/meetings/edit-switch';
 import { getMeetingDataCached } from '@/lib/cache';
+import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -125,6 +126,7 @@ export default async function CouncilMeetingPage({
     return (
         <CouncilMeetingWrapper meetingData={data} editable={editable}>
             <SidebarProvider>
+                <NavigationEvents />
                 <div className="h-screen w-full flex flex-col overflow-hidden">
                     <Header
                         path={[
@@ -149,7 +151,9 @@ export default async function CouncilMeetingPage({
                         <MeetingSidebar />
                         <div className="flex-1 overflow-auto">
                             <div className='pb-20'>
-                                {children}
+                                <Suspense>
+                                    {children}
+                                </Suspense>
                             </div>
                             {data.meeting.muxPlaybackId && <TranscriptControls />}
                         </div>
