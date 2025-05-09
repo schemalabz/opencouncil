@@ -114,6 +114,25 @@ export async function createSubjectsForMeeting(
 
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeetingId, cityId);
 
+    // Collect all person IDs we need to validate
+    const personIdsToCheck = subjects
+        .filter(subject => subject.introducedByPersonId)
+        .map(subject => subject.introducedByPersonId)
+        .filter(Boolean) as string[];
+
+    // Check if all person IDs exist
+    const existingPersons = personIdsToCheck.length > 0
+        ? await prisma.person.findMany({
+            where: {
+                id: { in: personIdsToCheck },
+                cityId // Also ensure the person belongs to the correct city
+            },
+            select: { id: true }
+        })
+        : [];
+
+    const existingPersonIds = new Set(existingPersons.map(p => p.id));
+
     await prisma.$transaction(async (prisma) => {
         // Delete old highlights and subjects for this meeting
         await prisma.highlight.deleteMany({
@@ -166,7 +185,16 @@ export async function createSubjectsForMeeting(
                 return true;
             });
 
-            console.log(`Creating subject "${subject.name}" with ${validSpeakerSegments.length} speaker segments -- introduced by ${subject.introducedByPersonId}`);
+            // Validate that person exists before connecting
+            const validIntroducedByPersonId = subject.introducedByPersonId &&
+                existingPersonIds.has(subject.introducedByPersonId) ?
+                subject.introducedByPersonId : undefined;
+
+            if (subject.introducedByPersonId && !validIntroducedByPersonId) {
+                console.warn(`Warning: Person with ID ${subject.introducedByPersonId} not found for subject "${subject.name}" - skipping person connection`);
+            }
+
+            console.log(`Creating subject "${subject.name}" with ${validSpeakerSegments.length} speaker segments -- introduced by ${validIntroducedByPersonId || 'none'}`);
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,
@@ -178,8 +206,8 @@ export async function createSubjectsForMeeting(
                         undefined,
                     agendaItemIndex: typeof subject.agendaItemIndex === "number" ? subject.agendaItemIndex : undefined,
                     nonAgendaReason: subject.agendaItemIndex === "BEFORE_AGENDA" ? "beforeAgenda" : "outOfAgenda",
-                    introducedBy: subject.introducedByPersonId ?
-                        { connect: { id: subject.introducedByPersonId } } :
+                    introducedBy: validIntroducedByPersonId ?
+                        { connect: { id: validIntroducedByPersonId } } :
                         undefined,
                     speakerSegments: validSpeakerSegments.length > 0 ? {
                         create: validSpeakerSegments.map(segment => ({
