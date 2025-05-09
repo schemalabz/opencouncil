@@ -76,6 +76,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         };
     }, [person.roles]);
 
+    // Check if person is an independent council member
+    const isIndependentCouncilMember = useMemo(() => {
+        if (roles.active.partyRoles.length > 0) return false;
+
+        return roles.active.adminBodyRoles.some(role =>
+            role.administrativeBody?.type === 'council'
+        );
+    }, [roles.active.partyRoles, roles.active.adminBodyRoles]);
+
     useEffect(() => {
         const checkEditPermissions = async () => {
             const hasPermission = await isUserAuthorizedToEdit({ personId: person.id });
@@ -141,7 +150,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             const response = await fetch(`/api/cities/${city.id}/people/${person.id}`, {
                 method: 'DELETE',
             });
-            
+
             if (response.ok) {
                 toast({
                     title: t('personDeleted', { name: person.name }),
@@ -285,6 +294,18 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             {role.name && ` - ${role.name}`}
                                         </motion.div>
                                     ))}
+
+                                    {/* Independent Council Member */}
+                                    {isIndependentCouncilMember && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.4 }}
+                                            className="text-base sm:text-lg text-muted-foreground italic"
+                                        >
+                                            Ανεξάρτητος Δημοτικός Σύμβουλος
+                                        </motion.div>
+                                    )}
                                 </div>
                                 {person.profileUrl && (
                                     <motion.a

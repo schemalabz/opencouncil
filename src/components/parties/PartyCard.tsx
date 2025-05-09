@@ -66,11 +66,11 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
             <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
                 <div className="space-y-3 sm:space-y-4 flex-grow">
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20">
                             <ImageOrInitials
                                 imageUrl={party.logo}
-                                width={48}
-                                height={48}
+                                width={80}
+                                height={80}
                                 name={party.name_short}
                                 color={party.colorHex}
                                 square={true}

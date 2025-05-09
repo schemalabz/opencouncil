@@ -20,52 +20,58 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
-    const formData = await request.json()
-    const name = formData.name as string
-    const name_en = formData.name_en as string
-    const name_short = formData.name_short as string
-    const name_short_en = formData.name_short_en as string
-    const colorHex = formData.colorHex as string
-    const logo = formData.logo as File | null
+    try {
+        const formData = await request.formData()
 
-    let logoUrl: string | undefined = undefined
+        const name = formData.get('name') as string
+        const name_en = formData.get('name_en') as string
+        const name_short = formData.get('name_short') as string
+        const name_short_en = formData.get('name_short_en') as string
+        const colorHex = formData.get('colorHex') as string
+        const logo = formData.get('logo') as File | null
 
-    if (logo) {
-        const fileExtension = logo.name.split('.').pop()
-        const fileName = `${uuidv4()}.${fileExtension}`
+        let logoUrl: string | undefined = undefined
 
-        const upload = new Upload({
-            client: s3Client,
-            params: {
-                Bucket: process.env.DO_SPACES_BUCKET!,
-                Key: `party-logos/${fileName}`,
-                Body: Buffer.from(await logo.arrayBuffer()),
-                ACL: 'public-read',
-                ContentType: logo.type,
-            },
+        if (logo && logo instanceof File) {
+            const fileExtension = logo.name.split('.').pop()
+            const fileName = `${uuidv4()}.${fileExtension}`
+
+            const upload = new Upload({
+                client: s3Client,
+                params: {
+                    Bucket: process.env.DO_SPACES_BUCKET!,
+                    Key: `party-logos/${fileName}`,
+                    Body: Buffer.from(await logo.arrayBuffer()),
+                    ACL: 'public-read',
+                    ContentType: logo.type,
+                },
+            })
+
+            try {
+                await upload.done()
+                logoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT?.replace('https://', '')}/party-logos/${fileName}`
+            } catch (error) {
+                console.error('Error uploading file:', error)
+                return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
+            }
+        }
+
+        const party = await createParty({
+            name,
+            name_en,
+            name_short,
+            name_short_en,
+            colorHex,
+            logo: logoUrl || null,
+            cityId: params.cityId,
         })
 
-        try {
-            await upload.done()
-            logoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/party-logos/${fileName}`
-        } catch (error) {
-            console.error('Error uploading file:', error)
-            return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
-        }
+        revalidateTag(`city:${params.cityId}:parties`);
+        revalidatePath(`/${params.cityId}/parties`);
+
+        return NextResponse.json(party)
+    } catch (error) {
+        console.error('Error creating party:', error)
+        return NextResponse.json({ error: 'Failed to create party' }, { status: 500 })
     }
-
-    const party = await createParty({
-        name,
-        name_en,
-        name_short,
-        name_short_en,
-        colorHex,
-        logo: logoUrl || null,
-        cityId: params.cityId,
-    })
-
-    revalidateTag(`city:${params.cityId}:parties`);
-    revalidatePath(`/${params.cityId}/parties`);
-
-    return NextResponse.json(party)
 }
