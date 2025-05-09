@@ -17,11 +17,16 @@ export default function TranscriptControls({ className }: { className?: string }
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
     const [isWide, setIsWide] = useState(false);
-    const [isControlsVisible, setIsControlsVisible] = useState(true);
+    const [isControlsVisible, setIsControlsVisible] = useState(false);
 
     useEffect(() => {
         const checkSize = () => {
-            setIsWide(window.innerWidth > window.innerHeight)
+            const wide = window.innerWidth > window.innerHeight;
+            setIsWide(wide);
+            // If it's desktop (wide), make controls visible by default
+            if (wide) {
+                setIsControlsVisible(true);
+            }
         }
 
         checkSize()
@@ -102,7 +107,7 @@ export default function TranscriptControls({ className }: { className?: string }
                 <button
                     onClick={() => setIsControlsVisible(prev => !prev)}
                     className={`fixed bottom-4 ${isControlsVisible ? 'right-[4.5rem]' : 'right-2'} 
-                    z-50 bg-white hover:bg-gray-50 opacity-95 border shadow-lg transition-all duration-200
+                    z-50 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.85)] text-white opacity-95 border shadow-lg transition-all duration-200
                     p-2 rounded-lg flex items-center gap-1.5`}
                     aria-label={isControlsVisible ? "Hide controls" : "Show controls"}
                 >
