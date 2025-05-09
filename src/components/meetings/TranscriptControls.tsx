@@ -18,6 +18,8 @@ export default function TranscriptControls({ className }: { className?: string }
     const sliderRef = useRef<HTMLDivElement>(null);
     const [isWide, setIsWide] = useState(false);
     const [isControlsVisible, setIsControlsVisible] = useState(false);
+    const [hoveredSpeaker, setHoveredSpeaker] = useState<{ name: string, color: string } | null>(null);
+    const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 }); // Track cursor position
 
     useEffect(() => {
         const checkSize = () => {
@@ -53,6 +55,15 @@ export default function TranscriptControls({ className }: { className?: string }
         percentage = Math.max(0, Math.min(1, percentage));
         const touchTime = percentage * duration;
         setHoverTime(touchTime);
+
+        // Set cursor position for tooltip placement
+        setCursorPosition({
+            x: touch.clientX,
+            y: touch.clientY
+        });
+
+        // Find the speaker at this time
+        updateHoveredSpeaker(touchTime);
     };
 
     const formatTimestamp = (timestamp: number) => {
@@ -65,16 +76,43 @@ export default function TranscriptControls({ className }: { className?: string }
     const [hoverTime, setHoverTime] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
 
+    const updateHoveredSpeaker = (time: number) => {
+        for (const segment of speakerSegments) {
+            if (time >= segment.startTimestamp && time <= segment.endTimestamp) {
+                const speakerTag = getSpeakerTag(segment.speakerTagId);
+                const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                const party = person?.roles?.find(role => role.party)?.party;
+                let speakerColor = party?.colorHex || '#D3D3D3';
+                let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
+
+                setHoveredSpeaker({ name: speakerName, color: speakerColor });
+                return;
+            }
+        }
+        setHoveredSpeaker(null);
+    };
+
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const position = isWide ? e.clientX - rect.left : e.clientY - rect.top;
         const totalLength = isWide ? rect.width : rect.height;
         const percentage = position / totalLength;
-        setHoverTime(percentage * duration);
+        const time = percentage * duration;
+        setHoverTime(time);
+
+        // Set cursor position for tooltip placement
+        setCursorPosition({
+            x: e.clientX,
+            y: e.clientY
+        });
+
+        // Find the speaker at this time
+        updateHoveredSpeaker(time);
     };
 
     const handleMouseLeave = () => {
         setHoverTime(null);
+        setHoveredSpeaker(null);
     };
 
     const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -99,7 +137,52 @@ export default function TranscriptControls({ className }: { className?: string }
         }
         setIsTouchActive(false);
         setHoverTime(null);
+        setHoveredSpeaker(null);
     };
+
+    // Find current speaker
+    const currentSpeaker = (() => {
+        for (const segment of speakerSegments) {
+            if (currentTime >= segment.startTimestamp && currentTime <= segment.endTimestamp) {
+                const speakerTag = getSpeakerTag(segment.speakerTagId);
+                const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                const party = person?.roles?.find(role => role.party)?.party;
+                let speakerColor = party?.colorHex || '#D3D3D3';
+                let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
+
+                return { name: speakerName, color: speakerColor };
+            }
+        }
+        return null;
+    })();
+
+    // Calculate tooltip position
+    const getTooltipPosition = () => {
+        if (!sliderRef.current || hoverTime === null) return {};
+
+        const rect = sliderRef.current.getBoundingClientRect();
+        const percentage = hoverTime / duration;
+
+        if (isWide) {
+            // Horizontal mode - position above the slider
+            const left = rect.left + percentage * rect.width;
+            return {
+                left: `${left}px`,
+                top: `${rect.top - 50}px`,
+                transform: 'translateX(-50%)'
+            };
+        } else {
+            // Vertical mode - position to the left of the slider
+            const top = rect.top + percentage * rect.height;
+            return {
+                left: `${rect.left - 110}px`,
+                top: `${top}px`,
+                transform: 'translateY(-50%)'
+            };
+        }
+    };
+
+    const tooltipStyle = getTooltipPosition();
 
     return (
         <>
@@ -107,7 +190,7 @@ export default function TranscriptControls({ className }: { className?: string }
                 <button
                     onClick={() => setIsControlsVisible(prev => !prev)}
                     className={`fixed bottom-4 ${isControlsVisible ? 'right-[4.5rem]' : 'right-2'} 
-                    z-50 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.85)] text-white opacity-95 border shadow-lg transition-all duration-200
+                    z-50 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.85)] text-white border-2 shadow-lg transition-all duration-200
                     p-2 rounded-lg flex items-center gap-1.5`}
                     aria-label={isControlsVisible ? "Hide controls" : "Show controls"}
                 >
@@ -122,7 +205,7 @@ export default function TranscriptControls({ className }: { className?: string }
                     handleMouseLeave();
                 }}
                 className={cn(
-                    `cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-16' : 'top-2 right-2 bottom-2 w-16'} 
+                    `cursor-pointer fixed ${isWide ? 'bottom-2 left-2 right-2 h-12' : 'top-2 right-2 bottom-2 w-12'} 
                     flex ${isWide ? 'flex-row' : 'flex-col'} items-center z-50 transition-transform duration-200`,
                     !isWide && !isControlsVisible && 'translate-x-[4.5rem]',
                     className
@@ -130,18 +213,19 @@ export default function TranscriptControls({ className }: { className?: string }
 
                 <button
                     onClick={togglePlayPause}
-                    className="p-4 bg-white opacity-90 m-2 border h-16 w-16 flex items-center justify-center hover:bg-gray-100"
+                    className="p-2 bg-white border-2 h-12 w-12 flex items-center justify-center hover:bg-gray-100 mx-1 my-1"
                     aria-label={isPlaying ? "Pause" : "Play"}
                 >
                     {isPlaying ?
-                        (isSeeking ? <Loader className="w-6 h-6 animate-spin" /> : <Pause className="w-6 h-6" />) : <Play className="w-6 h-6" />}
+                        (isSeeking ? <Loader className="w-5 h-5 animate-spin" /> : <Pause className="w-5 h-5" />) : <Play className="w-5 h-5" />}
                 </button>
 
-                <Video className={`object-contain w-16 h-16 bg-white opacity-90 m-2 border flex items-center justify-center group ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
+                <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
 
+                {/* Slider Container */}
                 <div
                     ref={sliderRef}
-                    className={`flex-grow cursor-pointer ${isWide ? 'h-16' : 'w-16'} bg-white opacity-95 m-2 border relative`}
+                    className={`flex-grow cursor-pointer ${isWide ? 'h-12' : 'w-12'} bg-white border-2 mx-1 my-1 relative`}
                     onClick={handleSeek}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
@@ -151,7 +235,7 @@ export default function TranscriptControls({ className }: { className?: string }
                 >
                     {currentScrollInterval[0] !== currentScrollInterval[1] && (
                         <div
-                            className={`absolute bg-yellow-200 opacity-40 ${isWide ? 'h-full' : 'w-full'} opacity-80`}
+                            className={`absolute bg-yellow-200 ${isWide ? 'h-full' : 'w-full'}`}
                             style={{
                                 [isWide ? 'left' : 'top']: `${(currentScrollInterval[0] / duration) * 100}%`,
                                 [isWide ? 'width' : 'height']: `${((currentScrollInterval[1] - currentScrollInterval[0]) / duration) * 100}%`,
@@ -170,59 +254,54 @@ export default function TranscriptControls({ className }: { className?: string }
                         return (
                             <div key={index}>
                                 <div
-                                    className={`absolute ${isWide ? 'h-1/2' : 'w-1/2'} opacity-100  ${isSelected ? 'animate-bounce' : ''}`}
+                                    className={`absolute ${isWide ? 'h-3/4' : 'w-3/4'} ${isSelected ? 'animate-bounce' : ''}`}
                                     style={{
                                         backgroundColor: speakerColor,
                                         [isWide ? 'left' : 'top']: `${(segment.startTimestamp / duration) * 100}%`,
                                         [isWide ? 'width' : 'height']: `${((segment.endTimestamp - segment.startTimestamp) / duration) * 100}%`,
-                                        [isWide ? 'top' : 'left']: isSelected ? '30%' : '30%',
-                                        [isWide ? 'height' : 'width']: isSelected ? '40%' : '40%',
+                                        [isWide ? 'top' : 'left']: isSelected ? '10%' : '10%',
+                                        [isWide ? 'height' : 'width']: isSelected ? '80%' : '80%',
                                     }}
-
-                                >
-                                    {(hoverTime !== null && hoverTime >= segment.startTimestamp && hoverTime <= segment.endTimestamp) && (
-                                        <div
-                                            className={`absolute ${isWide ? 'top-full' : 'bottom-full'} left-1/2 transform -translate-x-1/2 whitespace-nowrap text-white px-2 py-1 rounded text-xs`}
-                                            style={{
-                                                backgroundColor: speakerColor,
-                                                [isWide ? 'left' : 'bottom']: `${(segment.startTimestamp / duration) * 100}%`,
-                                                ...(isWide ? {} : { transform: 'translate(-50%, -10px)' })
-                                            }}
-                                        >
-                                            {speakerName}
-                                        </div>
-                                    )}
-                                </div>
+                                />
                             </div>
                         )
                     })}
                     <div
-                        className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'} opacity-90`}
+                        className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'}`}
                         style={{
                             [isWide ? 'left' : 'top']: `${(currentTime / duration) * 100}%`,
                         }}
-                    >
-                        {isSliderHovered && (
-                            <div className={`absolute ${isWide ? 'bottom-full left-1/2 transform -translate-x-1/2' : 'left-full top-1/2 transform -translate-y-1/2'} whitespace-nowrap bg-slate-600 text-white px-2 py-1 rounded text-xs`}>
-                                {formatTimestamp(currentTime)}
-                            </div>
-                        )}
-                    </div>
+                    />
                     {(hoverTime !== null) && (
                         <div
-                            className={`absolute bg-gray-600 ${isWide ? 'w-px h-11' : 'h-px w-11'} opacity-100 z-40`}
+                            className={`absolute bg-gray-600 ${isWide ? 'w-px h-10' : 'h-px w-10'}`}
                             style={{
                                 [isWide ? 'left' : 'top']: `${(hoverTime / duration) * 100}%`,
                             }}
-                        >
-                            <div className={`absolute ${isWide ? 'bottom-full left-1/2 transform -translate-x-1/2' : 'left-full top-1/2 transform -translate-y-1/2'} whitespace-nowrap bg-gray-400 text-white px-2 py-1 rounded text-xs z-30`}>
-                                {formatTimestamp(hoverTime)}
-                            </div>
-                        </div>
+                        />
                     )}
                 </div>
             </div>
 
+            {/* Tooltip Panel - Positioned via fixed positioning */}
+            {isSliderHovered && hoverTime !== null && (
+                <div
+                    className="fixed bg-white border-2 rounded p-1.5 text-xs z-50 shadow-md pointer-events-none"
+                    style={tooltipStyle}
+                >
+                    <div className="font-bold">
+                        {formatTimestamp(hoverTime)}
+                    </div>
+                    {hoveredSpeaker && (
+                        <div
+                            className="mt-1 px-2 py-1 rounded truncate"
+                            style={{ backgroundColor: hoveredSpeaker.color }}
+                        >
+                            <span className="text-white text-[10px]">{hoveredSpeaker.name}</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </>
     )
 }
