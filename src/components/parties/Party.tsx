@@ -15,8 +15,7 @@ import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { Statistics } from '../Statistics';
-import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
-import { getLatestSegmentsForParty } from '@/lib/search/search';
+import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
@@ -194,7 +193,7 @@ function StatisticsAndSegmentsTab({
     administrativeBodies: AdministrativeBody[],
     selectedAdminBodyId: string | null,
     onSelectAdminBody: (adminBodyId: string | null) => void,
-    latestSegments: any[],
+    latestSegments: SegmentWithRelations[],
     isLoadingSegments: boolean,
     totalCount: number,
     setPage: (updater: (prev: number) => number) => void,
@@ -269,14 +268,14 @@ function StatisticsAndSegmentsTab({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {latestSegments.map((result, index) => (
+                        {latestSegments.map((segment, index) => (
                             <motion.div
                                 key={index}
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * index }}
                             >
-                                <Result result={result} />
+                                <Result result={segment} />
                             </motion.div>
                         ))}
 
@@ -322,7 +321,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
     const t = useTranslations('Party');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [latestSegments, setLatestSegments] = useState<any[]>([]);
+    const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
@@ -442,7 +441,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                 variant: 'destructive'
             });
         }
-}
+    }
 
     // Handler for administrative body selection
     const handleAdminBodySelect = (adminBodyId: string | null) => {
