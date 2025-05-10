@@ -1,10 +1,9 @@
 "use server";
-import { City, CouncilMeeting, Party, Person, SpeakerSegment, Summary } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { getEmbeddings, rerankDocuments } from "@/lib/voyage/voyage";
 import { getCities } from "../db/cities";
-import { PersonWithRelations } from '@/lib/db/people';
+import { SegmentWithRelations } from '@/lib/db/speakerSegments';
 
 export type SearchRequest = {
     query: string;
@@ -14,275 +13,9 @@ export type SearchRequest = {
 }
 
 export type SearchResult = {
-    city: City;
-    councilMeeting: CouncilMeeting;
     relevanceScore?: number;
-    speakerSegment: (SpeakerSegment & {
-        person?: PersonWithRelations;
-        personLabel?: string;
-        party?: Party;
-        summary?: { text: string };
-        text?: string;
-    });
+    speakerSegment: SegmentWithRelations;
 };
-
-export async function getLatestSegmentsForSpeaker(
-    personId: string,
-    page: number = 1,
-    pageSize: number = 5,
-    administrativeBodyId?: string | null
-): Promise<{ results: SearchResult[], totalCount: number }> {
-    const skip = (page - 1) * pageSize;
-
-    const [segments, totalCount] = await Promise.all([
-        prisma.speakerSegment.findMany({
-            where: {
-                speakerTag: {
-                    personId: personId
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            },
-            include: {
-                meeting: {
-                    include: {
-                        city: true
-                    }
-                },
-                speakerTag: {
-                    include: {
-                        person: {
-                            include: {
-                                party: true,
-                                roles: true
-                            }
-                        }
-                    }
-                },
-                utterances: true,
-                summary: true
-            },
-            orderBy: [
-                {
-                    meeting: {
-                        dateTime: 'desc'
-                    }
-                },
-                {
-                    startTimestamp: 'desc'
-                }
-            ],
-            take: pageSize,
-            skip
-        }),
-        prisma.speakerSegment.count({
-            where: {
-                speakerTag: {
-                    personId: personId
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            }
-        })
-    ]);
-
-    const results = segments
-        .filter(segment => segment.utterances.reduce((acc, u) => acc + u.text.length, 0) >= 100)
-        .map(segment => ({
-            city: segment.meeting.city,
-            councilMeeting: segment.meeting,
-            speakerSegment: {
-                ...segment,
-                person: segment.speakerTag?.person || undefined,
-                personLabel: segment.speakerTag?.label || undefined,
-                party: segment.speakerTag?.person?.party || undefined,
-                summary: segment.summary ? { text: segment.summary.text } : undefined,
-                text: segment.utterances.map(u => u.text).join(' ')
-            }
-        }));
-
-    return {
-        results,
-        totalCount
-    };
-}
-
-export async function getLatestSegmentsForParty(
-    partyId: string,
-    page: number = 1,
-    pageSize: number = 5,
-    administrativeBodyId?: string | null
-): Promise<{ results: SearchResult[], totalCount: number }> {
-    const skip = (page - 1) * pageSize;
-
-    type SegmentWithRelations = Prisma.SpeakerSegmentGetPayload<{
-        include: {
-            meeting: {
-                include: {
-                    city: true
-                }
-            },
-            speakerTag: {
-                include: {
-                    person: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            utterances: true,
-            summary: true
-        }
-    }>;
-
-    const [segments, totalCount] = await Promise.all([
-        prisma.speakerSegment.findMany({
-            where: {
-                speakerTag: {
-                    person: {
-                        roles: {
-                            some: {
-                                partyId: partyId
-                            }
-                        }
-                    }
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            },
-            include: {
-                meeting: {
-                    include: {
-                        city: true
-                    }
-                },
-                speakerTag: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    where: {
-                                        partyId: partyId
-                                    },
-                                    include: {
-                                        party: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                utterances: true,
-                summary: true
-            },
-            orderBy: [
-                {
-                    meeting: {
-                        dateTime: 'desc'
-                    }
-                },
-                {
-                    startTimestamp: 'desc'
-                }
-            ],
-            take: pageSize,
-            skip
-        }) as Promise<SegmentWithRelations[]>,
-        prisma.speakerSegment.count({
-            where: {
-                speakerTag: {
-                    person: {
-                        roles: {
-                            some: {
-                                partyId: partyId
-                            }
-                        }
-                    }
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            }
-        })
-    ]);
-
-    const results = segments
-        .filter((segment: SegmentWithRelations) => {
-            const totalLength = segment.utterances.reduce((acc: number, u: { text: string }) => acc + u.text.length, 0);
-            return totalLength >= 100;
-        })
-        .map((segment: SegmentWithRelations) => {
-            // Find the active role at the time of the meeting
-            const activeRole = segment.speakerTag?.person?.roles.find(role => {
-                const meetingDate = new Date(segment.meeting.dateTime);
-                const startDate = role.startDate ? new Date(role.startDate) : null;
-                const endDate = role.endDate ? new Date(role.endDate) : null;
-
-                return (!startDate || startDate <= meetingDate) &&
-                    (!endDate || endDate >= meetingDate);
-            });
-
-            // Only include segments where the person had an active role in the party at the time of the meeting
-            if (!activeRole) {
-                return null;
-            }
-
-            return {
-                city: segment.meeting.city,
-                councilMeeting: segment.meeting,
-                speakerSegment: {
-                    ...segment,
-                    person: segment.speakerTag?.person || undefined,
-                    party: activeRole.party || undefined,
-                    summary: segment.summary ? { text: segment.summary.text } : undefined,
-                    text: segment.utterances.map(u => u.text).join(' ')
-                }
-            };
-        })
-        .filter((result): result is NonNullable<typeof result> => result !== null);
-
-    return {
-        results,
-        totalCount: results.length // Update totalCount to reflect filtered results
-    };
-}
-
 
 const RERANK = false;
 const MAX_RESULTS = 50;
@@ -345,14 +78,6 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
 
     // Transform rawResults into results
     const results = rawResults.map(row => ({
-        city: {
-            id: row.city_id,
-            name: row.city_name,
-        },
-        councilMeeting: {
-            id: row.meeting_id,
-            name: row.meeting_name,
-        },
         speakerSegment: {
             id: row.segment_id,
             summary: row.summary_text ? {
@@ -417,7 +142,13 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
                         person: {
                             include: {
                                 party: true,
-                                roles: true
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -436,30 +167,13 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
             }
         });
 
-
-
         if (!fullSpeakerSegment) {
             throw new Error(`SpeakerSegment with id ${result.speakerSegment.id} not found`);
         }
 
         return {
-            city: fullSpeakerSegment.meeting.city,
-            councilMeeting: fullSpeakerSegment.meeting,
             relevanceScore: result.relevanceScore,
-            speakerSegment: {
-                id: fullSpeakerSegment.id,
-                startTimestamp: fullSpeakerSegment.startTimestamp,
-                endTimestamp: fullSpeakerSegment.endTimestamp,
-                createdAt: fullSpeakerSegment.createdAt,
-                updatedAt: fullSpeakerSegment.updatedAt,
-                meetingId: fullSpeakerSegment.meetingId,
-                cityId: fullSpeakerSegment.cityId,
-                speakerTagId: fullSpeakerSegment.speakerTagId,
-                person: fullSpeakerSegment.speakerTag.person || undefined,
-                party: fullSpeakerSegment.speakerTag.person?.party || undefined,
-                summary: fullSpeakerSegment.summary || undefined,
-                text: fullSpeakerSegment.utterances.map(u => u.text).join(' ')
-            }
+            speakerSegment: fullSpeakerSegment
         };
     }));
 
@@ -468,7 +182,9 @@ export async function search(request: SearchRequest): Promise<SearchResult[]> {
     } else {
         // Filter out results for cities that are not listed
         const listedCities = await getCities();
-        const resultsOfListedCities = fullResults.filter(result => listedCities.some(city => city.id === result.city.id));
+        const resultsOfListedCities = fullResults.filter(result => 
+            listedCities.some(city => city.id === result.speakerSegment.meeting.city.id)
+        );
 
         return resultsOfListedCities;
     }

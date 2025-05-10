@@ -128,7 +128,7 @@ export default function SearchPage() {
                 </div>
             ) : (
                 <>
-                    {results.map((r, ind) => <Result key={`$sr-${ind}`} result={r} />)}
+                    {results.map((r, ind) => <Result key={`$sr-${ind}`} result={r.speakerSegment} />)}
                 </>
             )}
         </div>
