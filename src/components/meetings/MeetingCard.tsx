@@ -3,7 +3,7 @@ import { CouncilMeeting, Subject, Topic } from '@prisma/client';
 import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
@@ -16,7 +16,12 @@ import { Badge } from '../ui/badge';
 import { motion } from 'framer-motion';
 
 interface MeetingCardProps {
-    item: CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] };
+    item: CouncilMeeting & {
+        subjects: (Subject & {
+            topic?: Topic | null,
+            speakerSegments?: any[] // Using any for flexibility with the structure
+        })[]
+    };
     editable: boolean;
     mostRecent?: boolean;
     cityTimezone?: string;
@@ -54,6 +59,22 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
+    // Since data comes from the backend as ordered by hot status already (due to db query order),
+    // we maintain that order but use our utility for consistency
+    const sortedSubjects = useMemo(() => {
+        const result = sortSubjectsByImportance(meeting.subjects, 'importance');
+
+        // Debug logs to help understand the sorting
+        if (result.length > 0) {
+            const topThree = result.slice(0, Math.min(3, result.length));
+            console.log(`MeetingCard - top subjects: ${topThree.map(s =>
+                `${s.name}${s.hot ? ' (HOT)' : ''}${s.speakerSegments ? ` (${s.speakerSegments.length} segments)` : ''}`
+            ).join(', ')}`);
+        }
+
+        return result;
+    }, [meeting.subjects]);
+
     const handleClick = async (e: React.MouseEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -85,6 +106,9 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
             </div>
         );
     };
+
+    // Ensure we have subjects to display
+    const hasSubjects = meeting.subjects.length > 0;
 
     return (
         <motion.div
@@ -182,11 +206,11 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                         </div>
 
                         {/* Subjects list - more compact */}
-                        {meeting.subjects.length > 0 && (
+                        {hasSubjects && (
                             <div className="mt-2 pb-3">
                                 <div className="pt-2 border-t">
                                     <div className="flex flex-col">
-                                        {meeting.subjects.slice(0, 3).map((subject) => (
+                                        {sortedSubjects.slice(0, 3).map((subject) => (
                                             <div
                                                 key={subject.id}
                                                 className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"

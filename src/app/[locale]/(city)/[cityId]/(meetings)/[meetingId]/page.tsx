@@ -10,10 +10,11 @@ import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
+import { useEffect } from "react";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
-    const hottestSubjects = sortSubjectsByImportance(subjects)
+    const hottestSubjects = sortSubjectsByImportance(subjects, 'importance')
         .slice(0, Math.max(9, subjects.filter(s => s.hot).length));
     const isOldVersion = subjects.length === 0;
 
@@ -21,6 +22,16 @@ export default function MeetingPage() {
     const subjectFeatures = subjects
         .map(subjectToMapFeature)
         .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+
+    // Debug logs to compare with MeetingCard sorting
+    useEffect(() => {
+        if (hottestSubjects.length > 0) {
+            const topThree = hottestSubjects.slice(0, Math.min(3, hottestSubjects.length));
+            console.log(`MeetingPage - top subjects: ${topThree.map(s =>
+                `${s.name}${s.hot ? ' (HOT)' : ''}${s.speakerSegments ? ` (${s.speakerSegments.length} segments)` : ''}`
+            ).join(', ')}`);
+        }
+    }, [hottestSubjects]);
 
     return (
         <div className="flex flex-col w-full">

@@ -16,11 +16,12 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { isUserAuthorizedToEdit } from "@/lib/auth"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { sortSubjectsByImportance } from "@/lib/utils"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
@@ -30,6 +31,11 @@ export default function MeetingSidebar() {
     const pathname = usePathname()
     // State to track both actual path and anticipated path during navigation
     const [activeItem, setActiveItem] = useState(pathname)
+
+    // Sort subjects by appearance (chronological) for the sidebar
+    const chronologicalSubjects = useMemo(() => {
+        return sortSubjectsByImportance(subjects, 'appearance')
+    }, [subjects])
 
     // Sync with pathname when it changes
     useEffect(() => {
@@ -188,7 +194,7 @@ export default function MeetingSidebar() {
                                             </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
-                                    {subjects?.map((subject) => (
+                                    {chronologicalSubjects?.map((subject) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
                                             <SidebarMenuButton
                                                 asChild

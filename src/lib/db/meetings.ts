@@ -81,6 +81,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
 export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
+        // First, get meetings with subjects and basic relationships
         const meetings = await prisma.councilMeeting.findMany({
             where: { cityId, released: includeUnreleased ? undefined : true },
             orderBy: [
@@ -89,13 +90,23 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
             ],
             include: {
                 subjects: {
+                    orderBy: [
+                        // Ensure hot subjects are first in the list 
+                        { hot: 'desc' },
+                        // Secondary ordering by agenda item index when available
+                        { agendaItemIndex: 'asc' },
+                        { name: 'asc' }
+                    ],
                     include: {
-                        topic: true
+                        topic: true,
+                        // Include speaker segments through the junction table
+                        speakerSegments: true // This gets all SubjectSpeakerSegment records
                     }
                 },
                 administrativeBody: true
             }
         });
+
         return meetings;
     } catch (error) {
         console.error('Error fetching council meetings for city:', error);
