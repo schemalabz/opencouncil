@@ -5,17 +5,20 @@ import PartyCard from '@/components/parties/PartyCard';
 import PartyForm from '@/components/parties/PartyForm';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useMemo } from 'react';
+import { Person } from '@prisma/client';
 
 type CityPartiesProps = {
     partiesWithPersons: PartyWithPersons[],
     cityId: string,
-    canEdit: boolean
+    canEdit: boolean,
+    peopleWithoutParties?: Person[]
 };
 
-export default function CityParties({ 
-    partiesWithPersons, 
-    cityId, 
-    canEdit 
+export default function CityParties({
+    partiesWithPersons,
+    cityId,
+    canEdit,
+    peopleWithoutParties
 }: CityPartiesProps) {
     const t = useTranslations('Party');
 
@@ -41,18 +44,38 @@ export default function CityParties({
                 return a.name.localeCompare(b.name);
             });
     }, [partiesWithPersons]);
-
     return (
-        <List
-            items={orderedParties}
-            editable={canEdit}
-            ItemComponent={PartyCard}
-            FormComponent={PartyForm}
-            formProps={{ cityId }}
-            t={t}
-            smColumns={1}
-            mdColumns={2}
-            lgColumns={3}
-        />
+        <div>
+            <List
+                items={orderedParties}
+                editable={canEdit}
+                ItemComponent={PartyCard}
+                FormComponent={PartyForm}
+                formProps={{ cityId }}
+                t={t}
+                smColumns={1}
+                mdColumns={2}
+                lgColumns={3}
+            />
+            {peopleWithoutParties && peopleWithoutParties.length > 0 && (
+                <div className="mt-8 px-4">
+                    <p className="text-gray-600 dark:text-gray-400">
+                        Πρόσωπα εκτός παρατάξεων:{' '}
+                        {peopleWithoutParties.map((person, index) => (
+                            <>
+                                <a
+                                    key={person.id}
+                                    href={`/${cityId}/people/${person.id}`}
+                                    className="hover:underline text-blue-600 dark:text-blue-400"
+                                >
+                                    {person.name}
+                                </a>
+                                {index < peopleWithoutParties.length - 1 ? ', ' : ''}
+                            </>
+                        ))}
+                    </p>
+                </div>
+            )}
+        </div>
     );
 } 

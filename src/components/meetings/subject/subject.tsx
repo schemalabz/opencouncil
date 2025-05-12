@@ -12,6 +12,7 @@ import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
+import { useMemo } from "react";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
@@ -33,6 +34,13 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     })) || [];
 
     const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
+
+    // Memoize map features to prevent unnecessary recalculations
+    const mapFeatures = useMemo(() => {
+        if (!location) return [];
+        const feature = subjectToMapFeature(subject);
+        return feature ? [feature] : [];
+    }, [subject, location]);
 
     return (
         <div className="min-h-screen bg-background">
@@ -123,7 +131,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             <Map
                                 center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
                                 zoom={15}
-                                features={location ? [subjectToMapFeature(subject)].filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null) : []}
+                                features={mapFeatures}
                                 animateRotation={false}
                             />
                         </div>

@@ -41,6 +41,19 @@ interface VideoProviderProps {
     meeting: CouncilMeeting;
     utterances: Utterance[];
 }
+
+// Add throttle helper function
+const throttle = (func: Function, limit: number) => {
+    let inThrottle: boolean;
+    return function (this: any, ...args: any[]) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+};
+
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const { options } = useTranscriptOptions();
     const [isPlaying, setIsPlaying] = useState(false);
@@ -196,15 +209,24 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    // Throttle the time update to reduce rerenders
     const handleTimeUpdate = useCallback(() => {
         if (playerRef.current && !isSeeking) {
             if (isPlaying) {
                 const newTime = playerRef.current.currentTime;
                 currentTimeRef.current = newTime;
-                setCurrentTime(newTime);
+                // Only update state periodically to reduce rerenders
+                throttledSetCurrentTime(newTime);
             }
         }
     }, [isSeeking, isPlaying]);
+
+    // Create a throttled version of setCurrentTime
+    const throttledSetCurrentTime = useRef(
+        throttle((time: number) => {
+            setCurrentTime(time);
+        }, 250) // Update at most every 250ms
+    ).current;
 
     const seekToAndPlay = (time: number) => {
         seekTo(time);

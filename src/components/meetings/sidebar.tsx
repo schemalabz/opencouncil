@@ -16,14 +16,47 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { isUserAuthorizedToEdit } from "@/lib/auth"
+import { usePathname } from "next/navigation"
+import { cn } from "@/lib/utils"
+import { sortSubjectsByImportance } from "@/lib/utils"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
     const [canEdit, setCanEdit] = useState(false)
+    const { isMobile, setOpenMobile } = useSidebar()
+    const pathname = usePathname()
+    // State to track both actual path and anticipated path during navigation
+    const [activeItem, setActiveItem] = useState(pathname)
+
+    // Sort subjects by appearance (chronological) for the sidebar
+    const chronologicalSubjects = useMemo(() => {
+        return sortSubjectsByImportance(subjects, 'appearance')
+    }, [subjects])
+
+    // Sync with pathname when it changes
+    useEffect(() => {
+        setActiveItem(pathname)
+    }, [pathname])
+
+    // Listen for navigation events to update active item immediately
+    useEffect(() => {
+        const handleNavStart = (e: Event) => {
+            const customEvent = e as CustomEvent
+            if (customEvent.detail && customEvent.detail.path) {
+                setActiveItem(customEvent.detail.path)
+            }
+        }
+
+        document.addEventListener('navigationstart', handleNavStart)
+
+        return () => {
+            document.removeEventListener('navigationstart', handleNavStart)
+        }
+    }, [])
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -32,6 +65,29 @@ export default function MeetingSidebar() {
         }
         checkAuth()
     }, [meeting.id])
+
+    const handleMenuItemClick = () => {
+        // Only close sidebar on mobile
+        if (isMobile) {
+            setOpenMobile(false)
+        }
+    }
+
+    // Check if a menu item is currently active based on activeItem
+    const isActive = (url: string) => {
+        // Handle root meeting path (dashboard)
+        if (url === `/${city.id}/${meeting.id}` && activeItem === `/${city.id}/${meeting.id}`) {
+            return true
+        }
+
+        // Handle other paths
+        return activeItem.startsWith(url) && url !== `/${city.id}/${meeting.id}`
+    }
+
+    // Check if subjects section is active
+    const isSubjectsActive = () => {
+        return activeItem.includes(`/${city.id}/${meeting.id}/subjects`)
+    }
 
     const mainMenuItems = [
         {
@@ -88,8 +144,14 @@ export default function MeetingSidebar() {
                         <SidebarMenu>
                             {mainMenuItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton asChild>
-                                        <Link href={item.url}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        onClick={handleMenuItemClick}
+                                        isActive={isActive(item.url)}
+                                    >
+                                        <Link href={item.url} className={cn(
+                                            isActive(item.url) && "text-primary font-medium"
+                                        )}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
                                         </Link>
@@ -98,7 +160,13 @@ export default function MeetingSidebar() {
                             ))}
 
                             <SidebarMenuItem>
-                                <SidebarMenuButton onClick={() => setSubjectsExpanded(!subjectsExpanded)}>
+                                <SidebarMenuButton
+                                    onClick={() => setSubjectsExpanded(!subjectsExpanded)}
+                                    isActive={isSubjectsActive()}
+                                    className={cn(
+                                        isSubjectsActive() && "text-primary font-medium"
+                                    )}
+                                >
                                     <FileText className="h-4 w-4" />
                                     <span>Θέματα</span>
                                     {subjectsExpanded ?
@@ -111,16 +179,34 @@ export default function MeetingSidebar() {
                             {subjectsExpanded && (
                                 <>
                                     <SidebarMenuItem className="pl-8">
-                                        <SidebarMenuButton asChild>
-                                            <Link href={`/${city.id}/${meeting.id}/subjects`}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            onClick={handleMenuItemClick}
+                                            isActive={activeItem === `/${city.id}/${meeting.id}/subjects`}
+                                        >
+                                            <Link
+                                                href={`/${city.id}/${meeting.id}/subjects`}
+                                                className={cn(
+                                                    activeItem === `/${city.id}/${meeting.id}/subjects` && "text-primary font-medium"
+                                                )}
+                                            >
                                                 <span className="text-sm font-bold">Όλα τα θέματα</span>
                                             </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
-                                    {subjects?.map((subject) => (
+                                    {chronologicalSubjects?.map((subject) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
-                                            <SidebarMenuButton asChild>
-                                                <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}>
+                                            <SidebarMenuButton
+                                                asChild
+                                                onClick={handleMenuItemClick}
+                                                isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                            >
+                                                <Link
+                                                    href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                    className={cn(
+                                                        activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
+                                                    )}
+                                                >
                                                     <span className="text-sm">{subject.name}</span>
                                                 </Link>
                                             </SidebarMenuButton>

@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -73,45 +74,25 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
         const url = party ? `/api/cities/${cityId}/parties/${party.id}` : `/api/cities/${cityId}/parties`
         const method = party ? 'PUT' : 'POST'
 
-        const jsonData: {
-            name: string;
-            name_en: string;
-            name_short: string;
-            name_short_en: string;
-            colorHex: string;
-            logo?: string | File;
-            cityId: string;
-        } = {
-            name: values.name,
-            name_en: values.name_en,
-            name_short: values.name_short,
-            name_short_en: values.name_short_en,
-            colorHex: values.colorHex,
-            logo: logo!,
-            cityId: cityId
-        }
+        const formData = new FormData()
 
+        // Append all form values
+        formData.append('name', values.name)
+        formData.append('name_en', values.name_en)
+        formData.append('name_short', values.name_short)
+        formData.append('name_short_en', values.name_short_en)
+        formData.append('colorHex', values.colorHex)
+        formData.append('cityId', cityId)
+
+        // Append logo if it exists
         if (logo) {
-            // Convert logo to base64
-            const reader = new FileReader();
-            reader.readAsDataURL(logo);
-            await new Promise<void>((resolve) => {
-                reader.onload = () => {
-                    if (typeof reader.result === 'string') {
-                        jsonData.logo = reader.result;
-                    }
-                    resolve();
-                };
-            });
+            formData.append('logo', logo)
         }
 
         try {
             const response = await fetch(url, {
                 method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(jsonData),
+                body: formData,
             })
 
             if (response.ok) {
@@ -160,6 +141,30 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
                     ]}
                     form={form}
                 />
+
+                <FormField
+                    control={form.control}
+                    name="logo"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>{t('logo')}</FormLabel>
+                            <FormControl>
+                                <Input type="file" onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        setLogo(e.target.files[0])
+                                        setLogoPreview(URL.createObjectURL(e.target.files[0]))
+                                    }
+                                }} />
+                            </FormControl>
+                            {logoPreview && <Image src={logoPreview} alt="Logo preview" width={200} height={200} className="mt-2 object-contain" unoptimized />}
+                            <FormDescription>
+                                {t('logoDescription')}
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
                 <FormField
                     control={form.control}
                     name="colorHex"
