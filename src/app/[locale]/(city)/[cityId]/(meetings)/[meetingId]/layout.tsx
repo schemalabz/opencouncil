@@ -15,7 +15,7 @@ import { getStatisticsFor } from '@/lib/statistics';
 import { getMeetingData, MeetingData } from '@/lib/getMeetingData';
 import { cache, Suspense } from 'react'
 import Header from '@/components/layout/Header';
-import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon } from 'lucide-react';
+import { CalendarIcon, FileIcon, FileText, ExternalLink, VideoIcon, AudioLines, Ban } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import EditSwitch from '@/components/meetings/edit-switch';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
+import { getMeetingState } from '@/lib/utils';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -116,10 +117,12 @@ export default async function CouncilMeetingPage({
 
     const editable = await isUserAuthorizedToEdit({ councilMeetingId: data.meeting.id });
 
+    const meetingState = getMeetingState(data.meeting);
+
     // Format meeting description to include more info
     const meetingDescription = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
-        data.meeting.videoUrl ? "Βίντεο διαθέσιμο" : null,
+        meetingState.label,
         `${data.subjects.length} θέματα`
     ].filter(Boolean).join(' · ');
 

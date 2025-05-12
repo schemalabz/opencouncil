@@ -8,7 +8,7 @@ import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
 import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, getMeetingState } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -73,10 +73,17 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     };
 
     const getMediaStatus = () => {
-        if (meeting.videoUrl) return t('withVideo');
-        if (meeting.audioUrl) return t('withAudio');
-        if (meeting.agendaUrl) return t('withAgenda');
-        return t('noVideo');
+        const meetingState = getMeetingState(meeting);
+
+        return (
+            <div className="flex items-center gap-1">
+                {meetingState.icon === "video" && <VideoIcon className="w-4 h-4" />}
+                {meetingState.icon === "audio" && <AudioLines className="w-4 h-4" />}
+                {meetingState.icon === "fileText" && <FileText className="w-4 h-4" />}
+                {meetingState.icon === "ban" && <Ban className="w-4 h-4" />}
+                <span>{meetingState.label}</span>
+            </div>
+        );
     };
 
     return (
@@ -170,8 +177,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                 </span>
                             </div>
                             <div className="flex items-center gap-1">
-                                {getMediaIcon()}
-                                <span>{getMediaStatus()}</span>
+                                {getMediaStatus()}
                             </div>
                         </div>
 

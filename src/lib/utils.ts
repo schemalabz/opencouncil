@@ -305,3 +305,42 @@ export function normalizeText(text: string): string {
     .replace(/ΐ/g, 'ι')
     .replace(/ΰ/g, 'υ');
 }
+
+export function getMeetingState(meeting: {
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  muxPlaybackId?: string | null;
+  agendaUrl?: string | null;
+  subjects?: any[];
+}): { label: string; icon: string } {
+  console.log(meeting.videoUrl);
+  // Video state - if there's a video and mux playback id
+  if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
+    return {
+      label: "Bίντεο",
+      icon: "video"
+    };
+  }
+
+  // Audio state - if there's audio and mux playback id
+  if (meeting.audioUrl && meeting.muxPlaybackId) {
+    return {
+      label: "Ήχος",
+      icon: "audio"
+    };
+  }
+
+  // Agenda state - if there's an agenda and at least one subject but no media
+  if (meeting.agendaUrl && meeting.subjects && meeting.subjects.length > 0 && !meeting.muxPlaybackId) {
+    return {
+      label: "Διάταξη",
+      icon: "fileText"
+    };
+  }
+
+  // Empty state - default case
+  return {
+    label: "Κενή",
+    icon: "ban"
+  };
+}

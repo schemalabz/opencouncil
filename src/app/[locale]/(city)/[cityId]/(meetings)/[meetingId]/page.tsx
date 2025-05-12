@@ -3,8 +3,8 @@ import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
-import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, VideoIcon } from "lucide-react";
-import { cn, sortSubjectsByImportance, subjectToMapFeature } from "@/lib/utils";
+import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, VideoIcon, AudioLines, Ban } from "lucide-react";
+import { cn, sortSubjectsByImportance, subjectToMapFeature, getMeetingState } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
@@ -78,6 +78,8 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
+    const meetingState = getMeetingState(meeting);
+
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
@@ -87,12 +89,13 @@ function MeetingInfo() {
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {formatDate(new Date(meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
                     </div>
-                    {meeting.videoUrl && (
-                        <div className="flex items-center">
-                            <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                            {meeting.videoUrl ? "Βίντεο Διαθέσιμο" : meeting.audioUrl ? "Μόνο ήχος" : "Χωρίς βίντεο/ήχο"}
-                        </div>
-                    )}
+                    <div className="flex items-center">
+                        {meetingState.icon === "video" && <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "audio" && <AudioLines className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "fileText" && <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "ban" && <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.label}
+                    </div>
 
                     {meeting.agendaUrl && (
                         <div className="flex items-center">
