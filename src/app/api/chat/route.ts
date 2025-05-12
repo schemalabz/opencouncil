@@ -1,281 +1,197 @@
 import { NextRequest } from 'next/server';
 import { Anthropic } from '@anthropic-ai/sdk';
-import prisma from '@/lib/db/prisma';
-import { getSubject } from '@/lib/db/subject';
-import { getCity } from '@/lib/db/cities';
-import { getCouncilMeeting } from '@/lib/db/meetings';
-import { getPeopleForCity } from '@/lib/db/people';
-import { getStatisticsFor } from '@/lib/statistics';
+import { search, SearchResult } from '@/lib/search/search';
+import { Party } from '@prisma/client';
+import { PersonWithRelations } from '@/lib/db/people';
+import { ChatMessage } from '@/types/chat';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Create an Anthropic client
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY || '',
 });
 
-export const runtime = 'edge';
+// Development Configuration
+const DEV_CONFIG = {
+    logPrompts: process.env.NODE_ENV === 'development',
+    promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
+};
 
-// Helper to convert dates to ISO strings
-function serializeData(data: any): any {
-    if (data === null || data === undefined) {
-        return data;
-    }
+// Search Configuration
+const searchConfig = {
+    size: 5,
+    enableSemanticSearch: true,
+    rankWindowSize: 100,
+    rankConstant: 60
+};
 
-    if (data instanceof Date) {
-        return data.toISOString();
-    }
+// Context Management
+const CONTEXT_CONFIG = {
+    maxMessages: 10,
+    maxTokens: 10000,
+    relevanceThreshold: 0.7,
+    useAllSegments: false,
+    highlightKeySegments: true
+};
 
-    if (Array.isArray(data)) {
-        return data.map(item => serializeData(item));
-    }
+// Utility function to log prompts in development
+function logPromptToFile(systemPrompt: string, messages: any[]) {
+    if (!DEV_CONFIG.logPrompts) return;
 
-    if (typeof data === 'object') {
-        const result: any = {};
-        for (const key in data) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
-                result[key] = serializeData(data[key]);
-            }
-        }
-        return result;
-    }
-
-    return data;
-}
-
-// Function to fetch real subjects from the database
-async function getRealSubjects(count = 3) {
     try {
-        console.log(`Fetching ${count} real subjects...`);
-
-        // Get random subjects
-        const subjects = await prisma.subject.findMany({
-            take: count,
-            where: {
-                description: {
-                    not: '',
-                },
-            },
-            orderBy: [
-                // Use a more consistent ordering to get diverse results
-                { hot: 'desc' },
-                { createdAt: 'desc' }
-            ],
-            include: {
-                topic: true,
-                location: true,
-                introducedBy: {
-                    include: {
-                        party: true,
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
-                highlights: true,
-            },
-        });
-
-        console.log(`Found ${subjects.length} subjects from database`);
-
-        if (subjects.length === 0) {
-            // If no subjects found, create mock subjects for testing
-            console.log("No subjects found, creating mock subjects");
-            return createMockSubjects(count);
+        // Ensure the logs directory exists
+        if (!fs.existsSync(DEV_CONFIG.promptsDir)) {
+            fs.mkdirSync(DEV_CONFIG.promptsDir, { recursive: true });
         }
 
-        // For each subject, fetch additional required data
-        const enrichedSubjects = await Promise.all(subjects.map(async (subject) => {
-            try {
-                const [city, meeting, people] = await Promise.all([
-                    getCity(subject.cityId),
-                    getCouncilMeeting(subject.cityId, subject.councilMeetingId),
-                    getPeopleForCity(subject.cityId),
-                ]);
+        // Create a timestamp for the filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = path.join(DEV_CONFIG.promptsDir, `prompt-${timestamp}.json`);
 
-                if (!city || !meeting) {
-                    console.error(`Missing city or meeting for subject ${subject.id}`);
-                    return null;
-                }
-
-                const statistics = await getStatisticsFor({ subjectId: subject.id }, ['person', 'party']);
-
-                // Add necessary properties for the SubjectCard component
-                return {
-                    ...subject,
-                    statistics,
-                    city,
-                    meeting,
-                    persons: people,
-                    parties: people
-                        .flatMap(p => p.roles
-                            .filter(r => r.party)
-                            .map(r => r.party))
-                        .filter((v, i, a) =>
-                            v !== null && a.findIndex(t => t && t.id === v!.id) === i),
-                };
-            } catch (error) {
-                console.error(`Error enriching subject ${subject.id}:`, error);
-                return null;
+        // Create the log object
+        const logObject = {
+            timestamp,
+            systemPrompt,
+            messages,
+            metadata: {
+                nodeEnv: process.env.NODE_ENV,
+                maxTokens: CONTEXT_CONFIG.maxTokens,
+                maxMessages: CONTEXT_CONFIG.maxMessages,
             }
-        }));
+        };
 
-        // Filter out any null values from failed enrichment
-        const validSubjects = enrichedSubjects.filter(subject => subject !== null);
-        console.log(`Returning ${validSubjects.length} enriched subjects`);
-
-        // Serialize the subjects to handle Date objects and other complex types
-        return serializeData(validSubjects);
+        // Write to file
+        fs.writeFileSync(filename, JSON.stringify(logObject, null, 2));
+        console.log(`[Dev] Prompt logged to ${filename}`);
     } catch (error) {
-        console.error('Error fetching real subjects:', error);
-        console.log("Creating mock subjects due to error");
-        return createMockSubjects(count);
+        console.error('[Dev] Error logging prompt:', error);
     }
 }
 
-// Add proper types
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-    id?: string;
-    done?: boolean;
-    error?: boolean;
-    subjectReferences?: any[];
+// Content Extraction
+function extractRelevantContent(searchResults: SearchResult[]) {
+    console.log(`[Content Extraction] Processing ${searchResults.length} search results`);
+    
+    const extracted = searchResults.map(result => {
+        const matchedSegments = result.speakerSegments
+            .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
+            
+        console.log(`[Content Extraction] Subject "${result.name}":`);
+        console.log(`  - Score: ${result.score}`);
+        console.log(`  - Matched Segments: ${matchedSegments.length}`);
+        
+        return {
+            name: result.name,
+            description: result.description,
+            topic: result.topic?.name,
+            keySegments: matchedSegments.map(segment => ({
+                speaker: segment.person?.name || 'Unknown',
+                text: segment.text,
+                person: segment.person
+            })),
+            speakerSegments: result.speakerSegments.map(segment => ({
+                speaker: segment.person?.name || 'Unknown',
+                text: segment.text,
+                person: segment.person
+            }))
+        };
+    });
+
+    console.log(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
+    return extracted;
 }
 
-interface StreamData {
-    id: string;
-    role: 'assistant';
-    content: string;
-    done: boolean;
-    subjectReferences?: any[];
-    error?: boolean;
+// Context Enhancement
+function enhancePrompt(
+    messages: ChatMessage[],
+    context: ReturnType<typeof extractRelevantContent>
+) {
+    console.log(`[Prompt Enhancement] Enhancing prompt with:`);
+    console.log(`  - Messages: ${messages.length}`);
+    console.log(`  - Context subjects: ${context.length}`);
+    
+    const systemPrompt = `${SYSTEM_PROMPT}
+
+Σχετικά θέματα συμβουλίου:
+${context.map(subject => `
+Θέμα: ${subject.name}
+${subject.topic ? `Κατηγορία: ${subject.topic}` : ''}
+Περιγραφή: ${subject.description}
+
+Αποσπάσματα ομιλιών:
+${CONTEXT_CONFIG.useAllSegments 
+    ? subject.speakerSegments.map(segment => {
+        const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
+        const prefix = isKeySegment && CONTEXT_CONFIG.highlightKeySegments ? '🔹 ' : '• ';
+        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
+        return `${prefix}${segment.speaker} (${partyName}): "${segment.text}"`;
+    }).join('\n')
+    : subject.keySegments.map(segment => {
+        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
+        return `• ${segment.speaker} (${partyName}): "${segment.text}"`;
+    }).join('\n')
+}
+`).join('\n\n')}
+
+Παρακαλώ δώστε μια απάντηση βασισμένη στο παραπάνω περιεχόμενο και τις γνώσεις σας. Αν το περιεχόμενο δεν είναι σχετικό με την ερώτηση, μπορείτε να το αγνοήσετε και να απαντήσετε με βάση τις γενικές σας γνώσεις.
+
+${CONTEXT_CONFIG.useAllSegments && CONTEXT_CONFIG.highlightKeySegments ? 'Σημείωση: Τα αποσπάσματα με 🔹 είναι τα πιο σχετικά με την ερώτησή σας.' : ''}`;
+
+    // Log approximate token count
+    const approximateTokens = systemPrompt.split(/\s+/).length;
+    console.log(`[Prompt Enhancement] Approximate token count: ${approximateTokens}`);
+
+    // Strip out id field from messages before sending to Claude
+    const cleanedMessages = messages.slice(-CONTEXT_CONFIG.maxMessages).map(({ role, content }) => ({
+        role,
+        content
+    }));
+
+    console.log(`[Prompt Enhancement] Sending ${cleanedMessages.length} cleaned messages to Claude`);
+
+    // Log the prompt in development mode
+    logPromptToFile(systemPrompt, cleanedMessages);
+
+    return {
+        system: systemPrompt,
+        messages: cleanedMessages
+    };
 }
 
 // Constants
-const SYSTEM_PROMPT = `Είστε ένας βοηθός AI για το OpenCouncil, μια πλατφόρμα που παρέχει πρόσβαση σε 
-μεταγραφές συνεδριάσεων δημοτικών συμβουλίων και δεδομένα. Απαντήστε σε ερωτήσεις σχετικά με τη δημοτική διακυβέρνηση, 
-τις διαδικασίες του δημοτικού συμβουλίου και θέματα αστικού σχεδιασμού. Παρέχετε χρήσιμες, συνοπτικές απαντήσεις. 
-Αν δεν γνωρίζετε την απάντηση, πείτε το ξεκάθαρα αντί να επινοείτε πληροφορίες.`;
+const SYSTEM_PROMPT = `Είστε ένας εξειδικευμένος βοηθός AI για το OpenCouncil, μια πλατφόρμα που παρέχει πρόσβαση σε μεταγραφές και δεδομένα από συνεδριάσεις δημοτικών συμβουλίων. 
+
+Ρόλος και Δεδομένα:
+- Είστε ειδικός στη δημοτική διακυβέρνηση και τις διαδικασίες των δημοτικών συμβουλίων
+- Έχετε πρόσβαση σε μεταγραφές συνεδριάσεων, θέματα συμβουλίου, και σχετικά δεδομένα
+- Μπορείτε να αναφέρεστε σε συγκεκριμένα θέματα συμβουλίου και αποσπάσματα ομιλιών
+
+Οδηγίες Απάντησης:
+- Παρέχετε ακριβείς, συνοπτικές και ενημερωτικές απαντήσεις
+- Χρησιμοποιήστε τα δεδομένα που παρέχονται ως context για να υποστηρίξετε τις απαντήσεις σας
+- Αναφέρεστε συγκεκριμένα θέματα συμβουλίου όταν είναι σχετικά
+- Αν δεν γνωρίζετε την απάντηση, πείτε το ξεκάθαρα
+- Μην επινοείτε πληροφορίες
+
+Τύποι Ερωτήσεων:
+- Ερωτήσεις για διαδικασίες δημοτικών συμβουλίων
+- Ερωτήσεις για συγκεκριμένα θέματα συμβουλίου
+- Ερωτήσεις για αστικό σχεδιασμό και πολιτικές
+- Ερωτήσεις για συμβούλους και κόμματα
+- Ερωτήσεις για τοπικά θέματα και προβλήματα
+
+Τόνος και Γλώσσα:
+- Χρησιμοποιήστε επαγγελματικό αλλά προσιτό τόνο
+- Χρησιμοποιήστε τεχνικούς όρους όπου είναι απαραίτητο, αλλά εξηγήστε τους όταν χρειάζεται
+- Διατηρήστε αντικειμενικότητα και ισορροπία στις απαντήσεις
+
+Μορφοποίηση:
+- Χρησιμοποιήστε λίστες για σύντομες απαντήσεις
+- Χωρίστε μεγάλες απαντήσεις σε παραγράφους
+- Επισήμανε σημαντικά σημεία με έμφαση όπου χρειάζεται`;
 
 const ERROR_MESSAGE = "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του αιτήματός σας. Παρακαλώ δοκιμάστε ξανά.";
-
-// Create mock subjects for testing when real subjects can't be fetched
-function createMockSubjects(count = 3) {
-    const subjects = [];
-    const topics = ["Urban Development", "Environment", "Public Safety"];
-    const descriptions = [
-        "Discussion about city center renovation and infrastructure improvements.",
-        "Environmental initiatives and waste management proposals.",
-        "Public safety measures and crime prevention strategies."
-    ];
-
-    for (let i = 0; i < count; i++) {
-        const mockCity = {
-            id: `city${i}`,
-            name: "Athens",
-            name_en: "Athens",
-            name_municipality: "Municipality of Athens",
-            name_municipality_en: "Municipality of Athens",
-            logoImage: null,
-            timezone: "Europe/Athens",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            officialSupport: true,
-            isListed: true,
-            isPending: false,
-            authorityType: "municipality",
-            wikipediaId: null
-        };
-
-        const mockMeeting = {
-            id: `meeting${i}`,
-            name: "City Council Meeting",
-            name_en: "City Council Meeting",
-            dateTime: new Date().toISOString(),
-            youtubeUrl: null,
-            agendaUrl: null,
-            videoUrl: null,
-            audioUrl: null,
-            muxPlaybackId: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            released: true,
-            cityId: mockCity.id,
-            administrativeBodyId: null
-        };
-
-        const mockPersons = [
-            {
-                id: `person${i}1`,
-                name: "John Smith",
-                name_en: "John Smith",
-                name_short: "J. Smith",
-                name_short_en: "J. Smith",
-                image: null,
-                role: "Mayor",
-                role_en: "Mayor",
-                isAdministrativeRole: true,
-                activeFrom: new Date().toISOString(),
-                activeTo: null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                profileUrl: null,
-                cityId: mockCity.id,
-                partyId: `party${i}1`,
-                roles: []
-            }
-        ];
-
-        const mockParties = [
-            {
-                id: `party${i}1`,
-                name: "Democratic Party",
-                name_en: "Democratic Party",
-                name_short: "DP",
-                name_short_en: "DP",
-                colorHex: "#3B82F6",
-                logo: null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                cityId: mockCity.id
-            }
-        ];
-
-        subjects.push({
-            id: `subject${i}`,
-            name: topics[i % topics.length],
-            description: descriptions[i % descriptions.length],
-            hot: i === 0,
-            agendaItemIndex: i + 1,
-            nonAgendaReason: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            cityId: mockCity.id,
-            councilMeetingId: mockMeeting.id,
-            personId: mockPersons[0].id,
-            topicId: null,
-            locationId: null,
-            context: null,
-            contextCitationUrls: [],
-            location: { text: "City Center" },
-            topic: null,
-            introducedBy: mockPersons[0],
-            speakerSegments: [],
-            highlights: [],
-            statistics: null,
-            city: mockCity,
-            meeting: mockMeeting,
-            persons: mockPersons,
-            parties: mockParties
-        });
-    }
-
-    console.log(`Created ${subjects.length} mock subjects`);
-    return subjects;
-}
 
 export async function POST(req: NextRequest) {
     const encoder = new TextEncoder();
@@ -297,30 +213,122 @@ export async function POST(req: NextRequest) {
     // Process the request asynchronously
     (async () => {
         try {
-            const { messages } = await req.json();
+            console.log(`[Chat API] New request received`);
+            const { messages, cityId } = await req.json();
+            
+            // Log request details
+            console.log(`[Chat API] Request details:`);
+            console.log(`  - Messages: ${messages.length}`);
+            console.log(`  - City ID: ${cityId || 'none'}`);
+            console.log(`  - Last message: "${messages[messages.length - 1].content.substring(0, 50)}..."`);
 
-            // Validate messages
-            if (!Array.isArray(messages)) {
-                throw new Error('Invalid messages format');
-            }
+            // 1. Perform search
+            console.log(`[Search] Initiating search with query: "${messages[messages.length - 1].content}"`);
+            const searchResults = await search({
+                query: messages[messages.length - 1].content,
+                cityIds: cityId ? [cityId] : undefined,
+                config: searchConfig
+            });
+            console.log(`[Search] Found ${searchResults.results.length} results`);
 
-            // Convert chat history to Claude's format
-            const claudeMessages = messages.map((message: ChatMessage) => ({
-                role: message.role,
-                content: message.content,
-            }));
+            // 2. Extract content
+            const context = extractRelevantContent(searchResults.results);
 
-            // Fetch real subjects from the database while streaming the response
-            const subjectPromise = getRealSubjects(3);
+            // 3. Enhance prompt
+            const enhancedPrompt = enhancePrompt(messages, context);
 
-            // Get the streaming response from Claude
+            // 4. Get LLM response
+            console.log(`[LLM] Sending request to Claude`);
             const claudeResponse = await anthropic.messages.create({
                 model: 'claude-3-5-sonnet-20240620',
                 max_tokens: 1000,
-                system: SYSTEM_PROMPT,
-                messages: claudeMessages,
+                system: enhancedPrompt.system,
+                messages: enhancedPrompt.messages,
                 stream: true,
             });
+
+            // 5. Track subjects
+            const subjectReferences = searchResults.results.map(result => {
+                // Get unique parties from the city
+                const parties = (result.councilMeeting.city as any).parties || [] as Party[];
+                
+                // Get all persons from the city
+                const persons = (result.councilMeeting.city as any).persons || [] as PersonWithRelations[];
+                
+                return {
+                    id: result.id,
+                    name: result.name,
+                    description: result.description,
+                    councilMeeting: {
+                        id: result.councilMeeting.id,
+                        name: result.councilMeeting.name,
+                        name_en: result.councilMeeting.name_en,
+                        dateTime: result.councilMeeting.dateTime,
+                        city: {
+                            id: result.councilMeeting.city.id,
+                            name: result.councilMeeting.city.name,
+                            name_en: result.councilMeeting.city.name_en,
+                            name_municipality: result.councilMeeting.city.name_municipality,
+                            name_municipality_en: result.councilMeeting.city.name_municipality_en,
+                            logoImage: result.councilMeeting.city.logoImage,
+                            timezone: result.councilMeeting.city.timezone,
+                            officialSupport: result.councilMeeting.city.officialSupport,
+                            isListed: result.councilMeeting.city.isListed,
+                            isPending: result.councilMeeting.city.isPending,
+                            authorityType: result.councilMeeting.city.authorityType,
+                            parties: parties.map((party: Party) => ({
+                                id: party.id,
+                                name: party.name,
+                                name_en: party.name_en,
+                                name_short: party.name_short,
+                                name_short_en: party.name_short_en,
+                                colorHex: party.colorHex,
+                                logo: party.logo
+                            }))
+                        }
+                    },
+                    topic: result.topic,
+                    introducedBy: result.introducedBy,
+                    location: result.location,
+                    speakerSegments: result.speakerSegments,
+                    city: {
+                        ...result.councilMeeting.city,
+                        parties: parties.map((party: Party) => ({
+                            id: party.id,
+                            name: party.name,
+                            name_en: party.name_en,
+                            name_short: party.name_short,
+                            name_short_en: party.name_short_en,
+                            colorHex: party.colorHex,
+                            logo: party.logo
+                        }))
+                    },
+                    meeting: result.councilMeeting,
+                    parties: parties.map((party: Party) => ({
+                        id: party.id,
+                        name: party.name,
+                        name_en: party.name_en,
+                        name_short: party.name_short,
+                        name_short_en: party.name_short_en,
+                        colorHex: party.colorHex,
+                        logo: party.logo
+                    })),
+                    persons: persons.map((person: PersonWithRelations) => ({
+                        id: person.id,
+                        name: person.name,
+                        name_en: person.name_en,
+                        name_short: person.name_short,
+                        name_short_en: person.name_short_en,
+                        image: person.image,
+                        partyId: person.partyId,
+                        roles: person.roles
+                    }))
+                };
+            });
+
+            console.log(`[Chat API] Response prepared with:`);
+            console.log(`  - Subject references: ${subjectReferences.length}`);
+            console.log(`  - Streaming response: true`);
 
             // Keep track of the accumulated content
             let accumulatedContent = '';
@@ -361,10 +369,6 @@ export async function POST(req: NextRequest) {
             };
             await writer.write(encoder.encode(`data: ${JSON.stringify(finalData)}\n\n`));
 
-            // Wait for the subjects to be ready
-            const subjectReferences = await subjectPromise;
-            console.log(`Retrieved ${subjectReferences.length} subject references for response`);
-
             // Send the final message with subjects
             const completeData = {
                 id: Date.now().toString(),
@@ -378,15 +382,14 @@ export async function POST(req: NextRequest) {
             // Close the stream
             await writer.close();
         } catch (error) {
-            console.error('Error in chat API route:', error);
-
+            console.error(`[Chat API] Error:`, error);
+            
             // Send an error message to the client
-            const mockSubjects = createMockSubjects(3);
             const errorData = {
                 id: Date.now().toString(),
                 role: 'assistant',
                 content: ERROR_MESSAGE,
-                subjectReferences: mockSubjects,
+                subjectReferences: [],
                 error: true,
                 done: true
             };

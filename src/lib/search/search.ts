@@ -161,6 +161,12 @@ function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] 
 
 export async function search(request: SearchRequest): Promise<SearchResponse> {
     try {
+        console.log(`[Search] Starting search with config:`, {
+            query: request.query,
+            cityIds: request.cityIds,
+            config: request.config
+        });
+
         // Build the search query
         const searchQuery: estypes.SearchRequest = {
             index: 'subjects',
@@ -265,19 +271,36 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             }
         };
 
+        console.log(`[Search] Built search query:`, {
+            index: searchQuery.index,
+            size: searchQuery.size,
+            semanticSearch: request.config?.enableSemanticSearch,
+            rankWindowSize: request.config?.rankWindowSize,
+            rankConstant: request.config?.rankConstant
+        });
+
         // Execute the search
+        console.log(`[Search] Executing search request...`);
         const response = await client.search(searchQuery);
+        console.log(`[Search] Search request completed`);
 
         // Get total hits
         const total = response.hits.total as { value: number; relation: string };
         const totalHits = total.value;
+        console.log(`[Search] Found ${totalHits} total hits`);
 
         // Process the results
+        console.log(`[Search] Processing ${response.hits.hits.length} results...`);
         const results = await Promise.all(
-            (response.hits.hits as Array<estypes.SearchHit<SubjectDocument>>).map(async (hit) => {
+            (response.hits.hits as Array<estypes.SearchHit<SubjectDocument>>).map(async (hit, index) => {
+                console.log(`[Search] Processing result ${index + 1}/${response.hits.hits.length}`);
+                
                 if (!hit._source) {
+                    console.error(`[Search] Hit source is undefined for result ${index + 1}`);
                     throw new Error('Elasticsearch hit source is undefined');
                 }
+
+                console.log(`[Search] Fetching subject ${hit._source.public_subject_id} from database`);
                 const subject = await prisma.subject.findUnique({
                     where: { id: hit._source.public_subject_id },
                     include: {
@@ -335,9 +358,11 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 });
 
                 if (!subject) {
+                    console.error(`[Search] Subject ${hit._source.public_subject_id} not found in database`);
                     throw new Error(`Subject ${hit._source.public_subject_id} not found`);
                 }
 
+                console.log(`[Search] Processing location for subject ${subject.id}`);
                 // Get location coordinates if available
                 let locationWithCoordinates: SearchResult['location'] | undefined = undefined;
                 if (subject.location) {
@@ -359,6 +384,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     }
                 }
 
+                console.log(`[Search] Processing speaker segments for subject ${subject.id}`);
                 // Transform speaker segments to match new SegmentWithRelations type
                 const speakerSegments = subject.speakerSegments
                     .map(ss => ss.speakerSegment)
@@ -381,10 +407,14 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                         summary: segment.summary ? { text: segment.summary.text } : null
                     }));
 
-                // Process inner hits for speaker segments - simplified to just IDs
+                console.log(`[Search] Found ${speakerSegments.length} valid speaker segments for subject ${subject.id}`);
+
+                // Process inner hits for speaker segments
                 const matchedSpeakerSegmentIds = hit.inner_hits?.['public_subject_speaker_segments']?.hits?.hits
                     .map(innerHit => innerHit._source?.segment_id)
                     .filter((id): id is string => id !== undefined);
+
+                console.log(`[Search] Found ${matchedSpeakerSegmentIds?.length || 0} matched speaker segments for subject ${subject.id}`);
 
                 return {
                     id: subject.id,
@@ -401,12 +431,18 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             })
         );
 
+        console.log(`[Search] Successfully processed all results`);
         return {
             results,
             total: totalHits
         };
     } catch (error) {
-        console.error('Search error:', error);
+        console.error(`[Search] Error during search:`, {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            stack: error instanceof Error ? error.stack : undefined,
+            query: request.query,
+            config: request.config
+        });
         throw new Error('Failed to execute search');
     }
 }
