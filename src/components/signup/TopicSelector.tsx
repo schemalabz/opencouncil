@@ -4,21 +4,11 @@ import { useState, useEffect } from 'react';
 import { X, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-// Updated Topic type to match SignupPageContent.tsx
-type Topic = {
-    id: string;
-    name: string;
-    name_en: string;
-    colorHex: string;
-    icon?: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-};
+import { AppTopic } from './SignupPageContent';
 
 interface TopicSelectorProps {
-    selectedTopics: Topic[];
-    onSelect: (topic: Topic) => void;
+    selectedTopics: AppTopic[];
+    onSelect: (topic: AppTopic) => void;
     onRemove: (topicId: string) => void;
 }
 
@@ -27,8 +17,8 @@ export function TopicSelector({
     onSelect,
     onRemove
 }: TopicSelectorProps) {
-    const [topics, setTopics] = useState<Topic[]>([]);
-    const [filteredTopics, setFilteredTopics] = useState<Topic[]>([]);
+    const [topics, setTopics] = useState<AppTopic[]>([]);
+    const [filteredTopics, setFilteredTopics] = useState<AppTopic[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchValue, setSearchValue] = useState('');
     const [error, setError] = useState<string | null>(null);
@@ -81,7 +71,7 @@ export function TopicSelector({
     // Mock topics if none are returned from API
     if (topics.length === 0 && !isLoading && !error) {
         // Add some mock topics
-        const mockTopics: Topic[] = [
+        const mockTopics: AppTopic[] = [
             { id: '1', name: 'Καθαριότητα', name_en: 'Cleanliness', colorHex: '#4CAF50' },
             { id: '2', name: 'Ασφάλεια', name_en: 'Safety', colorHex: '#2196F3' },
             { id: '3', name: 'Πολιτισμός', name_en: 'Culture', colorHex: '#9C27B0' },

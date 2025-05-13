@@ -5,30 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-
-// Updated City type to match SignupPageContent.tsx
-type City = {
-    id: string;
-    name: string;
-    name_en: string;
-    name_municipality: string;
-    name_municipality_en: string;
-    logoImage: string | null;
-    timezone: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    officialSupport: boolean;
-    isListed?: boolean;
-    isPending?: boolean;
-    authorityType?: string;
-    wikipediaId?: string | null;
-    geometry?: any;
-    supportsNotifications: boolean;
-};
+import { City } from './SignupPageContent';
 
 interface UnsupportedMunicipalityProps {
     city: City;
-    onSubmit: (data: { name: string; isResident: boolean; isCitizen: boolean }) => void;
+    onSubmit: (data: { name: string; isResident: boolean; isCitizen: boolean; phone?: string }) => void;
 }
 
 export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipalityProps) {
@@ -68,7 +49,7 @@ export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipal
     };
 
     return (
-        <div className="p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-md w-full max-w-md">
+        <div className="w-full max-w-md">
             {city.officialSupport ? (
                 <div className="text-center mb-6">
                     <h2 className="text-xl font-bold mb-4">Ο δήμος {city.name} δεν υποστηρίζει ακόμα ενημερώσεις</h2>

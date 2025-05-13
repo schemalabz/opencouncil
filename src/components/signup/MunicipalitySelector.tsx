@@ -3,26 +3,7 @@
 import { useState, useEffect } from 'react';
 import Combobox from '@/components/Combobox';
 import { Loader2 } from 'lucide-react';
-
-// Define type that matches the Prisma schema and SignupPageContent.tsx
-type City = {
-    id: string;
-    name: string;
-    name_en: string;
-    name_municipality: string;
-    name_municipality_en: string;
-    logoImage: string | null;
-    timezone: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    officialSupport: boolean;
-    isListed?: boolean;
-    isPending?: boolean;
-    authorityType?: string;
-    wikipediaId?: string | null;
-    geometry?: any;
-    supportsNotifications: boolean;
-};
+import { City } from '@prisma/client';
 
 interface MunicipalitySelectorProps {
     onSelect: (city: City) => void;
@@ -45,29 +26,7 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
                 }
 
                 const data = await response.json();
-
-                // Ensure each city has the required fields
-                const citiesWithRequiredFields = data.map((city: any) => ({
-                    id: city.id,
-                    name: city.name,
-                    name_en: city.name_en,
-                    name_municipality: city.name_municipality || "",
-                    name_municipality_en: city.name_municipality_en || "",
-                    logoImage: city.logoImage,
-                    timezone: city.timezone || "Europe/Athens",
-                    createdAt: city.createdAt,
-                    updatedAt: city.updatedAt,
-                    officialSupport: city.officialSupport || false,
-                    isListed: city.isListed,
-                    isPending: city.isPending,
-                    authorityType: city.authorityType,
-                    wikipediaId: city.wikipediaId,
-                    geometry: city.geometry,
-                    // Use the field from the database or default to false
-                    supportsNotifications: city.supportsNotifications ?? false
-                }));
-
-                setCities(citiesWithRequiredFields);
+                setCities(data);
             } catch (err) {
                 setError('Υπήρξε πρόβλημα στη φόρτωση των δήμων');
                 console.error(err);

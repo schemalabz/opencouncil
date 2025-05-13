@@ -14,42 +14,22 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { cn } from '@/lib/utils';
+import { City as PrismaCity, Topic as PrismaTopic } from '@prisma/client';
 
-// Define types that match the Prisma schema
-type City = {
-    id: string;
-    name: string;
-    name_en: string;
-    name_municipality: string;
-    name_municipality_en: string;
-    logoImage: string | null;
-    timezone: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    officialSupport: boolean;
-    isListed?: boolean;
-    isPending?: boolean;
-    authorityType?: string;
-    wikipediaId?: string | null;
-    geometry?: any;
-    supportsNotifications: boolean;
+// Extend Prisma types with additional properties needed in the app
+export type City = PrismaCity & {
+    geometry?: any; // Add geometry which is represented as Unsupported in Prisma
 };
 
-type Location = {
+// For location data that doesn't exist in Prisma
+export type Location = {
     id: string;
     text: string;
     coordinates: [number, number];
 };
 
-type Topic = {
-    id: string;
-    name: string;
-    name_en: string;
-    colorHex: string;
-    icon?: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-};
+// Use Prisma Topic type directly with a new alias
+export type AppTopic = PrismaTopic;
 
 // Define signup stages
 enum SignupStage {
@@ -61,10 +41,11 @@ enum SignupStage {
 }
 
 // Define petition data type
-type PetitionData = {
+export type PetitionData = {
     name: string;
     isResident: boolean;
     isCitizen: boolean;
+    phone?: string;
 };
 
 // Utility function to calculate center and zoom from GeoJSON
@@ -139,7 +120,7 @@ export function SignupPageContent() {
     const [stage, setStage] = useState<SignupStage>(SignupStage.SELECT_MUNICIPALITY);
     const [selectedCity, setSelectedCity] = useState<City | null>(null);
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
-    const [selectedTopics, setSelectedTopics] = useState<Topic[]>([]);
+    const [selectedTopics, setSelectedTopics] = useState<AppTopic[]>([]);
     const [petitionData, setPetitionData] = useState<PetitionData | null>(null);
     const [mapFeatures, setMapFeatures] = useState<MapFeature[]>([]);
     const [mapCenter, setMapCenter] = useState<[number, number]>([23.7275, 37.9838]); // Default to Athens
@@ -242,7 +223,7 @@ export function SignupPageContent() {
     };
 
     // Handler for topic selection
-    const handleTopicSelect = (topic: Topic) => {
+    const handleTopicSelect = (topic: AppTopic) => {
         setSelectedTopics(prev => [...prev, topic]);
     };
 
@@ -268,6 +249,9 @@ export function SignupPageContent() {
         try {
             let response;
 
+            // Clean up the phone number if needed
+            const formattedPhone = phone ? phone.trim() : undefined;
+
             // If we have petition data, submit a petition
             if (petitionData && selectedCity) {
                 response = await fetch('/api/petitions', {
@@ -281,7 +265,7 @@ export function SignupPageContent() {
                         isResident: petitionData.isResident,
                         isCitizen: petitionData.isCitizen,
                         email,
-                        phone
+                        phone: formattedPhone
                     })
                 });
             }
@@ -298,7 +282,7 @@ export function SignupPageContent() {
                         locations: selectedLocations.map(loc => loc.id),
                         topics: selectedTopics.map(topic => topic.id),
                         email,
-                        phone
+                        phone: formattedPhone
                     })
                 });
             } else {
@@ -368,6 +352,7 @@ export function SignupPageContent() {
                             selectedLocations={selectedLocations}
                             onSelect={handleLocationSelect}
                             onRemove={handleLocationRemove}
+                            city={selectedCity}
                         />
                         <TopicSelector
                             selectedTopics={selectedTopics}
@@ -452,7 +437,7 @@ export function SignupPageContent() {
                         "absolute z-10 transition-all duration-300 ease-in-out",
                         isDesktop
                             ? "left-0 top-[65px] bottom-0 w-1/3 p-6 bg-white/90 backdrop-blur-sm shadow-xl" // Desktop: Left sidebar
-                            : "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-8" // Mobile: Centered box with improved padding
+                            : "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-6 md:p-8" // Mobile: Centered box with improved padding
                     )}
                 >
                     <div className={cn(
