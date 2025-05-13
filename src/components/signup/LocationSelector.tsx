@@ -76,10 +76,10 @@ export function LocationSelector({
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-5">
             <div>
-                <h3 className="text-lg font-medium mb-2">Τοποθεσίες ενδιαφέροντος</h3>
-                <p className="text-sm text-gray-700 mb-2">
+                <h3 className="text-lg font-medium mb-3">Τοποθεσίες ενδιαφέροντος</h3>
+                <p className="text-sm text-gray-700 mb-3">
                     Επιλέξτε τοποθεσίες για τις οποίες θέλετε να λαμβάνετε ενημερώσεις
                 </p>
             </div>
@@ -87,12 +87,12 @@ export function LocationSelector({
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                        <MapPin className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input
                             ref={inputRef}
                             type="text"
                             placeholder="Αναζητήστε διεύθυνση..."
-                            className="pl-8"
+                            className="pl-10 py-5"
                             value={inputValue}
                             onChange={handleInputChange}
                         />
@@ -113,12 +113,12 @@ export function LocationSelector({
                 </div>
 
                 {suggestions.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg max-h-60 overflow-auto">
-                        <ul className="py-1">
+                    <div className="absolute z-10 mt-2 w-full bg-white rounded-md shadow-lg max-h-60 overflow-auto">
+                        <ul className="py-2">
                             {suggestions.map((suggestion) => (
                                 <li
                                     key={suggestion.id}
-                                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center gap-2"
+                                    className="px-4 py-3 hover:bg-gray-100 cursor-pointer flex items-center gap-3"
                                     onClick={() => handleSelectLocation(suggestion)}
                                 >
                                     <MapPin className="h-4 w-4 text-gray-500" />
@@ -131,7 +131,7 @@ export function LocationSelector({
             </div>
 
             {selectedLocations.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-3">
                     {selectedLocations.map((location) => (
                         <div
                             key={location.id}

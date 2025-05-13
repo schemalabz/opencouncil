@@ -106,18 +106,41 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
     const options = cities.map(city => city.name);
 
     // Handler for combobox selection
-    const handleSelection = (cityName: string | null) => {
+    const handleSelection = async (cityName: string | null) => {
         if (cityName) {
             const selectedCity = cities.find(city => city.name === cityName);
             if (selectedCity) {
-                setSelectedCityId(selectedCity.id);
-                onSelect(selectedCity);
+                try {
+                    // Fetch the full city data including geometry
+                    const response = await fetch(`/api/cities/${selectedCity.id}`);
+                    if (response.ok) {
+                        const cityWithGeometry = await response.json();
+                        console.log('Fetched city with geometry:', cityWithGeometry);
+
+                        // Combine the data
+                        const fullCity = {
+                            ...selectedCity,
+                            ...cityWithGeometry
+                        };
+
+                        setSelectedCityId(fullCity.id);
+                        onSelect(fullCity);
+                    } else {
+                        // Fallback to the city without geometry if fetch fails
+                        setSelectedCityId(selectedCity.id);
+                        onSelect(selectedCity);
+                    }
+                } catch (error) {
+                    console.error('Error fetching city data:', error);
+                    setSelectedCityId(selectedCity.id);
+                    onSelect(selectedCity);
+                }
             }
         }
     };
 
     return (
-        <div className="p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-md w-full max-w-md">
+        <div className="w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Επιλέξτε τον δήμο σας</h2>
             <p className="mb-4 text-sm text-gray-700">
                 Για να λαμβάνετε ενημερώσεις για τα θέματα που συζητιούνται στο δημοτικό συμβούλιο

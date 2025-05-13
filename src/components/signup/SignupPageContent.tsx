@@ -67,6 +67,69 @@ type PetitionData = {
     isCitizen: boolean;
 };
 
+// Utility function to calculate center and zoom from GeoJSON
+const calculateMapView = (geometry: any): { center: [number, number]; zoom: number } => {
+    if (!geometry) {
+        return { center: [23.7275, 37.9838], zoom: 6 }; // Default to Athens
+    }
+
+    // Initialize bounds
+    let minLng = Infinity;
+    let maxLng = -Infinity;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+
+    // Extract coordinates based on geometry type
+    const processCoordinates = (coords: number[][]) => {
+        coords.forEach(point => {
+            const [lng, lat] = point;
+            minLng = Math.min(minLng, lng);
+            maxLng = Math.max(maxLng, lng);
+            minLat = Math.min(minLat, lat);
+            maxLat = Math.max(maxLat, lat);
+        });
+    };
+
+    try {
+        if (geometry.type === 'Polygon') {
+            // Process outer ring of polygon
+            processCoordinates(geometry.coordinates[0]);
+        } else if (geometry.type === 'MultiPolygon') {
+            // Process all polygons in the multipolygon
+            geometry.coordinates.forEach((polygon: number[][][]) => {
+                processCoordinates(polygon[0]);
+            });
+        } else if (geometry.type === 'Point') {
+            // For a point, just use its coordinates
+            const [lng, lat] = geometry.coordinates;
+            return { center: [lng, lat], zoom: 12 };
+        }
+    } catch (error) {
+        console.error('Error processing geometry:', error);
+        return { center: [23.7275, 37.9838], zoom: 6 }; // Default to Athens
+    }
+
+    // Calculate center
+    const center: [number, number] = [
+        (minLng + maxLng) / 2,
+        (minLat + maxLat) / 2
+    ];
+
+    // Calculate appropriate zoom level based on the area size
+    const lngDiff = maxLng - minLng;
+    const latDiff = maxLat - minLat;
+    const maxDiff = Math.max(lngDiff, latDiff);
+
+    // Simple formula to estimate zoom level - adjust constants as needed
+    let zoom = 10; // Default zoom
+    if (maxDiff > 0) {
+        // The smaller the area, the higher the zoom
+        zoom = Math.max(8, Math.min(13, 11 - Math.log2(maxDiff * 111))); // 111km per degree
+    }
+
+    return { center, zoom };
+};
+
 export function SignupPageContent() {
     const { data: session } = useSession();
     const router = useRouter();
@@ -86,6 +149,16 @@ export function SignupPageContent() {
     // When city is selected, update map features and center
     useEffect(() => {
         if (selectedCity?.geometry) {
+            // Calculate center and zoom based on city geometry
+            const { center, zoom } = calculateMapView(selectedCity.geometry);
+
+            // Update map center and zoom
+            setMapCenter(center);
+            setMapZoom(zoom);
+
+            // Log for debugging
+            console.log(`Setting map view: center=${center}, zoom=${zoom}`);
+
             // Add city boundary as a feature
             setMapFeatures([
                 {
@@ -99,10 +172,6 @@ export function SignupPageContent() {
                     }
                 }
             ]);
-
-            // Adjust map center and zoom based on city
-            // This is a placeholder - we'd need to calculate this from the geometry
-            setMapZoom(10);
         } else {
             // Reset map when no city is selected
             setMapFeatures([]);
@@ -151,6 +220,7 @@ export function SignupPageContent() {
 
     // Handler for municipality selection
     const handleMunicipalitySelect = (city: City) => {
+        console.log('Selected city geometry:', city.geometry);
         setSelectedCity(city);
 
         // Route to appropriate next stage based on city support
@@ -194,7 +264,7 @@ export function SignupPageContent() {
     };
 
     // Handler for submitting user info - now handles both notification preferences and petitions
-    const handleUserRegistration = async (email: string, phone?: string) => {
+    const handleUserRegistration = async (email: string, phone?: string, name?: string) => {
         try {
             let response;
 
@@ -224,6 +294,7 @@ export function SignupPageContent() {
                     },
                     body: JSON.stringify({
                         cityId: selectedCity.id,
+                        name,
                         locations: selectedLocations.map(loc => loc.id),
                         topics: selectedTopics.map(topic => topic.id),
                         email,
@@ -361,6 +432,7 @@ export function SignupPageContent() {
                     zoom={mapZoom}
                     animateRotation={false}
                     pitch={0}
+                    key={`map-${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
                 />
             </div>
 
@@ -380,10 +452,13 @@ export function SignupPageContent() {
                         "absolute z-10 transition-all duration-300 ease-in-out",
                         isDesktop
                             ? "left-0 top-[65px] bottom-0 w-1/3 p-6 bg-white/90 backdrop-blur-sm shadow-xl" // Desktop: Left sidebar
-                            : "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl" // Mobile: Centered box
+                            : "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white/90 backdrop-blur-sm rounded-xl shadow-2xl p-8" // Mobile: Centered box with improved padding
                     )}
                 >
-                    <div className="h-auto w-full overflow-y-auto">
+                    <div className={cn(
+                        "h-auto w-full overflow-y-auto",
+                        !isDesktop && "space-y-6" // Add more spacing between elements on mobile
+                    )}>
                         {renderFormContent()}
                     </div>
                 </div>

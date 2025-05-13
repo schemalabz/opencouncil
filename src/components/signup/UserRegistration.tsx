@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MapPin, Tag, Mail, Phone, AlertCircle, UserCheck, Home } from 'lucide-react';
+import { MapPin, Tag, Mail, Phone, AlertCircle, UserCheck, Home, User } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 // Updated types to match SignupPageContent.tsx
@@ -54,7 +54,7 @@ interface UserRegistrationProps {
     petitionData: PetitionData | null;
     locations: Location[];
     topics: Topic[];
-    onSubmit: (email: string, phone?: string) => void;
+    onSubmit: (email: string, phone?: string, name?: string) => void;
 }
 
 export function UserRegistration({
@@ -65,32 +65,51 @@ export function UserRegistration({
     onSubmit
 }: UserRegistrationProps) {
     const { data: session } = useSession();
+    const [name, setName] = useState('');
     const [email, setEmail] = useState(session?.user?.email || '');
     const [phone, setPhone] = useState('');
+    const [nameError, setNameError] = useState<string | null>(null);
     const [emailError, setEmailError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        let isValid = true;
+
         // Validate email
         if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setEmailError('Παρακαλώ εισάγετε ένα έγκυρο email');
-            return;
+            isValid = false;
+        } else {
+            setEmailError(null);
         }
 
-        setEmailError(null);
+        // Validate name if petitionData is null (not a petition)
+        if (!petitionData && !name.trim()) {
+            setNameError('Παρακαλώ συμπληρώστε το ονοματεπώνυμό σας');
+            isValid = false;
+        } else {
+            setNameError(null);
+        }
+
+        if (!isValid) return;
+
         setIsSubmitting(true);
 
-        // Submit the form
-        onSubmit(email, phone || undefined);
+        // Submit the form with the name parameter only if it's not a petition
+        if (petitionData) {
+            onSubmit(email, phone || undefined);
+        } else {
+            onSubmit(email, phone || undefined, name);
+        }
     };
 
     // Determine whether this is for a petition or notification preferences
     const isPetition = petitionData !== null && petitionData !== undefined;
 
     return (
-        <div className="p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-md w-full max-w-md">
+        <div className="w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Ολοκληρώστε την εγγραφή σας</h2>
 
             <div className="mb-6">
@@ -175,6 +194,29 @@ export function UserRegistration({
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Only show name field when not a petition */}
+                {!isPetition && (
+                    <div className="space-y-2">
+                        <Label htmlFor="name" className="flex items-center gap-1">
+                            <User className="h-4 w-4" />
+                            <span>Ονοματεπώνυμο</span>
+                        </Label>
+                        <Input
+                            id="name"
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Το ονοματεπώνυμό σας"
+                        />
+                        {nameError && (
+                            <div className="flex items-center gap-1 text-red-500 text-sm">
+                                <AlertCircle className="h-3 w-3" />
+                                <p>{nameError}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="space-y-2">
                     <Label htmlFor="email" className="flex items-center gap-1">
                         <Mail className="h-4 w-4" />

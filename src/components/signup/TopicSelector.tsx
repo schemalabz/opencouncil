@@ -117,34 +117,34 @@ export function TopicSelector({
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-5">
             <div>
-                <h3 className="text-lg font-medium mb-2">Θέματα ενδιαφέροντος</h3>
-                <p className="text-sm text-gray-700 mb-2">
+                <h3 className="text-lg font-medium mb-3">Θέματα ενδιαφέροντος</h3>
+                <p className="text-sm text-gray-700 mb-3">
                     Επιλέξτε θέματα για τα οποία θέλετε να λαμβάνετε ενημερώσεις
                 </p>
             </div>
 
             <div className="relative">
                 <div className="relative">
-                    <Tag className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                     <Input
                         type="text"
                         placeholder="Αναζητήστε θέματα..."
-                        className="pl-8"
+                        className="pl-10 py-5"
                         value={searchValue}
                         onChange={handleSearchChange}
                     />
                 </div>
 
                 {availableTopics.length > 0 && (
-                    <div className="mt-2">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div className="mt-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             {availableTopics.map(topic => (
                                 <Button
                                     key={topic.id}
                                     variant="outline"
-                                    className="justify-start overflow-hidden"
+                                    className="justify-start overflow-hidden p-3"
                                     style={{
                                         borderColor: topic.colorHex,
                                         backgroundColor: `${topic.colorHex}10`
@@ -152,7 +152,7 @@ export function TopicSelector({
                                     onClick={() => onSelect(topic)}
                                 >
                                     <div
-                                        className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                                        className="w-4 h-4 rounded-full mr-3 flex-shrink-0"
                                         style={{ backgroundColor: topic.colorHex }}
                                     ></div>
                                     <span className="truncate">{topic.name}</span>
@@ -164,13 +164,13 @@ export function TopicSelector({
             </div>
 
             {selectedTopics.length > 0 && (
-                <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">Επιλεγμένα θέματα:</h4>
-                    <div className="flex flex-wrap gap-2">
+                <div className="mt-5">
+                    <h4 className="text-sm font-medium mb-3">Επιλεγμένα θέματα:</h4>
+                    <div className="flex flex-wrap gap-3">
                         {selectedTopics.map(topic => (
                             <div
                                 key={topic.id}
-                                className="flex items-center gap-1 px-2 py-1 rounded-full text-sm"
+                                className="flex items-center gap-2 px-3 py-2 rounded-full text-sm"
                                 style={{
                                     backgroundColor: `${topic.colorHex}20`,
                                     borderColor: topic.colorHex,
@@ -178,14 +178,14 @@ export function TopicSelector({
                                 }}
                             >
                                 <div
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
                                     style={{ backgroundColor: topic.colorHex }}
                                 ></div>
                                 <span>{topic.name}</span>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-4 w-4 p-0 rounded-full"
+                                    className="h-5 w-5 p-0 rounded-full"
                                     onClick={() => onRemove(topic.id)}
                                 >
                                     <X className="h-3 w-3" />

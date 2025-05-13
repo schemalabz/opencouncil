@@ -331,6 +331,8 @@ const Map = memo(function Map({
     useEffect(() => {
         if (!map.current || !isInitialized.current || !map.current.getSource('features')) return;
 
+        console.log('Updating map features:', features);
+
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',
