@@ -110,6 +110,22 @@ export function Hero({ latestPost }: HeroProps) {
                         size="xl"
                         className="group transition-all duration-300"
                     >
+                        <Link href="/signup">
+                            <span className="relative z-10">🔔 Γραφτείτε στις ενημερώσεις</span>
+                            <motion.div
+                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
+                                whileHover={{
+                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
+                                }}
+                            />
+                        </Link>
+                    </Button>
+                    <Button
+                        asChild
+                        variant="outline"
+                        size="xl"
+                        className="group transition-all duration-300"
+                    >
                         <Link href="/explain">
                             <span className="relative z-10">📖 Μάθε πώς δουλεύει</span>
                             <motion.div

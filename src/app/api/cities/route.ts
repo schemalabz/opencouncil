@@ -1,9 +1,10 @@
 "use server"
-import { NextResponse } from 'next/server'
+import { NextResponse, NextRequest } from 'next/server'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { createCity, getCities, getCity } from '@/lib/db/cities'
+import { PrismaClient } from '@prisma/client'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -14,15 +15,31 @@ const s3Client = new S3({
     }
 })
 
-export async function GET() {
+const prisma = new PrismaClient()
+
+export async function GET(req: NextRequest) {
     try {
-        const cities = await getCities();
-        return NextResponse.json(cities)
+        // Fetch cities from our existing function
+        const cities = await getCities({ includeUnlisted: false });
+
+        // Add the supportsNotifications field
+        const citiesWithNotifications = cities.map(city => ({
+            ...city,
+            // Use the field if it exists in the database, otherwise default to false
+            supportsNotifications: city.supportsNotifications ?? false
+        }));
+
+        return NextResponse.json(citiesWithNotifications);
     } catch (error) {
-        console.error('Error fetching cities:', error)
-        return NextResponse.json({ error: 'Failed to fetch cities' }, { status: 500 })
+        console.error('Error fetching cities:', error);
+
+        return NextResponse.json(
+            { error: 'An unexpected error occurred' },
+            { status: 500 }
+        );
     }
 }
+
 export async function POST(request: Request) {
     const formData = await request.formData()
     const id = formData.get('id') as string
