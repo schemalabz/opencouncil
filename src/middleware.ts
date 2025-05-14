@@ -49,8 +49,8 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 /**
  * Special handler for opencouncil.chania.gr
  * - Redirects /chania/* paths to /* to clean up URLs
- * - Redirects paths outside of Chania content to the main domain
- * - Rewrites remaining paths to their equivalent on the main site /{locale}/chania/*
+ * - Redirects paths to the main domain unless they are specific Chania content
+ * - Rewrites Chania-specific paths to their equivalent on the main site /{locale}/chania/*
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -90,15 +90,25 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Check if the path is trying to access content outside of Chania
-    // We should redirect these to the main site
-    if (
-        path.startsWith('/municipalities/') ||
-        path.startsWith('/municipality/') ||
-        path.startsWith('/regions/') ||
-        path.startsWith('/region/') ||
-        path.match(/^\/[^\/]+\/?$/) // Root paths like /athens, /volos, etc.
-    ) {
+    // List of paths that should remain on the Chania subdomain (Chania-specific content)
+    const chaniaSpecificPaths = [
+        '/',                  // Root path
+        '/council',           // Council page
+        '/events',            // Events
+        '/documents',         // Documents
+        '/services',          // Services
+        '/decisions',         // Decisions
+        '/news',              // News
+        '/announcements',     // Announcements
+    ];
+
+    // Check if this is a Chania-specific path
+    const isChaniaDomain = chaniaSpecificPaths.some(chaniaPath =>
+        path === chaniaPath || path.startsWith(`${chaniaPath}/`)
+    );
+
+    // If not a Chania-specific path, redirect to the main domain
+    if (!isChaniaDomain) {
         // Redirect to the main domain with the same path
         const mainSiteUrl = new URL(req.url);
         mainSiteUrl.host = mainDomain;
@@ -113,7 +123,7 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(mainSiteUrl, 302); // Temporary redirect for non-Chania content
     }
 
-    // For other paths, rewrite to the main site's chania content
+    // For Chania-specific paths, rewrite to the main site's chania content
     const rewriteUrl = new URL(req.url);
     rewriteUrl.pathname = `/${locale}/chania${path}`;
     return NextResponse.rewrite(rewriteUrl);
