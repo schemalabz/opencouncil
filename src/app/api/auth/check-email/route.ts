@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 
+// Mark this route as dynamic to prevent static generation attempts
+export const dynamic = 'force-dynamic';
+
 // API route to check if an email exists in the database
 export async function GET(request: Request) {
     try {

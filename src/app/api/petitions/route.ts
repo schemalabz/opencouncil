@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if petition already exists
-        const existingPetition = await prisma.Petition.findUnique({
+        const existingPetition = await prisma.petition.findUnique({
             where: {
                 userId_cityId: {
                     userId,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
         if (existingPetition) {
             // Update the existing petition
-            await prisma.Petition.update({
+            await prisma.petition.update({
                 where: { id: existingPetition.id },
                 data: {
                     is_resident: !!isResident,
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
             });
         } else {
             // Create a new petition
-            await prisma.Petition.create({
+            await prisma.petition.create({
                 data: {
                     userId,
                     cityId,

@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Check if notification preferences already exist for this user and city
-        const existingPreference = await prisma.NotificationPreference.findUnique({
+        const existingPreference = await prisma.notificationPreference.findUnique({
             where: {
                 userId_cityId: {
                     userId,
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
         if (existingPreference) {
             // Update existing preferences
-            await prisma.NotificationPreference.update({
+            await prisma.notificationPreference.update({
                 where: { id: existingPreference.id },
                 data: {
                     // Update relations with locations
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
             });
         } else {
             // Create new preferences
-            await prisma.NotificationPreference.create({
+            await prisma.notificationPreference.create({
                 data: {
                     userId,
                     cityId,

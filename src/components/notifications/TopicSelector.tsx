@@ -211,7 +211,7 @@ export function TopicSelector({
                 ) : searchValue ? (
                     <div className="text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                         <AlertCircle className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                        <p className="text-gray-500 text-sm">Δεν βρέθηκαν θέματα που να ταιριάζουν με "{searchValue}"</p>
+                        <p className="text-gray-500 text-sm">Δεν βρέθηκαν θέματα που να ταιριάζουν με &quot;{searchValue}&quot;</p>
                     </div>
                 ) : selectedTopics.length === topics.length ? (
                     <div className="text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">

@@ -93,6 +93,7 @@ export async function POST(request: Request) {
             isPending: true,
             authorityType,
             wikipediaId: null,
+            supportsNotifications: false
         })
 
         return NextResponse.json(city)
