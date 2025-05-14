@@ -41,14 +41,20 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            router.push(`/search?query=${encodeURIComponent(searchQuery.trim())}`);
+            const searchUrl = currentEntity?.cityId 
+                ? `/search?query=${encodeURIComponent(searchQuery.trim())}&cityId=${currentEntity.cityId}`
+                : `/search?query=${encodeURIComponent(searchQuery.trim())}`;
+            router.push(searchUrl);
             setSearchQuery("");
             setIsSearchOpen(false);
         }
     };
 
     const handleChatClick = () => {
-        router.push('/chat');
+        const chatUrl = currentEntity?.cityId 
+            ? `/chat?cityId=${currentEntity.cityId}`
+            : '/chat';
+        router.push(chatUrl);
         setIsSearchOpen(false);
     };
 

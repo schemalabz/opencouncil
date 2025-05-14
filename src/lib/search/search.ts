@@ -34,6 +34,7 @@ export type SearchResultLight = SubjectWithRelations & {
 // Detailed search result with speaker segment text
 export type SearchResultDetailed = SearchResultLight & {
     speakerSegments: SegmentWithRelations[];
+    context?: string;
 };
 
 export type SearchConfig = {
@@ -408,7 +409,8 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
 
                     return {
                         ...baseResult,
-                        speakerSegments
+                        speakerSegments,
+                        context: subject.context
                     } as SearchResultDetailed;
                 }
 

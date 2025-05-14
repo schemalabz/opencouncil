@@ -18,7 +18,8 @@ interface ExtractedSegment {
 interface ExtractedSubject {
     name: string;
     description: string;
-    topic: string | null;
+    topic?: string;
+    context?: string;
     keySegments: ExtractedSegment[];
     speakerSegments: ExtractedSegment[];
 }
@@ -47,9 +48,7 @@ const searchConfig: SearchConfig = {
 const CONTEXT_CONFIG = {
     maxMessages: 10,
     maxTokens: 10000,
-    relevanceThreshold: 0.7,
-    useAllSegments: false,
-    highlightKeySegments: true
+    useAllSegments: true,
 };
 
 // Utility function to log prompts in development
@@ -87,7 +86,7 @@ function logPromptToFile(systemPrompt: string, messages: any[]) {
 }
 
 // Content Extraction
-function extractRelevantContent(searchResults: SearchResultDetailed[]) {
+function extractRelevantContent(searchResults: SearchResultDetailed[]): ExtractedSubject[] {
     console.log(`[Content Extraction] Processing ${searchResults.length} search results`);
     
     const extracted = searchResults.map(result => {
@@ -97,12 +96,15 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]) {
             
         console.log(`[Content Extraction] Subject "${result.name}":`);
         console.log(`  - Score: ${result.score}`);
+        console.log(`  - Total Segments: ${result.speakerSegments.length}`);
         console.log(`  - Matched Segments: ${matchedSegments.length}`);
+        console.log(`  - Has Context: ${result.context ? 'Yes' : 'No'}`);
         
         return {
             name: result.name,
             description: result.description,
             topic: result.topic?.name,
+            context: result.context,
             keySegments: matchedSegments.map(segment => ({
                 speaker: segment.person?.name || 'Unknown',
                 text: segment.text,
@@ -120,6 +122,13 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]) {
     return extracted;
 }
 
+// Utility function to clean context of references
+function cleanContextReferences(context: string | undefined): string | undefined {
+    if (!context) return undefined;
+    // Remove references in the format [X] where X is any number
+    return context.replace(/\[\d+\]/g, '');
+}
+
 // Context Enhancement
 function enhancePrompt(
     messages: ChatMessage[],
@@ -128,20 +137,29 @@ function enhancePrompt(
     console.log(`[Prompt Enhancement] Enhancing prompt with:`);
     console.log(`  - Messages: ${messages.length}`);
     console.log(`  - Context subjects: ${context.length}`);
+    console.log(`  - Use All Segments: ${CONTEXT_CONFIG.useAllSegments}`);
     
     const systemPrompt = `${SYSTEM_PROMPT}
 
-Σχετικά θέματα συμβουλίου:
-${context.map(subject => `
-Θέμα: ${subject.name}
+Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
+${context.map((subject, index) => {
+    console.log(`[Prompt Enhancement] Processing subject ${index + 1}:`);
+    console.log(`  - Total Segments: ${subject.speakerSegments.length}`);
+    console.log(`  - Key Segments: ${subject.keySegments.length}`);
+    console.log(`  - Has Context: ${subject.context ? 'Yes' : 'No'}`);
+    
+    return `
+----------------------------------------
+[${index + 1}] Θέμα: ${subject.name}
 ${subject.topic ? `Κατηγορία: ${subject.topic}` : ''}
 Περιγραφή: ${subject.description}
+${subject.context ? `\nΠρόσθετο περιεχόμενο για το θέμα: ${cleanContextReferences(subject.context)}` : ''}
 
 Αποσπάσματα ομιλιών:
 ${CONTEXT_CONFIG.useAllSegments 
     ? subject.speakerSegments.map(segment => {
         const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
-        const prefix = isKeySegment && CONTEXT_CONFIG.highlightKeySegments ? '🔹 ' : '• ';
+        const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
         const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
         return `${prefix}${segment.speaker} (${partyName}): "${segment.text}"`;
     }).join('\n')
@@ -150,11 +168,9 @@ ${CONTEXT_CONFIG.useAllSegments
         return `• ${segment.speaker} (${partyName}): "${segment.text}"`;
     }).join('\n')
 }
-`).join('\n\n')}
+----------------------------------------`}).join('\n\n')}
 
-Παρακαλώ δώστε μια απάντηση βασισμένη στο παραπάνω περιεχόμενο και τις γνώσεις σας. Αν το περιεχόμενο δεν είναι σχετικό με την ερώτηση, μπορείτε να το αγνοήσετε και να απαντήσετε με βάση τις γενικές σας γνώσεις.
-
-${CONTEXT_CONFIG.useAllSegments && CONTEXT_CONFIG.highlightKeySegments ? 'Σημείωση: Τα αποσπάσματα με 🔹 είναι τα πιο σχετικά με την ερώτησή σας.' : ''}`;
+${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα με 🔹 είναι τα πιο σχετικά με την ερώτησή σας.' : ''}`;
 
     // Log approximate token count
     const approximateTokens = systemPrompt.split(/\s+/).length;
@@ -185,19 +201,20 @@ const SYSTEM_PROMPT = `Είστε ένας εξειδικευμένος βοηθ
 - Έχετε πρόσβαση σε μεταγραφές συνεδριάσεων, θέματα συμβουλίου, και σχετικά δεδομένα
 - Μπορείτε να αναφέρεστε σε συγκεκριμένα θέματα συμβουλίου και αποσπάσματα ομιλιών
 
-Οδηγίες Απάντησης:
-- Παρέχετε ακριβείς, συνοπτικές και ενημερωτικές απαντήσεις
-- Χρησιμοποιήστε τα δεδομένα που παρέχονται ως context για να υποστηρίξετε τις απαντήσεις σας
-- Αναφέρεστε συγκεκριμένα θέματα συμβουλίου όταν είναι σχετικά
-- Αν δεν γνωρίζετε την απάντηση, πείτε το ξεκάθαρα
-- Μην επινοείτε πληροφορίες
-
 Τύποι Ερωτήσεων:
 - Ερωτήσεις για διαδικασίες δημοτικών συμβουλίων
 - Ερωτήσεις για συγκεκριμένα θέματα συμβουλίου
 - Ερωτήσεις για αστικό σχεδιασμό και πολιτικές
 - Ερωτήσεις για συμβούλους και κόμματα
 - Ερωτήσεις για τοπικά θέματα και προβλήματα
+
+Γενικές Οδηγίες:
+- Παρέχετε ακριβείς και ενημερωτικές απαντήσεις
+- Απαντήστε άμεσα και συνοπτικά χωρίς περιττές εισαγωγές
+- Χρησιμοποιήστε τα δεδομένα του context για να υποστηρίξετε τις απαντήσεις σας
+- Όταν αναφέρεστε σε θέματα, χρησιμοποιήστε την αναφορά [X] όπου X είναι ο αριθμός του θέματος
+- Αν δεν γνωρίζετε την απάντηση, πείτε το ξεκάθαρα
+- Μην επινοείτε πληροφορίες
 
 Τόνος και Γλώσσα:
 - Χρησιμοποιήστε επαγγελματικό αλλά προσιτό τόνο
@@ -207,7 +224,8 @@ const SYSTEM_PROMPT = `Είστε ένας εξειδικευμένος βοηθ
 Μορφοποίηση:
 - Χρησιμοποιήστε λίστες για σύντομες απαντήσεις
 - Χωρίστε μεγάλες απαντήσεις σε παραγράφους
-- Επισήμανε σημαντικά σημεία με έμφαση όπου χρειάζεται`;
+- Επισήμανε σημαντικά σημεία με έμφαση όπου χρειάζεται
+- Όταν αναφέρεστε σε θέματα, χρησιμοποιήστε πάντα την αναφορά [X] για συνέπεια`;
 
 const ERROR_MESSAGE = "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του αιτήματός σας. Παρακαλώ δοκιμάστε ξανά.";
 

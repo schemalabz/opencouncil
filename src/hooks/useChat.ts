@@ -1,7 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export function useChat() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +17,23 @@ export function useChat() {
     const inputRef = useRef<HTMLInputElement>(null);
     const subjectScrollRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // Update selectedCity when URL changes
+    useEffect(() => {
+        const cityId = searchParams.get('cityId') || '';
+        setSelectedCity(cityId);
+    }, [searchParams]);
+
+    // Update URL when city changes
+    const updateCitySelection = useCallback((cityId: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (cityId) {
+            params.set('cityId', cityId);
+        } else {
+            params.delete('cityId');
+        }
+        router.push(`?${params.toString()}`, { scroll: false });
+    }, [router, searchParams]);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setInput(e.target.value);
@@ -159,7 +180,7 @@ export function useChat() {
         currentMessage,
         setCurrentMessage,
         selectedCity,
-        setSelectedCity,
+        setSelectedCity: updateCitySelection,
         messagesEndRef,
         inputRef,
         subjectScrollRef,

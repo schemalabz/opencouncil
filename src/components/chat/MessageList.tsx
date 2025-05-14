@@ -121,7 +121,7 @@ export function MessageList({
                                     <div className="mt-4 w-full pl-11">
                                         <div className="flex items-center justify-between mb-3">
                                             <p className="text-sm font-medium text-muted-foreground">
-                                                Related council subjects ({subjectReferences.length})
+                                                Σχετικά θέματα που συζητήθηκαν ({subjectReferences.length})
                                             </p>
                                             <div className="flex space-x-2">
                                                 <Button
