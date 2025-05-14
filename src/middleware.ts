@@ -15,6 +15,10 @@ export default async function middleware(req: NextRequest) {
         });
     }
 
+    // Handle the specific case for opencouncil.chania.gr
+    const chaniaResponse = handleChaniaSubdomain(req);
+    if (chaniaResponse) return chaniaResponse;
+
     // Handle subdomain routing (e.g., chania.opencouncil.gr -> opencouncil.gr/chania)
     const subdomainResponse = handleSubdomainRouting(req);
     if (subdomainResponse) return subdomainResponse;
@@ -45,6 +49,44 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 
     const [username, password] = atob(authHeader.split(' ')[1]).split(':');
     return username === process.env.BASIC_AUTH_USERNAME && password === process.env.BASIC_AUTH_PASSWORD;
+}
+
+/**
+ * Special handler for opencouncil.chania.gr
+ * Maps opencouncil.chania.gr to opencouncil.gr/el/chania
+ */
+function handleChaniaSubdomain(req: NextRequest) {
+    const hostname = req.headers.get('host');
+
+    // Only handle the specific case of opencouncil.chania.gr
+    if (hostname !== 'opencouncil.chania.gr') {
+        return null;
+    }
+
+    const url = req.nextUrl.clone();
+    const defaultLocale = routing.defaultLocale;
+
+    // Extract locale from path if present
+    let locale = defaultLocale;
+    let path = url.pathname;
+
+    if (path.startsWith('/en')) {
+        locale = 'en';
+        path = path.substring(3); // Remove locale prefix
+    } else if (path.startsWith('/el')) {
+        locale = 'el';
+        path = path.substring(3); // Remove locale prefix
+    }
+
+    // If we're at the root, redirect to the Chania page
+    if (path === '/' || path === '') {
+        url.pathname = `/${locale}/chania`;
+        return NextResponse.rewrite(url);
+    }
+
+    // For other paths, add them to the Chania path
+    url.pathname = `/${locale}/chania${path}`;
+    return NextResponse.rewrite(url);
 }
 
 /**
