@@ -63,13 +63,13 @@ export function MessageList({
                     </div>
                     <div className="space-y-3">
                         <SuggestedPrompt onClick={onSuggestedPromptClick}>
-                            Ποια είναι οι κύριες αρμοδιότητες ενός δημοτικού συμβουλίου;
+                            Τι έχει συζητηθεί για το κολυμβητήριο στα Χανιά;
                         </SuggestedPrompt>
                         <SuggestedPrompt onClick={onSuggestedPromptClick}>
-                            Πώς λειτουργεί ο δημοτικός προϋπολογισμός;
+                            Ποια πρόσφατα θέματα του δημοτικού συμβουλίου αφορούν την Παλιά Πόλη;
                         </SuggestedPrompt>
                         <SuggestedPrompt onClick={onSuggestedPromptClick}>
-                            Τι προκλήσεις αντιμετωπίζουν οι σύγχρονες πόλεις στον αστικό σχεδιασμό;
+                            Πες μου για τα πάρκα στα Χανιά!
                         </SuggestedPrompt>
                     </div>
                 </div>
@@ -78,7 +78,7 @@ export function MessageList({
     }
 
     return (
-        <div 
+        <div
             ref={chatContainerRef}
             className="h-full overflow-y-auto px-4 md:px-6 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
         >
