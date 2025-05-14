@@ -51,11 +51,7 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * 
  * Rules:
  * 1. If URL has /chania in it, remove the redundant prefix
- * 2. Otherwise, rewrite internally to /chania/* to show Chania content
- * 
- * Also handles navigation between pages:
- * - Links within Chania content stay on the subdomain
- * - Links to content outside of Chania go to the main site
+ * 2. Otherwise, rewrite internally to show Chania content
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -67,14 +63,10 @@ function handleChaniaSubdomain(req: NextRequest) {
 
     const url = req.nextUrl.clone();
     const defaultLocale = routing.defaultLocale;
-    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
-
-    // Get the path from the URL
-    const { pathname, search } = url;
 
     // Extract locale from path if present
     let locale = defaultLocale;
-    let path = pathname;
+    let path = url.pathname;
 
     if (path.startsWith('/en')) {
         locale = 'en';
@@ -101,30 +93,11 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Otherwise, handle as a Chania path
-    // Rewrite internally to /chania/*
+    // For the root path, simply rewrite to show Chania content
+    // Rewrite the URL internally to load the content for /chania
+    url.pathname = `/${locale}/chania${path}`;
 
-    // Detect if this is an "external" navigation by checking the referer
-    const referer = req.headers.get('referer');
-    const isExternalNavigation = referer &&
-        // Either referer is not from our domain
-        (!referer.includes('opencouncil.chania.gr') ||
-            // Or explicitly going to a non-Chania section of the main site
-            referer.includes('/municipalities') ||
-            referer.includes('/regions') ||
-            referer.includes('/about') ||
-            referer.includes('/contact'));
-
-    // If we're navigating from Chania to a non-Chania section, redirect to main site
-    if (isExternalNavigation) {
-        const mainSiteUrl = new URL(req.url);
-        mainSiteUrl.host = mainDomain;
-        return NextResponse.redirect(mainSiteUrl, 302);
-    }
-
-    // Otherwise, rewrite to the appropriate Chania content
-    const rewriteUrl = new URL(req.url);
-    rewriteUrl.host = mainDomain;
-    rewriteUrl.pathname = `/${locale}/chania${path}`;
-    return NextResponse.rewrite(rewriteUrl);
+    // NOTE: We're using rewrite with the SAME URL object, just modifying the path
+    // This avoids trying to connect to a different host/port which may cause timeout issues
+    return NextResponse.rewrite(url);
 }
