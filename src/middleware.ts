@@ -47,7 +47,7 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 }
 
 /**
- * Handles opencouncil.chania.gr by making its paths equivalent to opencouncil.gr/chania/{path}
+ * Handles opencouncil.chania.gr by redirecting all requests to opencouncil.gr/chania
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -58,33 +58,24 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
+    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
     const path = url.pathname;
 
-    // Special cases to handle paths for the Chania subdomain
-    if (path === '/chania') {
-        // Redirect to the root of the same subdomain
-        const redirectUrl = req.nextUrl.clone();
-        redirectUrl.pathname = '/';
-        return NextResponse.redirect(redirectUrl, 301);
-    } else if (path.startsWith('/chania/')) {
-        // Remove the /chania prefix but keep on the same subdomain
-        const redirectUrl = req.nextUrl.clone();
-        redirectUrl.pathname = path.substring('/chania'.length);
-        return NextResponse.redirect(redirectUrl, 301);
-    }
+    // Create URL for the main domain
+    const mainSiteUrl = new URL(`https://${mainDomain}`);
 
-    // For all other paths, rewrite the request to include /chania prefix
-    // This makes opencouncil.chania.gr/whatever/foo serve the same content as
-    // opencouncil.gr/chania/whatever/foo without changing the URL in the browser
-    const rewriteUrl = req.nextUrl.clone();
-
-    // If we're at the root, rewrite to /chania
+    // Append original path to /chania
     if (path === '/') {
-        rewriteUrl.pathname = '/chania';
+        // Just redirect to /chania if we're at the root
+        mainSiteUrl.pathname = '/chania';
     } else {
-        // Otherwise prepend /chania to the path
-        rewriteUrl.pathname = `/chania${path}`;
+        // Otherwise add the path after /chania
+        mainSiteUrl.pathname = `/chania${path}`;
     }
 
-    return NextResponse.rewrite(rewriteUrl);
+    // Preserve any query parameters
+    mainSiteUrl.search = url.search;
+
+    // Redirect to the main domain with a temporary (302) redirect
+    return NextResponse.redirect(mainSiteUrl, 302);
 }
