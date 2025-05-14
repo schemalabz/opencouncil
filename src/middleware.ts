@@ -50,11 +50,9 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * Handles opencouncil.chania.gr as an alias for opencouncil.gr/chania
  * 
  * Rules:
- * 1. If URL has /chania in it, remove the redundant prefix
- * 2. For the root path, rewrite to show Chania content
- * 3. For all other paths, check if they're navigation actions
- *    - If navigating to an external path, redirect to main domain
- *    - If navigating to a city-specific path, rewrite to show Chania content
+ * 1. If accessing the subdomain, we want to stay in the Chania realm unless explicitly navigating out
+ * 2. All paths on the subdomain should be treated as if they're under /chania on the main domain
+ * 3. Links to paths outside the Chania realm should redirect to the main domain
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -65,77 +63,50 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
-    const defaultLocale = routing.defaultLocale;
     const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
+    const path = url.pathname;
 
-    // Extract locale from path if present
-    let locale = defaultLocale;
-    let path = url.pathname;
+    // We'll use "el" as the default locale for Chania as specified
+    const locale = "el";
 
-    if (path.startsWith('/en')) {
-        locale = 'en';
-        path = path.substring(3); // Remove locale prefix
-    } else if (path.startsWith('/el')) {
-        locale = 'el';
-        path = path.substring(3); // Remove locale prefix
-    }
-
-    // Rule 1: Check if the URL contains /chania
+    // Rule 1: Check if the URL already contains /chania (avoid double paths)
     if (path.includes('/chania')) {
-        // Remove the /chania segment from the path
+        // Remove the redundant /chania segment
         const newPath = path.replace('/chania', '');
-
-        // Make sure we don't end up with an empty path
         const finalPath = newPath || '/';
 
-        // Create the redirect URL with locale if needed
+        // Create a clean URL without the redundant /chania
         const redirectUrl = new URL(req.url);
-        redirectUrl.pathname = locale !== defaultLocale ?
-            `/${locale}${finalPath}` : finalPath;
+        redirectUrl.pathname = finalPath;
 
-        // Redirect to the clean URL
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Rule 2: Root path is a special case that should always show Chania content
-    if (path === '/' || path === '') {
-        // Rewrite to show Chania content for the root path
-        url.pathname = `/${locale}/chania`;
-        return NextResponse.rewrite(url);
-    }
-
-    // Rule 3: Check if this is a navigation to a global/shared feature
-    // We'll use the Referer header to detect navigation context
+    // Rule 2: Check for external navigation by examining referer
     const referer = req.headers.get('referer');
-
-    // Check if the navigation is from a Chania page to something that
-    // looks like a global feature (not city-specific)
-    const looksLikeGlobalNavigation =
-        // No referer means direct access, keep on Chania subdomain
+    const isExternalNavigation =
+        // Only consider it external navigation if:
+        // 1. We have a referer (i.e., user clicked a link)
+        // 2. The referer is from our subdomain (not direct access)
+        // 3. The target path does not include "chania" and looks like a global path
         referer &&
-        // Came from the Chania subdomain
         referer.includes('opencouncil.chania.gr') &&
-        // Path doesn't have "chania" in it
-        !path.toLowerCase().includes('chania');
+        !path.toLowerCase().includes('chania') &&
+        // Check if this seems like a navigation to a global feature
+        (path.startsWith('/cities') || path.startsWith('/about') || path.startsWith('/search'));
 
-    // If it seems like navigation to a global feature, redirect to main site
-    if (looksLikeGlobalNavigation) {
-        // Redirect to main domain
+    // If it's external navigation, redirect to the main domain
+    if (isExternalNavigation) {
         const mainSiteUrl = new URL(`https://${mainDomain}`);
-
-        // Set the path with locale if needed
-        mainSiteUrl.pathname = locale !== defaultLocale ?
-            `/${locale}${path}` : path;
-
-        // Preserve search params
+        mainSiteUrl.pathname = `/${locale}${path}`;
         mainSiteUrl.search = url.search;
 
         return NextResponse.redirect(mainSiteUrl, 302);
     }
 
-    // Default: Treat as Chania-specific content
+    // Default: All other paths on the subdomain are treated as Chania-specific content
+    // We rewrite them to show the content from /chania/[path]
     url.pathname = `/${locale}/chania${path}`;
 
-    // Use the same URL object to avoid connection issues
     return NextResponse.rewrite(url);
 }
