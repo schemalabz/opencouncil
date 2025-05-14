@@ -47,11 +47,15 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 }
 
 /**
- * Special handler for opencouncil.chania.gr
+ * Handles opencouncil.chania.gr as an alias for opencouncil.gr/chania
  * 
- * Two simple rules:
- * 1. If path starts with /chania, redirect to same URL without /chania prefix
- * 2. If path doesn't start with /chania, redirect to opencouncil.gr with same path
+ * Rules:
+ * 1. If URL has /chania in it, remove the redundant prefix
+ * 2. Otherwise, rewrite internally to /chania/* to show Chania content
+ * 
+ * Also handles navigation between pages:
+ * - Links within Chania content stay on the subdomain
+ * - Links to content outside of Chania go to the main site
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -62,48 +66,48 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
-    const defaultLocale = routing.defaultLocale;
     const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
 
-    // Extract locale from path if present
-    let locale = defaultLocale;
-    let path = url.pathname;
+    // Get the path from the URL
+    const { pathname, search } = url;
 
-    if (path.startsWith('/en')) {
-        locale = 'en';
-        path = path.substring(3); // Remove locale prefix
-    } else if (path.startsWith('/el')) {
-        locale = 'el';
-        path = path.substring(3); // Remove locale prefix
-    }
+    // Check if the URL contains /chania
+    if (pathname.includes('/chania')) {
+        // Remove the /chania segment from the path
+        const newPath = pathname.replace('/chania', '');
 
-    // Rule 1: If path starts with /chania, remove it
-    if (path.startsWith('/chania')) {
-        const cleanPath = path.substring(7) || '/'; // Remove /chania prefix, default to / if empty
-        const redirectUrl = new URL(req.url);
+        // Make sure we don't end up with an empty path
+        const finalPath = newPath || '/';
 
-        // Keep the locale if present
-        if (locale !== defaultLocale) {
-            redirectUrl.pathname = `/${locale}${cleanPath}`;
-        } else {
-            redirectUrl.pathname = cleanPath;
-        }
+        // Create the redirect URL
+        const redirectUrl = new URL(`${finalPath}${search}`, req.url);
 
+        // Redirect to the clean URL
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Rule 2: If path doesn't start with /chania, redirect to main domain
-    else {
+    // Otherwise, handle as a Chania path
+    // Rewrite internally to /chania/*
+
+    // Detect if this is an "external" navigation by checking the referer
+    const referer = req.headers.get('referer');
+    const isExternalNavigation = referer &&
+        // Either referer is not from our domain
+        (!referer.includes('opencouncil.chania.gr') ||
+            // Or explicitly going to a non-Chania section of the main site
+            referer.includes('/municipalities') ||
+            referer.includes('/regions') ||
+            referer.includes('/about') ||
+            referer.includes('/contact'));
+
+    // If we're navigating from Chania to a non-Chania section, redirect to main site
+    if (isExternalNavigation) {
         const mainSiteUrl = new URL(req.url);
         mainSiteUrl.host = mainDomain;
-
-        // Preserve locale in the URL
-        if (locale !== defaultLocale) {
-            mainSiteUrl.pathname = `/${locale}${path}`;
-        } else {
-            mainSiteUrl.pathname = path;
-        }
-
         return NextResponse.redirect(mainSiteUrl, 302);
     }
+
+    // Otherwise, rewrite to the appropriate Chania content
+    const rewriteUrl = new URL(`/chania${pathname}${search}`, `https://${mainDomain}`);
+    return NextResponse.rewrite(rewriteUrl);
 }
