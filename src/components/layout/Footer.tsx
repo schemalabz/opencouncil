@@ -45,6 +45,7 @@ export default function Footer({ className }: FooterProps = {}) {
                                 { href: "/", label: "Αρχική" },
                                 { href: "/about", label: "Για δήμους" },
                                 { href: "/search", label: "Αναζήτηση" },
+                                { href: "/chat", label: "OpenCouncil AI" },
                                 { href: "/docs", label: "API" },
                                 { href: "https://status.opencouncil.gr", label: "Status", external: true },
                             ].map((link) => (

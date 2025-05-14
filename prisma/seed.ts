@@ -6,7 +6,7 @@ import axios from 'axios'
 const prisma = new PrismaClient()
 
 // Configuration
-const SEED_DATA_URL = process.env.SEED_DATA_URL || 'https://github.com/schema-labs/opencouncil-seed-data/releases/latest/download/seed_data.json'
+const SEED_DATA_URL = process.env.SEED_DATA_URL || 'https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'
 const SEED_DATA_PATH = process.env.SEED_DATA_PATH || path.join(__dirname, 'seed_data.json')
 
 /**
@@ -42,6 +42,40 @@ async function createSuperAdmin() {
     console.log(`Created super admin user with email ${superAdminEmail}`)
   } catch (error) {
     console.error('Error creating super admin:', error)
+  }
+}
+
+/**
+ * Seed voiceprints for persons
+ */
+async function seedVoicePrints(persons: any[]) {
+  if (!persons || persons.length === 0) {
+    return;
+  }
+
+  console.log('Seeding voiceprints...')
+  const allVoicePrints = persons
+    .filter((person: { voicePrints?: any[] }) => person.voicePrints && person.voicePrints.length > 0)
+    .flatMap((person: { id: string; voicePrints: any[] }) => 
+      person.voicePrints.map((voicePrint: any) => ({
+        id: voicePrint.id,
+        embedding: voicePrint.embedding,
+        sourceAudioUrl: voicePrint.sourceAudioUrl,
+        startTimestamp: voicePrint.startTimestamp,
+        endTimestamp: voicePrint.endTimestamp,
+        createdAt: voicePrint.createdAt,
+        updatedAt: voicePrint.updatedAt,
+        sourceSegmentId: voicePrint.sourceSegmentId,
+        personId: person.id,
+      }))
+    )
+  
+  if (allVoicePrints.length > 0) {
+    console.log(`Creating ${allVoicePrints.length} voiceprints...`)
+    await prisma.voicePrint.createMany({
+      data: allVoicePrints,
+      skipDuplicates: true,
+    })
   }
 }
 
@@ -99,6 +133,9 @@ async function main() {
     
     // Finally seed meetings and related data
     await seedMeetings(seedData.meetings)
+
+    // Seed voiceprints after speaker segments are created
+    await seedVoicePrints(seedData.persons)
     
     console.log('Database has been seeded! 🌱')
   } catch (error) {
@@ -303,9 +340,6 @@ async function seedPersons(persons: any[]) {
       skipDuplicates: true,
     })
   }
-  
-  // Voice prints will be handled separately when seeding meetings
-  // since they require speaker segments
 }
 
 /**

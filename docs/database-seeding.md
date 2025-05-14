@@ -45,8 +45,38 @@ The seeding process is handled by `prisma/seed.ts` which:
 4. Seeds the database with the data in the following order:
    - Core entities (topics, cities)
    - Administrative bodies and parties
-   - Persons with their roles
-   - Meetings with all related data
+   - Persons with their roles and speaker tags
+   - Meetings with all related data (including speaker segments)
+   - Voiceprints (which depend on speaker segments)
+
+### Dependencies and Order
+
+The seeding process follows a specific order to respect entity dependencies:
+
+1. **Core Entities** (no dependencies)
+   - Topics
+   - Cities
+
+2. **City-Related Entities** (depend on cities)
+   - Administrative bodies
+   - Parties
+
+3. **Person-Related Entities** (depend on cities and parties)
+   - Persons
+   - Roles
+   - Speaker tags
+
+4. **Meeting-Related Entities** (depend on cities, administrative bodies, and persons)
+   - Meetings
+   - Speaker segments
+   - Utterances
+   - Words
+   - Subjects
+   - Highlights
+   - Podcast specs
+
+5. **Voiceprints** (depend on speaker segments and persons)
+   - Voiceprints are seeded last since they require speaker segments to exist
 
 ### Configuration
 

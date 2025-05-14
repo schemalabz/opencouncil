@@ -16,7 +16,7 @@ import { getPeopleForCity } from './people';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 
 // Type for location with coordinates
-type LocationWithCoordinates = Location & {
+export type LocationWithCoordinates = Location & {
     coordinates?: {
         x: number;
         y: number;
