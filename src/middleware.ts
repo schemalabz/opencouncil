@@ -48,7 +48,7 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 
 /**
  * Special handler for opencouncil.chania.gr
- * Maps opencouncil.chania.gr to opencouncil.gr/el/chania
+ * Maps opencouncil.chania.gr/* to opencouncil.gr/{locale}/chania/*
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -73,13 +73,12 @@ function handleChaniaSubdomain(req: NextRequest) {
         path = path.substring(3); // Remove locale prefix
     }
 
-    // If we're at the root, redirect to the Chania page
-    if (path === '/' || path === '') {
-        url.pathname = `/${locale}/chania`;
-        return NextResponse.rewrite(url);
+    // If the path starts with /chania, remove it to prevent duplication
+    if (path.startsWith('/chania')) {
+        path = path.substring(7); // Remove /chania prefix
     }
 
-    // For other paths, add them to the Chania path
+    // Rewrite all paths to the main site's chania path
     url.pathname = `/${locale}/chania${path}`;
     return NextResponse.rewrite(url);
 }
