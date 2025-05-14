@@ -51,8 +51,10 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * 
  * Rules:
  * 1. If URL has /chania in it, remove the redundant prefix
- * 2. For paths that are definitely NOT Chania-specific, redirect to main site
- * 3. For all other paths, rewrite to load Chania-specific content
+ * 2. For the root path, rewrite to show Chania content
+ * 3. For all other paths, check if they're navigation actions
+ *    - If navigating to an external path, redirect to main domain
+ *    - If navigating to a city-specific path, rewrite to show Chania content
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -95,22 +97,30 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Rule 2: Check if this is a global path that should go to main site
-    // These are paths that definitely are not Chania-specific
+    // Rule 2: Root path is a special case that should always show Chania content
+    if (path === '/' || path === '') {
+        // Rewrite to show Chania content for the root path
+        url.pathname = `/${locale}/chania`;
+        return NextResponse.rewrite(url);
+    }
 
-    // Get the first path segment after removing leading slash
-    const pathWithoutLeadingSlash = path.startsWith('/') ? path.substring(1) : path;
-    const firstSegment = pathWithoutLeadingSlash.split('/')[0];
+    // Rule 3: Check if this is a navigation to a global/shared feature
+    // We'll use the Referer header to detect navigation context
+    const referer = req.headers.get('referer');
 
-    // These are definitely global site features, not Chania-specific
-    const definitelyGlobalFeatures = [
-        'search', 'about', 'contact', 'municipalities', 'regions',
-        'login', 'register', 'settings', 'privacy', 'terms', 'help',
-        'faq', 'api', '_next', 'favicon.ico'
-    ];
+    // Check if the navigation is from a Chania page to something that
+    // looks like a global feature (not city-specific)
+    const looksLikeGlobalNavigation =
+        // No referer means direct access, keep on Chania subdomain
+        referer &&
+        // Came from the Chania subdomain
+        referer.includes('opencouncil.chania.gr') &&
+        // Path doesn't have "chania" in it
+        !path.toLowerCase().includes('chania');
 
-    if (definitelyGlobalFeatures.includes(firstSegment)) {
-        // Redirect to main domain for global paths
+    // If it seems like navigation to a global feature, redirect to main site
+    if (looksLikeGlobalNavigation) {
+        // Redirect to main domain
         const mainSiteUrl = new URL(`https://${mainDomain}`);
 
         // Set the path with locale if needed
@@ -123,8 +133,7 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(mainSiteUrl, 302);
     }
 
-    // Rule 3: For all other paths (including root and Chania-specific),
-    // rewrite to show Chania content
+    // Default: Treat as Chania-specific content
     url.pathname = `/${locale}/chania${path}`;
 
     // Use the same URL object to avoid connection issues
