@@ -10,7 +10,7 @@ import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 
 export interface PathElement {
@@ -37,20 +37,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchOverlayRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const locale = useLocale();
-    const params = useParams();
-    const cityId = params?.cityId as string | undefined;
-
-    // Function to get the absolute root URL
-    const getMainDomainUrl = () => {
-        return "https://opencouncil.gr";
-    };
-
-    // Function to get the city subdomain URL
-    const getCityDomainUrl = (path?: string) => {
-        if (!cityId) return null;
-        return `https://${cityId}.opencouncil.gr${path || ''}`;
-    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,128 +71,6 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         };
     }, [isSearchOpen]);
 
-    // Create the header content with the correct routing logic
-    const renderHeaderContent = () => (
-        <div className="flex items-center w-full px-4 relative">
-            <div className="flex items-center gap-2 md:gap-4 z-10 h-full">
-                {showSidebarTrigger && <SidebarTrigger />}
-                <a href={getMainDomainUrl()} className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
-                    <div className="relative h-full aspect-square p-0">
-                        <Image
-                            src='/logo.png'
-                            alt='logo'
-                            fill
-                            sizes="(max-width: 768px) 80px, 80px"
-                            style={{ objectFit: 'contain' }}
-                            className="transition-transform"
-                        />
-                    </div>
-                    {path.length === 0 && (
-                        <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
-                    )}
-                </a>
-            </div>
-
-            {path.length === 0 && (
-                <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
-                    <a href={getMainDomainUrl()} className="pointer-events-auto hover:no-underline">
-                        <span className="text-xl font-medium">OpenCouncil</span>
-                    </a>
-                </div>
-            )}
-
-            {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
-
-            <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-                <div className="flex items-center flex-1 min-w-0">
-                    {path.map((element, index) => (
-                        <div key={element.link} className="flex items-center min-w-0 last:flex-1">
-                            {index > 0 && (
-                                <Separator orientation="vertical" className="h-8 mx-2 md:mx-4" />
-                            )}
-                            <div className="flex flex-col min-w-0 flex-shrink">
-                                {element.city && cityId ? (
-                                    <a
-                                        href={getCityDomainUrl() || element.link}
-                                        className={cn(
-                                            "hover:text-primary transition-colors overflow-hidden",
-                                            "text-foreground text-lg font-medium"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2 md:gap-4">
-                                            {element.city && (
-                                                <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
-                                                    <Image
-                                                        src={element.city.logoImage || '/logo.png'}
-                                                        alt={element.city.name}
-                                                        fill
-                                                        sizes="(max-width: 768px) 48px, 60px"
-                                                        style={{ objectFit: 'contain' }}
-                                                        priority
-                                                    />
-                                                </div>
-                                            )}
-                                            <span className={cn(
-                                                "truncate",
-                                                element.city && "hidden md:inline"
-                                            )}>{element.name}</span>
-                                        </div>
-                                    </a>
-                                ) : (
-                                    <Link
-                                        href={element.link}
-                                        className={cn(
-                                            "hover:text-primary transition-colors overflow-hidden",
-                                            element.city ? "text-foreground text-lg font-medium" : "text-muted-foreground"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2 md:gap-4">
-                                            {element.city && (
-                                                <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
-                                                    <Image
-                                                        src={element.city.logoImage || '/logo.png'}
-                                                        alt={element.city.name}
-                                                        fill
-                                                        sizes="(max-width: 768px) 48px, 60px"
-                                                        style={{ objectFit: 'contain' }}
-                                                        priority
-                                                    />
-                                                </div>
-                                            )}
-                                            <span className={cn(
-                                                "truncate",
-                                                element.city && "hidden md:inline"
-                                            )}>{element.name}</span>
-                                        </div>
-                                    </Link>
-                                )}
-                                {element.description && (
-                                    <span className="text-xs md:text-sm text-muted-foreground truncate">
-                                        {element.description}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex items-center gap-4 flex-shrink-0 ml-2 md:ml-4">
-                {children}
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setIsSearchOpen(true)}
-                        className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-accent transition-colors"
-                        title="Search"
-                    >
-                        <Search className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                    <UserDropdown currentEntity={currentEntity} />
-                </div>
-            </div>
-        </div>
-    );
-
     return (
         <motion.header
             className={`sticky top-0 z-50 w-full flex justify-between items-stretch min-h-[80px] h-20 relative ${className || ''}`}
@@ -218,9 +82,187 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 className="absolute inset-0 backdrop-blur bg-background/50"
                 style={{ opacity: blurBackgroundOpacity }}
             />
-            {noContainer ? renderHeaderContent() : (
+            {noContainer ? (
+                <div className="flex items-center w-full px-4 relative">
+                    <div className="flex items-center gap-2 md:gap-4 z-10 h-full">
+                        {showSidebarTrigger && <SidebarTrigger />}
+                        <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
+                            <div className="relative h-full aspect-square p-0">
+                                <Image
+                                    src='/logo.png'
+                                    alt='logo'
+                                    fill
+                                    sizes="(max-width: 768px) 80px, 80px"
+                                    style={{ objectFit: 'contain' }}
+                                    className="transition-transform"
+                                />
+                            </div>
+                            {path.length === 0 && (
+                                <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
+                            )}
+                        </Link>
+                    </div>
+
+                    {path.length === 0 && (
+                        <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
+                            <Link href="/" className="pointer-events-auto hover:no-underline">
+                                <span className="text-xl font-medium">OpenCouncil</span>
+                            </Link>
+                        </div>
+                    )}
+
+                    {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
+
+                    <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center flex-1 min-w-0">
+                            {path.map((element, index) => (
+                                <div key={element.link} className="flex items-center min-w-0 last:flex-1">
+                                    {index > 0 && (
+                                        <Separator orientation="vertical" className="h-8 mx-2 md:mx-4" />
+                                    )}
+                                    <div className="flex flex-col min-w-0 flex-shrink">
+                                        <Link
+                                            href={element.link}
+                                            className={cn(
+                                                "hover:text-primary transition-colors overflow-hidden",
+                                                element.city ? "text-foreground text-lg font-medium" : "text-muted-foreground"
+                                            )}
+                                        >
+                                            <div className="flex items-center gap-2 md:gap-4">
+                                                {element.city && (
+                                                    <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
+                                                        <Image
+                                                            src={element.city.logoImage || '/logo.png'}
+                                                            alt={element.city.name}
+                                                            fill
+                                                            sizes="(max-width: 768px) 48px, 60px"
+                                                            style={{ objectFit: 'contain' }}
+                                                            priority
+                                                        />
+                                                    </div>
+                                                )}
+                                                <span className={cn(
+                                                    "truncate",
+                                                    element.city && "hidden md:inline"
+                                                )}>{element.name}</span>
+                                            </div>
+                                        </Link>
+                                        {element.description && (
+                                            <span className="text-xs md:text-sm text-muted-foreground truncate">
+                                                {element.description}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 flex-shrink-0 ml-2 md:ml-4">
+                        {children}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsSearchOpen(true)}
+                                className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-accent transition-colors"
+                                title="Search"
+                            >
+                                <Search className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                            <UserDropdown currentEntity={currentEntity} />
+                        </div>
+                    </div>
+                </div>
+            ) : (
                 <div className="container mx-auto h-full">
-                    {renderHeaderContent()}
+                    <div className="flex items-center w-full px-4 relative h-full">
+                        <div className="flex items-center gap-2 md:gap-4 z-10 h-full">
+                            {showSidebarTrigger && <SidebarTrigger />}
+                            <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0 h-full py-2">
+                                <div className="relative h-full aspect-square p-0">
+                                    <Image
+                                        src='/logo.png'
+                                        alt='logo'
+                                        fill
+                                        sizes="(max-width: 768px) 80px, 80px"
+                                        style={{ objectFit: 'contain' }}
+                                        className="transition-transform"
+                                    />
+                                </div>
+                                {path.length === 0 && (
+                                    <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
+                                )}
+                            </Link>
+                        </div>
+
+                        {path.length === 0 && (
+                            <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
+                                <Link href="/" className="pointer-events-auto hover:underline">
+                                    <span className="text-xl font-medium">OpenCouncil</span>
+                                </Link>
+                            </div>
+                        )}
+
+                        {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
+
+                        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                            <div className="flex items-center flex-1 min-w-0">
+                                {path.map((element, index) => (
+                                    <div key={element.link} className="flex items-center min-w-0 last:flex-1">
+                                        {index > 0 && (
+                                            <Separator orientation="vertical" className="h-8 mx-2 md:mx-4" />
+                                        )}
+                                        <div className="flex flex-col min-w-0 flex-shrink">
+                                            <Link
+                                                href={element.link}
+                                                className={cn(
+                                                    "hover:text-primary transition-colors overflow-hidden",
+                                                    element.city ? "text-foreground text-lg font-medium" : "text-muted-foreground"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-2 md:gap-4">
+                                                    {element.city && (
+                                                        <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
+                                                            <Image
+                                                                src={element.city.logoImage || '/logo.png'}
+                                                                alt={element.city.name}
+                                                                fill
+                                                                sizes="(max-width: 768px) 48px, 60px"
+                                                                style={{ objectFit: 'contain' }}
+                                                                priority
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <span className={cn(
+                                                        "truncate",
+                                                        element.city && "hidden md:inline"
+                                                    )}>{element.name}</span>
+                                                </div>
+                                            </Link>
+                                            {element.description && (
+                                                <span className="text-xs md:text-sm text-muted-foreground truncate">
+                                                    {element.description}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 flex-shrink-0">
+                            {children}
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-accent transition-colors"
+                                    title="Search"
+                                >
+                                    <Search className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                                <UserDropdown currentEntity={currentEntity} />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

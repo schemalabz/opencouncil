@@ -80,12 +80,6 @@ function handleSubdomainRouting(req: NextRequest) {
         return null;
     }
 
-    // Don't rewrite if already accessing a proper city route
-    // This prevents infinite redirects
-    if (url.pathname.match(new RegExp(`^\\/(en|el)\\/${subdomain}(\\/|$)`))) {
-        return null;
-    }
-
     // Get default locale from routing config
     const defaultLocale = routing.defaultLocale;
 
@@ -102,8 +96,20 @@ function handleSubdomainRouting(req: NextRequest) {
         path = path.substring(3); // Remove the locale prefix
     }
 
-    // Construct the new URL with the city ID
-    url.pathname = `/${locale}/${subdomain}${path || ''}`;
+    // Special case for root path on subdomain - ensure it maps to the city page
+    if (path === '/' || path === '') {
+        url.pathname = `/${locale}/${subdomain}`;
+        return NextResponse.rewrite(url);
+    }
+
+    // Don't rewrite if already accessing a proper city route
+    // This prevents infinite redirects
+    if (url.pathname.match(new RegExp(`^\\/(en|el)\\/${subdomain}(\\/|$)`))) {
+        return null;
+    }
+
+    // For all other paths, append them after the city ID
+    url.pathname = `/${locale}/${subdomain}${path}`;
 
     // Use rewrite to keep the original URL visible to the user
     return NextResponse.rewrite(url);
