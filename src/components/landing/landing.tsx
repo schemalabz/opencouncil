@@ -50,11 +50,21 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
         fetchCities();
     }, [fetchCities]);
 
-    // Sort cities: public first, then non-public
+    // Sort cities: officially supported first, then public, then non-public
     const sortedCities = useMemo(() =>
         [...allCities].sort((a, b) => {
-            if (a.isListed === b.isListed) return a.name.localeCompare(b.name);
-            return a.isListed ? -1 : 1;
+            // First prioritize officially supported cities
+            if (a.officialSupport !== b.officialSupport) {
+                return a.officialSupport ? -1 : 1;
+            }
+
+            // Then sort by isListed status
+            if (a.isListed !== b.isListed) {
+                return a.isListed ? -1 : 1;
+            }
+
+            // Finally sort alphabetically by name
+            return a.name.localeCompare(b.name);
         }),
         [allCities]);
 

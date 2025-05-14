@@ -1,10 +1,11 @@
 "use client"
-import { Users, Building2, CalendarDays } from "lucide-react";
+import { Users, Building2, CalendarDays, BadgeX } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
 import { type LandingPageCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface CityOverviewProps {
     city: LandingPageCity;
@@ -49,6 +50,16 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 />
                 <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent"></div>
             </div>
+
+            {/* Unofficial support badge */}
+            {!city.officialSupport && (
+                <div className="flex">
+                    <Badge variant="outline" className="gap-2 text-muted-foreground py-1.5 px-3">
+                        <BadgeX className="w-4 h-4" />
+                        <span>Χωρίς την υποστήριξη {city.authorityType === "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
+                    </Badge>
+                </div>
+            )}
 
             {/* Latest Meeting and Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
