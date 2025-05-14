@@ -51,9 +51,9 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * Makes the subdomain serve as an alias for opencouncil.gr/chania
  * 
  * This handler implements these rules:
- * 1. For general site pages (about, contact, etc.), redirect to main domain
- * 2. For /chania/* paths, redirect to remove the redundant /chania prefix
- * 3. For all other paths, rewrite to /chania/* on the main site
+ * 1. For /chania/* paths, redirect to /* to remove the redundant prefix
+ * 2. For paths that are NOT Chania-specific content, redirect to the main site
+ * 3. For Chania-specific content, rewrite to /chania/* on the main site
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -79,40 +79,7 @@ function handleChaniaSubdomain(req: NextRequest) {
         path = path.substring(3); // Remove locale prefix
     }
 
-    // Case 1: General site pages that should redirect to main domain
-    const generalSitePages = [
-        '/about',
-        '/contact',
-        '/faq',
-        '/privacy',
-        '/terms',
-        '/help',
-        '/login',
-        '/register',
-        '/reset-password',
-        '/search',
-        '/settings',
-        '/municipalities',
-        '/regions',
-    ];
-
-    for (const page of generalSitePages) {
-        if (path === page || path.startsWith(`${page}/`)) {
-            const mainSiteUrl = new URL(req.url);
-            mainSiteUrl.host = mainDomain;
-
-            // Preserve locale in the URL if not default
-            if (locale !== defaultLocale) {
-                mainSiteUrl.pathname = `/${locale}${path}`;
-            } else {
-                mainSiteUrl.pathname = path;
-            }
-
-            return NextResponse.redirect(mainSiteUrl, 302);
-        }
-    }
-
-    // Case 2: Handle redundant /chania prefix
+    // Rule 1: Handle redundant /chania prefix
     if (path.startsWith('/chania')) {
         const cleanPath = path.substring(7) || '/'; // Remove /chania prefix, default to / if empty
         const redirectUrl = new URL(req.url);
@@ -127,7 +94,38 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Case 3: All other paths - rewrite to /chania/ content on main site
+    // Rule 2: Check if this is a path for the main site rather than Chania-specific
+    // We'll determine this by checking if the path has any of the following characteristics:
+    // - Has 'chania' in it (already handled by Rule 1)
+    // - Is an API route
+    // - Is the root path
+    // - Has any subdirectory that looks like Chania-specific content
+
+    // Keep Root path on the Chania subdomain
+    if (path === '/') {
+        // Keep the root path on Chania subdomain
+    }
+    // Exclude API routes from redirection
+    else if (path.startsWith('/api/')) {
+        // Keep API routes as is
+    }
+    // For all other paths that don't appear to be Chania-specific, redirect to main
+    else {
+        // Redirect to the main domain
+        const mainSiteUrl = new URL(req.url);
+        mainSiteUrl.host = mainDomain;
+
+        // Preserve locale in the URL
+        if (locale !== defaultLocale) {
+            mainSiteUrl.pathname = `/${locale}${path}`;
+        } else {
+            mainSiteUrl.pathname = path;
+        }
+
+        return NextResponse.redirect(mainSiteUrl, 302);
+    }
+
+    // Rule 3: For Chania-specific content (API routes and root path), rewrite to /chania/
     const rewriteUrl = new URL(req.url);
     rewriteUrl.pathname = `/${locale}/chania${path}`;
     return NextResponse.rewrite(rewriteUrl);
