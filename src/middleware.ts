@@ -51,8 +51,8 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * 
  * Rules:
  * 1. If URL has /chania in it, remove the redundant prefix
- * 2. For non-Chania specific pages (like /search), redirect to main domain
- * 3. Otherwise, rewrite internally to show Chania content
+ * 2. For the root path (/), rewrite to show Chania content
+ * 3. For all other paths, redirect to main domain
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -95,47 +95,22 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Define general site paths that should redirect to main domain
-    // These are paths that are not specific to any city/municipality
-    const generalPaths = [
-        '/search',
-        '/about',
-        '/contact',
-        '/faq',
-        '/help',
-        '/privacy',
-        '/terms',
-        '/login',
-        '/register',
-        '/settings',
-        '/municipalities',
-        '/regions',
-    ];
-
-    // Check if current path starts with any of the general paths
-    const isGeneralPath = generalPaths.some(prefix =>
-        path === prefix || path.startsWith(`${prefix}/`)
-    );
-
-    // For general site paths, redirect to main domain
-    if (isGeneralPath) {
-        const mainSiteUrl = new URL(`https://${mainDomain}`);
-
-        // Set the path with locale if needed
-        mainSiteUrl.pathname = locale !== defaultLocale ?
-            `/${locale}${path}` : path;
-
-        // Preserve search params
-        mainSiteUrl.search = url.search;
-
-        return NextResponse.redirect(mainSiteUrl, 302);
+    // Special case for root path
+    if (path === '/' || path === '') {
+        // For the root path, rewrite to show Chania content
+        url.pathname = `/${locale}/chania`;
+        return NextResponse.rewrite(url);
     }
 
-    // For other paths, rewrite to show Chania content
-    // Rewrite the URL internally to load the content for /chania
-    url.pathname = `/${locale}/chania${path}`;
+    // For all other paths, redirect to main domain
+    const mainSiteUrl = new URL(`https://${mainDomain}`);
 
-    // NOTE: We're using rewrite with the SAME URL object, just modifying the path
-    // This avoids trying to connect to a different host/port which may cause timeout issues
-    return NextResponse.rewrite(url);
+    // Set the path with locale if needed
+    mainSiteUrl.pathname = locale !== defaultLocale ?
+        `/${locale}${path}` : path;
+
+    // Preserve search params
+    mainSiteUrl.search = url.search;
+
+    return NextResponse.redirect(mainSiteUrl, 302);
 }
