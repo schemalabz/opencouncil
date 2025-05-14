@@ -47,12 +47,7 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 }
 
 /**
- * Handles opencouncil.chania.gr as an alias for opencouncil.gr/chania
- * 
- * Rules:
- * 1. If accessing the subdomain, we want to stay in the Chania realm unless explicitly navigating out
- * 2. All paths on the subdomain should be treated as if they're under /chania on the main domain
- * 3. Links to paths outside the Chania realm should redirect to the main domain
+ * Handles opencouncil.chania.gr by redirecting all requests to opencouncil.gr and handling path appropriately
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -66,47 +61,24 @@ function handleChaniaSubdomain(req: NextRequest) {
     const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
     const path = url.pathname;
 
-    // We'll use "el" as the default locale for Chania as specified
-    const locale = "el";
+    // Create URL for the main domain
+    const mainSiteUrl = new URL(`https://${mainDomain}`);
 
-    // Rule 1: Check if the URL already contains /chania (avoid double paths)
-    if (path.includes('/chania')) {
-        // Remove the redundant /chania segment
-        const newPath = path.replace('/chania', '');
-        const finalPath = newPath || '/';
-
-        // Create a clean URL without the redundant /chania
-        const redirectUrl = new URL(req.url);
-        redirectUrl.pathname = finalPath;
-
-        return NextResponse.redirect(redirectUrl, 301);
+    // Check if the path already contains /chania and handle appropriately
+    if (path.startsWith('/chania/')) {
+        // Remove the /chania prefix from the path
+        mainSiteUrl.pathname = path.substring('/chania'.length);
+    } else if (path === '/chania') {
+        // If the path is exactly /chania, redirect to root
+        mainSiteUrl.pathname = '/';
+    } else {
+        // For all other paths, pass them through as-is
+        mainSiteUrl.pathname = path;
     }
 
-    // Rule 2: Check for external navigation by examining referer
-    const referer = req.headers.get('referer');
-    const isExternalNavigation =
-        // Only consider it external navigation if:
-        // 1. We have a referer (i.e., user clicked a link)
-        // 2. The referer is from our subdomain (not direct access)
-        // 3. The target path does not include "chania" and looks like a global path
-        referer &&
-        referer.includes('opencouncil.chania.gr') &&
-        !path.toLowerCase().includes('chania') &&
-        // Check if this seems like a navigation to a global feature
-        (path.startsWith('/cities') || path.startsWith('/about') || path.startsWith('/search'));
+    // Preserve any query parameters
+    mainSiteUrl.search = url.search;
 
-    // If it's external navigation, redirect to the main domain
-    if (isExternalNavigation) {
-        const mainSiteUrl = new URL(`https://${mainDomain}`);
-        mainSiteUrl.pathname = `/${locale}${path}`;
-        mainSiteUrl.search = url.search;
-
-        return NextResponse.redirect(mainSiteUrl, 302);
-    }
-
-    // Default: All other paths on the subdomain are treated as Chania-specific content
-    // We rewrite them to show the content from /chania/[path]
-    url.pathname = `/${locale}/chania${path}`;
-
-    return NextResponse.rewrite(url);
+    // Redirect to the main domain
+    return NextResponse.redirect(mainSiteUrl, 301);
 }
