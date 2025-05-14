@@ -51,8 +51,8 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * 
  * Rules:
  * 1. If URL has /chania in it, remove the redundant prefix
- * 2. For the root path (/), rewrite to show Chania content
- * 3. For all other paths, redirect to main domain
+ * 2. For paths that are definitely NOT Chania-specific, redirect to main site
+ * 3. For all other paths, rewrite to load Chania-specific content
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -78,7 +78,7 @@ function handleChaniaSubdomain(req: NextRequest) {
         path = path.substring(3); // Remove locale prefix
     }
 
-    // Check if the URL contains /chania
+    // Rule 1: Check if the URL contains /chania
     if (path.includes('/chania')) {
         // Remove the /chania segment from the path
         const newPath = path.replace('/chania', '');
@@ -95,22 +95,38 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // Special case for root path
-    if (path === '/' || path === '') {
-        // For the root path, rewrite to show Chania content
-        url.pathname = `/${locale}/chania`;
-        return NextResponse.rewrite(url);
+    // Rule 2: Check if this is a global path that should go to main site
+    // These are paths that definitely are not Chania-specific
+
+    // Get the first path segment after removing leading slash
+    const pathWithoutLeadingSlash = path.startsWith('/') ? path.substring(1) : path;
+    const firstSegment = pathWithoutLeadingSlash.split('/')[0];
+
+    // These are definitely global site features, not Chania-specific
+    const definitelyGlobalFeatures = [
+        'search', 'about', 'contact', 'municipalities', 'regions',
+        'login', 'register', 'settings', 'privacy', 'terms', 'help',
+        'faq', 'api', '_next', 'favicon.ico'
+    ];
+
+    if (definitelyGlobalFeatures.includes(firstSegment)) {
+        // Redirect to main domain for global paths
+        const mainSiteUrl = new URL(`https://${mainDomain}`);
+
+        // Set the path with locale if needed
+        mainSiteUrl.pathname = locale !== defaultLocale ?
+            `/${locale}${path}` : path;
+
+        // Preserve search params
+        mainSiteUrl.search = url.search;
+
+        return NextResponse.redirect(mainSiteUrl, 302);
     }
 
-    // For all other paths, redirect to main domain
-    const mainSiteUrl = new URL(`https://${mainDomain}`);
+    // Rule 3: For all other paths (including root and Chania-specific),
+    // rewrite to show Chania content
+    url.pathname = `/${locale}/chania${path}`;
 
-    // Set the path with locale if needed
-    mainSiteUrl.pathname = locale !== defaultLocale ?
-        `/${locale}${path}` : path;
-
-    // Preserve search params
-    mainSiteUrl.search = url.search;
-
-    return NextResponse.redirect(mainSiteUrl, 302);
+    // Use the same URL object to avoid connection issues
+    return NextResponse.rewrite(url);
 }
