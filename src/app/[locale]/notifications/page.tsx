@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { SignupPageContent } from "@/components/signup/SignupPageContent";
+import { SignupPageContent } from "@/components/notifications/SignupPageContent";
 
 export const metadata: Metadata = {
     title: "Γραφτείτε στις ενημερώσεις | OpenCouncil",

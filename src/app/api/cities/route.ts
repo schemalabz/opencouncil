@@ -19,8 +19,14 @@ const prisma = new PrismaClient()
 
 export async function GET(req: NextRequest) {
     try {
-        // Fetch cities from our existing function
-        const cities = await getCities({ includeUnlisted: false });
+        const searchParams = req.nextUrl.searchParams;
+        const includeAll = searchParams.get('includeAll') === 'true';
+
+        // Fetch cities from our existing function, passing both flags when includeAll is true
+        const cities = await getCities({
+            includeUnlisted: includeAll,
+            includePending: includeAll
+        });
 
         // Add the supportsNotifications field
         const citiesWithNotifications = cities.map(city => ({

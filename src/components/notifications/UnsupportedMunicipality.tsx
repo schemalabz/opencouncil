@@ -1,23 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { City } from './SignupPageContent';
+import { City, PetitionData } from './SignupPageContent';
 
 interface UnsupportedMunicipalityProps {
     city: City;
-    onSubmit: (data: { name: string; isResident: boolean; isCitizen: boolean; phone?: string }) => void;
+    onSubmit: (data: PetitionData) => void;
+    initialData?: PetitionData;
 }
 
-export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipalityProps) {
-    const [name, setName] = useState('');
-    const [isResident, setIsResident] = useState(false);
-    const [isCitizen, setIsCitizen] = useState(false);
+export function UnsupportedMunicipality({
+    city,
+    onSubmit,
+    initialData
+}: UnsupportedMunicipalityProps) {
+    const [name, setName] = useState(initialData?.name || '');
+    const [isResident, setIsResident] = useState(initialData?.isResident || false);
+    const [isCitizen, setIsCitizen] = useState(initialData?.isCitizen || false);
     const [nameError, setNameError] = useState<string | null>(null);
     const [checkboxError, setCheckboxError] = useState<string | null>(null);
+
+    // Update form when initialData changes
+    useEffect(() => {
+        if (initialData) {
+            setName(initialData.name);
+            setIsResident(initialData.isResident);
+            setIsCitizen(initialData.isCitizen);
+        }
+    }, [initialData]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,6 +62,8 @@ export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipal
         }
     };
 
+    const isUpdate = !!initialData;
+
     return (
         <div className="w-full max-w-md">
             {city.officialSupport ? (
@@ -60,8 +76,13 @@ export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipal
             ) : (
                 <div className="text-center mb-6">
                     <h2 className="text-xl font-bold mb-4">Ο δήμος {city.name} δεν είναι ακόμα στο δίκτυο OpenCouncil</h2>
-                    <p className="text-gray-700">
-                        Βοηθήστε μας να φέρουμε τον δήμο σας στο δίκτυο του OpenCouncil συμπληρώνοντας την παρακάτω φόρμα.
+                    <p className="text-gray-700 text-left">
+                        Μπορείτε να μας βοηθήσετε να φέρουμε το δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
+                        όνομά σας όταν μιλήσουμε με το δήμο, ως δημότης που θα ήθελε να έχει το OpenCouncil στο δήμο του.
+                    </p>
+                    <p className="text-gray-700 mt-2 text-left">
+                        Έχουμε εμπορική δραστηριότητα με τους δήμους που συνεργαζόμαστε, και ο τρόπος που τιμολογούμε και οι τιμές
+                        μας είναι δημόσια διαθέσιμες στο <a href="https://opencouncil.gr/about" className="text-blue-500">opencouncil.gr/about</a>.
                     </p>
                 </div>
             )}
@@ -104,7 +125,7 @@ export function UnsupportedMunicipality({ city, onSubmit }: UnsupportedMunicipal
                 </div>
 
                 <Button type="submit" className="w-full">
-                    Υποβολή αιτήματος
+                    {isUpdate ? 'Ενημέρωση αιτήματος' : 'Υποβολή αιτήματος'}
                 </Button>
             </form>
         </div>

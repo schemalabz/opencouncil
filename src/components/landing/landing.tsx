@@ -104,7 +104,7 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
                             </p>
                         </div>
                         <Button asChild size="lg" className="whitespace-nowrap">
-                            <Link href="/signup">
+                            <Link href="/notifications">
                                 <Bell className="mr-2 h-4 w-4" />
                                 Γραφτείτε στις ενημερώσεις
                             </Link>

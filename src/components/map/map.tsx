@@ -333,6 +333,20 @@ const Map = memo(function Map({
 
         console.log('Updating map features:', features);
 
+        // Additional debug for point features
+        features.forEach(feature => {
+            if (feature.geometry?.type === 'Point') {
+                console.log('Point geometry details:', {
+                    id: feature.id,
+                    coordinates: feature.geometry.coordinates,
+                    valid: Array.isArray(feature.geometry.coordinates) &&
+                        feature.geometry.coordinates.length === 2 &&
+                        typeof feature.geometry.coordinates[0] === 'number' &&
+                        typeof feature.geometry.coordinates[1] === 'number'
+                });
+            }
+        });
+
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',

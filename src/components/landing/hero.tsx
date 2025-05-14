@@ -110,7 +110,7 @@ export function Hero({ latestPost }: HeroProps) {
                         size="xl"
                         className="group transition-all duration-300"
                     >
-                        <Link href="/signup">
+                        <Link href="/notifications">
                             <span className="relative z-10">🔔 Γραφτείτε στις ενημερώσεις</span>
                             <motion.div
                                 className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
