@@ -460,6 +460,18 @@ export function buildCityUrl(cityId: string, path: string = '', locale: string =
   // Check if we're in browser and if so, check for subdomain
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
+
+    // Special case for opencouncil.chania.gr
+    if (hostname === `opencouncil.chania.gr`) {
+      // On opencouncil.chania.gr, all URLs should be relative without the /chania prefix
+      if (cityId === 'chania') {
+        return path ? `/${path}` : '/';
+      } else {
+        // If linking to another city, use path-based URL for now
+        return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
+      }
+    }
+
     const isSubdomain = hostname.includes(`.${mainDomain}`) && !hostname.startsWith('www');
 
     // Get the current subdomain if on a city site
