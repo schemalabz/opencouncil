@@ -66,21 +66,36 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
+    const defaultLocale = routing.defaultLocale;
     const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
 
     // Get the path from the URL
     const { pathname, search } = url;
 
+    // Extract locale from path if present
+    let locale = defaultLocale;
+    let path = pathname;
+
+    if (path.startsWith('/en')) {
+        locale = 'en';
+        path = path.substring(3); // Remove locale prefix
+    } else if (path.startsWith('/el')) {
+        locale = 'el';
+        path = path.substring(3); // Remove locale prefix
+    }
+
     // Check if the URL contains /chania
-    if (pathname.includes('/chania')) {
+    if (path.includes('/chania')) {
         // Remove the /chania segment from the path
-        const newPath = pathname.replace('/chania', '');
+        const newPath = path.replace('/chania', '');
 
         // Make sure we don't end up with an empty path
         const finalPath = newPath || '/';
 
-        // Create the redirect URL
-        const redirectUrl = new URL(`${finalPath}${search}`, req.url);
+        // Create the redirect URL with locale if needed
+        const redirectUrl = new URL(req.url);
+        redirectUrl.pathname = locale !== defaultLocale ?
+            `/${locale}${finalPath}` : finalPath;
 
         // Redirect to the clean URL
         return NextResponse.redirect(redirectUrl, 301);
@@ -108,6 +123,8 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     // Otherwise, rewrite to the appropriate Chania content
-    const rewriteUrl = new URL(`/chania${pathname}${search}`, `https://${mainDomain}`);
+    const rewriteUrl = new URL(req.url);
+    rewriteUrl.host = mainDomain;
+    rewriteUrl.pathname = `/${locale}/chania${path}`;
     return NextResponse.rewrite(rewriteUrl);
 }
