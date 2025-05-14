@@ -440,8 +440,7 @@ export function getMeetingState(meeting: {
 
 /**
  * Builds a URL for city navigation
- * If in a subdomain context, it keeps the URL in the subdomain
- * Otherwise it uses the path-based navigation
+ * Handles the special case for opencouncil.chania.gr
  * 
  * @param cityId The ID of the city
  * @param path Additional path after the city ID
@@ -449,52 +448,22 @@ export function getMeetingState(meeting: {
  * @returns A URL string for navigation
  */
 export function buildCityUrl(cityId: string, path: string = '', locale: string = 'el'): string {
-  const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
-  const enableSubdomains = process.env.NEXT_PUBLIC_ENABLE_SUBDOMAINS === 'true';
-
-  // If subdomains are disabled, always use path-based routing
-  if (!enableSubdomains) {
-    return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
-  }
-
-  // Check if we're in browser and if so, check for subdomain
+  // Check if we're in browser 
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
 
     // Special case for opencouncil.chania.gr
-    if (hostname === `opencouncil.chania.gr`) {
+    if (hostname === 'opencouncil.chania.gr') {
       // On opencouncil.chania.gr, all URLs should be relative without the /chania prefix
       if (cityId === 'chania') {
         return path ? `/${path}` : '/';
       } else {
-        // If linking to another city, use path-based URL for now
+        // If linking to another city, use path-based URL
         return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
       }
     }
-
-    const isSubdomain = hostname.includes(`.${mainDomain}`) && !hostname.startsWith('www');
-
-    // Get the current subdomain if on a city site
-    const currentSubdomain = isSubdomain ? hostname.split('.')[0] : null;
-
-    // If we're on a city subdomain and it matches the requested city
-    if (currentSubdomain && currentSubdomain === cityId) {
-      // Keep navigation within the subdomain
-      return path ? `/${path}` : '/';
-    }
-
-    // If navigating to a different city from a subdomain
-    if (isSubdomain && currentSubdomain !== cityId) {
-      // Generate URL for the new city's subdomain
-      return `https://${cityId}.${mainDomain}${path ? `/${path}` : ''}`;
-    }
-
-    // If on main domain, use subdomain URL for the city
-    if (hostname === mainDomain || hostname === `www.${mainDomain}`) {
-      return `https://${cityId}.${mainDomain}${path ? `/${path}` : ''}`;
-    }
   }
 
-  // Fallback to path-based URL structure (for SSR or if subdomain logic doesn't apply)
+  // Default path-based URL structure
   return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
 }
