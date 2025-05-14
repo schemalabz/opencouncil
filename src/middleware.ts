@@ -51,7 +51,8 @@ function isHttpBasicAuthAuthenticated(req: Request) {
  * 
  * Rules:
  * 1. If URL has /chania in it, remove the redundant prefix
- * 2. Otherwise, rewrite internally to show Chania content
+ * 2. For non-Chania specific pages (like /search), redirect to main domain
+ * 3. Otherwise, rewrite internally to show Chania content
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -63,6 +64,7 @@ function handleChaniaSubdomain(req: NextRequest) {
 
     const url = req.nextUrl.clone();
     const defaultLocale = routing.defaultLocale;
+    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
 
     // Extract locale from path if present
     let locale = defaultLocale;
@@ -93,7 +95,43 @@ function handleChaniaSubdomain(req: NextRequest) {
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // For the root path, simply rewrite to show Chania content
+    // Define general site paths that should redirect to main domain
+    // These are paths that are not specific to any city/municipality
+    const generalPaths = [
+        '/search',
+        '/about',
+        '/contact',
+        '/faq',
+        '/help',
+        '/privacy',
+        '/terms',
+        '/login',
+        '/register',
+        '/settings',
+        '/municipalities',
+        '/regions',
+    ];
+
+    // Check if current path starts with any of the general paths
+    const isGeneralPath = generalPaths.some(prefix =>
+        path === prefix || path.startsWith(`${prefix}/`)
+    );
+
+    // For general site paths, redirect to main domain
+    if (isGeneralPath) {
+        const mainSiteUrl = new URL(`https://${mainDomain}`);
+
+        // Set the path with locale if needed
+        mainSiteUrl.pathname = locale !== defaultLocale ?
+            `/${locale}${path}` : path;
+
+        // Preserve search params
+        mainSiteUrl.search = url.search;
+
+        return NextResponse.redirect(mainSiteUrl, 302);
+    }
+
+    // For other paths, rewrite to show Chania content
     // Rewrite the URL internally to load the content for /chania
     url.pathname = `/${locale}/chania${path}`;
 
