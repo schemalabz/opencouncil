@@ -29,12 +29,17 @@ model City {
   authorityType AuthorityType @default(municipality)
   wikipediaId String?
   geometry Unsupported("geometry")?
+  supportsNotifications Boolean @default(false)
 
   parties        Party[]
   persons        Person[]
   councilMeetings CouncilMeeting[]
   administrators Administers[]
   administrativeBodies AdministrativeBody[]
+  
+  // Added relations for notification system
+  petitions Petition[]
+  notificationPreferences NotificationPreference[]
 
   roles Role[]
 
@@ -270,7 +275,6 @@ model Utterance {
   utteranceEdits UtteranceEdit[]
 }
 
-
 enum LastModifiedBy {
   user
   task
@@ -318,6 +322,9 @@ model Topic {
 
   topicLabels TopicLabel[]
   subjects Subject[]
+  
+  // Add relation to notification preferences
+  notificationPreferences NotificationPreference[] @relation("NotificationTopic")
 }
 
 model Summary {
@@ -386,6 +393,9 @@ model Location {
   coordinates Unsupported("geometry")
 
   subjects Subject[]
+  
+  // Relation to notification preferences
+  notificationPreferences NotificationPreference[] @relation("NotificationLocation")
 }
 
 model SubjectSpeakerSegment {
@@ -401,7 +411,6 @@ model SubjectSpeakerSegment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
 
 model Highlight {
   id        String   @id  @default(cuid())
@@ -518,7 +527,6 @@ model Waitlist {
 
 // Users and authentication
 
-
 model User {
   id            String          @id @default(cuid())
   name          String?
@@ -532,7 +540,11 @@ model User {
   sessions      Session[]
   Authenticator Authenticator[]
   administers   Administers[]
- 
+  
+  // Add these relations for notification system
+  petitions Petition[]
+  notificationPreferences NotificationPreference[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   utteranceEdits UtteranceEdit[]
@@ -661,4 +673,47 @@ model Role {
 
   // Only one role per person and {city, party, administrativeBody}
   @@unique([personId, cityId, partyId, administrativeBodyId])
+}
+
+// New models for the notification signup system
+model Petition {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId    String
+  
+  // Fields from PRD
+  is_resident Boolean @default(false)
+  is_citizen Boolean @default(false)
+  
+  @@unique([userId, cityId])
+  @@index([userId])
+  @@index([cityId])
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId    String
+  
+  // Many-to-many relations with locations and topics/interests
+  locations Location[] @relation("NotificationLocation")
+  interests Topic[]    @relation("NotificationTopic")
+  
+  @@unique([userId, cityId])
+  @@index([userId])
+  @@index([cityId])
 }

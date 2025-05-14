@@ -3,12 +3,14 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { getLandingPageData, SubstackPost, type LandingPageCity, type LandingPageData } from "@/lib/db/landing";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bell } from "lucide-react";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { FloatingPathsBackground } from '@/components/ui/floating-paths';
 import { ChevronDown } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Link } from "@/i18n/routing";
 
 interface LandingProps {
     publicCities: LandingPageCity[];
@@ -92,6 +94,23 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
             {/* Cities Section - Contained */}
             <div className="container mx-auto px-4 py-8 sm:py-12 relative z-10">
                 <section className="space-y-12 sm:space-y-16 mt-12 sm:mt-20">
+                    {/* Notification Signup Callout */}
+                    <div className="bg-muted/50 rounded-lg p-6 border border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-semibold mb-2">Μείνετε ενημερωμένοι</h2>
+                            <p className="text-muted-foreground mb-0">
+                                Λάβετε ενημερώσεις για θέματα που συζητιούνται στα δημοτικά συμβούλια
+                                για τις περιοχές και τα θέματα που σας ενδιαφέρουν.
+                            </p>
+                        </div>
+                        <Button asChild size="lg" className="whitespace-nowrap">
+                            <Link href="/notifications">
+                                <Bell className="mr-2 h-4 w-4" />
+                                Γραφτείτε στις ενημερώσεις
+                            </Link>
+                        </Button>
+                    </div>
+
                     <div className="space-y-16">
                         {sortedCities.map((city) => (
                             <CityOverview

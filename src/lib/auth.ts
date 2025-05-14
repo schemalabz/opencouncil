@@ -2,6 +2,9 @@
 import { type City, type Party, type Person, type CouncilMeeting, type User } from "@prisma/client";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
+import { randomBytes, randomUUID } from "crypto";
+import { renderReactEmailToHtml } from "@/lib/email/render";
+import { AuthEmail } from "@/lib/email/templates/AuthEmail";
 
 export async function getCurrentUser() {
     const session = await auth();
