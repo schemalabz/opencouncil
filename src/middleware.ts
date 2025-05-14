@@ -48,9 +48,12 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 
 /**
  * Special handler for opencouncil.chania.gr
- * - Redirects /chania/* paths to /* to clean up URLs
- * - Redirects paths to the main domain unless they are specific Chania content
- * - Rewrites Chania-specific paths to their equivalent on the main site /{locale}/chania/*
+ * Makes the subdomain serve as an alias for opencouncil.gr/chania
+ * 
+ * This handler implements these rules:
+ * 1. For general site pages (about, contact, etc.), redirect to main domain
+ * 2. For /chania/* paths, redirect to remove the redundant /chania prefix
+ * 3. For all other paths, rewrite to /chania/* on the main site
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -76,54 +79,55 @@ function handleChaniaSubdomain(req: NextRequest) {
         path = path.substring(3); // Remove locale prefix
     }
 
-    // If the path starts with /chania, redirect to remove it from the URL
-    if (path.startsWith('/chania')) {
-        const cleanPath = path.substring(7); // Remove /chania prefix
-        const redirectUrl = new URL(req.url);
-        redirectUrl.pathname = cleanPath || '/';
+    // Case 1: General site pages that should redirect to main domain
+    const generalSitePages = [
+        '/about',
+        '/contact',
+        '/faq',
+        '/privacy',
+        '/terms',
+        '/help',
+        '/login',
+        '/register',
+        '/reset-password',
+        '/search',
+        '/settings',
+        '/municipalities',
+        '/regions',
+    ];
 
-        // Preserve the locale if it was in the original URL
+    for (const page of generalSitePages) {
+        if (path === page || path.startsWith(`${page}/`)) {
+            const mainSiteUrl = new URL(req.url);
+            mainSiteUrl.host = mainDomain;
+
+            // Preserve locale in the URL if not default
+            if (locale !== defaultLocale) {
+                mainSiteUrl.pathname = `/${locale}${path}`;
+            } else {
+                mainSiteUrl.pathname = path;
+            }
+
+            return NextResponse.redirect(mainSiteUrl, 302);
+        }
+    }
+
+    // Case 2: Handle redundant /chania prefix
+    if (path.startsWith('/chania')) {
+        const cleanPath = path.substring(7) || '/'; // Remove /chania prefix, default to / if empty
+        const redirectUrl = new URL(req.url);
+
+        // Keep the locale if present
         if (locale !== defaultLocale) {
-            redirectUrl.pathname = `/${locale}${redirectUrl.pathname}`;
+            redirectUrl.pathname = `/${locale}${cleanPath}`;
+        } else {
+            redirectUrl.pathname = cleanPath;
         }
 
         return NextResponse.redirect(redirectUrl, 301);
     }
 
-    // List of paths that should remain on the Chania subdomain (Chania-specific content)
-    const chaniaSpecificPaths = [
-        '/',                  // Root path
-        '/council',           // Council page
-        '/events',            // Events
-        '/documents',         // Documents
-        '/services',          // Services
-        '/decisions',         // Decisions
-        '/news',              // News
-        '/announcements',     // Announcements
-    ];
-
-    // Check if this is a Chania-specific path
-    const isChaniaDomain = chaniaSpecificPaths.some(chaniaPath =>
-        path === chaniaPath || path.startsWith(`${chaniaPath}/`)
-    );
-
-    // If not a Chania-specific path, redirect to the main domain
-    if (!isChaniaDomain) {
-        // Redirect to the main domain with the same path
-        const mainSiteUrl = new URL(req.url);
-        mainSiteUrl.host = mainDomain;
-
-        // Preserve locale in the URL if not default
-        if (locale !== defaultLocale) {
-            mainSiteUrl.pathname = `/${locale}${path}`;
-        } else {
-            mainSiteUrl.pathname = path;
-        }
-
-        return NextResponse.redirect(mainSiteUrl, 302); // Temporary redirect for non-Chania content
-    }
-
-    // For Chania-specific paths, rewrite to the main site's chania content
+    // Case 3: All other paths - rewrite to /chania/ content on main site
     const rewriteUrl = new URL(req.url);
     rewriteUrl.pathname = `/${locale}/chania${path}`;
     return NextResponse.rewrite(rewriteUrl);
