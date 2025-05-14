@@ -69,6 +69,10 @@ export function LocationSelector({
                     setError('Σφάλμα κατά την αναζήτηση τοποθεσιών. Παρακαλώ δοκιμάστε ξανά.');
                 } finally {
                     setIsLoading(false);
+                    // Maintain focus on input after suggestions are loaded
+                    if (inputRef.current) {
+                        inputRef.current.focus();
+                    }
                 }
             } else {
                 setSuggestions([]);
@@ -126,6 +130,13 @@ export function LocationSelector({
         setInputValue(e.target.value);
         setError(null); // Clear any error when input changes
     };
+
+    // Add new effect to maintain focus when loading state changes
+    useEffect(() => {
+        if (!isLoading && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isLoading]);
 
     const handleSelectLocation = async (suggestion: PlaceSuggestion) => {
         setIsLoading(true);

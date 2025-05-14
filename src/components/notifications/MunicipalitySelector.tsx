@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Combobox from '@/components/Combobox';
 import { Loader2, Bell, InfoIcon, Search, AlertTriangle } from 'lucide-react';
 import { City } from '@prisma/client';
-import { cn } from '@/lib/utils';
+import { cn, normalizeText } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -65,12 +65,12 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
             return;
         }
 
-        const normalizedQuery = searchQuery.toLowerCase().trim();
+        const normalizedQuery = normalizeText(searchQuery.trim());
 
-        // Search through ALL cities
+        // Search through ALL cities with normalized text for accent-insensitive matching
         const matchedCities = allCities.filter(city =>
-            city.name.toLowerCase().includes(normalizedQuery) ||
-            city.name_municipality.toLowerCase().includes(normalizedQuery)
+            normalizeText(city.name).includes(normalizedQuery) ||
+            normalizeText(city.name_municipality).includes(normalizedQuery)
         );
 
         // Split the results into supported and unsupported
