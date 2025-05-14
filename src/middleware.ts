@@ -49,7 +49,8 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 /**
  * Special handler for opencouncil.chania.gr
  * - Redirects /chania/* paths to /* to clean up URLs
- * - Rewrites all paths to their equivalent on the main site /{locale}/chania/*
+ * - Redirects paths outside of Chania content to the main domain
+ * - Rewrites remaining paths to their equivalent on the main site /{locale}/chania/*
  */
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
@@ -61,6 +62,7 @@ function handleChaniaSubdomain(req: NextRequest) {
 
     const url = req.nextUrl.clone();
     const defaultLocale = routing.defaultLocale;
+    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
 
     // Extract locale from path if present
     let locale = defaultLocale;
@@ -86,6 +88,29 @@ function handleChaniaSubdomain(req: NextRequest) {
         }
 
         return NextResponse.redirect(redirectUrl, 301);
+    }
+
+    // Check if the path is trying to access content outside of Chania
+    // We should redirect these to the main site
+    if (
+        path.startsWith('/municipalities/') ||
+        path.startsWith('/municipality/') ||
+        path.startsWith('/regions/') ||
+        path.startsWith('/region/') ||
+        path.match(/^\/[^\/]+\/?$/) // Root paths like /athens, /volos, etc.
+    ) {
+        // Redirect to the main domain with the same path
+        const mainSiteUrl = new URL(req.url);
+        mainSiteUrl.host = mainDomain;
+
+        // Preserve locale in the URL if not default
+        if (locale !== defaultLocale) {
+            mainSiteUrl.pathname = `/${locale}${path}`;
+        } else {
+            mainSiteUrl.pathname = path;
+        }
+
+        return NextResponse.redirect(mainSiteUrl, 302); // Temporary redirect for non-Chania content
     }
 
     // For other paths, rewrite to the main site's chania content
