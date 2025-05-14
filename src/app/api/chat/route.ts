@@ -1,11 +1,27 @@
 import { NextRequest } from 'next/server';
 import { Anthropic } from '@anthropic-ai/sdk';
-import { search, SearchResult } from '@/lib/search/search';
+import { SegmentWithRelations } from "@/lib/db/speakerSegments";
+import { search, SearchResultDetailed, SearchConfig } from '@/lib/search/search';
 import { Party } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
 import * as fs from 'fs';
 import * as path from 'path';
+
+// Define types for our content extraction
+interface ExtractedSegment {
+    speaker: string;
+    text: string;
+    person: PersonWithRelations | null;
+}
+
+interface ExtractedSubject {
+    name: string;
+    description: string;
+    topic: string | null;
+    keySegments: ExtractedSegment[];
+    speakerSegments: ExtractedSegment[];
+}
 
 // Create an Anthropic client
 const anthropic = new Anthropic({
@@ -19,11 +35,12 @@ const DEV_CONFIG = {
 };
 
 // Search Configuration
-const searchConfig = {
+const searchConfig: SearchConfig = {
     size: 5,
     enableSemanticSearch: true,
     rankWindowSize: 100,
-    rankConstant: 60
+    rankConstant: 60,
+    detailed: true // We need detailed results for chat
 };
 
 // Context Management
@@ -70,11 +87,12 @@ function logPromptToFile(systemPrompt: string, messages: any[]) {
 }
 
 // Content Extraction
-function extractRelevantContent(searchResults: SearchResult[]) {
+function extractRelevantContent(searchResults: SearchResultDetailed[]) {
     console.log(`[Content Extraction] Processing ${searchResults.length} search results`);
     
     const extracted = searchResults.map(result => {
-        const matchedSegments = result.speakerSegments
+        // Get matched segments from the detailed results
+        const matchedSegments = (result.speakerSegments as SegmentWithRelations[])
             .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
             
         console.log(`[Content Extraction] Subject "${result.name}":`);
@@ -90,7 +108,7 @@ function extractRelevantContent(searchResults: SearchResult[]) {
                 text: segment.text,
                 person: segment.person
             })),
-            speakerSegments: result.speakerSegments.map(segment => ({
+            speakerSegments: (result.speakerSegments as SegmentWithRelations[]).map(segment => ({
                 speaker: segment.person?.name || 'Unknown',
                 text: segment.text,
                 person: segment.person
@@ -222,17 +240,27 @@ export async function POST(req: NextRequest) {
             console.log(`  - City ID: ${cityId || 'none'}`);
             console.log(`  - Last message: "${messages[messages.length - 1].content.substring(0, 50)}..."`);
 
-            // 1. Perform search
+            // 1. Perform search with detailed results
             console.log(`[Search] Initiating search with query: "${messages[messages.length - 1].content}"`);
             const searchResults = await search({
                 query: messages[messages.length - 1].content,
                 cityIds: cityId ? [cityId] : undefined,
-                config: searchConfig
+                config: {
+                    ...searchConfig,
+                    detailed: true // Ensure we get detailed results
+                }
             });
-            console.log(`[Search] Found ${searchResults.results.length} results`);
+
+            // Ensure we have detailed results
+            if (!searchResults.results.every(result => 'speakerSegments' in result)) {
+                throw new Error('Search results do not contain detailed speaker segments');
+            }
+
+            const detailedResults = searchResults.results as SearchResultDetailed[];
+            console.log(`[Search] Found ${detailedResults.length} results`);
 
             // 2. Extract content
-            const context = extractRelevantContent(searchResults.results);
+            const context = extractRelevantContent(detailedResults);
 
             // 3. Enhance prompt
             const enhancedPrompt = enhancePrompt(messages, context);
@@ -248,7 +276,7 @@ export async function POST(req: NextRequest) {
             });
 
             // 5. Track subjects
-            const subjectReferences = searchResults.results.map(result => {
+            const subjectReferences = detailedResults.map(result => {
                 // Get unique parties from the city
                 const parties = (result.councilMeeting.city as any).parties || [] as Party[];
                 

@@ -74,9 +74,9 @@ export function ChatInterface() {
     };
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="h-[calc(100vh-4rem)] flex flex-col">
             {/* Main Chat Area */}
-            <main className="flex-1 overflow-hidden">
+            <main className="flex-1 overflow-y-auto">
                 <MessageList
                     messages={messages}
                     currentMessage={currentMessage}
@@ -88,8 +88,8 @@ export function ChatInterface() {
                 />
             </main>
 
-            {/* Input area */}
-            <div className="border-t border-transparent bg-transparent px-2 py-4">
+            {/* Input area - Fixed at bottom */}
+            <div className="flex-shrink-0 border-t border-transparent bg-transparent px-2 py-4">
                 <div className="max-w-3xl mx-auto">
                     <form onSubmit={handleSubmit} className="bg-background rounded-2xl shadow-md px-3 pt-2 pb-1 w-full flex flex-col gap-1 border-t-4 border-[hsl(var(--orange))]">
                         <div className="flex items-end gap-2 w-full">

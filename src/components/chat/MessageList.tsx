@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { SubjectCard } from '@/components/subject-card';
 import { LoadingBubble } from './LoadingBubble';
 import { SuggestedPrompt } from './SuggestedPrompt';
+import { SubjectWithRelations } from '@/lib/db/subject';
 
 interface MessageListProps {
     messages: ChatMessage[];
@@ -153,11 +154,12 @@ export function MessageList({
                                                     onClick={(e) => e.stopPropagation()}
                                                 >
                                                     <SubjectCard
-                                                        subject={subject}
+                                                        subject={subject as unknown as SubjectWithRelations}
                                                         city={subject.city}
                                                         meeting={subject.meeting}
                                                         parties={subject.parties}
                                                         persons={subject.persons}
+                                                        showContext={true}
                                                     />
                                                 </div>
                                             ))}

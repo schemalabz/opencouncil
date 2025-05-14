@@ -1,9 +1,10 @@
 "use server";
-import { City, CouncilMeeting, Topic } from "@prisma/client";
+import { City, CouncilMeeting } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { PersonWithRelations } from '@/lib/db/people';
 import { Client, estypes } from '@elastic/elasticsearch';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
+import { SubjectWithRelations, LocationWithCoordinates } from '@/lib/db/subject';
 
 // Define the type for our Elasticsearch document
 interface SubjectDocument {
@@ -21,6 +22,20 @@ const client = new Client({
     }
 });
 
+// Lightweight search result for the search page
+export type SearchResultLight = SubjectWithRelations & {
+    score: number;
+    matchedSpeakerSegmentIds?: string[];
+    councilMeeting: CouncilMeeting & {
+        city: City;
+    };
+};
+
+// Detailed search result with speaker segment text
+export type SearchResultDetailed = SearchResultLight & {
+    speakerSegments: SegmentWithRelations[];
+};
+
 export type SearchConfig = {
     enableSemanticSearch?: boolean;
     enableHighlights?: boolean;
@@ -28,6 +43,7 @@ export type SearchConfig = {
     from?: number;
     rankWindowSize?: number;
     rankConstant?: number;
+    detailed?: boolean; // Whether to return detailed results
 };
 
 export type SearchRequest = {
@@ -50,26 +66,8 @@ export type SearchRequest = {
     config?: SearchConfig;
 };
 
-export type SearchResult = {
-    id: string;
-    name: string;
-    description: string;
-    councilMeeting: CouncilMeeting & {
-        city: City;
-    };
-    topic: Topic | null | undefined;
-    introducedBy?: PersonWithRelations;
-    location?: {
-        text: string;
-        geojson: string;
-    };
-    score: number;
-    speakerSegments: Array<SegmentWithRelations>;
-    matchedSpeakerSegmentIds?: string[];
-};
-
 export type SearchResponse = {
-    results: SearchResult[];
+    results: SearchResultLight[] | SearchResultDetailed[];
     total: number;
 };
 
@@ -161,11 +159,8 @@ function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] 
 
 export async function search(request: SearchRequest): Promise<SearchResponse> {
     try {
-        console.log(`[Search] Starting search with config:`, {
-            query: request.query,
-            cityIds: request.cityIds,
-            config: request.config
-        });
+        // Log initial search parameters
+        console.log('[Search] Starting search', request);
 
         // Build the search query
         const searchQuery: estypes.SearchRequest = {
@@ -271,36 +266,26 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             }
         };
 
-        console.log(`[Search] Built search query:`, {
-            index: searchQuery.index,
-            size: searchQuery.size,
-            semanticSearch: request.config?.enableSemanticSearch,
-            rankWindowSize: request.config?.rankWindowSize,
-            rankConstant: request.config?.rankConstant
-        });
-
         // Execute the search
-        console.log(`[Search] Executing search request...`);
         const response = await client.search(searchQuery);
-        console.log(`[Search] Search request completed`);
-
+        
         // Get total hits
         const total = response.hits.total as { value: number; relation: string };
         const totalHits = total.value;
-        console.log(`[Search] Found ${totalHits} total hits`);
+        console.log('[Search] Search completed', {
+            totalHits,
+            resultCount: response.hits.hits.length,
+            took: `${response.took}ms`
+        });
 
         // Process the results
-        console.log(`[Search] Processing ${response.hits.hits.length} results...`);
         const results = await Promise.all(
             (response.hits.hits as Array<estypes.SearchHit<SubjectDocument>>).map(async (hit, index) => {
-                console.log(`[Search] Processing result ${index + 1}/${response.hits.hits.length}`);
-                
                 if (!hit._source) {
-                    console.error(`[Search] Hit source is undefined for result ${index + 1}`);
+                    console.error('[Search] Invalid hit source', { index, score: hit._score });
                     throw new Error('Elasticsearch hit source is undefined');
                 }
 
-                console.log(`[Search] Fetching subject ${hit._source.public_subject_id} from database`);
                 const subject = await prisma.subject.findUnique({
                     where: { id: hit._source.public_subject_id },
                     include: {
@@ -353,18 +338,21 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                     }
                                 }
                             }
-                        }
+                        },
+                        highlights: true
                     }
                 });
 
                 if (!subject) {
-                    console.error(`[Search] Subject ${hit._source.public_subject_id} not found in database`);
+                    console.error('[Search] Subject not found', { 
+                        subjectId: hit._source.public_subject_id,
+                        score: hit._score 
+                    });
                     throw new Error(`Subject ${hit._source.public_subject_id} not found`);
                 }
 
-                console.log(`[Search] Processing location for subject ${subject.id}`);
                 // Get location coordinates if available
-                let locationWithCoordinates: SearchResult['location'] | undefined = undefined;
+                let locationWithCoordinates: LocationWithCoordinates | null = null;
                 if (subject.location) {
                     const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
                         SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
@@ -375,71 +363,66 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
 
                     if (locationCoordinates.length > 0) {
                         locationWithCoordinates = {
-                            text: subject.location.text,
-                            geojson: JSON.stringify({
-                                type: 'Point',
-                                coordinates: [locationCoordinates[0].x, locationCoordinates[0].y]
-                            })
+                            ...subject.location,
+                            coordinates: {
+                                x: locationCoordinates[0].x,
+                                y: locationCoordinates[0].y
+                            }
                         };
                     }
                 }
-
-                console.log(`[Search] Processing speaker segments for subject ${subject.id}`);
-                // Transform speaker segments to match new SegmentWithRelations type
-                const speakerSegments = subject.speakerSegments
-                    .map(ss => ss.speakerSegment)
-                    .filter(segment => {
-                        // Safely check for minimum text length
-                        const text = segment.utterances.map(u => u.text).join(' ');
-                        // Safe check for person and roles
-                        const hasPerson = segment.speakerTag?.person != null;
-                        const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
-                        // Only include segments with at least 100 characters and a person with roles
-                        return text.length >= 100 && hasPerson && hasRoles;
-                    })
-                    .map(segment => ({
-                        id: segment.id,
-                        startTimestamp: segment.startTimestamp,
-                        endTimestamp: segment.endTimestamp,
-                        meeting: segment.meeting,
-                        person: segment.speakerTag?.person || null,
-                        text: segment.utterances.map(u => u.text).join(' '),
-                        summary: segment.summary ? { text: segment.summary.text } : null
-                    }));
-
-                console.log(`[Search] Found ${speakerSegments.length} valid speaker segments for subject ${subject.id}`);
 
                 // Process inner hits for speaker segments
                 const matchedSpeakerSegmentIds = hit.inner_hits?.['public_subject_speaker_segments']?.hits?.hits
                     .map(innerHit => innerHit._source?.segment_id)
                     .filter((id): id is string => id !== undefined);
 
-                console.log(`[Search] Found ${matchedSpeakerSegmentIds?.length || 0} matched speaker segments for subject ${subject.id}`);
-
-                return {
-                    id: subject.id,
-                    name: subject.name,
-                    description: subject.description,
-                    councilMeeting: subject.councilMeeting,
-                    topic: subject.topic,
-                    introducedBy: subject.introducedBy || undefined,
+                // Base result with common fields
+                const baseResult: SearchResultLight = {
+                    ...subject,
                     location: locationWithCoordinates,
                     score: hit._score || 0,
-                    speakerSegments,
-                    matchedSpeakerSegmentIds
+                    matchedSpeakerSegmentIds,
+                    councilMeeting: subject.councilMeeting
                 };
+
+                // If detailed results are requested, add speaker segment text
+                if (request.config?.detailed) {
+                    const speakerSegments = subject.speakerSegments
+                        .map(ss => ss.speakerSegment)
+                        .filter(segment => {
+                            const text = segment.utterances.map(u => u.text).join(' ');
+                            const hasPerson = segment.speakerTag?.person != null;
+                            const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+                            return text.length >= 100 && hasPerson && hasRoles;
+                        })
+                        .map(segment => ({
+                            id: segment.id,
+                            startTimestamp: segment.startTimestamp,
+                            endTimestamp: segment.endTimestamp,
+                            meeting: segment.meeting,
+                            person: segment.speakerTag?.person || null,
+                            text: segment.utterances.map(u => u.text).join(' '),
+                            summary: segment.summary ? { text: segment.summary.text } : null
+                        }));
+
+                    return {
+                        ...baseResult,
+                        speakerSegments
+                    } as SearchResultDetailed;
+                }
+
+                return baseResult;
             })
         );
 
-        console.log(`[Search] Successfully processed all results`);
         return {
             results,
             total: totalHits
         };
     } catch (error) {
-        console.error(`[Search] Error during search:`, {
+        console.error('[Search] Error during search', {
             error: error instanceof Error ? error.message : 'Unknown error',
-            stack: error instanceof Error ? error.stack : undefined,
             query: request.query,
             config: request.config
         });

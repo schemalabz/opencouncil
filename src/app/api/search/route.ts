@@ -21,7 +21,8 @@ const searchRequestSchema = z.object({
         radius: z.number().min(0).max(100).default(5)
     }).optional(),
     page: z.number().int().min(1).default(1),
-    pageSize: z.number().int().min(1).max(100).default(10)
+    pageSize: z.number().int().min(1).max(100).default(10),
+    detailed: z.boolean().default(false)
 });
 
 // Hardcoded search configuration
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest) {
             config: {
                 ...SEARCH_CONFIG,
                 size: validatedRequest.pageSize,
-                from: offset
+                from: offset,
+                detailed: validatedRequest.detailed
             }
         };
 
