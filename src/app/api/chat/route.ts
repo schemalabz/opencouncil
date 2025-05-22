@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
-import { search, SearchResultDetailed, SearchConfig } from '@/lib/search/search';
+import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
 import { Party } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';

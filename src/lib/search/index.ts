@@ -1,0 +1,237 @@
+"use server";
+
+import { Client } from '@elastic/elasticsearch';
+import prisma from "@/lib/db/prisma";
+import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument } from './types';
+import { buildSearchQuery } from './query';
+import { extractFilters, processFilters } from './filters';
+
+// Re-export types
+export type {
+    SearchResultLight,
+    SearchResultDetailed,
+    SearchConfig,
+} from './types';
+
+// Initialize Elasticsearch client
+const client = new Client({
+    node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
+    auth: {
+        apiKey: process.env.ELASTICSEARCH_API_KEY || 'changeme'
+    }
+});
+
+// Helper function for essential logs that should always be shown
+const logEssential = (message: string, data?: any) => {
+    console.log(`[Search Analytics] ${message}`, data || '');
+};
+
+export async function search(request: SearchRequest): Promise<SearchResponse> {
+    try {
+        // Log search session start with query and filters
+        logEssential('Search Session Started', {
+            query: request.query,
+            filters: {
+                cityIds: request.cityIds,
+                personIds: request.personIds,
+                partyIds: request.partyIds,
+                topicIds: request.topicIds,
+                dateRange: request.dateRange,
+                hasLocations: request.locations ? request.locations.length > 0 : false
+            }
+        });
+
+        // Extract filters from the query
+        const extractedFilters = await extractFilters(request.query);
+        logEssential('[Search] Extracted filters:', extractedFilters);
+        
+        // Process filters and resolve locations
+        const processedFilters = await processFilters(extractedFilters);
+        
+        // Merge with explicit filters
+        const mergedRequest: SearchRequest = {
+            ...request,
+            cityIds: processedFilters.cityIds || request.cityIds,
+            dateRange: processedFilters.dateRange || request.dateRange,
+            locations: processedFilters.locations || request.locations
+        };
+
+        // Build and execute the search query
+        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters);
+        const response = await client.search(searchQuery);
+        
+        // Get total hits
+        const total = response.hits.total as { value: number; relation: string };
+        const totalHits = total.value;
+        
+        // Log search session completion with results summary
+        logEssential('Search Session Completed', {
+            query: request.query,
+            results: {
+                totalHits,
+                resultCount: response.hits.hits.length,
+                took: `${response.took}ms`,
+                topScore: response.hits.hits[0]?._score || 0
+            }
+        });
+
+        // Process the results
+        const results = await Promise.all(
+            (response.hits.hits as Array<any>).map(async (hit, index) => {
+                if (!hit._source) {
+                    logEssential('[Search] Invalid hit source', { index, score: hit._score });
+                    throw new Error('Elasticsearch hit source is undefined');
+                }
+
+                const subject = await prisma.subject.findUnique({
+                    where: { id: hit._source.public_subject_id },
+                    include: {
+                        speakerSegments: {
+                            include: {
+                                speakerSegment: {
+                                    include: {
+                                        meeting: {
+                                            include: {
+                                                city: true
+                                            }
+                                        },
+                                        speakerTag: {
+                                            include: {
+                                                person: {
+                                                    include: {
+                                                        party: true,
+                                                        roles: {
+                                                            include: {
+                                                                party: true,
+                                                                city: true,
+                                                                administrativeBody: true
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        utterances: true,
+                                        summary: true
+                                    }
+                                }
+                            }
+                        },
+                        location: true,
+                        topic: true,
+                        councilMeeting: {
+                            include: {
+                                city: true
+                            }
+                        },
+                        introducedBy: {
+                            include: {
+                                party: true,
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true
+                                    }
+                                }
+                            }
+                        },
+                        highlights: true
+                    }
+                });
+
+                if (!subject) {
+                    logEssential('[Search] Subject not found', { 
+                        subjectId: hit._source.public_subject_id,
+                        score: hit._score 
+                    });
+                    throw new Error(`Subject ${hit._source.public_subject_id} not found`);
+                }
+
+                // Get location coordinates if available
+                let locationWithCoordinates = null;
+                if (subject.location) {
+                    const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
+                        SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
+                        FROM "Location"
+                        WHERE id = ${subject.location.id}
+                        AND type = 'point'
+                    `;
+
+                    if (locationCoordinates.length > 0) {
+                        locationWithCoordinates = {
+                            ...subject.location,
+                            coordinates: {
+                                x: locationCoordinates[0].x,
+                                y: locationCoordinates[0].y
+                            }
+                        };
+                    }
+                }
+
+                // Process inner hits for speaker segments
+                const matchedSpeakerSegmentIds = hit.inner_hits?.['public_subject_speaker_segments']?.hits?.hits
+                    .map((innerHit: { _source?: { segment_id?: string } }) => innerHit._source?.segment_id)
+                    .filter((id: string | undefined): id is string => id !== undefined);
+
+                // Base result with common fields
+                const baseResult: SearchResultLight = {
+                    ...subject,
+                    location: locationWithCoordinates,
+                    score: hit._score || 0,
+                    matchedSpeakerSegmentIds,
+                    councilMeeting: subject.councilMeeting
+                };
+
+                // If detailed results are requested, add speaker segment text
+                if (request.config?.detailed) {
+                    const speakerSegments = subject.speakerSegments
+                        .map(ss => ss.speakerSegment)
+                        .filter(segment => {
+                            const text = segment.utterances.map(u => u.text).join(' ');
+                            const hasPerson = segment.speakerTag?.person != null;
+                            const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+                            return text.length >= 100 && hasPerson && hasRoles;
+                        })
+                        .map(segment => ({
+                            id: segment.id,
+                            startTimestamp: segment.startTimestamp,
+                            endTimestamp: segment.endTimestamp,
+                            meeting: segment.meeting,
+                            person: segment.speakerTag?.person || null,
+                            text: segment.utterances.map(u => u.text).join(' '),
+                            summary: segment.summary ? { text: segment.summary.text } : null
+                        }));
+
+                    return {
+                        ...baseResult,
+                        speakerSegments,
+                        context: subject.context
+                    } as SearchResultDetailed;
+                }
+
+                return baseResult;
+            })
+        );
+
+        return {
+            results,
+            total: totalHits
+        };
+    } catch (error) {
+        // Log search session failure
+        logEssential('Search Session Failed', {
+            query: request.query,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            filters: {
+                cityIds: request.cityIds,
+                personIds: request.personIds,
+                partyIds: request.partyIds,
+                topicIds: request.topicIds,
+                dateRange: request.dateRange,
+                hasLocations: request.locations ? request.locations.length > 0 : false
+            }
+        });
+        throw new Error('Failed to execute search');
+    }
+}

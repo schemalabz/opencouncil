@@ -4,7 +4,7 @@ import { Search, Sparkles } from "lucide-react";
 import { Input } from "../ui/input";
 import MetadataFilters from "./MetadataFilters";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { SearchResultLight, search as searchFn } from "@/lib/search/search";
+import { SearchResultLight, search as searchFn } from "@/lib/search";
 import { SubjectCard } from "../subject-card";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getCity } from "@/lib/db/cities";
