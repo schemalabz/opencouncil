@@ -1,12 +1,10 @@
 import { NextRequest } from 'next/server';
-import { Anthropic } from '@anthropic-ai/sdk';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
 import { Party } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
-import * as fs from 'fs';
-import * as path from 'path';
+import { aiChatStream, AIConfig } from '@/lib/ai';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -24,17 +22,6 @@ interface ExtractedSubject {
     speakerSegments: ExtractedSegment[];
 }
 
-// Create an Anthropic client
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
-
-// Development Configuration
-const DEV_CONFIG = {
-    logPrompts: process.env.NODE_ENV === 'development',
-    promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
-};
-
 // Search Configuration
 const searchConfig: SearchConfig = {
     size: 5,
@@ -51,54 +38,42 @@ const CONTEXT_CONFIG = {
     useAllSegments: true,
 };
 
-// Utility function to log prompts in development
-function logPromptToFile(systemPrompt: string, messages: any[]) {
-    if (!DEV_CONFIG.logPrompts) return;
+// AI Configuration
+const AI_CONFIG: AIConfig = {
+    maxTokens: 1000,
+    model: 'claude-3-5-sonnet-20240620',
+    temperature: 0,
 
-    try {
-        // Ensure the logs directory exists
-        if (!fs.existsSync(DEV_CONFIG.promptsDir)) {
-            fs.mkdirSync(DEV_CONFIG.promptsDir, { recursive: true });
-        }
+};
 
-        // Create a timestamp for the filename
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = path.join(DEV_CONFIG.promptsDir, `prompt-${timestamp}.json`);
+// @TODO: Better logging in the future
+// Helper function for essential logs that should always be shown
+const logEssential = (message: string, data?: any) => {
+    console.log(`[Chat Analytics] ${message}`, data || '');
+};
 
-        // Create the log object
-        const logObject = {
-            timestamp,
-            systemPrompt,
-            messages,
-            metadata: {
-                nodeEnv: process.env.NODE_ENV,
-                maxTokens: CONTEXT_CONFIG.maxTokens,
-                maxMessages: CONTEXT_CONFIG.maxMessages,
-            }
-        };
-
-        // Write to file
-        fs.writeFileSync(filename, JSON.stringify(logObject, null, 2));
-        console.log(`[Dev] Prompt logged to ${filename}`);
-    } catch (error) {
-        console.error('[Dev] Error logging prompt:', error);
+// Helper function for development-only logs
+const logDev = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[Dev] ${message}`, data || '');
     }
-}
+};
 
 // Content Extraction
 function extractRelevantContent(searchResults: SearchResultDetailed[]): ExtractedSubject[] {
-    console.log(`[Content Extraction] Processing ${searchResults.length} search results`);
+    logDev(`[Content Extraction] Processing ${searchResults.length} search results`);
     
     const extracted = searchResults.map(result => {
         // Get matched segments from the detailed results
         const matchedSegments = (result.speakerSegments as SegmentWithRelations[])
             .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
             
-        console.log(`[Content Extraction] Subject "${result.name}":`);
-        console.log(`  - Score: ${result.score}`);
-        console.log(`  - Total Segments: ${result.speakerSegments.length}`);
-        console.log(`  - Matched Segments: ${matchedSegments.length}`);
-        console.log(`  - Has Context: ${result.context ? 'Yes' : 'No'}`);
+        logDev(`[Content Extraction] Subject "${result.name}":`, {
+            score: result.score,
+            totalSegments: result.speakerSegments.length,
+            matchedSegments: matchedSegments.length,
+            hasContext: result.context ? 'Yes' : 'No'
+        });
         
         return {
             name: result.name,
@@ -118,7 +93,7 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]): Extracte
         };
     });
 
-    console.log(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
+    logDev(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
     return extracted;
 }
 
@@ -134,19 +109,21 @@ function enhancePrompt(
     messages: ChatMessage[],
     context: ReturnType<typeof extractRelevantContent>
 ) {
-    console.log(`[Prompt Enhancement] Enhancing prompt with:`);
-    console.log(`  - Messages: ${messages.length}`);
-    console.log(`  - Context subjects: ${context.length}`);
-    console.log(`  - Use All Segments: ${CONTEXT_CONFIG.useAllSegments}`);
+    logDev(`[Prompt Enhancement] Enhancing prompt with:`, {
+        messages: messages.length,
+        contextSubjects: context.length,
+        useAllSegments: CONTEXT_CONFIG.useAllSegments
+    });
     
     const systemPrompt = `${SYSTEM_PROMPT}
 
 Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
 ${context.map((subject, index) => {
-    console.log(`[Prompt Enhancement] Processing subject ${index + 1}:`);
-    console.log(`  - Total Segments: ${subject.speakerSegments.length}`);
-    console.log(`  - Key Segments: ${subject.keySegments.length}`);
-    console.log(`  - Has Context: ${subject.context ? 'Yes' : 'No'}`);
+    logDev(`[Prompt Enhancement] Processing subject ${index + 1}:`, {
+        totalSegments: subject.speakerSegments.length,
+        keySegments: subject.keySegments.length,
+        hasContext: subject.context ? 'Yes' : 'No'
+    });
     
     return `
 ----------------------------------------
@@ -174,7 +151,7 @@ ${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα
 
     // Log approximate token count
     const approximateTokens = systemPrompt.split(/\s+/).length;
-    console.log(`[Prompt Enhancement] Approximate token count: ${approximateTokens}`);
+    logDev(`[Prompt Enhancement] Approximate token count: ${approximateTokens}`);
 
     // Strip out id field from messages before sending to Claude
     const cleanedMessages = messages.slice(-CONTEXT_CONFIG.maxMessages).map(({ role, content }) => ({
@@ -182,10 +159,7 @@ ${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα
         content
     }));
 
-    console.log(`[Prompt Enhancement] Sending ${cleanedMessages.length} cleaned messages to Claude`);
-
-    // Log the prompt in development mode
-    logPromptToFile(systemPrompt, cleanedMessages);
+    logDev(`[Prompt Enhancement] Sending ${cleanedMessages.length} cleaned messages to Claude`);
 
     return {
         system: systemPrompt,
@@ -249,17 +223,17 @@ export async function POST(req: NextRequest) {
     // Process the request asynchronously
     (async () => {
         try {
-            console.log(`[Chat API] New request received`);
+            logEssential('Chat Session Started');
             const { messages, cityId } = await req.json();
             
             // Log request details
-            console.log(`[Chat API] Request details:`);
-            console.log(`  - Messages: ${messages.length}`);
-            console.log(`  - City ID: ${cityId || 'none'}`);
-            console.log(`  - Last message: "${messages[messages.length - 1].content.substring(0, 50)}..."`);
+            logEssential('Chat Request Details', {
+                messages: messages.length,
+                cityId: cityId || 'none',
+                lastMessage: messages[messages.length - 1].content.substring(0, 50)
+            });
 
             // 1. Perform search with detailed results
-            console.log(`[Search] Initiating search with query: "${messages[messages.length - 1].content}"`);
             const searchResults = await search({
                 query: messages[messages.length - 1].content,
                 cityIds: cityId ? [cityId] : undefined,
@@ -275,7 +249,9 @@ export async function POST(req: NextRequest) {
             }
 
             const detailedResults = searchResults.results as SearchResultDetailed[];
-            console.log(`[Search] Found ${detailedResults.length} results`);
+            logEssential('Search Results', {
+                count: detailedResults.length
+            });
 
             // 2. Extract content
             const context = extractRelevantContent(detailedResults);
@@ -284,14 +260,12 @@ export async function POST(req: NextRequest) {
             const enhancedPrompt = enhancePrompt(messages, context);
 
             // 4. Get LLM response
-            console.log(`[LLM] Sending request to Claude`);
-            const claudeResponse = await anthropic.messages.create({
-                model: 'claude-3-5-sonnet-20240620',
-                max_tokens: 1000,
-                system: enhancedPrompt.system,
-                messages: enhancedPrompt.messages,
-                stream: true,
-            });
+            logEssential('Sending request to Claude');
+            const claudeResponse = await aiChatStream(
+                enhancedPrompt.system,
+                enhancedPrompt.messages,
+                AI_CONFIG
+            );
 
             // 5. Track subjects
             const subjectReferences = detailedResults.map(result => {
@@ -372,9 +346,10 @@ export async function POST(req: NextRequest) {
                 };
             });
 
-            console.log(`[Chat API] Response prepared with:`);
-            console.log(`  - Subject references: ${subjectReferences.length}`);
-            console.log(`  - Streaming response: true`);
+            logEssential('Chat Response Prepared', {
+                subjectReferences: subjectReferences.length,
+                streaming: true
+            });
 
             // Keep track of the accumulated content
             let accumulatedContent = '';
@@ -427,6 +402,8 @@ export async function POST(req: NextRequest) {
 
             // Close the stream
             await writer.close();
+            
+            logEssential('Chat Session Completed');
         } catch (error) {
             console.error(`[Chat API] Error:`, error);
             
@@ -446,6 +423,10 @@ export async function POST(req: NextRequest) {
             } catch (e) {
                 console.error('Error writing to stream:', e);
             }
+            
+            logEssential('Chat Session Failed', {
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
         }
     })();
 
