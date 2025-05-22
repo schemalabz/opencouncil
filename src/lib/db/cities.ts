@@ -1,9 +1,11 @@
 "use server";
-import { City, Person, Party, CouncilMeeting, Subject, Topic, Prisma } from '@prisma/client';
+import { City, CouncilMeeting, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
-import { SubjectWithRelations } from './subject';
-import { LandingPageCity } from './landing';
+
+export type CityWithGeometry = City & {
+    geometry?: GeoJSON.Geometry;
+};
 
 export async function deleteCity(id: string): Promise<void> {
     withUserAuthorizedToEdit({ cityId: id });
@@ -132,7 +134,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
     }
 }
 
-export async function getCitiesWithGeometry(cities: City[]): Promise<(City & { geometry: any })[]> {
+export async function getCitiesWithGeometry(cities: City[]): Promise<CityWithGeometry[]> {
     if (cities.length === 0) return [];
 
     const cityWithGeometry = await prisma.$queryRaw<
@@ -143,7 +145,6 @@ export async function getCitiesWithGeometry(cities: City[]): Promise<(City & { g
     FROM "City" c
     WHERE c.id IN (${Prisma.join(cities.map(city => city.id))})
     `;
-
 
     return cities.map(city => {
         const cityGeom = cityWithGeometry.find(c => c.id === city.id);

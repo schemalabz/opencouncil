@@ -467,3 +467,68 @@ export function buildCityUrl(cityId: string, path: string = '', locale: string =
   // Default path-based URL structure
   return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
 }
+
+/**
+ * Calculates bounds and center from a GeoJSON geometry
+ * @param geometry The GeoJSON geometry to process
+ * @returns Object containing bounds and center coordinates
+ */
+export function calculateGeometryBounds(geometry: any): { 
+    bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+    center: [number, number];
+} {
+    if (!geometry) {
+        console.log('[Location] No geometry available, using default coordinates');
+        return { 
+            bounds: null,
+            center: [23.7275, 37.9838] // Default to Athens
+        };
+    }
+
+    try {
+        let minLng = Infinity, maxLng = -Infinity;
+        let minLat = Infinity, maxLat = -Infinity;
+
+        const processCoordinates = (coords: number[][]) => {
+            coords.forEach(point => {
+                const [lng, lat] = point;
+                minLng = Math.min(minLng, lng);
+                maxLng = Math.max(maxLng, lng);
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+            });
+        };
+
+        if (geometry.type === 'Polygon') {
+            processCoordinates(geometry.coordinates[0]);
+        } else if (geometry.type === 'MultiPolygon') {
+            geometry.coordinates.forEach((polygon: number[][][]) => {
+                processCoordinates(polygon[0]);
+            });
+        } else if (geometry.type === 'Point') {
+            const [lng, lat] = geometry.coordinates;
+            minLng = maxLng = lng;
+            minLat = maxLat = lat;
+        }
+
+        const bounds = {
+            minLng,
+            maxLng,
+            minLat,
+            maxLat
+        };
+
+        const center: [number, number] = [
+            (minLng + maxLng) / 2,
+            (minLat + maxLat) / 2
+        ];
+
+        return { bounds, center };
+    } catch (error) {
+        console.error('[Location] Error calculating geometry bounds:', error);
+        return { 
+            bounds: null,
+            center: [23.7275, 37.9838] // Default to Athens
+        };
+    }
+}

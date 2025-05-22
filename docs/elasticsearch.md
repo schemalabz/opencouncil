@@ -51,6 +51,17 @@ When searching:
      - `rank_window_size`: Number of results to consider from each retriever (default: 100)
      - `rank_constant`: Controls the balance between retrievers (default: 60)
 
+4. **Automatic Filter Derivation**
+   - Intelligently extracts filters from natural language queries using AI
+   - Automatically identifies and processes:
+     - City references (e.g., "in Athens", "in Chania")
+     - Date ranges (e.g., "last month", "in 2023")
+     - Latest meeting indicators (e.g., "latest meeting")
+     - Location names (e.g., "near Syntagma Square")
+   - Resolves locations to coordinates using Google Maps API
+   - Merges derived filters with explicit request filters
+   - Supports both Greek and English city names
+
 
 ## Codebase Structure
 
@@ -62,6 +73,7 @@ The search functionality is implemented across several files:
    - Implements error handling and pagination
 
 2. **Search Implementation** (`src/lib/search/search.ts`)
+   - Implements automatic filter derivation from natural language queries
    - Core search functionality using Elasticsearch
    - Implements hybrid search (traditional + semantic)
    - Handles result transformation and enrichment
@@ -91,7 +103,13 @@ You can verify the existing inference endpoints using:
 GET _inference/
 ```
 
-To avoid potential cost issues, we create a custom inference endpoint with controlled allocation settings:
+While Elasticsearch provides a default `.multilingual-e5-small-elasticsearch` endpoint, we create our own custom endpoint to have better control over resource allocation and costs. If you need to make changes to our custom endpoint, you must first delete it using:
+
+```json
+DELETE /_inference/text_embedding/custom-multilingual-e5-small-elasticsearch?force=true
+```
+
+Then create our custom inference endpoint with controlled allocation settings:
 
 ```json
 PUT _inference/text_embedding/custom-multilingual-e5-small-elasticsearch
@@ -436,7 +454,7 @@ PUT _connector/opencouncil-postgresql/_configuration
 }
 ```
 
-Note: We use `db` as the host because that's the service name in our Docker Compose network. The connector service can reach the PostgreSQL service using this hostname.
+Note: For local development with Docker Compose, we use `db` as the host because that's the service name in our Docker Compose network. The connector service can reach the PostgreSQL service using this hostname. For remote databases, replace these values with your actual database credentials and hostname.
 
 ### 3. Configure Advanced Sync Rules
 
@@ -450,53 +468,54 @@ PUT _connector/opencouncil-postgresql/_filtering
       {
         "tables": ["Subject"],
         "query": """SELECT
-  s.*,
-  l.text AS location_text,
-  ST_AsGeoJSON(l.coordinates)::jsonb AS location_geojson,
-  t.id AS topic_id, t.name AS topic_name, t.name_en AS topic_name_en,
-  p.id AS introduced_by_person_id, p.name AS introduced_by_person_name, p.name_en AS introduced_by_person_name_en,
-  pa.id AS introduced_by_party_id, pa.name AS introduced_by_party_name, pa.name_en AS introduced_by_party_name_en,
-  c.id AS city_id, c.name AS city_name, c.name_en AS city_name_en,
-  m.id AS councilMeeting_id, m."dateTime" AS meeting_date, m.name AS meeting_name,
-  COALESCE(
-    json_agg(
-      jsonb_build_object(
-        'segment_id', ss.id,
-        'speaker', jsonb_build_object(
-          'person_id', sp.id,
-          'person_name', sp.name,
-          'person_name_en', sp.name_en,
-          'party_id', spa.id,
-          'party_name', spa.name,
-          'party_name_en', spa.name_en
-        ),
-        'text', u.utterances_text,
-        'summary', sss.summary
-      )
-    ) FILTER (WHERE ss.id IS NOT NULL), '[]'
-  ) AS speaker_segments
-FROM "Subject" s
-LEFT JOIN "Location" l ON s."locationId" = l.id
-LEFT JOIN "Topic" t ON s."topicId" = t.id
-LEFT JOIN "Person" p ON s."personId" = p.id
-LEFT JOIN "Party" pa ON p."partyId" = pa.id
-LEFT JOIN "City" c ON s."cityId" = c.id
-LEFT JOIN "CouncilMeeting" m ON s."councilMeetingId" = m.id AND s."cityId" = m."cityId"
-LEFT JOIN "SubjectSpeakerSegment" sss ON sss."subjectId" = s.id
-LEFT JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
-LEFT JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
-LEFT JOIN "Person" sp ON st."personId" = sp.id
-LEFT JOIN "Party" spa ON sp."partyId" = spa.id
-LEFT JOIN LATERAL (
-  SELECT
-    string_agg(u.text, ' ' ORDER BY u."startTimestamp") AS utterances_text
-  FROM "Utterance" u
-  WHERE u."speakerSegmentId" = ss.id
-) u ON true
-GROUP BY
-  s.id, l.text, l.coordinates, t.id, t.name, t.name_en,
-  p.id, p.name, p.name_en, pa.id, pa.name, pa.name_en,
-  c.id, c.name, c.name_en, m.id, m."dateTime", m.name"""
+          s.*,
+          l.text AS location_text,
+          ST_AsGeoJSON(l.coordinates)::jsonb AS location_geojson,
+          t.id AS topic_id, t.name AS topic_name, t.name_en AS topic_name_en,
+          p.id AS introduced_by_person_id, p.name AS introduced_by_person_name, p.name_en AS introduced_by_person_name_en,
+          pa.id AS introduced_by_party_id, pa.name AS introduced_by_party_name, pa.name_en AS introduced_by_party_name_en,
+          c.id AS city_id, c.name AS city_name, c.name_en AS city_name_en,
+          m.id AS councilMeeting_id, m."dateTime" AS meeting_date, m.name AS meeting_name,
+          COALESCE(
+            json_agg(
+              jsonb_build_object(
+                'segment_id', ss.id,
+                'speaker', jsonb_build_object(
+                  'person_id', sp.id,
+                  'person_name', sp.name,
+                  'person_name_en', sp.name_en,
+                  'party_id', spa.id,
+                  'party_name', spa.name,
+                  'party_name_en', spa.name_en
+                ),
+                'text', u.utterances_text,
+                'summary', sss.summary
+              )
+            ) FILTER (WHERE ss.id IS NOT NULL), '[]'
+          ) AS speaker_segments
+        FROM "Subject" s
+        LEFT JOIN "Location" l ON s."locationId" = l.id
+        LEFT JOIN "Topic" t ON s."topicId" = t.id
+        LEFT JOIN "Person" p ON s."personId" = p.id
+        LEFT JOIN "Party" pa ON p."partyId" = pa.id
+        LEFT JOIN "City" c ON s."cityId" = c.id
+        LEFT JOIN "CouncilMeeting" m ON s."councilMeetingId" = m.id AND s."cityId" = m."cityId"
+        LEFT JOIN "SubjectSpeakerSegment" sss ON sss."subjectId" = s.id
+        LEFT JOIN "SpeakerSegment" ss ON ss.id = sss."speakerSegmentId"
+        LEFT JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
+        LEFT JOIN "Person" sp ON st."personId" = sp.id
+        LEFT JOIN "Party" spa ON sp."partyId" = spa.id
+        LEFT JOIN LATERAL (
+          SELECT
+            string_agg(u.text, ' ' ORDER BY u."startTimestamp") AS utterances_text
+          FROM "Utterance" u
+          WHERE u."speakerSegmentId" = ss.id
+        ) u ON true
+        WHERE m."cityId" IN ('chania', 'athens')
+        GROUP BY
+          s.id, l.text, l.coordinates, t.id, t.name, t.name_en,
+          p.id, p.name, p.name_en, pa.id, pa.name, pa.name_en,
+          c.id, c.name, c.name_en, m.id, m."dateTime", m.name"""
       }
     ]
   }

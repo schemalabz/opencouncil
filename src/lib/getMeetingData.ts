@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
-import { getCitiesWithGeometry, getCity } from '@/lib/db/cities';
+import { CityWithGeometry, getCitiesWithGeometry, getCity } from '@/lib/db/cities';
 import { getPeopleForCity, PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
@@ -9,12 +9,11 @@ import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { CouncilMeeting, SpeakerTag, TaskStatus } from '@prisma/client';
 import { Party } from '@prisma/client';
-import { City } from '@prisma/client';
 
 export type MeetingData = {
     meeting: CouncilMeeting;
     transcript: Transcript;
-    city: City & { geometry?: GeoJSON.FeatureCollection };
+    city: CityWithGeometry;
     people: PersonWithRelations[];
     parties: Party[];
     highlights: HighlightWithUtterances[];

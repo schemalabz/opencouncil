@@ -1,16 +1,35 @@
 "use server";
 import { City, CouncilMeeting } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
-import { PersonWithRelations } from '@/lib/db/people';
 import { Client, estypes } from '@elastic/elasticsearch';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { SubjectWithRelations, LocationWithCoordinates } from '@/lib/db/subject';
+import { aiChat } from '@/lib/ai';
+import { getCities, getCitiesWithGeometry } from '@/lib/db/cities';
+import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
+import { calculateGeometryBounds } from '@/lib/utils';
+
+// @TODO: Better central logging
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Helper function for conditional logging
+const log = (message: string, data?: any) => {
+    if (isDevelopment) {
+        console.log(message, data || '');
+    }
+};
+
+// Helper function for essential logs that should always be shown
+const logEssential = (message: string, data?: any) => {
+    console.log(`[Search Analytics] ${message}`, data || '');
+};
 
 // Define the type for our Elasticsearch document
 interface SubjectDocument {
     public_subject_id: string;
     public_subject_name: string;
     public_subject_description: string;
+    public_subject_location_text: string;
     // Add other fields as needed
 }
 
@@ -47,6 +66,14 @@ export type SearchConfig = {
     detailed?: boolean; // Whether to return detailed results
 };
 
+export type Location = {
+    point: {
+        lat: number;
+        lon: number;
+    };
+    radius: number;
+};
+
 export type SearchRequest = {
     query: string;
     cityIds?: string[];
@@ -57,13 +84,7 @@ export type SearchRequest = {
         start: string;
         end: string;
     };
-    location?: {
-        point: {
-            lat: number;
-            lon: number;
-        };
-        radius: number;
-    };
+    locations?: Location[];
     config?: SearchConfig;
 };
 
@@ -71,6 +92,121 @@ export type SearchResponse = {
     results: SearchResultLight[] | SearchResultDetailed[];
     total: number;
 };
+
+// Define our simplified filter extraction types
+interface ExtractedFilters {
+    cityIds: string[] | null;
+    dateRange: {
+        start: string;
+        end: string;
+    } | null;
+    isLatest: boolean | null;
+    locationName: string | null;
+}
+
+// Get cities for the prompt
+async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en: string }[]> {
+    const cities = await getCities();
+    return cities.map(city => ({
+        id: city.id,
+        name: city.name,
+        name_en: city.name_en
+    }));
+}
+
+// Define the system prompt for filter extraction
+const FILTER_EXTRACTION_PROMPT = `Εξαγωγή Φίλτρων Αναζήτησης
+
+Είστε ένας βοηθός εξαγωγής φίλτρων. Η δουλειά σας είναι να αναλύετε ερωτήσεις αναζήτησης και να εξάγετε σχετικά φίλτρα.
+Επιστρέψτε ΜΟΝΟ ένα αντικείμενο JSON με την ακόλουθη δομή:
+{
+    "cityIds": string[] | null,
+    "dateRange": { start: string, end: string } | null,
+    "isLatest": boolean | null,
+    "locationName": string | null
+}
+
+Κανόνες:
+1. Συμπεριλάβετε μόνο φίλτρα που αναφέρονται ρητά ή σιωπηρά στην ερώτηση
+2. Για ημερομηνίες, χρησιμοποιήστε μορφή ISO 8601
+3. Για τα IDs των πόλεων, χρησιμοποιήστε τα ακριβή IDs από τη λίστα πόλεων
+4. Για τοποθεσίες, εξάγετε μόνο το όνομα της τοποθεσίας (π.χ., "Πλατεία Συντάγματος", "Εθνικός Κήπος")
+5. Επιστρέψτε null (όχι undefined) για οποιοδήποτε φίλτρο δεν βρέθηκε
+6. Για ερωτήσεις "τελευταία", ορίστε isLatest σε true και συμπεριλάβετε το σχετικό cityId
+
+Διαθέσιμες πόλεις:
+{{CITIES_LIST}}`;
+
+// Function to extract filters using aiChat
+async function extractFilters(query: string): Promise<ExtractedFilters> {
+    // Get cities for the prompt
+    const cities = await getCitiesForPrompt();
+    
+    // Format cities list for the prompt
+    const citiesList = cities.map(city => 
+        `- ${city.name} (${city.name_en}): ${city.id}`
+    ).join('\n');
+    
+    // Create the prompt with cities list
+    const prompt = FILTER_EXTRACTION_PROMPT.replace('{{CITIES_LIST}}', citiesList);
+    
+    const { result } = await aiChat<ExtractedFilters>(prompt, query);
+    return result;
+}
+
+// Function to resolve location coordinates
+async function resolveLocationCoordinates(locationName: string, cityId: string): Promise<Location | undefined> {
+    try {
+        log(`[Location] Resolving coordinates for "${locationName}" in city ${cityId}`);
+        
+        // Get city with geometry directly
+        const citiesWithGeometry = await getCitiesWithGeometry([{ id: cityId } as City]);
+        const cityWithGeometry = citiesWithGeometry[0];
+        
+        if (!cityWithGeometry) {
+            log('[Location] City not found or failed to get geometry');
+            return undefined;
+        }
+
+        // Calculate city center from geometry
+        const { center } = calculateGeometryBounds(cityWithGeometry.geometry);
+
+        // Get place suggestions with city center
+        const suggestions = await getPlaceSuggestions(locationName, cityWithGeometry.name, center);
+        log(`[Location] Found ${suggestions.length} place suggestions`);
+        log('[Location] Suggestions:', suggestions);
+
+        if (suggestions.length === 0) {
+            log('[Location] No place suggestions found');
+            return undefined;
+        }
+
+        // Get details for the first suggestion
+        const details = await getPlaceDetails(suggestions[0].placeId);
+        if (!details) {
+            log('[Location] Failed to get place details');
+            return undefined;
+        }
+
+        log('[Location] Place details:', {
+            city: cityId,
+            text: details.text,
+            coordinates: details.coordinates
+        });
+
+        // Convert coordinates to the expected format
+        return {
+            point: {
+                lat: details.coordinates[1],
+                lon: details.coordinates[0]
+            },
+            radius: 40000 // Using the same radius as in actions.ts
+        };
+    } catch (error) {
+        logEssential('[Location] Error resolving location coordinates:', error);
+        return undefined;
+    }
+}
 
 function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
     const filters: estypes.QueryDslQueryContainer[] = [];
@@ -143,16 +279,35 @@ function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] 
     }
 
     // Add location filter if specified
-    if (request.location) {
-        filters.push({
-            geo_distance: {
-                distance: `${request.location.radius}km`,
-                'public_subject_location_geojson': {
-                    lat: request.location.point.lat,
-                    lon: request.location.point.lon
+    if (request.locations && request.locations.length > 0) {
+        if (request.locations.length === 1) {
+            // Single location case
+            filters.push({
+                geo_distance: {
+                    distance: `${request.locations[0].radius}km`,
+                    'public_subject_location_geojson': {
+                        lat: request.locations[0].point.lat,
+                        lon: request.locations[0].point.lon
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            // Multiple locations case
+            filters.push({
+                bool: {
+                    should: request.locations.map(loc => ({
+                        geo_distance: {
+                            distance: `${loc.radius}km`,
+                            'public_subject_location_geojson': {
+                                lat: loc.point.lat,
+                                lon: loc.point.lon
+                            }
+                        }
+                    })),
+                    minimum_should_match: 1
+                }
+            });
+        }
     }
 
     return filters;
@@ -160,8 +315,89 @@ function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] 
 
 export async function search(request: SearchRequest): Promise<SearchResponse> {
     try {
-        // Log initial search parameters
-        console.log('[Search] Starting search', request);
+        // Log search session start with query and filters
+        logEssential('Search Session Started', {
+            query: request.query,
+            filters: {
+                cityIds: request.cityIds,
+                personIds: request.personIds,
+                partyIds: request.partyIds,
+                topicIds: request.topicIds,
+                dateRange: request.dateRange,
+                hasLocations: request.locations ? request.locations.length > 0 : false
+            }
+        });
+
+        // Extract filters from the query
+        const extractedFilters = await extractFilters(request.query);
+        logEssential('[Search] Extracted filters:', extractedFilters);
+        
+        // Resolve location coordinates if a location name was extracted
+        let locations: Location[] = [];
+        if (extractedFilters.locationName) {
+            const locationName = extractedFilters.locationName;
+            if (extractedFilters.cityIds?.[0]) {
+                // If we have a specific city, try that first
+                const location = await resolveLocationCoordinates(
+                    locationName,
+                    extractedFilters.cityIds[0]
+                );
+                if (location) {
+                    locations.push(location);
+                    log('[Search] Resolved location for specific city:', location);
+                }
+            } else {
+                // If no specific city, try all cities
+                log('[Search] No specific city provided, trying all cities');
+                const cities = await getCities();
+                
+                // Try each city and collect all matches
+                const locationPromises = cities.map(async (city) => {
+                    const location = await resolveLocationCoordinates(
+                        locationName,
+                        city.id
+                    );
+                    if (location) {
+                        return location;
+                    }
+                    return null;
+                });
+
+                const results = await Promise.all(locationPromises);
+                locations = results.filter((loc): loc is Location => loc !== null);
+                
+                log(`[Search] Found ${locations.length} matching locations across cities`);
+            }
+        }
+        
+        // If it's a "latest" query, we need to get the most recent meeting date
+        if (extractedFilters.isLatest && extractedFilters.cityIds?.length === 1) {
+            const latestMeeting = await prisma.councilMeeting.findFirst({
+                where: {
+                    cityId: extractedFilters.cityIds[0]
+                },
+                orderBy: {
+                    dateTime: 'desc'
+                }
+            });
+
+            if (latestMeeting) {
+                extractedFilters.dateRange = {
+                    start: latestMeeting.dateTime.toISOString(),
+                    end: latestMeeting.dateTime.toISOString()
+                };
+                log('[Search] Set date range for latest meeting:', extractedFilters.dateRange);
+            }
+        }
+
+        // Merge with explicit filters
+        const mergedRequest: SearchRequest = {
+            ...request,
+            cityIds: extractedFilters.cityIds || request.cityIds,
+            dateRange: extractedFilters.dateRange || request.dateRange,
+            locations: locations.length > 0 ? locations : request.locations
+        };
+        log('[Search] Merged request:', mergedRequest);
 
         // Build the search query
         const searchQuery: estypes.SearchRequest = {
@@ -184,10 +420,11 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                                 // It will match documents containing ANY of these terms in ANY of the fields
                                                 // The boost values (^4, ^3, etc.) determine the relative importance of each field
                                                 multi_match: {
-                                                    query: request.query,
+                                                    query: mergedRequest.query,
                                                     fields: [
                                                         'public_subject_name^4',           // Highest boost - most important identifier
                                                         'public_subject_description^3',    // High boost - detailed content
+                                                        ...(extractedFilters.locationName ? ['public_subject_location_text^3'] : []), // Add location text with high boost when location is extracted
                                                     ],
                                                     type: 'best_fields',
                                                     operator: 'or'
@@ -207,7 +444,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                                                 {
                                                                     match: {
                                                                         'public_subject_speaker_segments.text': {
-                                                                            query: request.query,
+                                                                            query: mergedRequest.query,
                                                                             boost: 2
                                                                         }
                                                                     }
@@ -215,7 +452,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                                                 {
                                                                     match: {
                                                                         'public_subject_speaker_segments.summary': {
-                                                                            query: request.query,
+                                                                            query: mergedRequest.query,
                                                                             boost: 2
                                                                         }
                                                                     }
@@ -232,7 +469,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                             }
                                         ],
                                         minimum_should_match: 1,
-                                        filter: buildFilters(request)
+                                        filter: buildFilters(mergedRequest)
                                     }
                                 }
                             }
@@ -249,12 +486,12 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                                     // It will match documents with similar meaning, even if they don't contain
                                                     // the exact search terms
                                                     semantic: {
-                                                        query: request.query,
+                                                        query: mergedRequest.query,
                                                         field: 'public_subject_description.semantic'
                                                     }
                                                 }
                                             ],
-                                            filter: buildFilters(request)
+                                            filter: buildFilters(mergedRequest)
                                         }
                                     }
                                 }
@@ -273,17 +510,23 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
         // Get total hits
         const total = response.hits.total as { value: number; relation: string };
         const totalHits = total.value;
-        console.log('[Search] Search completed', {
-            totalHits,
-            resultCount: response.hits.hits.length,
-            took: `${response.took}ms`
+        
+        // Log search session completion with results summary
+        logEssential('Search Session Completed', {
+            query: request.query,
+            results: {
+                totalHits,
+                resultCount: response.hits.hits.length,
+                took: `${response.took}ms`,
+                topScore: response.hits.hits[0]?._score || 0
+            }
         });
 
         // Process the results
         const results = await Promise.all(
             (response.hits.hits as Array<estypes.SearchHit<SubjectDocument>>).map(async (hit, index) => {
                 if (!hit._source) {
-                    console.error('[Search] Invalid hit source', { index, score: hit._score });
+                    logEssential('[Search] Invalid hit source', { index, score: hit._score });
                     throw new Error('Elasticsearch hit source is undefined');
                 }
 
@@ -345,7 +588,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 });
 
                 if (!subject) {
-                    console.error('[Search] Subject not found', { 
+                    logEssential('[Search] Subject not found', { 
                         subjectId: hit._source.public_subject_id,
                         score: hit._score 
                     });
@@ -423,10 +666,18 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             total: totalHits
         };
     } catch (error) {
-        console.error('[Search] Error during search', {
-            error: error instanceof Error ? error.message : 'Unknown error',
+        // Log search session failure
+        logEssential('Search Session Failed', {
             query: request.query,
-            config: request.config
+            error: error instanceof Error ? error.message : 'Unknown error',
+            filters: {
+                cityIds: request.cityIds,
+                personIds: request.personIds,
+                partyIds: request.partyIds,
+                topicIds: request.topicIds,
+                dateRange: request.dateRange,
+                hasLocations: request.locations ? request.locations.length > 0 : false
+            }
         });
         throw new Error('Failed to execute search');
     }

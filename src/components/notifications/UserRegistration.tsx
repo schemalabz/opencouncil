@@ -8,10 +8,10 @@ import { MapPin, Tag, Mail, Phone, AlertCircle, UserCheck, Home, User, Lock, Log
 import { useSession } from 'next-auth/react';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
-import { City, AppTopic, PetitionData, Location } from './SignupPageContent';
+import { AppTopic, PetitionData, Location } from './SignupPageContent';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { signInWithEmail } from "@/lib/serverSignIn";
+import { CityWithGeometry } from '@/lib/db/cities';
 
 // Function to check if email exists in the database
 async function checkEmailExists(email: string): Promise<boolean> {
@@ -27,7 +27,7 @@ async function checkEmailExists(email: string): Promise<boolean> {
 }
 
 interface UserRegistrationProps {
-    city: City | null;
+    city: CityWithGeometry | null;
     petitionData: PetitionData | null;
     locations: Location[];
     topics: AppTopic[];
