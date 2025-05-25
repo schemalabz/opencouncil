@@ -30,14 +30,6 @@ const people = [
         }
     },
     {
-        name: "Μαρία Καψιτίδου",
-        image: "/people/maria.jpg",
-        socials: {
-            linkedin: "https://www.linkedin.com/in/maria-kapsitidou/",
-            email: "mailto:maria@schemalabs.gr"
-        }
-    },
-    {
         name: "Ανδρέας Κούλουμος",
         image: "/people/andreas.jpg",
         socials: {
