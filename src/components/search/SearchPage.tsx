@@ -5,33 +5,16 @@ import { Input } from "../ui/input";
 import MetadataFilters from "./MetadataFilters";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { SearchResultLight, search as searchFn } from "@/lib/search";
-import { SubjectCard } from "../subject-card";
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getCity } from "@/lib/db/cities";
 import { getPerson } from "@/lib/db/people";
 import { getParty } from "@/lib/db/parties";
-import { getStatisticsFor } from "@/lib/statistics";
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { PersonWithRelations } from "@/lib/db/people";
-import { Party } from "@prisma/client";
+import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
-
-interface SearchResultWithCityData extends SearchResultLight {
-    cityPeople: PersonWithRelations[];
-    cityParties: Party[];
-}
-
-// Helper function to fetch data from API
-async function fetchFromApi<T>(url: string): Promise<T> {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch from ${url}`);
-    }
-    return response.json();
-}
 
 export default function SearchPage() {
     const router = useRouter();
@@ -50,7 +33,7 @@ export default function SearchPage() {
 
     // State for search results
     const [state, setState] = useState<{
-        results: SearchResultWithCityData[];
+        results: SearchResultLight[];
         total: number;
         isLoading: boolean;
         error: Error | null;
@@ -119,7 +102,6 @@ export default function SearchPage() {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
         try {
-            // 1. Get search results
             const response = await searchFn({
                 query,
                 cityIds: cityId ? [cityId] : undefined,
@@ -133,45 +115,8 @@ export default function SearchPage() {
                 }
             });
 
-            // 2. Get unique city IDs
-            const cityIds = [...new Set(response.results.map(result => result.councilMeeting.city.id))];
-
-            // 3. Batch all data fetching
-            const [
-                peopleByCityId,
-                partiesByCityId,
-                statisticsBySubject
-            ] = await Promise.all([
-                // Create people index during fetch
-                Promise.all(cityIds.map(async cityId => {
-                    const people = await fetchFromApi<PersonWithRelations[]>(`/api/cities/${cityId}/people`);
-                    return [cityId, people] as const;
-                })).then(results => Object.fromEntries(results)),
-                // Create parties index during fetch
-                Promise.all(cityIds.map(async cityId => {
-                    const parties = await fetchFromApi<Party[]>(`/api/cities/${cityId}/parties`);
-                    return [cityId, parties] as const;
-                })).then(results => Object.fromEntries(results)),
-                // Batch statistics requests
-                Promise.all(response.results.map(result => 
-                    getStatisticsFor({ subjectId: result.id }, ["person", "party"])
-                ))
-            ]);
-
-            // 4. Process results in a single pass with direct lookups
-            const resultsWithStats = response.results.map((result, index) => {
-                const cityId = result.councilMeeting.city.id;
-                return {
-                    ...result,
-                    statistics: statisticsBySubject[index],
-                    cityPeople: peopleByCityId[cityId] || [],
-                    cityParties: partiesByCityId[cityId] || []
-                };
-            });
-
-            // 5. Update state once with all data
             setState({
-                results: resultsWithStats,
+                results: response.results,
                 total: response.total,
                 isLoading: false,
                 error: null
@@ -245,19 +190,12 @@ export default function SearchPage() {
 
     // Memoize the grid of results
     const resultsGrid = useMemo(() => (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {state.results.map((result) => (
-                <SubjectCard
-                    key={result.id}
-                    subject={result}
-                    city={result.councilMeeting.city}
-                    meeting={result.councilMeeting}
-                    parties={result.cityParties}
-                    persons={result.cityPeople}
-                    showContext={true}
-                />
-            ))}
-        </div>
+        <SubjectListContainer
+            subjects={state.results}
+            layout="grid"
+            showContext={true}
+            openInNewTab={true}
+        />
     ), [state.results]);
 
     return (
@@ -349,7 +287,7 @@ export default function SearchPage() {
                     ) : (
                         <>
                             <div className="mt-6">
-                                <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center justify-between">
                                     <p className="text-sm text-muted-foreground">
                                         Βρέθηκαν {state.total} αποτελέσματα
                                     </p>
