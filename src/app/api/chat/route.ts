@@ -1,10 +1,14 @@
 import { NextRequest } from 'next/server';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
-import { Party } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
 import { aiChatStream, AIConfig } from '@/lib/ai';
+import { findSubjectsByQuery } from '@/lib/seed-data';
+import { 
+    findMockSpeakerSegmentsForSubject,
+    generateMockClaudeResponse 
+} from '@/lib/db/chat-mock-data';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -203,6 +207,11 @@ const SYSTEM_PROMPT = `Είστε ένας εξειδικευμένος βοηθ
 
 const ERROR_MESSAGE = "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του αιτήματός σας. Παρακαλώ δοκιμάστε ξανά.";
 
+// Helper function to determine if we should use mock data
+function shouldUseMockData(useMockData: boolean): boolean {
+    return useMockData && process.env.NODE_ENV === 'development';
+}
+
 export async function POST(req: NextRequest) {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -224,55 +233,83 @@ export async function POST(req: NextRequest) {
     (async () => {
         try {
             logEssential('Chat Session Started');
-            const { messages, cityId } = await req.json();
+            const { messages, cityId, useMockData } = await req.json();
             
             // Log request details
             logEssential('Chat Request Details', {
                 messages: messages.length,
                 cityId: cityId || 'none',
+                useMockData: shouldUseMockData(useMockData),
                 lastMessage: messages[messages.length - 1].content.substring(0, 50)
             });
 
-            // 1. Perform search with detailed results
-            const searchResults = await search({
-                query: messages[messages.length - 1].content,
-                cityIds: cityId ? [cityId] : undefined,
-                config: {
-                    ...searchConfig,
-                    detailed: true // Ensure we get detailed results
-                }
-            });
+            let searchResults: SearchResultDetailed[] = [];
 
-            // Ensure we have detailed results
-            if (!searchResults.results.every(result => 'speakerSegments' in result)) {
-                throw new Error('Search results do not contain detailed speaker segments');
+            if (shouldUseMockData(useMockData)) {
+                // Use seed data for development/testing
+                const subjects = findSubjectsByQuery(messages[messages.length - 1].content, cityId);
+                searchResults = subjects.map(subject => {
+                    // Get mock speaker segments for this subject
+                    const mockSegments = findMockSpeakerSegmentsForSubject(subject.name);
+                    
+                    return {
+                        ...subject,
+                        score: 1.0,
+                        speakerSegments: mockSegments,
+                        matchedSpeakerSegmentIds: mockSegments.map(s => s.id),
+                        context: subject.context || null,
+                        highlights: [],
+                        location: null,
+                        topic: null,
+                        introducedBy: null
+                    };
+                }) as unknown as SearchResultDetailed[];
+            } else {
+                // Perform real search
+                const searchResponse = await search({
+                    query: messages[messages.length - 1].content,
+                    cityIds: cityId ? [cityId] : undefined,
+                    config: {
+                        ...searchConfig,
+                        detailed: true
+                    }
+                });
+
+                if (!searchResponse.results.every(result => 'speakerSegments' in result)) {
+                    throw new Error('Search results do not contain detailed speaker segments');
+                }
+
+                searchResults = searchResponse.results as SearchResultDetailed[];
             }
 
-            const detailedResults = searchResults.results as SearchResultDetailed[];
             logEssential('Search Results', {
-                count: detailedResults.length
+                count: searchResults.length,
+                useMockData: useMockData || false
             });
 
             // 2. Extract content
-            const context = extractRelevantContent(detailedResults);
+            const context = extractRelevantContent(searchResults);
 
             // 3. Enhance prompt
             const enhancedPrompt = enhancePrompt(messages, context);
 
             // 4. Get LLM response
             logEssential('Sending request to Claude');
-            const claudeResponse = await aiChatStream(
-                enhancedPrompt.system,
-                enhancedPrompt.messages,
-                AI_CONFIG
-            );
+            const claudeResponse = shouldUseMockData(useMockData)
+                ? generateMockClaudeResponse(messages, searchResults)
+                : await aiChatStream(
+                    enhancedPrompt.system,
+                    enhancedPrompt.messages,
+                    AI_CONFIG
+                );
 
             // 5. Track subjects
-            const subjectReferences = detailedResults;
+            const subjectReferences = searchResults;
 
             logEssential('Chat Response Prepared', {
                 subjectReferences: subjectReferences.length,
-                streaming: true
+                streaming: true,
+                useMockData: useMockData || false
             });
 
             // Keep track of the accumulated content

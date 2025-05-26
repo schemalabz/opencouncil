@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { SendIcon, MessageSquare } from "lucide-react";
+import { SendIcon, Database } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { MessageList } from "./MessageList";
-import { mockMessages } from "@/lib/mock-data";
 import { getCities, getCity } from "@/lib/db/cities";
 import Combobox from "@/components/Combobox";
 import { City } from "@prisma/client";
-
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export function ChatInterface() {
     const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -30,9 +30,10 @@ export function ChatInterface() {
         handleInputChange,
         handleSubmit,
         setError,
+        useMockData,
+        setUseMockData,
     } = useChat();
 
-    const [isDevMode] = useState(process.env.NODE_ENV === 'development');
     const [cityOptions, setCityOptions] = useState<string[]>(['Όλες οι πόλεις']);
     const [cities, setCities] = useState<City[]>([]);
 
@@ -102,10 +103,6 @@ export function ChatInterface() {
         }
     }, [messages, currentMessage?.content, messagesEndRef]);
 
-    const loadMockData = () => {
-        setMessages(mockMessages);
-    };
-
     // Handle Enter to submit, Shift+Enter for newline
     const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -147,18 +144,6 @@ export function ChatInterface() {
                 <div className="max-w-3xl mx-auto">
                     <form onSubmit={handleSubmit} className="bg-background rounded-2xl shadow-md px-3 pt-2 pb-1 w-full flex flex-col gap-1 border-t-4 border-[hsl(var(--orange))]">
                         <div className="flex items-end gap-2 w-full">
-                            {/* Left: Mock data button (dev only) */}
-                            {isDevMode && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={loadMockData}
-                                    className="rounded-full text-muted-foreground hover:text-foreground mb-1"
-                                >
-                                    <MessageSquare className="w-5 h-5" />
-                                </Button>
-                            )}
                             {/* Multiline textarea */}
                             <textarea
                                 ref={inputRef as any}
@@ -176,24 +161,41 @@ export function ChatInterface() {
                                 onKeyDown={handleTextareaKeyDown}
                             />
                         </div>
-                        {/* City filter and send button below textarea, right-aligned, inside border */}
-                        <div className="flex items-center justify-end w-full mt-1 px-1 gap-2">
-                            <Combobox
-                                options={cityOptions}
-                                value={getCurrentCityName()}
-                                onChange={(value) => {
-                                    if (!value || value === 'Όλες οι πόλεις') {
-                                        setSelectedCity('');
-                                    } else {
-                                        const city = cities.find(c => c.name === value);
-                                        if (city) {
-                                            setSelectedCity(city.id);
+                        {/* City filter, seed data toggle, and send button below textarea */}
+                        <div className="flex items-center justify-between w-full mt-1 px-1 gap-2">
+                            <div className="flex items-center gap-2">
+                                <Combobox
+                                    options={cityOptions}
+                                    value={getCurrentCityName()}
+                                    onChange={(value) => {
+                                        if (!value || value === 'Όλες οι πόλεις') {
+                                            setSelectedCity('');
+                                        } else {
+                                            const city = cities.find(c => c.name === value);
+                                            if (city) {
+                                                setSelectedCity(city.id);
+                                            }
                                         }
-                                    }
-                                }}
-                                placeholder="Όλες οι πόλεις"
-                                variant="minimal"
-                            />
+                                    }}
+                                    placeholder="Όλες οι πόλεις"
+                                    variant="minimal"
+                                />
+                                {process.env.NODE_ENV === 'development' && (
+                                    <div className="flex items-center gap-2">
+                                        <Database className="w-4 h-4 text-muted-foreground" />
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                id="seed-data"
+                                                checked={useMockData}
+                                                onCheckedChange={setUseMockData}
+                                            />
+                                            <Label htmlFor="seed-data" className="text-sm text-muted-foreground">
+                                                mock data
+                                            </Label>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                             <Button
                                 ref={submitButtonRef}
                                 type="submit"

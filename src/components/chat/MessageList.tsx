@@ -1,5 +1,5 @@
 import { ChatMessage } from '@/types/chat';
-import { Bot, User, Sparkles, ChevronUp } from 'lucide-react';
+import { Bot, User, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingBubble } from './LoadingBubble';
 import { SuggestedPrompt } from './SuggestedPrompt';
@@ -60,6 +60,7 @@ export function MessageList({
             </div>
         );
     }
+
 
     return (
         <div

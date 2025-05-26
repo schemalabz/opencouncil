@@ -12,6 +12,7 @@ export function useChat() {
     const [error, setError] = useState<Error | null>(null);
     const [currentMessage, setCurrentMessage] = useState<ChatMessage | null>(null);
     const [selectedCity, setSelectedCity] = useState<string>('');
+    const [useMockData, setUseMockData] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +66,7 @@ export function useChat() {
                 body: JSON.stringify({
                     messages: [...messages, userMessage],
                     cityId: selectedCity || undefined,
+                    useMockData
                 }),
             });
 
@@ -168,7 +170,7 @@ export function useChat() {
                 inputRef.current?.focus();
             }, 100);
         }
-    }, [input, isLoading, messages, selectedCity]);
+    }, [input, isLoading, messages, selectedCity, useMockData]);
 
     return {
         messages,
@@ -188,5 +190,7 @@ export function useChat() {
         handleInputChange,
         handleSubmit,
         setError,
+        useMockData,
+        setUseMockData,
     };
 } 
