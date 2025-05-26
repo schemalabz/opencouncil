@@ -1,13 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { SendIcon, MessageSquare } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { MessageList } from "./MessageList";
 import { mockMessages } from "@/lib/mock-data";
-import { cityOptions } from "@/lib/constants";
+import { getCities, getCity } from "@/lib/db/cities";
+import Combobox from "@/components/Combobox";
+import { City } from "@prisma/client";
 
 
 export function ChatInterface() {
+    const submitButtonRef = useRef<HTMLButtonElement>(null);
+    const [shouldSubmit, setShouldSubmit] = useState(false);
     const {
         messages,
         setMessages,
@@ -29,6 +33,45 @@ export function ChatInterface() {
     } = useChat();
 
     const [isDevMode] = useState(process.env.NODE_ENV === 'development');
+    const [cityOptions, setCityOptions] = useState<string[]>(['Όλες οι πόλεις']);
+    const [cities, setCities] = useState<City[]>([]);
+
+    // Load cities on component mount and handle selected city
+    useEffect(() => {
+        const loadCities = async () => {
+            try {
+                const fetchedCities = await getCities();
+                setCities(fetchedCities);
+                const options = [
+                    'Όλες οι πόλεις',
+                    ...fetchedCities.map(city => city.name)
+                ];
+
+                // If there's a selected city that's not in the default list, try to fetch it
+                if (selectedCity && !fetchedCities.some(city => city.id === selectedCity)) {
+                    const additionalCity = await getCity(selectedCity);
+                    if (additionalCity) {
+                        options.push(additionalCity.name);
+                        setCities(prev => [...prev, additionalCity]);
+                    } else {
+                        console.log(`City with ID ${selectedCity} not found`);
+                    }
+                }
+
+                setCityOptions(options);
+            } catch (error) {
+                console.error('Error loading cities:', error);
+            }
+        };
+        loadCities();
+    }, [selectedCity]);
+
+    // Get the current city name based on selectedCity ID
+    const getCurrentCityName = () => {
+        if (!selectedCity) return null;
+        const city = cities.find(c => c.id === selectedCity);
+        return city?.name ?? null;
+    };
 
     // Handle scroll behavior
     useEffect(() => {
@@ -73,6 +116,14 @@ export function ChatInterface() {
         }
     };
 
+    // Effect to handle button click after input changes
+    useEffect(() => {
+        if (shouldSubmit && input.trim()) {
+            submitButtonRef.current?.click();
+            setShouldSubmit(false);
+        }
+    }, [input, shouldSubmit]);
+
     return (
         <div className="h-[calc(100vh-4rem)] flex flex-col">
             {/* Main Chat Area */}
@@ -84,7 +135,10 @@ export function ChatInterface() {
                     messagesEndRef={messagesEndRef}
                     subjectScrollRef={subjectScrollRef}
                     chatContainerRef={chatContainerRef}
-                    onSuggestedPromptClick={setInput}
+                    onSuggestedPromptClick={(text) => {
+                        setInput(text);
+                        setShouldSubmit(true);
+                    }}
                 />
             </main>
 
@@ -124,18 +178,24 @@ export function ChatInterface() {
                         </div>
                         {/* City filter and send button below textarea, right-aligned, inside border */}
                         <div className="flex items-center justify-end w-full mt-1 px-1 gap-2">
-                            <select
-                                className="bg-transparent border-none outline-none text-sm font-medium text-[hsl(var(--orange))] hover:text-[hsl(var(--accent))] px-2 py-1 rounded-md cursor-pointer focus:ring-0 focus:outline-none transition-colors"
-                                value={selectedCity}
-                                onChange={(e) => setSelectedCity(e.target.value)}
-                            >
-                                {cityOptions.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <Combobox
+                                options={cityOptions}
+                                value={getCurrentCityName()}
+                                onChange={(value) => {
+                                    if (!value || value === 'Όλες οι πόλεις') {
+                                        setSelectedCity('');
+                                    } else {
+                                        const city = cities.find(c => c.name === value);
+                                        if (city) {
+                                            setSelectedCity(city.id);
+                                        }
+                                    }
+                                }}
+                                placeholder="Όλες οι πόλεις"
+                                variant="minimal"
+                            />
                             <Button
+                                ref={submitButtonRef}
                                 type="submit"
                                 disabled={isLoading || !input.trim()}
                                 size="icon"

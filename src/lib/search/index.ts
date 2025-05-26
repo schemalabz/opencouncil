@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters } from './filters';
+import { getCities } from '@/lib/db/cities';
 
 // Re-export types
 export type {
@@ -28,11 +29,18 @@ const logEssential = (message: string, data?: any) => {
 
 export async function search(request: SearchRequest): Promise<SearchResponse> {
     try {
+        // Get default city IDs if none provided
+        let cityIds = request.cityIds;
+        if (!cityIds || cityIds.length === 0) {
+            const cities = await getCities();
+            cityIds = cities.map(city => city.id);
+        }
+
         // Log search session start with query and filters
         logEssential('Search Session Started', {
             query: request.query,
             filters: {
-                cityIds: request.cityIds,
+                cityIds,
                 personIds: request.personIds,
                 partyIds: request.partyIds,
                 topicIds: request.topicIds,
@@ -51,7 +59,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
         // Merge with explicit filters
         const mergedRequest: SearchRequest = {
             ...request,
-            cityIds: processedFilters.cityIds || request.cityIds,
+            cityIds: processedFilters.cityIds || cityIds,
             dateRange: processedFilters.dateRange || request.dateRange,
             locations: processedFilters.locations || request.locations
         };

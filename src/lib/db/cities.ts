@@ -7,6 +7,10 @@ export type CityWithGeometry = City & {
     geometry?: GeoJSON.Geometry;
 };
 
+export type CityWithCouncilMeeting = City & {
+    councilMeetings: CouncilMeeting[];
+};
+
 export async function deleteCity(id: string): Promise<void> {
     withUserAuthorizedToEdit({ cityId: id });
     try {
@@ -112,7 +116,26 @@ export async function getFullCity(cityId: string) {
     });
 }
 
-export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<(City & { councilMeetings: CouncilMeeting[] })[]> {
+export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<City[]> {
+    if (includeUnlisted) {
+        withUserAuthorizedToEdit({});
+    }
+
+    try {
+        const cities = await prisma.city.findMany({
+            where: {
+                isPending: includePending ? undefined : false,
+                isListed: (includeUnlisted || includePending) ? undefined : true
+            }
+        });
+        return cities;
+    } catch (error) {
+        console.error('Error fetching cities:', error);
+        throw new Error('Failed to fetch cities');
+    }
+}
+
+export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCouncilMeeting[]> {
     if (includeUnlisted) {
         withUserAuthorizedToEdit({});
     }
@@ -124,13 +147,13 @@ export async function getCities({ includeUnlisted = false, includePending = fals
                 isListed: (includeUnlisted || includePending) ? undefined : true
             },
             include: {
-                councilMeetings: true,
+                councilMeetings: true
             }
         });
         return cities;
     } catch (error) {
-        console.error('Error fetching cities:', error);
-        throw new Error('Failed to fetch cities');
+        console.error('Error fetching cities with council meetings:', error);
+        throw new Error('Failed to fetch cities with council meetings');
     }
 }
 

@@ -1,8 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "../auth";
-import { getCities } from "./cities";
-import { City, CouncilMeeting, Subject, Person, Party } from "@prisma/client";
+import { City, CouncilMeeting, Subject, Party } from "@prisma/client";
 import prisma from "./prisma";
 import { SubjectWithRelations } from "./subject";
 import { sortSubjectsByImportance } from "../utils";
