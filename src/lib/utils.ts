@@ -468,26 +468,35 @@ export function buildCityUrl(cityId: string, path: string = '', locale: string =
   return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
 }
 
+type GeometryBounds = {
+    bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+    center: [number, number];
+};
+
 /**
  * Calculates bounds and center from a GeoJSON geometry
  * @param geometry The GeoJSON geometry to process
- * @returns Object containing bounds and center coordinates
  */
-export function calculateGeometryBounds(geometry: any): { 
-    bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
-    center: [number, number];
-} {
+export function calculateGeometryBounds(geometry: any): GeometryBounds {
+    const DEFAULT_RETURN: GeometryBounds = {
+        bounds: null,
+        center: [23.7275, 37.9838] // Default to Athens
+    };
+
     if (!geometry) {
         console.log('[Location] No geometry available, using default coordinates');
-        return { 
-            bounds: null,
-            center: [23.7275, 37.9838] // Default to Athens
-        };
+        return DEFAULT_RETURN;
     }
 
     try {
         let minLng = Infinity, maxLng = -Infinity;
         let minLat = Infinity, maxLat = -Infinity;
+
+        // Check for supported geometry types
+        if (!['Point', 'Polygon', 'MultiPolygon'].includes(geometry.type)) {
+            console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
+            return DEFAULT_RETURN;
+        }
 
         const processCoordinates = (coords: number[][]) => {
             coords.forEach(point => {
@@ -526,9 +535,6 @@ export function calculateGeometryBounds(geometry: any): {
         return { bounds, center };
     } catch (error) {
         console.error('[Location] Error calculating geometry bounds:', error);
-        return { 
-            bounds: null,
-            center: [23.7275, 37.9838] // Default to Athens
-        };
+        return DEFAULT_RETURN;
     }
 }
