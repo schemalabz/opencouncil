@@ -1,14 +1,17 @@
 import { NextRequest } from 'next/server';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
-import { PersonWithRelations } from '@/lib/db/people';
+import { PersonWithRelations, getPeopleForCity } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
 import { aiChatStream, AIConfig } from '@/lib/ai';
 import { findSubjectsByQuery } from '@/lib/seed-data';
+import { Person, Role, Party, AdministrativeBody, City } from '@prisma/client';
+import prisma from '@/lib/db/prisma';
 import { 
     findMockSpeakerSegmentsForSubject,
     generateMockClaudeResponse 
 } from '@/lib/db/chat-mock-data';
+import { getCity } from '@/lib/db/cities';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -108,18 +111,112 @@ function cleanContextReferences(context: string | undefined): string | undefined
     return context.replace(/\[\d+\]/g, '');
 }
 
-// Context Enhancement
-function enhancePrompt(
-    messages: ChatMessage[],
-    context: ReturnType<typeof extractRelevantContent>
-) {
+/**
+ * Formats the city political context into a human-readable string.
+ * Groups people by party and formats their roles with proper separators.
+ */
+function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
+    type FormattedPerson = { name: string; roles: string };
+    type PeopleByParty = Record<string, FormattedPerson[]>;
+
+    // Group people by party
+    const peopleByParty = people.reduce((acc: PeopleByParty, person) => {
+        const partyRole = person.roles.find(role => role.party);
+        const partyName = partyRole?.party?.name || "Ανεξάρτητοι";
+        
+        if (!acc[partyName]) {
+            acc[partyName] = [];
+        }
+
+        // Format roles for this person, filtering out unnecessary roles
+        const formattedRoles = person.roles
+            .filter(role => role.city || role.administrativeBody) // Only include city and admin body roles
+            .map(role => {
+                if (role.city) return `${role.name || "Μέλος"}`;
+                if (role.administrativeBody) return `${role.administrativeBody.name} (${role.name || "Μέλος"})`;
+                return null;
+            })
+
+        acc[partyName].push({
+            name: person.name,
+            roles: formattedRoles.join(", ")
+        });
+
+        return acc;
+    }, {});
+
+    // Sort people within each party
+    Object.keys(peopleByParty).forEach(party => {
+        peopleByParty[party].sort((a: FormattedPerson, b: FormattedPerson) => a.name.localeCompare(b.name));
+    });
+
+    return `
+Πληροφορίες για το ${city.name} (${city.name_municipality}):
+
+Κόμματα και Μέλη:
+${Object.entries(peopleByParty)
+    .map(([party, members]) => 
+        `${party}:\n${(members as FormattedPerson[]).map(member => `  - ${member.name} [${member.roles}]`).join('\n')}`)
+    .join('\n\n')}
+
+----------------------------------------
+`;
+}
+
+/**
+ * Enhances the chat prompt with city context and relevant content.
+ * 
+ * Example prompt format:
+ * ```
+ * [System Prompt]
+ * 
+ * Πληροφορίες για το Χανιά (Δήμος Χανίων):
+ * 
+ * Κόμματα και Μέλη:
+ * Για τα Χανιά:
+ *   - Αδάμ Μπούτζουκας [Δημοτικό Συμβούλιο (Μέλος)]
+ *   - Αναστάσιος Αλόγλου [Αντιδήμαρχος Οικονομικών & Ψηφιακής Διακυβέρνησης, Δημοτικό Συμβούλιο (Μέλος), Δημοτική Επιτροπή (Πρόεδρος)]
+ * 
+ * Λαϊκή Συσπείρωση Χανίων:
+ *   - Μιλτιάδης Κλωνιζάκης [Δημοτικό Συμβούλιο (Γραμματέας), Δημοτική Επιτροπή (Αναπληρωματικό Μέλος)]
+ * 
+ * Ανεξάρτητοι:
+ *   - Μιχαήλ Σχοινάς [Δημοτικό Συμβούλιο (Αντιπρόεδρος)]
+ * 
+ * ----------------------------------------
+ * 
+ * Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
+ * [1] Θέμα: Αναβάθμιση πάρκων
+ * Κατηγορία: Περιβάλλον
+ * Περιγραφή: Προτάσεις για αναβάθμιση των δημοτικών πάρκων
+ * 
+ * Αποσπάσματα ομιλιών:
+ * 🔹 Γιώργος Παπαδάκης (Νέα Δημοκρατία): "Πρότεινα την αναβάθμιση του κεντρικού πάρκου..."
+ * • Μαρία Κουτσογιάννη (Νέα Δημοκρατία): "Συμφωνώ με την πρόταση..."
+ * 
+ * ----------------------------------------
+ * ```
+ */
+async function enhancePrompt(messages: ChatMessage[], context: ReturnType<typeof extractRelevantContent>, cityId?: string) {
     logDev(`[Prompt Enhancement] Enhancing prompt with:`, {
         messages: messages.length,
         contextSubjects: context.length,
-        useAllSegments: CONTEXT_CONFIG.useAllSegments
+        useAllSegments: CONTEXT_CONFIG.useAllSegments,
+        cityId
     });
     
+    let cityContext = '';
+    if (cityId) {
+        const city = await getCity(cityId)
+        if (city) {
+            const people = await getPeopleForCity(cityId, true); // Only get active roles
+            cityContext = formatCityPoliticalContext(city, people);
+        }
+    }
+    
     const systemPrompt = `${SYSTEM_PROMPT}
+
+${cityContext}
 
 Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
 ${context.map((subject, index) => {
@@ -141,12 +238,10 @@ ${CONTEXT_CONFIG.useAllSegments
     ? subject.speakerSegments.map(segment => {
         const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
         const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
-        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
-        return `${prefix}${segment.speaker} (${partyName}): "${segment.text}"`;
+        return `${prefix}${segment.speaker}: "${segment.text}"`;
     }).join('\n')
     : subject.keySegments.map(segment => {
-        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
-        return `• ${segment.speaker} (${partyName}): "${segment.text}"`;
+        return `• ${segment.speaker}: "${segment.text}"`;
     }).join('\n')
 }
 ----------------------------------------`}).join('\n\n')}
@@ -291,7 +386,7 @@ export async function POST(req: NextRequest) {
             const context = extractRelevantContent(searchResults);
 
             // 3. Enhance prompt
-            const enhancedPrompt = enhancePrompt(messages, context);
+            const enhancedPrompt = await enhancePrompt(messages, context, cityId);
 
             // 4. Get LLM response
             logEssential('Sending request to Claude');
