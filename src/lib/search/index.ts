@@ -84,6 +84,89 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
         });
 
         // Process the results
+        const subjectIds = (response.hits.hits as Array<any>)
+            .map(hit => hit._source?.public_subject_id)
+            .filter((id): id is string => id !== undefined);
+
+        // Fetch all subjects in a single query
+        const subjects = await prisma.subject.findMany({
+            where: { id: { in: subjectIds } },
+            include: {
+                speakerSegments: {
+                    include: {
+                        speakerSegment: {
+                            include: {
+                                meeting: {
+                                    include: {
+                                        city: true
+                                    }
+                                },
+                                speakerTag: {
+                                    include: {
+                                        person: {
+                                            include: {
+                                                party: true,
+                                                roles: {
+                                                    include: {
+                                                        party: true,
+                                                        city: true,
+                                                        administrativeBody: true
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                utterances: true,
+                                summary: true
+                            }
+                        }
+                    }
+                },
+                location: true,
+                topic: true,
+                councilMeeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                introducedBy: {
+                    include: {
+                        party: true,
+                        roles: {
+                            include: {
+                                party: true,
+                                city: true,
+                                administrativeBody: true
+                            }
+                        }
+                    }
+                },
+                highlights: true
+            }
+        });
+
+        // Create a map of subjects by ID for efficient lookup
+        const subjectMap = new Map(subjects.map(subject => [subject.id, subject]));
+
+        // Get all location IDs for coordinates query
+        const locationIds = subjects
+            .map(subject => subject.location?.id)
+            .filter((id): id is string => id !== undefined);
+
+        // Fetch all location coordinates in a single query
+        const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
+            SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
+            FROM "Location"
+            WHERE id = ANY(${locationIds})
+            AND type = 'point'
+        `;
+
+        // Create a map of location coordinates by ID
+        const locationCoordinatesMap = new Map(
+            locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
+        );
+
         const results = await Promise.all(
             (response.hits.hits as Array<any>).map(async (hit, index) => {
                 if (!hit._source) {
@@ -91,63 +174,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     throw new Error('Elasticsearch hit source is undefined');
                 }
 
-                const subject = await prisma.subject.findUnique({
-                    where: { id: hit._source.public_subject_id },
-                    include: {
-                        speakerSegments: {
-                            include: {
-                                speakerSegment: {
-                                    include: {
-                                        meeting: {
-                                            include: {
-                                                city: true
-                                            }
-                                        },
-                                        speakerTag: {
-                                            include: {
-                                                person: {
-                                                    include: {
-                                                        party: true,
-                                                        roles: {
-                                                            include: {
-                                                                party: true,
-                                                                city: true,
-                                                                administrativeBody: true
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        utterances: true,
-                                        summary: true
-                                    }
-                                }
-                            }
-                        },
-                        location: true,
-                        topic: true,
-                        councilMeeting: {
-                            include: {
-                                city: true
-                            }
-                        },
-                        introducedBy: {
-                            include: {
-                                party: true,
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
-                                }
-                            }
-                        },
-                        highlights: true
-                    }
-                });
-
+                const subject = subjectMap.get(hit._source.public_subject_id);
                 if (!subject) {
                     logEssential('[Search] Subject not found', { 
                         subjectId: hit._source.public_subject_id,
@@ -159,20 +186,11 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 // Get location coordinates if available
                 let locationWithCoordinates = null;
                 if (subject.location) {
-                    const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
-                        SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
-                        FROM "Location"
-                        WHERE id = ${subject.location.id}
-                        AND type = 'point'
-                    `;
-
-                    if (locationCoordinates.length > 0) {
+                    const coordinates = locationCoordinatesMap.get(subject.location.id);
+                    if (coordinates) {
                         locationWithCoordinates = {
                             ...subject.location,
-                            coordinates: {
-                                x: locationCoordinates[0].x,
-                                y: locationCoordinates[0].y
-                            }
+                            coordinates
                         };
                     }
                 }
