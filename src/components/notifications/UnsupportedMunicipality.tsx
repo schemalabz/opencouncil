@@ -69,14 +69,14 @@ export function UnsupportedMunicipality({
         <div className="w-full max-w-md">
             {city.officialSupport ? (
                 <div className="text-center mb-6">
-                    <h2 className="text-xl font-bold mb-4">Ο δήμος {city.name} δεν υποστηρίζει ακόμα ενημερώσεις</h2>
+                    <h2 className="text-xl font-bold mb-4">Ο {city.name_municipality} δεν υποστηρίζει ακόμα ενημερώσεις</h2>
                     <p className="text-gray-700">
-                        Ο δήμος {city.name} είναι στο δίκτυο του OpenCouncil, αλλά δεν έχει ενεργοποιήσει ακόμη τις ενημερώσεις για τους δημότες.
+                        Ο {city.name_municipality} είναι στο δίκτυο του OpenCouncil, αλλά δεν έχει ενεργοποιήσει ακόμη τις ενημερώσεις για τους δημότες.
                     </p>
                 </div>
             ) : (
                 <div className="text-center mb-6">
-                    <h2 className="text-xl font-bold mb-4">Ο δήμος {city.name} δεν είναι ακόμα στο δίκτυο OpenCouncil</h2>
+                    <h2 className="text-xl font-bold mb-4">Ο {city.name_municipality} δεν είναι ακόμα στο δίκτυο OpenCouncil</h2>
                     <p className="text-gray-700 text-left">
                         Μπορείτε να μας βοηθήσετε να φέρουμε το δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
                         όνομά σας όταν μιλήσουμε με το δήμο, ως δημότης που θα ήθελε να έχει το OpenCouncil στο δήμο του.

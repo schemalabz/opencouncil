@@ -3,20 +3,20 @@
 import { useState, useEffect } from 'react';
 import Map, { MapFeature } from '@/components/map/map';
 import { SignupHeader } from './SignupHeader';
-import { MunicipalitySelector } from './MunicipalitySelector';
 import { LocationSelector } from './LocationSelector';
 import { TopicSelector } from './TopicSelector';
 import { UserRegistration } from './UserRegistration';
 import { UnsupportedMunicipality } from './UnsupportedMunicipality';
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, UserCheck, Pin, Settings, Map as MapIcon } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { calculateGeometryBounds, cn } from '@/lib/utils';
 import { Topic as PrismaTopic } from '@prisma/client';
 import { getUserPreferences, saveNotificationPreferences, savePetition } from '@/lib/db/notifications';
 import { createLocation } from '@/lib/db/location';
+import { getCity, getCitiesWithGeometry } from '@/lib/db/cities';
 
 // Import SignupStage from SignupHeader component or export it from there
 import { SignupStage } from './SignupHeader';
@@ -71,10 +71,12 @@ export function calculateMapView(geometry: any): { center: [number, number]; zoo
 export function SignupPageContent() {
     const { data: session, status: sessionStatus } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const cityId = searchParams.get('cityId');
     const isDesktop = useMediaQuery('(min-width: 1024px)');
 
     // State variables
-    const [stage, setStage] = useState<SignupStage>(SignupStage.SELECT_MUNICIPALITY);
+    const [stage, setStage] = useState<SignupStage>(SignupStage.LOCATION_TOPIC_SELECTION);
     const [selectedCity, setSelectedCity] = useState<CityWithGeometry | null>(null);
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<AppTopic[]>([]);
@@ -88,6 +90,57 @@ export function SignupPageContent() {
     const [isUpdating, setIsUpdating] = useState(false);
     const [showMap, setShowMap] = useState(true);
     const [emailExistsError, setEmailExistsError] = useState<string | null>(null);
+
+    // Fetch city data when cityId is available
+    useEffect(() => {
+        async function fetchCityData() {
+            if (cityId) {
+                setIsLoading(true);
+                try {
+                    const city = await getCity(cityId);
+                    if (!city) {
+                        throw new Error('City not found');
+                    }
+                    const cityWithGeometry = (await getCitiesWithGeometry([city]))[0];
+                    if (cityWithGeometry) {
+                        setSelectedCity(cityWithGeometry);
+                        // Check if user already has preferences for this city
+                        const existingPreference = userPreferences.find(pref => pref.cityId === city.id);
+                        if (existingPreference) {
+                            if (existingPreference.isPetition) {
+                                if (existingPreference.petitionData) {
+                                    setPetitionData(existingPreference.petitionData);
+                                }
+                                setStage(SignupStage.UNSUPPORTED_MUNICIPALITY);
+                            } else {
+                                if (existingPreference.locations) {
+                                    setSelectedLocations(existingPreference.locations);
+                                }
+                                if (existingPreference.topics) {
+                                    setSelectedTopics(existingPreference.topics);
+                                }
+                                setStage(SignupStage.LOCATION_TOPIC_SELECTION);
+                            }
+                        } else {
+                            if (city.supportsNotifications) {
+                                setStage(SignupStage.LOCATION_TOPIC_SELECTION);
+                            } else if (city.officialSupport) {
+                                setStage(SignupStage.USER_REGISTRATION);
+                            } else {
+                                setStage(SignupStage.UNSUPPORTED_MUNICIPALITY);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching city:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        }
+
+        fetchCityData();
+    }, [cityId, userPreferences]);
 
     // Fetch user's existing preferences/petitions when session is available
     useEffect(() => {
@@ -240,45 +293,6 @@ export function SignupPageContent() {
         setShowForm(true);
     }, []);
 
-    // Handler for municipality selection
-    const handleMunicipalitySelect = (city: CityWithGeometry) => {
-        setSelectedCity(city);
-
-        // Check if user already has preferences for this city
-        const existingPreference = userPreferences.find(pref => pref.cityId === city.id);
-
-        if (existingPreference) {
-            // Pre-populate existing preference data
-            if (existingPreference.isPetition) {
-                // It's a petition
-                if (existingPreference.petitionData) {
-                    setPetitionData(existingPreference.petitionData);
-                }
-                setStage(SignupStage.UNSUPPORTED_MUNICIPALITY);
-            } else {
-                // It's a notification preference
-                if (existingPreference.locations) {
-                    setSelectedLocations(existingPreference.locations);
-                }
-                if (existingPreference.topics) {
-                    setSelectedTopics(existingPreference.topics);
-                }
-                setStage(SignupStage.LOCATION_TOPIC_SELECTION);
-            }
-        } else {
-            // Route to appropriate next stage based on city support status
-            if (city.supportsNotifications) {
-                setStage(SignupStage.LOCATION_TOPIC_SELECTION);
-            } else if (city.officialSupport) {
-                // If we need to add COMING_SOON_MUNICIPALITY as a stage, add it to SignupHeader.tsx
-                setStage(SignupStage.USER_REGISTRATION);
-            } else {
-                // No official support, allow petition
-                setStage(SignupStage.UNSUPPORTED_MUNICIPALITY);
-            }
-        }
-    };
-
     // Handler for location selection
     const handleLocationSelect = (location: Location) => {
         setSelectedLocations(prev => [...prev, location]);
@@ -418,11 +432,7 @@ export function SignupPageContent() {
     const handleBack = () => {
         if (stage === SignupStage.LOCATION_TOPIC_SELECTION ||
             stage === SignupStage.UNSUPPORTED_MUNICIPALITY) {
-            setStage(SignupStage.SELECT_MUNICIPALITY);
-            setSelectedCity(null);
-            setPetitionData(null);
-            setSelectedLocations([]);
-            setSelectedTopics([]);
+            router.push('/');
         } else if (stage === SignupStage.USER_REGISTRATION) {
             if (petitionData) {
                 setStage(SignupStage.UNSUPPORTED_MUNICIPALITY);
@@ -437,11 +447,7 @@ export function SignupPageContent() {
 
     // Reset the entire form
     const handleReset = () => {
-        setStage(SignupStage.SELECT_MUNICIPALITY);
-        setSelectedCity(null);
-        setPetitionData(null);
-        setSelectedLocations([]);
-        setSelectedTopics([]);
+        router.push('/');
     };
 
     // Toggle form visibility on mobile
@@ -504,48 +510,6 @@ export function SignupPageContent() {
     // Render the appropriate form content based on the current stage
     const renderFormContent = () => {
         switch (stage) {
-            case SignupStage.SELECT_MUNICIPALITY:
-                return (
-                    <div className="space-y-6">
-                        <MunicipalitySelector onSelect={handleMunicipalitySelect} />
-
-                        {/* Display existing user preferences when logged in */}
-                        {sessionStatus === 'authenticated' && userPreferences.length > 0 && (
-                            <div className="mt-8">
-                                <h3 className="text-lg font-medium mb-3">Οι ενεργές σας εγγραφές</h3>
-                                <div className="space-y-2">
-                                    {userPreferences.map((preference) => (
-                                        <Button
-                                            key={preference.cityId}
-                                            variant="outline"
-                                            className="w-full justify-start py-4 px-3 hover:bg-gray-100"
-                                            onClick={() => handleSelectExistingPreference(preference)}
-                                        >
-                                            <div className="flex items-center gap-3 w-full">
-                                                {preference.isPetition ? (
-                                                    <UserCheck className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                                                ) : (
-                                                    <Pin className="h-5 w-5 text-red-500 flex-shrink-0" />
-                                                )}
-                                                <div className="flex-grow text-left">
-                                                    <p className="font-medium">{preference.city.name}</p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {preference.isPetition
-                                                            ? 'Ζητήσατε την συμμετοχή του δήμου'
-                                                            : `${preference.locations?.length || 0} τοποθεσίες, ${preference.topics?.length || 0} θέματα`
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <Settings className="h-4 w-4 text-gray-400" />
-                                            </div>
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-
             case SignupStage.LOCATION_TOPIC_SELECTION:
                 if (!selectedCity) return null;
                 return (
@@ -697,15 +661,12 @@ export function SignupPageContent() {
                 <div
                     className={cn(
                         "absolute z-10 transition-all duration-300 ease-in-out",
-                        isDesktop
-                            ? "left-0 top-16 bottom-0 w-1/3 bg-white/95 backdrop-blur-sm shadow-xl" // Desktop: Left sidebar, adjusted top for new header
-                            : "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90%] max-h-[60vh] max-w-md rounded-xl shadow-2xl overflow-hidden", // Mobile: Centered box with height limit
-                        !isDesktop && "bg-white/95 backdrop-blur-sm"
+                        "fixed top-20 bottom-8 mx-auto w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
+                        isDesktop ? "left-4" : "left-1/2 -translate-x-1/2" // Desktop: Left-aligned, Mobile: Centered
                     )}
                 >
                     <div className={cn(
-                        "w-full overflow-y-auto",
-                        isDesktop ? "h-full p-6" : "max-h-[60vh] p-6 md:p-8", // More padding on tablet, scrollable container
+                        "w-full h-full overflow-y-auto p-6 md:p-8",
                         !isDesktop && "space-y-6" // Add more spacing between elements on mobile
                     )}>
                         {isLoading ? (
@@ -713,7 +674,9 @@ export function SignupPageContent() {
                                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                             </div>
                         ) : (
-                            renderFormContent()
+                            <div className="w-full">
+                                {renderFormContent()}
+                            </div>
                         )}
                     </div>
                 </div>

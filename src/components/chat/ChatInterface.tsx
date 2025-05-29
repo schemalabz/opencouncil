@@ -34,7 +34,6 @@ export function ChatInterface() {
         setUseMockData,
     } = useChat();
 
-    const [cityOptions, setCityOptions] = useState<string[]>(['Όλες οι πόλεις']);
     const [cities, setCities] = useState<City[]>([]);
 
     // Load cities on component mount and handle selected city
@@ -43,36 +42,22 @@ export function ChatInterface() {
             try {
                 const fetchedCities = await getCities();
                 setCities(fetchedCities);
-                const options = [
-                    'Όλες οι πόλεις',
-                    ...fetchedCities.map(city => city.name)
-                ];
 
                 // If there's a selected city that's not in the default list, try to fetch it
                 if (selectedCity && !fetchedCities.some(city => city.id === selectedCity)) {
                     const additionalCity = await getCity(selectedCity);
                     if (additionalCity) {
-                        options.push(additionalCity.name);
                         setCities(prev => [...prev, additionalCity]);
                     } else {
                         console.log(`City with ID ${selectedCity} not found`);
                     }
                 }
-
-                setCityOptions(options);
             } catch (error) {
                 console.error('Error loading cities:', error);
             }
         };
         loadCities();
     }, [selectedCity]);
-
-    // Get the current city name based on selectedCity ID
-    const getCurrentCityName = () => {
-        if (!selectedCity) return null;
-        const city = cities.find(c => c.id === selectedCity);
-        return city?.name ?? null;
-    };
 
     // Handle scroll behavior
     useEffect(() => {
@@ -165,20 +150,19 @@ export function ChatInterface() {
                         <div className="flex items-center justify-between w-full mt-1 px-1 gap-2">
                             <div className="flex items-center gap-2">
                                 <Combobox
-                                    options={cityOptions}
-                                    value={getCurrentCityName()}
-                                    onChange={(value) => {
-                                        if (!value || value === 'Όλες οι πόλεις') {
+                                    items={cities}
+                                    value={cities.find(c => c.id === selectedCity) ?? null}
+                                    onChange={(city) => {
+                                        if (!city) {
                                             setSelectedCity('');
                                         } else {
-                                            const city = cities.find(c => c.name === value);
-                                            if (city) {
-                                                setSelectedCity(city.id);
-                                            }
+                                            setSelectedCity(city.id);
                                         }
                                     }}
                                     placeholder="Όλες οι πόλεις"
                                     variant="minimal"
+                                    getItemLabel={(city) => city.name}
+                                    getItemValue={(city) => city.name}
                                 />
                                 {process.env.NODE_ENV === 'development' && (
                                     <div className="flex items-center gap-2">

@@ -4,12 +4,15 @@ import { Link } from '@/i18n/routing';
 import { ChevronDown } from 'lucide-react';
 import { SubstackPost } from '@/lib/db/landing';
 import { HeaderBar } from './header-bar';
+import { MunicipalitySelector } from '@/components/notifications/MunicipalitySelector';
+import { CityWithGeometry } from '@/lib/db/cities';
 
 interface HeroProps {
     latestPost?: SubstackPost;
+    cities: CityWithGeometry[];
 }
 
-export function Hero({ latestPost }: HeroProps) {
+export function Hero({ latestPost, cities }: HeroProps) {
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -101,26 +104,15 @@ export function Hero({ latestPost }: HeroProps) {
                     </motion.em>
                 </motion.p>
 
+                {/* Municipality Selector */}
+                <motion.div variants={item} className="max-w-md mx-auto">
+                    <MunicipalitySelector cities={cities} />
+                </motion.div>
+
                 <motion.div
                     variants={item}
                     className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
                 >
-                    <Button
-                        asChild
-                        size="xl"
-                        className="group transition-all duration-300"
-                    >
-                        <Link href="/notifications">
-                            <span className="relative z-10">🔔 Γραφτείτε στις ενημερώσεις</span>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
-                                }}
-                            />
-                        </Link>
-                    </Button>
-
                     <Button
                         asChild
                         variant="link"

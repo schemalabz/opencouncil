@@ -1,51 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { MapPin, Search, X, Bell, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import Combobox from '@/components/Combobox';
-import { Loader2, Bell, InfoIcon, Search, AlertTriangle } from 'lucide-react';
-import { City } from '@prisma/client';
-import { cn, normalizeText } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
+import { CityWithGeometry } from '@/lib/db/cities';
 
 interface MunicipalitySelectorProps {
-    onSelect: (city: City & { geometry?: any }) => void;
+    cities: CityWithGeometry[];
+    hideQuickSelection?: boolean;
 }
 
-export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
-    const [allCities, setAllCities] = useState<(City & { geometry?: any })[]>([]);
-    const [supportedCities, setSupportedCities] = useState<(City & { geometry?: any })[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+export function MunicipalitySelector({ cities: initialCities, hideQuickSelection = false }: MunicipalitySelectorProps) {
+    const router = useRouter();
+    const [selectedCity, setSelectedCity] = useState<CityWithGeometry | null>(null);
+    const [allCities, setAllCities] = useState<CityWithGeometry[]>(initialCities);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [filteredCities, setFilteredCities] = useState<(City & { geometry?: any })[]>([]);
-    const [filteredUnsupportedCities, setFilteredUnsupportedCities] = useState<(City & { geometry?: any })[]>([]);
 
     // Fetch all municipalities when component mounts
     useEffect(() => {
         async function fetchCities() {
             try {
-                // This will fetch ALL cities (both supported and unsupported)
+                setIsLoading(true);
                 const response = await fetch('/api/cities?includeAll=true');
-
                 if (!response.ok) {
                     throw new Error('Failed to fetch cities');
                 }
-
                 const data = await response.json();
-
-                // Store all cities for searching
                 setAllCities(data);
-
-                // Filter out just the supported cities for display in the default list
-                const supported = data.filter((city: City) =>
-                    city.supportsNotifications && city.isListed && !city.isPending
-                );
-                setSupportedCities(supported);
-                setFilteredCities(supported);
             } catch (err) {
                 setError('Υπήρξε πρόβλημα στη φόρτωση των δήμων');
                 console.error(err);
@@ -53,43 +39,110 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
                 setIsLoading(false);
             }
         }
-
         fetchCities();
     }, []);
 
-    // Filter cities when search query changes
-    useEffect(() => {
-        if (!searchQuery.trim()) {
-            setFilteredCities(supportedCities);
-            setFilteredUnsupportedCities([]);
-            return;
+    // Group cities
+    const groups = [
+        {
+            key: 'supported',
+            label: 'ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ',
+            items: allCities.filter(city => city.supportsNotifications),
+            icon: Bell
+        },
+        {
+            key: 'all',
+            label: 'ΌΛΟΙ ΟΙ ΔΗΜΟΙ',
+            items: allCities.filter(city => !city.supportsNotifications),
+            icon: MapPin
         }
+    ];
 
-        const normalizedQuery = normalizeText(searchQuery.trim());
+    // Custom trigger component
+    const CityTrigger: React.ComponentType<{
+        item: CityWithGeometry | null;
+        placeholder: string;
+        isOpen: boolean;
+        onClear?: () => void;
+    }> = ({ item, placeholder, isOpen, onClear }) => (
+        <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={isOpen}
+            className={cn(
+                "w-full justify-between h-12 sm:h-16 text-base sm:text-lg border-2 bg-white relative overflow-hidden group rounded-xl",
+                item ? "border-orange-500" : "border-gray-200"
+            )}
+        >
+            <div className="flex items-center gap-2 sm:gap-3">
+                <div className={cn(
+                    "flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full transition-colors",
+                    item ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"
+                )}>
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <div className="text-left">
+                    {item ? (
+                        <div>
+                            <div className="font-medium text-sm sm:text-base">{item.name}</div>
+                            <div className="text-xs sm:text-sm text-gray-500">{item.name_municipality}</div>
+                        </div>
+                    ) : (
+                        <div className="text-sm sm:text-base text-gray-500">{placeholder}</div>
+                    )}
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                {item && onClear && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-full"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                        }}
+                    >
+                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                    </Button>
+                )}
+                <Search className={cn(
+                    "h-4 w-4 sm:h-5 sm:w-5 transition-colors",
+                    item ? "text-orange-500" : "text-gray-400"
+                )} />
+            </div>
+            <div className={cn(
+                "absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity duration-300 -z-10",
+                item ? "from-orange-50 to-orange-100 opacity-100" : "",
+                isOpen && !item ? "from-gray-50 to-gray-100 opacity-100" : ""
+            )} />
+        </Button>
+    );
 
-        // Search through ALL cities with normalized text for accent-insensitive matching
-        const matchedCities = allCities.filter(city =>
-            normalizeText(city.name).includes(normalizedQuery) ||
-            normalizeText(city.name_municipality).includes(normalizedQuery)
-        );
-
-        // Split the results into supported and unsupported
-        const supported = matchedCities.filter(city =>
-            city.supportsNotifications && city.isListed && !city.isPending
-        );
-
-        const unsupported = matchedCities.filter(city =>
-            !city.supportsNotifications || !city.isListed || city.isPending
-        );
-
-        setFilteredCities(supported);
-        setFilteredUnsupportedCities(unsupported);
-    }, [searchQuery, allCities, supportedCities]);
+    // City item component
+    const CityItem = ({ item }: { item: CityWithGeometry }) => (
+        <div className="flex items-center">
+            <div className={cn(
+                "w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center mr-2",
+                item.supportsNotifications ? "bg-orange-100" : "bg-gray-100"
+            )}>
+                {item.supportsNotifications ? (
+                    <Bell className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                ) : (
+                    <MapPin className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                )}
+            </div>
+            <div className="text-left">
+                <div className="font-medium text-sm sm:text-base">{item.name}</div>
+                <div className="text-[10px] sm:text-xs text-gray-500">{item.name_municipality}</div>
+            </div>
+        </div>
+    );
 
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-6 bg-white/90 rounded-lg shadow-md space-y-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                 <span className="text-center text-gray-700">Φόρτωση δήμων...</span>
             </div>
         );
@@ -99,7 +152,7 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
         return (
             <div className="p-6 bg-white/90 rounded-lg shadow-md">
                 <div className="flex items-center text-red-500 mb-2">
-                    <InfoIcon className="w-5 h-5 mr-2" />
+                    <AlertTriangle className="w-5 h-5 mr-2" />
                     <span className="font-medium">Σφάλμα</span>
                 </div>
                 <p className="mb-4 text-red-600">{error}</p>
@@ -113,137 +166,66 @@ export function MunicipalitySelector({ onSelect }: MunicipalitySelectorProps) {
         );
     }
 
-    // Handler for selection
-    const handleCityClick = (city: City & { geometry?: any }) => {
-        setSelectedCityId(city.id);
-        // Fetch geometry data
-        fetch(`/api/cities/${city.id}`)
-            .then(response => {
-                if (response.ok) return response.json();
-                return city; // Fallback to the city without geometry
-            })
-            .then(cityData => {
-                const fullCity = {
-                    ...city,
-                    ...cityData
-                };
-                onSelect(fullCity);
-            })
-            .catch(error => {
-                console.error('Error fetching city data:', error);
-                onSelect(city);
-            });
-    };
-
-    const supportedCitiesCount = supportedCities.length;
-    const totalCitiesCount = allCities.length;
-
     return (
-        <div className="w-full max-w-md space-y-5">
+        <div className="space-y-6 w-full max-w-md mx-auto px-4 sm:px-0">
             <div>
-                <h2 className="text-2xl font-bold mb-2">Επιλέξτε τον δήμο σας</h2>
-                <p className="text-gray-600 text-sm">
-                    Για να λαμβάνετε ενημερώσεις για τα θέματα που συζητιούνται στο δημοτικό συμβούλιο
-                </p>
+                <Combobox
+                    items={allCities}
+                    value={selectedCity}
+                    onChange={(city) => {
+                        setSelectedCity(city);
+                        if (city) {
+                            router.push(`/notifications?cityId=${city.id}`);
+                        }
+                    }}
+                    placeholder="Επιλέξτε τον Δήμο σας..."
+                    searchPlaceholder="Αναζητήστε τον Δήμο σας..."
+                    groups={groups}
+                    ItemComponent={CityItem}
+                    TriggerComponent={CityTrigger}
+                    getItemLabel={(city) => city.name}
+                    getItemValue={(city) => `${city.name} ${city.name_municipality}`}
+                    clearable
+                    loading={isLoading}
+                    emptyMessage="Δεν βρέθηκε Δήμος με αυτό το όνομα."
+                />
+
+                {/* Quick Selection for Listed Cities */}
+                {!hideQuickSelection && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3, duration: 0.5 }}
+                        className="flex flex-wrap justify-center gap-2 mt-4"
+                    >
+                        {allCities
+                            .filter(city => city.isListed)
+                            .slice(0, 5)
+                            .map((city) => (
+                                <motion.div
+                                    key={city.id}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                >
+                                    <Button
+                                        variant="outline"
+                                        className="bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-xl"
+                                        onClick={() => {
+                                            setSelectedCity(city);
+                                            router.push(`/notifications?cityId=${city.id}`);
+                                        }}
+                                    >
+                                        {city.name}
+                                    </Button>
+                                </motion.div>
+                            ))}
+                    </motion.div>
+                )}
+
+                {/* Decorative elements */}
+                <div className="absolute -z-10 -top-6 -left-6 w-12 h-12 rounded-full bg-orange-100 opacity-50" />
+                <div className="absolute -z-10 -bottom-4 -right-4 w-8 h-8 rounded-full bg-orange-200 opacity-40" />
             </div>
-
-            <div className="relative">
-                <div className="relative mb-4">
-                    <Input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Αναζητήστε δήμο..."
-                        className="pr-10"
-                    />
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                </div>
-
-                <div className="max-h-60 overflow-y-auto rounded-md border border-input bg-white shadow-sm">
-                    {filteredCities.length === 0 && filteredUnsupportedCities.length === 0 ? (
-                        <div className="py-6 text-center text-sm text-gray-500">
-                            Δεν βρέθηκαν αποτελέσματα
-                        </div>
-                    ) : (
-                        <div>
-                            {/* Supported municipalities */}
-                            {filteredCities.length > 0 && (
-                                <ul className="p-0 m-0">
-                                    {filteredCities.map((city) => (
-                                        <li
-                                            key={city.id}
-                                            className={cn(
-                                                "px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-gray-100",
-                                                selectedCityId === city.id && "bg-primary/10"
-                                            )}
-                                            onClick={() => handleCityClick(city)}
-                                        >
-                                            <div>
-                                                <div className="font-medium">{city.name}</div>
-                                                <div className="text-xs text-gray-500">{city.name_municipality}</div>
-                                            </div>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Badge variant="secondary" className="ml-2 flex items-center gap-1">
-                                                            <Bell className="h-3 w-3" />
-                                                            <span className="text-xs">Υποστηρίζεται</span>
-                                                        </Badge>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Αυτός ο δήμος υποστηρίζει ενημερώσεις</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-
-                            {/* Show unsupported municipalities if they match the search */}
-                            {filteredUnsupportedCities.length > 0 && (
-                                <>
-                                    {filteredCities.length > 0 && <Separator className="my-2" />}
-                                    <div className="px-3 py-2">
-                                        <div className="flex items-center gap-2 text-xs text-green-600 font-medium mb-2">
-                                            <AlertTriangle className="h-3 w-3" />
-                                            <span>Μπορείτε να ζητήσετε από τους παρακάτω δήμους να συμμετάσχουν στο OpenCouncil</span>
-                                        </div>
-                                        <ul className="p-0 m-0">
-                                            {filteredUnsupportedCities.slice(0, 3).map((city) => (
-                                                <li
-                                                    key={city.id}
-                                                    className={cn(
-                                                        "px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-gray-100 rounded-md border border-amber-100 mb-2 bg-amber-50",
-                                                        selectedCityId === city.id && "bg-amber-100"
-                                                    )}
-                                                    onClick={() => handleCityClick(city)}
-                                                >
-                                                    <div>
-                                                        <div className="font-medium">{city.name}</div>
-                                                        <div className="text-xs text-gray-500">{city.name_municipality}</div>
-                                                    </div>
-                                                    {city.isPending && (
-                                                        <Badge variant="outline" className="ml-2 bg-amber-50 border-amber-200 text-amber-700">
-                                                            <span className="text-xs">Δεν υποστηρίζεται</span>
-                                                        </Badge>
-                                                    )}
-                                                </li>
-                                            ))}
-                                            {filteredUnsupportedCities.length > 3 && (
-                                                <div className="text-xs text-gray-500 text-center mt-1">
-                                                    + {filteredUnsupportedCities.length - 3} ακόμα δήμοι
-                                                </div>
-                                            )}
-                                        </ul>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-
         </div>
     );
 } 

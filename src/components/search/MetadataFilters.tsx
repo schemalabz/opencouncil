@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Combobox from "../Combobox";
 import { cn } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
@@ -35,10 +35,6 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
         
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
-
-    const selectedCityName = filters.cityId ? cities.find(c => c.id === filters.cityId)?.name ?? null : null;
-    const selectedPartyName = filters.partyId ? parties.find(p => p.id === filters.partyId)?.name_short ?? null : null;
-    const selectedPersonName = filters.personId ? people.find(p => p.id === filters.personId)?.name_short ?? null : null;
 
     const fetchCities = async () => {
         try {
@@ -104,6 +100,22 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const selectedPartyId = filters.partyId;
     const availablePeople = selectedPartyId ? people.filter(p => p.partyId === selectedPartyId) : people;
 
+    // Memoize selected values
+    const selectedCity = useMemo(() => 
+        cities.find(c => c.id === filters.cityId) ?? null,
+        [cities, filters.cityId]
+    );
+
+    const selectedParty = useMemo(() => 
+        parties.find(p => p.id === filters.partyId) ?? null,
+        [parties, filters.partyId]
+    );
+
+    const selectedPerson = useMemo(() => 
+        people.find(p => p.id === filters.personId) ?? null,
+        [people, filters.personId]
+    );
+
     const clearFilters = () => {
         setFilters({
             cityId: undefined,
@@ -119,36 +131,42 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
             <div className="space-y-2">
                 <label className="text-sm font-medium">Πόλη</label>
                 <Combobox
-                    options={cities.map(c => c.name)}
-                    value={selectedCityName}
-                    onChange={onCityChange}
+                    items={cities}
+                    value={selectedCity}
+                    onChange={(city) => onCityChange(city?.name ?? null)}
                     placeholder="Επιλέξτε πόλη"
                     loading={cities.length === 0}
                     className="w-full"
+                    getItemLabel={(city) => city.name}
+                    getItemValue={(city) => city.name}
                 />
             </div>
             <div className="space-y-2">
                 <label className="text-sm font-medium">Παράταξη</label>
                 <Combobox
-                    options={parties.map(p => p.name_short)}
-                    value={selectedPartyName}
-                    onChange={onPartyChange}
+                    items={parties}
+                    value={selectedParty}
+                    onChange={(party) => onPartyChange(party?.name_short ?? null)}
                     placeholder="Επιλέξτε παράταξη"
                     disabled={!filters.cityId}
                     loading={filters.cityId !== undefined && parties.length === 0}
                     className="w-full"
+                    getItemLabel={(party) => party.name_short}
+                    getItemValue={(party) => party.name_short}
                 />
             </div>
             <div className="space-y-2">
                 <label className="text-sm font-medium">Πρόσωπο</label>
                 <Combobox
-                    options={availablePeople.map(p => p.name_short)}
-                    value={selectedPersonName}
-                    onChange={onPersonChange}
+                    items={availablePeople}
+                    value={selectedPerson}
+                    onChange={(person) => onPersonChange(person?.name_short ?? null)}
                     placeholder="Επιλέξτε πρόσωπο"
                     disabled={!filters.cityId}
                     loading={filters.cityId !== undefined && people.length === 0}
                     className="w-full"
+                    getItemLabel={(person) => person.name_short}
+                    getItemValue={(person) => person.name_short}
                 />
             </div>
             {hasActiveFilters && (

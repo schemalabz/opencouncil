@@ -56,18 +56,22 @@ export default function Summary() {
             <h2 className="text-2xl font-bold mb-2">Toποθετήσεις</h2>
             <div className="flex space-x-4 mb-4">
                 <Combobox
-                    options={partyOptions}
-                    value={selectedParty}
-                    onChange={setSelectedParty}
+                    items={parties}
+                    value={parties.find(p => p.name === selectedParty) ?? null}
+                    onChange={(party) => setSelectedParty(party?.name ?? null)}
                     placeholder="Φίλτρο παράταξης"
                     className="w-1/2"
+                    getItemLabel={(party) => party.name}
+                    getItemValue={(party) => party.name}
                 />
                 <Combobox
-                    options={topics}
-                    value={selectedTopic}
-                    onChange={setSelectedTopic}
+                    items={topics.map(topic => ({ name: topic }))}
+                    value={topics.find(t => t === selectedTopic) ? { name: selectedTopic! } : null}
+                    onChange={(topic) => setSelectedTopic(topic?.name ?? null)}
                     placeholder="Φίλτρο θέματος"
                     className="w-1/2"
+                    getItemLabel={(topic) => topic.name}
+                    getItemValue={(topic) => topic.name}
                 />
             </div>
             <div>
