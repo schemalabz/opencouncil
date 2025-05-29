@@ -34,35 +34,22 @@ export function Hero({ latestPost, cities }: HeroProps) {
     };
 
     return (
-        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
-            {/* Mobile view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:hidden z-10">
-                <div className="flex justify-center items-center">
-                    <HeaderBar
-                        latestPost={latestPost}
-                        isMobile={true}
-                        className="mt-2"
-                    />
-                </div>
-            </div>
-
-            {/* Desktop view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block z-10">
-                <div className="flex justify-center items-center max-w-screen-xl mx-auto">
-                    <HeaderBar
-                        latestPost={latestPost}
-                        className="mt-4"
-                    />
-                </div>
-            </div>
-
+        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden w-full">
             <motion.div
                 style={{ opacity, y }}
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20 z-10"
+                className="relative w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8"
             >
+                <motion.div variants={item} className="flex justify-center items-center pt-4 sm:pt-6">
+                    <HeaderBar
+                        latestPost={latestPost}
+                        className="mt-0"
+                    />
+                </motion.div>
+
+                <div className="text-center space-y-8 sm:space-y-10 mt-16 sm:mt-20">
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1
                         variants={item}
@@ -124,6 +111,7 @@ export function Hero({ latestPost, cities }: HeroProps) {
                         </Link>
                     </Button>
                 </motion.div>
+                </div>
             </motion.div>
         </section>
     );
