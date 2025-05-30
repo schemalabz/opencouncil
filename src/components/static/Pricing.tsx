@@ -105,7 +105,7 @@ export default function Pricing() {
                                 </li>
                                 <li className="flex items-start">
                                     <FileBadge2 className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Προαιρετικά, εγγύηση ορθότητας πρακτικών με επιπλέον κόστος ανά συνεδρίαση</span>
+                                    <span>Προαιρετικά, εγγύηση ορθότητας απομαγνητοφωνήσεων με επιπλέον κόστος ανά συνεδρίαση</span>
                                 </li>
                                 <li className="flex items-start">
                                     <Cuboid className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -194,7 +194,7 @@ export default function Pricing() {
                                             onCheckedChange={setNeedsAccuracyGuarantee}
                                         />
                                         <Label htmlFor="accuracy-guarantee">
-                                            Χρειάζεστε εγγύηση ορθότητας πρακτικών;
+                                            Χρειάζεστε εγγύηση ορθότητας απομαγνητοφωνήσεων;
                                         </Label>
                                     </div>
                                 </div>

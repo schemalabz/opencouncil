@@ -1,6 +1,20 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
+import { CouncilMeeting, City } from '@prisma/client';
+import { PersonWithRelations } from './people';
+
+export type SegmentWithRelations = {
+    id: string;
+    startTimestamp: number;
+    endTimestamp: number;
+    meeting: CouncilMeeting & {
+        city: City;
+    };
+    person: PersonWithRelations | null;
+    text: string;
+    summary: { text: string } | null;
+};
 
 export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
@@ -296,3 +310,253 @@ export async function deleteEmptySpeakerSegment(
 
     return segmentId;
 } 
+
+export async function getLatestSegmentsForSpeaker(
+    personId: string,
+    page: number = 1,
+    pageSize: number = 5,
+    administrativeBodyId?: string | null
+): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
+    const skip = (page - 1) * pageSize;
+
+    const [segments, totalCount] = await Promise.all([
+        prisma.speakerSegment.findMany({
+            where: {
+                speakerTag: {
+                    personId: personId
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
+            },
+            include: {
+                meeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                party: true,
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                utterances: true,
+                summary: true,
+            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
+            take: pageSize,
+            skip
+        }),
+        prisma.speakerSegment.count({
+            where: {
+                speakerTag: {
+                    personId: personId
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
+            }
+        })
+    ]);
+
+    const results = segments
+        .map(segment => ({
+            id: segment.id,
+            startTimestamp: segment.startTimestamp,
+            endTimestamp: segment.endTimestamp,
+            meeting: segment.meeting,
+            person: segment.speakerTag?.person || null,
+            text: segment.utterances.map(u => u.text).join(' '),
+            summary: segment.summary ? { text: segment.summary.text } : null
+        }))
+        // Only include segments with at least 100 characters
+        .filter(segment => segment.text.length >= 100);
+
+    return {
+        results,
+        totalCount
+    };
+}
+
+export async function getLatestSegmentsForParty(
+    partyId: string,
+    page: number = 1,
+    pageSize: number = 5,
+    administrativeBodyId?: string | null
+): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
+    const skip = (page - 1) * pageSize;
+
+    const [segments, totalCount] = await Promise.all([
+        prisma.speakerSegment.findMany({
+            where: {
+                speakerTag: {
+                    person: {
+                        roles: {
+                            some: {
+                                partyId: partyId
+                            }
+                        }
+                    }
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
+            },
+            include: {
+                meeting: {
+                    include: {
+                        city: true
+                    }
+                },
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                roles: {
+                                    where: {
+                                        partyId: partyId
+                                    },
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                utterances: true,
+                summary: true,
+            },
+            orderBy: [
+                {
+                    meeting: {
+                        dateTime: 'desc'
+                    }
+                },
+                {
+                    startTimestamp: 'desc'
+                }
+            ],
+            take: pageSize,
+            skip
+        }),
+        prisma.speakerSegment.count({
+            where: {
+                speakerTag: {
+                    person: {
+                        roles: {
+                            some: {
+                                partyId: partyId
+                            }
+                        }
+                    }
+                },
+                utterances: {
+                    some: {
+                        text: {
+                            gt: ''
+                        }
+                    }
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined
+            }
+        })
+    ]);
+
+    const results = segments
+    .filter(segment => {
+        // Safely check for minimum text length
+        const text = segment.utterances.map(u => u.text).join(' ');
+        // Safe check for person and roles
+        const hasPerson = segment.speakerTag?.person != null;
+        const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+        // Only include segments with at least 100 characters and a person with roles
+        return text.length >= 100 && hasPerson && hasRoles;
+    })
+    .flatMap(segment => {
+        const text = segment.utterances.map(u => u.text).join(' ');
+        const person = segment.speakerTag?.person;
+        
+        // At this point we know person exists thanks to our filter
+        // But TypeScript might not recognize this, so we add a safety check
+        if (!person || !Array.isArray(person.roles)) {
+            return [];
+        }
+        
+        const meetingDate = new Date(segment.meeting.dateTime);
+        
+        // Check for active role at meeting time
+        const hasActiveRole = person.roles.some(role => {
+            const startDate = role.startDate ? new Date(role.startDate) : null;
+            const endDate = role.endDate ? new Date(role.endDate) : null;
+            
+            return (!startDate || startDate <= meetingDate) &&
+                   (!endDate || endDate >= meetingDate);
+        });
+        
+        // Skip if no active role
+        if (!hasActiveRole) {
+            return [];
+        }
+        
+        return [{
+            id: segment.id,
+            startTimestamp: segment.startTimestamp,
+            endTimestamp: segment.endTimestamp,
+            meeting: segment.meeting,
+            person: person,
+            text: text,
+            summary: segment.summary ? { text: segment.summary.text } : null
+        }];
+    });
+
+    return {
+        results,
+        totalCount
+    };
+}

@@ -1,8 +1,8 @@
 "use client"
-import { useRef, useEffect, useCallback, useMemo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { cn } from '@/lib/utils'
+import { cn, calculateGeometryBounds } from '@/lib/utils'
 import { createRoot } from 'react-dom/client'
 
 export interface MapFeature {
@@ -31,37 +31,14 @@ interface MapProps {
 
 const ANIMATE_ROTATION_SPEED = 1000;
 
-const guessCenterFromFeatures = (features: MapFeature[]): [number, number] | undefined => {
-    if (features.length === 0) return undefined;
-    console.log("Centering on feature");
-    const feature = features[0];
-    if (!feature.geometry) return undefined;
-    if (feature.geometry.type === 'Point') {
-        console.log("Centering on point");
-        return [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
-    } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-        console.log("Centering on polygon");
-        // For polygons, find the center by averaging all coordinates
-        const coords = feature.geometry.type === 'Polygon' ?
-            feature.geometry.coordinates[0] :
-            feature.geometry.coordinates[0][0];
-
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-
-        coords.forEach((coord: [number, number]) => {
-            minX = Math.min(minX, coord[0]);
-            maxX = Math.max(maxX, coord[0]);
-            minY = Math.min(minY, coord[1]);
-            maxY = Math.max(maxY, coord[1]);
-        });
-
-        return [(minX + maxX) / 2, (minY + maxY) / 2];
+const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
+    if (features.length === 0) {
+        return calculateGeometryBounds(null).center;
     }
-    return undefined;
+    return calculateGeometryBounds(features[0].geometry).center;
 }
 
-export default function Map({
+const Map = memo(function Map({
     className,
     center = undefined,
     zoom = 10,
@@ -77,13 +54,18 @@ export default function Map({
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const animationFrame = useRef<number | null>(null)
     const featuresRef = useRef(features)
+    const isInitialized = useRef(false)
 
-    // Memoize the center coordinates
-    const centerCoords = useMemo(() => {
+    // Store user-controlled states in refs to preserve them during rerenders
+    const currentZoom = useRef(zoom)
+    const currentCenter = useRef<[number, number] | undefined>(undefined)
+    const isUserInteracted = useRef(false)
+
+    // Memoize the center coordinates only for initial setup
+    const initialCenterCoords = useMemo(() => {
         if (center) return center;
-        const guessedCenter = guessCenterFromFeatures(features);
-        return guessedCenter || [23.7275, 37.9838] as [number, number];
-    }, [center, features]);
+        return guessCenterFromFeatures(features);
+    }, []); // Empty dependency array - only calculate once
 
     const rotateCamera = useCallback((timestamp: number) => {
         if (!map.current) return
@@ -174,13 +156,31 @@ export default function Map({
 
         mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN!;
 
+        const centerToUse = currentCenter.current || initialCenterCoords;
+        const zoomToUse = currentZoom.current;
+
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/christosporios/cm4icyrf700f201qw75bv27fa',
-            center: centerCoords,
-            zoom,
+            center: centerToUse,
+            zoom: zoomToUse,
             pitch,
             attributionControl: false,
+        });
+
+        // Track user interactions to prevent auto-centering
+        map.current.on('dragend', () => {
+            isUserInteracted.current = true;
+            if (map.current) {
+                currentCenter.current = [map.current.getCenter().lng, map.current.getCenter().lat];
+            }
+        });
+
+        map.current.on('zoomend', () => {
+            isUserInteracted.current = true;
+            if (map.current) {
+                currentZoom.current = map.current.getZoom();
+            }
         });
 
         const resizeObserver = new ResizeObserver(() => {
@@ -191,6 +191,8 @@ export default function Map({
 
         // Wait for map to load before initializing features
         map.current.on('load', () => {
+            isInitialized.current = true;
+
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
             }
@@ -297,14 +299,31 @@ export default function Map({
             resizeObserver.disconnect();
             map.current?.remove();
             map.current = null;
+            isInitialized.current = false;
         };
-    }, [features, centerCoords, zoom, pitch, animateRotation, handleFeatureHover, handleFeatureLeave, handleMapFeatureClick, onFeatureClick, rotateCamera]); // Add all dependencies
+    }, []); // Empty dependency array - initialize only once
 
-    // Handle feature updates
+    // Handle feature updates without resetting zoom/center
     useEffect(() => {
-        if (!map.current || !map.current.loaded() || !map.current.getSource('features')) return;
+        if (!map.current || !isInitialized.current || !map.current.getSource('features')) return;
 
-        // Update source data
+        console.log('Updating map features:', features);
+
+        // Additional debug for point features
+        features.forEach(feature => {
+            if (feature.geometry?.type === 'Point') {
+                console.log('Point geometry details:', {
+                    id: feature.id,
+                    coordinates: feature.geometry.coordinates,
+                    valid: Array.isArray(feature.geometry.coordinates) &&
+                        feature.geometry.coordinates.length === 2 &&
+                        typeof feature.geometry.coordinates[0] === 'number' &&
+                        typeof feature.geometry.coordinates[1] === 'number'
+                });
+            }
+        });
+
+        // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',
             features: features.map(feature => ({
@@ -324,14 +343,40 @@ export default function Map({
         });
     }, [features]);
 
-    // Update map position when center/zoom changes
+    // Only update center/zoom if explicitly changed via props AND user hasn't interacted
     useEffect(() => {
-        if (!map.current || !map.current.loaded()) return;
-        map.current.setCenter(centerCoords);
-        map.current.setZoom(zoom);
-    }, [centerCoords, zoom]);
+        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+
+        // If center prop changes explicitly, update it
+        if (center && (currentCenter.current?.[0] !== center[0] || currentCenter.current?.[1] !== center[1])) {
+            map.current.setCenter(center);
+            currentCenter.current = center;
+        }
+    }, [center]);
+
+    useEffect(() => {
+        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+
+        // If zoom prop changes explicitly, update it
+        if (zoom !== currentZoom.current) {
+            map.current.setZoom(zoom);
+            currentZoom.current = zoom;
+        }
+    }, [zoom]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison to prevent unnecessary rerenders
+    // Only rerender if specific props change
+    return (
+        prevProps.center === nextProps.center &&
+        prevProps.zoom === nextProps.zoom &&
+        prevProps.animateRotation === nextProps.animateRotation &&
+        prevProps.pitch === nextProps.pitch &&
+        JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
+    );
+})
+
+export default Map;

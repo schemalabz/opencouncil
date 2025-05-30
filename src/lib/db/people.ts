@@ -160,12 +160,28 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
     }
 }
 
-export async function getPeopleForCity(cityId: string): Promise<PersonWithRelations[]> {
+export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean = false): Promise<PersonWithRelations[]> {
     try {
+        const now = new Date();
         const people = await prisma.person.findMany({
             where: { cityId },
             include: {
                 roles: {
+                    where: activeRolesOnly ? {
+                        OR: [
+                            // Both dates null
+                            { startDate: null, endDate: null },
+                            // Only start date set - active if in past
+                            { startDate: { lte: now }, endDate: null },
+                            // Only end date set - active if in future
+                            { startDate: null, endDate: { gt: now } },
+                            // Both dates set - active if current time is within range
+                            { 
+                                startDate: { lte: now },
+                                endDate: { gt: now }
+                            }
+                        ]
+                    } : undefined,
                     include: {
                         party: true,
                         city: true,

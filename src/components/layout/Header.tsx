@@ -4,10 +4,14 @@ import { Link } from '@/i18n/routing'
 import { useLocale } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
-import { motion, useScroll, useTransform } from 'framer-motion'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState, useRef, useEffect } from "react"
 
 export interface PathElement {
     name: string
@@ -28,6 +32,50 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const { scrollY } = useScroll();
     const borderOpacity = useTransform(scrollY, [0, 10], [0, 1], { clamp: true });
     const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
+    const router = useRouter();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const searchOverlayRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            const searchUrl = currentEntity?.cityId 
+                ? `/search?query=${encodeURIComponent(searchQuery.trim())}&cityId=${currentEntity.cityId}`
+                : `/search?query=${encodeURIComponent(searchQuery.trim())}`;
+            router.push(searchUrl);
+            setSearchQuery("");
+            setIsSearchOpen(false);
+        }
+    };
+
+    const handleChatClick = () => {
+        const chatUrl = currentEntity?.cityId 
+            ? `/chat?cityId=${currentEntity.cityId}`
+            : '/chat';
+        router.push(chatUrl);
+        setIsSearchOpen(false);
+    };
+
+    // Handle click outside for search modal
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchOverlayRef.current && !searchOverlayRef.current.contains(event.target as Node)) {
+                setIsSearchOpen(false);
+            }
+        };
+
+        if (isSearchOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            // Focus the input when search opens
+            searchInputRef.current?.focus();
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isSearchOpen]);
 
     return (
         <motion.header
@@ -118,7 +166,16 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
                     <div className="flex items-center gap-4 flex-shrink-0 ml-2 md:ml-4">
                         {children}
-                        <UserDropdown currentEntity={currentEntity} />
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsSearchOpen(true)}
+                                className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-accent transition-colors"
+                                title="Search"
+                            >
+                                <Search className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                            <UserDropdown currentEntity={currentEntity} />
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -200,11 +257,64 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
 
                         <div className="flex items-center gap-4 flex-shrink-0">
                             {children}
-                            <UserDropdown currentEntity={currentEntity} />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setIsSearchOpen(true)}
+                                    className="flex items-center justify-center h-9 w-9 rounded-full hover:bg-accent transition-colors"
+                                    title="Search"
+                                >
+                                    <Search className="h-4 w-4 text-muted-foreground" />
+                                </button>
+                                <UserDropdown currentEntity={currentEntity} />
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Search Modal */}
+            <AnimatePresence>
+                {isSearchOpen && (
+                    <div className="fixed inset-0 z-50">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center p-4">
+                            <motion.div
+                                ref={searchOverlayRef}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="relative w-full max-w-2xl bg-background rounded-lg shadow-lg border"
+                            >
+                                <form onSubmit={handleSearch} className="relative p-4">
+                                    <Search className="absolute left-7 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        ref={searchInputRef}
+                                        type="text"
+                                        placeholder="Αναζήτηση..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-9 h-12 text-base"
+                                        autoFocus
+                                    />
+                                </form>
+                                <div className="px-4 pb-4">
+                                    <button
+                                        onClick={handleChatClick}
+                                        className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors flex justify-end underline decoration-1 underline-offset-4"
+                                    >
+                                        ή συνομιλήστε με το OpenCouncil AI
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    </div>
+                )}
+            </AnimatePresence>
         </motion.header>
     )
 }

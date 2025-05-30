@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
-import { deleteCity, editCity, getCity } from '@/lib/db/cities'
+import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
 
 
 const s3Client = new S3({
@@ -17,7 +17,18 @@ const s3Client = new S3({
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
     const city = await getCity(params.cityId);
-    return NextResponse.json(city)
+
+    if (!city) {
+        return NextResponse.json({ error: 'City not found' }, { status: 404 });
+    }
+
+    // Get the city with geometry
+    const citiesWithGeometry = await getCitiesWithGeometry([city]);
+    const cityWithGeometry = citiesWithGeometry[0];
+
+    console.log('API returning city with geometry:', cityWithGeometry);
+
+    return NextResponse.json(cityWithGeometry);
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {

@@ -64,7 +64,8 @@ const formSchema = z.object({
     }),
     cityId: z.string().optional(),
     correctnessGuarantee: z.boolean().default(false),
-    meetingsToIngest: z.number().int().min(1).max(100).optional()
+    meetingsToIngest: z.number().int().min(1).optional(),
+    hoursToGuarantee: z.number().int().min(1).optional()
 })
 
 interface OfferFormProps {
@@ -109,12 +110,13 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
             respondToPhone: offer?.respondToPhone || "",
             cityId: cityId || offer?.cityId || undefined,
             correctnessGuarantee: offer?.correctnessGuarantee || false,
-            meetingsToIngest: offer?.meetingsToIngest || 1
+            meetingsToIngest: offer?.meetingsToIngest || 1,
+            hoursToGuarantee: offer?.hoursToGuarantee || 1
         },
     })
 
     const watchedValues = form.watch()
-    const { total } = calculateOfferTotals(watchedValues as Offer)
+    const { total } = calculateOfferTotals({ ...watchedValues, version: 3 } as Offer)
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -124,15 +126,19 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 await updateOffer(offer.id, {
                     ...values,
                     cityId: values.cityId || null,
-                    meetingsToIngest: values.correctnessGuarantee ? values.meetingsToIngest : null,
-                    correctnessGuarantee: values.correctnessGuarantee
+                    meetingsToIngest: values.correctnessGuarantee && offer.version === 1 ? values.meetingsToIngest : null,
+                    hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
+                    correctnessGuarantee: values.correctnessGuarantee,
+                    version: 3
                 })
             } else {
                 await createOffer({
                     ...values,
                     cityId: values.cityId || null,
-                    meetingsToIngest: values.correctnessGuarantee ? values.meetingsToIngest! : null,
-                    correctnessGuarantee: values.correctnessGuarantee
+                    meetingsToIngest: null,
+                    hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
+                    correctnessGuarantee: values.correctnessGuarantee,
+                    version: 3
                 })
             }
 
@@ -156,7 +162,8 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 respondToPhone: "",
                 cityId: undefined,
                 correctnessGuarantee: false,
-                meetingsToIngest: 1
+                meetingsToIngest: 1,
+                hoursToGuarantee: 1
             })
             toast({
                 title: t('success'),
@@ -350,35 +357,67 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     )}
                 />
 
-                <FormField
-                    control={form.control}
-                    name="meetingsToIngest"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('meetingsToIngest')}</FormLabel>
-                            <FormControl>
-                                <div className="flex items-center gap-2">
-                                    <Slider
-                                        disabled={!form.watch('correctnessGuarantee')}
-                                        min={1}
-                                        max={100}
-                                        step={1}
-                                        value={[field.value || 1]}
-                                        onValueChange={([value]) => field.onChange(value)}
-                                    />
-                                    <span className="w-12 text-sm">{field.value || 1}</span>
-                                </div>
-                            </FormControl>
-                            <FormDescription>
-                                {!form.watch('correctnessGuarantee')
-                                    ? t('meetingsToIngestDisabledDescription')
-                                    : t('meetingsToIngestDescription')
-                                }
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {offer?.version === 1 ? (
+                    <FormField
+                        control={form.control}
+                        name="meetingsToIngest"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('meetingsToIngest')}</FormLabel>
+                                <FormControl>
+                                    <div className="flex items-center gap-2">
+                                        <Slider
+                                            disabled={!form.watch('correctnessGuarantee')}
+                                            min={1}
+                                            max={100}
+                                            step={1}
+                                            value={[field.value || 1]}
+                                            onValueChange={([value]) => field.onChange(value)}
+                                        />
+                                        <span className="w-12 text-sm">{field.value || 1}</span>
+                                    </div>
+                                </FormControl>
+                                <FormDescription>
+                                    {!form.watch('correctnessGuarantee')
+                                        ? t('meetingsToIngestDisabledDescription')
+                                        : t('meetingsToIngestDescription')
+                                    }
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                ) : (
+                    <FormField
+                        control={form.control}
+                        name="hoursToGuarantee"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('hoursToGuarantee')}</FormLabel>
+                                <FormControl>
+                                    <div className="flex items-center gap-2">
+                                        <Slider
+                                            disabled={!form.watch('correctnessGuarantee')}
+                                            min={1}
+                                            max={form.watch('hoursToIngest')}
+                                            step={1}
+                                            value={[field.value || 1]}
+                                            onValueChange={([value]) => field.onChange(value)}
+                                        />
+                                        <span className="w-12 text-sm">{field.value || 1}</span>
+                                    </div>
+                                </FormControl>
+                                <FormDescription>
+                                    {!form.watch('correctnessGuarantee')
+                                        ? t('hoursToGuaranteeDisabledDescription')
+                                        : t('hoursToGuaranteeDescription')
+                                    }
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
 
                 <FormField
                     control={form.control}

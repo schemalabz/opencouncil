@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { PersonBadge } from "../persons/PersonBadge";
-import { SearchResult } from "@/lib/search/search";
+import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { useLocale } from "next-intl";
 import { el, enUS } from "date-fns/locale";
 
-export function Result({ result, className }: { result: SearchResult, className?: string }) {
+export function Result({ result, className }: { result: SegmentWithRelations, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const locale = useLocale();
 
@@ -21,9 +21,9 @@ export function Result({ result, className }: { result: SearchResult, className?
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
     };
 
-    const borderColor = result.speakerSegment.party?.colorHex || '#D3D3D3';
-    const timeParam = `t=${Math.floor(result.speakerSegment.startTimestamp)}`;
-    const transcriptUrl = `/${result.city.id}/${result.councilMeeting.id}/transcript?${timeParam}`;
+    const borderColor = result.person?.roles[0]?.party?.colorHex || '#D3D3D3';
+    const timeParam = `t=${Math.floor(result.startTimestamp)}`;
+    const transcriptUrl = `/${result.meeting.city.id}/${result.meeting.id}/transcript?${timeParam}`;
 
     return (
         <Card
@@ -34,33 +34,33 @@ export function Result({ result, className }: { result: SearchResult, className?
                 <div className="flex flex-col space-y-2">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                         <Link
-                            href={`/${result.city.id}`}
+                            href={`/${result.meeting.city.id}`}
                             className="text-sm text-muted-foreground hover:text-foreground"
                         >
-                            {result.city.name}
+                            {result.meeting.city.name}
                         </Link>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Link
-                                href={`/${result.city.id}/${result.councilMeeting.id}`}
+                                href={`/${result.meeting.city.id}/${result.meeting.id}`}
                                 className="hover:text-foreground"
                             >
-                                {format(new Date(result.councilMeeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
+                                {format(new Date(result.meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
                             </Link>
                             <span>•</span>
-                            <span>{formatTimestamp(result.speakerSegment.startTimestamp)}</span>
+                            <span>{formatTimestamp(result.startTimestamp)}</span>
                         </div>
                     </div>
 
                     <PersonBadge
-                        person={result.speakerSegment.person}
+                        person={result.person || undefined}
                     />
                 </div>
 
                 <div className="w-full cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                    {result.speakerSegment.summary && (
+                    {result.summary && (
                         <div className="pl-4 border-l-2 border-muted mb-4">
                             <p className="text-muted-foreground">
-                                {result.speakerSegment.summary.text}
+                                {result.summary.text}
                             </p>
                         </div>
                     )}
@@ -68,9 +68,9 @@ export function Result({ result, className }: { result: SearchResult, className?
                         "text-sm text-gray-600 whitespace-pre-wrap",
                         !isExpanded && "line-clamp-3"
                     )}>
-                        {result.speakerSegment.text}
+                        {result.text}
                     </p>
-                    {result.speakerSegment.text && result.speakerSegment.text.length > 200 && (
+                    {result.text.length > 200 && (
                         <button
                             className="text-xs text-blue-600 hover:text-blue-800 mt-1"
                             onClick={(e) => {

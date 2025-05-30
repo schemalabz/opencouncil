@@ -144,6 +144,37 @@ paths:
         '500':
           description: Failed to fetch person
 
+  # Search
+  /api/search:
+    post:
+      summary: Search subjects
+      description: Search for subjects using a hybrid search approach that combines traditional text search with semantic search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   parameters:
     cityId:
@@ -248,18 +279,19 @@ components:
           type: number
         endTimestamp:
           type: number
-        speakerTag:
-          $ref: '#/components/schemas/SpeakerTag'
-        utterances:
-          type: array
-          items:
-            $ref: '#/components/schemas/Utterance'
-        topicLabels:
-          type: array
-          items:
-            $ref: '#/components/schemas/TopicLabel'
+        meeting:
+          $ref: '#/components/schemas/Meeting'
+        person:
+          $ref: '#/components/schemas/Person'
+          nullable: true
+        text:
+          type: string
         summary:
-          $ref: '#/components/schemas/Summary'
+          type: object
+          nullable: true
+          properties:
+            text:
+              type: string
 
     SpeakerTag:
       type: object
@@ -401,3 +433,185 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    SearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: The search query
+          example: "ηλεκτρικά πατίνια"
+        cityIds:
+          type: array
+          items:
+            type: string
+          description: Array of city IDs to filter by
+          example: ["athens", "chania"]
+        personIds:
+          type: array
+          items:
+            type: string
+          description: Array of person IDs to filter by
+        partyIds:
+          type: array
+          items:
+            type: string
+          description: Array of party IDs to filter by
+        topicIds:
+          type: array
+          items:
+            type: string
+          description: Array of topic IDs to filter by
+        dateRange:
+          type: object
+          description: Date range for filtering results
+          properties:
+            start:
+              type: string
+              format: date-time
+              description: Start date (ISO 8601)
+              example: "2024-01-01T00:00:00Z"
+            end:
+              type: string
+              format: date-time
+              description: End date (ISO 8601)
+              example: "2024-12-31T23:59:59Z"
+        location:
+          type: object
+          description: Geographic location filter
+          properties:
+            point:
+              type: object
+              description: Center point coordinates
+              properties:
+                lat:
+                  type: number
+                  description: Latitude
+                lon:
+                  type: number
+                  description: Longitude
+            radius:
+              type: number
+              description: Search radius in kilometers
+              default: 5
+        page:
+          type: integer
+          description: Page number
+          default: 1
+          minimum: 1
+        pageSize:
+          type: integer
+          description: Results per page
+          default: 10
+          minimum: 1
+          maximum: 100
+        detailed:
+          type: boolean
+          description: Whether to return detailed results with speaker segment text
+          default: false
+
+    SearchResultLight:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        councilMeeting:
+          allOf:
+            - $ref: '#/components/schemas/Meeting'
+            - type: object
+              properties:
+                city:
+                  $ref: '#/components/schemas/City'
+        topic:
+          $ref: '#/components/schemas/Topic'
+          nullable: true
+        introducedBy:
+          $ref: '#/components/schemas/Person'
+          nullable: true
+        location:
+          type: object
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+              enum: [point, lineString, polygon]
+            text:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                x:
+                  type: number
+                y:
+                  type: number
+          nullable: true
+        score:
+          type: number
+        matchedSpeakerSegmentIds:
+          type: array
+          items:
+            type: string
+          description: Array of speaker segment IDs that matched the search query
+          nullable: true
+        highlights:
+          type: array
+          items:
+            $ref: '#/components/schemas/Highlight'
+
+    SearchResultDetailed:
+      allOf:
+        - $ref: '#/components/schemas/SearchResultLight'
+        - type: object
+          properties:
+            speakerSegments:
+              type: array
+              items:
+                $ref: '#/components/schemas/SpeakerSegment'
+
+    SearchResponse:
+      type: object
+      properties:
+        results:
+          oneOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/SearchResultLight'
+            - type: array
+              items:
+                $ref: '#/components/schemas/SearchResultDetailed'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+              description: Total number of results
+            page:
+              type: integer
+              description: Current page number
+            pageSize:
+              type: integer
+              description: Number of results per page
+            totalPages:
+              type: integer
+              description: Total number of pages
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [INVALID_REQUEST, SEARCH_ERROR, RATE_LIMIT_EXCEEDED, INTERNAL_ERROR]
+            message:
+              type: string
+            details:
+              type: object

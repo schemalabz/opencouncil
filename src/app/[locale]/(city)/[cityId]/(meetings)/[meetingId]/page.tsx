@@ -3,17 +3,18 @@ import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectCards } from "@/components/meetings/subject-cards";
 import { formatDate } from "date-fns";
-import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, VideoIcon } from "lucide-react";
-import { cn, sortSubjectsByImportance, subjectToMapFeature } from "@/lib/utils";
+import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText, VideoIcon, AudioLines, Ban } from "lucide-react";
+import { cn, sortSubjectsByImportance, subjectToMapFeature, getMeetingState } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
+import { useEffect } from "react";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
-    const hottestSubjects = sortSubjectsByImportance(subjects)
+    const hottestSubjects = sortSubjectsByImportance(subjects, 'importance')
         .slice(0, Math.max(9, subjects.filter(s => s.hot).length));
     const isOldVersion = subjects.length === 0;
 
@@ -21,6 +22,16 @@ export default function MeetingPage() {
     const subjectFeatures = subjects
         .map(subjectToMapFeature)
         .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+
+    // Debug logs to compare with MeetingCard sorting
+    useEffect(() => {
+        if (hottestSubjects.length > 0) {
+            const topThree = hottestSubjects.slice(0, Math.min(3, hottestSubjects.length));
+            console.log(`MeetingPage - top subjects: ${topThree.map(s =>
+                `${s.name}${s.hot ? ' (HOT)' : ''}${s.speakerSegments ? ` (${s.speakerSegments.length} segments)` : ''}`
+            ).join(', ')}`);
+        }
+    }, [hottestSubjects]);
 
     return (
         <div className="flex flex-col w-full">
@@ -78,6 +89,8 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
+    const meetingState = getMeetingState(meeting);
+
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
@@ -87,12 +100,13 @@ function MeetingInfo() {
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {formatDate(new Date(meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
                     </div>
-                    {meeting.videoUrl && (
-                        <div className="flex items-center">
-                            <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                            {meeting.videoUrl ? "Βίντεο Διαθέσιμο" : meeting.audioUrl ? "Μόνο ήχος" : "Χωρίς βίντεο/ήχο"}
-                        </div>
-                    )}
+                    <div className="flex items-center">
+                        {meetingState.icon === "video" && <VideoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "audio" && <AudioLines className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "fileText" && <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.icon === "ban" && <Ban className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />}
+                        {meetingState.label}
+                    </div>
 
                     {meeting.agendaUrl && (
                         <div className="flex items-center">

@@ -9,7 +9,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total, paymentPlan, correctnessGuaranteeCost } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, subtotal, discount, total, hoursToGuarantee, correctnessGuaranteeCost, paymentPlan } = calculateOfferTotals(offer)
     const isRegion = offer.recipientName.startsWith("Περιφέρεια"); // awful, fix this
 
     const CTABox = () => (
@@ -78,11 +78,21 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
-                            {offer.correctnessGuarantee && offer.meetingsToIngest && (
+                            {offer.correctnessGuarantee && hoursToGuarantee && (
                                 <tr className="border-b bg-white">
-                                    <td className="py-2">Έλεγχος πρακτικών από άνθρωπο</td>
-                                    <td className="text-right">{offer.meetingsToIngest} συνεδριάσεις</td>
-                                    <td className="text-right">{formatCurrency(correctnessGuaranteeCost / offer.meetingsToIngest)}/συνεδρίαση</td>
+                                    <td className="py-2">Έλεγχος απομαγνητοφωνήσεων από άνθρωπο</td>
+                                    <td className="text-right">
+                                        {offer.version !== null && offer.version > 1
+                                            ? `${hoursToGuarantee} ώρες`
+                                            : `${hoursToGuarantee} συνεδριάσεις`
+                                        }
+                                    </td>
+                                    <td className="text-right">
+                                        {offer.version !== null && offer.version > 1
+                                            ? `${formatCurrency(offer.version === 2 ? 20 : 11)}/ώρα`
+                                            : `${formatCurrency(80)}/συνεδρίαση`
+                                        }
+                                    </td>
                                     <td className="text-right">{formatCurrency(correctnessGuaranteeCost)}</td>
                                 </tr>
                             )}
@@ -220,7 +230,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Εξαγωγή πρακτικών σε PDF για κάθε συνεδρίαση.</span>
+                                <span>Εξαγωγή απομαγνητοφωνήσεων σε PDF για κάθε συνεδρίαση.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -228,7 +238,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Εύκολη αναζήτηση των πρακτικών.</span>
+                                <span>Εύκολη αναζήτηση των θεμάτων και απομαγνητοφωνήσεων.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -401,7 +411,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <section className="mb-8 print:break-inside-avoid">
                     <h3 className="text-2xl font-semibold mb-4">Στοιχεία Εταιρείας</h3>
                     <p className="">
-                        <em className="no-underline">OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.</em><br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
+                        OpenCouncil Μονοπρόσωπη Ι.Κ.Ε.<br />Λαλέχου 1, Νέο Ψυχικό 15451<br />ΑΦΜ 802666391 (ΚΕΦΟΔΕ Αττικής)<br />Aριθμός ΓΕΜΗ 180529301000.
                     </p>
                     <p className="mt-2">
                         H OpenCouncil ανήκει στην <a href="https://schemalabs.gr" className="underline">Schema Labs Αστική Μη Κερδοσκοπική Εταιρεία</a>.

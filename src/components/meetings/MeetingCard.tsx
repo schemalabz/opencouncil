@@ -3,20 +3,32 @@ import { CouncilMeeting, Subject, Topic } from '@prisma/client';
 import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
 import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, getMeetingState } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { motion } from 'framer-motion';
 
+// Helper function for development-only logs
+const logDev = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[Dev] ${message}`, data || '');
+    }
+};
+
 interface MeetingCardProps {
-    item: CouncilMeeting & { subjects: (Subject & { topic?: Topic | null })[] };
+    item: CouncilMeeting & {
+        subjects: (Subject & {
+            topic?: Topic | null,
+            speakerSegments?: any[] // Using any for flexibility with the structure
+        })[]
+    };
     editable: boolean;
     mostRecent?: boolean;
     cityTimezone?: string;
@@ -54,6 +66,32 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
+    // Since data comes from the backend as ordered by hot status already (due to db query order),
+    // we maintain that order but use our utility for consistency
+    const sortedSubjects = useMemo(() => {
+        const result = sortSubjectsByImportance(meeting.subjects, 'importance');
+
+        // Debug logs to help understand the sorting
+        if (result.length > 0) {
+            const topThree = result.slice(0, Math.min(3, result.length));
+            logDev('MeetingCard - Subject Sorting', {
+                meetingId: meeting.id,
+                meetingName: meeting.name,
+                totalSubjects: result.length,
+                topSubjects: topThree.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    isHot: s.hot,
+                    segmentCount: s.speakerSegments?.length || 0,
+                    agendaItemIndex: s.agendaItemIndex,
+                    hasTopic: !!s.topic
+                }))
+            });
+        }
+
+        return result;
+    }, [meeting.subjects]);
+
     const handleClick = async (e: React.MouseEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -73,11 +111,21 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     };
 
     const getMediaStatus = () => {
-        if (meeting.videoUrl) return t('withVideo');
-        if (meeting.audioUrl) return t('withAudio');
-        if (meeting.agendaUrl) return t('withAgenda');
-        return t('noVideo');
+        const meetingState = getMeetingState(meeting);
+
+        return (
+            <div className="flex items-center gap-1">
+                {meetingState.icon === "video" && <VideoIcon className="w-4 h-4" />}
+                {meetingState.icon === "audio" && <AudioLines className="w-4 h-4" />}
+                {meetingState.icon === "fileText" && <FileText className="w-4 h-4" />}
+                {meetingState.icon === "ban" && <Ban className="w-4 h-4" />}
+                <span>{meetingState.label}</span>
+            </div>
+        );
     };
+
+    // Ensure we have subjects to display
+    const hasSubjects = meeting.subjects.length > 0;
 
     return (
         <motion.div
@@ -170,17 +218,16 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                 </span>
                             </div>
                             <div className="flex items-center gap-1">
-                                {getMediaIcon()}
-                                <span>{getMediaStatus()}</span>
+                                {getMediaStatus()}
                             </div>
                         </div>
 
                         {/* Subjects list - more compact */}
-                        {meeting.subjects.length > 0 && (
+                        {hasSubjects && (
                             <div className="mt-2 pb-3">
                                 <div className="pt-2 border-t">
                                     <div className="flex flex-col">
-                                        {meeting.subjects.slice(0, 3).map((subject) => (
+                                        {sortedSubjects.slice(0, 3).map((subject) => (
                                             <div
                                                 key={subject.id}
                                                 className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"

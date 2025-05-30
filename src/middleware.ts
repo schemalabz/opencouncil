@@ -3,7 +3,6 @@ import { routing } from './i18n/routing';
 import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from './auth'
 
-
 const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
 
 export default async function middleware(req: NextRequest) {
@@ -14,6 +13,10 @@ export default async function middleware(req: NextRequest) {
             headers: { 'WWW-Authenticate': 'Basic' },
         });
     }
+
+    // Handle the specific case for opencouncil.chania.gr
+    const chaniaResponse = handleChaniaSubdomain(req);
+    if (chaniaResponse) return chaniaResponse;
 
     // Handle i18n first
     const pathname = req.nextUrl.pathname;
@@ -41,4 +44,38 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 
     const [username, password] = atob(authHeader.split(' ')[1]).split(':');
     return username === process.env.BASIC_AUTH_USERNAME && password === process.env.BASIC_AUTH_PASSWORD;
+}
+
+/**
+ * Handles opencouncil.chania.gr by redirecting all requests to opencouncil.gr/chania
+ */
+function handleChaniaSubdomain(req: NextRequest) {
+    const hostname = req.headers.get('host');
+
+    // Only handle the specific case of opencouncil.chania.gr
+    if (hostname !== 'opencouncil.chania.gr') {
+        return null;
+    }
+
+    const url = req.nextUrl.clone();
+    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
+    const path = url.pathname;
+
+    // Create URL for the main domain
+    const mainSiteUrl = new URL(`https://${mainDomain}`);
+
+    // Append original path to /chania
+    if (path === '/') {
+        // Just redirect to /chania if we're at the root
+        mainSiteUrl.pathname = '/chania';
+    } else {
+        // Otherwise add the path after /chania
+        mainSiteUrl.pathname = `/chania${path}`;
+    }
+
+    // Preserve any query parameters
+    mainSiteUrl.search = url.search;
+
+    // Redirect to the main domain with a temporary (302) redirect
+    return NextResponse.redirect(mainSiteUrl, 302);
 }

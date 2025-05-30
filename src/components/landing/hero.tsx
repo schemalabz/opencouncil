@@ -110,8 +110,8 @@ export function Hero({ latestPost }: HeroProps) {
                         size="xl"
                         className="group transition-all duration-300"
                     >
-                        <Link href="/explain">
-                            <span className="relative z-10">📖 Μάθε πώς δουλεύει</span>
+                        <Link href="/notifications">
+                            <span className="relative z-10">🔔 Γραφτείτε στις ενημερώσεις</span>
                             <motion.div
                                 className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
                                 whileHover={{
@@ -120,6 +120,7 @@ export function Hero({ latestPost }: HeroProps) {
                             />
                         </Link>
                     </Button>
+
                     <Button
                         asChild
                         variant="link"

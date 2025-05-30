@@ -11,6 +11,8 @@ const nextConfig = {
     transpilePackages: ['@'],
     // Development optimizations
     swcMinify: true,
+    // Enable custom domains - we'll handle this entirely in middleware
+    // Removing the invalid rewrite configuration
 };
 
 export default withNextIntl(nextConfig);

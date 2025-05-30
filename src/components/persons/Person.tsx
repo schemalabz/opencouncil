@@ -13,10 +13,7 @@ import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbS
 import { Link } from '@/i18n/routing';
 import { Statistics as StatisticsType } from "@/lib/statistics";
 import { Statistics } from '../Statistics';
-import { getLatestSegmentsForSpeaker } from '@/lib/search/search';
-import { SearchResult } from '@/lib/search/search';
-import { format } from 'date-fns';
-import { PersonBadge } from './PersonBadge';
+import { getLatestSegmentsForSpeaker, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
@@ -42,7 +39,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const t = useTranslations('Person');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const [latestSegments, setLatestSegments] = useState<SearchResult[]>([]);
+    const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
@@ -75,6 +72,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
     }, [person.roles]);
+
+    // Check if person is an independent council member
+    const isIndependentCouncilMember = useMemo(() => {
+        if (roles.active.partyRoles.length > 0) return false;
+
+        return roles.active.adminBodyRoles.some(role =>
+            role.administrativeBody?.type === 'council'
+        );
+    }, [roles.active.partyRoles, roles.active.adminBodyRoles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -141,7 +147,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             const response = await fetch(`/api/cities/${city.id}/people/${person.id}`, {
                 method: 'DELETE',
             });
-            
+
             if (response.ok) {
                 toast({
                     title: t('personDeleted', { name: person.name }),
@@ -285,6 +291,18 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             {role.name && ` - ${role.name}`}
                                         </motion.div>
                                     ))}
+
+                                    {/* Independent Council Member */}
+                                    {isIndependentCouncilMember && (
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ delay: 0.4 }}
+                                            className="text-base sm:text-lg text-muted-foreground italic"
+                                        >
+                                            Ανεξάρτητος Δημοτικός Σύμβουλος
+                                        </motion.div>
+                                    )}
                                 </div>
                                 {person.profileUrl && (
                                     <motion.a
@@ -496,14 +514,14 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             </div>
                         ) : (
                             <div className="space-y-3 sm:space-y-4">
-                                {latestSegments.map((result, index) => (
+                                {latestSegments.map((segment, index) => (
                                     <motion.div
                                         key={index}
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.1 * index }}
                                     >
-                                        <Result result={result} />
+                                        <Result result={segment} />
                                     </motion.div>
                                 ))}
 

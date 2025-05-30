@@ -110,18 +110,111 @@ export function formatDateRange(startDate: Date | null, endDate: Date | null, t:
   return '';
 }
 
-export function sortSubjectsByImportance<T extends Subject & { topic?: Topic | null, statistics?: Statistics }>(subjects: T[]) {
+export function sortSubjectsByImportance<T extends Subject & {
+  topic?: Topic | null,
+  statistics?: Statistics,
+  // Make the type more flexible for different speaker segment structures
+  speakerSegments?: any[]
+}>(
+  subjects: T[],
+  orderBy: 'importance' | 'appearance' = 'importance'
+) {
   return [...subjects].sort((a, b) => {
-    // First priority: hot subjects
+    // First priority: hot subjects (regardless of ordering mode)
     if (b.hot && !a.hot) return 1;
     if (a.hot && !b.hot) return -1;
 
-    // Second priority: speaking time
-    if (a.statistics && b.statistics) {
-      return b.statistics.speakingSeconds - a.statistics.speakingSeconds;
+    if (orderBy === 'importance') {
+      // Second priority: speaking time from statistics
+      if (a.statistics && b.statistics) {
+        const timeComparison = b.statistics.speakingSeconds - a.statistics.speakingSeconds;
+        // Add tie breaker for equal statistics
+        if (timeComparison === 0) {
+          // If agenda items exist, use them as first tie breaker
+          if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+            return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
+          }
+          // If names exist, use alphabetical order as second tie breaker
+          return a.name.localeCompare(b.name);
+        }
+        return timeComparison;
+      }
+
+      // Alternative for importance: number of speaker segments
+      if (a.speakerSegments && b.speakerSegments) {
+        const segmentComparison = b.speakerSegments.length - a.speakerSegments.length;
+        // Add tie breaker for equal segment counts
+        if (segmentComparison === 0) {
+          // If agenda items exist, use them as first tie breaker
+          if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+            return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
+          }
+          // If names exist, use alphabetical order as second tie breaker
+          return a.name.localeCompare(b.name);
+        }
+        return segmentComparison;
+      }
+
+      // If no statistics or segments, use agenda item index
+      if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+        return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
+      }
+
+      // Last resort: alphabetical sort by name
+      return a.name.localeCompare(b.name);
+    } else if (orderBy === 'appearance') {
+      // For appearance order, we need a different approach based on data available
+
+      // If we have full speaker segments with timestamps
+      if (a.speakerSegments?.length && b.speakerSegments?.length) {
+        // Try to extract timestamps if the structure has them
+        const aHasTimestamps = a.speakerSegments.some(s =>
+          s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp));
+
+        if (aHasTimestamps) {
+          try {
+            // Try to extract timestamps from various possible structures
+            const aTimestamps = a.speakerSegments.map(s =>
+              s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp) || 0);
+            const bTimestamps = b.speakerSegments.map(s =>
+              s.startTimestamp || (s.speakerSegment && s.speakerSegment.startTimestamp) || 0);
+
+            if (aTimestamps.length && bTimestamps.length) {
+              const timestampComparison = Math.min(...aTimestamps) - Math.min(...bTimestamps);
+              // If timestamps are equal, fall back to agenda item
+              if (timestampComparison === 0) {
+                // If agenda items exist, use them as tie breaker
+                if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+                  return (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
+                }
+                // Last resort: alphabetical sort by name
+                return a.name.localeCompare(b.name);
+              }
+              return timestampComparison;
+            }
+          } catch (error) {
+            // Fallback silently if timestamp extraction fails
+            console.error("Error extracting timestamps:", error);
+          }
+        }
+      }
+
+      // Fallback to agenda item index for appearance order
+      if (a.agendaItemIndex !== null && b.agendaItemIndex !== null) {
+        const indexComparison = (a.agendaItemIndex ?? Infinity) - (b.agendaItemIndex ?? Infinity);
+        // If agenda items are equal, sort alphabetically by name
+        if (indexComparison === 0) {
+          return a.name.localeCompare(b.name);
+        }
+        return indexComparison;
+      }
+
+      // Last resort: alphabetical sort by name
+      return a.name.localeCompare(b.name);
     }
 
-    return 0;
+    // Default fallback - alphabetical order
+    return a.name.localeCompare(b.name);
   });
 }
 
@@ -132,14 +225,35 @@ export const calculateOfferTotals = (offer: Offer): {
   subtotal: number,
   discount: number,
   total: number,
-  meetingsToIngest: number,
+  hoursToGuarantee: number,
   correctnessGuaranteeCost: number,
   paymentPlan: { dueDate: Date, amount: number }[]
 } => {
   const months = monthsBetween(offer.startDate, offer.endDate)
   const platformTotal = offer.platformPrice * months
   const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest
-  const correctnessGuaranteeCost = offer.correctnessGuarantee && offer.meetingsToIngest ? offer.meetingsToIngest * 80 : 0
+
+  // Calculate correctness guarantee cost based on version
+  let correctnessGuaranteeCost = 0
+  let hoursToGuarantee = 0
+
+  if (offer.correctnessGuarantee) {
+    if (offer.version === 3) {
+      // Version 3: Price per hour
+      hoursToGuarantee = offer.hoursToGuarantee || 0
+      correctnessGuaranteeCost = hoursToGuarantee * 11 // 11 EUR per hour
+    } else if (offer.version === 2) {
+      // Version 2: Price per hour
+      hoursToGuarantee = offer.hoursToGuarantee || 0
+      correctnessGuaranteeCost = hoursToGuarantee * 20 // 20 EUR per hour
+    } else {
+      // Version 1: Price per meeting
+      const meetingsToIngest = offer.meetingsToIngest || 0
+      correctnessGuaranteeCost = meetingsToIngest * 80 // 80 EUR per meeting
+      hoursToGuarantee = meetingsToIngest // For display purposes
+    }
+  }
+
   const subtotal = platformTotal + ingestionTotal + correctnessGuaranteeCost
   const discount = subtotal * (offer.discountPercentage / 100)
   const total = subtotal - discount
@@ -181,7 +295,7 @@ export const calculateOfferTotals = (offer: Offer): {
     subtotal,
     discount,
     total,
-    meetingsToIngest: offer.meetingsToIngest || 0,
+    hoursToGuarantee,
     correctnessGuaranteeCost,
     paymentPlan
   }
@@ -283,4 +397,144 @@ export function normalizeText(text: string): string {
     .replace(/ϋ/g, 'υ')
     .replace(/ΐ/g, 'ι')
     .replace(/ΰ/g, 'υ');
+}
+
+export function getMeetingState(meeting: {
+  videoUrl?: string | null;
+  audioUrl?: string | null;
+  muxPlaybackId?: string | null;
+  agendaUrl?: string | null;
+  subjects?: any[];
+}): { label: string; icon: string } {
+  console.log(meeting.videoUrl);
+  // Video state - if there's a video and mux playback id
+  if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
+    return {
+      label: "Bίντεο",
+      icon: "video"
+    };
+  }
+
+  // Audio state - if there's audio and mux playback id
+  if (meeting.audioUrl && meeting.muxPlaybackId) {
+    return {
+      label: "Ήχος",
+      icon: "audio"
+    };
+  }
+
+  // Agenda state - if there's an agenda and at least one subject but no media
+  if (meeting.agendaUrl && meeting.subjects && meeting.subjects.length > 0 && !meeting.muxPlaybackId) {
+    return {
+      label: "Διάταξη",
+      icon: "fileText"
+    };
+  }
+
+  // Empty state - default case
+  return {
+    label: "Κενή",
+    icon: "ban"
+  };
+}
+
+/**
+ * Builds a URL for city navigation
+ * Handles the special case for opencouncil.chania.gr
+ * 
+ * @param cityId The ID of the city
+ * @param path Additional path after the city ID
+ * @param locale The locale to use for the URL
+ * @returns A URL string for navigation
+ */
+export function buildCityUrl(cityId: string, path: string = '', locale: string = 'el'): string {
+  // Check if we're in browser 
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+
+    // Special case for opencouncil.chania.gr
+    if (hostname === 'opencouncil.chania.gr') {
+      // On opencouncil.chania.gr, all URLs should be relative without the /chania prefix
+      if (cityId === 'chania') {
+        return path ? `/${path}` : '/';
+      } else {
+        // If linking to another city, use path-based URL
+        return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
+      }
+    }
+  }
+
+  // Default path-based URL structure
+  return `/${locale}/${cityId}${path ? `/${path}` : ''}`;
+}
+
+type GeometryBounds = {
+    bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+    center: [number, number];
+};
+
+/**
+ * Calculates bounds and center from a GeoJSON geometry
+ * @param geometry The GeoJSON geometry to process
+ */
+export function calculateGeometryBounds(geometry: any): GeometryBounds {
+    const DEFAULT_RETURN: GeometryBounds = {
+        bounds: null,
+        center: [23.7275, 37.9838] // Default to Athens
+    };
+
+    if (!geometry) {
+        console.log('[Location] No geometry available, using default coordinates');
+        return DEFAULT_RETURN;
+    }
+
+    try {
+        let minLng = Infinity, maxLng = -Infinity;
+        let minLat = Infinity, maxLat = -Infinity;
+
+        // Check for supported geometry types
+        if (!['Point', 'Polygon', 'MultiPolygon'].includes(geometry.type)) {
+            console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
+            return DEFAULT_RETURN;
+        }
+
+        const processCoordinates = (coords: number[][]) => {
+            coords.forEach(point => {
+                const [lng, lat] = point;
+                minLng = Math.min(minLng, lng);
+                maxLng = Math.max(maxLng, lng);
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+            });
+        };
+
+        if (geometry.type === 'Polygon') {
+            processCoordinates(geometry.coordinates[0]);
+        } else if (geometry.type === 'MultiPolygon') {
+            geometry.coordinates.forEach((polygon: number[][][]) => {
+                processCoordinates(polygon[0]);
+            });
+        } else if (geometry.type === 'Point') {
+            const [lng, lat] = geometry.coordinates;
+            minLng = maxLng = lng;
+            minLat = maxLat = lat;
+        }
+
+        const bounds = {
+            minLng,
+            maxLng,
+            minLat,
+            maxLat
+        };
+
+        const center: [number, number] = [
+            (minLng + maxLng) / 2,
+            (minLat + maxLat) / 2
+        ];
+
+        return { bounds, center };
+    } catch (error) {
+        console.error('[Location] Error calculating geometry bounds:', error);
+        return DEFAULT_RETURN;
+    }
 }

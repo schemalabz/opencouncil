@@ -1,13 +1,24 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import FormSheet from './FormSheet';
-import { Search } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
+import { Button } from './ui/button';
 
-interface ListProps<T, P = {}, F = string | undefined> {
+export interface BaseListProps {
+    layout?: 'grid' | 'list' | 'carousel';
+    smColumns?: number;
+    mdColumns?: number;
+    lgColumns?: number;
+    carouselItemWidth?: number;
+    carouselGap?: number;
+}
+
+
+interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     items: T[];
     ItemComponent: React.ComponentType<{ item: T, editable: boolean } & P>;
     FormComponent: React.ComponentType<any>;
@@ -17,10 +28,8 @@ interface ListProps<T, P = {}, F = string | undefined> {
     itemProps?: P;
     filterAvailableValues?: { value: F, label: string }[];
     filter?: (selectedValues: F[], item: T) => boolean;
-    smColumns?: number;
-    mdColumns?: number;
-    lgColumns?: number;
     allText?: string;
+    showSearch?: boolean;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -37,9 +46,14 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     mdColumns = 2,
     lgColumns = 3,
     allText = "Όλα",
+    showSearch = true,
+    layout = 'grid',
+    carouselItemWidth = 300,
+    carouselGap = 16
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const carouselRef = useRef<HTMLDivElement>(null);
 
     // Get filter and search values from URL
     const searchQuery = searchParams.get('search') || '';
@@ -55,16 +69,39 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         ).filter((value): value is F => value !== undefined)
         : filterAvailableValues.map(f => f.value);
 
+    const scrollCarouselLeft = useCallback(() => {
+        if (carouselRef.current) {
+            carouselRef.current.scrollBy({ left: -carouselItemWidth, behavior: 'smooth' });
+        }
+    }, [carouselItemWidth]);
+
+    const scrollCarouselRight = useCallback(() => {
+        if (carouselRef.current) {
+            carouselRef.current.scrollBy({ left: carouselItemWidth, behavior: 'smooth' });
+        }
+    }, [carouselItemWidth]);
+
     const gridClasses = cn(
+        layout === 'carousel' ? "flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent snap-x snap-mandatory" :
+        layout === 'list' ? "flex flex-col gap-4" :
         "grid gap-4 sm:gap-6",
-        smColumns === 1 ? "grid-cols-1" : `grid-cols-${smColumns}`,
-        mdColumns === 1 ? "md:grid-cols-1" : `md:grid-cols-${mdColumns}`,
-        lgColumns === 1 ? "lg:grid-cols-1" : `lg:grid-cols-${lgColumns}`
+        layout === 'grid' && (
+            cn(
+                smColumns === 1 ? "grid-cols-1" : `grid-cols-${smColumns}`,
+                mdColumns === 1 ? "md:grid-cols-1" : `md:grid-cols-${mdColumns}`,
+                lgColumns === 1 ? "lg:grid-cols-1" : `lg:grid-cols-${lgColumns}`
+            )
+        )
+    );
+
+    const carouselItemClasses = cn(
+        "flex-shrink-0 snap-start",
+        layout === 'carousel' && `w-[${carouselItemWidth}px]`
     );
 
     const filteredItems = items.filter((item) => {
         // First check search query
-        if (searchQuery) {
+        if (searchQuery && showSearch) {
             const normalizedQuery = normalizeText(searchQuery);
             const matchesSearch = Object.values(item).some(
                 (value) =>
@@ -85,6 +122,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Debounced URL update for search
     useEffect(() => {
+        if (!showSearch) return;
+
         const timeoutId = setTimeout(() => {
             const params = new URLSearchParams(searchParams.toString());
             if (localSearchQuery) {
@@ -96,10 +135,11 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         }, 300); // 300ms debounce delay
 
         return () => clearTimeout(timeoutId);
-    }, [localSearchQuery, router, searchParams]);
+    }, [localSearchQuery, router, searchParams, showSearch]);
 
     // Update URL with new search or filter values
     const handleSearchChange = (query: string) => {
+        if (!showSearch) return;
         setLocalSearchQuery(query);
     };
 
@@ -122,12 +162,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
-                {editable && (
-                    <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" />
-                )}
-            </div>
+            {(showSearch || editable) && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    {showSearch && (
+                        <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
+                    )}
+                    {editable && (
+                        <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" />
+                    )}
+                </div>
+            )}
             <div className="flex flex-col sm:flex-row gap-4">
                 {filterAvailableValues && filterAvailableValues.length > 0 && (
                     <MultiSelectDropdown
@@ -138,26 +182,60 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         allText={allText}
                     />
                 )}
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                    <Input
-                        placeholder={t('searchItems')}
-                        className="pl-10 w-full h-9"
-                        value={localSearchQuery}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                    />
-                </div>
+                {showSearch && (
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                        <Input
+                            placeholder={t('searchItems')}
+                            className="pl-10 w-full h-9"
+                            value={localSearchQuery}
+                            onChange={(e) => handleSearchChange(e.target.value)}
+                        />
+                    </div>
+                )}
             </div>
             {filteredItems.length > 0 ? (
-                <div className={gridClasses}>
-                    {filteredItems.map((item) => (
-                        <ItemComponent
-                            key={item.id}
-                            item={item}
-                            editable={editable}
-                            {...itemProps as P}
-                        />
-                    ))}
+                <div className="relative">
+                    {layout === 'carousel' && (
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                {t('items', { count: filteredItems.length })}
+                            </p>
+                            <div className="flex space-x-2">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full hover:bg-accent/10"
+                                    onClick={scrollCarouselLeft}
+                                >
+                                    <ChevronLeft size={18} />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-full hover:bg-accent/10"
+                                    onClick={scrollCarouselRight}
+                                >
+                                    <ChevronRight size={18} />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={carouselRef} className={gridClasses}>
+                        {filteredItems.map((item) => (
+                            <div 
+                                key={item.id} 
+                                className={carouselItemClasses}
+                                style={layout === 'carousel' ? { width: carouselItemWidth, minWidth: carouselItemWidth } : undefined}
+                            >
+                                <ItemComponent
+                                    item={item}
+                                    editable={editable}
+                                    {...itemProps as P}
+                                />
+                            </div>
+                        ))}
+                    </div>
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
