@@ -11,7 +11,7 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 - 🔍 **Advanced Search**: Full-text search across all council meetings
 - 🎥 **Meeting Highlights**: Automatic generation of short videos highlighting key moments
 - 🌐 **Open Data**: All data available through a public API
-- 🤖 **AI Chat Assistant**: (Coming Soon) Ask questions about council meetings
+- 🤖 **AI Chat Assistant**: Ask questions about council meetings
 - 🌍 **Multilingual Support**: (Coming Soon) Support for multicultural cities
 
 ## Technical Architecture
