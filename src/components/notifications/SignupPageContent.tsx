@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Map, { MapFeature } from '@/components/map/map';
-import { SignupHeader } from './SignupHeader';
 import { LocationSelector } from './LocationSelector';
 import { TopicSelector } from './TopicSelector';
 import { UserRegistration } from './UserRegistration';
 import { UnsupportedMunicipality } from './UnsupportedMunicipality';
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
@@ -17,10 +16,8 @@ import { Topic as PrismaTopic } from '@prisma/client';
 import { getUserPreferences, saveNotificationPreferences, savePetition } from '@/lib/db/notifications';
 import { createLocation } from '@/lib/db/location';
 import { getCity, getCitiesWithGeometry } from '@/lib/db/cities';
-
-// Import SignupStage from SignupHeader component or export it from there
-import { SignupStage } from './SignupHeader';
 import { CityWithGeometry } from '@/lib/db/cities';
+import { SignupStage } from '@/lib/types/notifications';
 
 // For location data that doesn't exist in Prisma
 export type Location = {
@@ -68,15 +65,18 @@ export function calculateMapView(geometry: any): { center: [number, number]; zoo
     return { center, zoom };
 };
 
-export function SignupPageContent() {
+interface SignupPageContentProps {
+    initialStage?: SignupStage;
+    cityId: string;
+}
+
+export function SignupPageContent({ initialStage, cityId }: SignupPageContentProps) {
     const { data: session, status: sessionStatus } = useSession();
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const cityId = searchParams.get('cityId');
     const isDesktop = useMediaQuery('(min-width: 1024px)');
 
     // State variables
-    const [stage, setStage] = useState<SignupStage>(SignupStage.LOCATION_TOPIC_SELECTION);
+    const [stage, setStage] = useState<SignupStage>(initialStage || SignupStage.LOCATION_TOPIC_SELECTION);
     const [selectedCity, setSelectedCity] = useState<CityWithGeometry | null>(null);
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<AppTopic[]>([]);
@@ -122,7 +122,10 @@ export function SignupPageContent() {
                                 setStage(SignupStage.LOCATION_TOPIC_SELECTION);
                             }
                         } else {
-                            if (city.supportsNotifications) {
+                            // Use the initialStage if provided, otherwise determine based on city support
+                            if (initialStage) {
+                                setStage(initialStage);
+                            } else if (city.supportsNotifications) {
                                 setStage(SignupStage.LOCATION_TOPIC_SELECTION);
                             } else if (city.officialSupport) {
                                 setStage(SignupStage.USER_REGISTRATION);
@@ -140,7 +143,7 @@ export function SignupPageContent() {
         }
 
         fetchCityData();
-    }, [cityId, userPreferences]);
+    }, [cityId, userPreferences, initialStage]);
 
     // Fetch user's existing preferences/petitions when session is available
     useEffect(() => {
@@ -649,19 +652,12 @@ export function SignupPageContent() {
                 />
             </div>
 
-            {/* Header */}
-            <SignupHeader
-                city={selectedCity}
-                stage={stage}
-                onBack={handleBack}
-            />
-
             {/* Content overlay with form elements */}
             {showForm && (
                 <div
                     className={cn(
                         "absolute z-10 transition-all duration-300 ease-in-out",
-                        "fixed top-20 bottom-8 mx-auto w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
+                        "fixed top-24 bottom-8 mx-auto w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
                         isDesktop ? "left-4" : "left-1/2 -translate-x-1/2" // Desktop: Left-aligned, Mobile: Centered
                     )}
                 >

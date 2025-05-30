@@ -64,7 +64,7 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
         placeholder: string;
         isOpen: boolean;
         onClear?: () => void;
-    }> = ({ item, placeholder, isOpen, onClear }) => (
+    }> = ({ item, placeholder, isOpen }) => (
         <Button
             variant="outline"
             role="combobox"
@@ -92,25 +92,10 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-2">
-                {item && onClear && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-full"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                        }}
-                    >
-                        <X className="h-3 w-3 sm:h-4 sm:w-4" />
-                    </Button>
-                )}
-                <Search className={cn(
-                    "h-4 w-4 sm:h-5 sm:w-5 transition-colors",
-                    item ? "text-orange-500" : "text-gray-400"
-                )} />
-            </div>
+            <Search className={cn(
+                "h-4 w-4 sm:h-5 sm:w-5 transition-colors",
+                item ? "text-orange-500" : "text-gray-400"
+            )} />
             <div className={cn(
                 "absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity duration-300 -z-10",
                 item ? "from-orange-50 to-orange-100 opacity-100" : "",
@@ -175,7 +160,11 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                     onChange={(city) => {
                         setSelectedCity(city);
                         if (city) {
-                            router.push(`/notifications?cityId=${city.id}`);
+                            if (city.isListed) {
+                                router.push(`/${city.id}`);
+                            } else {
+                                router.push(`/${city.id}/petition`);
+                            }
                         }
                     }}
                     placeholder="Επιλέξτε τον Δήμο σας..."
@@ -212,7 +201,11 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                                         className="bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-xl"
                                         onClick={() => {
                                             setSelectedCity(city);
-                                            router.push(`/notifications?cityId=${city.id}`);
+                                            if (city.isListed) {
+                                                router.push(`/${city.id}`);
+                                            } else {
+                                                router.push(`/${city.id}/petition`);
+                                            }
                                         }}
                                     >
                                         {city.name}
