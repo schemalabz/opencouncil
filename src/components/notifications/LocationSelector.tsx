@@ -1,21 +1,20 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { X, MapPin, Search, AlertCircle, Loader2 } from 'lucide-react';
+import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Location, City } from './SignupPageContent';
+import { Location } from './SignupPageContent';
 import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion } from '@/lib/google-maps';
 import { useDebounce } from '@/hooks/use-debounce';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, calculateGeometryBounds } from '@/lib/utils';
+import { CityWithGeometry } from '@/lib/db/cities';
 
 interface LocationSelectorProps {
     selectedLocations: Location[];
     onSelect: (location: Location) => void;
     onRemove: (index: number) => void;
-    city: City;
+    city: CityWithGeometry;
 }
 
 export function LocationSelector({
@@ -47,7 +46,7 @@ export function LocationSelector({
 
                     if (city.geometry) {
                         // Calculate center from city geometry
-                        const { center } = calculateCityCenter(city.geometry);
+                        const { center } = calculateGeometryBounds(city.geometry);
                         cityCoordinates = center;
                     }
 
@@ -81,50 +80,6 @@ export function LocationSelector({
 
         fetchSuggestions();
     }, [debouncedInputValue, city.name, city.geometry]);
-
-    // Helper function to calculate city center
-    const calculateCityCenter = (geometry: any): { center: [number, number] } => {
-        if (!geometry) {
-            return { center: [23.7275, 37.9838] }; // Default to Athens
-        }
-
-        try {
-            if (geometry.type === 'Polygon') {
-                // Calculate center from polygon
-                const coords = geometry.coordinates[0];
-                let minLng = Infinity, maxLng = -Infinity;
-                let minLat = Infinity, maxLat = -Infinity;
-
-                coords.forEach((point: [number, number]) => {
-                    const [lng, lat] = point;
-                    minLng = Math.min(minLng, lng);
-                    maxLng = Math.max(maxLng, lng);
-                    minLat = Math.min(minLat, lat);
-                    maxLat = Math.max(maxLat, lat);
-                });
-
-                return {
-                    center: [(minLng + maxLng) / 2, (minLat + maxLat) / 2]
-                };
-            }
-            else if (geometry.type === 'MultiPolygon') {
-                // Handle MultiPolygon by using the first polygon
-                return calculateCityCenter({
-                    type: 'Polygon',
-                    coordinates: geometry.coordinates[0]
-                });
-            }
-            else if (geometry.type === 'Point') {
-                // For points, just use the coordinates directly
-                return { center: [geometry.coordinates[0], geometry.coordinates[1]] };
-            }
-        } catch (error) {
-            console.error('Error calculating city center:', error);
-        }
-
-        // Default fallback
-        return { center: [23.7275, 37.9838] };
-    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);

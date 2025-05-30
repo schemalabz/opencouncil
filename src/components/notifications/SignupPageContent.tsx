@@ -10,21 +10,17 @@ import { UserRegistration } from './UserRegistration';
 import { UnsupportedMunicipality } from './UnsupportedMunicipality';
 import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, UserCheck, Pin, Settings, ExternalLink, Map as MapIcon } from 'lucide-react';
+import { Eye, EyeOff, UserCheck, Pin, Settings, Map as MapIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import { cn } from '@/lib/utils';
-import { City as PrismaCity, Topic as PrismaTopic } from '@prisma/client';
-import { getUserPreferences, saveNotificationPreferences, savePetition, UserPreference as DbUserPreference } from '@/lib/db/notifications';
+import { calculateGeometryBounds, cn } from '@/lib/utils';
+import { Topic as PrismaTopic } from '@prisma/client';
+import { getUserPreferences, saveNotificationPreferences, savePetition } from '@/lib/db/notifications';
 import { createLocation } from '@/lib/db/location';
 
 // Import SignupStage from SignupHeader component or export it from there
 import { SignupStage } from './SignupHeader';
-
-// Extend Prisma types with additional properties needed in the app
-export type City = PrismaCity & {
-    geometry?: any; // Add geometry which is represented as Unsupported in Prisma
-};
+import { CityWithGeometry } from '@/lib/db/cities';
 
 // For location data that doesn't exist in Prisma
 export type Location = {
@@ -39,7 +35,7 @@ export type AppTopic = PrismaTopic;
 // Define user preference data type
 export type UserPreference = {
     cityId: string;
-    city: City;
+    city: CityWithGeometry;
     isPetition: boolean;
     petitionData?: PetitionData;
     locations?: Location[];
@@ -55,61 +51,16 @@ export type PetitionData = {
 };
 
 // Utility function to calculate center and zoom from GeoJSON
-const calculateMapView = (geometry: any): { center: [number, number]; zoom: number } => {
-    if (!geometry) {
-        return { center: [23.7275, 37.9838], zoom: 6 }; // Default to Athens
-    }
-
-    // Initialize bounds
-    let minLng = Infinity;
-    let maxLng = -Infinity;
-    let minLat = Infinity;
-    let maxLat = -Infinity;
-
-    // Extract coordinates based on geometry type
-    const processCoordinates = (coords: number[][]) => {
-        coords.forEach(point => {
-            const [lng, lat] = point;
-            minLng = Math.min(minLng, lng);
-            maxLng = Math.max(maxLng, lng);
-            minLat = Math.min(minLat, lat);
-            maxLat = Math.max(maxLat, lat);
-        });
-    };
-
-    try {
-        if (geometry.type === 'Polygon') {
-            // Process outer ring of polygon
-            processCoordinates(geometry.coordinates[0]);
-        } else if (geometry.type === 'MultiPolygon') {
-            // Process all polygons in the multipolygon
-            geometry.coordinates.forEach((polygon: number[][][]) => {
-                processCoordinates(polygon[0]);
-            });
-        } else if (geometry.type === 'Point') {
-            // For a point, just use its coordinates
-            const [lng, lat] = geometry.coordinates;
-            return { center: [lng, lat], zoom: 12 };
-        }
-    } catch (error) {
-        console.error('Error processing geometry:', error);
-        return { center: [23.7275, 37.9838], zoom: 6 }; // Default to Athens
-    }
-
-    // Calculate center
-    const center: [number, number] = [
-        (minLng + maxLng) / 2,
-        (minLat + maxLat) / 2
-    ];
-
-    // Calculate appropriate zoom level based on the area size
-    const lngDiff = maxLng - minLng;
-    const latDiff = maxLat - minLat;
-    const maxDiff = Math.max(lngDiff, latDiff);
-
-    // Simple formula to estimate zoom level - adjust constants as needed
+export function calculateMapView(geometry: any): { center: [number, number]; zoom: number } {
+    const { bounds, center } = calculateGeometryBounds(geometry);
+    
+    // If we have bounds, calculate zoom level
     let zoom = 10; // Default zoom
-    if (maxDiff > 0) {
+    if (bounds) {
+        const lngDiff = bounds.maxLng - bounds.minLng;
+        const latDiff = bounds.maxLat - bounds.minLat;
+        const maxDiff = Math.max(lngDiff, latDiff);
+        
         // The smaller the area, the higher the zoom
         zoom = Math.max(8, Math.min(13, 11 - Math.log2(maxDiff * 111))); // 111km per degree
     }
@@ -124,7 +75,7 @@ export function SignupPageContent() {
 
     // State variables
     const [stage, setStage] = useState<SignupStage>(SignupStage.SELECT_MUNICIPALITY);
-    const [selectedCity, setSelectedCity] = useState<City | null>(null);
+    const [selectedCity, setSelectedCity] = useState<CityWithGeometry | null>(null);
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
     const [selectedTopics, setSelectedTopics] = useState<AppTopic[]>([]);
     const [petitionData, setPetitionData] = useState<PetitionData | null>(null);
@@ -290,7 +241,7 @@ export function SignupPageContent() {
     }, []);
 
     // Handler for municipality selection
-    const handleMunicipalitySelect = (city: City) => {
+    const handleMunicipalitySelect = (city: CityWithGeometry) => {
         setSelectedCity(city);
 
         // Check if user already has preferences for this city

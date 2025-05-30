@@ -2,7 +2,7 @@
 import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { cn } from '@/lib/utils'
+import { cn, calculateGeometryBounds } from '@/lib/utils'
 import { createRoot } from 'react-dom/client'
 
 export interface MapFeature {
@@ -31,34 +31,11 @@ interface MapProps {
 
 const ANIMATE_ROTATION_SPEED = 1000;
 
-const guessCenterFromFeatures = (features: MapFeature[]): [number, number] | undefined => {
-    if (features.length === 0) return undefined;
-    console.log("Centering on feature");
-    const feature = features[0];
-    if (!feature.geometry) return undefined;
-    if (feature.geometry.type === 'Point') {
-        console.log("Centering on point");
-        return [feature.geometry.coordinates[0], feature.geometry.coordinates[1]];
-    } else if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
-        console.log("Centering on polygon");
-        // For polygons, find the center by averaging all coordinates
-        const coords = feature.geometry.type === 'Polygon' ?
-            feature.geometry.coordinates[0] :
-            feature.geometry.coordinates[0][0];
-
-        let minX = Infinity, maxX = -Infinity;
-        let minY = Infinity, maxY = -Infinity;
-
-        coords.forEach((coord: [number, number]) => {
-            minX = Math.min(minX, coord[0]);
-            maxX = Math.max(maxX, coord[0]);
-            minY = Math.min(minY, coord[1]);
-            maxY = Math.max(maxY, coord[1]);
-        });
-
-        return [(minX + maxX) / 2, (minY + maxY) / 2];
+const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
+    if (features.length === 0) {
+        return calculateGeometryBounds(null).center;
     }
-    return undefined;
+    return calculateGeometryBounds(features[0].geometry).center;
 }
 
 const Map = memo(function Map({
@@ -87,8 +64,7 @@ const Map = memo(function Map({
     // Memoize the center coordinates only for initial setup
     const initialCenterCoords = useMemo(() => {
         if (center) return center;
-        const guessedCenter = guessCenterFromFeatures(features);
-        return guessedCenter || [23.7275, 37.9838] as [number, number];
+        return guessCenterFromFeatures(features);
     }, []); // Empty dependency array - only calculate once
 
     const rotateCamera = useCallback((timestamp: number) => {

@@ -1,16 +1,11 @@
 'use client'
-import { Party, Person, Role } from '@prisma/client';
 import { useRouter } from '@/i18n/routing';
-import { useState } from 'react';
 import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
 import { cn } from '@/lib/utils';
-import { getPeopleForCity } from '@/lib/db/people';
-import { useCouncilMeetingData } from '../meetings/CouncilMeetingDataContext';
 import { PartyWithPersons } from '@/lib/db/parties';
-import { filterActiveRoles } from '@/lib/utils';
 import { useMemo } from 'react';
 
 interface PartyCardProps {
