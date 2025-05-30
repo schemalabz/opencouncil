@@ -71,11 +71,51 @@ async function seedVoicePrints(persons: any[]) {
     )
   
   if (allVoicePrints.length > 0) {
-    console.log(`Creating ${allVoicePrints.length} voiceprints...`)
-    await prisma.voicePrint.createMany({
-      data: allVoicePrints,
-      skipDuplicates: true,
+    console.log(`Found ${allVoicePrints.length} voiceprints to create...`)
+    
+    // Get all referenced speaker segment IDs
+    const segmentIds = allVoicePrints
+      .map(vp => vp.sourceSegmentId)
+      .filter((id): id is string => id !== null && id !== undefined)
+    
+    // Check which speaker segments exist
+    const existingSegments = await prisma.speakerSegment.findMany({
+      where: {
+        id: {
+          in: segmentIds
+        }
+      },
+      select: {
+        id: true
+      }
     })
+    
+    const existingSegmentIds = new Set(existingSegments.map(s => s.id))
+    
+    // Filter out voiceprints with missing speaker segments
+    const validVoicePrints = allVoicePrints.filter(vp => {
+      if (!vp.sourceSegmentId) return true // Keep voiceprints without source segments
+      return existingSegmentIds.has(vp.sourceSegmentId)
+    })
+    
+    const skippedCount = allVoicePrints.length - validVoicePrints.length
+    if (skippedCount > 0) {
+      console.log(`Skipping ${skippedCount} voiceprints due to missing speaker segments`)
+    }
+    
+    if (validVoicePrints.length > 0) {
+      console.log(`Creating ${validVoicePrints.length} valid voiceprints...`)
+      try {
+        await prisma.voicePrint.createMany({
+          data: validVoicePrints,
+          skipDuplicates: true,
+        })
+        console.log('Successfully created voiceprints')
+      } catch (error) {
+        console.error('Error creating voiceprints:', error)
+        // Continue execution - don't throw error
+      }
+    }
   }
 }
 
