@@ -15,6 +15,13 @@ import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { motion } from 'framer-motion';
 
+// Helper function for development-only logs
+const logDev = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[Dev] ${message}`, data || '');
+    }
+};
+
 interface MeetingCardProps {
     item: CouncilMeeting & {
         subjects: (Subject & {
@@ -67,9 +74,19 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         // Debug logs to help understand the sorting
         if (result.length > 0) {
             const topThree = result.slice(0, Math.min(3, result.length));
-            console.log(`MeetingCard - top subjects: ${topThree.map(s =>
-                `${s.name}${s.hot ? ' (HOT)' : ''}${s.speakerSegments ? ` (${s.speakerSegments.length} segments)` : ''}`
-            ).join(', ')}`);
+            logDev('MeetingCard - Subject Sorting', {
+                meetingId: meeting.id,
+                meetingName: meeting.name,
+                totalSubjects: result.length,
+                topSubjects: topThree.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    isHot: s.hot,
+                    segmentCount: s.speakerSegments?.length || 0,
+                    agendaItemIndex: s.agendaItemIndex,
+                    hasTopic: !!s.topic
+                }))
+            });
         }
 
         return result;

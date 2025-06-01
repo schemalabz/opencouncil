@@ -1,12 +1,17 @@
 import { NextRequest } from 'next/server';
-import { Anthropic } from '@anthropic-ai/sdk';
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
-import { search, SearchResultDetailed, SearchConfig } from '@/lib/search/search';
-import { Party } from '@prisma/client';
-import { PersonWithRelations } from '@/lib/db/people';
+import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
+import { PersonWithRelations, getPeopleForCity } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
-import * as fs from 'fs';
-import * as path from 'path';
+import { aiChatStream, AIConfig } from '@/lib/ai';
+import { findSubjectsByQuery } from '@/lib/seed-data';
+import { Person, Role, Party, AdministrativeBody, City } from '@prisma/client';
+import prisma from '@/lib/db/prisma';
+import { 
+    findMockSpeakerSegmentsForSubject,
+    generateMockClaudeResponse 
+} from '@/lib/db/chat-mock-data';
+import { getCity } from '@/lib/db/cities';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -24,17 +29,6 @@ interface ExtractedSubject {
     speakerSegments: ExtractedSegment[];
 }
 
-// Create an Anthropic client
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
-
-// Development Configuration
-const DEV_CONFIG = {
-    logPrompts: process.env.NODE_ENV === 'development',
-    promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
-};
-
 // Search Configuration
 const searchConfig: SearchConfig = {
     size: 5,
@@ -51,54 +45,42 @@ const CONTEXT_CONFIG = {
     useAllSegments: true,
 };
 
-// Utility function to log prompts in development
-function logPromptToFile(systemPrompt: string, messages: any[]) {
-    if (!DEV_CONFIG.logPrompts) return;
+// AI Configuration
+const AI_CONFIG: AIConfig = {
+    maxTokens: 1000,
+    model: 'claude-3-5-sonnet-20240620',
+    temperature: 0,
 
-    try {
-        // Ensure the logs directory exists
-        if (!fs.existsSync(DEV_CONFIG.promptsDir)) {
-            fs.mkdirSync(DEV_CONFIG.promptsDir, { recursive: true });
-        }
+};
 
-        // Create a timestamp for the filename
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = path.join(DEV_CONFIG.promptsDir, `prompt-${timestamp}.json`);
+// @TODO: Better logging in the future
+// Helper function for essential logs that should always be shown
+const logEssential = (message: string, data?: any) => {
+    console.log(`[Chat Analytics] ${message}`, data || '');
+};
 
-        // Create the log object
-        const logObject = {
-            timestamp,
-            systemPrompt,
-            messages,
-            metadata: {
-                nodeEnv: process.env.NODE_ENV,
-                maxTokens: CONTEXT_CONFIG.maxTokens,
-                maxMessages: CONTEXT_CONFIG.maxMessages,
-            }
-        };
-
-        // Write to file
-        fs.writeFileSync(filename, JSON.stringify(logObject, null, 2));
-        console.log(`[Dev] Prompt logged to ${filename}`);
-    } catch (error) {
-        console.error('[Dev] Error logging prompt:', error);
+// Helper function for development-only logs
+const logDev = (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[Dev] ${message}`, data || '');
     }
-}
+};
 
 // Content Extraction
 function extractRelevantContent(searchResults: SearchResultDetailed[]): ExtractedSubject[] {
-    console.log(`[Content Extraction] Processing ${searchResults.length} search results`);
+    logDev(`[Content Extraction] Processing ${searchResults.length} search results`);
     
     const extracted = searchResults.map(result => {
         // Get matched segments from the detailed results
         const matchedSegments = (result.speakerSegments as SegmentWithRelations[])
             .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
             
-        console.log(`[Content Extraction] Subject "${result.name}":`);
-        console.log(`  - Score: ${result.score}`);
-        console.log(`  - Total Segments: ${result.speakerSegments.length}`);
-        console.log(`  - Matched Segments: ${matchedSegments.length}`);
-        console.log(`  - Has Context: ${result.context ? 'Yes' : 'No'}`);
+        logDev(`[Content Extraction] Subject "${result.name}":`, {
+            score: result.score,
+            totalSegments: result.speakerSegments.length,
+            matchedSegments: matchedSegments.length,
+            hasContext: result.context ? 'Yes' : 'No'
+        });
         
         return {
             name: result.name,
@@ -118,7 +100,7 @@ function extractRelevantContent(searchResults: SearchResultDetailed[]): Extracte
         };
     });
 
-    console.log(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
+    logDev(`[Content Extraction] Total segments extracted: ${extracted.reduce((acc, curr) => acc + curr.keySegments.length, 0)}`);
     return extracted;
 }
 
@@ -129,24 +111,120 @@ function cleanContextReferences(context: string | undefined): string | undefined
     return context.replace(/\[\d+\]/g, '');
 }
 
-// Context Enhancement
-function enhancePrompt(
-    messages: ChatMessage[],
-    context: ReturnType<typeof extractRelevantContent>
-) {
-    console.log(`[Prompt Enhancement] Enhancing prompt with:`);
-    console.log(`  - Messages: ${messages.length}`);
-    console.log(`  - Context subjects: ${context.length}`);
-    console.log(`  - Use All Segments: ${CONTEXT_CONFIG.useAllSegments}`);
+/**
+ * Formats the city political context into a human-readable string.
+ * Groups people by party and formats their roles with proper separators.
+ */
+function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
+    type FormattedPerson = { name: string; roles: string };
+    type PeopleByParty = Record<string, FormattedPerson[]>;
+
+    // Group people by party
+    const peopleByParty = people.reduce((acc: PeopleByParty, person) => {
+        const partyRole = person.roles.find(role => role.party);
+        const partyName = partyRole?.party?.name || "Ανεξάρτητοι";
+        
+        if (!acc[partyName]) {
+            acc[partyName] = [];
+        }
+
+        // Format roles for this person, filtering out unnecessary roles
+        const formattedRoles = person.roles
+            .filter(role => role.city || role.administrativeBody) // Only include city and admin body roles
+            .map(role => {
+                if (role.city) return `${role.name || "Μέλος"}`;
+                if (role.administrativeBody) return `${role.administrativeBody.name} (${role.name || "Μέλος"})`;
+                return null;
+            })
+
+        acc[partyName].push({
+            name: person.name,
+            roles: formattedRoles.join(", ")
+        });
+
+        return acc;
+    }, {});
+
+    // Sort people within each party
+    Object.keys(peopleByParty).forEach(party => {
+        peopleByParty[party].sort((a: FormattedPerson, b: FormattedPerson) => a.name.localeCompare(b.name));
+    });
+
+    return `
+Πληροφορίες για το ${city.name} (${city.name_municipality}):
+
+Κόμματα και Μέλη:
+${Object.entries(peopleByParty)
+    .map(([party, members]) => 
+        `${party}:\n${(members as FormattedPerson[]).map(member => `  - ${member.name} [${member.roles}]`).join('\n')}`)
+    .join('\n\n')}
+
+----------------------------------------
+`;
+}
+
+/**
+ * Enhances the chat prompt with city context and relevant content.
+ * 
+ * Example prompt format:
+ * ```
+ * [System Prompt]
+ * 
+ * Πληροφορίες για το Χανιά (Δήμος Χανίων):
+ * 
+ * Κόμματα και Μέλη:
+ * Για τα Χανιά:
+ *   - Αδάμ Μπούτζουκας [Δημοτικό Συμβούλιο (Μέλος)]
+ *   - Αναστάσιος Αλόγλου [Αντιδήμαρχος Οικονομικών & Ψηφιακής Διακυβέρνησης, Δημοτικό Συμβούλιο (Μέλος), Δημοτική Επιτροπή (Πρόεδρος)]
+ * 
+ * Λαϊκή Συσπείρωση Χανίων:
+ *   - Μιλτιάδης Κλωνιζάκης [Δημοτικό Συμβούλιο (Γραμματέας), Δημοτική Επιτροπή (Αναπληρωματικό Μέλος)]
+ * 
+ * Ανεξάρτητοι:
+ *   - Μιχαήλ Σχοινάς [Δημοτικό Συμβούλιο (Αντιπρόεδρος)]
+ * 
+ * ----------------------------------------
+ * 
+ * Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
+ * [1] Θέμα: Αναβάθμιση πάρκων
+ * Κατηγορία: Περιβάλλον
+ * Περιγραφή: Προτάσεις για αναβάθμιση των δημοτικών πάρκων
+ * 
+ * Αποσπάσματα ομιλιών:
+ * 🔹 Γιώργος Παπαδάκης (Νέα Δημοκρατία): "Πρότεινα την αναβάθμιση του κεντρικού πάρκου..."
+ * • Μαρία Κουτσογιάννη (Νέα Δημοκρατία): "Συμφωνώ με την πρόταση..."
+ * 
+ * ----------------------------------------
+ * ```
+ */
+async function enhancePrompt(messages: ChatMessage[], context: ReturnType<typeof extractRelevantContent>, cityId?: string) {
+    logDev(`[Prompt Enhancement] Enhancing prompt with:`, {
+        messages: messages.length,
+        contextSubjects: context.length,
+        useAllSegments: CONTEXT_CONFIG.useAllSegments,
+        cityId
+    });
+    
+    let cityContext = '';
+    if (cityId) {
+        const city = await getCity(cityId)
+        if (city) {
+            const people = await getPeopleForCity(cityId, true); // Only get active roles
+            cityContext = formatCityPoliticalContext(city, people);
+        }
+    }
     
     const systemPrompt = `${SYSTEM_PROMPT}
 
+${cityContext}
+
 Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
 ${context.map((subject, index) => {
-    console.log(`[Prompt Enhancement] Processing subject ${index + 1}:`);
-    console.log(`  - Total Segments: ${subject.speakerSegments.length}`);
-    console.log(`  - Key Segments: ${subject.keySegments.length}`);
-    console.log(`  - Has Context: ${subject.context ? 'Yes' : 'No'}`);
+    logDev(`[Prompt Enhancement] Processing subject ${index + 1}:`, {
+        totalSegments: subject.speakerSegments.length,
+        keySegments: subject.keySegments.length,
+        hasContext: subject.context ? 'Yes' : 'No'
+    });
     
     return `
 ----------------------------------------
@@ -160,12 +238,10 @@ ${CONTEXT_CONFIG.useAllSegments
     ? subject.speakerSegments.map(segment => {
         const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
         const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
-        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
-        return `${prefix}${segment.speaker} (${partyName}): "${segment.text}"`;
+        return `${prefix}${segment.speaker}: "${segment.text}"`;
     }).join('\n')
     : subject.keySegments.map(segment => {
-        const partyName = segment.person?.roles?.[0]?.party?.name || 'Ανεξάρτητος';
-        return `• ${segment.speaker} (${partyName}): "${segment.text}"`;
+        return `• ${segment.speaker}: "${segment.text}"`;
     }).join('\n')
 }
 ----------------------------------------`}).join('\n\n')}
@@ -174,7 +250,7 @@ ${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα
 
     // Log approximate token count
     const approximateTokens = systemPrompt.split(/\s+/).length;
-    console.log(`[Prompt Enhancement] Approximate token count: ${approximateTokens}`);
+    logDev(`[Prompt Enhancement] Approximate token count: ${approximateTokens}`);
 
     // Strip out id field from messages before sending to Claude
     const cleanedMessages = messages.slice(-CONTEXT_CONFIG.maxMessages).map(({ role, content }) => ({
@@ -182,10 +258,7 @@ ${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα
         content
     }));
 
-    console.log(`[Prompt Enhancement] Sending ${cleanedMessages.length} cleaned messages to Claude`);
-
-    // Log the prompt in development mode
-    logPromptToFile(systemPrompt, cleanedMessages);
+    logDev(`[Prompt Enhancement] Sending ${cleanedMessages.length} cleaned messages to Claude`);
 
     return {
         system: systemPrompt,
@@ -229,6 +302,11 @@ const SYSTEM_PROMPT = `Είστε ένας εξειδικευμένος βοηθ
 
 const ERROR_MESSAGE = "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του αιτήματός σας. Παρακαλώ δοκιμάστε ξανά.";
 
+// Helper function to determine if we should use mock data
+function shouldUseMockData(useMockData: boolean): boolean {
+    return useMockData && process.env.NODE_ENV === 'development';
+}
+
 export async function POST(req: NextRequest) {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
@@ -249,132 +327,85 @@ export async function POST(req: NextRequest) {
     // Process the request asynchronously
     (async () => {
         try {
-            console.log(`[Chat API] New request received`);
-            const { messages, cityId } = await req.json();
+            logEssential('Chat Session Started');
+            const { messages, cityId, useMockData } = await req.json();
             
             // Log request details
-            console.log(`[Chat API] Request details:`);
-            console.log(`  - Messages: ${messages.length}`);
-            console.log(`  - City ID: ${cityId || 'none'}`);
-            console.log(`  - Last message: "${messages[messages.length - 1].content.substring(0, 50)}..."`);
-
-            // 1. Perform search with detailed results
-            console.log(`[Search] Initiating search with query: "${messages[messages.length - 1].content}"`);
-            const searchResults = await search({
-                query: messages[messages.length - 1].content,
-                cityIds: cityId ? [cityId] : undefined,
-                config: {
-                    ...searchConfig,
-                    detailed: true // Ensure we get detailed results
-                }
+            logEssential('Chat Request Details', {
+                messages: messages.length,
+                cityId: cityId || 'none',
+                useMockData: shouldUseMockData(useMockData),
+                lastMessage: messages[messages.length - 1].content.substring(0, 50)
             });
 
-            // Ensure we have detailed results
-            if (!searchResults.results.every(result => 'speakerSegments' in result)) {
-                throw new Error('Search results do not contain detailed speaker segments');
+            let searchResults: SearchResultDetailed[] = [];
+
+            if (shouldUseMockData(useMockData)) {
+                // Use seed data for development/testing
+                const subjects = findSubjectsByQuery(messages[messages.length - 1].content, cityId);
+                searchResults = subjects.map(subject => {
+                    // Get mock speaker segments for this subject
+                    const mockSegments = findMockSpeakerSegmentsForSubject(subject.name);
+                    
+                    return {
+                        ...subject,
+                        score: 1.0,
+                        speakerSegments: mockSegments,
+                        matchedSpeakerSegmentIds: mockSegments.map(s => s.id),
+                        context: subject.context || null,
+                        highlights: [],
+                        location: null,
+                        topic: null,
+                        introducedBy: null
+                    };
+                }) as unknown as SearchResultDetailed[];
+            } else {
+                // Perform real search
+                const searchResponse = await search({
+                    query: messages[messages.length - 1].content,
+                    cityIds: cityId ? [cityId] : undefined,
+                    config: {
+                        ...searchConfig,
+                        detailed: true
+                    }
+                });
+
+                if (!searchResponse.results.every(result => 'speakerSegments' in result)) {
+                    throw new Error('Search results do not contain detailed speaker segments');
+                }
+
+                searchResults = searchResponse.results as SearchResultDetailed[];
             }
 
-            const detailedResults = searchResults.results as SearchResultDetailed[];
-            console.log(`[Search] Found ${detailedResults.length} results`);
+            logEssential('Search Results', {
+                count: searchResults.length,
+                useMockData: useMockData || false
+            });
 
             // 2. Extract content
-            const context = extractRelevantContent(detailedResults);
+            const context = extractRelevantContent(searchResults);
 
             // 3. Enhance prompt
-            const enhancedPrompt = enhancePrompt(messages, context);
+            const enhancedPrompt = await enhancePrompt(messages, context, cityId);
 
             // 4. Get LLM response
-            console.log(`[LLM] Sending request to Claude`);
-            const claudeResponse = await anthropic.messages.create({
-                model: 'claude-3-5-sonnet-20240620',
-                max_tokens: 1000,
-                system: enhancedPrompt.system,
-                messages: enhancedPrompt.messages,
-                stream: true,
-            });
+            logEssential('Sending request to Claude');
+            const claudeResponse = shouldUseMockData(useMockData)
+                ? generateMockClaudeResponse(messages, searchResults)
+                : await aiChatStream(
+                    enhancedPrompt.system,
+                    enhancedPrompt.messages,
+                    AI_CONFIG
+                );
 
             // 5. Track subjects
-            const subjectReferences = detailedResults.map(result => {
-                // Get unique parties from the city
-                const parties = (result.councilMeeting.city as any).parties || [] as Party[];
-                
-                // Get all persons from the city
-                const persons = (result.councilMeeting.city as any).persons || [] as PersonWithRelations[];
-                
-                return {
-                    id: result.id,
-                    name: result.name,
-                    description: result.description,
-                    councilMeeting: {
-                        id: result.councilMeeting.id,
-                        name: result.councilMeeting.name,
-                        name_en: result.councilMeeting.name_en,
-                        dateTime: result.councilMeeting.dateTime,
-                        city: {
-                            id: result.councilMeeting.city.id,
-                            name: result.councilMeeting.city.name,
-                            name_en: result.councilMeeting.city.name_en,
-                            name_municipality: result.councilMeeting.city.name_municipality,
-                            name_municipality_en: result.councilMeeting.city.name_municipality_en,
-                            logoImage: result.councilMeeting.city.logoImage,
-                            timezone: result.councilMeeting.city.timezone,
-                            officialSupport: result.councilMeeting.city.officialSupport,
-                            isListed: result.councilMeeting.city.isListed,
-                            isPending: result.councilMeeting.city.isPending,
-                            authorityType: result.councilMeeting.city.authorityType,
-                            parties: parties.map((party: Party) => ({
-                                id: party.id,
-                                name: party.name,
-                                name_en: party.name_en,
-                                name_short: party.name_short,
-                                name_short_en: party.name_short_en,
-                                colorHex: party.colorHex,
-                                logo: party.logo
-                            }))
-                        }
-                    },
-                    topic: result.topic,
-                    introducedBy: result.introducedBy,
-                    location: result.location,
-                    speakerSegments: result.speakerSegments,
-                    city: {
-                        ...result.councilMeeting.city,
-                        parties: parties.map((party: Party) => ({
-                            id: party.id,
-                            name: party.name,
-                            name_en: party.name_en,
-                            name_short: party.name_short,
-                            name_short_en: party.name_short_en,
-                            colorHex: party.colorHex,
-                            logo: party.logo
-                        }))
-                    },
-                    meeting: result.councilMeeting,
-                    parties: parties.map((party: Party) => ({
-                        id: party.id,
-                        name: party.name,
-                        name_en: party.name_en,
-                        name_short: party.name_short,
-                        name_short_en: party.name_short_en,
-                        colorHex: party.colorHex,
-                        logo: party.logo
-                    })),
-                    persons: persons.map((person: PersonWithRelations) => ({
-                        id: person.id,
-                        name: person.name,
-                        name_en: person.name_en,
-                        name_short: person.name_short,
-                        name_short_en: person.name_short_en,
-                        image: person.image,
-                        partyId: person.partyId,
-                        roles: person.roles
-                    }))
-                };
-            });
+            const subjectReferences = searchResults;
 
-            console.log(`[Chat API] Response prepared with:`);
-            console.log(`  - Subject references: ${subjectReferences.length}`);
-            console.log(`  - Streaming response: true`);
+            logEssential('Chat Response Prepared', {
+                subjectReferences: subjectReferences.length,
+                streaming: true,
+                useMockData: useMockData || false
+            });
 
             // Keep track of the accumulated content
             let accumulatedContent = '';
@@ -427,6 +458,8 @@ export async function POST(req: NextRequest) {
 
             // Close the stream
             await writer.close();
+            
+            logEssential('Chat Session Completed');
         } catch (error) {
             console.error(`[Chat API] Error:`, error);
             
@@ -446,6 +479,10 @@ export async function POST(req: NextRequest) {
             } catch (e) {
                 console.error('Error writing to stream:', e);
             }
+            
+            logEssential('Chat Session Failed', {
+                error: error instanceof Error ? error.message : 'Unknown error'
+            });
         }
     })();
 

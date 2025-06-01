@@ -1,13 +1,9 @@
-import { useCallback } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { Bot, User, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { SubjectCard } from '@/components/subject-card';
 import { LoadingBubble } from './LoadingBubble';
 import { SuggestedPrompt } from './SuggestedPrompt';
-import { SubjectWithRelations } from '@/lib/db/subject';
+import { SubjectListContainer } from '@/components/subject/SubjectListContainer';
 
 interface MessageListProps {
     messages: ChatMessage[];
@@ -28,18 +24,6 @@ export function MessageList({
     chatContainerRef,
     onSuggestedPromptClick,
 }: MessageListProps) {
-    const scrollSubjectsLeft = useCallback(() => {
-        if (subjectScrollRef.current) {
-            subjectScrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
-        }
-    }, [subjectScrollRef]);
-
-    const scrollSubjectsRight = useCallback(() => {
-        if (subjectScrollRef.current) {
-            subjectScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
-        }
-    }, [subjectScrollRef]);
-
     const displayMessages = currentMessage
         ? [...messages, currentMessage].filter(m => m.role === 'user' || (m.role === 'assistant' && m.content))
         : messages;
@@ -77,6 +61,7 @@ export function MessageList({
         );
     }
 
+
     return (
         <div
             ref={chatContainerRef}
@@ -86,7 +71,6 @@ export function MessageList({
                 <div className="space-y-6 pb-4">
                     {displayMessages.map((message, index) => {
                         const isAssistant = message.role === 'assistant';
-                        const subjectReferences = message.subjectReferences || [];
                         const isLastAssistantMessage = isAssistant && index === displayMessages.length - 1;
                         const isStreaming = message.id === currentMessage?.id;
 
@@ -116,54 +100,16 @@ export function MessageList({
                                     )}
                                 </div>
 
-                                {/* Subject cards section */}
-                                {isLastAssistantMessage && !isStreaming && message.done && subjectReferences && subjectReferences.length > 0 && (
+                                {/* Related subjects section */}
+                                {isLastAssistantMessage && !isStreaming && message.done && message.subjectReferences && message.subjectReferences.length > 0 && (
                                     <div className="mt-4 w-full pl-11">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <p className="text-sm font-medium text-muted-foreground">
-                                                Σχετικά θέματα που συζητήθηκαν ({subjectReferences.length})
-                                            </p>
-                                            <div className="flex space-x-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-full hover:bg-accent/10"
-                                                    onClick={scrollSubjectsLeft}
-                                                >
-                                                    <ChevronLeft size={18} />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-full hover:bg-accent/10"
-                                                    onClick={scrollSubjectsRight}
-                                                >
-                                                    <ChevronRight size={18} />
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            ref={subjectScrollRef}
-                                            className="flex overflow-x-auto pb-4 space-x-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent snap-x"
-                                        >
-                                            {subjectReferences.map((subject, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className="flex-shrink-0 w-[300px] snap-start transition-transform duration-200 hover:scale-[1.02]"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <SubjectCard
-                                                        subject={subject as unknown as SubjectWithRelations}
-                                                        city={subject.city}
-                                                        meeting={subject.meeting}
-                                                        parties={subject.parties}
-                                                        persons={subject.persons}
-                                                        showContext={true}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <SubjectListContainer
+                                            subjects={message.subjectReferences}
+                                            layout="carousel"
+                                            showContext={true}
+                                            translationKey="Chat"
+                                            openInNewTab={true}
+                                        />
                                     </div>
                                 )}
                             </div>

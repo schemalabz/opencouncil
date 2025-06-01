@@ -1,15 +1,88 @@
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 
 dotenv.config();
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 export type ResultWithUsage<T> = { result: T, usage: Anthropic.Messages.Usage };
-const maxTokens = 8192;
+
+// Configuration types
+export interface AIConfig {
+    maxTokens?: number;
+    temperature?: number;
+    model?: string;
+    logPrompts?: boolean;
+    promptsDir?: string;
+}
+
+// Default configuration
+const DEFAULT_CONFIG: AIConfig = {
+    maxTokens: 8192,
+    temperature: 0,
+    model: "claude-3-5-sonnet-20241022",
+    logPrompts: process.env.NODE_ENV === 'development',
+    promptsDir: path.join(process.cwd(), 'logs', 'prompts')
+};
+
 let lastUseTimestamp = 0;
 
-export async function aiChat<T>(systemPrompt: string, userPrompt: string, prefillSystemResponse?: string, prependToResponse?: string): Promise<ResultWithUsage<T>> {
+// Utility function to log prompts
+function logPromptToFile(
+    systemPrompt: string, 
+    messages: any[], 
+    config: AIConfig,
+    metadata: Record<string, any> = {}
+) {
+    if (!config.logPrompts || !config.promptsDir) return;
+
+    try {
+        // Ensure the path is within the project directory
+        const projectRoot = process.cwd();
+        const promptsDir = path.join(projectRoot, 'logs', 'prompts');
+        
+        // Ensure the logs directory exists
+        if (!fs.existsSync(promptsDir)) {
+            fs.mkdirSync(promptsDir, { recursive: true });
+        }
+
+        // Create a timestamp for the filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = path.join(promptsDir, `prompt-${timestamp}.json`);
+
+        // Create the log object
+        const logObject = {
+            timestamp,
+            systemPrompt,
+            messages,
+            metadata: {
+                ...metadata,
+                nodeEnv: process.env.NODE_ENV,
+                maxTokens: config.maxTokens,
+                model: config.model,
+            }
+        };
+
+        // Write to file
+        fs.writeFileSync(filename, JSON.stringify(logObject, null, 2));
+        console.log(`[Dev] Prompt logged to ${filename}`);
+    } catch (error) {
+        console.error('[Dev] Error logging prompt:', error);
+    }
+}
+
+export async function aiChat<T>(
+    systemPrompt: string, 
+    userPrompt: string, 
+    prefillSystemResponse?: string, 
+    prependToResponse?: string,
+    config: Partial<AIConfig> = {}
+): Promise<ResultWithUsage<T>> {
     lastUseTimestamp = Date.now();
+
+    // Merge with default config
+    const mergedConfig = { ...DEFAULT_CONFIG, ...config };
 
     try {
         console.log(`Sending message to claude...`);
@@ -22,16 +95,19 @@ export async function aiChat<T>(systemPrompt: string, userPrompt: string, prefil
         let response: Anthropic.Messages.Message;
         try {
             response = await anthropic.messages.create({
-                model: "claude-3-5-sonnet-20241022",
-                max_tokens: maxTokens,
+                model: mergedConfig.model!,
+                max_tokens: mergedConfig.maxTokens!,
                 system: systemPrompt,
                 messages,
-                temperature: 0,
+                temperature: mergedConfig.temperature,
             });
         } catch (e) {
             console.error(`Error in aiChat: ${e}`);
             throw e;
         }
+
+        // Log the prompt if enabled
+        logPromptToFile(systemPrompt, messages, mergedConfig);
 
         if (!response.content || response.content.length !== 1) {
             throw new Error("Expected 1 response from claude, got " + response.content?.length);
@@ -42,9 +118,15 @@ export async function aiChat<T>(systemPrompt: string, userPrompt: string, prefil
         }
 
         if (response.stop_reason === "max_tokens") {
-            console.log(`Claude stopped because it reached the max tokens of ${maxTokens}`);
+            console.log(`Claude stopped because it reached the max tokens of ${mergedConfig.maxTokens}`);
             console.log(`Attempting to continue with a longer response...`);
-            const response2 = await aiChat<T>(systemPrompt, userPrompt, (prefillSystemResponse + response.content[0].text).trim(), (prependToResponse + response.content[0].text).trim());
+            const response2 = await aiChat<T>(
+                systemPrompt, 
+                userPrompt, 
+                (prefillSystemResponse + response.content[0].text).trim(), 
+                (prependToResponse + response.content[0].text).trim(),
+                mergedConfig
+            );
             return {
                 usage: {
                     input_tokens: response.usage.input_tokens + response2.usage.input_tokens,
@@ -77,4 +159,25 @@ export async function aiChat<T>(systemPrompt: string, userPrompt: string, prefil
         console.error(`Error in aiChat: ${e}`);
         throw e;
     }
+}
+
+export async function aiChatStream(
+    systemPrompt: string,
+    messages: Anthropic.Messages.MessageParam[],
+    config: Partial<AIConfig> = {}
+): Promise<AsyncIterable<Anthropic.Messages.MessageStreamEvent>> {
+    // Merge with default config
+    const mergedConfig = { ...DEFAULT_CONFIG, ...config };
+
+    // Log the prompt if enabled
+    logPromptToFile(systemPrompt, messages, mergedConfig, { streaming: true });
+
+    return anthropic.messages.create({
+        model: mergedConfig.model!,
+        max_tokens: mergedConfig.maxTokens!,
+        system: systemPrompt,
+        messages,
+        temperature: mergedConfig.temperature,
+        stream: true,
+    });
 }

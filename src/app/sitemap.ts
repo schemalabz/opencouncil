@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next'
-import { getCities } from '@/lib/db/cities'
+import { getCities, getCitiesWithCouncilMeetings } from '@/lib/db/cities'
 import { getSubjectsForMeeting } from '@/lib/db/subject'
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'
@@ -72,7 +72,7 @@ export async function generateCitiesSitemap(): Promise<MetadataRoute.Sitemap> {
 
 // Meetings sitemap
 export async function generateMeetingsSitemap(): Promise<MetadataRoute.Sitemap> {
-    const cities = await getCities()
+    const cities = await getCitiesWithCouncilMeetings()
     const routes: MetadataRoute.Sitemap = []
 
     for (const city of cities) {
@@ -97,7 +97,7 @@ export async function generateMeetingsSitemap(): Promise<MetadataRoute.Sitemap> 
 
 // Subjects sitemap
 export async function generateSubjectsSitemap(): Promise<MetadataRoute.Sitemap> {
-    const cities = await getCities()
+    const cities = await getCitiesWithCouncilMeetings()
     const routes: MetadataRoute.Sitemap = []
 
     for (const city of cities) {

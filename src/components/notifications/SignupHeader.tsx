@@ -1,13 +1,11 @@
 'use client';
 
-import { ArrowLeft, Menu, ChevronRight, User } from 'lucide-react';
+import { ArrowLeft, Menu, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import Image from 'next/image';
 import UserDropdown from '@/components/layout/user-dropdown';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 import { useState } from 'react';
 import {
     Sheet,
@@ -16,35 +14,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import { useRouter } from 'next/navigation';
-
-// Updated City type to match SignupPageContent.tsx
-type City = {
-    id: string;
-    name: string;
-    name_en: string;
-    name_municipality: string;
-    name_municipality_en: string;
-    logoImage: string | null;
-    timezone: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    officialSupport: boolean;
-    isListed?: boolean;
-    isPending?: boolean;
-    authorityType?: string;
-    wikipediaId?: string | null;
-    geometry?: any;
-    supportsNotifications: boolean;
-};
-
-// Define path element type
-interface PathElement {
-    name: string;
-    link: string;
-    city?: City;
-    description?: string;
-}
+import { CityWithGeometry } from '@/lib/db/cities';
 
 // Export the enum so it can be used in other components
 export enum SignupStage {
@@ -56,7 +26,7 @@ export enum SignupStage {
 }
 
 interface SignupHeaderProps {
-    city: City | null;
+    city: CityWithGeometry | null;
     stage: SignupStage;
     onBack: () => void;
 }
@@ -65,7 +35,6 @@ export function SignupHeader({ city, stage, onBack }: SignupHeaderProps) {
     const { scrollY } = useScroll();
     const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const router = useRouter();
 
     // Determine if back button should be shown
     const showBackButton = stage !== SignupStage.SELECT_MUNICIPALITY;

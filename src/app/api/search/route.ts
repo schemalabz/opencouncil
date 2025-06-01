@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { search } from '@/lib/search/search';
+import { search } from '@/lib/search';
 import { z } from 'zod';
 
 // Define the search request schema

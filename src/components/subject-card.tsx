@@ -23,9 +23,10 @@ interface SubjectCardProps {
     highlight?: HighlightWithUtterances;
     disableHover?: boolean;
     showContext?: boolean;
+    openInNewTab?: boolean;
 }
 
-export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext }: SubjectCardProps) {
+export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
@@ -55,8 +56,14 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         .map(s => persons.find(p => p.id === s.id))
         .filter((p): p is PersonWithRelations => p !== undefined);
 
+    const linkProps = {
+        href: `/${city.id}/${meeting.id}/subjects/${subject.id}`,
+        className: "block hover:no-underline",
+        ...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })
+    };
+
     return (
-        <Link href={`/${city.id}/${meeting.id}/subjects/${subject.id}`} className="block hover:no-underline">
+        <Link {...linkProps}>
             <Card disableHover={disableHover} className={cn(
                 "flex flex-col group/card hover:shadow-md transition-all duration-300",
                 fullWidth ? "w-full" : "w-full",
