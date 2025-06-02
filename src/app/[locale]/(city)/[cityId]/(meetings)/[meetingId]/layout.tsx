@@ -112,7 +112,7 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const editable = await isUserAuthorizedToEdit({ councilMeetingId: data.meeting.id });
+    const editable = await isUserAuthorizedToEdit({ cityId: data.meeting.cityId });
 
     const meetingState = getMeetingState(data.meeting);
 
