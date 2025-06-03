@@ -1,15 +1,17 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { ChevronDown } from 'lucide-react';
 import { SubstackPost } from '@/lib/db/landing';
 import { HeaderBar } from './header-bar';
+import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
+import { CityWithGeometry } from '@/lib/db/cities';
 
 interface HeroProps {
     latestPost?: SubstackPost;
+    cities: CityWithGeometry[];
 }
 
-export function Hero({ latestPost }: HeroProps) {
+export function Hero({ latestPost, cities }: HeroProps) {
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -31,35 +33,22 @@ export function Hero({ latestPost }: HeroProps) {
     };
 
     return (
-        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden pt-12 sm:pt-16 w-full">
-            {/* Mobile view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:hidden z-10">
-                <div className="flex justify-center items-center">
-                    <HeaderBar
-                        latestPost={latestPost}
-                        isMobile={true}
-                        className="mt-2"
-                    />
-                </div>
-            </div>
-
-            {/* Desktop view */}
-            <div className="absolute top-0 left-0 right-0 px-4 sm:px-6 lg:px-8 hidden sm:block z-10">
-                <div className="flex justify-center items-center max-w-screen-xl mx-auto">
-                    <HeaderBar
-                        latestPost={latestPost}
-                        className="mt-4"
-                    />
-                </div>
-            </div>
-
+        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden w-full">
             <motion.div
                 style={{ opacity, y }}
                 variants={container}
                 initial="hidden"
                 animate="show"
-                className="relative text-center space-y-8 sm:space-y-10 w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 mt-16 sm:mt-20 z-10"
+                className="relative w-full max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8"
             >
+                <motion.div variants={item} className="flex justify-center items-center pt-4 sm:pt-6">
+                    <HeaderBar
+                        latestPost={latestPost}
+                        className="mt-0"
+                    />
+                </motion.div>
+
+                <div className="text-center space-y-8 sm:space-y-10 mt-16 sm:mt-20">
                 <motion.div variants={item} className="space-y-6">
                     <motion.h1
                         variants={item}
@@ -101,26 +90,15 @@ export function Hero({ latestPost }: HeroProps) {
                     </motion.em>
                 </motion.p>
 
+                {/* Municipality Selector */}
+                <motion.div variants={item} className="max-w-md mx-auto">
+                    <MunicipalitySelector cities={cities} />
+                </motion.div>
+
                 <motion.div
                     variants={item}
                     className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6"
                 >
-                    <Button
-                        asChild
-                        size="xl"
-                        className="group transition-all duration-300"
-                    >
-                        <Link href="/notifications">
-                            <span className="relative z-10">🔔 Γραφτείτε στις ενημερώσεις</span>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
-                                }}
-                            />
-                        </Link>
-                    </Button>
-
                     <Button
                         asChild
                         variant="link"
@@ -132,6 +110,7 @@ export function Hero({ latestPost }: HeroProps) {
                         </Link>
                     </Button>
                 </motion.div>
+                </div>
             </motion.div>
         </section>
     );

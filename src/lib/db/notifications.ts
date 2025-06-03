@@ -221,7 +221,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
 
     } catch (error) {
         console.error('Error fetching user preferences:', error);
-        throw new Error('Failed to fetch user preferences');
+        throw error;
     }
 }
 
@@ -263,7 +263,7 @@ export async function saveNotificationPreferences(data: {
             userId = user.id;
 
             // Update phone if provided
-            if (phone && !user.phone) {
+            if (phone) {
                 await prisma.user.update({
                     where: { id: user.id },
                     data: { phone }
@@ -414,7 +414,7 @@ export async function saveNotificationPreferences(data: {
         }
     } catch (error) {
         console.error('Error saving notification preferences:', error);
-        throw new Error('Failed to save notification preferences');
+        throw error;
     }
 }
 
@@ -449,7 +449,7 @@ export async function savePetition(data: {
             userId = user.id;
 
             // Update phone if provided
-            if (phone && !user.phone) {
+            if (phone) {
                 await prisma.user.update({
                     where: { id: user.id },
                     data: { phone }
@@ -524,6 +524,6 @@ export async function savePetition(data: {
         }
     } catch (error) {
         console.error('Error saving petition:', error);
-        throw new Error('Failed to save petition');
+        throw error;
     }
 } 

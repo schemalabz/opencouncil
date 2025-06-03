@@ -2,15 +2,13 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { getLandingPageData, SubstackPost, type LandingPageCity, type LandingPageData } from "@/lib/db/landing";
-import { Loader2, Bell } from "lucide-react";
+import { getLandingPageData, SubstackPost, type LandingPageCity } from "@/lib/db/landing";
+import { Loader2 } from "lucide-react";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
-import { FloatingPathsBackground } from '@/components/ui/floating-paths';
+import { useScroll, useTransform } from "framer-motion";
 import { ChevronDown } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Link } from "@/i18n/routing";
+import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 
 interface LandingProps {
     publicCities: LandingPageCity[];
@@ -84,7 +82,7 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
     return (
         <div className="min-h-screen relative">
             {/* Hero Section - Full Width */}
-            <Hero latestPost={latestPost} />
+            <Hero latestPost={latestPost} cities={sortedCities} />
 
             {/* Scroll Indicator */}
             <div
@@ -106,19 +104,18 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
                 <section className="space-y-12 sm:space-y-16 mt-12 sm:mt-20">
                     {/* Notification Signup Callout */}
                     <div className="bg-muted/50 rounded-lg p-6 border border-border flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div>
+                        <div className="w-full sm:w-1/2">
                             <h2 className="text-xl font-semibold mb-2">Μείνετε ενημερωμένοι</h2>
                             <p className="text-muted-foreground mb-0">
-                                Λάβετε ενημερώσεις για θέματα που συζητιούνται στα δημοτικά συμβούλια
-                                για τις περιοχές και τα θέματα που σας ενδιαφέρουν.
+                                Λάβετε ενημερώσεις για τα θέματα και τις τοποθεσίες που σας ενδιαφέρουν, πριν ή αφότου αυτά συζητηθούν στο δημοτικό συμβούλιο.
                             </p>
                         </div>
-                        <Button asChild size="lg" className="whitespace-nowrap">
-                            <Link href="/notifications">
-                                <Bell className="mr-2 h-4 w-4" />
-                                Γραφτείτε στις ενημερώσεις
-                            </Link>
-                        </Button>
+                        <div className="w-full sm:w-1/2">
+                            <MunicipalitySelector 
+                                cities={sortedCities} 
+                                hideQuickSelection={true}
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-16">

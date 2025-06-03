@@ -7,12 +7,14 @@ declare module "next-auth" {
     interface Session {
         user: {
             isSuperAdmin?: boolean
+            phone?: string | null
         } & DefaultSession["user"]
     }
 
     interface User {
         isSuperAdmin?: boolean
         name?: string | null
+        phone?: string | null
     }
 }
 
@@ -25,7 +27,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 user: {
                     ...session.user,
                     isSuperAdmin: user.isSuperAdmin,
-                    name: user.name
+                    name: user.name,
+                    phone: user.phone
                 }
             }
         }

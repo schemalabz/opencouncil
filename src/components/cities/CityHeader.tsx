@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import { BadgeCheck, BadgeX, Building2 } from 'lucide-react';
+import { BadgeCheck, BadgeX, Building2, Bell } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -12,6 +12,9 @@ import { Input } from '@/components/ui/input';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { useSession } from 'next-auth/react';
+import { getUserPreferences } from '@/lib/db/notifications';
 
 type CityHeaderProps = {
     city: City,
@@ -23,7 +26,9 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [canEdit, setCanEdit] = useState(false);
+    const [hasNotifications, setHasNotifications] = useState(false);
     const router = useRouter();
+    const { data: session } = useSession();
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -33,12 +38,34 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
         checkEditPermissions();
     }, [city.id]);
 
+    useEffect(() => {
+        const checkNotifications = async () => {
+            if (!session?.user) return;
+            
+            try {
+                const preferences = await getUserPreferences();
+                const hasCityNotifications = preferences.some(
+                    pref => pref.cityId === city.id && !pref.isPetition
+                );
+                setHasNotifications(hasCityNotifications);
+            } catch (error) {
+                console.error('Error checking notifications:', error);
+            }
+        };
+
+        checkNotifications();
+    }, [city.id, session?.user]);
+
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         const params = new URLSearchParams();
         params.set('query', searchQuery);
         params.set('cityId', city.id);
         router.push(`/search?${params.toString()}`);
+    };
+
+    const handleNotificationSignup = () => {
+        router.push(`/${city.id}/notifications`);
     };
 
     return (
@@ -99,20 +126,41 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
                         </motion.div>
                     </div>
                 </motion.div>
-                {canEdit && (
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                    >
+                <motion.div
+                    className="flex flex-col items-center md:items-end gap-4"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                >
+                    {canEdit && (
                         <FormSheet
                             FormComponent={CityForm}
                             formProps={{ city, onSuccess: () => setIsSheetOpen(false) }}
                             title={t('editCity')}
                             type="edit"
                         />
-                    </motion.div>
-                )}
+                    )}
+                    {city.supportsNotifications && (
+                        <Button
+                            onClick={handleNotificationSignup}
+                            size="xl"
+                            className="group transition-all duration-300"
+                        >
+                            <div className="relative z-10 flex items-center gap-2">
+                                <Bell className="w-5 h-5" />
+                                <span className="font-medium">
+                                    {hasNotifications ? 'Διαχείριση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
+                                </span>
+                            </div>
+                            <motion.div
+                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
+                                whileHover={{
+                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
+                                }}
+                            />
+                        </Button>
+                    )}
+                </motion.div>
             </div>
 
             {/* Search Section */}

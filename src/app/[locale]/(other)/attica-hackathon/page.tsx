@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import atticaData from "./Περιφέρεια Αττικής.json";
 import { addToWaitlist } from "@/lib/db/waitlist";
 import { Check, X } from "lucide-react";
-import Combobox from "@/components/Combobox";
 import Map from "@/components/map/map";
 
 export default function AtticaHackathon() {
@@ -120,14 +119,7 @@ export default function AtticaHackathon() {
                                 Επιλέξτε Δήμους
                             </label>
                             <div className="space-y-2">
-                                <Combobox
-                                    options={municipalities}
-                                    value={null}
-                                    onChange={handleMunicipalitySelect}
-                                    placeholder="Επιλέξτε δήμο..."
-                                    disabled={isSubmitting}
-                                    className="w-full"
-                                />
+                                <span>combobox removed to avoid maintainance</span>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {selectedMunicipalities.map((municipality) => (
                                         <Button

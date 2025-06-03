@@ -9,8 +9,8 @@ import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Search, Building2 } from "lucide-react"
+import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 
 export interface PathElement {
@@ -28,15 +28,31 @@ interface HeaderProps {
     noContainer?: boolean
     className?: string
 }
+
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
     const { scrollY } = useScroll();
     const borderOpacity = useTransform(scrollY, [0, 10], [0, 1], { clamp: true });
     const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
     const router = useRouter();
+    const segment = useSelectedLayoutSegment();
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchOverlayRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Add dynamic path elements based on the current segment
+    const dynamicPath = [...path];
+    if (segment === 'notifications') {
+        dynamicPath.push({
+            name: "Ενημερώσεις",
+            link: `/${currentEntity?.cityId}/notifications`
+        });
+    } else if (segment === 'petition') {
+        dynamicPath.push({
+            name: "Υποστήριξη Δήμου",
+            link: `/${currentEntity?.cityId}/petition`
+        });
+    }
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -103,13 +119,13 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                     className="transition-transform"
                                 />
                             </div>
-                            {path.length === 0 && (
+                            {dynamicPath.length === 0 && (
                                 <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
                             )}
                         </Link>
                     </div>
 
-                    {path.length === 0 && (
+                    {dynamicPath.length === 0 && (
                         <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
                             <Link href="/" className="pointer-events-auto hover:no-underline">
                                 <span className="text-xl font-medium">OpenCouncil</span>
@@ -117,11 +133,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                         </div>
                     )}
 
-                    {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
+                    {dynamicPath.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
 
                     <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center flex-1 min-w-0">
-                            {path.map((element, index) => (
+                            {dynamicPath.map((element, index) => (
                                 <div key={element.link} className="flex items-center min-w-0 last:flex-1">
                                     {index > 0 && (
                                         <Separator orientation="vertical" className="h-8 mx-2 md:mx-4" />
@@ -137,14 +153,18 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                             <div className="flex items-center gap-2 md:gap-4">
                                                 {element.city && (
                                                     <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
-                                                        <Image
-                                                            src={element.city.logoImage || '/logo.png'}
-                                                            alt={element.city.name}
-                                                            fill
-                                                            sizes="(max-width: 768px) 48px, 60px"
-                                                            style={{ objectFit: 'contain' }}
-                                                            priority
-                                                        />
+                                                        {element.city.logoImage ? (
+                                                            <Image
+                                                                src={element.city.logoImage}
+                                                                alt={element.city.name}
+                                                                fill
+                                                                sizes="(max-width: 768px) 48px, 60px"
+                                                                style={{ objectFit: 'contain' }}
+                                                                priority
+                                                            />
+                                                        ) : (
+                                                            <Building2 className="w-full h-full text-gray-400" />
+                                                        )}
                                                     </div>
                                                 )}
                                                 <span className={cn(
@@ -194,13 +214,13 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                         className="transition-transform"
                                     />
                                 </div>
-                                {path.length === 0 && (
+                                {dynamicPath.length === 0 && (
                                     <span className="text-lg md:text-xl md:hidden">OpenCouncil</span>
                                 )}
                             </Link>
                         </div>
 
-                        {path.length === 0 && (
+                        {dynamicPath.length === 0 && (
                             <div className="absolute left-0 right-0 hidden md:flex justify-center items-center pointer-events-none">
                                 <Link href="/" className="pointer-events-auto hover:underline">
                                     <span className="text-xl font-medium">OpenCouncil</span>
@@ -208,11 +228,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                             </div>
                         )}
 
-                        {path.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
+                        {dynamicPath.length > 0 && <Separator orientation="vertical" className="h-12 mx-2 md:mx-6" />}
 
                         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
                             <div className="flex items-center flex-1 min-w-0">
-                                {path.map((element, index) => (
+                                {dynamicPath.map((element, index) => (
                                     <div key={element.link} className="flex items-center min-w-0 last:flex-1">
                                         {index > 0 && (
                                             <Separator orientation="vertical" className="h-8 mx-2 md:mx-4" />
@@ -228,14 +248,18 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                                 <div className="flex items-center gap-2 md:gap-4">
                                                     {element.city && (
                                                         <div className="relative h-[48px] md:h-[60px] w-[48px] md:w-[60px] flex-shrink-0">
-                                                            <Image
-                                                                src={element.city.logoImage || '/logo.png'}
-                                                                alt={element.city.name}
-                                                                fill
-                                                                sizes="(max-width: 768px) 48px, 60px"
-                                                                style={{ objectFit: 'contain' }}
-                                                                priority
-                                                            />
+                                                            {element.city.logoImage ? (
+                                                                <Image
+                                                                    src={element.city.logoImage}
+                                                                    alt={element.city.name}
+                                                                    fill
+                                                                    sizes="(max-width: 768px) 48px, 60px"
+                                                                    style={{ objectFit: 'contain' }}
+                                                                    priority
+                                                                />
+                                                            ) : (
+                                                                <Building2 className="w-full h-full text-gray-400" />
+                                                            )}
                                                         </div>
                                                     )}
                                                     <span className={cn(
