@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import { SignupPageContent } from "@/components/notifications/SignupPageContent";
-import { SignupStage } from "@/lib/types/notifications";
+import { OnboardingPageContent } from "@/components/onboarding/OnboardingPageContent";
+import { OnboardingStage } from '@/lib/types/onboarding';
 import { Suspense } from "react";
-import { getCity } from "@/lib/db/cities";
+import { getCity, getCitiesWithGeometry } from "@/lib/db/cities";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -10,8 +10,12 @@ export const metadata: Metadata = {
     description: "Εγγραφείτε για να λαμβάνετε ενημερώσεις για θέματα που συζητούνται στα δημοτικά συμβούλια",
 };
 
-export default async function NotificationSignupPage({ params }: { params: { cityId: string } }) {
-    // Fetch city data to verify it supports notifications
+interface PageProps {
+    params: { cityId: string };
+}
+
+export default async function NotificationSignupPage({ params }: PageProps) {
+    // Fetch city data with geometry at the server level
     const city = await getCity(params.cityId);
     
     if (!city) {
@@ -24,15 +28,22 @@ export default async function NotificationSignupPage({ params }: { params: { cit
         redirect(`/${params.cityId}/petition`);
     }
 
+    // Get city with geometry
+    const [cityWithGeometry] = await getCitiesWithGeometry([city]);
+    if (!cityWithGeometry) {
+        return <div>Error loading city data</div>;
+    }
+
     return (
         <Suspense fallback={
             <div className="flex items-center justify-center min-h-screen">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         }>
-            <SignupPageContent 
-                initialStage={SignupStage.LOCATION_TOPIC_SELECTION} 
+            <OnboardingPageContent 
+                initialStage={OnboardingStage.NOTIFICATION_INFO} 
                 cityId={params.cityId}
+                city={cityWithGeometry}
             />
         </Suspense>
     );

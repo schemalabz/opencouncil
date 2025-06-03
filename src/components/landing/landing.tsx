@@ -8,7 +8,7 @@ import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { useScroll, useTransform } from "framer-motion";
 import { ChevronDown } from 'lucide-react';
-import { MunicipalitySelector } from '@/components/notifications/MunicipalitySelector';
+import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 
 interface LandingProps {
     publicCities: LandingPageCity[];

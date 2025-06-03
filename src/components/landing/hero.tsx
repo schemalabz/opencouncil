@@ -1,10 +1,9 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
-import { ChevronDown } from 'lucide-react';
 import { SubstackPost } from '@/lib/db/landing';
 import { HeaderBar } from './header-bar';
-import { MunicipalitySelector } from '@/components/notifications/MunicipalitySelector';
+import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 import { CityWithGeometry } from '@/lib/db/cities';
 
 interface HeroProps {

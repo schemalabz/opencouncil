@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Location } from './SignupPageContent';
+import { Location } from '@/lib/types/onboarding';
 import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion } from '@/lib/google-maps';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn, calculateGeometryBounds } from '@/lib/utils';
@@ -123,13 +123,6 @@ export function LocationSelector({
 
     return (
         <div className="space-y-5">
-            <div className="pb-2 border-b">
-                <h3 className="text-lg font-semibold">Τοποθεσίες ενδιαφέροντος</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                    Επιλέξτε τοποθεσίες στον δήμο {city.name} για τις οποίες θέλετε να λαμβάνετε ενημερώσεις
-                </p>
-            </div>
-
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
