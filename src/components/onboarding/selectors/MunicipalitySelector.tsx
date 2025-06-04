@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Search, X, Bell, AlertTriangle } from 'lucide-react';
+import { MapPin, Search, Bell, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -19,6 +19,7 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
     const [selectedCity, setSelectedCity] = useState<CityWithGeometry | null>(null);
     const [allCities, setAllCities] = useState<CityWithGeometry[]>(initialCities);
     const [isLoading, setIsLoading] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch all municipalities when component mounts
@@ -92,10 +93,14 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                     )}
                 </div>
             </div>
-            <Search className={cn(
-                "h-4 w-4 sm:h-5 sm:w-5 transition-colors",
-                item ? "text-orange-500" : "text-gray-400"
-            )} />
+            {isNavigating ? (
+                <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-orange-500 border-t-transparent" />
+            ) : (
+                <Search className={cn(
+                    "h-4 w-4 sm:h-5 sm:w-5 transition-colors",
+                    item ? "text-orange-500" : "text-gray-400"
+                )} />
+            )}
             <div className={cn(
                 "absolute inset-0 bg-gradient-to-r opacity-0 transition-opacity duration-300 -z-10",
                 item ? "from-orange-50 to-orange-100 opacity-100" : "",
@@ -160,6 +165,7 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                     onChange={(city) => {
                         setSelectedCity(city);
                         if (city) {
+                            setIsNavigating(true);
                             if (!city.isPending) {
                                 router.push(`/${city.id}`);
                             } else {

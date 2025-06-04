@@ -164,7 +164,6 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
                         <Button
                             onClick={() => router.push(`/${city.id}/petition`)}
                             size="xl"
-                            variant="outline"
                             className="group transition-all duration-300"
                         >
                             <div className="relative z-10 flex items-center gap-2">
