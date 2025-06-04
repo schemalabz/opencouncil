@@ -160,6 +160,27 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
                             />
                         </Button>
                     )}
+                    {!city.isPending && !city.officialSupport && (
+                        <Button
+                            onClick={() => router.push(`/${city.id}/petition`)}
+                            size="xl"
+                            variant="outline"
+                            className="group transition-all duration-300"
+                        >
+                            <div className="relative z-10 flex items-center gap-2">
+                                <BadgeCheck className="w-5 h-5" />
+                                <span className="font-medium">
+                                    Ζητήστε την υποστήριξη του δήμου
+                                </span>
+                            </div>
+                            <motion.div
+                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
+                                whileHover={{
+                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
+                                }}
+                            />
+                        </Button>
+                    )}
                 </motion.div>
             </div>
 

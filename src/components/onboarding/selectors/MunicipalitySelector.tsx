@@ -160,7 +160,7 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                     onChange={(city) => {
                         setSelectedCity(city);
                         if (city) {
-                            if (city.isListed) {
+                            if (!city.isPending) {
                                 router.push(`/${city.id}`);
                             } else {
                                 router.push(`/${city.id}/petition`);
@@ -201,7 +201,7 @@ export function MunicipalitySelector({ cities: initialCities, hideQuickSelection
                                         className="bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-xl"
                                         onClick={() => {
                                             setSelectedCity(city);
-                                            if (city.isListed) {
+                                            if (!city.isPending) {
                                                 router.push(`/${city.id}`);
                                             } else {
                                                 router.push(`/${city.id}/petition`);
