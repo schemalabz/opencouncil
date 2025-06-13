@@ -3,8 +3,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
-import { createCity, getCities, getCity } from '@/lib/db/cities'
-import { PrismaClient } from '@prisma/client'
+import { z } from 'zod'
+import { createCity, getCities } from '@/lib/db/cities'
 
 const s3Client = new S3({
     endpoint: process.env.DO_SPACES_ENDPOINT,
@@ -15,28 +15,33 @@ const s3Client = new S3({
     }
 })
 
-const prisma = new PrismaClient()
+const getCitiesQuerySchema = z.object({
+    includeUnlisted: z.string()
+        .optional()
+        .transform((val) => val === 'true')
+        .default('false')
+});
 
 export async function GET(req: NextRequest) {
     try {
-        const searchParams = req.nextUrl.searchParams;
-        const includeAll = searchParams.get('includeAll') === 'true';
+        const { searchParams } = req.nextUrl;
+        const queryParams = Object.fromEntries(searchParams.entries());
+        
+        const { includeUnlisted } = getCitiesQuerySchema.parse(queryParams);
 
-        // Fetch cities from our existing function, passing both flags when includeAll is true
         const cities = await getCities({
-            includeUnlisted: includeAll,
-            includePending: includeAll
+            includeUnlisted,
+            includePending: false
         });
-
-        // Add the supportsNotifications field
-        const citiesWithNotifications = cities.map(city => ({
-            ...city,
-            // Use the field if it exists in the database, otherwise default to false
-            supportsNotifications: city.supportsNotifications ?? false
-        }));
-
-        return NextResponse.json(citiesWithNotifications);
+        
+        return NextResponse.json(cities);
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json(
+                { error: error.errors },
+                { status: 400 }
+            );
+        }
         console.error('Error fetching cities:', error);
 
         return NextResponse.json(

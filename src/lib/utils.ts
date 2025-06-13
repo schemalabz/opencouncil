@@ -406,7 +406,6 @@ export function getMeetingState(meeting: {
   agendaUrl?: string | null;
   subjects?: any[];
 }): { label: string; icon: string } {
-  console.log(meeting.videoUrl);
   // Video state - if there's a video and mux playback id
   if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
     return {

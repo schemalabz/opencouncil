@@ -1,14 +1,13 @@
-"use client"
 import { Users, Building2, CalendarDays, BadgeX } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
-import { type LandingPageCity } from "@/lib/db/landing";
+import { LandingCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 interface CityOverviewProps {
-    city: LandingPageCity;
+    city: LandingCity;
     showPrivateLabel?: boolean;
 }
 
@@ -81,21 +80,21 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:w-80">
                     {statCard(
                         <Users className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city.personCount} Πρόσωπα`,
+                        `${city._count.persons} Πρόσωπα`,
                         "Δείτε όλα τα πρόσωπα",
                         `/${city.id}?tab=members`,
                         0
                     )}
                     {statCard(
                         <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city.partyCount} Παρατάξεις`,
+                        `${city._count.parties} Παρατάξεις`,
                         "Δείτε όλες τις παρατάξεις",
                         `/${city.id}?tab=parties`,
                         1
                     )}
                     {statCard(
                         <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city.meetingCount || 0} Συνεδριάσεις`,
+                        `${city._count.councilMeetings || 0} Συνεδριάσεις`,
                         "Δείτε όλες τις συνεδριάσεις",
                         `/${city.id}?tab=meetings`,
                         2

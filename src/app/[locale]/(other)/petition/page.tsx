@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { MunicipalitySelector } from "@/components/onboarding/selectors/MunicipalitySelector";
-import { getCities } from "@/lib/db/cities";
 import { CheckCircle2 } from 'lucide-react';
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
 
@@ -12,7 +11,10 @@ export const metadata: Metadata = {
 
 export default async function PetitionPage() {
     // Fetch all cities
-    const cities = await getCities();
+    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/all`, {
+        next: { tags: ["cities:all"] },
+    });
+    const cities = await response.json();
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">

@@ -2,13 +2,14 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 import { SubstackPost } from '@/lib/db/landing';
+import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { HeaderBar } from './header-bar';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 import { OpenCouncilDescription } from './OpenCouncilDescription';
 
 interface HeroProps {
     latestPost?: SubstackPost;
-    cities: CityWithGeometry[];
+    cities: CityMinimalWithCounts[];
 }
 
 export function Hero({ latestPost, cities }: HeroProps) {
