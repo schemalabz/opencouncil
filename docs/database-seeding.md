@@ -41,7 +41,7 @@ The seeding process is handled by `prisma/seed.ts` which:
 
 1. Checks for a local `seed_data.json` file
 2. If not found, downloads it from the project's GitHub repository
-3. Creates a super admin user if `SUPER_ADMIN_EMAIL` is set
+3. Creates predefined [test users for development](#test-users)
 4. Seeds the database with the data in the following order:
    - Core entities (topics, cities)
    - Administrative bodies and parties
@@ -89,8 +89,18 @@ SEED_DATA_URL=https://custom-url/seed_data.json
 # Path to local seed data file
 SEED_DATA_PATH=./custom/path/seed_data.json
 
-# Email for creating a super admin user
-# you must have access to this email as
-# it will be used for email login
-SUPER_ADMIN_EMAIL=admin@example.com
+# City ID for test users (default: chania)
+DEV_TEST_CITY_ID=chania
 ```
+
+## Test Users
+
+The seeding process automatically creates test users with different permission levels:
+
+- **Super Admin**: Full access across all cities
+- **City Admin**: Admin access to the configured test city  
+- **Party Admin**: Admin access to a specific party
+- **Person Admin**: Admin access to a specific person
+- **Read Only**: No administrative permissions
+
+In development mode, a floating panel appears for instant user switching without email authentication.

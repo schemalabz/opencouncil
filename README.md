@@ -85,10 +85,10 @@ If you prefer to run without Docker:
    npm run dev
    ```
 
-## Database Management
+## Database & Development Tools
 
-The database is automatically seeded with sample data during setup. The seed data provides a realistic development environment while excluding sensitive information.
+The database is automatically seeded with sample data and test users during setup. The seed data provides a realistic development environment while excluding sensitive information.
 
 During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
 
-For detailed information about database seeding, including how to generate custom seed data, see [Database Seeding Guide](./docs/database-seeding.md).
+For detailed information about database seeding and test user management, see [Database Seeding Guide](./docs/database-seeding.md).

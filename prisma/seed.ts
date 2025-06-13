@@ -10,38 +10,97 @@ const SEED_DATA_URL = process.env.SEED_DATA_URL || 'https://raw.githubuserconten
 const SEED_DATA_PATH = process.env.SEED_DATA_PATH || path.join(__dirname, 'seed_data.json')
 
 /**
- * Create super admin user if SUPER_ADMIN_EMAIL is set
+ * Create development test users with proper permissions
  */
-async function createSuperAdmin() {
-  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL
-  if (!superAdminEmail) {
-    console.log('SUPER_ADMIN_EMAIL not set, skipping super admin creation')
-    return
-  }
+async function createTestUsers() {
+  // Import test user definitions
+  const { TEST_USERS, DEV_TEST_CITY_ID } = require('../src/lib/dev/test-users')
+  
+  console.log(`Creating development test users for city: ${DEV_TEST_CITY_ID}`)
 
   try {
-    // Check if super admin already exists
-    const existingSuperAdmin = await prisma.user.findUnique({
-      where: { email: superAdminEmail }
+    // Verify the test city exists
+    const testCity = await prisma.city.findUnique({
+      where: { id: DEV_TEST_CITY_ID },
+      select: { id: true, name: true }
     })
 
-    if (existingSuperAdmin) {
-      console.log(`Super admin with email ${superAdminEmail} already exists`)
+    if (!testCity) {
+      console.log(`Test city with id "${DEV_TEST_CITY_ID}" not found. Skipping test user creation.`)
       return
     }
 
-    // Create super admin user
-    await prisma.user.create({
-      data: {
-        email: superAdminEmail,
-        name: 'Super Admin',
-        isSuperAdmin: true
-      }
+    // Get one party and one person from the test city for specific admin users
+    const testParty = await prisma.party.findFirst({
+      where: { cityId: DEV_TEST_CITY_ID },
+      select: { id: true, name: true }
     })
 
-    console.log(`Created super admin user with email ${superAdminEmail}`)
+    const testPerson = await prisma.person.findFirst({
+      where: { cityId: DEV_TEST_CITY_ID },
+      select: { id: true, name: true }
+    })
+
+    for (const testUser of TEST_USERS) {
+      // Check if user already exists
+      const existingUser = await prisma.user.findUnique({
+        where: { email: testUser.email }
+      })
+
+      if (existingUser) {
+        console.log(`Test user with email ${testUser.email} already exists`)
+        continue
+      }
+
+      // Determine user name and permissions based on admin type
+      let finalName = testUser.name
+      let administers: any[] = []
+
+      switch (testUser.adminType) {
+        case 'superadmin':
+          // Super admin needs no additional permissions
+          break
+        case 'city':
+          administers = [{ cityId: testCity.id }]
+          break
+        case 'party':
+          if (testParty) {
+            finalName = `Party Admin (${testParty.name})`
+            administers = [{ partyId: testParty.id }]
+          } else {
+            finalName = 'Party Admin (No party available)'
+          }
+          break
+        case 'person':
+          if (testPerson) {
+            finalName = `Person Admin (${testPerson.name})`
+            administers = [{ personId: testPerson.id }]
+          } else {
+            finalName = 'Person Admin (No person available)'
+          }
+          break
+        case 'readonly':
+          // Read-only user has no administers
+          break
+      }
+
+      // Create test user
+      await prisma.user.create({
+        data: {
+          email: testUser.email,
+          name: finalName,
+          isSuperAdmin: testUser.isSuperAdmin,
+          onboarded: true,
+          administers: {
+            create: administers
+          }
+        }
+      })
+
+      console.log(`Created test user: ${finalName} (${testUser.email})`)
+    }
   } catch (error) {
-    console.error('Error creating super admin:', error)
+    console.error('Error creating test users:', error)
   }
 }
 
@@ -156,8 +215,6 @@ async function main() {
       return
     }
 
-    await createSuperAdmin()
-    
     console.log(`Seeding database with ${seedData.cities.length} cities and ${seedData.meetings.length} meetings...`)
     
     // First, seed core entities that don't depend on others
@@ -176,6 +233,8 @@ async function main() {
 
     // Seed voiceprints after speaker segments are created
     await seedVoicePrints(seedData.persons)
+
+    await createTestUsers()
     
     console.log('Database has been seeded! 🌱')
   } catch (error) {
