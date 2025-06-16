@@ -8,14 +8,54 @@ paths:
   # Cities
   /api/cities:
     get:
-      summary: Get all cities
+      summary: Get cities based on user permissions
+      description: Returns cities with full data including counts. Respects user authorization when includeUnlisted=true.
+      parameters:
+        - name: includeUnlisted
+          in: query
+          description: When true, includes unlisted cities the user can administer
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Successful response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/City'
+                type: array
+                items:
+                  $ref: '#/components/schemas/CityWithCounts'
+                description: Full city data with counts
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Not authorized to view unlisted cities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to fetch cities
+
+  /api/cities/all:
+    get:
+      summary: Get all cities in minimal format
+      description: Returns all non-pending cities in minimal format. No authentication required. Ideal for dropdowns and selectors.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CityMinimal'
+                description: All cities in minimal format
         '500':
           description: Failed to fetch cities
 
@@ -30,7 +70,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/City'
+                $ref: '#/components/schemas/CityWithCounts'
         '404':
           description: City not found
         '500':
@@ -42,6 +82,13 @@ paths:
       summary: Get meetings for a city
       parameters:
         - $ref: '#/components/parameters/cityId'
+        - name: limit
+          in: query
+          description: Maximum number of meetings to return (1-100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
       responses:
         '200':
           description: Successful response
@@ -51,6 +98,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Meeting'
+        '400':
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           description: Failed to fetch meetings
 
@@ -203,8 +256,9 @@ components:
         type: string
 
   schemas:
-    City:
+    CityMinimal:
       type: object
+      description: Base city data with minimal fields
       properties:
         id:
           type: string
@@ -218,18 +272,56 @@ components:
           type: string
         logoImage:
           type: string
-        timezone:
-          type: string
-        officialSupport:
+          nullable: true
+        supportsNotifications:
+          type: boolean
+        isPending:
           type: boolean
         isListed:
           type: boolean
-        createdAt:
+        officialSupport:
+          type: boolean
+        authorityType:
           type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+          enum: [municipality, region]
+
+    City:
+      allOf:
+        - $ref: '#/components/schemas/CityMinimal'
+        - type: object
+          description: Full city data from the database
+          properties:
+            timezone:
+              type: string
+            wikipediaId:
+              type: string
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    CityWithCounts:
+      allOf:
+        - $ref: '#/components/schemas/City'
+        - type: object
+          description: City data with count information
+          properties:
+            _count:
+              type: object
+              description: Aggregated counts for this city
+              properties:
+                persons:
+                  type: integer
+                  description: Number of people in this city
+                parties:
+                  type: integer
+                  description: Number of parties in this city
+                councilMeetings:
+                  type: integer
+                  description: Number of released meetings in this city
 
     Meeting:
       type: object
@@ -258,6 +350,13 @@ components:
           type: boolean
         cityId:
           type: string
+        administrativeBody:
+          $ref: '#/components/schemas/AdministrativeBody'
+          nullable: true
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subject'
         createdAt:
           type: string
           format: date-time
@@ -615,3 +714,75 @@ components:
               type: string
             details:
               type: object
+
+    Subject:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        hot:
+          type: boolean
+        agendaItemIndex:
+          type: integer
+          nullable: true
+        topic:
+          $ref: '#/components/schemas/Topic'
+          nullable: true
+        speakerSegments:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AdministrativeBody:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+        type:
+          type: string
+          enum: [council, committee, community]
+        cityId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              path:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: number

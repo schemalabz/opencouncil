@@ -3,10 +3,10 @@ import { Link } from "@/i18n/routing";
 import { Badge } from "@/components/ui/badge";
 import { Building2, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type LandingPageCity } from "@/lib/db/landing";
+import { LandingCity } from "@/lib/db/landing";
 
 interface CityMiniCardProps {
-    city: LandingPageCity;
+    city: LandingCity;
     showPrivateLabel?: boolean;
 }
 

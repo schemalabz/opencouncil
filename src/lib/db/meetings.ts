@@ -78,7 +78,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     }
 }
 
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased }: { includeUnreleased: boolean } = { includeUnreleased: false }): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
+export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit }: { includeUnreleased?: boolean; limit?: number } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
 
     try {
         // First, get meetings with subjects and basic relationships
@@ -88,6 +88,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
                 { dateTime: 'desc' },
                 { createdAt: 'desc' }
             ],
+            ...(limit && { take: limit }),
             include: {
                 subjects: {
                     orderBy: [

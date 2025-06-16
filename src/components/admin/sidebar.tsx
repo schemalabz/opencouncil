@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -48,6 +48,11 @@ const menuItems = [
         title: "Tasks",
         icon: List,
         url: "/admin/tasks"
+    },
+    {
+        title: "Cache",
+        icon: RefreshCw,
+        url: "/admin/cache",
     },
     {
         title: "Settings",

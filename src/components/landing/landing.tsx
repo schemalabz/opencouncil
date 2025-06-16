@@ -1,76 +1,68 @@
 'use client';
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { getLandingPageData, SubstackPost, type LandingPageCity } from "@/lib/db/landing";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LandingPageData, LandingCity } from "@/lib/db/landing";
+import { CityWithCounts } from "@/lib/db/cities";
+import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
-import { useScroll, useTransform } from "framer-motion";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 
-interface LandingProps {
-    publicCities: LandingPageCity[];
-    latestPost: SubstackPost | undefined;
-}
+export function Landing({ allCities, cities, latestPost }: LandingPageData) {
+    const { status } = useSession();
+    const [citiesWithMeetings, setCitiesWithMeetings] = useState<LandingCity[]>(cities);
+    const [isLoadingUserCities, setIsLoadingUserCities] = useState(false);
 
-export function Landing({ publicCities, latestPost }: LandingProps) {
-    const { data: session } = useSession();
-    const [allCities, setAllCities] = useState<LandingPageCity[]>(publicCities);
-    const [isLoading, setIsLoading] = useState(false);
-    const { scrollY } = useScroll();
-    const [windowHeight, setWindowHeight] = useState(0);
-
+    // Fetch additional user-specific cities when authenticated
     useEffect(() => {
-        setWindowHeight(window.innerHeight);
-        const handleResize = () => setWindowHeight(window.innerHeight);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
+        const fetchUserSpecificCities = async () => {
+            // Only fetch if user is authenticated
+            if (status !== 'authenticated') {
+                return;
+            }
 
-    // Only fetch session data once when session changes
-    const fetchCities = useCallback(async () => {
-        if (session?.user) {
-            setIsLoading(true);
+            setIsLoadingUserCities(true);
             try {
-                const newData = await getLandingPageData({ includeUnlisted: true });
-                setAllCities(newData.cities);
+                // Fetch all cities the user can access (including public + unlisted ones they administer)
+                const userCities: CityWithCounts[] = await fetch('/api/cities?includeUnlisted=true')
+                    .then(r => r.json());
+                // Fetch meeting data for all supported cities
+                const userCitiesWithMeetings: LandingCity[] = await Promise.all(
+                    userCities.map(async city => {
+                        try {
+                            const meetings: CouncilMeetingWithAdminBodyAndSubjects[] = await fetch(
+                                `/api/cities/${city.id}/meetings?limit=1`,
+                                { next: { tags: [`city:${city.id}:meetings`] } }
+                            ).then(r => r.json());
+                            
+                            return {
+                                ...city,
+                                mostRecentMeeting: meetings[0]
+                            };
+                        } catch (error) {
+                            console.error(`Error fetching meetings for city ${city.id}:`, error);
+                            return {
+                                ...city,
+                                mostRecentMeeting: undefined
+                            };
+                        }
+                    })
+                );
+                
+                // Replace cities entirely with user-specific list
+                setCitiesWithMeetings(userCitiesWithMeetings);
             } catch (error) {
-                console.error("Error fetching cities:", error);
+                console.error('Error fetching user-specific cities:', error);
             } finally {
-                setIsLoading(false);
+                setIsLoadingUserCities(false);
             }
-        }
-    }, [session]);
+        };
 
-    useEffect(() => {
-        fetchCities();
-    }, [fetchCities]);
+        fetchUserSpecificCities();
+    }, [status]);
 
-    // Sort cities: officially supported first, then public, then non-public
-    const sortedCities = useMemo(() =>
-        [...allCities].sort((a, b) => {
-            // First prioritize officially supported cities
-            if (a.officialSupport !== b.officialSupport) {
-                return a.officialSupport ? -1 : 1;
-            }
-
-            // Then sort by isListed status
-            if (a.isListed !== b.isListed) {
-                return a.isListed ? -1 : 1;
-            }
-
-            // Finally sort alphabetically by name
-            return a.name.localeCompare(b.name);
-        }),
-        [allCities]);
-
-    const backgroundOpacity = useTransform(
-        scrollY,
-        [0, windowHeight || 1],
-        [0.5, 0]
-    );
 
     const scrollToContent = () => {
         window.scrollTo({
@@ -82,7 +74,7 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
     return (
         <div className="min-h-screen relative">
             {/* Hero Section - Full Width */}
-            <Hero latestPost={latestPost} cities={sortedCities} />
+            <Hero latestPost={latestPost} cities={allCities} />
 
             {/* Scroll Indicator */}
             <div
@@ -112,33 +104,30 @@ export function Landing({ publicCities, latestPost }: LandingProps) {
                         </div>
                         <div className="w-full sm:w-1/2">
                             <MunicipalitySelector 
-                                cities={sortedCities} 
+                                cities={allCities} 
                                 hideQuickSelection={true}
                             />
                         </div>
                     </div>
 
+                    {/* City Overview Section */}
                     <div className="space-y-16">
-                        {sortedCities.map((city) => (
+                        {citiesWithMeetings.map((city) => (
                             <CityOverview
                                 key={city.id}
                                 city={city}
-                                showPrivateLabel={!city.isListed && !!session?.user}
+                                showPrivateLabel={!city.isListed}
                             />
                         ))}
-                    </div>
-
-                    {/* Loading Indicator */}
-                    {isLoading && (
-                        <div className="flex items-center justify-center py-4">
-                            <div className="flex items-center gap-3 px-4 py-2 rounded-lg bg-muted">
-                                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                <p className="text-sm text-muted-foreground">
-                                    Φορτώνονται μη δημόσιες πόλεις...
-                                </p>
+                        
+                        {/* Loading indicator for additional cities */}
+                        {isLoadingUserCities && (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                                <span className="ml-3 text-muted-foreground">Φορτώνονται μη δημόσιες πόλεις...</span>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </section>
             </div>
         </div>

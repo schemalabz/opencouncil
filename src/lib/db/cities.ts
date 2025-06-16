@@ -1,7 +1,7 @@
 "use server";
 import { City, CouncilMeeting, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 
 export type CityWithGeometry = City & {
     geometry?: GeoJSON.Geometry;
@@ -10,6 +10,39 @@ export type CityWithGeometry = City & {
 export type CityWithCouncilMeeting = City & {
     councilMeetings: CouncilMeeting[];
 };
+
+type CityCounts = {
+    persons: number;
+    parties: number;
+    councilMeetings: number;
+};
+
+export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'isPending' | 'isListed' | 'officialSupport' | 'authorityType'> & {
+    _count: CityCounts;
+};
+
+export type CityWithCounts = City & {
+    _count: CityCounts;
+};
+
+// Common configurations for database queries
+const CITY_COUNT_SELECT = {
+    select: {
+        persons: true,
+        parties: true,
+        councilMeetings: {
+            where: {
+                released: true
+            }
+        }
+    }
+};
+
+const CITY_ORDER_BY = [
+    { officialSupport: 'desc' as const },
+    { isListed: 'desc' as const },
+    { name: 'asc' as const }
+];
 
 export async function deleteCity(id: string): Promise<void> {
     withUserAuthorizedToEdit({ cityId: id });
@@ -50,10 +83,13 @@ export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | '
     }
 }
 
-export async function getCity(id: string): Promise<City | null> {
+export async function getCity(id: string): Promise<CityWithCounts | null> {
     try {
         const city = await prisma.city.findUnique({
             where: { id },
+            include: {
+                _count: CITY_COUNT_SELECT
+            }
         });
         return city;
     } catch (error) {
@@ -116,17 +152,80 @@ export async function getFullCity(cityId: string) {
     });
 }
 
-export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<City[]> {
-    if (includeUnlisted) {
-        withUserAuthorizedToEdit({});
-    }
-
+export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
     try {
         const cities = await prisma.city.findMany({
-            where: {
-                isPending: includePending ? undefined : false,
-                isListed: (includeUnlisted || includePending) ? undefined : true
-            }
+            select: {
+                id: true,
+                name: true,
+                name_en: true,
+                name_municipality: true,
+                name_municipality_en: true,
+                logoImage: true,
+                supportsNotifications: true,
+                isPending: true,
+                authorityType: true,
+                isListed: true,
+                officialSupport: true,
+                _count: CITY_COUNT_SELECT
+            },
+            orderBy: CITY_ORDER_BY
+        });
+        return cities;
+    } catch (error) {
+        console.error('Error fetching all cities minimal:', error);
+        throw new Error('Failed to fetch all cities');
+    }
+}
+
+/**
+ * Retrieves cities based on user permissions and city status.
+ */
+export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {    
+    // Get current user for authorization
+    const currentUser = includeUnlisted ? await getCurrentUser() : null;
+    
+    // Validate permissions
+    if (includeUnlisted && !currentUser) {
+        throw new Error("Not authorized to view unlisted cities");
+    }
+    
+    // Build where clause based on user permissions
+    let whereClause: any = {
+        // In Prisma, undefined means "ignore this condition entirely"
+        // So we can use it to conditionally include or exclude pending cities
+        isPending: includePending ? undefined : false
+    };
+    
+    if (!includeUnlisted) {
+        // Public mode: only show listed cities
+        whereClause.isListed = true;
+    } else if (!currentUser?.isSuperAdmin) {
+        // Authenticated user mode: show listed cities + cities they can administer
+        const administerableCityIds = currentUser?.administers
+            .filter(a => a.cityId)
+            .map(a => a.cityId) || [];
+            
+        whereClause = {
+            ...whereClause,
+            OR: [
+                { isListed: true },
+                {
+                    isListed: false,
+                    id: { in: administerableCityIds }
+                }
+            ]
+        };
+    }
+    // Superadmin mode: show all cities (no additional filter needed beyond isPending)
+    
+    try {
+        const cities = await prisma.city.findMany({
+            where: whereClause,
+            include: {
+                _count: CITY_COUNT_SELECT
+            },
+            orderBy: CITY_ORDER_BY
         });
         return cities;
     } catch (error) {
@@ -148,7 +247,8 @@ export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, in
             },
             include: {
                 councilMeetings: true
-            }
+            },
+            orderBy: CITY_ORDER_BY
         });
         return cities;
     } catch (error) {

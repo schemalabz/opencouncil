@@ -1,6 +1,6 @@
 import { ArrowUpRight, Twitter, Instagram } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { SubstackPost } from '@/lib/db/landing';
+import { LandingPageData, SubstackPost } from '@/lib/db/landing';
 import TimeAgo from 'react-timeago';
 // @ts-ignore
 import greekStrings from 'react-timeago/lib/language-strings/el';
@@ -10,8 +10,7 @@ import { cn } from '@/lib/utils';
 
 const formatter = buildFormatter(greekStrings);
 
-interface HeaderBarProps {
-    latestPost?: SubstackPost;
+interface HeaderBarProps extends Pick<LandingPageData, 'latestPost'> {
     className?: string;
 }
 

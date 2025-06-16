@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
-import { createCouncilMeeting } from '@/lib/db/meetings';
+import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -25,6 +25,15 @@ const meetingSchema = z.object({
         message: "Meeting ID is required.",
     }),
     administrativeBodyId: z.string().optional(),
+});
+
+const getMeetingsQuerySchema = z.object({
+    limit: z.string()
+        .optional()
+        .transform((val) => val ? parseInt(val, 10) : undefined)
+        .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
+            message: "Limit must be a number between 1 and 100"
+        })
 });
 
 export async function POST(
@@ -61,6 +70,37 @@ export async function POST(
         console.error('Failed to create meeting:', error);
         return NextResponse.json(
             { error: 'Failed to create meeting' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { cityId: string } }
+) {
+    try {
+        const { searchParams } = request.nextUrl;
+        const queryParams = Object.fromEntries(searchParams.entries());
+        
+        const { limit } = getMeetingsQuerySchema.parse(queryParams);
+
+        const meetings = await getCouncilMeetingsForCity(params.cityId, { 
+            includeUnreleased: false,
+            limit 
+        });
+
+        return NextResponse.json(meetings);
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json(
+                { error: error.errors },
+                { status: 400 }
+            );
+        }
+        console.error('Error fetching meetings:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch meetings' },
             { status: 500 }
         );
     }
