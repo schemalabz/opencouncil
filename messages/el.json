@@ -73,7 +73,31 @@
         "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
-        "region": "Περιφέρεια"
+        "region": "Περιφέρεια",
+        "CityMessageForm": {
+            "sectionTitle": "Μήνυμα Πόλης",
+            "toggle": "Εναλλαγή μηνύματος πόλης",
+            "currentMessageStatus": "Τρέχουσα κατάσταση μηνύματος: {status}",
+            "noMessageSet": "Δεν έχει οριστεί μήνυμα για αυτή την πόλη.",
+            "statusActive": "Ενεργό",
+            "statusInactive": "Ανενεργό",
+            "enableMessage": "Ενεργοποίηση μηνύματος πόλης",
+            "icon": "Εικονίδιο",
+            "selectIcon": "Επιλέξτε εικονίδιο",
+            "customIconOption": "Προσαρμοσμένο (εισάγετε όνομα)",
+            "customIconPlaceholder": "Εισάγετε όνομα εικονιδίου lucide (π.χ., 'Smile')",
+            "findMoreIcons": "Βρείτε περισσότερα εικονίδια στο",
+            "title": "Τίτλος",
+            "titlePlaceholder": "Τίτλος μηνύματος",
+            "description": "Περιγραφή",
+            "descriptionPlaceholder": "Περιγραφή μηνύματος",
+            "callToAction": "Κάλεσμα σε Δράση (Προαιρετικό)",
+            "callToActionPlaceholder": "Κείμενο κουμπιού (π.χ., 'Μάθετε περισσότερα')",
+            "urlPlaceholder": "URL (π.χ., '/athens/petition')",
+            "externalLink": "Εξωτερικός σύνδεσμος (ανοίγει σε νέα καρτέλα)",
+            "activeLabel": "Ενεργό (ορατό σε όλους τους χρήστες)",
+            "inactiveDescription": "Τα ανενεργά μηνύματα είναι ορατά μόνο στους διαχειριστές συστήματος για προεπισκόπηση."
+        }
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",

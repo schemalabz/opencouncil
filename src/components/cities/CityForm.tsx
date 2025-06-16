@@ -16,16 +16,18 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
-import { City, AdministrativeBodyType } from '@prisma/client'
+import { City, AdministrativeBodyType, CityMessage } from '@prisma/client'
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useTranslations } from 'next-intl'
+import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
+import CityMessageForm, { MessageFormState } from './CityMessageForm'
 
 const formSchema = z.object({
     name: z.string().min(2, {
@@ -54,12 +56,13 @@ const formSchema = z.object({
 
 interface CityFormProps {
     city?: City
+    cityMessage?: CityMessage | null
     onSuccess?: () => void
 }
 
-
-export default function CityForm({ city, onSuccess }: CityFormProps) {
+export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps) {
     const router = useRouter()
+    const { data: session } = useSession()
     const [logoImage, setLogoImage] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
@@ -74,6 +77,11 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         type: AdministrativeBodyType;
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
+
+    // Message data for form submission - only stored when message component updates
+    const [messageData, setMessageData] = useState<MessageFormState | null>(null);
+
+    const isSuperAdmin = session?.user?.isSuperAdmin
 
     useEffect(() => {
         // Get all available timezones
@@ -131,6 +139,21 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
         formData.append('authorityType', values.authorityType)
         if (logoImage) {
             formData.append('logoImage', logoImage)
+        }
+
+        // Add message data if superadmin and message data exists
+        if (isSuperAdmin && messageData) {
+            formData.append('hasMessage', messageData.hasMessage.toString())
+            if (messageData.hasMessage) {
+                const selectedEmoji = messageData.emoji === 'custom' ? messageData.customEmoji : messageData.emoji
+                formData.append('messageEmoji', selectedEmoji)
+                formData.append('messageTitle', messageData.title)
+                formData.append('messageDescription', messageData.description)
+                formData.append('messageCallToActionText', messageData.callToActionText || '')
+                formData.append('messageCallToActionUrl', messageData.callToActionUrl || '')
+                formData.append('messageCallToActionExternal', messageData.callToActionExternal.toString())
+                formData.append('messageIsActive', messageData.isActive.toString())
+            }
         }
 
         try {
@@ -253,6 +276,15 @@ export default function CityForm({ city, onSuccess }: CityFormProps) {
                         </FormItem>
                     )}
                 />
+
+                {/* City Message Section - SuperAdmin Only */}
+                {isSuperAdmin && city && (
+                    <CityMessageForm 
+                        existingMessage={cityMessage}
+                        onMessageChange={setMessageData}
+                    />
+                )}
+
                 <Collapsible
                     open={isDetailsOpen}
                     onOpenChange={setIsDetailsOpen}

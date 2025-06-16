@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal } from "@/lib/db/cities";
+import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
@@ -126,5 +127,16 @@ export async function getAllCitiesMinimalCached() {
     () => getAllCitiesMinimal(),
     ['cities', 'all'],
     { tags: ['cities:all'] }
+  )();
+}
+
+/**
+ * Cached version of getCityMessage that fetches and caches city message data
+ */
+export async function getCityMessageCached(cityId: string) {
+  return createCache(
+    () => getCityMessage(cityId),
+    ['city', cityId, 'message'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
   )();
 }

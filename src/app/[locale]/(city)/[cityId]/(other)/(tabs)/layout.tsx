@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityHeader } from "@/components/cities/CityHeader";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCouncilMeetingsCountForCityCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsCountForCityCached, getCityMessageCached } from "@/lib/cache";
 export default async function TabsLayout({
     children,
     params: { cityId }
@@ -11,9 +11,10 @@ export default async function TabsLayout({
     children: React.ReactNode,
     params: { cityId: string }
 }) {
-    const [city, councilMeetingsCount] = await Promise.all([
+    const [city, councilMeetingsCount, cityMessage] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsCountForCityCached(cityId)
+        getCouncilMeetingsCountForCityCached(cityId),
+        getCityMessageCached(cityId)
     ]);
 
     if (!city) {
@@ -26,6 +27,7 @@ export default async function TabsLayout({
                 <CityHeader 
                     city={city} 
                     councilMeetingsCount={councilMeetingsCount}
+                    cityMessage={cityMessage}
                 />
 
                 <CityNavigation cityId={cityId} />
