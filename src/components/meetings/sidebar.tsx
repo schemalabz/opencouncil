@@ -60,7 +60,7 @@ export default function MeetingSidebar() {
 
     useEffect(() => {
         const checkAuth = async () => {
-            const authorized = await isUserAuthorizedToEdit({ councilMeetingId: meeting.id })
+            const authorized = await isUserAuthorizedToEdit({ cityId: meeting.cityId })
             setCanEdit(authorized)
         }
         checkAuth()

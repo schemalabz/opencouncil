@@ -34,9 +34,22 @@ async function checkUserAuthorization({
     personId?: Person["id"],
     councilMeetingId?: CouncilMeeting["id"]
 }) {
-    const definedParams = [cityId, partyId, personId, councilMeetingId].filter(Boolean);
+    // Count defined parameters, but allow cityId + councilMeetingId combination
+    const definedParams = [partyId, personId].filter(Boolean);
+    const hasCityId = Boolean(cityId);
+    const hasCouncilMeetingId = Boolean(councilMeetingId);
+    
+    // Validate parameter combinations
     if (definedParams.length > 1) {
-        throw new Error("Only one of cityId, partyId, personId, or councilMeetingId should be defined");
+        throw new Error("Only one of partyId or personId should be defined");
+    }
+    
+    if (definedParams.length > 0 && (hasCityId || hasCouncilMeetingId)) {
+        throw new Error("cityId/councilMeetingId cannot be combined with partyId or personId");
+    }
+    
+    if (hasCouncilMeetingId && !hasCityId) {
+        throw new Error("cityId is required when councilMeetingId is provided");
     }
 
     const user = await getCurrentUser();
@@ -49,6 +62,23 @@ async function checkUserAuthorization({
         return false; // Only superadmins can edit anything
     }
 
+    // If both cityId and councilMeetingId are provided, validate they match
+    if (cityId && councilMeetingId) {
+        const councilMeeting = await prisma.councilMeeting.findUnique({ 
+            where: { 
+                cityId_id: { 
+                    cityId: cityId, 
+                    id: councilMeetingId 
+                } 
+            }, 
+            select: { cityId: true } 
+        });
+        
+        if (!councilMeeting) {
+            throw new Error("Council meeting not found or does not belong to the specified city");
+        }
+    }
+
     // Check direct administration rights
     const hasDirectAccess = user.administers.some(a =>
         (cityId && a.cityId === cityId) ||
@@ -59,12 +89,11 @@ async function checkUserAuthorization({
     if (hasDirectAccess) return true;
 
     // Check hierarchical rights
-    if (partyId || personId || councilMeetingId) {
+    if (partyId || personId) {
         // Get the city for the entity
         const entity = partyId ? await prisma.party.findUnique({ where: { id: partyId }, select: { cityId: true } })
             : personId ? await prisma.person.findUnique({ where: { id: personId }, select: { cityId: true } })
-                : councilMeetingId ? await prisma.councilMeeting.findFirst({ where: { id: councilMeetingId }, select: { cityId: true } })
-                    : null;
+                : null;
 
         if (entity?.cityId) {
             // If user administers the city, they can edit everything in it

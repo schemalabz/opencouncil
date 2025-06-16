@@ -183,9 +183,9 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         {canEdit && (
                             <div className="flex items-center space-x-1">
                                 {highlight.muxPlaybackId && (
-                                    <Button 
-                                        size="icon" 
-                                        variant="ghost" 
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
                                         onClick={handleToggleShowcase}
                                         className={highlight.isShowcased ? "text-yellow-500" : ""}
                                     >
@@ -382,7 +382,7 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
 
     React.useEffect(() => {
         const checkAuth = async () => {
-            const authorized = await isUserAuthorizedToEdit({ councilMeetingId: meeting.id });
+            const authorized = await isUserAuthorizedToEdit({ cityId: meeting.cityId });
             setCanEdit(authorized);
         };
         checkAuth();
