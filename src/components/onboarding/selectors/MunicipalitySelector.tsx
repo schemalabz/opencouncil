@@ -24,13 +24,13 @@ export function MunicipalitySelector({ cities, hideQuickSelection = false }: Mun
         {
             key: 'supported',
             label: 'ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ',
-            items: cities.filter(city => city.supportsNotifications),
+            items: cities.filter(city => city.isListed),
             icon: MapPin
         },
         {
             key: 'all',
             label: 'ΌΛΟΙ ΟΙ ΔΗΜΟΙ',
-            items: cities.filter(city => !city.supportsNotifications),
+            items: cities.filter(city => !city.isListed),
             icon: MapPin
         }
     ];
