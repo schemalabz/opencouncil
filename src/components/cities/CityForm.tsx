@@ -99,7 +99,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     }, [city])
 
     const idifyName = (name: string) => {
-        return name.toLowerCase().replace(/[^a-z]/g, '')
+        return name
+            .toLowerCase()
+            .trim()
+            .replace(/\s+/g, '-')  // Convert spaces to dashes
+            .replace(/[^a-z-]/g, '')  // Remove anything that's not lowercase letter or dash
+            .replace(/-+/g, '-')  // Replace multiple consecutive dashes with single dash
+            .replace(/^-|-$/g, '')  // Remove leading/trailing dashes
     }
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -117,12 +123,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
     useEffect(() => {
         const subscription = form.watch((value, { name }) => {
-            if (name === 'name') {
+            // Only auto-derive ID for new cities (not when editing existing cities)
+            if (name === 'name' && !city?.id) {
                 form.setValue('id', idifyName(value.name || ''))
             }
         })
         return () => subscription.unsubscribe()
-    }, [form])
+    }, [form, city?.id])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -345,7 +352,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                             <Input
                                                 {...field}
                                                 onChange={(e) => {
-                                                    field.onChange(e.target.value.toLowerCase().replace(/[^a-z]/g, ''))
+                                                    // Use the same transformation function as auto-derivation
+                                                    field.onChange(idifyName(e.target.value))
                                                 }}
                                             />
                                         </div>
