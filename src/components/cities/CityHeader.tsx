@@ -1,5 +1,5 @@
 "use client";
-import { City } from '@prisma/client';
+import { City, CityMessage } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
@@ -15,13 +15,15 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { getUserPreferences } from '@/lib/db/notifications';
+import { CityMessage as CityMessageComponent } from '@/components/cities/CityMessage';
 
 type CityHeaderProps = {
     city: City,
     councilMeetingsCount: number,
+    cityMessage: CityMessage | null,
 };
 
-export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
+export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHeaderProps) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +31,11 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
     const [hasNotifications, setHasNotifications] = useState(false);
     const router = useRouter();
     const { data: session } = useSession();
+    
+    const isSuperAdmin = session?.user?.isSuperAdmin;
+    
+    // Show message if it exists and is active, or if user is superadmin (for preview)
+    const shouldShowMessage = cityMessage && (cityMessage.isActive || isSuperAdmin);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -135,7 +142,7 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
                     {canEdit && (
                         <FormSheet
                             FormComponent={CityForm}
-                            formProps={{ city, onSuccess: () => setIsSheetOpen(false) }}
+                            formProps={{ city, cityMessage, onSuccess: () => setIsSheetOpen(false) }}
                             title={t('editCity')}
                             type="edit"
                         />
@@ -182,6 +189,31 @@ export function CityHeader({ city, councilMeetingsCount }: CityHeaderProps) {
                     )}
                 </motion.div>
             </div>
+
+            {/* City Messages - After hero but before search */}
+            {shouldShowMessage && (
+                <motion.div
+                    className="mb-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.55, duration: 0.5 }}
+                >
+                    <CityMessageComponent 
+                        message={cityMessage}
+                        className={!cityMessage.isActive && isSuperAdmin ? "opacity-75 border-dashed" : ""}
+                    />
+                    {!cityMessage.isActive && isSuperAdmin && (
+                        <motion.div
+                            className="text-xs text-muted-foreground mb-2 text-center"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.7 }}
+                        >
+                            Preview: This message is inactive and only visible to superadmins
+                        </motion.div>
+                    )}
+                </motion.div>
+            )}
 
             {/* Search Section */}
             <motion.form

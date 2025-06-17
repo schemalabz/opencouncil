@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal } from "@/lib/db/cities";
+import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
@@ -54,14 +55,14 @@ export async function getCityCached(cityId: string) {
 /**
  * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
  */
-export async function getCouncilMeetingsForCityCached(cityId: string) {
+export async function getCouncilMeetingsForCityCached(cityId: string, { limit }: { limit?: number } = {}) {
   // Check if the user is authorized to edit the city
   // This happens OUTSIDE the cached function to avoid using headers() inside cache
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
   
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased'],
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
+    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
@@ -119,4 +120,23 @@ export async function fetchLatestSubstackPostCached() {
     ['substack', 'latest-post'],
     { tags: ['substack', 'substack:latest-post'] }
   )();
-} 
+}
+
+export async function getAllCitiesMinimalCached() {
+  return createCache(
+    () => getAllCitiesMinimal(),
+    ['cities', 'all'],
+    { tags: ['cities:all'] }
+  )();
+}
+
+/**
+ * Cached version of getCityMessage that fetches and caches city message data
+ */
+export async function getCityMessageCached(cityId: string) {
+  return createCache(
+    () => getCityMessage(cityId),
+    ['city', cityId, 'message'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
+  )();
+}

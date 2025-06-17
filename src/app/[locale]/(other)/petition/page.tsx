@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { MunicipalitySelector } from "@/components/onboarding/selectors/MunicipalitySelector";
 import { CheckCircle2 } from 'lucide-react';
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
+import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 
 export const metadata: Metadata = {
     title: "Υποστήριξη Δήμου | OpenCouncil",
@@ -11,10 +12,10 @@ export const metadata: Metadata = {
 
 export default async function PetitionPage() {
     // Fetch all cities
-    const response = await fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/all`, {
-        next: { tags: ["cities:all"] },
+    const cities = await getAllCitiesMinimalCached().catch(error => {
+        console.error('Failed to fetch cities:', error);
+        return [];
     });
-    const cities = await response.json();
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4">

@@ -56,7 +56,31 @@
         "cityMunicipalityEnDescription": "Enter the name of the municipality in English.",
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
-        "authorityTypeDescription": "Select the type of authority."
+        "authorityTypeDescription": "Select the type of authority.",
+        "CityMessageForm": {
+            "sectionTitle": "City Message",
+            "toggle": "Toggle city message",
+            "currentMessageStatus": "Current message status: {status}",
+            "noMessageSet": "No message currently set for this city.",
+            "statusActive": "Active",
+            "statusInactive": "Inactive",
+            "enableMessage": "Enable city message",
+            "icon": "Icon",
+            "selectIcon": "Select an icon",
+            "customIconOption": "Custom (enter name)",
+            "customIconPlaceholder": "Enter lucide icon name (e.g., 'Smile')",
+            "findMoreIcons": "Find more icons at",
+            "title": "Title",
+            "titlePlaceholder": "Message title",
+            "description": "Description",
+            "descriptionPlaceholder": "Message description",
+            "callToAction": "Call to Action (Optional)",
+            "callToActionPlaceholder": "Button text (e.g., 'Learn more')",
+            "urlPlaceholder": "URL (e.g., '/athens/petition')",
+            "externalLink": "External link (opens in new tab)",
+            "activeLabel": "Active (visible to all users)",
+            "inactiveDescription": "Inactive messages are only visible to superadmins for preview purposes."
+        }
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",

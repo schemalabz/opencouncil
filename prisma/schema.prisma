@@ -43,6 +43,9 @@ model City {
 
   roles Role[]
 
+  // City message relation
+  message CityMessage?
+
   @@index([isPending, isListed])
 }
 
@@ -716,4 +719,22 @@ model NotificationPreference {
   @@unique([userId, cityId])
   @@index([userId])
   @@index([cityId])
+}
+
+model CityMessage {
+  id          String   @id @default(cuid())
+  cityId      String   @unique  // One message per city
+  emoji       String   // lucide-react icon name
+  title       String
+  description String
+  callToActionText String?
+  callToActionUrl  String?
+  callToActionExternal Boolean @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId, isActive])
 }

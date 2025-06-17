@@ -4,6 +4,7 @@ import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
+import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 
 
 const s3Client = new S3({
@@ -41,6 +42,16 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
 
+    // Message data
+    const hasMessage = formData.get('hasMessage') === 'true'
+    const messageEmoji = formData.get('messageEmoji') as string | null
+    const messageTitle = formData.get('messageTitle') as string | null
+    const messageDescription = formData.get('messageDescription') as string | null
+    const messageCallToActionText = formData.get('messageCallToActionText') as string | null
+    const messageCallToActionUrl = formData.get('messageCallToActionUrl') as string | null
+    const messageCallToActionExternal = formData.get('messageCallToActionExternal') === 'true'
+    const messageIsActive = formData.get('messageIsActive') === 'true'
+
     let logoImageUrl: string | undefined = undefined
 
     if (logoImage) {
@@ -67,18 +78,56 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         }
     }
 
-    const city = await editCity(params.cityId, {
-        name,
-        name_en,
-        name_municipality,
-        name_municipality_en,
-        timezone,
-        ...(logoImageUrl && { logoImage: logoImageUrl }),
-        authorityType
-    });
+    let city;
+    
+    // Update city data
+    try {
+        city = await editCity(params.cityId, {
+            name,
+            name_en,
+            name_municipality,
+            name_municipality_en,
+            timezone,
+            ...(logoImageUrl && { logoImage: logoImageUrl }),
+            authorityType
+        });
+    } catch (error) {
+        console.error('Error updating city:', error);
+        return NextResponse.json({ error: 'Failed to update city' }, { status: 500 });
+    }
 
-    revalidateTag(`city:${params.cityId}:basic`);
-    revalidatePath(`/${params.cityId}`, "layout");
+    // Handle message operations
+    try {
+        if (hasMessage && messageEmoji && messageTitle && messageDescription) {
+            // Upsert message (create or update - overwrites existing)
+            await upsertCityMessage(params.cityId, {
+                emoji: messageEmoji,
+                title: messageTitle,
+                description: messageDescription,
+                callToActionText: messageCallToActionText || null,
+                callToActionUrl: messageCallToActionUrl || null,
+                callToActionExternal: messageCallToActionExternal,
+                isActive: messageIsActive
+            });
+        } else if (!hasMessage) {
+            // Delete message if hasMessage is false
+            await deleteCityMessage(params.cityId);
+        }
+    } catch (error) {
+        console.error('Error handling city message:', error);
+        // Don't return error here, as city was updated successfully
+        // Just log the message operation failure
+    }
+
+    // Revalidate cache after successful operations
+    try {
+        revalidateTag(`city:${params.cityId}:basic`);
+        revalidateTag(`city:${params.cityId}:message`);
+        revalidatePath(`/${params.cityId}`, "layout");
+    } catch (error) {
+        console.error('Error revalidating cache:', error);
+        // Don't return error here, as the main operations were successful
+    }
 
     return NextResponse.json(city)
 }

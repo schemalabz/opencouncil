@@ -1,8 +1,6 @@
 import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
-import { CityMinimalWithCounts } from "@/lib/db/cities";
-import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
-import { fetchLatestSubstackPostCached } from "@/lib/cache/queries";
+import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityCached } from "@/lib/cache/queries";
 
 export default async function HomePage({
     params: { locale }
@@ -11,9 +9,10 @@ export default async function HomePage({
 }) {
     // Fetch all cities (minimal data) and substack post in parallel
     const [allCities, latestPost] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_URL}/api/cities/all`, {
-            next: { tags: ['cities:all'] }
-        }).then(r => r.json()) as Promise<CityMinimalWithCounts[]>,
+        getAllCitiesMinimalCached().catch(error => {
+            console.error('Failed to fetch cities:', error);
+            return [];
+        }),
         fetchLatestSubstackPostCached()
     ]);
 
@@ -23,10 +22,7 @@ export default async function HomePage({
     // Fetch most recent meeting for supported cities in parallel to create citiesWithMeetings
     const citiesWithMeetings: LandingCity[] = await Promise.all(
         supportedCities.map(async city => {
-            const meetings: CouncilMeetingWithAdminBodyAndSubjects[] = await fetch(
-                `${process.env.NEXT_PUBLIC_URL}/api/cities/${city.id}/meetings?limit=1`, 
-                { next: { tags: [`city:${city.id}:meetings`] } }
-            ).then(r => r.json());
+            const meetings = await getCouncilMeetingsForCityCached(city.id, { limit: 1 });
             
             return {
                 ...city,
