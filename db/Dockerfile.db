@@ -1,23 +1,48 @@
 # Use the PostGIS image as the base
-FROM postgis/postgis:16-3.5
+FROM postgis/postgis:15-3.4
 
 # Install necessary packages
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+       ca-certificates \
+       wget \
+       gnupg \
+       lsb-release \
+       software-properties-common \
+    # Add LLVM APT repository for clang-13
+    && wget https://apt.llvm.org/llvm.sh \
+    && chmod +x llvm.sh \
+    && ./llvm.sh 13 all nosudo \
+    && rm llvm.sh \
+    # Install build dependencies including pgvector build tools
+    # An additional apt-get update is run here after adding the new repo
+    && apt-get update && apt-get install -y --no-install-recommends \
        build-essential \
        libpq-dev \
-       wget \
        git \
-       postgresql-server-dev-16 \
-    # Clean up to reduce layer size
+       postgresql-server-dev-15 \
+       clang-13 \
+    # Clean up apt lists
     && rm -rf /var/lib/apt/lists/* \
+    # Clone and build pgvector
     && git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
     && make \
     && make install \
     # Clean up unnecessary files
     && cd - \
-    && apt-get purge -y --auto-remove build-essential postgresql-server-dev-16 libpq-dev wget git \
+    && apt-get purge -y --auto-remove \
+       build-essential \
+       postgresql-server-dev-15 \
+       libpq-dev \
+       git \
+       clang-13 \
+       ca-certificates \
+       wget \
+       gnupg \
+       lsb-release \
+       software-properties-common \
+    && apt-get autoremove -y \
     && rm -rf /tmp/pgvector
 
 # Copy initialization scripts
