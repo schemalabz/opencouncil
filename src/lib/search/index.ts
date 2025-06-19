@@ -6,6 +6,7 @@ import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed,
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters } from './filters';
 import { getCities } from '@/lib/db/cities';
+import { env } from '@/env.mjs';
 
 // Re-export types
 export type {
@@ -16,9 +17,9 @@ export type {
 
 // Initialize Elasticsearch client
 const client = new Client({
-    node: process.env.ELASTICSEARCH_URL || 'http://localhost:9200',
+    node: env.ELASTICSEARCH_URL,
     auth: {
-        apiKey: process.env.ELASTICSEARCH_API_KEY || 'changeme'
+        apiKey: env.ELASTICSEARCH_API_KEY
     }
 });
 

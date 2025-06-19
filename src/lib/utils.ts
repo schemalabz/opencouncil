@@ -7,6 +7,8 @@ import { SubjectWithRelations } from "./db/subject";
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
 
+export const IS_DEV = process.env.NODE_ENV === 'development';
+
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
 
 export function subjectToMapFeature(subject: SubjectWithRelations) {

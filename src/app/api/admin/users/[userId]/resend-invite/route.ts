@@ -4,6 +4,7 @@ import { sendEmail } from "@/lib/email/resend"
 import { renderAsync } from "@react-email/render"
 import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { NextResponse } from "next/server"
+import { env } from '@/env.mjs'
 
 export async function POST(
     request: Request,
@@ -24,7 +25,7 @@ export async function POST(
         }
 
         // Send email with simple sign in link
-        const signInUrl = `${process.env.NEXT_PUBLIC_URL}/sign-in?email=${user.email}`
+        const signInUrl = `${env.NEXT_PUBLIC_URL}/sign-in?email=${user.email}`
         const emailHtml = await renderAsync(UserInviteEmail({
             name: user.name || user.email,
             inviteUrl: signInUrl

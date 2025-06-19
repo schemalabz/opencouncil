@@ -1,6 +1,7 @@
 "use server";
 
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { env } from "@/env.mjs";
 
 export interface Video {
     id: string;
@@ -11,16 +12,16 @@ export interface Video {
 export async function fetchVideos(): Promise<Video[]> {
     console.log("fetchVideos");
     const s3Client = new S3Client({
-        endpoint: process.env.DO_SPACES_ENDPOINT,
-        region: "us-east-1", // DigitalOcean Spaces use this region
+        endpoint: env.DO_SPACES_ENDPOINT,
+        region: 'fra-1',
         credentials: {
-            accessKeyId: process.env.DO_SPACES_KEY!,
-            secretAccessKey: process.env.DO_SPACES_SECRET!,
+            accessKeyId: env.DO_SPACES_KEY,
+            secretAccessKey: env.DO_SPACES_SECRET,
         }
     });
 
     const command = new ListObjectsV2Command({
-        Bucket: process.env.DO_SPACES_BUCKET,
+        Bucket: env.DO_SPACES_BUCKET,
         Prefix: "city-council-meetings/",
     });
 

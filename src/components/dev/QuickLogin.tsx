@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
-import { getTestUsersForDisplay, DEV_TEST_CITY_ID } from '@/lib/dev/test-users'
+import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
+import { IS_DEV } from '@/lib/utils'
 
 // Get predefined test users from shared definition
 const PREDEFINED_USERS = getTestUsersForDisplay()
@@ -151,7 +152,7 @@ export default function QuickLogin() {
   }
 
   // Only show in development
-  if (process.env.NODE_ENV !== 'development') {
+  if (!IS_DEV) {
     return null
   }
 
@@ -198,7 +199,6 @@ export default function QuickLogin() {
           <DialogDescription>
             Quickly switch between different user accounts for testing authorization scenarios. 
             This tool helps you test permissions without manually logging in/out each time.
-            Test users are focused on the <strong>{DEV_TEST_CITY_ID}</strong> city.
           </DialogDescription>
         </DialogHeader>
 
@@ -255,7 +255,7 @@ export default function QuickLogin() {
                 {isCreatingUsers ? 'Creating users...' : '🛠️ Create Test Users'}
               </Button>
               <div className="text-xs text-muted-foreground">
-                Creates test users with different permission levels focused on {DEV_TEST_CITY_ID} city
+                Creates test users with different permission levels
               </div>
             </div>
           )}

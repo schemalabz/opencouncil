@@ -6,12 +6,13 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Settings, Eye, EyeOff } from "lucide-react"
 import { useQuickLoginVisibility } from "@/hooks/useQuickLoginVisibility"
+import { IS_DEV } from "@/lib/utils"
 
 export function DevelopmentSection() {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 
   // Only show in development
-  if (process.env.NODE_ENV !== 'development') {
+  if (!IS_DEV) {
     return null
   }
 

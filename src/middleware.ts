@@ -2,6 +2,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from './auth'
+import { env } from '@/env.mjs';
 
 const i18nMiddleware = createIntlMiddleware(routing, { localeDetection: false });
 
@@ -33,7 +34,7 @@ export const config = {
 };
 
 function isHttpBasicAuthAuthenticated(req: Request) {
-    if (!process.env.BASIC_AUTH_USERNAME || !process.env.BASIC_AUTH_PASSWORD) {
+    if (!env.BASIC_AUTH_USERNAME || !env.BASIC_AUTH_PASSWORD) {
         return true; // if there's no basic auth configured, we're authenticated
     }
 
@@ -43,7 +44,7 @@ function isHttpBasicAuthAuthenticated(req: Request) {
     }
 
     const [username, password] = atob(authHeader.split(' ')[1]).split(':');
-    return username === process.env.BASIC_AUTH_USERNAME && password === process.env.BASIC_AUTH_PASSWORD;
+    return username === env.BASIC_AUTH_USERNAME && password === env.BASIC_AUTH_PASSWORD;
 }
 
 /**
@@ -58,7 +59,7 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
-    const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
+    const mainDomain = env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
     const path = url.pathname;
 
     // Create URL for the main domain

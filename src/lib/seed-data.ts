@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { City, CouncilMeeting, Subject, Person, Party, Topic, AdministrativeBody } from '@prisma/client';
 import { SeedData } from './db/types';
+import { env } from '@/env.mjs';
 
 // Cache the seed data to avoid repeated file reads
 let seedDataCache: SeedData | null = null;
@@ -11,7 +12,7 @@ let seedDataCache: SeedData | null = null;
  */
 function getSeedDataPath(): string {
     // First try environment variable
-    const envPath = process.env.SEED_DATA_PATH;
+    const envPath = env.SEED_DATA_PATH;
     if (envPath) {
         return envPath;
     }

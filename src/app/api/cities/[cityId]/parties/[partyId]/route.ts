@@ -4,13 +4,14 @@ import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getParty, editParty, deleteParty } from '@/lib/db/parties'
+import { env } from '@/env.mjs'
 
 const s3Client = new S3({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: 'us-east-1',
+    endpoint: env.DO_SPACES_ENDPOINT,
+    region: 'fra-1',
     credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY!,
-        secretAccessKey: process.env.DO_SPACES_SECRET!
+        accessKeyId: env.DO_SPACES_KEY,
+        secretAccessKey: env.DO_SPACES_SECRET
     }
 })
 
@@ -47,7 +48,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             const upload = new Upload({
                 client: s3Client,
                 params: {
-                    Bucket: process.env.DO_SPACES_BUCKET!,
+                    Bucket: env.DO_SPACES_BUCKET,
                     Key: `party-logos/${fileName}`,
                     Body: Buffer.from(await logo.arrayBuffer()),
                     ACL: 'public-read',
@@ -57,7 +58,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
             try {
                 await upload.done()
-                logoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT?.replace('https://', '')}/party-logos/${fileName}`
+                logoUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/party-logos/${fileName}`
             } catch (error) {
                 console.error('Error uploading file:', error)
                 return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })

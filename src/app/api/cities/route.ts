@@ -5,13 +5,14 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
+import { env } from '@/env.mjs'
 
 const s3Client = new S3({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: 'us-east-1',
+    endpoint: env.DO_SPACES_ENDPOINT,
+    region: 'fra-1',
     credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY!,
-        secretAccessKey: process.env.DO_SPACES_SECRET!
+        accessKeyId: env.DO_SPACES_KEY,
+        secretAccessKey: env.DO_SPACES_SECRET
     }
 })
 
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
     const upload = new Upload({
         client: s3Client,
         params: {
-            Bucket: process.env.DO_SPACES_BUCKET!,
+            Bucket: env.DO_SPACES_BUCKET,
             Key: `city-logos/${fileName}`,
             Body: Buffer.from(await logoImage.arrayBuffer()),
             ACL: 'public-read',
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     try {
         await upload.done()
 
-        const logoImageUrl = `${process.env.CDN_URL}/city-logos/${fileName}`
+        const logoImageUrl = `${env.CDN_URL}/city-logos/${fileName}`
 
         const city = await createCity({
             id,

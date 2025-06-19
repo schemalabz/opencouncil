@@ -8,6 +8,7 @@ import Combobox from "@/components/Combobox";
 import { City } from "@prisma/client";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { IS_DEV } from "@/lib/utils";
 
 export function ChatInterface() {
     const submitButtonRef = useRef<HTMLButtonElement>(null);
@@ -164,7 +165,7 @@ export function ChatInterface() {
                                     getItemLabel={(city) => city.name}
                                     getItemValue={(city) => city.name}
                                 />
-                                {process.env.NODE_ENV === 'development' && (
+                                {IS_DEV && (
                                     <div className="flex items-center gap-2">
                                         <Database className="w-4 h-4 text-muted-foreground" />
                                         <div className="flex items-center gap-2">

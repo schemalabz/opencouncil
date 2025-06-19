@@ -68,6 +68,7 @@
     "@react-email/components": "^0.0.31",
     "@react-email/render": "^1.0.3",
     "@react-pdf/renderer": "^3.4.4",
+    "@t3-oss/env-nextjs": "^0.13.8",
     "@types/react-pdf": "^7.0.0",
     "@types/react-timeago": "^4.1.7",
     "@vercel/og": "^0.6.5",
@@ -121,7 +122,7 @@
     "video.js": "^8.17.4",
     "yamljs": "^0.3.0",
     "yargs": "^17.7.2",
-    "zod": "^3.23.8"
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next'
 import { getCities, getCitiesWithCouncilMeetings } from '@/lib/db/cities'
 import { getSubjectsForMeeting } from '@/lib/db/subject'
+import { env } from '@/env.mjs'
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'
+const baseUrl = env.NEXT_PUBLIC_BASE_URL
 
 // Static sitemap for non-dynamic routes
 export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {

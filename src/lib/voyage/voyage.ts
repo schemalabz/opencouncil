@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { env } from '@/env.mjs';
 
 const VOYAGE_MODEL = 'voyage-multilingual-2';
 const VOYAGE_RERANK_MODEL = 'rerank-1';
-const VOYAGE_API_BASE_URL = process.env.VOYAGE_API_BASE_URL || 'https://api.voyageai.com/v1';
-const VOYAGE_API_KEY = process.env.VOYAGE_API_KEY;
+const VOYAGE_API_BASE_URL = env.VOYAGE_API_BASE_URL;
+const VOYAGE_API_KEY = env.VOYAGE_API_KEY;
 const BATCH_SIZE = 80;
 
 if (!VOYAGE_API_KEY) {

@@ -2,19 +2,21 @@ import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
 import axios from 'axios'
+import { env } from '@/env.mjs'
 
 const prisma = new PrismaClient()
 
 // Configuration
-const SEED_DATA_URL = process.env.SEED_DATA_URL || 'https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'
-const SEED_DATA_PATH = process.env.SEED_DATA_PATH || path.join(__dirname, 'seed_data.json')
+const SEED_DATA_URL = env.SEED_DATA_URL
+const SEED_DATA_PATH = env.SEED_DATA_PATH
 
 /**
  * Create development test users with proper permissions
  */
 async function createTestUsers() {
   // Import test user definitions
-  const { TEST_USERS, DEV_TEST_CITY_ID } = require('../src/lib/dev/test-users')
+  const { TEST_USERS } = require('../src/lib/dev/test-users')
+  const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
   
   console.log(`Creating development test users for city: ${DEV_TEST_CITY_ID}`)
 
@@ -113,6 +115,8 @@ async function seedVoicePrints(persons: any[]) {
   }
 
   console.log('Seeding voiceprints...')
+  
+  // First, collect all voiceprints
   const allVoicePrints = persons
     .filter((person: { voicePrints?: any[] }) => person.voicePrints && person.voicePrints.length > 0)
     .flatMap((person: { id: string; voicePrints: any[] }) => 
