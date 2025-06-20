@@ -1,7 +1,3 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { MapPin, Search, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -11,14 +7,19 @@ import { CityMinimalWithCounts } from '@/lib/db/cities';
 
 interface MunicipalitySelectorProps {
     cities: CityMinimalWithCounts[];
+    value: CityMinimalWithCounts | null;
+    onCitySelect: (city: CityMinimalWithCounts | null) => void;
+    isNavigating?: boolean;
     hideQuickSelection?: boolean;
 }
 
-export function MunicipalitySelector({ cities, hideQuickSelection = false }: MunicipalitySelectorProps) {
-    const router = useRouter();
-    const [selectedCity, setSelectedCity] = useState<CityMinimalWithCounts | null>(null);
-    const [isNavigating, setIsNavigating] = useState(false);
-
+export function MunicipalitySelector({
+    cities,
+    value,
+    onCitySelect,
+    isNavigating = false,
+    hideQuickSelection = false,
+}: MunicipalitySelectorProps) {
     // Group cities
     const groups = [
         {
@@ -110,18 +111,8 @@ export function MunicipalitySelector({ cities, hideQuickSelection = false }: Mun
             <div>
                 <Combobox
                     items={cities}
-                    value={selectedCity}
-                    onChange={(city) => {
-                        setSelectedCity(city);
-                        if (city) {
-                            setIsNavigating(true);
-                            if (!city.isPending) {
-                                router.push(`/${city.id}`);
-                            } else {
-                                router.push(`/${city.id}/petition`);
-                            }
-                        }
-                    }}
+                    value={value}
+                    onChange={onCitySelect}
                     placeholder="Επιλέξτε τον Δήμο σας..."
                     searchPlaceholder="Αναζητήστε τον Δήμο σας..."
                     groups={groups}
@@ -155,13 +146,7 @@ export function MunicipalitySelector({ cities, hideQuickSelection = false }: Mun
                                         variant="outline"
                                         size="sm"
                                         className="text-xs sm:text-sm rounded-xl"
-                                        onClick={() => {
-                                            if (!city.isPending) {
-                                                router.push(`/${city.id}`);
-                                            } else {
-                                                router.push(`/${city.id}/petition`);
-                                            }
-                                        }}
+                                        onClick={() => onCitySelect(city)}
                                     >
                                         {city.name}
                                     </Button>

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { MunicipalitySelector } from "@/components/onboarding/selectors/MunicipalitySelector";
 import { CheckCircle2 } from 'lucide-react';
+import { PetitionMunicipalitySelector } from "@/components/onboarding/selectors/PetitionMunicipalitySelector";
 import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 
@@ -42,7 +42,7 @@ export default async function PetitionPage() {
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                     </div>
                 }>
-                    <MunicipalitySelector cities={cities} hideQuickSelection />
+                    <PetitionMunicipalitySelector cities={cities} />
                 </Suspense>
 
                 <p className="text-center text-lg text-muted-foreground">

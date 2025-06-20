@@ -10,9 +10,12 @@ import { OpenCouncilDescription } from './OpenCouncilDescription';
 interface HeroProps {
     latestPost?: SubstackPost;
     cities: CityMinimalWithCounts[];
+    value: CityMinimalWithCounts | null;
+    onCitySelect: (city: CityMinimalWithCounts | null) => void;
+    isNavigating: boolean;
 }
 
-export function Hero({ latestPost, cities }: HeroProps) {
+export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: HeroProps) {
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -67,7 +70,12 @@ export function Hero({ latestPost, cities }: HeroProps) {
 
                     {/* Municipality Selector */}
                     <motion.div variants={item} className="max-w-md mx-auto">
-                        <MunicipalitySelector cities={cities} />
+                        <MunicipalitySelector
+                            cities={cities}
+                            value={value}
+                            onCitySelect={onCitySelect}
+                            isNavigating={isNavigating}
+                        />
                     </motion.div>
 
                     <motion.div

@@ -2,8 +2,9 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LandingPageData, LandingCity } from "@/lib/db/landing";
-import { CityWithCounts } from "@/lib/db/cities";
+import { CityWithCounts, CityMinimalWithCounts } from "@/lib/db/cities";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
@@ -12,8 +13,20 @@ import { MunicipalitySelector } from '@/components/onboarding/selectors/Municipa
 
 export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     const { status } = useSession();
+    const router = useRouter();
     const [citiesWithMeetings, setCitiesWithMeetings] = useState<LandingCity[]>(cities);
     const [isLoadingUserCities, setIsLoadingUserCities] = useState(false);
+    const [selectedCity, setSelectedCity] = useState<CityMinimalWithCounts | null>(null);
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    const handleCitySelect = (city: CityMinimalWithCounts | null) => {
+        setSelectedCity(city);
+        if (city) {
+            setIsNavigating(true);
+            const targetUrl = city.isPending ? `/${city.id}/petition` : `/${city.id}`;
+            router.push(targetUrl);
+        }
+    };
 
     // Fetch additional user-specific cities when authenticated
     useEffect(() => {
@@ -74,7 +87,13 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     return (
         <div className="min-h-screen relative">
             {/* Hero Section - Full Width */}
-            <Hero latestPost={latestPost} cities={allCities} />
+            <Hero
+                latestPost={latestPost}
+                cities={allCities}
+                value={selectedCity}
+                onCitySelect={handleCitySelect}
+                isNavigating={isNavigating}
+            />
 
             {/* Scroll Indicator */}
             <div
@@ -103,8 +122,11 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                             </p>
                         </div>
                         <div className="w-full sm:w-1/2">
-                            <MunicipalitySelector 
-                                cities={allCities} 
+                            <MunicipalitySelector
+                                cities={allCities}
+                                value={selectedCity}
+                                onCitySelect={handleCitySelect}
+                                isNavigating={isNavigating}
                                 hideQuickSelection={true}
                             />
                         </div>

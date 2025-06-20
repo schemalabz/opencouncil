@@ -45,6 +45,11 @@ export function OnboardingProvider({
     // Fetch user preferences
     useEffect(() => {
         async function fetchUserPreferences() {
+            if (!session?.user) {
+                setLoading(false);
+                return;
+            }
+
             try {
                 const dbPreferences = await getUserPreferences();
                 const notifications = dbPreferences
@@ -120,7 +125,7 @@ export function OnboardingProvider({
         }
 
         fetchUserPreferences();
-    }, [city.id, initialStage]);
+    }, [city.id, initialStage, session?.user]);
 
     // Reset error states when stage changes
     const handleStageChange = (newStage: OnboardingStage) => {
