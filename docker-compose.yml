@@ -55,6 +55,8 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile.db
+      args:
+        - POSTGIS_IMAGE=${POSTGIS_IMAGE:-postgis/postgis:16-3.5}
     volumes:
       - pgdata:/var/lib/postgresql/data
     environment:

@@ -1,6 +1,18 @@
 # OpenCouncil
 
-Welcome to OpenCouncil - an open-source platform making local government more transparent and accessible. This project aims to digitize, transcribe, and make searchable municipal council meetings, helping citizens engage with their local government.
+Welcome to OpenCouncil - an open-source platform making local government more transparent and accessible. This project aims to digitize, transcribe, and make municipal council meetings searchable, helping citizens engage with their local government.
+
+<p align="center">
+  <a href="https://www.opencouncil.gr" target="_blank">
+    <img src="https://img.shields.io/badge/Website-5A6978?style=for-the-badge" alt="Website">
+  </a>
+  <a href="https://discord.gg/VdwtVG43WB" target="_blank">
+    <img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Discord">
+  </a>
+  <a href="https://twitter.com/opencouncil_gr" target="_blank">
+    <img src="https://img.shields.io/badge/X-000000?style=for-the-badge&logo=x&logoColor=white" alt="X (formerly Twitter)">
+  </a>
+</p>
 
 ## About the Project
 
@@ -21,7 +33,7 @@ This is a [Next.js](https://nextjs.org/) web application:
 - **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL with pgvector for embeddings
 - **Data Models**: Prisma ORM for type-safe database access
-- **Tasks**: This Next.js app calls the backend task server, for media processing and AI features. 
+- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features. 
 
 ## Development Setup
 
