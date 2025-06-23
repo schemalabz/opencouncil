@@ -6,9 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
-import { StatisticsOfCouncilMeeting, Statistics } from '@/lib/statistics';
 import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, getMeetingState } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, getMeetingState, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -17,7 +16,7 @@ import { motion } from 'framer-motion';
 
 // Helper function for development-only logs
 const logDev = (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (IS_DEV) {
         console.log(`[Dev] ${message}`, data || '');
     }
 };

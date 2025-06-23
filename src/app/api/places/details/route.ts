@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
+import { env } from '@/env.mjs';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
                 place_id: placeId,
                 fields: 'geometry,formatted_address,name,address_components',
                 language: 'el',
-                key: process.env.GOOGLE_API_KEY
+                key: env.GOOGLE_API_KEY
             }
         });
 

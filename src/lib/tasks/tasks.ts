@@ -10,6 +10,7 @@ import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { withUserAuthorizedToEdit } from '../auth';
+import { env } from '@/env.mjs';
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task
@@ -37,7 +38,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     });
 
     // Prepare callback URL
-    const callbackUrl = `${process.env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
+    const callbackUrl = `${env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
     console.log(`Callback URL: ${callbackUrl}`);
 
     // Add callback URL to request body
@@ -47,12 +48,12 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     let response;
     let error;
     try {
-        console.log(`Calling ${process.env.TASK_API_URL}/${taskType}`);
-        response = await fetch(`${process.env.TASK_API_URL}/${taskType}`, {
+        console.log(`Calling ${env.TASK_API_URL}/${taskType}`);
+        response = await fetch(`${env.TASK_API_URL}/${taskType}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.TASK_API_KEY}`,
+                'Authorization': `Bearer ${env.TASK_API_KEY}`,
             },
             body: JSON.stringify(fullRequestBody),
         });

@@ -4,17 +4,18 @@ import { v4 as uuidv4 } from 'uuid'
 import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
-import { withUserAuthorizedToEdit } from '@/lib/auth'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { Role } from '@prisma/client'
+import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: 'us-east-1',
+    endpoint: env.DO_SPACES_ENDPOINT,
+    region: 'fra-1',
     credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY!,
-        secretAccessKey: process.env.DO_SPACES_SECRET!
+        accessKeyId: env.DO_SPACES_KEY,
+        secretAccessKey: env.DO_SPACES_SECRET
     }
 })
 
@@ -24,6 +25,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     console.log(`Updating person ${params.personId}`)
     let formData: FormData;
     try {
@@ -127,7 +132,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         const upload = new Upload({
             client: s3Client,
             params: {
-                Bucket: process.env.DO_SPACES_BUCKET!,
+                Bucket: env.DO_SPACES_BUCKET,
                 Key: `person-images/${fileName}`,
                 Body: Buffer.from(await image.arrayBuffer()),
                 ACL: 'public-read',
@@ -137,7 +142,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
         try {
             await upload.done()
-            imageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT?.replace('https://', '')}/person-images/${fileName}`
+            imageUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/person-images/${fileName}`
         } catch (error) {
             console.error('Error uploading file:', error)
             return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
@@ -170,6 +175,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+    const authorizedToDelete = await isUserAuthorizedToEdit({ personId: params.personId })
+    if (!authorizedToDelete) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     try {
         await deletePerson(params.personId)
         revalidateTag(`city:${params.cityId}:people`);

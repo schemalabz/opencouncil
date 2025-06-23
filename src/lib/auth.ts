@@ -2,9 +2,6 @@
 import { type City, type Party, type Person, type CouncilMeeting, type User } from "@prisma/client";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
-import { randomBytes, randomUUID } from "crypto";
-import { renderReactEmailToHtml } from "@/lib/email/render";
-import { AuthEmail } from "@/lib/email/templates/AuthEmail";
 
 export async function getCurrentUser() {
     const session = await auth();
@@ -23,6 +20,7 @@ export async function getCurrentUser() {
         }
     });
 }
+
 async function checkUserAuthorization({
     cityId,
     partyId,
@@ -147,4 +145,37 @@ export async function isUserAuthorizedToEdit({
         personId,
         councilMeetingId
     });
+}
+
+export async function getOrCreateUserFromRequest(
+    email?: string | null,
+    name?: string | null,
+    phone?: string | null
+) {
+    let user: User | null = await getCurrentUser()
+
+    if (!user) {
+        if (!email) {
+            return null
+        }
+        user = await prisma.user.upsert({
+            where: { email },
+            update: {},
+            create: {
+                email,
+                name,
+                phone,
+                allowContact: true,
+                onboarded: true,
+            },
+        })
+    } else if (phone) {
+        // If phone is provided, update the user's phone
+        user = await prisma.user.update({
+            where: { id: user.id },
+            data: { phone },
+        })
+    }
+
+    return user
 }

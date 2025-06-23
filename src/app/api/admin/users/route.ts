@@ -5,6 +5,7 @@ import { renderAsync } from "@react-email/render"
 import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { NextResponse } from "next/server"
 import { createHash } from "crypto"
+import { env } from "@/env.mjs"
 
 async function generateSignInLink(email: string) {
     // Create a token that expires in 24 hours
@@ -22,7 +23,7 @@ async function generateSignInLink(email: string) {
     })
 
     // Generate the sign-in URL
-    const signInUrl = `${process.env.NEXT_PUBLIC_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
+    const signInUrl = `${env.NEXT_PUBLIC_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
     return signInUrl
 }
 

@@ -2,12 +2,13 @@ import Resend from "next-auth/providers/resend"
 import type { NextAuthConfig } from "next-auth"
 import { AuthEmail } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
+import { env } from "./env.mjs"
 
 export default {
     trustHost: true,
     providers: [Resend({
         from: 'OpenCouncil <auth@opencouncil.gr>',
-        apiKey: process.env.RESEND_API_KEY,
+        apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
             const { identifier: to, provider, url, theme } = params
             const html = await renderReactEmailToHtml(AuthEmail({ url }))

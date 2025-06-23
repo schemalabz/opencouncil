@@ -1,5 +1,6 @@
+ARG POSTGIS_IMAGE=postgis/postgis:16-3.5
 # Use the PostGIS image as the base
-FROM postgis/postgis:16-3.5
+FROM ${POSTGIS_IMAGE}
 
 # Install necessary packages
 RUN apt-get update \

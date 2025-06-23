@@ -7,6 +7,14 @@ USE_LOCAL_DB=${USE_LOCAL_DB:-"true"}
 
 echo "🚀 Starting application in $APP_ENV mode"
 
+# When in development, we want to run `npm install` on startup to ensure
+# that the node_modules directory in the container is in sync with the
+# package.json from the host machine.
+if [ "$APP_ENV" = "development" ]; then
+  echo "📦 Ensuring dependencies are in sync..."
+  npm install
+fi
+
 # Store original database URLs if they exist
 ORIGINAL_DATABASE_URL=$DATABASE_URL
 ORIGINAL_DIRECT_URL=$DIRECT_URL

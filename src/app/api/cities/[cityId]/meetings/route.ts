@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -41,6 +42,7 @@ export async function POST(
     { params }: { params: { cityId: string } }
 ) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
         const { name, name_en, date, youtubeUrl, agendaUrl, meetingId, administrativeBodyId } = meetingSchema.parse(body);
         const cityId = params.cityId;

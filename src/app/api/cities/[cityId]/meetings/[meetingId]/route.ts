@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { getMeetingData } from '@/lib/getMeetingData';
 import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -41,6 +42,7 @@ export async function PUT(
     { params }: { params: { cityId: string; meetingId: string } }
 ) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
         const { name, name_en, date, youtubeUrl, agendaUrl, meetingId, administrativeBodyId } = meetingSchema.parse(body);
 

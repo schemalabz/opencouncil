@@ -3,8 +3,6 @@
  * This file is used by both the seeding process and the QuickLogin component
  */
 
-// Get the configurable test city ID from environment variable
-export const DEV_TEST_CITY_ID = process.env.DEV_TEST_CITY_ID || 'chania'
 
 // Define test user emails in one place
 const TEST_USER_EMAILS = {
@@ -29,21 +27,21 @@ export const TEST_USERS = [
     name: 'City Admin', // Will be updated with actual city name during seeding/creation
     isSuperAdmin: false,
     adminType: 'city' as const,
-    description: `Admin of ${DEV_TEST_CITY_ID} city`
+    description: `Admin of city`
   },
   {
     email: TEST_USER_EMAILS.PARTY_ADMIN,
     name: 'Party Admin', // Will be updated with actual party name during seeding
     isSuperAdmin: false,
     adminType: 'party' as const,
-    description: `Admin of specific party in ${DEV_TEST_CITY_ID}`
+    description: `Admin of specific party in city`
   },
   {
     email: TEST_USER_EMAILS.PERSON_ADMIN,
     name: 'Person Admin', // Will be updated with actual person name during seeding
     isSuperAdmin: false,
     adminType: 'person' as const,
-    description: `Admin of specific person in ${DEV_TEST_CITY_ID}`
+    description: `Admin of specific person in city`
   },
   {
     email: TEST_USER_EMAILS.READ_ONLY,

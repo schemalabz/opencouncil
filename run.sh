@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to run docker compose with different configurations
 
@@ -107,6 +107,17 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# Detect architecture and set the appropriate PostGIS image
+ARCH=$(uname -m)
+if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
+  echo "🍏 Detected ARM64 architecture, using imresamu/postgis:16-3.5"
+  export POSTGIS_IMAGE="imresamu/postgis:16-3.5"
+else
+  echo "☁️  Detected x86_64 architecture, using postgis/postgis:16-3.5"
+  export POSTGIS_IMAGE="postgis/postgis:16-3.5"
+fi
+echo ""
 
 # Export variables for docker compose
 export USE_LOCAL_DB=$USE_LOCAL_DB

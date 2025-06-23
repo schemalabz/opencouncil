@@ -5,14 +5,16 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
+import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 
 const s3Client = new S3({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: 'us-east-1',
+    endpoint: env.DO_SPACES_ENDPOINT,
+    region: 'fra-1',
     credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY!,
-        secretAccessKey: process.env.DO_SPACES_SECRET!
+        accessKeyId: env.DO_SPACES_KEY,
+        secretAccessKey: env.DO_SPACES_SECRET
     }
 })
 
@@ -33,6 +35,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     const formData = await request.formData()
     const name = formData.get('name') as string
     const name_en = formData.get('name_en') as string
@@ -61,7 +67,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         const upload = new Upload({
             client: s3Client,
             params: {
-                Bucket: process.env.DO_SPACES_BUCKET!,
+                Bucket: env.DO_SPACES_BUCKET,
                 Key: `city-logos/${fileName}`,
                 Body: Buffer.from(await logoImage.arrayBuffer()),
                 ACL: 'public-read',
@@ -71,7 +77,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 
         try {
             await upload.done()
-            logoImageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT?.replace('https://', '')}/city-logos/${fileName}`
+            logoImageUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/city-logos/${fileName}`
         } catch (error) {
             console.error('Error uploading file:', error)
             return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
@@ -133,6 +139,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToDelete = await isUserAuthorizedToEdit({})
+    if (!authorizedToDelete) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     await deleteCity(params.cityId);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

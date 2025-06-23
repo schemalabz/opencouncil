@@ -2,10 +2,11 @@
 
 import { Link } from "@/i18n/routing"
 import Logo from "./Logo"
-import { Phone, Twitter, Instagram, Facebook, BookOpen, Mail, ExternalLink } from "lucide-react"
+import { Phone, Mail, ExternalLink } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
 
 interface FooterProps {
     className?: string;
@@ -97,14 +98,16 @@ export default function Footer({ className }: FooterProps = {}) {
                         <div className="flex items-center gap-4">
                             <TooltipProvider>
                                 {[
-                                    { href: "https://twitter.com/opencouncil_gr", icon: Twitter, label: "@opencouncil_gr" },
-                                    { href: "https://instagram.com/opencouncil_gr", icon: Instagram, label: "@opencouncil_gr" },
+                                    { href: "https://twitter.com/opencouncil_gr", icon: SiX, label: "@opencouncil_gr" },
+                                    { href: "https://instagram.com/opencouncil_gr", icon: SiInstagram, label: "@opencouncil_gr" },
+                                    { href: "https://github.com/schemalabz/opencouncil", icon: SiGithub, label: "opencouncil" },
+                                    { href: "https://discord.gg/VdwtVG43WB", icon: SiDiscord, label: "Discord" },
                                     {
                                         href: "https://www.facebook.com/profile.php?id=61570217107676",
-                                        icon: Facebook,
+                                        icon: SiFacebook,
                                         label: "OpenCouncil",
                                     },
-                                    { href: "https://schemalabs.substack.com", icon: BookOpen, label: "Substack" },
+                                    { href: "https://schemalabs.substack.com", icon: SiSubstack, label: "Substack" },
                                 ].map((social) => (
                                     <Tooltip key={social.href}>
                                         <TooltipTrigger asChild>
@@ -133,7 +136,7 @@ export default function Footer({ className }: FooterProps = {}) {
                         asChild
                     >
                         <a
-                            href="https://github.com/schemalabs/opencouncil"
+                            href="https://github.com/schemalabz/opencouncil"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2"

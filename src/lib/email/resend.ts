@@ -1,5 +1,6 @@
 "use server";
 import { Resend } from 'resend';
+import { env } from '@/env.mjs';
 
 interface EmailParams {
     from: string;
@@ -11,7 +12,7 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams) {
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const resend = new Resend(env.RESEND_API_KEY);
     const { from, to, cc, subject, html, text } = params;
 
     try {

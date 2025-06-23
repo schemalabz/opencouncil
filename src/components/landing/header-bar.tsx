@@ -1,4 +1,5 @@
-import { ArrowUpRight, Twitter, Instagram } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
+import { SiX, SiInstagram, SiGithub, SiDiscord } from 'react-icons/si';
 import { motion } from 'framer-motion';
 import { LandingPageData, SubstackPost } from '@/lib/db/landing';
 import TimeAgo from 'react-timeago';
@@ -53,12 +54,22 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
                     <SocialIcon
                         href="https://twitter.com/opencouncil_gr"
                         aria-label="Twitter"
-                        icon={<Twitter className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                        icon={<SiX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                     />
                     <SocialIcon
                         href="https://instagram.com/opencouncil_gr"
                         aria-label="Instagram"
-                        icon={<Instagram className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                        icon={<SiInstagram className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                    />
+                    <SocialIcon
+                        href="https://github.com/schemalabz/opencouncil"
+                        aria-label="GitHub"
+                        icon={<SiGithub className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
+                    />
+                    <SocialIcon
+                        href="https://discord.gg/VdwtVG43WB"
+                        aria-label="Discord"
+                        icon={<SiDiscord className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                     />
                 </div>
             </div>

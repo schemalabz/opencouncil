@@ -4,6 +4,9 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { cn, calculateGeometryBounds } from '@/lib/utils'
 import { createRoot } from 'react-dom/client'
+import { env } from '@/env.mjs'
+
+mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export interface MapFeature {
     id: string
@@ -153,8 +156,6 @@ const Map = memo(function Map({
     // Initialize map only once
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
-
-        mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN!;
 
         const centerToUse = currentCenter.current || initialCenterCoords;
         const zoomToUse = currentZoom.current;

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@/lib/db/prisma'
 import { PrismaAdapter } from "@auth/prisma-adapter"
+import { IS_DEV } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   // Only allow in development environment
-  if (process.env.NODE_ENV !== 'development') {
+  if (!IS_DEV) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
@@ -41,8 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Set the session cookie with the same name Next-Auth uses
-    const isProduction = (process.env.NODE_ENV as string) === 'production'
-    const cookieName = isProduction
+    const cookieName = !IS_DEV
       ? '__Secure-authjs.session-token'
       : 'authjs.session-token'
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Set the session cookie
     response.cookies.set(cookieName, sessionToken, {
       httpOnly: true,
-      secure: isProduction,
+      secure: !IS_DEV,
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/',

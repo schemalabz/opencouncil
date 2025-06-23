@@ -5,13 +5,13 @@ import { PersonWithRelations, getPeopleForCity } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
 import { aiChatStream, AIConfig } from '@/lib/ai';
 import { findSubjectsByQuery } from '@/lib/seed-data';
-import { Person, Role, Party, AdministrativeBody, City } from '@prisma/client';
-import prisma from '@/lib/db/prisma';
+import { City } from '@prisma/client';
 import { 
     findMockSpeakerSegmentsForSubject,
     generateMockClaudeResponse 
 } from '@/lib/db/chat-mock-data';
 import { getCity } from '@/lib/db/cities';
+import { IS_DEV } from '@/lib/utils';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -61,7 +61,7 @@ const logEssential = (message: string, data?: any) => {
 
 // Helper function for development-only logs
 const logDev = (message: string, data?: any) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (IS_DEV) {
         console.log(`[Dev] ${message}`, data || '');
     }
 };
@@ -304,7 +304,7 @@ const ERROR_MESSAGE = "Συγγνώμη, παρουσιάστηκε σφάλμα
 
 // Helper function to determine if we should use mock data
 function shouldUseMockData(useMockData: boolean): boolean {
-    return useMockData && process.env.NODE_ENV === 'development';
+    return useMockData && IS_DEV;
 }
 
 export async function POST(req: NextRequest) {

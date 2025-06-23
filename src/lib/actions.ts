@@ -1,6 +1,7 @@
 "use server"
 
 import axios from 'axios';
+import { env } from '@/env.mjs';
 
 // The radius to use for location-based search, in meters (40km)
 const SEARCH_RADIUS = 40000;
@@ -33,7 +34,7 @@ export async function getPlaceSuggestions(data: {
 
     try {
         // Make sure we have a Google API key
-        if (!process.env.GOOGLE_API_KEY) {
+        if (!env.GOOGLE_API_KEY) {
             console.error('Google API key is not defined');
             return {
                 status: 'ERROR',
@@ -65,7 +66,7 @@ export async function getPlaceSuggestions(data: {
                 input: searchInput,
                 components: 'country:gr',
                 language: 'el',
-                key: process.env.GOOGLE_API_KEY,
+                key: env.GOOGLE_API_KEY,
                 ...locationParams
             },
             timeout: 5000 // Set timeout to 5 seconds
@@ -112,7 +113,7 @@ export async function getPlaceDetails(data: { placeId: string }) {
 
     try {
         // Make sure we have a Google API key
-        if (!process.env.GOOGLE_API_KEY) {
+        if (!env.GOOGLE_API_KEY) {
             console.error('Google API key is not defined');
             return {
                 status: 'ERROR',
@@ -126,7 +127,7 @@ export async function getPlaceDetails(data: { placeId: string }) {
                 place_id: placeId,
                 fields: 'geometry,formatted_address,name,address_components',
                 language: 'el',
-                key: process.env.GOOGLE_API_KEY
+                key: env.GOOGLE_API_KEY
             },
             timeout: 5000 // Set timeout to 5 seconds
         });

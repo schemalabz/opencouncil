@@ -20,7 +20,7 @@ services:
       - APP_ENV=production
     depends_on:
       base:
-        condition: service_started
+        condition: service_completed_successfully
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
@@ -44,7 +44,7 @@ services:
       - /app/node_modules
     depends_on:
       base:
-        condition: service_started
+        condition: service_completed_successfully
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
@@ -55,6 +55,8 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile.db
+      args:
+        - POSTGIS_IMAGE=${POSTGIS_IMAGE:-postgis/postgis:16-3.5}
     volumes:
       - pgdata:/var/lib/postgresql/data
     environment:

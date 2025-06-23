@@ -7,13 +7,15 @@ import { v4 as uuidv4 } from 'uuid'
 import { Role } from '@prisma/client'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
-    endpoint: process.env.DO_SPACES_ENDPOINT,
-    region: 'us-east-1',
+    endpoint: env.DO_SPACES_ENDPOINT,
+    region: 'fra-1',
     credentials: {
-        accessKeyId: process.env.DO_SPACES_KEY!,
-        secretAccessKey: process.env.DO_SPACES_SECRET!
+        accessKeyId: env.DO_SPACES_KEY,
+        secretAccessKey: env.DO_SPACES_SECRET
     }
 })
 
@@ -23,6 +25,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     console.log('Creating person')
     const formData = await request.formData()
     const name = formData.get('name') as string
@@ -96,9 +102,9 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         const upload = new Upload({
             client: s3Client,
             params: {
-                Bucket: process.env.DO_SPACES_BUCKET!,
+                Bucket: env.DO_SPACES_BUCKET,
                 Key: `person-images/${fileName}`,
-                Body: image,
+                Body: Buffer.from(await image.arrayBuffer()),
                 ACL: 'public-read',
                 ContentType: image.type,
             },
@@ -106,7 +112,7 @@ export async function POST(request: Request, { params }: { params: { cityId: str
 
         try {
             await upload.done()
-            imageUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/person-images/${fileName}`
+            imageUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT}/person-images/${fileName}`
         } catch (error) {
             console.error('Error uploading file:', error)
             return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })

@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getOrCreateUserFromRequest } from '@/lib/auth';
+import { z } from 'zod';
+
+const petitionSchema = z.object({
+    cityId: z.string(),
+    isResident: z.boolean().optional(),
+    isCitizen: z.boolean().optional(),
+    email: z.string().email().optional(),
+    name: z.string().optional(),
+    phone: z.string().optional(),
+});
 
 // Initialize PrismaClient
 const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
     try {
-        // Get request data
-        const data = await req.json();
-        const { cityId, name, isResident, isCitizen, email, phone } = data;
+        const json = await req.json();
+        const data = petitionSchema.parse(json);
+        const user = await getOrCreateUserFromRequest(
+            data.email,
+            data.name,
+            data.phone
+        );
 
-        if (!cityId || !name || !email) {
+        if (!user) {
             return NextResponse.json(
-                { error: 'City ID, name, and email are required' },
+                { error: 'Email is required to submit a petition' },
+                { status: 400 }
+            );
+        }
+
+        const { cityId, isResident, isCitizen } = data;
+
+        if (!cityId) {
+            return NextResponse.json(
+                { error: 'City ID is required' },
                 { status: 400 }
             );
         }
@@ -29,44 +53,11 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check if the user already exists
-        const existingUser = await prisma.user.findUnique({
-            where: { email }
-        });
-
-        let userId;
-
-        if (existingUser) {
-            // If the user exists, use their ID
-            userId = existingUser.id;
-
-            // Update with phone if provided
-            if (phone && !existingUser.phone) {
-                await prisma.user.update({
-                    where: { id: existingUser.id },
-                    data: { phone }
-                });
-            }
-        } else {
-            // Create a new user
-            const newUser = await prisma.user.create({
-                data: {
-                    email,
-                    name,
-                    phone,
-                    allowContact: true,
-                    onboarded: true,
-                }
-            });
-
-            userId = newUser.id;
-        }
-
         // Check if petition already exists
         const existingPetition = await prisma.petition.findUnique({
             where: {
                 userId_cityId: {
-                    userId,
+                    userId: user.id,
                     cityId
                 }
             }
@@ -85,7 +76,7 @@ export async function POST(req: NextRequest) {
             // Create a new petition
             await prisma.petition.create({
                 data: {
-                    userId,
+                    userId: user.id,
                     cityId,
                     is_resident: !!isResident,
                     is_citizen: !!isCitizen,
@@ -102,6 +93,10 @@ export async function POST(req: NextRequest) {
         );
 
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return new NextResponse(JSON.stringify(error.issues), { status: 422 });
+        }
+        
         console.error('Error submitting petition:', error);
 
         return NextResponse.json(

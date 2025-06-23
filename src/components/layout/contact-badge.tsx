@@ -1,21 +1,22 @@
 import { Phone, Mail, MapPin } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import { env } from '@/env.mjs'
 
 const CONTACT_INFO = {
     Phone: {
         icon: Phone,
-        text: process.env.NEXT_PUBLIC_CONTACT_PHONE,
-        href: `tel:${process.env.NEXT_PUBLIC_CONTACT_PHONE}`,
+        text: env.NEXT_PUBLIC_CONTACT_PHONE,
+        href: `tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`,
     },
     Email: {
         icon: Mail,
-        text: process.env.NEXT_PUBLIC_CONTACT_EMAIL,
-        href: `mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL}`,
+        text: env.NEXT_PUBLIC_CONTACT_EMAIL,
+        href: `mailto:${env.NEXT_PUBLIC_CONTACT_EMAIL}`,
     },
     Location: {
         icon: MapPin,
-        text: process.env.NEXT_PUBLIC_CONTACT_ADDRESS,
-        href: `https://maps.google.com/?q=${encodeURIComponent(process.env.NEXT_PUBLIC_CONTACT_ADDRESS || '')}`,
+        text: env.NEXT_PUBLIC_CONTACT_ADDRESS,
+        href: `https://maps.google.com/?q=${encodeURIComponent(env.NEXT_PUBLIC_CONTACT_ADDRESS || '')}`,
     },
 }
 
