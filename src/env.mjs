@@ -11,9 +11,9 @@ export const env = createEnv({
     DIRECT_URL: z.string().url(),
 
     // Database Initialization (for local Docker setup)
-    DATABASE_USER: z.string(),
-    DATABASE_PASSWORD: z.string(),
-    DATABASE_NAME: z.string(),
+    DATABASE_USER: z.string().optional(),
+    DATABASE_PASSWORD: z.string().optional(),
+    DATABASE_NAME: z.string().optional(),
 
     // Auth
     RESEND_API_KEY: z.string().min(1),
