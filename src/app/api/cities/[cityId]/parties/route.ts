@@ -5,6 +5,7 @@ import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { getPartiesForCity, createParty } from '@/lib/db/parties'
 import { env } from '@/env.mjs'
+import { withUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
     endpoint: env.DO_SPACES_ENDPOINT,
@@ -22,6 +23,7 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId })
         const formData = await request.formData()
 
         const name = formData.get('name') as string

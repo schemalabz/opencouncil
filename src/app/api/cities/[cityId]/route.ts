@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 
 const s3Client = new S3({
@@ -34,6 +35,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     const formData = await request.formData()
     const name = formData.get('name') as string
     const name_en = formData.get('name_en') as string
@@ -134,6 +139,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToDelete = await isUserAuthorizedToEdit({})
+    if (!authorizedToDelete) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     await deleteCity(params.cityId);
     return NextResponse.json({ message: 'City deleted successfully' })
 }

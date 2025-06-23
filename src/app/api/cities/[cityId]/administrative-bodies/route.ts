@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { getAdministrativeBodiesForCity, createAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 const bodySchema = z.object({
     name: z.string().min(2, {
@@ -45,6 +46,7 @@ export async function POST(
     { params }: { params: { cityId: string } }
 ) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const cityId = params.cityId;
         const body = await request.json();
         const { name, name_en, type } = bodySchema.parse(body);

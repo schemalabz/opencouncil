@@ -8,6 +8,7 @@ import { Role } from '@prisma/client'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
     endpoint: env.DO_SPACES_ENDPOINT,
@@ -24,6 +25,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function POST(request: Request, { params }: { params: { cityId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     console.log('Creating person')
     const formData = await request.formData()
     const name = formData.get('name') as string

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
 import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
     endpoint: env.DO_SPACES_ENDPOINT,
@@ -53,6 +54,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(request: Request) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({})
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const formData = await request.formData()
     const id = formData.get('id') as string
     const name = formData.get('name') as string

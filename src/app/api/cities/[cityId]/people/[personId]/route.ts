@@ -8,6 +8,7 @@ import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { Role } from '@prisma/client'
 import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
     endpoint: env.DO_SPACES_ENDPOINT,
@@ -24,6 +25,10 @@ export async function GET(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+    const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
+    if (!authorizedToEdit) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     console.log(`Updating person ${params.personId}`)
     let formData: FormData;
     try {
@@ -170,6 +175,10 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
 }
 
 export async function DELETE(request: Request, { params }: { params: { cityId: string, personId: string } }) {
+    const authorizedToDelete = await isUserAuthorizedToEdit({ personId: params.personId })
+    if (!authorizedToDelete) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
     try {
         await deletePerson(params.personId)
         revalidateTag(`city:${params.cityId}:people`);

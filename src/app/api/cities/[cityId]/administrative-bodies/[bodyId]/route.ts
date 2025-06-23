@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { z } from 'zod';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 const bodySchema = z.object({
     name: z.string().min(2, {
@@ -18,6 +19,7 @@ export async function PUT(
     { params }: { params: { cityId: string, bodyId: string } }
 ) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
         const { name, name_en, type } = bodySchema.parse(body);
 
@@ -48,6 +50,7 @@ export async function DELETE(
     { params }: { params: { cityId: string, bodyId: string } }
 ) {
     try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
         await deleteAdministrativeBody(params.bodyId);
         revalidateTag(`city:${params.cityId}:administrativeBodies`);
         revalidatePath(`/${params.cityId}/people`);

@@ -3,6 +3,7 @@ import { S3 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
+import { isUserAuthorizedToEdit } from '@/lib/auth'
 
 const s3Client = new S3({
     endpoint: env.DO_SPACES_ENDPOINT,
@@ -15,6 +16,12 @@ const s3Client = new S3({
 
 export async function POST(request: Request) {
     try {
+        // TODO: more flexible logic for uploads
+        const authorizedToEdit = await isUserAuthorizedToEdit({})
+        if (!authorizedToEdit) {
+            return new NextResponse("Unauthorized", { status: 401 });
+        }
+
         const formData = await request.formData()
         const file = formData.get('file') as File
 
