@@ -1,6 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
-import { SiX, SiInstagram, SiGithub, SiDiscord } from 'react-icons/si';
-import { motion } from 'framer-motion';
+import { SiX, SiInstagram, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
 import { LandingPageData, SubstackPost } from '@/lib/db/landing';
 import TimeAgo from 'react-timeago';
 // @ts-ignore
@@ -45,12 +44,21 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
                 {latestPost && (
                     <SubstackBadge
                         post={latestPost}
-                        className="flex-1 sm:flex-none"
+                        className="hidden sm:flex"
                     />
                 )}
 
                 {/* Social icons */}
-                <div className="flex items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 sm:pl-1 sm:pr-2">
+                <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-0.5 sm:gap-1 py-0.5 sm:py-1 sm:pl-1 sm:pr-2">
+                    {latestPost && (
+                         <div className="sm:hidden">
+                            <SocialIcon
+                                href={latestPost.url}
+                                aria-label="Substack"
+                                icon={<SiSubstack className="w-3 h-3" />}
+                            />
+                        </div>
+                    )}
                     <SocialIcon
                         href="https://twitter.com/opencouncil_gr"
                         aria-label="Twitter"
@@ -102,36 +110,32 @@ interface SubstackBadgeProps {
 
 function SubstackBadge({ post, className }: SubstackBadgeProps) {
     return (
-        <motion.a
+        <a
             href={post.url}
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-                "group flex items-center gap-1.5 sm:gap-2 py-1 sm:py-1.5 px-2 sm:px-3 text-xs sm:text-sm no-underline hover:no-underline",
+                "group flex items-center gap-2 py-1.5 px-3 text-sm no-underline hover:no-underline",
                 "transition-all hover:bg-white/10 rounded-full",
                 className
             )}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5 }}
         >
-            <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5">
-                {/* Mobile: Show only title and arrow */}
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <span className="hidden sm:inline-flex flex-shrink-0 text-xs text-muted-foreground">
                     substack
                 </span>
                 <span className="hidden sm:inline-flex text-muted-foreground">·</span>
                 <TimeAgo
-                    className="hidden sm:inline-flex text-xs text-muted-foreground flex-shrink-0"
+                    className="text-xs text-muted-foreground flex-shrink-0"
                     date={post.publishDate}
                     formatter={formatter}
                 />
-                <span className="hidden sm:inline-flex text-muted-foreground">·</span>
-                <div className="flex items-center gap-0.5 sm:gap-1">
+                <span className="text-muted-foreground">·</span>
+                <div className="flex items-center gap-1 overflow-hidden">
                     <span className="truncate text-foreground">{post.title}</span>
-                    <ArrowUpRight className="size-2.5 sm:size-3 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    <ArrowUpRight className="size-3 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </div>
             </div>
-        </motion.a>
+        </a>
     );
 }
