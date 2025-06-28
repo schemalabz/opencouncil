@@ -1,8 +1,9 @@
-import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, FileText, MapPin } from "lucide-react";
 import { Consultation } from "@prisma/client";
+import { ClickableCard } from "@/components/ui/clickable-card";
+import { formatConsultationEndDate } from "@/lib/utils/date";
 
 interface CityConsultationsProps {
     consultations: Consultation[];
@@ -27,35 +28,36 @@ export default function CityConsultations({ consultations, cityId, canEdit }: Ci
     return (
         <div className="grid gap-6">
             {consultations.map((consultation) => (
-                <Link key={consultation.id} href={`/${cityId}/consultation/${consultation.id}`}>
-                    <Card className="hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]">
-                        <CardHeader>
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <CardTitle className="text-xl mb-2">
-                                        {consultation.name}
-                                    </CardTitle>
-                                    <CardDescription className="mb-4">
-                                        Διαβούλευση για κανονισμό - λήγει {consultation.endDate.toLocaleDateString("el-GR")}
-                                    </CardDescription>
-                                </div>
-                                <Badge
-                                    variant={consultation.isActive ? "default" : "secondary"}
-                                    className="ml-4 shrink-0"
-                                >
-                                    {consultation.isActive ? "Ενεργή" : "Ανενεργή"}
-                                </Badge>
+                <ClickableCard
+                    key={consultation.id}
+                    href={`/${cityId}/consultation/${consultation.id}`}
+                >
+                    <CardHeader>
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                                <CardTitle className="text-xl mb-2">
+                                    {consultation.name}
+                                </CardTitle>
+                                <CardDescription className="mb-4">
+                                    Διαβούλευση για κανονισμό
+                                </CardDescription>
                             </div>
+                            <Badge
+                                variant={consultation.isActive ? "default" : "secondary"}
+                                className="ml-4 shrink-0"
+                            >
+                                {consultation.isActive ? "Ενεργή" : "Ανενεργή"}
+                            </Badge>
+                        </div>
 
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                <CalendarDays className="h-4 w-4" />
-                                <span>
-                                    Λήγει: {consultation.endDate.toLocaleDateString("el-GR")}
-                                </span>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                </Link>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <CalendarDays className="h-4 w-4" />
+                            <span>
+                                Λήγει: {formatConsultationEndDate(consultation.endDate)}
+                            </span>
+                        </div>
+                    </CardHeader>
+                </ClickableCard>
             ))}
         </div>
     );

@@ -56,7 +56,7 @@ class RegulationConverter {
             console.log(`📝 Total text length: ${pdfData.text.length} characters`);
 
             // Split text into manageable chunks
-            const chunks = this.splitTextIntoChunks(pdfData.text, 15000); // ~15k chars per chunk
+            const chunks = this.splitTextIntoChunks(pdfData.text, 6000); // ~6k chars per chunk
             console.log(`📦 Split into ${chunks.length} chunks for processing`);
 
             // Process each chunk to extract structured data
@@ -147,43 +147,31 @@ Please analyze this chunk and extract:
 4. Cross-references that should use {REF:id} syntax to link to chapters, articles, or geosets
 5. Key regulatory elements (prohibitions, requirements, penalties, etc.)
 
-CRITICAL: Return ONLY a valid JSON object with this exact structure (no explanatory text, no markdown formatting):
+Return a simple JSON object with this structure:
 {
   "chapters": [
     {
       "num": 1,
       "id": "chapter_id",
       "title": "Chapter Title",
-      "summary": "Brief summary of chapter content",
-      "preludeBody": "Optional introductory text with possible {REF:id} references",
+      "summary": "Brief summary",
       "articles": [
         {
           "num": 1,
           "id": "article_id", 
           "title": "Article Title",
           "summary": "Brief summary",
-          "body": "Full article text with {REF:id} references where appropriate"
+          "body": "Article text"
         }
       ]
     }
   ],
-  "geosets": [
+  "locations": [
     {
-      "id": "geoset_id",
-      "name": "GeoSet Name",
-      "description": "Description of this location group",
-      "geometries": [
-        {
-          "id": "geometry_id",
-          "name": "Location Name",
-          "type": "point|circle|polygon", 
-          "description": "Address or description",
-          "geojson": {
-            "type": "Point|Polygon",
-            "coordinates": "Will be added later during geocoding"
-          }
-        }
-      ]
+      "id": "location_id",
+      "name": "Location Name",
+      "type": "point", 
+      "description": "Address or description"
     }
   ]
 }
@@ -197,6 +185,10 @@ If this chunk doesn't contain complete chapters/articles, extract whatever struc
                 {
                     role: 'user',
                     content: prompt
+                },
+                {
+                    role: 'assistant',
+                    content: '{'
                 }
             ]
         });
@@ -206,72 +198,125 @@ If this chunk doesn't contain complete chapters/articles, extract whatever struc
             if (content.type === 'text') {
                 console.log(`🔍 Raw response for chunk ${chunkIndex + 1}:`, content.text.substring(0, 500) + '...');
 
-                // Clean the response text and extract JSON more carefully
-                let cleanText = content.text;
+                // Since we prefilled with '{', we need to prepend it to the response
+                const jsonString = '{' + content.text;
 
-                // Remove markdown code blocks
-                cleanText = cleanText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+                console.log(`✅ Attempting to parse prefilled JSON for chunk ${chunkIndex + 1}...`);
 
-                // Find the JSON object more precisely
-                const jsonStartMatch = cleanText.match(/\{/);
-                if (jsonStartMatch) {
-                    let braceCount = 0;
-                    let jsonStart = jsonStartMatch.index!;
-                    let jsonEnd = -1;
+                try {
+                    const parsed = JSON.parse(jsonString);
+                    console.log(`✅ Successfully parsed chunk ${chunkIndex + 1}:`, {
+                        chapters: parsed.chapters?.length || 0,
+                        locations: parsed.locations?.length || 0
+                    });
+                    return parsed;
+                } catch (parseError) {
+                    console.error(`❌ JSON parse error for chunk ${chunkIndex + 1}:`, parseError);
+                    console.error('JSON string (first 500 chars):', jsonString.substring(0, 500));
 
-                    for (let i = jsonStart; i < cleanText.length; i++) {
-                        if (cleanText[i] === '{') braceCount++;
-                        else if (cleanText[i] === '}') braceCount--;
+                    // Try to fix common JSON issues
+                    let fixedJson = jsonString;
 
-                        if (braceCount === 0) {
-                            jsonEnd = i + 1;
-                            break;
+                    console.log('🔧 Attempting to fix truncated JSON...');
+
+                    // Handle unterminated strings - find the last complete string
+                    let lastValidPosition = -1;
+                    let inString = false;
+                    let escaped = false;
+                    let braceDepth = 0;
+                    let bracketDepth = 0;
+
+                    for (let i = 0; i < fixedJson.length; i++) {
+                        const char = fixedJson[i];
+
+                        if (escaped) {
+                            escaped = false;
+                            continue;
                         }
-                    }
 
-                    if (jsonEnd > jsonStart) {
-                        const jsonString = cleanText.substring(jsonStart, jsonEnd);
-                        console.log(`✅ Found JSON in chunk ${chunkIndex + 1}, attempting to parse...`);
-
-                        try {
-                            const parsed = JSON.parse(jsonString);
-                            console.log(`✅ Successfully parsed chunk ${chunkIndex + 1}:`, {
-                                chapters: parsed.chapters?.length || 0,
-                                geosets: parsed.geosets?.length || 0
-                            });
-                            return parsed;
-                        } catch (parseError) {
-                            console.error(`❌ JSON parse error for chunk ${chunkIndex + 1}:`, parseError);
-                            console.error('Extracted JSON string (first 500 chars):', jsonString.substring(0, 500));
+                        if (char === '\\') {
+                            escaped = true;
+                            continue;
                         }
-                    } else {
-                        console.error(`❌ Could not find complete JSON object in chunk ${chunkIndex + 1}`);
-                        console.log('Response might be truncated. Full response length:', cleanText.length);
 
-                        // Try to salvage what we can by looking for partial structure
-                        const partialMatch = cleanText.match(/\{[\s\S]*$/);
-                        if (partialMatch) {
-                            console.log('⚠️  Attempting to parse partial JSON...');
-                            // Add basic closing for common incomplete structures
-                            let partialJson = partialMatch[0];
-                            if (!partialJson.includes('"geosets"')) {
-                                partialJson = partialJson.replace(/,?\s*$/, ', "geosets": []}');
+                        if (char === '"') {
+                            inString = !inString;
+                            if (!inString) {
+                                // Just closed a string, this is a potentially valid position
+                                lastValidPosition = i;
                             }
-                            try {
-                                const parsed = JSON.parse(partialJson);
-                                console.log(`✅ Successfully parsed partial chunk ${chunkIndex + 1}:`, {
-                                    chapters: parsed.chapters?.length || 0,
-                                    geosets: parsed.geosets?.length || 0
-                                });
-                                return parsed;
-                            } catch (partialError) {
-                                console.log('❌ Could not parse partial JSON either');
+                            continue;
+                        }
+
+                        if (!inString) {
+                            if (char === '{') braceDepth++;
+                            else if (char === '}') braceDepth--;
+                            else if (char === '[') bracketDepth++;
+                            else if (char === ']') bracketDepth--;
+
+                            if (char === ',' || char === '}' || char === ']') {
+                                lastValidPosition = i;
                             }
                         }
                     }
-                } else {
-                    console.error(`❌ No JSON found in response for chunk ${chunkIndex + 1}`);
-                    console.error('Full response:', content.text);
+
+                    // If we're in the middle of a string, truncate to last valid position
+                    if (inString && lastValidPosition > -1) {
+                        console.log(`🔧 Truncating at position ${lastValidPosition} to fix unterminated string`);
+                        fixedJson = fixedJson.substring(0, lastValidPosition);
+                    }
+
+                    // Remove any trailing commas before closing braces/brackets
+                    fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+
+                    // Ensure proper closing of all open structures
+                    braceDepth = 0;
+                    bracketDepth = 0;
+                    inString = false;
+                    escaped = false;
+
+                    for (let i = 0; i < fixedJson.length; i++) {
+                        const char = fixedJson[i];
+                        if (escaped) {
+                            escaped = false;
+                            continue;
+                        }
+                        if (char === '\\') {
+                            escaped = true;
+                            continue;
+                        }
+                        if (char === '"') {
+                            inString = !inString;
+                            continue;
+                        }
+                        if (!inString) {
+                            if (char === '{') braceDepth++;
+                            else if (char === '}') braceDepth--;
+                            else if (char === '[') bracketDepth++;
+                            else if (char === ']') bracketDepth--;
+                        }
+                    }
+
+                    // Close any unclosed structures
+                    while (bracketDepth > 0) {
+                        fixedJson += ']';
+                        bracketDepth--;
+                    }
+                    while (braceDepth > 0) {
+                        fixedJson += '}';
+                        braceDepth--;
+                    }
+
+                    try {
+                        const parsed = JSON.parse(fixedJson);
+                        console.log(`✅ Successfully parsed fixed JSON for chunk ${chunkIndex + 1}:`, {
+                            chapters: parsed.chapters?.length || 0,
+                            locations: parsed.locations?.length || 0
+                        });
+                        return parsed;
+                    } catch (fixError) {
+                        console.error('❌ Could not fix JSON either:', fixError);
+                    }
                 }
             } else {
                 console.error(`❌ Unexpected content type for chunk ${chunkIndex + 1}:`, content.type);
@@ -283,7 +328,7 @@ If this chunk doesn't contain complete chapters/articles, extract whatever struc
                 console.error('JSON parsing error - invalid JSON syntax');
             }
             console.warn(`⚠️  Using fallback structure for chunk ${chunkIndex + 1}`);
-            return { chapters: [], geosets: [] };
+            return { chapters: [], locations: [] };
         }
     }
 
@@ -292,14 +337,14 @@ If this chunk doesn't contain complete chapters/articles, extract whatever struc
 
         // Combine all extracted data
         const allChapters = processedChunks.flatMap(chunk => chunk.chapters || []);
-        const allGeosets = processedChunks.flatMap(chunk => chunk.geosets || []);
+        const allLocations = processedChunks.flatMap(chunk => chunk.locations || []);
 
         const consolidationPrompt = `You are finalizing a legal regulation conversion to JSON format that follows this EXACT schema structure:
 
 {
   "title": "Regulation Title",
   "contactEmail": "municipality@example.com", 
-  "sources": [{"title": "Original PDF", "url": "#"}],
+  "sources": [{"title": "Original PDF", "url": "https://www.cityofathens.gr/regulations/epho-parking"}],
   "referenceFormat": {
     "pattern": "{REF:([a-zA-Z][a-zA-Z0-9_-]*)}",
     "syntax": "{REF:id}"
@@ -345,15 +390,16 @@ If this chunk doesn't contain complete chapters/articles, extract whatever struc
 
 CRITICAL REQUIREMENTS:
 1. The "regulation" array MUST contain both chapter objects AND geoset objects
-2. Each geoset groups related geographic locations with individual geometry objects
-3. Each geometry needs: type (point/circle/polygon), name, id, description, geojson
-4. Use placeholder coordinates for geojson (we'll geocode later) - use Athens area coordinates (lat ~37.97, lng ~23.72)
-5. Group locations logically: "prohibited_areas", "parking_zones", "speed_limit_areas", etc.
-6. Articles should reference geosets/geometries using {REF:id} syntax
+2. Chapter "num" and Article "num" fields must be integers (1, 2, 3), not strings or decimals
+3. Geometry "type" can only be "point" or "polygon" (no "circle" - use polygon instead)
+4. Each geometry needs: type, name, id, geojson. Description is optional
+5. Use Athens coordinates: longitude ~23.72, latitude ~37.97 for points; polygon coordinates as arrays
+6. Group locations logically: "prohibited_areas", "parking_zones", "speed_limit_areas", etc.
+7. Articles should reference geosets/geometries using {REF:id} syntax
 
 EXTRACTED DATA:
 Chapters: ${JSON.stringify(allChapters, null, 2)}
-GeoSets: ${JSON.stringify(allGeosets, null, 2)}
+Locations: ${JSON.stringify(allLocations, null, 2)}
 
 FIRST 2000 CHARS OF DOCUMENT:
 ${fullText.substring(0, 2000)}
@@ -368,7 +414,7 @@ Tasks:
 7. Ensure all IDs use consistent naming (lowercase, underscores)
 8. Provide a realistic municipality contact email
 
-CRITICAL: Return ONLY the complete regulation JSON that validates against the schema (no explanatory text, no markdown formatting, just the JSON object).`;
+Return the complete regulation JSON that validates against the schema.`;
 
         const response = await anthropic.messages.create({
             model: 'claude-3-7-sonnet-latest',
@@ -377,6 +423,10 @@ CRITICAL: Return ONLY the complete regulation JSON that validates against the sc
                 {
                     role: 'user',
                     content: consolidationPrompt
+                },
+                {
+                    role: 'assistant',
+                    content: '{'
                 }
             ]
         });
@@ -385,47 +435,119 @@ CRITICAL: Return ONLY the complete regulation JSON that validates against the sc
         if (content.type === 'text') {
             console.log('🔍 Consolidation response preview:', content.text.substring(0, 500) + '...');
 
-            // Clean the response text and extract JSON more carefully
-            let cleanText = content.text;
+            // Since we prefilled with '{', we need to prepend it to the response
+            const jsonString = '{' + content.text;
 
-            // Remove markdown code blocks
-            cleanText = cleanText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+            try {
+                console.log('✅ Attempting to parse prefilled consolidation JSON...');
+                const parsed = JSON.parse(jsonString);
+                console.log('✅ Successfully parsed consolidated regulation');
+                return parsed;
+            } catch (error) {
+                console.error('❌ Failed to parse consolidated JSON:', error);
+                console.error('JSON string (first 1000 chars):', jsonString.substring(0, 1000) + '...');
 
-            // Find the JSON object more precisely
-            const jsonStartMatch = cleanText.match(/\{/);
-            if (jsonStartMatch) {
-                let braceCount = 0;
-                let jsonStart = jsonStartMatch.index!;
-                let jsonEnd = -1;
+                // Try to fix common JSON issues
+                let fixedJson = jsonString;
 
-                for (let i = jsonStart; i < cleanText.length; i++) {
-                    if (cleanText[i] === '{') braceCount++;
-                    else if (cleanText[i] === '}') braceCount--;
+                console.log('🔧 Attempting to fix truncated consolidation JSON...');
 
-                    if (braceCount === 0) {
-                        jsonEnd = i + 1;
-                        break;
+                // Handle unterminated strings - find the last complete string
+                let lastValidPosition = -1;
+                let inString = false;
+                let escaped = false;
+                let braceDepth = 0;
+                let bracketDepth = 0;
+
+                for (let i = 0; i < fixedJson.length; i++) {
+                    const char = fixedJson[i];
+
+                    if (escaped) {
+                        escaped = false;
+                        continue;
+                    }
+
+                    if (char === '\\') {
+                        escaped = true;
+                        continue;
+                    }
+
+                    if (char === '"') {
+                        inString = !inString;
+                        if (!inString) {
+                            // Just closed a string, this is a potentially valid position
+                            lastValidPosition = i;
+                        }
+                        continue;
+                    }
+
+                    if (!inString) {
+                        if (char === '{') braceDepth++;
+                        else if (char === '}') braceDepth--;
+                        else if (char === '[') bracketDepth++;
+                        else if (char === ']') bracketDepth--;
+
+                        if (char === ',' || char === '}' || char === ']') {
+                            lastValidPosition = i;
+                        }
                     }
                 }
 
-                if (jsonEnd > jsonStart) {
-                    const jsonString = cleanText.substring(jsonStart, jsonEnd);
-                    try {
-                        console.log('✅ Found JSON in consolidation response, attempting to parse...');
-                        const parsed = JSON.parse(jsonString);
-                        console.log('✅ Successfully parsed consolidated regulation');
-                        return parsed;
-                    } catch (error) {
-                        console.error('❌ Failed to parse consolidated JSON:', error);
-                        console.error('Extracted JSON string (first 1000 chars):', jsonString.substring(0, 1000) + '...');
-                        throw error;
-                    }
-                } else {
-                    console.error('❌ Could not find complete JSON object in consolidation response');
+                // If we're in the middle of a string, truncate to last valid position
+                if (inString && lastValidPosition > -1) {
+                    console.log(`🔧 Truncating consolidation at position ${lastValidPosition} to fix unterminated string`);
+                    fixedJson = fixedJson.substring(0, lastValidPosition);
                 }
-            } else {
-                console.error('❌ No JSON found in consolidation response');
-                console.error('Full consolidation response:', content.text);
+
+                // Remove any trailing commas before closing braces/brackets
+                fixedJson = fixedJson.replace(/,(\s*[}\]])/g, '$1');
+
+                // Ensure proper closing of all open structures
+                braceDepth = 0;
+                bracketDepth = 0;
+                inString = false;
+                escaped = false;
+
+                for (let i = 0; i < fixedJson.length; i++) {
+                    const char = fixedJson[i];
+                    if (escaped) {
+                        escaped = false;
+                        continue;
+                    }
+                    if (char === '\\') {
+                        escaped = true;
+                        continue;
+                    }
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+                    if (!inString) {
+                        if (char === '{') braceDepth++;
+                        else if (char === '}') braceDepth--;
+                        else if (char === '[') bracketDepth++;
+                        else if (char === ']') bracketDepth--;
+                    }
+                }
+
+                // Close any unclosed structures
+                while (bracketDepth > 0) {
+                    fixedJson += ']';
+                    bracketDepth--;
+                }
+                while (braceDepth > 0) {
+                    fixedJson += '}';
+                    braceDepth--;
+                }
+
+                try {
+                    const parsed = JSON.parse(fixedJson);
+                    console.log('✅ Successfully parsed fixed consolidation JSON');
+                    return parsed;
+                } catch (fixError) {
+                    console.error('❌ Could not fix consolidation JSON either:', fixError);
+                    throw fixError;
+                }
             }
         } else {
             console.error('❌ Unexpected content type in consolidation response:', content.type);
@@ -436,7 +558,22 @@ CRITICAL: Return ONLY the complete regulation JSON that validates against the sc
 
     private validateAgainstSchema(data: any): boolean {
         const validate = this.ajv.compile(this.schema);
-        return validate(data);
+        const isValid = validate(data);
+
+        if (!isValid && validate.errors) {
+            console.error('📋 Detailed validation errors:');
+            validate.errors.forEach((error, index) => {
+                console.error(`${index + 1}. ${error.instancePath || 'root'}: ${error.message}`);
+                if (error.data !== undefined) {
+                    console.error(`   Data: ${JSON.stringify(error.data)}`);
+                }
+                if (error.params) {
+                    console.error(`   Params: ${JSON.stringify(error.params)}`);
+                }
+            });
+        }
+
+        return isValid;
     }
 
     private delay(ms: number): Promise<void> {

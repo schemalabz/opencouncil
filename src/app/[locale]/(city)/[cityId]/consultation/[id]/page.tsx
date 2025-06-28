@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays, FileText, MapPin, MessageSquare, ChevronDown, ChevronRight } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ReactMarkdown from 'react-markdown';
+import { formatConsultationEndDate } from "@/lib/utils/date";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -152,7 +153,7 @@ export default async function ConsultationPage({ params }: PageProps) {
                             {regulationData?.title || consultation.name}
                         </h1>
                         <p className="text-base md:text-lg text-muted-foreground">
-                            Διαβούλευση για κανονισμό - λήγει {consultation.endDate.toLocaleDateString("el-GR")}
+                            Διαβούλευση για κανονισμό
                         </p>
                     </div>
                     <Badge
@@ -167,7 +168,7 @@ export default async function ConsultationPage({ params }: PageProps) {
                     <div className="flex items-center gap-1">
                         <CalendarDays className="h-4 w-4" />
                         <span>
-                            Λήγει: {consultation.endDate.toLocaleDateString("el-GR")}
+                            Λήγει: {formatConsultationEndDate(consultation.endDate)}
                         </span>
                     </div>
                     <div className="flex items-center gap-1">

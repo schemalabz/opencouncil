@@ -30,7 +30,7 @@ function NavLink({
     inactiveClassName = 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
 }: NavLinkProps) {
     const isActive = segment === matchSegment;
-    const className = `px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap transition-colors rounded-md ${isActive ? activeClassName : inactiveClassName
+    const className = `px-2 sm:px-3 md:px-6 py-2 text-xs sm:text-sm md:text-base whitespace-nowrap transition-colors rounded-md flex-shrink-0 ${isActive ? activeClassName : inactiveClassName
         }`;
 
     return (
@@ -54,7 +54,7 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
             transition={{ delay: 0.7 }}
             className="flex justify-center mb-6 md:mb-8"
         >
-            <div className="gap-2 sm:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full flex justify-center rounded-lg">
+            <div className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
                 <NavLink
                     href={`/${cityId}`}
                     segment={currentSegment}
