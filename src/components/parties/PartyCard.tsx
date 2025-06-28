@@ -53,15 +53,15 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
             className={cn(
                 "group relative h-full overflow-hidden transition-all duration-300",
                 "hover:shadow-lg hover:scale-[1.01] cursor-pointer",
-                "border-l-8"
+                "border-l-4 sm:border-l-8"
             )}
             style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
-                <div className="space-y-3 sm:space-y-4 flex-grow">
-                    <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20">
+            <CardContent className="relative h-full flex flex-col p-3 sm:p-4 md:p-6">
+                <div className="space-y-2 sm:space-y-3 md:space-y-4 flex-grow">
+                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 flex-shrink-0">
                             <ImageOrInitials
                                 imageUrl={party.logo}
                                 width={80}
@@ -71,14 +71,18 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                                 square={true}
                             />
                         </div>
-                        <h3 className="text-lg sm:text-xl font-bold line-clamp-2">{party.name}</h3>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-base sm:text-lg md:text-xl font-bold line-clamp-2 leading-tight">
+                                {party.name}
+                            </h3>
+                        </div>
                     </div>
 
                     <div onClick={(e) => e.stopPropagation()}>
                         <PersonAvatarList
                             users={activePersonsForAvatarList}
-                            maxDisplayed={5}
-                            numMore={activePersonsForAvatarList.length > 5 ? activePersonsForAvatarList.length - 5 : 0}
+                            maxDisplayed={4}
+                            numMore={activePersonsForAvatarList.length > 4 ? activePersonsForAvatarList.length - 4 : 0}
                         />
                     </div>
                 </div>
