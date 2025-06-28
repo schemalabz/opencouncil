@@ -30,6 +30,7 @@ model City {
   wikipediaId String?
   geometry Unsupported("geometry")?
   supportsNotifications Boolean @default(false)
+  consultationsEnabled Boolean @default(false)
 
   parties        Party[]
   persons        Person[]
@@ -45,6 +46,9 @@ model City {
 
   // City message relation
   message CityMessage?
+
+  // Consultations relation
+  consultations Consultation[]
 
   @@index([isPending, isListed])
 }
@@ -737,4 +741,20 @@ model CityMessage {
   city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   @@index([cityId, isActive])
+}
+
+model Consultation {
+  id        String   @id @default(cuid())
+  name      String
+  jsonUrl   String   // URL to the regulation JSON file
+  endDate   DateTime
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId    String
+
+  @@index([cityId, isActive])
+  @@index([isActive, endDate])
 }

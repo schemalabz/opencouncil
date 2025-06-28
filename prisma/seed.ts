@@ -17,7 +17,7 @@ async function createTestUsers() {
   // Import test user definitions
   const { TEST_USERS } = require('../src/lib/dev/test-users')
   const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
-  
+
   console.log(`Creating development test users for city: ${DEV_TEST_CITY_ID}`)
 
   try {
@@ -107,6 +107,43 @@ async function createTestUsers() {
 }
 
 /**
+ * Seed consultations
+ */
+async function seedConsultations() {
+  console.log('Seeding consultations...')
+
+  // Check if Athens city exists
+  const athensCity = await prisma.city.findUnique({
+    where: { id: 'athens' },
+    select: { id: true }
+  })
+
+  if (!athensCity) {
+    console.log('Athens city not found, skipping consultation seeding')
+    return
+  }
+
+  // Create sample consultation for Athens
+  const consultationData = {
+    id: 'scooters',
+    name: 'Κανονισμός Κυκλοφορίας και Στάθμευσης Ηλεκτρικών Πατινιών',
+    jsonUrl: '/regulation.json', // Served from public folder
+    endDate: new Date('2025-03-31'), // Set end date to March 31, 2025
+    isActive: true,
+    cityId: 'athens',
+  }
+
+  try {
+    await prisma.consultation.create({
+      data: consultationData
+    })
+    console.log('Successfully created consultation for Athens')
+  } catch (error) {
+    console.log('Consultation may already exist, skipping...')
+  }
+}
+
+/**
  * Seed voiceprints for persons
  */
 async function seedVoicePrints(persons: any[]) {
@@ -115,11 +152,11 @@ async function seedVoicePrints(persons: any[]) {
   }
 
   console.log('Seeding voiceprints...')
-  
+
   // First, collect all voiceprints
   const allVoicePrints = persons
     .filter((person: { voicePrints?: any[] }) => person.voicePrints && person.voicePrints.length > 0)
-    .flatMap((person: { id: string; voicePrints: any[] }) => 
+    .flatMap((person: { id: string; voicePrints: any[] }) =>
       person.voicePrints.map((voicePrint: any) => ({
         id: voicePrint.id,
         embedding: voicePrint.embedding,
@@ -132,15 +169,15 @@ async function seedVoicePrints(persons: any[]) {
         personId: person.id,
       }))
     )
-  
+
   if (allVoicePrints.length > 0) {
     console.log(`Found ${allVoicePrints.length} voiceprints to create...`)
-    
+
     // Get all referenced speaker segment IDs
     const segmentIds = allVoicePrints
       .map(vp => vp.sourceSegmentId)
       .filter((id): id is string => id !== null && id !== undefined)
-    
+
     // Check which speaker segments exist
     const existingSegments = await prisma.speakerSegment.findMany({
       where: {
@@ -152,20 +189,20 @@ async function seedVoicePrints(persons: any[]) {
         id: true
       }
     })
-    
+
     const existingSegmentIds = new Set(existingSegments.map(s => s.id))
-    
+
     // Filter out voiceprints with missing speaker segments
     const validVoicePrints = allVoicePrints.filter(vp => {
       if (!vp.sourceSegmentId) return true // Keep voiceprints without source segments
       return existingSegmentIds.has(vp.sourceSegmentId)
     })
-    
+
     const skippedCount = allVoicePrints.length - validVoicePrints.length
     if (skippedCount > 0) {
       console.log(`Skipping ${skippedCount} voiceprints due to missing speaker segments`)
     }
-    
+
     if (validVoicePrints.length > 0) {
       console.log(`Creating ${validVoicePrints.length} valid voiceprints...`)
       try {
@@ -191,10 +228,10 @@ async function main() {
     console.log('Checking Prisma client connection...')
     await prisma.$connect()
     console.log('Successfully connected to the database.')
-    
+
     // Get seed data, either from local file or by downloading it
     const seedData = await getSeedData()
-    
+
     // Check if seeding has already occurred by verifying if cities and meetings exist
     const existingCities = await prisma.city.findMany({
       where: {
@@ -203,7 +240,7 @@ async function main() {
         }
       }
     })
-    
+
     const existingMeetings = await prisma.councilMeeting.findMany({
       where: {
         id: {
@@ -211,35 +248,38 @@ async function main() {
         }
       }
     })
-    
+
     // If all cities and meetings from seed data already exist, skip seeding
-    if (existingCities.length === seedData.cities.length && 
-        existingMeetings.length === seedData.meetings.length) {
+    if (existingCities.length === seedData.cities.length &&
+      existingMeetings.length === seedData.meetings.length) {
       console.log('Database already contains all seed data. Skipping seeding...')
       return
     }
 
     console.log(`Seeding database with ${seedData.cities.length} cities and ${seedData.meetings.length} meetings...`)
-    
+
     // First, seed core entities that don't depend on others
     await seedTopics(seedData.topics)
     await seedCities(seedData.cities)
-    
+
     // Then seed entities with foreign key dependencies
     await seedAdministrativeBodies(seedData.administrativeBodies)
     await seedParties(seedData.parties)
-    
+
     // Seed persons next (depends on cities and parties)
     await seedPersons(seedData.persons)
-    
+
     // Finally seed meetings and related data
     await seedMeetings(seedData.meetings)
 
     // Seed voiceprints after speaker segments are created
     await seedVoicePrints(seedData.persons)
 
+    // Seed consultations
+    await seedConsultations()
+
     await createTestUsers()
-    
+
     console.log('Database has been seeded! 🌱')
   } catch (error) {
     console.error('Error during seeding:', error)
@@ -257,20 +297,20 @@ async function getSeedData() {
     const data = JSON.parse(fs.readFileSync(SEED_DATA_PATH, 'utf-8'))
     return data
   }
-  
+
   // If no local file, download from URL
   console.log(`Downloading seed data from: ${SEED_DATA_URL}`)
   try {
     const response = await axios.get(SEED_DATA_URL)
     const data = response.data
-    
+
     // Save to local file for future use
     const directory = path.dirname(SEED_DATA_PATH)
     if (!fs.existsSync(directory)) {
       fs.mkdirSync(directory, { recursive: true })
     }
     fs.writeFileSync(SEED_DATA_PATH, JSON.stringify(data, null, 2))
-    
+
     return data
   } catch (error) {
     console.error('Failed to download seed data:', error)
@@ -283,7 +323,7 @@ async function getSeedData() {
  */
 async function seedTopics(topics: any[]) {
   console.log(`Seeding ${topics.length} topics...`)
-  
+
   const topicData = topics.map(topic => ({
     id: topic.id,
     name: topic.name,
@@ -291,7 +331,7 @@ async function seedTopics(topics: any[]) {
     colorHex: topic.colorHex,
     icon: topic.icon,
   }))
-  
+
   await prisma.topic.createMany({
     data: topicData,
     skipDuplicates: true,
@@ -303,7 +343,7 @@ async function seedTopics(topics: any[]) {
  */
 async function seedCities(cities: any[]) {
   console.log(`Seeding ${cities.length} cities...`)
-  
+
   const cityData = cities.map(city => ({
     id: city.id,
     name: city.name,
@@ -317,8 +357,9 @@ async function seedCities(cities: any[]) {
     isPending: city.isPending || false,
     authorityType: city.authorityType || 'municipality',
     wikipediaId: city.wikipediaId,
+    consultationsEnabled: city.id === 'athens' ? true : false, // Enable consultations for Athens
   }))
-  
+
   await prisma.city.createMany({
     data: cityData,
     skipDuplicates: true,
@@ -330,7 +371,7 @@ async function seedCities(cities: any[]) {
  */
 async function seedAdministrativeBodies(bodies: any[]) {
   console.log(`Seeding ${bodies.length} administrative bodies...`)
-  
+
   const bodyData = bodies.map(body => ({
     id: body.id,
     name: body.name,
@@ -338,7 +379,7 @@ async function seedAdministrativeBodies(bodies: any[]) {
     type: body.type,
     cityId: body.cityId,
   }))
-  
+
   await prisma.administrativeBody.createMany({
     data: bodyData,
     skipDuplicates: true,
@@ -350,7 +391,7 @@ async function seedAdministrativeBodies(bodies: any[]) {
  */
 async function seedParties(parties: any[]) {
   console.log(`Seeding ${parties.length} parties...`)
-  
+
   const partyData = parties.map(party => ({
     id: party.id,
     name: party.name,
@@ -361,7 +402,7 @@ async function seedParties(parties: any[]) {
     logo: party.logo,
     cityId: party.cityId,
   }))
-  
+
   await prisma.party.createMany({
     data: partyData,
     skipDuplicates: true,
@@ -373,7 +414,7 @@ async function seedParties(parties: any[]) {
  */
 async function seedPersons(persons: any[]) {
   console.log(`Seeding ${persons.length} persons...`)
-  
+
   // Prepare person data without relations
   const personData = persons.map(person => ({
     id: person.id,
@@ -389,18 +430,18 @@ async function seedPersons(persons: any[]) {
     cityId: person.cityId,
     partyId: person.partyId,
   }))
-  
+
   // Create all persons at once
   await prisma.person.createMany({
     data: personData,
     skipDuplicates: true,
   })
-  
+
   // Now handle relations separately
   // Collect all roles from all persons
   const allRoles = persons
     .filter(person => person.roles && person.roles.length > 0)
-    .flatMap(person => 
+    .flatMap(person =>
       person.roles.map((role: any) => ({
         id: role.id,
         personId: person.id,
@@ -414,18 +455,18 @@ async function seedPersons(persons: any[]) {
         endDate: role.endDate,
       }))
     )
-  
+
   // Collect all speaker tags from all persons
   const allSpeakerTags = persons
     .filter(person => person.speakerTags && person.speakerTags.length > 0)
-    .flatMap(person => 
+    .flatMap(person =>
       person.speakerTags.map((tag: any) => ({
         id: tag.id,
         label: tag.label,
         personId: person.id,
       }))
     )
-  
+
   // Create all roles at once if there are any
   if (allRoles.length > 0) {
     console.log(`Creating ${allRoles.length} roles...`)
@@ -434,7 +475,7 @@ async function seedPersons(persons: any[]) {
       skipDuplicates: true,
     })
   }
-  
+
   // Create all speaker tags at once if there are any
   if (allSpeakerTags.length > 0) {
     console.log(`Creating ${allSpeakerTags.length} speaker tags...`)
@@ -450,7 +491,7 @@ async function seedPersons(persons: any[]) {
  */
 async function seedMeetings(meetings: any[]) {
   console.log(`Seeding ${meetings.length} meetings...`)
-  
+
   // Prepare meeting data for batch creation
   const meetingData = meetings.map(meeting => ({
     id: meeting.id,
@@ -466,7 +507,7 @@ async function seedMeetings(meetings: any[]) {
     cityId: meeting.cityId,
     administrativeBodyId: meeting.administrativeBodyId,
   }))
-  
+
   // Create all meetings at once
   try {
     await prisma.councilMeeting.createMany({
@@ -477,11 +518,11 @@ async function seedMeetings(meetings: any[]) {
     console.error('Error creating meetings:', error)
     return // If we can't create meetings, no point in continuing
   }
-  
+
   // Create task statuses for all meetings
   const allTaskStatuses = meetings
     .filter(meeting => meeting.taskStatuses && meeting.taskStatuses.length > 0)
-    .flatMap(meeting => 
+    .flatMap(meeting =>
       meeting.taskStatuses.map((status: any) => ({
         id: status.id,
         status: status.status,
@@ -495,7 +536,7 @@ async function seedMeetings(meetings: any[]) {
         cityId: meeting.cityId,
       }))
     )
-  
+
   if (allTaskStatuses.length > 0) {
     console.log(`Creating ${allTaskStatuses.length} task statuses...`)
     try {
@@ -508,7 +549,7 @@ async function seedMeetings(meetings: any[]) {
       // Continue anyway, as this is not critical
     }
   }
-  
+
   // Process each meeting's data in the correct order to respect foreign key dependencies:
   // 1. Subjects (needed by speaker segments, highlights)
   // 2. Speaker segments (needed by utterances, words, etc.)
@@ -520,17 +561,17 @@ async function seedMeetings(meetings: any[]) {
       if (meeting.subjects && meeting.subjects.length > 0) {
         await seedSubjects(meeting.subjects, meeting)
       }
-      
+
       // 2. Create speaker segments and related data
       if (meeting.speakerSegments && meeting.speakerSegments.length > 0) {
         await seedSpeakerSegments(meeting.speakerSegments, meeting)
       }
-      
+
       // 3. Create highlights with their utterance connections
       if (meeting.highlights && meeting.highlights.length > 0) {
         await seedHighlights(meeting.highlights, meeting)
       }
-      
+
       // 4. Create podcast specs and parts
       if (meeting.podcastSpecs && meeting.podcastSpecs.length > 0) {
         await seedPodcastSpecs(meeting.podcastSpecs, meeting)
@@ -547,9 +588,9 @@ async function seedMeetings(meetings: any[]) {
  */
 async function seedSubjects(subjects: any[], meeting: any) {
   console.log(`Seeding ${subjects.length} subjects for meeting ${meeting.id}...`)
-  
+
   let locationsCreated = 0;
-  
+
   // Handle locations with postgis geometry that requires raw SQL
   for (const subject of subjects) {
     if (subject.location) {
@@ -559,10 +600,10 @@ async function seedSubjects(subjects: any[], meeting: any) {
           type: 'Point',
           coordinates: [24.0195, 35.5139] // Default coordinates for Chania
         };
-        
+
         // Create a unique ID for the location if not provided
         const locationId = subject.location.id || subject.locationId || `loc_${subject.id}`;
-        
+
         // Insert location using ST_GeomFromGeoJSON like in utils.ts
         const result = await prisma.$queryRaw<[{ id: string }]>`
           INSERT INTO "Location" (
@@ -580,7 +621,7 @@ async function seedSubjects(subjects: any[], meeting: any) {
 
           RETURNING id
         `;
-        
+
         if (result && Array.isArray(result) && result.length > 0) {
           subject.locationId = result[0]?.id;
           locationsCreated++;
@@ -591,11 +632,11 @@ async function seedSubjects(subjects: any[], meeting: any) {
       }
     }
   }
-  
+
   if (locationsCreated > 0) {
     console.log(`Created ${locationsCreated} locations for meeting ${meeting.id}`);
   }
-  
+
   // Create all subjects
   const validSubjectData = subjects.map(subject => ({
     id: subject.id,
@@ -612,7 +653,7 @@ async function seedSubjects(subjects: any[], meeting: any) {
     councilMeetingId: meeting.id,
     cityId: meeting.cityId,
   }));
-  
+
   await prisma.subject.createMany({
     data: validSubjectData,
     skipDuplicates: true,
@@ -624,7 +665,7 @@ async function seedSubjects(subjects: any[], meeting: any) {
  */
 async function seedSpeakerSegments(segments: any[], meeting: any) {
   console.log(`Seeding ${segments.length} speaker segments for meeting ${meeting.id}...`)
-  
+
   // First, ensure all speaker tags exist
   // Extract unique speaker tags that might not have been created yet
   const speakerTagsToCreate = segments
@@ -634,12 +675,12 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       label: segment.speakerTag.label || null,
       personId: segment.speakerTag.personId || null,
     }));
-  
+
   if (speakerTagsToCreate.length > 0) {
     // Use Set to store unique tag IDs we've seen
     const uniqueTagIds = new Set<string>();
     const uniqueTags = [];
-    
+
     // Filter for unique tags only
     for (const tag of speakerTagsToCreate) {
       if (!uniqueTagIds.has(tag.id)) {
@@ -647,9 +688,9 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
         uniqueTags.push(tag);
       }
     }
-    
+
     console.log(`Ensuring ${uniqueTags.length} speaker tags exist before creating segments...`);
-    
+
     // Create missing speaker tags in batches
     try {
       await prisma.speakerTag.createMany({
@@ -661,7 +702,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       // Continue anyway, as the tags might already exist
     }
   }
-  
+
   // Prepare speaker segment data for batch creation
   const segmentData = segments.map(segment => ({
     id: segment.id,
@@ -671,13 +712,13 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
     cityId: meeting.cityId,
     speakerTagId: segment.speakerTagId || segment.speakerTag.id,
   }))
-  
+
   // Create all speaker segments at once
   await prisma.speakerSegment.createMany({
     data: segmentData,
     skipDuplicates: true,
   })
-  
+
   // Create summaries for segments
   const summaries = segments
     .filter(segment => segment.summary)
@@ -687,7 +728,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       type: segment.summary.type,
       speakerSegmentId: segment.id,
     }))
-  
+
   if (summaries.length > 0) {
     console.log(`Creating ${summaries.length} summaries...`)
     await prisma.summary.createMany({
@@ -695,18 +736,18 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       skipDuplicates: true,
     })
   }
-  
+
   // Create topic labels for segments
   const topicLabels = segments
     .filter(segment => segment.topicLabels && segment.topicLabels.length > 0)
-    .flatMap(segment => 
+    .flatMap(segment =>
       segment.topicLabels.map((label: any) => ({
         id: label.id,
         speakerSegmentId: segment.id,
         topicId: label.topicId,
       }))
     )
-  
+
   if (topicLabels.length > 0) {
     console.log(`Creating ${topicLabels.length} topic labels...`)
     await prisma.topicLabel.createMany({
@@ -714,11 +755,11 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       skipDuplicates: true,
     })
   }
-  
+
   // Create subject connections for segments
   const subjectConnections = segments
     .filter(segment => segment.subjects && segment.subjects.length > 0)
-    .flatMap(segment => 
+    .flatMap(segment =>
       segment.subjects.map((subjectConnection: any) => ({
         id: subjectConnection.id,
         subjectId: subjectConnection.subjectId,
@@ -726,7 +767,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
         summary: subjectConnection.summary,
       }))
     )
-  
+
   if (subjectConnections.length > 0) {
     console.log(`Creating ${subjectConnections.length} subject connections...`)
     await prisma.subjectSpeakerSegment.createMany({
@@ -734,12 +775,12 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       skipDuplicates: true,
     })
   }
-  
+
   // Create all utterances and then their words
   // First collect all utterances from all segments
   const utterances = segments
     .filter(segment => segment.utterances && segment.utterances.length > 0)
-    .flatMap(segment => 
+    .flatMap(segment =>
       segment.utterances.map((utterance: any) => ({
         id: utterance.id,
         startTimestamp: utterance.startTimestamp,
@@ -752,10 +793,10 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
         _words: utterance.words || [], // Temporary property to track words for later
       }))
     )
-  
+
   if (utterances.length > 0) {
     console.log(`Creating ${utterances.length} utterances...`)
-    
+
     // Create utterances without the temporary _words property
     try {
       await prisma.utterance.createMany({
@@ -765,11 +806,11 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
         }),
         skipDuplicates: true,
       })
-      
+
       // Now create words for utterances
       const words = utterances
         .filter(u => u._words && u._words.length > 0)
-        .flatMap(utterance => 
+        .flatMap(utterance =>
           utterance._words.map((word: any) => ({
             id: word.id,
             text: word.text,
@@ -779,7 +820,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
             utteranceId: utterance.id,
           }))
         )
-      
+
       if (words.length > 0) {
         console.log(`Creating ${words.length} words...`)
         try {
@@ -804,7 +845,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
  */
 async function seedHighlights(highlights: any[], meeting: any) {
   console.log(`Seeding ${highlights.length} highlights for meeting ${meeting.id}...`)
-  
+
   // Prepare highlight data for batch creation
   const highlightData = highlights.map(highlight => ({
     id: highlight.id,
@@ -816,25 +857,25 @@ async function seedHighlights(highlights: any[], meeting: any) {
     muxPlaybackId: highlight.muxPlaybackId,
     isShowcased: highlight.isShowcased || false,
   }))
-  
+
   // Create all highlights at once
   try {
     await prisma.highlight.createMany({
       data: highlightData,
       skipDuplicates: true,
     })
-    
+
     // Collect all highlighted utterance connections
     const allHighlightedUtterances = highlights
       .filter(highlight => highlight.highlightedUtterances && highlight.highlightedUtterances.length > 0)
-      .flatMap(highlight => 
+      .flatMap(highlight =>
         highlight.highlightedUtterances.map((hu: any) => ({
           id: hu.id,
           utteranceId: hu.utteranceId,
           highlightId: highlight.id,
         }))
       )
-    
+
     // Create all highlighted utterance connections at once if there are any
     if (allHighlightedUtterances.length > 0) {
       console.log(`Creating ${allHighlightedUtterances.length} highlighted utterance connections...`)
@@ -857,25 +898,25 @@ async function seedHighlights(highlights: any[], meeting: any) {
  */
 async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
   console.log(`Seeding ${podcastSpecs.length} podcast specs for meeting ${meeting.id}...`)
-  
+
   // Prepare podcast spec data for batch creation
   const specData = podcastSpecs.map(spec => ({
     id: spec.id,
     councilMeetingId: meeting.id,
     cityId: meeting.cityId,
   }))
-  
+
   // Create all podcast specs at once
   try {
     await prisma.podcastSpec.createMany({
       data: specData,
       skipDuplicates: true,
     })
-    
+
     // Collect all podcast parts from all specs
     const allParts = podcastSpecs
       .filter(spec => spec.parts && spec.parts.length > 0)
-      .flatMap(spec => 
+      .flatMap(spec =>
         spec.parts.map((part: any) => ({
           id: part.id,
           type: part.type,
@@ -889,10 +930,10 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
           _utterances: part.podcastPartAudioUtterances || [], // Temporary property to track utterances
         }))
       )
-    
+
     if (allParts.length > 0) {
       console.log(`Creating ${allParts.length} podcast parts...`)
-      
+
       try {
         // Create parts without the temporary _utterances property
         await prisma.podcastPart.createMany({
@@ -902,18 +943,18 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
           }),
           skipDuplicates: true,
         })
-        
+
         // Create podcast part audio utterances
         const allUtteranceConnections = allParts
           .filter(part => part._utterances && part._utterances.length > 0)
-          .flatMap(part => 
+          .flatMap(part =>
             part._utterances.map((ppau: any) => ({
               id: ppau.id,
               podcastPartId: part.id,
               utteranceId: ppau.utteranceId,
             }))
           )
-        
+
         if (allUtteranceConnections.length > 0) {
           console.log(`Creating ${allUtteranceConnections.length} podcast part audio utterance connections...`)
           try {

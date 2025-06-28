@@ -1,0 +1,252 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Regulation Specification Schema",
+  "description": "Schema για την περιγραφή κανονιστικών αποφάσεων τοπικής αυτοδιοίκησης με υποστήριξη αναφορών",
+  "type": "object",
+  "required": ["title", "contactEmail", "sources", "regulation"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Ο τίτλος της κανονιστικής απόφασης"
+    },
+    "contactEmail": {
+      "type": "string",
+      "format": "email",
+      "description": "Email του δήμου για αποστολή σχολίων δημοτών"
+    },
+    "sources": {
+      "type": "array",
+      "description": "Πηγές του δήμου για την κανονιστική (π.χ. αρχικό PDF)",
+      "items": {
+        "type": "object",
+        "required": ["title", "url"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Τίτλος της πηγής"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL της πηγής"
+          },
+          "description": {
+            "type": "string",
+            "description": "Προαιρετική περιγραφή της πηγής"
+          }
+        }
+      }
+    },
+    "referenceFormat": {
+      "type": "object",
+      "description": "Καθορίζει τη μορφή των αναφορών στο κείμενο",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "default": "{REF:([a-zA-Z][a-zA-Z0-9_-]*)}",
+          "description": "Regex pattern για την αναγνώριση αναφορών"
+        },
+        "syntax": {
+          "type": "string",
+          "default": "{REF:id}",
+          "description": "Παράδειγμα σύνταξης αναφοράς"
+        }
+      }
+    },
+    "regulation": {
+      "type": "array",
+      "description": "Το κύριο μέρος της κανονιστικής - array από sections",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/Chapter"
+          },
+          {
+            "$ref": "#/definitions/GeoSet"
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "Chapter": {
+      "type": "object",
+      "description": "Κεφάλαιο με άρθρα",
+      "required": ["type", "num", "id", "title", "summary", "articles"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "chapter"
+        },
+        "num": {
+          "type": "integer",
+          "description": "Αριθμός κεφαλαίου"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Σύντομο ID στα αγγλικά"
+        },
+        "title": {
+          "type": "string",
+          "description": "Τίτλος κεφαλαίου"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Περίληψη κεφαλαίου"
+        },
+        "preludeBody": {
+          "type": "string",
+          "description": "Εισαγωγικό κείμενο σε markdown που εμφανίζεται πριν από όλα τα άρθρα με δυνατότητα αναφορών {REF:id}"
+        },
+        "articles": {
+          "type": "array",
+          "description": "Άρθρα του κεφαλαίου",
+          "items": {
+            "$ref": "#/definitions/Article"
+          }
+        }
+      }
+    },
+    "Article": {
+      "type": "object",
+      "description": "Άρθρο κανονιστικής",
+      "required": ["num", "id", "title", "summary", "body"],
+      "properties": {
+        "num": {
+          "type": "integer",
+          "description": "Αριθμός άρθρου"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Σύντομο ID στα αγγλικά"
+        },
+        "title": {
+          "type": "string",
+          "description": "Τίτλος άρθρου"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Περίληψη άρθρου"
+        },
+        "body": {
+          "type": "string",
+          "description": "Κύριο κείμενο άρθρου σε markdown με δυνατότητα αναφορών {REF:id}"
+        }
+      }
+    },
+    "GeoSet": {
+      "type": "object",
+      "description": "Σύνολο γεωγραφικών τοποθεσιών",
+      "required": ["type", "id", "name", "geometries"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "geoset"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Σύντομο ID στα αγγλικά"
+        },
+        "name": {
+          "type": "string",
+          "description": "Όνομα του συνόλου γεωγραφικών τοποθεσιών"
+        },
+        "description": {
+          "type": "string",
+          "description": "Προαιρετική περιγραφή του geoset"
+        },
+        "geometries": {
+          "type": "array",
+          "description": "Γεωγραφικές τοποθεσίες",
+          "items": {
+            "$ref": "#/definitions/Geometry"
+          }
+        }
+      }
+    },
+    "Geometry": {
+      "type": "object",
+      "description": "Γεωγραφική τοποθεσία",
+      "required": ["type", "name", "id", "geojson"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["point", "circle", "polygon"],
+          "description": "Τύπος γεωμετρίας"
+        },
+        "name": {
+          "type": "string",
+          "description": "Όνομα τοποθεσίας"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Σύντομο ID στα αγγλικά"
+        },
+        "description": {
+          "type": "string",
+          "description": "Προαιρετική περιγραφή σε λόγια (π.χ. διεύθυνση)"
+        },
+        "geojson": {
+          "description": "GeoJSON αντίστοιχου σχήματος",
+          "oneOf": [
+            {
+              "$ref": "#/definitions/GeoJSONPoint"
+            },
+            {
+              "$ref": "#/definitions/GeoJSONPolygon"
+            }
+          ]
+        }
+      }
+    },
+    "GeoJSONPoint": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "Point"
+        },
+        "coordinates": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          },
+          "description": "[longitude, latitude] ή [longitude, latitude, elevation]"
+        }
+      }
+    },
+    "GeoJSONPolygon": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "Polygon"
+        },
+        "coordinates": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "description": "Array από linear rings, όπου το πρώτο είναι το εξωτερικό boundary"
+        }
+      }
+    }
+  }
+}

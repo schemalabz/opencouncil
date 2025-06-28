@@ -4,9 +4,11 @@ import { useSelectedLayoutSegment } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
+import { City } from '@prisma/client';
 
 type CityNavigationProps = {
-    cityId: string
+    cityId: string;
+    city?: { consultationsEnabled: boolean };
 };
 
 // Custom NavLink component to handle active state styling
@@ -28,10 +30,9 @@ function NavLink({
     inactiveClassName = 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
 }: NavLinkProps) {
     const isActive = segment === matchSegment;
-    const className = `px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap transition-colors rounded-md ${
-        isActive ? activeClassName : inactiveClassName
-    }`;
-    
+    const className = `px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap transition-colors rounded-md ${isActive ? activeClassName : inactiveClassName
+        }`;
+
     return (
         <Link href={href} className={className}>
             {children}
@@ -39,10 +40,10 @@ function NavLink({
     );
 }
 
-export function CityNavigation({ cityId }: CityNavigationProps) {
+export function CityNavigation({ cityId, city }: CityNavigationProps) {
     const t = useTranslations('City');
     const segment = useSelectedLayoutSegment();
-    
+
     // Convert segment to our view types
     const currentSegment = segment || 'meetings';
 
@@ -54,27 +55,36 @@ export function CityNavigation({ cityId }: CityNavigationProps) {
             className="flex justify-center mb-6 md:mb-8"
         >
             <div className="gap-2 sm:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full flex justify-center rounded-lg">
-                <NavLink 
-                    href={`/${cityId}`} 
+                <NavLink
+                    href={`/${cityId}`}
                     segment={currentSegment}
                     matchSegment="meetings"
                 >
                     {t('councilMeetings')}
                 </NavLink>
-                <NavLink 
-                    href={`/${cityId}/people`} 
+                <NavLink
+                    href={`/${cityId}/people`}
                     segment={currentSegment}
                     matchSegment="people"
                 >
                     {t('people')}
                 </NavLink>
-                <NavLink 
-                    href={`/${cityId}/parties`} 
+                <NavLink
+                    href={`/${cityId}/parties`}
                     segment={currentSegment}
                     matchSegment="parties"
                 >
                     {t('parties')}
                 </NavLink>
+                {city?.consultationsEnabled && (
+                    <NavLink
+                        href={`/${cityId}/consultations`}
+                        segment={currentSegment}
+                        matchSegment="consultations"
+                    >
+                        {t('consultations')}
+                    </NavLink>
+                )}
             </div>
         </motion.div>
     );

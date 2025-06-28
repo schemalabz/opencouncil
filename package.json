@@ -24,7 +24,8 @@
     "import:fill": "tsx prisma/import_administrations.ts --mode fill",
     "import:import": "tsx prisma/import_administrations.ts --mode import",
     "test:og": "tsx scripts/test_og_images.ts",
-    "generate-seed": "tsx scripts/generate_seed_dump.ts"
+    "generate-seed": "tsx scripts/generate_seed_dump.ts",
+    "convert-regulation": "tsx scripts/convert-regulation-pdf.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -73,6 +74,8 @@
     "@types/react-timeago": "^4.1.7",
     "@vercel/og": "^0.6.5",
     "ai": "^4.3.15",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "axios": "^1.9.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -94,6 +97,7 @@
     "next-auth": "^5.0.0-beta.25",
     "next-intl": "^3.26.3",
     "next-plausible": "^3.12.2",
+    "pdf-parse": "^1.1.1",
     "pg": "^8.13.1",
     "querystring": "^0.2.1",
     "re-resizable": "^6.9.18",
@@ -132,6 +136,7 @@
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.11.10",
     "@types/react": "^18",
     "@types/react-dom": "^18",

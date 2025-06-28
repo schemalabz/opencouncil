@@ -24,13 +24,13 @@ export default async function TabsLayout({
     return (
         <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8 z-0">
             <div className="space-y-8">
-                <CityHeader 
-                    city={city} 
+                <CityHeader
+                    city={city}
                     councilMeetingsCount={councilMeetingsCount}
                     cityMessage={cityMessage}
                 />
 
-                <CityNavigation cityId={cityId} />
+                <CityNavigation cityId={cityId} city={city as any} />
 
                 <Suspense fallback={
                     <div className="flex justify-center items-center h-32">
