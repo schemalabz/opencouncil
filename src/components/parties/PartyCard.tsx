@@ -51,39 +51,53 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     return (
         <Card
             className={cn(
-                "group relative h-full overflow-hidden transition-all duration-300",
-                "hover:shadow-lg hover:scale-[1.01] cursor-pointer",
-                "border-l-4 sm:border-l-8"
+                "group relative overflow-hidden transition-all duration-300 cursor-pointer h-full",
+                "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
+                "border-l-2 sm:border-l-4"
             )}
             style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col p-3 sm:p-4 md:p-6">
-                <div className="space-y-2 sm:space-y-3 md:space-y-4 flex-grow">
-                    <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 flex-shrink-0">
+            <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-between">
+                {/* Header with logo and title */}
+                <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                             <ImageOrInitials
                                 imageUrl={party.logo}
-                                width={80}
-                                height={80}
+                                width={48}
+                                height={48}
                                 name={party.name_short}
                                 color={party.colorHex}
                                 square={true}
                             />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-base sm:text-lg md:text-xl font-bold line-clamp-2 leading-tight">
+                            <h3 className="text-sm sm:text-base font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
                                 {party.name}
                             </h3>
                         </div>
                     </div>
 
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <PersonAvatarList
-                            users={activePersonsForAvatarList}
-                            maxDisplayed={4}
-                            numMore={activePersonsForAvatarList.length > 4 ? activePersonsForAvatarList.length - 4 : 0}
-                        />
+                    {/* Members */}
+                    {activePersonsForAvatarList.length > 0 && (
+                        <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                            <PersonAvatarList
+                                users={activePersonsForAvatarList}
+                                maxDisplayed={3}
+                                numMore={activePersonsForAvatarList.length > 3 ? activePersonsForAvatarList.length - 3 : 0}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer with member count */}
+                <div className="pt-3 mt-auto">
+                    <div className="text-xs text-muted-foreground">
+                        {activePeople.length === 1 
+                            ? `${activePeople.length} μέλος`
+                            : `${activePeople.length} μέλη`
+                        }
                     </div>
                 </div>
             </CardContent>

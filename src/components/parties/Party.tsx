@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search } from "lucide-react";
+import { Search, Users, TrendingUp } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
@@ -65,16 +65,19 @@ function PartyMembersTab({
         [people, party.id]);
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-8">
             {/* Current Members Section */}
             <motion.div
-                className="mb-12"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <h2 className="text-2xl font-normal tracking-tight mb-6">{t('currentMembers')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex items-center gap-2 mb-4">
+                    <Users className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg sm:text-xl font-semibold">{t('currentMembers')}</h2>
+                    <span className="text-sm text-muted-foreground">({activePeople.length})</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {activePeople
                         .sort((a, b) => {
                             // Sort by isHead first (true comes before false)
@@ -99,13 +102,12 @@ function PartyMembersTab({
             {/* Past Members Section - only show if there are inactive people */}
             {inactivePeople.length > 0 && (
                 <motion.div
-                    className="mb-12"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <h2 className="text-2xl font-normal tracking-tight mb-6">{t('pastMembers')}</h2>
-                    <div className="space-y-4">
+                    <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
+                    <div className="space-y-3">
                         {inactivePeople
                             .sort((a, b) => {
                                 // Sort by most recent end date first
@@ -122,16 +124,16 @@ function PartyMembersTab({
                             .map(person => (
                                 <motion.div
                                     key={person.id}
-                                    className="p-4 border rounded-lg"
+                                    className="p-3 sm:p-4 border rounded-lg bg-card/50"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                 >
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center justify-between gap-4">
                                         <Link
                                             href={`/${city.id}/people/${person.id}`}
-                                            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                                            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0"
                                         >
-                                            <div className="relative w-10 h-10">
+                                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
                                                 <ImageOrInitials
                                                     imageUrl={person.image}
                                                     name={person.name}
@@ -139,9 +141,9 @@ function PartyMembersTab({
                                                     height={40}
                                                 />
                                             </div>
-                                            <div>
-                                                <div className="font-medium">{person.name}</div>
-                                                <div className="text-sm text-muted-foreground">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-sm sm:text-base truncate">{person.name}</div>
+                                                <div className="text-xs sm:text-sm text-muted-foreground">
                                                     {person.roles
                                                         .filter(role => role.partyId === party.id)
                                                         .some(role => role.isHead) && t('partyLeader')}
@@ -152,7 +154,7 @@ function PartyMembersTab({
                                                 </div>
                                             </div>
                                         </Link>
-                                        <span className="text-sm text-muted-foreground ml-auto">
+                                        <span className="text-xs text-muted-foreground text-right flex-shrink-0">
                                             {formatDateRange(
                                                 new Date(Math.min(...person.roles
                                                     .filter(role => role.partyId === party.id && role.startDate)
@@ -204,19 +206,19 @@ function StatisticsAndSegmentsTab({
     const t = useTranslations('Party');
 
     return (
-        <div className="space-y-12">
+        <div className="space-y-8">
             {/* Search Section */}
             <motion.form
                 onSubmit={handleSearch}
-                className="relative mb-12 max-w-2xl mx-auto"
+                className="relative"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     placeholder={t('searchInParty', { partyName: party.name })}
-                    className="pl-12 w-full h-12 text-lg"
+                    className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -233,13 +235,15 @@ function StatisticsAndSegmentsTab({
 
             {/* Statistics Section */}
             <motion.div
-                className="mb-12"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
             >
-                <h2 className="text-2xl font-normal tracking-tight mb-6">{t('statistics')}</h2>
-                <div className="bg-card rounded-lg border shadow-sm p-6 min-h-[300px] relative">
+                <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
+                </div>
+                <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
                     <Statistics
                         type="party"
                         id={party.id}
@@ -257,17 +261,17 @@ function StatisticsAndSegmentsTab({
                 transition={{ delay: 0.4 }}
                 className="relative"
             >
-                <h2 className="text-2xl font-normal tracking-tight mb-6">Πρόσφατες τοποθετήσεις</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>
 
                 {isLoadingSegments && latestSegments.length === 0 ? (
-                    <div className="flex justify-center items-center py-12">
+                    <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
                         <div className="flex flex-col items-center space-y-4">
-                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                            <p className="text-sm text-muted-foreground">{t('loadingSegments')}</p>
+                            <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                            <p className="text-xs sm:text-sm text-muted-foreground">{t('loadingSegments')}</p>
                         </div>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                         {latestSegments.map((segment, index) => (
                             <motion.div
                                 key={index}
@@ -280,8 +284,8 @@ function StatisticsAndSegmentsTab({
                         ))}
 
                         {latestSegments.length === 0 && !isLoadingSegments && (
-                            <div className="text-center py-8">
-                                <p className="text-muted-foreground">{t('noSegmentsFound')}</p>
+                            <div className="text-center py-8 border rounded-lg bg-card/50">
+                                <p className="text-muted-foreground text-sm sm:text-base">{t('noSegmentsFound')}</p>
                             </div>
                         )}
                     </div>
@@ -289,7 +293,7 @@ function StatisticsAndSegmentsTab({
 
                 {isLoadingSegments && latestSegments.length > 0 && (
                     <div className="flex justify-center items-center py-4">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                        <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                     </div>
                 )}
 
@@ -297,7 +301,7 @@ function StatisticsAndSegmentsTab({
                     <Button
                         onClick={() => setPage(prevPage => prevPage + 1)}
                         variant="outline"
-                        className="mt-6"
+                        className="mt-6 w-full sm:w-auto"
                         disabled={isLoadingSegments}
                     >
                         {isLoadingSegments ? (
@@ -449,14 +453,15 @@ export default function PartyC({ city, party, administrativeBodies }: {
     };
 
     return (
-        <div className="relative min-h-screen">
-            <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8">
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-4 sm:py-6 lg:py-8 space-y-6 sm:space-y-8">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <Breadcrumb className="mb-8">
+                    {/* Breadcrumb */}
+                    <Breadcrumb className="mb-4 sm:mb-6">
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
@@ -477,25 +482,25 @@ export default function PartyC({ city, party, administrativeBodies }: {
                     </Breadcrumb>
 
                     {/* Hero Section */}
-                    <div className="flex flex-col md:flex-row items-start justify-between mb-12 gap-6">
+                    <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
                         <motion.div
-                            className="flex flex-col md:flex-row items-center gap-6 md:space-x-8"
+                            className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                         >
-                            <div className="relative w-32 h-32 md:w-40 md:h-40">
+                            <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 flex-shrink-0">
                                 <ImageOrInitials
                                     imageUrl={party.logo}
                                     name={party.name_short}
                                     color={party.colorHex}
-                                    width={160}
-                                    height={160}
+                                    width={128}
+                                    height={128}
                                 />
                             </div>
-                            <div className="text-center md:text-left space-y-3">
+                            <div className="flex-1 space-y-2 sm:space-y-3">
                                 <motion.h1
-                                    className="text-4xl md:text-5xl font-normal tracking-tight"
+                                    className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2 }}
@@ -504,21 +509,22 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 </motion.h1>
                                 {partyLeader && (
                                     <motion.div
-                                        className="text-lg"
+                                        className="text-sm sm:text-base"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.25 }}
                                     >
+                                        <span className="text-muted-foreground">Αρχηγός: </span>
                                         <Link
                                             href={`/${city.id}/people/${partyLeader.person.id}`}
-                                            className="hover:underline text-muted-foreground"
+                                            className="hover:underline text-primary font-medium"
                                         >
                                             {partyLeader.person.name}
                                         </Link>
                                     </motion.div>
                                 )}
                                 <motion.div
-                                    className="text-lg text-muted-foreground"
+                                    className="text-sm sm:text-base text-muted-foreground"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.3 }}
@@ -527,9 +533,10 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 </motion.div>
                             </div>
                         </motion.div>
+                        
                         {canEdit && (
                             <motion.div
-                                className="flex items-center gap-3"
+                                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.5 }}
@@ -540,20 +547,26 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                     title={t('editParty')}
                                     type="edit"
                                 />
-                                <Button variant="destructive" onClick={onDelete}>{t('deleteParty')}</Button>
+                                <Button variant="destructive" onClick={onDelete} className="sm:w-auto">
+                                    {t('deleteParty')}
+                                </Button>
                             </motion.div>
                         )}
                     </div>
 
                     {/* Tabs */}
-                    <Tabs defaultValue="people" className="space-y-6 md:space-y-8">
+                    <Tabs defaultValue="people" className="space-y-6">
                         <div className="flex justify-center">
-                            <TabsList className="gap-2 sm:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full flex justify-center">
-                                <TabsTrigger value="people" className="px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap">
-                                    Πρόσωπα
+                            <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1 bg-muted/50">
+                                <TabsTrigger value="people" className="text-xs sm:text-sm py-2 px-3">
+                                    <Users className="h-4 w-4 mr-1 sm:mr-2" />
+                                    <span className="hidden xs:inline">Πρόσωπα</span>
+                                    <span className="xs:hidden">Μέλη</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="statistics" className="px-3 sm:px-6 py-2 text-sm sm:text-base whitespace-nowrap">
-                                    Στατιστικά και τοποθετήσεις
+                                <TabsTrigger value="statistics" className="text-xs sm:text-sm py-2 px-3">
+                                    <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
+                                    <span className="hidden sm:inline">Στατιστικά</span>
+                                    <span className="sm:hidden">Stats</span>
                                 </TabsTrigger>
                             </TabsList>
                         </div>
