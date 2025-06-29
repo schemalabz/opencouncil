@@ -62,16 +62,16 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
     return (
         <motion.section
             ref={heroRef}
-            className="relative py-16 sm:py-24 flex flex-col justify-center items-center"
+            className="relative py-12 sm:py-16 md:py-24 flex flex-col justify-center items-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
         >
-            <div className="flex flex-col items-center justify-center space-y-6">
-                <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight text-center">
+            <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-light tracking-tight text-center px-4">
                     Κάνουμε τους δημότες
                     <motion.div
-                        className="font-medium mt-2 md:mt-4 relative"
+                        className="font-medium mt-1 sm:mt-2 md:mt-4 relative"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.6 }}
@@ -90,7 +90,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     για το δήμο τους
                 </h1>
                 <motion.p
-                    className="text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed"
+                    className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed px-4"
                     initial={{ y: 20, opacity: 0 }}
                     animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                     transition={{ delay: 0.7, duration: 0.8 }}
@@ -98,19 +98,20 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     Η πρώτη ΑΙ πλατφόρμα συμμετοχικότητας για την αυτοδιοίκηση
                 </motion.p>
                 <motion.div
-                    className="flex flex-col sm:flex-row justify-center gap-4"
+                    className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none px-4"
                     initial={{ y: 20, opacity: 0 }}
                     animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                     transition={{ delay: 0.9, duration: 0.8 }}
                 >
                     <Button
-                        size="lg"
-                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
+                        size="default"
+                        className="relative group text-sm sm:text-base px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90 w-full sm:w-auto"
                         onClick={() => setIsContactFormOpen(true)}
                     >
-                        <span className="relative z-10 flex items-center gap-2">
+                        <span className="relative z-10 flex items-center justify-center gap-2">
                             <CalendarClock className="h-4 w-4" />
-                            Επικοινωνήστε μαζί μας
+                            <span className="hidden xs:inline">Επικοινωνήστε μαζί μας</span>
+                            <span className="xs:hidden">Επικοινωνία</span>
                         </span>
                         <motion.div
                             className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -121,12 +122,12 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     </Button>
                     <a
                         href="tel:+302111980212"
-                        className="inline-flex items-center justify-center no-underline"
+                        className="inline-flex items-center justify-center no-underline w-full sm:w-auto"
                     >
                         <Button
-                            size="lg"
+                            size="default"
                             variant="outline"
-                            className="text-base sm:text-lg px-8 py-6 rounded-xl hover:bg-primary/5 transition-colors duration-300"
+                            className="text-sm sm:text-base px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 rounded-xl hover:bg-primary/5 transition-colors duration-300 w-full"
                         >
                             <PhoneCall className="mr-2 h-4 w-4" />
                             +30 2111980212
@@ -175,16 +176,16 @@ export default function AboutPage() {
 
                 {/* Why OpenCouncil Section */}
                 <motion.section
-                    className="py-16 sm:py-24"
+                    className="py-12 sm:py-16 md:py-24"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-8 sm:mb-12 text-muted-foreground px-4">
                         Χτίζουμε το μέλλον των δημοτικών συμβουλίων
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
                             { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
                             { icon: DatabaseIcon, title: 'Ένα νέο δημόσιο αγαθό', description: 'Δημιουργήστε μια πλούσια, αναζητήσιμη βάση δεδομένων των δημοκρατικών διαδικασιών του συμβουλίου, που ανήκει σε όλους.' },
@@ -199,13 +200,13 @@ export default function AboutPage() {
                             >
                                 <Card className="h-full hover:shadow-lg hover:scale-[1.01] transition-all duration-300 bg-background/50 backdrop-blur-sm">
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-3 text-lg sm:text-xl font-normal">
-                                            <feature.icon className="h-5 w-5 text-primary" />
+                                        <CardTitle className="flex items-center gap-3 text-base sm:text-lg md:text-xl font-normal">
+                                            <feature.icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                                             <span>{feature.title}</span>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                                        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">{feature.description}</p>
                                     </CardContent>
                                 </Card>
                             </motion.div>
@@ -218,17 +219,18 @@ export default function AboutPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
-                    className="text-center py-8 sm:py-16"
+                    className="text-center py-6 sm:py-8 md:py-16"
                 >
                     <Button
-                        size="lg"
-                        className="relative group text-base sm:text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
+                        size="default"
+                        className="relative group text-sm sm:text-base md:text-lg px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
                         asChild
                     >
                         <Link href="/athens">
                             <span className="relative z-10 flex items-center gap-2">
-                                <Building2 className="h-5 w-5" />
-                                Δείτε το OpenCouncil για το Δήμο Αθηναίων
+                                <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                                <span className="hidden sm:inline">Δείτε το OpenCouncil για το Δήμο Αθηναίων</span>
+                                <span className="sm:hidden">Δήμος Αθηναίων</span>
                             </span>
                             <motion.div
                                 className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -242,16 +244,16 @@ export default function AboutPage() {
 
                 {/* Feature Showcase */}
                 <motion.section
-                    className="py-16 sm:py-24"
+                    className="py-12 sm:py-16 md:py-24"
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-8 sm:mb-12 text-muted-foreground px-4">
                         Τι κάνει το OpenCouncil
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
                             { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.' },
                             { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
@@ -276,12 +278,13 @@ export default function AboutPage() {
 
 
                                 <FeatureCard
-                                    icon={<feature.icon className="h-10 w-10 text-primary" />}
+                                    icon={<feature.icon className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />}
                                     title={feature.title}
                                     description={feature.description}
                                     badge={feature.releaseDate ? (
                                         <AnimatedGradientText>
-                                            <CalendarClock className="h-4 w-4 mr-2" /> {feature.releaseDate}
+                                            <CalendarClock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" /> 
+                                            <span className="text-xs sm:text-sm">{feature.releaseDate}</span>
                                         </AnimatedGradientText>
                                     ) : null}
                                 />
@@ -292,7 +295,7 @@ export default function AboutPage() {
 
                 {/* Pricing Section */}
                 <motion.section
-                    className="py-16 sm:py-24"
+                    className="py-12 sm:py-16 md:py-24"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
@@ -302,7 +305,7 @@ export default function AboutPage() {
                 </motion.section>
 
                 <motion.section
-                    className="py-16 sm:py-24 relative"
+                    className="py-12 sm:py-16 md:py-24 relative"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
@@ -311,24 +314,24 @@ export default function AboutPage() {
                     <ProductRoadmap />
                 </motion.section>
                 <motion.section
-                    className="py-16 sm:py-24"
+                    className="py-12 sm:py-16 md:py-24"
                     initial={{ opacity: 0, y: 50 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-8 text-muted-foreground">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-6 sm:mb-8 text-muted-foreground px-4">
                         Ποιοί είμαστε
                     </h2>
-                    <p className="text-center text-lg sm:text-xl mb-8 text-muted-foreground">
+                    <p className="text-center text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 text-muted-foreground px-4">
                         Είμαστε ομάδα τριών ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
                         στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ&apos; ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
                     </p>
 
-                    <div className="flex justify-center gap-12">
+                    <div className="flex flex-col sm:flex-row justify-center gap-8 sm:gap-12 px-4">
                         {people.map((person, index) => (
                             <div key={index} className="flex flex-col items-center">
-                                <div className="w-24 h-24 mb-4 overflow-hidden rounded-full">
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 mb-3 sm:mb-4 overflow-hidden rounded-full">
                                     <Image
                                         src={person.image}
                                         alt={person.name}
@@ -337,21 +340,21 @@ export default function AboutPage() {
                                         className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"
                                     />
                                 </div>
-                                <h3 className="text-lg sm:text-xl font-medium text-center">{person.name}</h3>
-                                <div className="flex gap-4">
+                                <h3 className="text-base sm:text-lg md:text-xl font-medium text-center mb-2">{person.name}</h3>
+                                <div className="flex gap-3 sm:gap-4">
                                     {person.socials.twitter && (
                                         <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Twitter className="w-5 h-5" />
+                                            <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
                                         </a>
                                     )}
                                     {person.socials.linkedin && (
                                         <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Linkedin className="w-5 h-5" />
+                                            <Linkedin className="w-4 h-4 sm:w-5 sm:h-5" />
                                         </a>
                                     )}
                                     {person.socials.email && (
                                         <a href={person.socials.email} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Mail className="w-5 h-5" />
+                                            <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
                                         </a>
                                     )}
                                 </div>
@@ -363,7 +366,7 @@ export default function AboutPage() {
 
             </div >
             <motion.section
-                className="py-16 sm:py-24 bg-primary text-primary-foreground w-screen relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw] overflow-hidden"
+                className="py-12 sm:py-16 md:py-24 bg-primary text-primary-foreground w-screen relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw] overflow-hidden"
                 initial={{ opacity: 0, y: 50 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
@@ -375,30 +378,31 @@ export default function AboutPage() {
                 </div>
 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-8 text-primary-foreground">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-6 sm:mb-8 text-primary-foreground">
                         Ας φτιάξουμε το μέλλον της αυτοδιοίκησης μαζί
                     </h2>
-                    <p className="text-center text-lg sm:text-xl mb-8 text-primary-foreground/90">
+                    <p className="text-center text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 text-primary-foreground/90">
                         Δώστε στους δημότες σας την πρώτη πλατφόρμα ΑΙ για την αυτοδιοίκηση.
                     </p>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 max-w-md sm:max-w-none mx-auto">
                         <Button
-                            size="lg"
+                            size="default"
                             variant="secondary"
                             onClick={() => setIsContactFormOpen(true)}
-                            className="bg-white/90 hover:bg-white text-primary hover:text-primary/90 transition-colors duration-300"
+                            className="bg-white/90 hover:bg-white text-primary hover:text-primary/90 transition-colors duration-300 text-sm sm:text-base px-4 sm:px-6 py-3 sm:py-4"
                         >
                             <CalendarClock className="mr-2 h-4 w-4" />
-                            Επικοινωνήστε μαζί μας
+                            <span className="hidden xs:inline">Επικοινωνήστε μαζί μας</span>
+                            <span className="xs:hidden">Επικοινωνία</span>
                         </Button>
                         <a
                             href="tel:+302111980212"
                             className="inline-flex items-center justify-center no-underline"
                         >
                             <Button
-                                size="lg"
+                                size="default"
                                 variant="secondary"
-                                className="bg-white/90 hover:bg-white text-primary hover:text-primary/90 transition-colors duration-300"
+                                className="bg-white/90 hover:bg-white text-primary hover:text-primary/90 transition-colors duration-300 text-sm sm:text-base px-4 sm:px-6 py-3 sm:py-4 w-full"
                             >
                                 <PhoneCall className="mr-2 h-4 w-4" />
                                 +30 2111980212
@@ -419,18 +423,18 @@ export default function AboutPage() {
 function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
     const cardContent = (
         <Card className={`h-full flex flex-col ${badge ? 'border-none' : ''}`}>
-            <CardHeader>
-                <CardTitle className="flex items-center">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-sm sm:text-base md:text-lg">
                     <div className="flex-shrink-0">
-                        {React.cloneElement(Icon, { className: "h-6 w-6 mr-2" })}
+                        {React.cloneElement(Icon, { className: "h-5 w-5 sm:h-6 sm:w-6 mr-2" })}
                     </div>
                     <span>{title}</span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
-                <p className="text-muted-foreground">{description}</p>
+            <CardContent className="flex-grow pt-0">
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">{description}</p>
             </CardContent>
-            <CardFooter className="mt-auto flex justify-end">
+            <CardFooter className="mt-auto flex justify-end pt-2">
                 {badge}
             </CardFooter>
         </Card>
