@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, MessageCircle } from "lucide-react";
 import GeometryItem from "./GeometryItem";
+import CommentSection from "./CommentSection";
 import { Geometry } from "./types";
 
 export type CheckboxState = 'checked' | 'indeterminate' | 'unchecked';
@@ -20,6 +21,9 @@ interface GeoSetItemProps {
     onToggleGeoSet: (id: string) => void;
     onToggleExpansion: (id: string) => void;
     onToggleGeometry: (id: string) => void;
+    onOpenGeoSetDetail: (id: string) => void;
+    onOpenGeometryDetail: (id: string) => void;
+    contactEmail?: string;
 }
 
 export default function GeoSetItem({
@@ -33,7 +37,10 @@ export default function GeoSetItem({
     enabledGeometries,
     onToggleGeoSet,
     onToggleExpansion,
-    onToggleGeometry
+    onToggleGeometry,
+    onOpenGeoSetDetail,
+    onOpenGeometryDetail,
+    contactEmail
 }: GeoSetItemProps) {
     const hasGeometries = geometries.length > 0;
     const enabledCount = geometries.filter(g => enabledGeometries.has(g.id)).length;
@@ -71,6 +78,17 @@ export default function GeoSetItem({
                 >
                     {name}
                 </Label>
+                <Button
+                    onClick={() => onOpenGeoSetDetail(id)}
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-muted-foreground hover:text-foreground border-muted-foreground/30"
+                    title="Προβολή λεπτομερειών και σχολίων"
+                >
+                    <Info className="h-3 w-3 mr-1" />
+                    <MessageCircle className="h-3 w-3 mr-1" style={{ color: 'hsl(var(--orange))' }} />
+                    <span className="text-xs">0</span>
+                </Button>
                 {hasGeometries && (
                     <Button
                         onClick={() => onToggleExpansion(id)}
@@ -104,6 +122,7 @@ export default function GeoSetItem({
                             enabled={enabledGeometries.has(geometry.id)}
                             color={color}
                             onToggle={onToggleGeometry}
+                            onOpenDetail={onOpenGeometryDetail}
                         />
                     ))}
                 </div>

@@ -32,9 +32,6 @@ export function SignIn() {
         <Card className="max-w-xl">
             <CardHeader>
                 <h2 className="text-2xl font-semibold text-center">Σύνδεση στο OpenCouncil</h2>
-                <p className="text-sm text-center text-muted-foreground">
-                    Δε χρειάζεστε να συνδεθείτε στο OpenCouncil αν δεν είστε διαχειριστής κάποιας πόλης, παράταξης ή προσώπου.
-                </p>
             </CardHeader>
             <form onSubmit={handleSubmit}>
                 <CardContent>

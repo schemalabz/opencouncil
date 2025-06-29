@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
+import CommentSection from "./CommentSection";
 import { Article, ReferenceFormat, RegulationData } from "./types";
 
 interface ArticleViewProps {
@@ -57,6 +58,14 @@ export default function ArticleView({
                         referenceFormat={referenceFormat}
                         onReferenceClick={onReferenceClick}
                         regulationData={regulationData}
+                    />
+
+                    {/* Comment Section */}
+                    <CommentSection
+                        entityType="article"
+                        entityId={article.id}
+                        entityTitle={article.title}
+                        contactEmail={regulationData?.contactEmail}
                     />
                 </CollapsibleContent>
             </Collapsible>

@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
-import { RegulationData, RegulationItem, Geometry } from "./types";
+import { RegulationData, RegulationItem, Geometry, ReferenceFormat } from "./types";
 import LayerControlsButton from "./LayerControlsButton";
 import LayerControlsPanel from "./LayerControlsPanel";
+import DetailPanel from "./DetailPanel";
 import { CheckboxState } from "./GeoSetItem";
 
 interface ConsultationMapProps {
     className?: string;
     regulationData?: RegulationData | null;
+    baseUrl: string;
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
 }
 
 interface GeoSetData {
@@ -32,11 +37,24 @@ const GEOSET_COLORS = [
     '#4A5568', // Gray
 ];
 
-export default function ConsultationMap({ className, regulationData }: ConsultationMapProps) {
+export default function ConsultationMap({
+    className,
+    regulationData,
+    baseUrl,
+    referenceFormat,
+    onReferenceClick
+}: ConsultationMapProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [isControlsOpen, setIsControlsOpen] = useState(false);
     const [enabledGeoSets, setEnabledGeoSets] = useState<Set<string>>(new Set());
     const [enabledGeometries, setEnabledGeometries] = useState<Set<string>>(new Set());
     const [expandedGeoSets, setExpandedGeoSets] = useState<Set<string>>(new Set());
+
+    // Detail panel state
+    const [detailType, setDetailType] = useState<'geoset' | 'geometry' | null>(null);
+    const [detailId, setDetailId] = useState<string | null>(null);
 
     // Extract geosets from regulation data
     const geoSets: GeoSetData[] = useMemo(() => {
@@ -61,6 +79,79 @@ export default function ConsultationMap({ className, regulationData }: Consultat
         setEnabledGeometries(allGeometryIds);
         setExpandedGeoSets(allGeoSetIds); // Start with all expanded
     }, [geoSets]);
+
+    // Handle URL hash changes to open detail panels
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.substring(1); // Remove #
+            if (hash) {
+                openDetailFromId(hash);
+            } else {
+                closeDetail();
+            }
+        };
+
+        // Check initial hash
+        handleHashChange();
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [geoSets]);
+
+    // Functions to manage detail panel
+    const openDetailFromId = (id: string) => {
+        // Check if it's a geoset
+        const geoSet = geoSets.find(gs => gs.id === id);
+        if (geoSet) {
+            setDetailType('geoset');
+            setDetailId(id);
+            return;
+        }
+
+        // Check if it's a geometry
+        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === id);
+        if (geometry) {
+            setDetailType('geometry');
+            setDetailId(id);
+            return;
+        }
+
+        // If not found, close detail
+        closeDetail();
+    };
+
+    const openGeoSetDetail = (geoSetId: string) => {
+        setDetailType('geoset');
+        setDetailId(geoSetId);
+        // Update URL hash without triggering navigation
+        window.location.hash = geoSetId;
+    };
+
+    const openGeometryDetail = (geometryId: string) => {
+        setDetailType('geometry');
+        setDetailId(geometryId);
+        // Update URL hash without triggering navigation
+        window.location.hash = geometryId;
+    };
+
+    const closeDetail = () => {
+        setDetailType(null);
+        setDetailId(null);
+        // Remove hash from URL
+        if (window.location.hash) {
+            // Use history.pushState to remove hash without page reload
+            const url = window.location.href.split('#')[0];
+            window.history.pushState({}, '', url);
+        }
+    };
+
+    // Handle map feature clicks
+    const handleMapFeatureClick = (feature: GeoJSON.Feature) => {
+        if (feature.properties?.id) {
+            openGeometryDetail(feature.properties.id);
+        }
+    };
 
     // Convert enabled geometries to map features
     const mapFeatures: MapFeature[] = useMemo(() => {
@@ -170,6 +261,7 @@ export default function ConsultationMap({ className, regulationData }: Consultat
                 zoom={11}
                 animateRotation={false}
                 features={mapFeatures}
+                onFeatureClick={handleMapFeatureClick}
                 className="w-full h-full"
             />
 
@@ -195,8 +287,26 @@ export default function ConsultationMap({ className, regulationData }: Consultat
                     onToggleExpansion={toggleGeoSetExpansion}
                     onToggleGeometry={toggleGeometry}
                     getGeoSetCheckboxState={getGeoSetCheckboxState}
+                    onOpenGeoSetDetail={openGeoSetDetail}
+                    onOpenGeometryDetail={openGeometryDetail}
+                    contactEmail={regulationData?.contactEmail}
                 />
             )}
+
+            {/* Detail Panel */}
+            <DetailPanel
+                isOpen={detailType !== null}
+                onClose={closeDetail}
+                detailType={detailType}
+                detailId={detailId}
+                geoSets={geoSets}
+                baseUrl={baseUrl}
+                referenceFormat={referenceFormat}
+                onReferenceClick={onReferenceClick}
+                regulationData={regulationData || undefined}
+                onOpenGeometryDetail={openGeometryDetail}
+                onOpenGeoSetDetail={openGeoSetDetail}
+            />
         </div>
     );
 } 

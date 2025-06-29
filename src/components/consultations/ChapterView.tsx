@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
+import CommentSection from "./CommentSection";
 import { RegulationItem, ReferenceFormat, RegulationData } from "./types";
 
 interface ChapterViewProps {
@@ -83,6 +84,14 @@ export default function ChapterView({
                         <div className="space-y-4 md:space-y-6">
                             {children}
                         </div>
+
+                        {/* Comment Section */}
+                        <CommentSection
+                            entityType="chapter"
+                            entityId={chapter.id}
+                            entityTitle={chapter.title || chapter.name || ''}
+                            contactEmail={regulationData?.contactEmail}
+                        />
                     </div>
                 </CollapsibleContent>
             </Collapsible>
