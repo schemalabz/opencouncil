@@ -282,6 +282,7 @@ export default function ConsultationViewer({
                 {/* Full-screen map */}
                 <div className="absolute inset-0">
                     <ConsultationMap
+                        baseUrl={baseUrl}
                         className="w-full h-full"
                         regulationData={regulationData}
                     />

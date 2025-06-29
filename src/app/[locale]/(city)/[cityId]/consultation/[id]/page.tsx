@@ -3,35 +3,10 @@ import { getCityCached } from "@/lib/cache";
 import { getConsultationById } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
+import { RegulationData } from "@/components/consultations/types";
 
 interface PageProps {
     params: { cityId: string; id: string };
-}
-
-interface RegulationData {
-    title: string;
-    contactEmail?: string;
-    regulation: RegulationItem[];
-}
-
-interface RegulationItem {
-    type: 'chapter' | 'geoset';
-    id: string;
-    title?: string;
-    name?: string;
-    summary?: string;
-    description?: string;
-    preludeBody?: string;
-    articles?: Article[];
-    geometries?: any[];
-}
-
-interface Article {
-    num: number;
-    id: string;
-    title: string;
-    summary?: string;
-    body: string;
 }
 
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
