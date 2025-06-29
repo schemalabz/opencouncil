@@ -484,21 +484,22 @@ export default function PartyC({ city, party, administrativeBodies }: {
                     {/* Hero Section */}
                     <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
                         <motion.div
-                            className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6"
+                            className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                         >
-                            <div className="relative w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 flex-shrink-0">
+                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 flex-shrink-0">
                                 <ImageOrInitials
                                     imageUrl={party.logo}
                                     name={party.name_short}
                                     color={party.colorHex}
                                     width={128}
                                     height={128}
+                                    square={true}
                                 />
                             </div>
-                            <div className="flex-1 space-y-2 sm:space-y-3">
+                            <div className="flex-1 space-y-2 sm:space-y-3 text-center sm:text-left min-w-0">
                                 <motion.h1
                                     className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight"
                                     initial={{ opacity: 0, y: 20 }}

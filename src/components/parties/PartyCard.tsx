@@ -53,20 +53,20 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
             className={cn(
                 "group relative overflow-hidden transition-all duration-300 cursor-pointer h-full",
                 "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
-                "border-l-2 sm:border-l-4"
+                "border-l-3 sm:border-l-4"
             )}
             style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-between">
-                {/* Header with logo and title */}
-                <div className="space-y-3">
-                    <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
+            <CardContent className="p-4 sm:p-5 h-full flex flex-col">
+                <div className="flex-1 space-y-4">
+                    {/* Header with logo and title - properly aligned */}
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                             <ImageOrInitials
                                 imageUrl={party.logo}
-                                width={48}
-                                height={48}
+                                width={56}
+                                height={56}
                                 name={party.name_short}
                                 color={party.colorHex}
                                 square={true}
@@ -79,9 +79,9 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                         </div>
                     </div>
 
-                    {/* Members */}
+                    {/* Members avatars */}
                     {activePersonsForAvatarList.length > 0 && (
-                        <div onClick={(e) => e.stopPropagation()} className="pt-1">
+                        <div onClick={(e) => e.stopPropagation()}>
                             <PersonAvatarList
                                 users={activePersonsForAvatarList}
                                 maxDisplayed={3}
@@ -92,8 +92,8 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                 </div>
 
                 {/* Footer with member count */}
-                <div className="pt-3 mt-auto">
-                    <div className="text-xs text-muted-foreground">
+                <div className="pt-3 border-t border-border/50 mt-4">
+                    <div className="text-xs text-muted-foreground font-medium">
                         {activePeople.length === 1 
                             ? `${activePeople.length} μέλος`
                             : `${activePeople.length} μέλη`
