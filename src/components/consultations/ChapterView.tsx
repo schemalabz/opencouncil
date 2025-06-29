@@ -34,26 +34,31 @@ export default function ChapterView({
                 <div className="flex items-start justify-between w-full group">
                     <CollapsibleTrigger className="flex items-start justify-between w-full text-left hover:opacity-80 transition-opacity mr-2">
                         <div className="flex-1 pl-4 md:pl-8">
+                            <div className="text-xs md:text-sm text-muted-foreground font-medium mb-1 uppercase tracking-wider">
+                                ΚΕΦΑΛΑΙΟ {chapter.num}
+                            </div>
                             <h2 className="text-lg md:text-2xl font-bold mb-2 md:mb-3 leading-tight text-left">
                                 {chapter.title || chapter.name}
                             </h2>
-                            {chapter.summary && (
-                                <div className="mb-2 md:mb-3">
-                                    <AISummaryCard summary={chapter.summary} />
-                                </div>
-                            )}
                         </div>
-                        <div className="flex items-center gap-1 md:gap-3 mt-1 shrink-0">
+                        <div className="flex items-center gap-1 md:gap-3 self-center shrink-0">
                             <span className="text-xs md:text-sm text-muted-foreground font-medium">
                                 {articleCount} {articleCount === 1 ? 'άρθρο' : 'άρθρα'}
                             </span>
                             <ChevronDown className={`h-4 w-4 md:h-5 md:w-5 shrink-0 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
                     </CollapsibleTrigger>
-                    <div className="flex items-center mt-1">
+                    <div className="flex items-center self-center">
                         <PermalinkButton href={`${baseUrl}#${chapter.id}`} />
                     </div>
                 </div>
+
+                {/* AI Summary Card - outside collapsible trigger for full width */}
+                {chapter.summary && (
+                    <div className="mt-2 md:mt-3 mb-2 md:mb-3">
+                        <AISummaryCard summary={chapter.summary} />
+                    </div>
+                )}
 
                 <CollapsibleContent>
                     <div className="pl-4 md:pl-8 pt-4 md:pt-6">

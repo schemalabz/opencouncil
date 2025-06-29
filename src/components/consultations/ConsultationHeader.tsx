@@ -22,13 +22,12 @@ export default function ConsultationHeader({
     currentView
 }: ConsultationHeaderProps) {
     const isMapView = currentView === 'map';
-
     if (isMapView) {
         // Minimal floating header for map view
         return (
             <div className="absolute top-0 left-0 right-0 z-40 p-4 md:p-6 pointer-events-none">
                 <div className="max-w-4xl mx-auto">
-                    <h1 className="text-lg md:text-xl font-bold text-white drop-shadow-lg shadow-black/80 [text-shadow:_2px_2px_4px_rgb(0_0_0_/_80%)]">
+                    <h1 className="text-md md:text-lg font-bold text-black drop-shadow-lg shadow-white/80 [text-shadow:_2px_2px_4px_rgb(255_255_255_/_80%)]">
                         {title}
                     </h1>
                 </div>

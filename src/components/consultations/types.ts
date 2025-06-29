@@ -7,6 +7,7 @@ export interface RegulationData {
 export interface RegulationItem {
     type: 'chapter' | 'geoset';
     id: string;
+    num?: number; // Chapter number for chapters
     title?: string;
     name?: string;
     summary?: string;
