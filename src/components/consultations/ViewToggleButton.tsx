@@ -20,22 +20,27 @@ export default function ViewToggleButton({ currentView, onToggle }: ViewToggleBu
     const isMapView = currentView === 'map';
 
     return (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50">
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <button
                             onClick={onToggle}
-                            className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center p-0 border-0"
+                            className="h-12 w-12 md:h-14 md:w-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center p-0 border-0"
                             style={{
                                 backgroundColor: 'hsl(24, 100%, 50%)',
                                 color: 'white',
                             }}
                         >
                             {isMapView ? (
-                                <FileText size={24} color="white" />
+                                <FileText size={20} className="md:hidden" color="white" />
                             ) : (
-                                <Map size={24} color="white" />
+                                <Map size={20} className="md:hidden" color="white" />
+                            )}
+                            {isMapView ? (
+                                <FileText size={24} className="hidden md:block" color="white" />
+                            ) : (
+                                <Map size={24} className="hidden md:block" color="white" />
                             )}
                         </button>
                     </TooltipTrigger>

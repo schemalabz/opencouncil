@@ -69,7 +69,7 @@ export default function ConsultationDocument({
             {/* Document Navigation - only on large screens */}
             <DocumentNavigation regulationData={regulationData} />
 
-            <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
+            <div className="container mx-auto px-3 md:px-4 py-4 md:py-12 max-w-4xl">
                 <div>
                     {chapters.map((chapter) => (
                         <ChapterView
