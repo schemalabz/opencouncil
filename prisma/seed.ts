@@ -128,7 +128,7 @@ async function seedConsultations() {
     id: 'scooters',
     name: 'Κανονισμός Κυκλοφορίας και Στάθμευσης Ηλεκτρικών Πατινιών',
     jsonUrl: '/regulation.json', // Served from public folder
-    endDate: new Date('2025-03-31'), // Set end date to March 31, 2025
+    endDate: new Date('2027-03-31'), // Set end date to March 31, 2027
     isActive: true,
     cityId: 'athens',
   }

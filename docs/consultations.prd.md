@@ -30,6 +30,56 @@ Text can reference other parts of the regulation:
 - `{REF:general_provisions}` → links to an article
 
 When clicked, these references navigate users to the appropriate view (text or map).
+### Permanent Links
+Permanent links (permalinks) are essential for the consultations module to enable direct access and sharing of specific content. The system provides permalinks for:
+
+* The complete consultation view (defaults to showing the map)
+* The dedicated map visualization
+* Individual chapters within the regulation
+* Specific articles
+* Geographic area sets (geosets)
+* Individual geographic elements (polygons or points) within geosets
+* User-submitted comments and feedback
+
+Elements with permalinks should display a clickable icon that shows a "Copy link" tooltip on hover. After clicking, a confirmation message "Ο σύνδεσμος αντιγράφηκε" appears to indicate successful copying.
+
+### Public Feedback System (future feature)
+The consultation platform will enable public comments and feedback on:
+
+* Regulation chapters
+* Individual articles
+* Sets of geographic areas (geosets)
+* Specific locations and boundaries within geographic sets
+
+## Consultation Page Interface
+
+The consultation interface prioritizes a clean, responsive design that works seamlessly across all devices. The interface consists of two main views:
+
+### Map View
+- Full-screen interactive map display
+- Visualizes geographic elements of the regulation
+
+### Document View  
+- Structured display of regulation text and content
+- Expandable chapters and articles with preview summaries
+- Collapsed by default to provide clear document overview
+- Click to expand sections and view full content
+
+A floating action button in the brand color sits in the bottom right corner, allowing users to toggle between views with a single tap.
+
+### Common Elements
+Both views share a minimal header containing:
+- Consultation title
+- Description
+- Comment count
+- End date
+- Active status indicator
+
+The interface emphasizes:
+- Intuitive navigation
+- Mobile-first design
+- Clean visual hierarchy
+- Shareable deep links
 
 ## Athens Scooter Regulation Example
 
