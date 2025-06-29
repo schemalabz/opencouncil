@@ -1,15 +1,23 @@
 import ReactMarkdown from 'react-markdown';
+import { Link2Off, Map, BookOpen } from 'lucide-react';
+import { ReferenceFormat, RegulationData } from './types';
 
 interface MarkdownContentProps {
     content: string;
     className?: string;
     variant?: 'default' | 'muted';
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
+    regulationData?: RegulationData;
 }
 
 export default function MarkdownContent({
     content,
     className = "",
-    variant = 'default'
+    variant = 'default',
+    referenceFormat,
+    onReferenceClick,
+    regulationData
 }: MarkdownContentProps) {
     const baseClasses = "prose prose-sm max-w-none";
     const variantClasses = variant === 'muted' ? 'text-muted-foreground' : 'text-foreground/90';
@@ -87,9 +95,187 @@ export default function MarkdownContent({
 
     const allClasses = `${baseClasses} ${variantClasses} ${stylingClasses} ${className}`.trim();
 
+    // Check if we have reference handling enabled
+    const hasReferenceHandling = Boolean(referenceFormat || onReferenceClick);
+
+    // Preprocess content to convert {REF:...} to markdown links
+    const preprocessContent = (text: string): string => {
+        if (!hasReferenceHandling) return text;
+
+        const pattern = referenceFormat?.pattern || "{REF:([a-zA-Z][a-zA-Z0-9_-]*)}";
+        const regex = new RegExp(pattern, 'gi');
+
+        return text.replace(regex, (match, referenceId) => {
+            // Determine reference type to decide on link format
+            let isDocumentReference = false;
+
+            if (regulationData?.regulation) {
+                for (const item of regulationData.regulation) {
+                    // Check if it's a chapter or article
+                    if ((item.type === 'chapter' && item.id === referenceId) ||
+                        (item.type === 'chapter' && item.articles?.some(a => a.id === referenceId))) {
+                        isDocumentReference = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isDocumentReference) {
+                // For chapters/articles, use direct anchor links
+                return `[${match}](#${referenceId})`;
+            } else {
+                // For geosets/geometries, use ref- prefix for custom handling
+                return `[${match}](#ref-${referenceId})`;
+            }
+        });
+    };
+
+    const processedContent = preprocessContent(content);
+
     return (
         <div className={allClasses}>
-            <ReactMarkdown>{content}</ReactMarkdown>
+            <ReactMarkdown
+                components={hasReferenceHandling ? {
+                    // Custom link renderer to handle ref:// links
+                    a: ({ href, children, ...props }) => {
+                        // Helper function to resolve reference info
+                        const resolveReference = (referenceId: string) => {
+                            let displayName = referenceId;
+                            let referenceType: 'chapter' | 'article' | 'geoset' | 'geometry' | 'unknown' = 'unknown';
+                            let isValid = false;
+
+                            if (regulationData?.regulation) {
+                                for (const item of regulationData.regulation) {
+                                    // Check if it's a chapter or geoset (direct match)
+                                    if (item.id === referenceId) {
+                                        if (item.type === 'chapter') {
+                                            displayName = item.title || referenceId;
+                                            referenceType = 'chapter';
+                                        } else if (item.type === 'geoset') {
+                                            displayName = item.name || referenceId;
+                                            referenceType = 'geoset';
+                                        }
+                                        isValid = true;
+                                        break;
+                                    }
+
+                                    // Check articles within chapters
+                                    if (item.type === 'chapter' && item.articles) {
+                                        const article = item.articles.find(a => a.id === referenceId);
+                                        if (article) {
+                                            displayName = article.title;
+                                            referenceType = 'article';
+                                            isValid = true;
+                                            break;
+                                        }
+                                    }
+
+                                    // Check geometries within geosets
+                                    if (item.type === 'geoset' && item.geometries) {
+                                        const geometry = item.geometries.find(g => g.id === referenceId);
+                                        if (geometry) {
+                                            displayName = geometry.name;
+                                            referenceType = 'geometry';
+                                            isValid = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            return { displayName, referenceType, isValid };
+                        };
+
+                        // Helper function to get appropriate icon
+                        const getIcon = (referenceType: string) => {
+                            if (referenceType === 'geoset' || referenceType === 'geometry') {
+                                return <Map className="h-3 w-3" />;
+                            } else if (referenceType === 'chapter' || referenceType === 'article') {
+                                return <BookOpen className="h-3 w-3" />;
+                            }
+                            return null;
+                        };
+
+                        // Handle custom references (geosets/geometries)
+                        if (href?.startsWith('#ref-')) {
+                            const referenceId = href.replace('#ref-', '');
+                            const { displayName, referenceType, isValid } = resolveReference(referenceId);
+
+                            if (isValid && onReferenceClick) {
+                                return (
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onReferenceClick(referenceId);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium inline text-left"
+                                        type="button"
+                                        title={`Navigate to: ${displayName}`}
+                                    >
+                                        {getIcon(referenceType) && <span className="inline-block mr-1 align-baseline">{getIcon(referenceType)}</span>}
+                                        <span className="inline">{displayName}</span>
+                                    </button>
+                                );
+                            } else if (!isValid) {
+                                return (
+                                    <span
+                                        className="text-red-600 font-medium inline"
+                                        title={`Broken reference: ${referenceId}`}
+                                    >
+                                        <span className="inline">{displayName}</span>
+                                        <span className="inline-block ml-1 align-baseline"><Link2Off className="h-3 w-3" /></span>
+                                    </span>
+                                );
+                            } else {
+                                return (
+                                    <span
+                                        className="text-gray-600 font-medium inline"
+                                        title={`Reference: ${displayName}`}
+                                    >
+                                        {getIcon(referenceType) && <span className="inline-block mr-1 align-baseline">{getIcon(referenceType)}</span>}
+                                        <span className="inline">{displayName}</span>
+                                    </span>
+                                );
+                            }
+                        }
+
+                        // Handle document references (chapters/articles) - check if it's a reference link
+                        if (href?.startsWith('#') && typeof children === 'string' && children.includes('{REF:')) {
+                            // Extract reference ID from the href
+                            const referenceId = href.substring(1); // Remove #
+                            const { displayName, referenceType, isValid } = resolveReference(referenceId);
+
+                            if (isValid) {
+                                return (
+                                    <a
+                                        href={href}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium inline text-left"
+                                        title={`Navigate to: ${displayName}`}
+                                    >
+                                        {getIcon(referenceType) && <span className="inline-block mr-1 align-baseline">{getIcon(referenceType)}</span>}
+                                        <span className="inline">{displayName}</span>
+                                    </a>
+                                );
+                            } else {
+                                return (
+                                    <span
+                                        className="text-red-600 font-medium inline"
+                                        title={`Broken reference: ${referenceId}`}
+                                    >
+                                        <span className="inline">{displayName}</span>
+                                        <span className="inline-block ml-1 align-baseline"><Link2Off className="h-3 w-3" /></span>
+                                    </span>
+                                );
+                            }
+                        }
+
+                        // Regular link
+                        return <a href={href} className="text-blue-600 hover:underline">{children}</a>;
+                    }
+                } : undefined}
+            >
+                {processedContent}
+            </ReactMarkdown>
         </div>
     );
 } 

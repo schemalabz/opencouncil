@@ -54,10 +54,29 @@ The consultation platform will enable public comments and feedback on:
 ## Consultation Page Interface
 
 The consultation interface prioritizes a clean, responsive design that works seamlessly across all devices. The interface consists of two main views:
-
 ### Map View
-- Full-screen interactive map display
-- Visualizes geographic elements of the regulation
+The map view provides a full-screen interactive map interface that visualizes the geographic elements defined in the regulation. Key features include:
+
+**Interactive Layer Control**
+- Overlay UI for managing map visibility
+- Hierarchical selection of geosets and individual geographic areas
+- Toggle controls for both entire geosets and specific areas
+- Mobile-optimized with collapsible UI behind a button
+
+**Geographic Elements**
+- Geosets (e.g. prohibited_areas) containing multiple related areas
+- Individual geographic areas as polygons or points (e.g. koukaki, central_park)
+- Clear visual distinction between different types of areas
+
+**Detail Panel**
+- Sliding panel interface for viewing area details
+- Displays additional information about selected geosets/areas
+- Integrated commenting system for public feedback
+- Smooth transitions between map and detail views
+
+The interface prioritizes mobile usability while maintaining full functionality across all devices. The overlay controls intelligently adapt to screen size to maximize map visibility while keeping all features easily accessible.
+
+
 
 ### Document View  
 - Structured display of regulation text and content

@@ -221,6 +221,55 @@ export default function ConsultationViewer({
         }
     };
 
+    // Handle reference navigation
+    const handleReferenceClick = (referenceId: string) => {
+        if (!regulationData) return;
+
+        // Determine the type of reference
+        let referenceType: 'chapter' | 'article' | 'geoset' | 'geometry' | null = null;
+
+        for (const item of regulationData.regulation) {
+            // Check if it's a chapter or geoset (direct match)
+            if (item.id === referenceId) {
+                referenceType = item.type === 'chapter' ? 'chapter' : 'geoset';
+                break;
+            }
+
+            // Check articles within chapters
+            if (item.type === 'chapter' && item.articles) {
+                const article = item.articles.find(a => a.id === referenceId);
+                if (article) {
+                    referenceType = 'article';
+                    break;
+                }
+            }
+
+            // Check geometries within geosets
+            if (item.type === 'geoset' && item.geometries) {
+                const geometry = item.geometries.find(g => g.id === referenceId);
+                if (geometry) {
+                    referenceType = 'geometry';
+                    break;
+                }
+            }
+        }
+
+        // Navigate based on reference type
+        if (referenceType === 'chapter' || referenceType === 'article') {
+            // Navigate to document section
+            const params = new URLSearchParams(window.location.search);
+            params.set('view', 'document');
+            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
+            router.push(newUrl, { scroll: false });
+        } else if (referenceType === 'geoset' || referenceType === 'geometry') {
+            // Navigate to map view
+            const params = new URLSearchParams(window.location.search);
+            params.set('view', 'map');
+            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
+            router.push(newUrl, { scroll: false });
+        }
+    };
+
     const title = regulationData?.title || consultation.name;
     const description = "Διαβούλευση για κανονισμό";
 
@@ -228,19 +277,14 @@ export default function ConsultationViewer({
         // Full-screen map view
         return (
             <div className="h-screen relative">
-                {/* Floating header over map */}
-                <ConsultationHeader
-                    title={title}
-                    description={description}
-                    endDate={consultation.endDate}
-                    isActive={consultation.isActive}
-                    commentCount={0} // TODO: Add comment count from database
-                    currentView={currentView}
-                />
+
 
                 {/* Full-screen map */}
                 <div className="absolute inset-0">
-                    <ConsultationMap className="w-full h-full" />
+                    <ConsultationMap
+                        className="w-full h-full"
+                        regulationData={regulationData}
+                    />
                 </div>
 
                 {/* Floating action button for view toggle */}
@@ -274,6 +318,7 @@ export default function ConsultationViewer({
                 expandedArticles={expandedArticles}
                 onToggleChapter={toggleChapter}
                 onToggleArticle={toggleArticle}
+                onReferenceClick={handleReferenceClick}
             />
 
             {/* Floating action button for view toggle */}

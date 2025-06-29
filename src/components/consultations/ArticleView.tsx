@@ -3,16 +3,27 @@ import { ChevronDown } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
-import { Article } from "./types";
+import { Article, ReferenceFormat, RegulationData } from "./types";
 
 interface ArticleViewProps {
     article: Article;
     baseUrl: string;
     isExpanded: boolean;
     onToggle: () => void;
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
+    regulationData?: RegulationData;
 }
 
-export default function ArticleView({ article, baseUrl, isExpanded, onToggle }: ArticleViewProps) {
+export default function ArticleView({
+    article,
+    baseUrl,
+    isExpanded,
+    onToggle,
+    referenceFormat,
+    onReferenceClick,
+    regulationData
+}: ArticleViewProps) {
     return (
         <div id={article.id} className="pl-3 md:pl-6 border-l-2 border-muted">
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -41,7 +52,12 @@ export default function ArticleView({ article, baseUrl, isExpanded, onToggle }: 
                 )}
 
                 <CollapsibleContent className="pt-3 md:pt-4 pb-2">
-                    <MarkdownContent content={article.body} />
+                    <MarkdownContent
+                        content={article.body}
+                        referenceFormat={referenceFormat}
+                        onReferenceClick={onReferenceClick}
+                        regulationData={regulationData}
+                    />
                 </CollapsibleContent>
             </Collapsible>
         </div>

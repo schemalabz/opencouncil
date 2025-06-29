@@ -5,6 +5,7 @@ import { FileText } from "lucide-react";
 import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
+import SourcesList from "./SourcesList";
 import { RegulationData } from "./types";
 
 interface ConsultationDocumentProps {
@@ -15,6 +16,7 @@ interface ConsultationDocumentProps {
     expandedArticles?: Set<string>;
     onToggleChapter?: (chapterId: string) => void;
     onToggleArticle?: (articleId: string) => void;
+    onReferenceClick?: (referenceId: string) => void; // Navigation callback from parent
 }
 
 export default function ConsultationDocument({
@@ -24,8 +26,14 @@ export default function ConsultationDocument({
     expandedChapters = new Set(),
     expandedArticles = new Set(),
     onToggleChapter = () => { },
-    onToggleArticle = () => { }
+    onToggleArticle = () => { },
+    onReferenceClick
 }: ConsultationDocumentProps) {
+
+    // Use the passed-down reference click handler or fallback to console.log
+    const handleReferenceClick = onReferenceClick || ((referenceId: string) => {
+        console.log('Reference clicked:', referenceId);
+    });
     if (!regulationData) {
         return (
             <div className={`flex items-center justify-center min-h-96 ${className}`}>
@@ -80,6 +88,9 @@ export default function ConsultationDocument({
                             onToggle={() => onToggleChapter(chapter.id)}
                             expandedArticles={expandedArticles}
                             onToggleArticle={onToggleArticle}
+                            referenceFormat={regulationData.referenceFormat}
+                            onReferenceClick={handleReferenceClick}
+                            regulationData={regulationData}
                         >
                             {chapter.articles?.map((article) => (
                                 <ArticleView
@@ -88,10 +99,19 @@ export default function ConsultationDocument({
                                     baseUrl={baseUrl}
                                     isExpanded={expandedArticles.has(article.id)}
                                     onToggle={() => onToggleArticle(article.id)}
+                                    referenceFormat={regulationData.referenceFormat}
+                                    onReferenceClick={handleReferenceClick}
+                                    regulationData={regulationData}
                                 />
                             ))}
                         </ChapterView>
                     ))}
+
+                    {/* Sources and Contact Information */}
+                    <SourcesList
+                        sources={regulationData.sources}
+                        contactEmail={regulationData.contactEmail}
+                    />
                 </div>
             </div>
         </div>

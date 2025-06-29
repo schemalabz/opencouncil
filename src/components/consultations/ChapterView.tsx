@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
-import { RegulationItem } from "./types";
+import { RegulationItem, ReferenceFormat, RegulationData } from "./types";
 
 interface ChapterViewProps {
     chapter: RegulationItem;
@@ -13,6 +13,9 @@ interface ChapterViewProps {
     onToggle: () => void;
     expandedArticles: Set<string>;
     onToggleArticle: (articleId: string) => void;
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
+    regulationData?: RegulationData;
 }
 
 export default function ChapterView({
@@ -22,7 +25,10 @@ export default function ChapterView({
     isExpanded,
     onToggle,
     expandedArticles,
-    onToggleArticle
+    onToggleArticle,
+    referenceFormat,
+    onReferenceClick,
+    regulationData
 }: ChapterViewProps) {
     if (!chapter.articles) return null;
 
@@ -32,8 +38,8 @@ export default function ChapterView({
         <div id={chapter.id} className="border-b border-border pb-6 md:pb-8 mb-6 md:mb-8 last:border-b-0 last:pb-0 last:mb-0">
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
                 <div className="flex items-start justify-between w-full group">
-                    <CollapsibleTrigger className="flex items-start justify-between w-full text-left hover:opacity-80 transition-opacity mr-2">
-                        <div className="flex-1 pl-4 md:pl-8">
+                    <CollapsibleTrigger className="flex items-start justify-between w-full text-left hover:opacity-80 transition-opacity">
+                        <div className="flex-1">
                             <div className="text-xs md:text-sm text-muted-foreground font-medium mb-1 uppercase tracking-wider">
                                 ΚΕΦΑΛΑΙΟ {chapter.num}
                             </div>
@@ -61,10 +67,16 @@ export default function ChapterView({
                 )}
 
                 <CollapsibleContent>
-                    <div className="pl-4 md:pl-8 pt-4 md:pt-6">
+                    <div className="pt-4 md:pt-6">
                         {chapter.preludeBody && (
                             <div className="mb-6 md:mb-8">
-                                <MarkdownContent content={chapter.preludeBody} variant="muted" />
+                                <MarkdownContent
+                                    content={chapter.preludeBody}
+                                    variant="muted"
+                                    referenceFormat={referenceFormat}
+                                    onReferenceClick={onReferenceClick}
+                                    regulationData={regulationData}
+                                />
                             </div>
                         )}
 
