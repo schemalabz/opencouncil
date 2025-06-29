@@ -6,7 +6,7 @@ import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, FileText } from "lucide-react";
+import { Search, ExternalLink, FileText, User, TrendingUp, Clock } from "lucide-react";
 import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
@@ -179,15 +179,16 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     };
 
     return (
-        <div className="relative min-h-screen bg-background">
-            <div className="relative max-w-7xl mx-auto py-6 sm:py-12 px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-12">
+        <div className="min-h-screen bg-background">
+            <div className="container mx-auto px-4 py-4 sm:py-6 lg:py-8 space-y-6 sm:space-y-8">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="space-y-6 sm:space-y-12"
+                    className="space-y-6 sm:space-y-8"
                 >
-                    <Breadcrumb className="mb-4 sm:mb-8">
+                    {/* Breadcrumb */}
+                    <Breadcrumb className="mb-4 sm:mb-6">
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
@@ -208,31 +209,33 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     </Breadcrumb>
 
                     {/* Hero Section */}
-                    <div className="flex flex-col sm:flex-row items-start justify-between gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
+                    <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
                         <motion.div
-                            className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 w-full"
+                            className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                         >
-                            <div className="relative w-32 h-32 sm:w-40 sm:h-40 shrink-0">
+                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 flex-shrink-0">
                                 <ImageOrInitials
                                     imageUrl={person.image}
                                     name={person.name}
-                                    width={160}
-                                    height={160}
+                                    width={128}
+                                    height={128}
                                 />
                             </div>
-                            <div className="text-center sm:text-left space-y-4 flex-grow">
+                            <div className="flex-1 space-y-3 sm:space-y-4 text-center sm:text-left min-w-0">
                                 <motion.h1
-                                    className="text-3xl sm:text-4xl lg:text-5xl font-normal tracking-tight"
+                                    className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.2 }}
                                 >
                                     {person.name}
                                 </motion.h1>
-                                <div className="flex flex-col gap-4">
+
+                                {/* Active Roles */}
+                                <div className="flex flex-col gap-2">
                                     {/* Active Party Roles */}
                                     {roles.active.partyRoles.map((role) => (
                                         <motion.div
@@ -247,18 +250,19 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     href={`/${city.id}/parties/${role.party.id}`}
                                                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                                 >
-                                                    <div className="relative w-5 h-5 sm:w-6 sm:h-6">
+                                                    <div className="relative w-4 h-4 sm:w-5 sm:h-5">
                                                         <ImageOrInitials
                                                             imageUrl={role.party.logo}
                                                             name={role.party.name_short}
                                                             color={role.party.colorHex}
-                                                            width={24}
-                                                            height={24}
+                                                            width={20}
+                                                            height={20}
                                                         />
                                                     </div>
-                                                    <span className="text-base sm:text-lg text-muted-foreground">
+                                                    <span className="text-sm sm:text-base text-muted-foreground">
                                                         {role.party.name}
                                                         {role.name && ` - ${role.name}`}
+                                                        {role.isHead && ' (Επικεφαλής)'}
                                                     </span>
                                                 </Link>
                                             )}
@@ -272,7 +276,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.4 }}
-                                            className="text-base sm:text-lg text-muted-foreground"
+                                            className="text-sm sm:text-base text-muted-foreground"
                                         >
                                             {role.isHead ? t('mayor') : role.name}
                                         </motion.div>
@@ -285,10 +289,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.4 }}
-                                            className="text-base sm:text-lg text-muted-foreground"
+                                            className="text-sm sm:text-base text-muted-foreground"
                                         >
                                             {role.administrativeBody?.name}
                                             {role.name && ` - ${role.name}`}
+                                            {role.isHead && ' (Πρόεδρος)'}
                                         </motion.div>
                                     ))}
 
@@ -298,65 +303,67 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             transition={{ delay: 0.4 }}
-                                            className="text-base sm:text-lg text-muted-foreground italic"
+                                            className="text-sm sm:text-base text-muted-foreground italic"
                                         >
                                             Ανεξάρτητος Δημοτικός Σύμβουλος
                                         </motion.div>
                                     )}
                                 </div>
+
                                 {person.profileUrl && (
                                     <motion.a
                                         href={person.profileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm sm:text-base"
+                                        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm"
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.5 }}
                                     >
-                                        <ExternalLink className="h-4 w-4" />
+                                        <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
                                         <span>Βιογραφικό</span>
                                     </motion.a>
                                 )}
                             </div>
-                            {canEdit && (
-                                <motion.div
-                                    className="flex items-center gap-3 sm:ml-auto"
-                                    initial={{ opacity: 0, x: 20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.5 }}
-                                >
-                                    <FormSheet
-                                        FormComponent={PersonForm}
-                                        formProps={{
-                                            person,
-                                            cityId: person.cityId,
-                                            parties,
-                                            administrativeBodies
-                                        }}
-                                        title={t('editPerson')}
-                                        type="edit"
-                                    />
-                                    <Button variant="destructive" onClick={onDelete}>
-                                        {t('deletePerson')}
-                                    </Button>
-                                </motion.div>
-                            )}
                         </motion.div>
+
+                        {canEdit && (
+                            <motion.div
+                                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.5 }}
+                            >
+                                <FormSheet
+                                    FormComponent={PersonForm}
+                                    formProps={{
+                                        person,
+                                        cityId: person.cityId,
+                                        parties,
+                                        administrativeBodies
+                                    }}
+                                    title={t('editPerson')}
+                                    type="edit"
+                                />
+                                <Button variant="destructive" onClick={onDelete} className="sm:w-auto">
+                                    {t('deletePerson')}
+                                </Button>
+                            </motion.div>
+                        )}
                     </div>
 
                     {/* Search Section */}
                     <motion.form
                         onSubmit={handleSearch}
-                        className="relative max-w-2xl mx-auto"
+                        className="relative"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6 }}
                     >
-                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder={t('searchForPerson', { personName: person.name })}
-                            className="pl-12 w-full h-12 text-base sm:text-lg"
+                            className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -378,10 +385,12 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.7 }}
-                        className="mb-12 rounded-xl overflow-hidden"
                     >
-                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('statistics')}</h2>
-                        <div className="bg-card rounded-xl border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
+                        <div className="flex items-center gap-2 mb-4">
+                            <TrendingUp className="h-5 w-5 text-primary" />
+                            <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
+                        </div>
+                        <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
                             <Statistics
                                 type="person"
                                 id={person.id}
@@ -397,43 +406,45 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         roles.inactive.partyRoles.length > 0 ||
                         roles.inactive.adminBodyRoles.length > 0) && (
                             <motion.div
-                                className="mb-12"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.7 }}
                             >
-                                <h2 className="text-2xl font-normal tracking-tight mb-6">{t('history')}</h2>
-                                <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Clock className="h-5 w-5 text-primary" />
+                                    <h2 className="text-lg sm:text-xl font-semibold">{t('history')}</h2>
+                                </div>
+                                <div className="space-y-3">
                                     {/* Past Party Roles */}
                                     {roles.inactive.partyRoles.map((role) => (
                                         <motion.div
                                             key={role.id}
-                                            className="p-4 border rounded-lg"
+                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                         >
                                             {role.party && (
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center justify-between gap-4">
                                                     <Link
                                                         href={`/${city.id}/parties/${role.party.id}`}
-                                                        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                        className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 min-w-0"
                                                     >
-                                                        <div className="relative w-5 h-5">
+                                                        <div className="relative w-4 h-4 flex-shrink-0">
                                                             <ImageOrInitials
                                                                 imageUrl={role.party.logo}
                                                                 name={role.party.name_short}
                                                                 color={role.party.colorHex}
-                                                                width={20}
-                                                                height={20}
+                                                                width={16}
+                                                                height={16}
                                                             />
                                                         </div>
-                                                        <span className="text-muted-foreground">
+                                                        <span className="text-muted-foreground text-sm sm:text-base truncate">
                                                             {role.party.name}
                                                             {role.isHead && ` (${t('partyLeader')})`}
                                                             {role.name && ` - ${role.name}`}
                                                         </span>
                                                     </Link>
-                                                    <span className="text-sm text-muted-foreground ml-auto">
+                                                    <span className="text-xs text-muted-foreground flex-shrink-0">
                                                         {formatDateRange(
                                                             role.startDate ? new Date(role.startDate) : null,
                                                             role.endDate ? new Date(role.endDate) : null,
@@ -449,15 +460,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     {roles.inactive.cityRoles.map((role) => (
                                         <motion.div
                                             key={role.id}
-                                            className="p-4 border rounded-lg"
+                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                         >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted-foreground">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <span className="text-muted-foreground text-sm sm:text-base">
                                                     {role.isHead ? t('mayor') : role.name}
                                                 </span>
-                                                <span className="text-sm text-muted-foreground">
+                                                <span className="text-xs text-muted-foreground">
                                                     {formatDateRange(
                                                         role.startDate ? new Date(role.startDate) : null,
                                                         role.endDate ? new Date(role.endDate) : null,
@@ -472,17 +483,17 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     {roles.inactive.adminBodyRoles.map((role) => (
                                         <motion.div
                                             key={role.id}
-                                            className="p-4 border rounded-lg"
+                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                         >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-muted-foreground">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <span className="text-muted-foreground text-sm sm:text-base">
                                                     {role.administrativeBody?.name}
                                                     {role.isHead && ` (${t('president')})`}
                                                     {role.name && ` - ${role.name}`}
                                                 </span>
-                                                <span className="text-sm text-muted-foreground">
+                                                <span className="text-xs text-muted-foreground">
                                                     {formatDateRange(
                                                         role.startDate ? new Date(role.startDate) : null,
                                                         role.endDate ? new Date(role.endDate) : null,
@@ -503,13 +514,13 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         transition={{ delay: 0.8 }}
                         className="relative"
                     >
-                        <h2 className="text-xl sm:text-2xl font-normal tracking-tight mb-4 sm:mb-6">{t('recentSegments', { fallback: 'Πρόσφατες τοποθετήσεις' })}</h2>
+                        <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentSegments', { fallback: 'Πρόσφατες τοποθετήσεις' })}</h2>
 
                         {isLoadingSegments && latestSegments.length === 0 ? (
-                            <div className="flex justify-center items-center py-12 border rounded-xl bg-card/50">
+                            <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
                                 <div className="flex flex-col items-center space-y-4">
-                                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                                    <p className="text-sm text-muted-foreground">{t('loadingSegments')}</p>
+                                    <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                                    <p className="text-xs sm:text-sm text-muted-foreground">{t('loadingSegments')}</p>
                                 </div>
                             </div>
                         ) : (
@@ -526,11 +537,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 ))}
 
                                 {latestSegments.length === 0 && !isLoadingSegments && (
-                                    <div className="flex flex-col items-center justify-center py-12 px-4 border rounded-xl bg-card/50">
-                                        <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+                                    <div className="flex flex-col items-center justify-center py-12 px-4 border rounded-lg bg-card/50">
+                                        <FileText className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground mb-4" />
                                         <div className="text-muted-foreground text-center space-y-2">
-                                            <p className="text-lg">{t('noSegmentsFound')}</p>
-                                            <p className="text-sm max-w-md mx-auto">{t('tryDifferentFilter', { fallback: 'Δοκιμάστε να αλλάξετε το φίλτρο ή ελέγξτε αργότερα για νέες τοποθετήσεις.' })}</p>
+                                            <p className="text-sm sm:text-base">{t('noSegmentsFound')}</p>
+                                            <p className="text-xs sm:text-sm max-w-md mx-auto">{t('tryDifferentFilter', { fallback: 'Δοκιμάστε να αλλάξετε το φίλτρο ή ελέγξτε αργότερα για νέες τοποθετήσεις.' })}</p>
                                         </div>
                                     </div>
                                 )}
@@ -539,7 +550,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
                         {isLoadingSegments && latestSegments.length > 0 && (
                             <div className="flex justify-center items-center py-4">
-                                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                                <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                             </div>
                         )}
 
@@ -547,7 +558,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             <Button
                                 onClick={() => setPage(prevPage => prevPage + 1)}
                                 variant="outline"
-                                className="mt-6"
+                                className="mt-6 w-full sm:w-auto"
                                 disabled={isLoadingSegments}
                             >
                                 {isLoadingSegments ? (

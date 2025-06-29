@@ -51,35 +51,53 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     return (
         <Card
             className={cn(
-                "group relative h-full overflow-hidden transition-all duration-300",
-                "hover:shadow-lg hover:scale-[1.01] cursor-pointer",
-                "border-l-8"
+                "group relative overflow-hidden transition-all duration-300 cursor-pointer h-full",
+                "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
+                "border-l-3 sm:border-l-4"
             )}
             style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="relative h-full flex flex-col p-4 sm:p-6">
-                <div className="space-y-3 sm:space-y-4 flex-grow">
+            <CardContent className="p-4 sm:p-5 h-full flex flex-col">
+                <div className="flex-1 space-y-4">
+                    {/* Header with logo and title - properly aligned */}
                     <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
                             <ImageOrInitials
                                 imageUrl={party.logo}
-                                width={80}
-                                height={80}
+                                width={56}
+                                height={56}
                                 name={party.name_short}
                                 color={party.colorHex}
                                 square={true}
                             />
                         </div>
-                        <h3 className="text-lg sm:text-xl font-bold line-clamp-2">{party.name}</h3>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-sm sm:text-base font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                                {party.name}
+                            </h3>
+                        </div>
                     </div>
 
-                    <div onClick={(e) => e.stopPropagation()}>
-                        <PersonAvatarList
-                            users={activePersonsForAvatarList}
-                            maxDisplayed={5}
-                            numMore={activePersonsForAvatarList.length > 5 ? activePersonsForAvatarList.length - 5 : 0}
-                        />
+                    {/* Members avatars */}
+                    {activePersonsForAvatarList.length > 0 && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <PersonAvatarList
+                                users={activePersonsForAvatarList}
+                                maxDisplayed={3}
+                                numMore={activePersonsForAvatarList.length > 3 ? activePersonsForAvatarList.length - 3 : 0}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer with member count */}
+                <div className="pt-3 border-t border-border/50 mt-4">
+                    <div className="text-xs text-muted-foreground font-medium">
+                        {activePeople.length === 1 
+                            ? `${activePeople.length} μέλος`
+                            : `${activePeople.length} μέλη`
+                        }
                     </div>
                 </div>
             </CardContent>
