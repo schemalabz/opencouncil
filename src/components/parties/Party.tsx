@@ -428,7 +428,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
             const response = await fetch(`/api/cities/${city.id}/parties/${party.id}`, {
                 method: 'DELETE',
             });
-            
+
             if (response.ok) {
                 toast({
                     title: t('partyDeleted', { name: party.name }),
@@ -517,7 +517,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.25 }}
                                     >
-                                        <span className="text-muted-foreground">Αρχηγός: </span>
+                                        <span className="text-muted-foreground">Επικεφαλής: </span>
                                         <Link
                                             href={`/${city.id}/people/${partyLeader.person.id}`}
                                             className="hover:underline text-primary font-medium"
@@ -536,7 +536,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 </motion.div>
                             </div>
                         </motion.div>
-                        
+
                         {canEdit && (
                             <motion.div
                                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"

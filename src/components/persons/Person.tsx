@@ -233,7 +233,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 >
                                     {person.name}
                                 </motion.h1>
-                                
+
                                 {/* Active Roles */}
                                 <div className="flex flex-col gap-2">
                                     {/* Active Party Roles */}
@@ -262,7 +262,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                     <span className="text-sm sm:text-base text-muted-foreground">
                                                         {role.party.name}
                                                         {role.name && ` - ${role.name}`}
-                                                        {role.isHead && ' (Αρχηγός)'}
+                                                        {role.isHead && ' (Επικεφαλής)'}
                                                     </span>
                                                 </Link>
                                             )}
