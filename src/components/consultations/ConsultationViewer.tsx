@@ -8,6 +8,13 @@ import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
 
 import { RegulationData } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
+interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
 
 type ViewMode = 'map' | 'document';
 
@@ -23,12 +30,20 @@ interface ConsultationViewerProps {
     consultation: Consultation;
     regulationData: RegulationData | null;
     baseUrl: string; // Base URL for the consultation page (for permalinks)
+    comments: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId: string;
+    cityId: string;
 }
 
 export default function ConsultationViewer({
     consultation,
     regulationData,
-    baseUrl
+    baseUrl,
+    comments,
+    currentUser,
+    consultationId,
+    cityId
 }: ConsultationViewerProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -285,6 +300,10 @@ export default function ConsultationViewer({
                         baseUrl={baseUrl}
                         className="w-full h-full"
                         regulationData={regulationData}
+                        comments={comments}
+                        currentUser={currentUser}
+                        consultationId={consultationId}
+                        cityId={cityId}
                     />
                 </div>
 
@@ -306,7 +325,7 @@ export default function ConsultationViewer({
                 description={description}
                 endDate={consultation.endDate}
                 isActive={consultation.isActive}
-                commentCount={0} // TODO: Add comment count from database
+                commentCount={comments.length}
                 currentView={currentView}
             />
 
@@ -320,6 +339,10 @@ export default function ConsultationViewer({
                 onToggleChapter={toggleChapter}
                 onToggleArticle={toggleArticle}
                 onReferenceClick={handleReferenceClick}
+                comments={comments}
+                currentUser={currentUser}
+                consultationId={consultationId}
+                cityId={cityId}
             />
 
             {/* Floating action button for view toggle */}

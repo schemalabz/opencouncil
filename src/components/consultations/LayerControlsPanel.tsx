@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
 import { Geometry } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface GeoSetData {
     id: string;
@@ -24,6 +25,9 @@ interface LayerControlsPanelProps {
     onOpenGeoSetDetail: (id: string) => void;
     onOpenGeometryDetail: (id: string) => void;
     contactEmail?: string;
+    comments?: ConsultationCommentWithUpvotes[];
+    consultationId?: string;
+    cityId?: string;
 }
 
 export default function LayerControlsPanel({
@@ -39,7 +43,10 @@ export default function LayerControlsPanel({
     getGeoSetCheckboxState,
     onOpenGeoSetDetail,
     onOpenGeometryDetail,
-    contactEmail
+    contactEmail,
+    comments,
+    consultationId,
+    cityId
 }: LayerControlsPanelProps) {
     return (
         <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-96 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
@@ -83,6 +90,9 @@ export default function LayerControlsPanel({
                             onOpenGeoSetDetail={onOpenGeoSetDetail}
                             onOpenGeometryDetail={onOpenGeometryDetail}
                             contactEmail={contactEmail}
+                            comments={comments}
+                            consultationId={consultationId}
+                            cityId={cityId}
                         />
                     );
                 })}

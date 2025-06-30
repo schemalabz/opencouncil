@@ -1,9 +1,10 @@
 import { Metadata } from "next";
 import { getCityCached } from "@/lib/cache";
-import { getConsultationById } from "@/lib/db/consultations";
+import { getConsultationById, getConsultationComments } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { RegulationData } from "@/components/consultations/types";
+import { auth } from "@/auth";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -43,9 +44,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ConsultationPage({ params }: PageProps) {
-    const [city, consultation] = await Promise.all([
+    const [city, consultation, session] = await Promise.all([
         getCityCached(params.cityId),
-        getConsultationById(params.cityId, params.id)
+        getConsultationById(params.cityId, params.id),
+        auth()
     ]);
 
     if (!city) {
@@ -61,8 +63,11 @@ export default async function ConsultationPage({ params }: PageProps) {
         notFound();
     }
 
-    // Fetch regulation data
-    const regulationData = await fetchRegulationData(consultation.jsonUrl);
+    // Fetch regulation data and comments in parallel
+    const [regulationData, comments] = await Promise.all([
+        fetchRegulationData(consultation.jsonUrl),
+        getConsultationComments(params.id, params.cityId, session)
+    ]);
 
     // Base URL for permalinks
     const baseUrl = `/${params.cityId}/consultation/${params.id}`;
@@ -72,6 +77,10 @@ export default async function ConsultationPage({ params }: PageProps) {
             consultation={consultation}
             regulationData={regulationData}
             baseUrl={baseUrl}
+            comments={comments}
+            currentUser={session?.user}
+            consultationId={params.id}
+            cityId={params.cityId}
         />
     );
 } 

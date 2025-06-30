@@ -49,6 +49,7 @@ model City {
 
   // Consultations relation
   consultations Consultation[]
+  consultationComments ConsultationComment[]
 
   @@index([isPending, isListed])
 }
@@ -552,6 +553,10 @@ model User {
   petitions Petition[]
   notificationPreferences NotificationPreference[]
   
+  // Add these relations for consultation comments
+  consultationComments ConsultationComment[]
+  consultationCommentUpvotes ConsultationCommentUpvote[]
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   utteranceEdits UtteranceEdit[]
@@ -755,6 +760,54 @@ model Consultation {
   city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId    String
 
+  comments  ConsultationComment[]
+
   @@index([cityId, isActive])
   @@index([isActive, endDate])
+}
+
+enum ConsultationCommentEntityType {
+  CHAPTER
+  ARTICLE
+  GEOSET
+  GEOMETRY
+}
+
+model ConsultationComment {
+  id            String   @id @default(cuid())
+  body          String   @db.Text
+  entityType    ConsultationCommentEntityType
+  entityId      String   // ID of the chapter/article/geoset/geometry being commented on
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+
+  consultation  Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  consultationId String
+
+  city          City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId        String
+
+  upvotes       ConsultationCommentUpvote[]
+
+  @@index([consultationId, entityType, entityId])
+  @@index([cityId])
+  @@index([userId])
+}
+
+model ConsultationCommentUpvote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  comment   ConsultationComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId String
+
+  @@unique([userId, commentId])
+  @@index([commentId])
+  @@index([userId])
 }

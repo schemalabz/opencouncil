@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, Info, MessageCircle } from "lucide-react";
 import GeometryItem from "./GeometryItem";
 import CommentSection from "./CommentSection";
 import { Geometry } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 export type CheckboxState = 'checked' | 'indeterminate' | 'unchecked';
 
@@ -24,6 +25,9 @@ interface GeoSetItemProps {
     onOpenGeoSetDetail: (id: string) => void;
     onOpenGeometryDetail: (id: string) => void;
     contactEmail?: string;
+    comments?: ConsultationCommentWithUpvotes[];
+    consultationId?: string;
+    cityId?: string;
 }
 
 export default function GeoSetItem({
@@ -40,10 +44,18 @@ export default function GeoSetItem({
     onToggleGeometry,
     onOpenGeoSetDetail,
     onOpenGeometryDetail,
-    contactEmail
+    contactEmail,
+    comments,
+    consultationId,
+    cityId
 }: GeoSetItemProps) {
     const hasGeometries = geometries.length > 0;
     const enabledCount = geometries.filter(g => enabledGeometries.has(g.id)).length;
+
+    // Count comments for this geoset
+    const geosetCommentCount = comments?.filter(comment =>
+        comment.entityType === 'GEOSET' && comment.entityId === id
+    ).length || 0;
 
     return (
         <div className="space-y-2">
@@ -86,8 +98,8 @@ export default function GeoSetItem({
                     title="Προβολή λεπτομερειών και σχολίων"
                 >
                     <Info className="h-3 w-3 mr-1" />
-                    <MessageCircle className="h-3 w-3 mr-1" style={{ color: 'hsl(var(--orange))' }} />
-                    <span className="text-xs">0</span>
+                    <MessageCircle className="h-3 w-3 mr-1" />
+                    <span className="text-xs">{geosetCommentCount}</span>
                 </Button>
                 {hasGeometries && (
                     <Button
@@ -123,6 +135,7 @@ export default function GeoSetItem({
                             color={color}
                             onToggle={onToggleGeometry}
                             onOpenDetail={onOpenGeometryDetail}
+                            comments={comments}
                         />
                     ))}
                 </div>

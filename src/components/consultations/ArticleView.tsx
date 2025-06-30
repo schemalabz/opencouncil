@@ -1,10 +1,17 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, MessageCircle } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
 import { Article, ReferenceFormat, RegulationData } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
+interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
 
 interface ArticleViewProps {
     article: Article;
@@ -14,6 +21,10 @@ interface ArticleViewProps {
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
     regulationData?: RegulationData;
+    comments?: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId?: string;
+    cityId?: string;
 }
 
 export default function ArticleView({
@@ -23,8 +34,16 @@ export default function ArticleView({
     onToggle,
     referenceFormat,
     onReferenceClick,
-    regulationData
+    regulationData,
+    comments,
+    currentUser,
+    consultationId,
+    cityId
 }: ArticleViewProps) {
+    // Count comments for this article
+    const articleCommentCount = comments?.filter(comment =>
+        comment.entityType === 'ARTICLE' && comment.entityId === article.id
+    ).length || 0;
     return (
         <div id={article.id} className="pl-3 md:pl-6 border-l-2 border-muted">
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -36,7 +55,11 @@ export default function ArticleView({
                             </div>
                             <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">{article.title}</h3>
                         </div>
-                        <div className="flex items-center self-center">
+                        <div className="flex items-center gap-2 self-center">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <MessageCircle className="h-3 w-3" />
+                                <span className="font-medium">{articleCommentCount}</span>
+                            </div>
                             <ChevronDown className={`h-4 w-4 shrink-0 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
                     </CollapsibleTrigger>
@@ -66,6 +89,9 @@ export default function ArticleView({
                         entityId={article.id}
                         entityTitle={article.title}
                         contactEmail={regulationData?.contactEmail}
+                        comments={comments}
+                        consultationId={consultationId}
+                        cityId={cityId}
                     />
                 </CollapsibleContent>
             </Collapsible>

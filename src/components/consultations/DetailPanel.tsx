@@ -7,6 +7,13 @@ import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
 import { Geometry, RegulationData, ReferenceFormat } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
+interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
 
 interface GeoSetData {
     id: string;
@@ -28,6 +35,10 @@ interface DetailPanelProps {
     regulationData?: RegulationData;
     onOpenGeometryDetail?: (geometryId: string) => void;
     onOpenGeoSetDetail?: (geoSetId: string) => void;
+    comments?: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId?: string;
+    cityId?: string;
 }
 
 export default function DetailPanel({
@@ -42,7 +53,11 @@ export default function DetailPanel({
     onReferenceClick,
     regulationData,
     onOpenGeometryDetail,
-    onOpenGeoSetDetail
+    onOpenGeoSetDetail,
+    comments,
+    currentUser,
+    consultationId,
+    cityId
 }: DetailPanelProps) {
 
     // Find the current detail data
@@ -214,6 +229,9 @@ export default function DetailPanel({
                         entityId={detailId!}
                         entityTitle={currentGeoSet?.name || currentGeometry?.name || ''}
                         contactEmail={regulationData?.contactEmail}
+                        comments={comments}
+                        consultationId={consultationId}
+                        cityId={cityId}
                     />
                 </div>
             </div>

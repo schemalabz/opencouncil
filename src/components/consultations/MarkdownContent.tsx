@@ -63,7 +63,9 @@ export default function MarkdownContent({
         "[&_ol]:mb-4",
         "[&_ol]:mt-2",
         "[&_ol]:space-y-1",
-        "[&_ol]:ml-4",
+        "[&_ol]:ml-6",
+        "[&_ol]:list-decimal",
+        "[&_ol]:list-outside",
         "[&_ol_li]:pl-2",
         "[&_ol_li]:leading-relaxed",
 

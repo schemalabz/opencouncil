@@ -28,14 +28,14 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = req.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
-        
+
         const { includeUnlisted } = getCitiesQuerySchema.parse(queryParams);
 
         const cities = await getCities({
             includeUnlisted,
             includePending: false
         });
-        
+
         return NextResponse.json(cities);
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -105,7 +105,8 @@ export async function POST(request: Request) {
             isPending: true,
             authorityType,
             wikipediaId: null,
-            supportsNotifications: false
+            supportsNotifications: false,
+            consultationsEnabled: false
         })
 
         return NextResponse.json(city)

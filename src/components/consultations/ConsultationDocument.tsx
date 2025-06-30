@@ -7,6 +7,13 @@ import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
 import { RegulationData } from "./types";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
+interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;
@@ -17,6 +24,10 @@ interface ConsultationDocumentProps {
     onToggleChapter?: (chapterId: string) => void;
     onToggleArticle?: (articleId: string) => void;
     onReferenceClick?: (referenceId: string) => void; // Navigation callback from parent
+    comments?: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId?: string;
+    cityId?: string;
 }
 
 export default function ConsultationDocument({
@@ -27,7 +38,11 @@ export default function ConsultationDocument({
     expandedArticles = new Set(),
     onToggleChapter = () => { },
     onToggleArticle = () => { },
-    onReferenceClick
+    onReferenceClick,
+    comments,
+    currentUser,
+    consultationId,
+    cityId
 }: ConsultationDocumentProps) {
 
     // Use the passed-down reference click handler or fallback to console.log
@@ -91,6 +106,10 @@ export default function ConsultationDocument({
                             referenceFormat={regulationData.referenceFormat}
                             onReferenceClick={handleReferenceClick}
                             regulationData={regulationData}
+                            comments={comments}
+                            currentUser={currentUser}
+                            consultationId={consultationId}
+                            cityId={cityId}
                         >
                             {chapter.articles?.map((article) => (
                                 <ArticleView
@@ -102,6 +121,10 @@ export default function ConsultationDocument({
                                     referenceFormat={regulationData.referenceFormat}
                                     onReferenceClick={handleReferenceClick}
                                     regulationData={regulationData}
+                                    comments={comments}
+                                    currentUser={currentUser}
+                                    consultationId={consultationId}
+                                    cityId={cityId}
                                 />
                             ))}
                         </ChapterView>

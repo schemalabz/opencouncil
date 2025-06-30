@@ -9,6 +9,13 @@ import LayerControlsButton from "./LayerControlsButton";
 import LayerControlsPanel from "./LayerControlsPanel";
 import DetailPanel from "./DetailPanel";
 import { CheckboxState } from "./GeoSetItem";
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
+interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
 
 interface ConsultationMapProps {
     className?: string;
@@ -16,6 +23,10 @@ interface ConsultationMapProps {
     baseUrl: string;
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
+    comments?: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId?: string;
+    cityId?: string;
 }
 
 interface GeoSetData {
@@ -42,7 +53,11 @@ export default function ConsultationMap({
     regulationData,
     baseUrl,
     referenceFormat,
-    onReferenceClick
+    onReferenceClick,
+    comments,
+    currentUser,
+    consultationId,
+    cityId
 }: ConsultationMapProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -290,6 +305,9 @@ export default function ConsultationMap({
                     onOpenGeoSetDetail={openGeoSetDetail}
                     onOpenGeometryDetail={openGeometryDetail}
                     contactEmail={regulationData?.contactEmail}
+                    comments={comments}
+                    consultationId={consultationId}
+                    cityId={cityId}
                 />
             )}
 
@@ -306,6 +324,10 @@ export default function ConsultationMap({
                 regulationData={regulationData || undefined}
                 onOpenGeometryDetail={openGeometryDetail}
                 onOpenGeoSetDetail={openGeoSetDetail}
+                comments={comments}
+                currentUser={currentUser}
+                consultationId={consultationId}
+                cityId={cityId}
             />
         </div>
     );
