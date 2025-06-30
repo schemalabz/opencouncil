@@ -9,10 +9,11 @@ import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 export default function MeetingPage() {
+    const t = useTranslations('pages.MeetingPage');
     const { meeting, subjects, city } = useCouncilMeetingData();
     const hottestSubjects = sortSubjectsByImportance(subjects, 'importance')
         .slice(0, Math.max(9, subjects.filter(s => s.hot).length));
@@ -64,15 +65,15 @@ export default function MeetingPage() {
                         <div className="flex flex-col items-center justify-center max-w-2xl mx-auto mb-8 p-4 rounded-lg border bg-muted/50">
                             <div className="flex items-center gap-2 mb-2">
                                 <AlertTriangleIcon className="w-5 h-5 text-yellow-500" />
-                                <span className="font-medium">Αυτή η συνεδρίαση δεν έχει γίνει ακόμα.</span>
+                                <span className="font-medium">{t('notHeldYet')}</span>
                             </div>
                             <div>
-                                Μπορείτε <Link
+                                {t('canReadAgenda')} <Link
                                     href={meeting.agendaUrl}
                                     target="_blank"
                                     className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
                                 >
-                                    να διαβάσετε την ημερήσια διάταξη εδώ
+                                    {t('here')}
                                     <ExternalLink className="w-4 h-4" />
                                 </Link>
                             </div>
@@ -89,6 +90,7 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
+    const t = useTranslations('pages.MeetingPage');
     const meetingState = getMeetingState(meeting);
 
     return (
@@ -112,7 +114,7 @@ function MeetingInfo() {
                         <div className="flex items-center">
                             <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                             <Link href={meeting.agendaUrl} target="_blank" className="hover:text-primary transition-colors inline-flex items-center">
-                                Ημερήσια Διάταξη
+                                {t('agenda')}
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5" />
                             </Link>
                         </div>
@@ -120,7 +122,7 @@ function MeetingInfo() {
 
                     <div className="flex items-center">
                         <FileIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                        {subjects.length > 0 ? `${subjects.length} θέματα` : "Χωρίς θέματα"}
+                        {subjects.length > 0 ? t('subjects', { count: subjects.length }) : t('noSubjects')}
                     </div>
                 </div>
             </div>

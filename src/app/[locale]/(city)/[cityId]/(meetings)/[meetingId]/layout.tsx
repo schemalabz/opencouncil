@@ -21,6 +21,7 @@ import EditSwitch from '@/components/meetings/edit-switch';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 import { getMeetingState } from '@/lib/utils';
+import { getTranslations } from 'next-intl/server';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -56,11 +57,12 @@ export async function generateMetadata({
 }: {
     params: { meetingId: string; cityId: string }
 }) {
+    const t = await getTranslations('pages.CouncilMeetingPage');
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
         return {
-            title: 'Not Found'
+            title: t('notFound')
         };
     }
 
@@ -68,7 +70,7 @@ export async function generateMetadata({
     const optimizedTitle = `${data.city.name} - ${data.meeting.name} | OpenCouncil`;
 
     // Use the hero text for description, which is already optimized for Greek audience
-    const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
+    const description = t('meta.description');
 
     const imageUrl = `/api/og?meetingId=${meetingId}&cityId=${cityId}`;
 
@@ -82,7 +84,7 @@ export async function generateMetadata({
                 url: imageUrl,
                 width: 1200,
                 height: 630,
-                alt: `${data.meeting.name} - ${data.city.name} Δημοτικό Συμβούλιο`
+                alt: t('meta.alt', { meetingName: data.meeting.name, cityName: data.city.name })
             }]
         },
         twitter: {
@@ -103,7 +105,7 @@ export default async function CouncilMeetingPage({
     params: { meetingId: string; cityId: string, locale: string },
     children: React.ReactNode
 }) {
-
+    const t = await getTranslations('pages.CouncilMeetingPage');
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
@@ -120,7 +122,7 @@ export default async function CouncilMeetingPage({
     const meetingDescription = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
         meetingState.label,
-        `${data.subjects.length} θέματα`
+        t('subjects', { count: data.subjects.length })
     ].filter(Boolean).join(' · ');
 
     return (

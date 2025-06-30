@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "MeetingPage": {
+      "notHeldYet": "Αυτή η συνεδρίαση δεν έχει γίνει ακόμα.",
+      "canReadAgenda": "Μπορείτε να διαβάσετε την ημερήσια διάταξη",
+      "here": "εδώ",
+      "agenda": "Ημερήσια Διάταξη",
+      "subjects": "{count, plural, one {# θέμα} other {# θέματα}}",
+      "noSubjects": "Χωρίς θέματα"
+    },
+    "CouncilMeetingPage": {
+      "notFound": "Δεν βρέθηκε",
+      "meta": {
+        "description": "Το OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά",
+        "alt": "{meetingName} - {cityName} Δημοτικό Συμβούλιο"
+      },
+      "subjects": "{count, plural, one {# θέμα} other {# θέματα}}"
+    },
+    "SubjectsPage": {
+      "title": "Subjects",
+      "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
+      "mostDiscussed": "Most discussed first",
+      "orderByAppearance": "Order of appearance"
+    }
+  },
+  "NotFoundPage": {
+    "title": "Δεν βρέθηκε",
+    "description": "Η σελίδα που ζητήσατε δεν βρέθηκε."
+  }
+}

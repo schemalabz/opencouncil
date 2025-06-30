@@ -79,7 +79,7 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [cities, setCities] = useState<{ id: string, name: string }[]>([])
-    const t = useTranslations('OfferForm')
+    const t = useTranslations('admin.OfferForm')
     const { toast } = useToast()
 
     useEffect(() => {

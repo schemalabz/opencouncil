@@ -1,7 +1,9 @@
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "next-intl";
 
 function FloatingPaths({ position, className }: { position: number, className?: string }) {
+    const t = useTranslations('FloatingPaths');
     const paths = Array.from({ length: 24 }, (_, i) => ({
         id: i,
         d: `M-${380 - i * 5 * position} -${189 + i * 6}C-${
@@ -22,7 +24,7 @@ function FloatingPaths({ position, className }: { position: number, className?: 
                 fill="none"
                 preserveAspectRatio="xMidYMid slice"
             >
-                <title>Background Paths</title>
+                <title>{t('backgroundPaths')}</title>
                 {paths.map((path) => (
                     <motion.path
                         key={path.id}

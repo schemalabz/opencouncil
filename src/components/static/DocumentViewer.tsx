@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 
 export default function DocumentViewer({ sections, lastUpdated, title }: { sections: { title: string, content: string }[], lastUpdated: string, title: string }) {
+    const t = useTranslations('DocumentViewer');
     const [collapsedSections, setCollapsedSections] = useState<number[]>([]);
 
     const toggleSection = (index: number) => {
@@ -50,7 +52,7 @@ export default function DocumentViewer({ sections, lastUpdated, title }: { secti
             <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
                 <div className="px-4 py-5 sm:p-6">
                     <h1 className="text-3xl font-bold text-gray-900 mb-6">{title}</h1>
-                    <p className="text-sm text-gray-600 mb-6">Τελευταία ενημέρωση: {lastUpdated}</p>
+                    <p className="text-sm text-gray-600 mb-6">{t('lastUpdated', { lastUpdated })}</p>
 
                     {sections.map((section, index) => (
                         <div key={index} className="mb-4 border-b border-gray-200 pb-4">

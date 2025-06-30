@@ -6,6 +6,7 @@ import { Input } from "./input"
 import { Check, Loader2, Upload } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "./button"
+import { useTranslations } from "next-intl"
 
 export interface LinkOrDropProps
     extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -14,6 +15,7 @@ export interface LinkOrDropProps
 
 const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
     ({ className, onUrlChange, ...props }, ref) => {
+        const t = useTranslations('LinkOrDrop');
         const [isDragging, setIsDragging] = React.useState(false)
         const [isUploading, setIsUploading] = React.useState(false)
         const [showCheck, setShowCheck] = React.useState(false)
@@ -134,7 +136,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                 </div>
                 {isDragging && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-                        <p className="text-sm text-muted-foreground">Drop file here to upload</p>
+                        <p className="text-sm text-muted-foreground">{t('dropFile')}</p>
                     </div>
                 )}
             </div>

@@ -1,0 +1,38 @@
+{
+  "Person": {
+    "partyLeader": "Party Leader",
+    "mayor": "Mayor",
+    "president": "President",
+    "history": "History",
+    "items": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+    "addItem": "Add Member",
+    "noItems": "No members in OpenCouncil.",
+    "editPerson": "Edit Member",
+    "deletePerson": "Delete Member",
+    "personDeleted": "Member {name} was deleted",
+    "details": "Details",
+    "englishName": "English Name",
+    "shortName": "Short Name",
+    "shortNameEnglish": "Short Name (English)",
+    "englishRole": "Role in English",
+    "activeFrom": "Active from",
+    "activeTo": "Active until",
+    "searchForPerson": "Search in minutes concerning this member",
+    "statistics": "Member Statistics",
+    "searchItems": "Search members",
+    "activeUntil": "Member until",
+    "active": "Member"
+  },
+  "PersonCard": {
+    "party": "Party",
+    "edit": "Edit",
+    "viewProfile": "View Profile",
+    "name": "Name",
+    "role": "Role",
+    "partyColor": "Party Color",
+    "image": "Image",
+    "initials": "Initials",
+    "activeUntil": "Member until",
+    "active": "Member"
+  }
+}

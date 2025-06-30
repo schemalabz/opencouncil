@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { usePathname, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { useTranslations } from 'next-intl';
 
 interface Context {
   defaultValue: string;
@@ -57,9 +58,10 @@ export function Tabs(props: {
 
 const useContext = () => {
   const context = React.useContext(TabsContext);
+  const t = useTranslations('components.ui.tabs');
   if (!context) {
     throw new Error(
-      "Tabs compound components cannot be rendered outside the Tabs component",
+      t('error')
     );
   }
 

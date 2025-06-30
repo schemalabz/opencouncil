@@ -8,6 +8,7 @@ import {
     DropdownMenuCheckboxItem,
 } from "./dropdown-menu";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export interface Option<T> {
     value: T;
@@ -28,9 +29,10 @@ export function MultiSelectDropdown<T>({
     onChange,
     defaultValues = [],
     className,
-    placeholder = "Select options...",
-    allText = "Όλα"
+    placeholder,
+    allText
 }: MultiSelectDropdownProps<T>) {
+    const t = useTranslations('MultiSelectDropdown');
     const [selectedValues, setSelectedValues] = useState<T[]>(defaultValues);
 
     const handleValueChange = (value: T, checked: boolean) => {
@@ -47,8 +49,8 @@ export function MultiSelectDropdown<T>({
     };
 
     const getButtonText = () => {
-        if (selectedValues.length === 0) return placeholder;
-        if (selectedValues.length === options.length) return allText;
+        if (selectedValues.length === 0) return placeholder || t('placeholder');
+        if (selectedValues.length === options.length) return allText || t('all');
 
         const firstValue = options.find(opt => opt.value === selectedValues[0]);
         if (selectedValues.length === 1) return firstValue?.label;

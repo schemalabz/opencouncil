@@ -1,0 +1,244 @@
+{
+  "PilotPage": {
+    "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
+    "subtitle": "The information contained may have errors.",
+    "promo": "Open local government",
+    "words": "words",
+    "minutes": "minutes of speech",
+    "people": "speakers",
+    "meetings": "meetings"
+  },
+  "AboutPage": {
+    "hero": {
+      "title": "We make citizens <div>care</div> about their municipality",
+      "subtitle": "The first AI civic engagement platform for local government",
+      "contactUs": "Contact Us",
+      "getStarted": "Get Started",
+      "scheduleCall": "Schedule a Call"
+    },
+    "whyOpenCouncil": {
+      "title": "Building the future of city councils",
+      "features": [
+        {
+          "title": "Your work, visible",
+          "description": "Make city council meetings understandable and accessible to your citizens. Ensure greater transparency, and place your municipality at the forefront of smart governance."
+        },
+        {
+          "title": "A new public good",
+          "description": "Create a rich, searchable database of the council's democratic processes, owned by everyone."
+        },
+        {
+          "title": "Effective governance",
+          "description": "Equip your municipality with powerful tools for more effective policymaking. Advanced search and organization features allow for quick access to past discussions and decisions."
+        }
+      ]
+    },
+    "demo": "See OpenCouncil for the Municipality of Athens",
+    "featureShowcase": {
+      "title": "What OpenCouncil does",
+      "features": [
+        {
+          "title": "Transcription",
+          "description": "Automatic, word-for-word transcription of all council proceedings, and automatic speaker identification.",
+          "badge": "Included"
+        },
+        {
+          "title": "Summarization",
+          "description": "Automatic generation of concise summaries for each speech in the council.",
+          "badge": "Included"
+        },
+        {
+          "title": "AI Chat Assistant",
+          "description": "Ask questions about council meetings and get answers from the AI chat assistant.",
+          "badge": "Coming Soon"
+        },
+        {
+          "title": "Search",
+          "description": "Search everything that has been said in the city councils.",
+          "badge": "Included"
+        },
+        {
+          "title": "Highlights",
+          "description": "Automatic creation of short videos with the most important parts of each meeting.",
+          "badge": "Coming Soon"
+        },
+        {
+          "title": "Multilingual",
+          "description": "Support for multiple languages to serve multicultural cities.",
+          "badge": "Coming Soon"
+        }
+      ]
+    },
+    "howItWorks": {
+      "title": "How it works?",
+      "steps": [
+        {
+          "title": "The city council meets",
+          "description": "The meeting is recorded. The video is all we need."
+        },
+        {
+          "title": "Transcription of Minutes",
+          "description": "We convert speech to text, separate speeches, and identify speakers."
+        },
+        {
+          "title": "Data Extraction and Organization",
+          "description": "We read the minutes and extract topics, decisions, and highlights."
+        },
+        {
+          "title": "Everything accessible, forever",
+          "description": "OpenCouncil publishes all of the above on a modern, accessible platform."
+        }
+      ]
+    },
+    "team": {
+      "title": "Our Team",
+      "descriptionHtml": "OpenCouncil is implemented by <a href=\"https://schemalabs.gr\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-primary underline\">SchemaLabs</a>, a technology company based in Athens."
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "questions": [
+        {
+          "q": "What is the accuracy of the transcriptions?",
+          "a": "The accuracy of the transcriptions is >95%. Upon agreement, we can guarantee 100% accuracy, with the appropriate countermeasures."
+        },
+        {
+          "q": "Is my data secure?",
+          "a": "Yes. OpenCouncil is hosted on secure infrastructure within the European Union."
+        },
+        {
+          "q": "Can I try OpenCouncil for free?",
+          "a": "Of course. OpenCouncil offers a free trial, with no restrictions on duration or features."
+        },
+        {
+          "q": "How much does OpenCouncil cost?",
+          "a": "OpenCouncil for municipalities costs €7,800 per year. This price includes unlimited meetings, transcriptions, speaker recognition, AI summaries, hosting, and support."
+        },
+        {
+          "q": "Which municipalities do you work with?",
+          "a": "Currently, OpenCouncil is in a pilot phase with the Municipality of Athens."
+        }
+      ]
+    }
+  },
+  "Pricing": {
+    "title": "Transparent Pricing",
+    "subtitle": "Simple and fair pricing for municipalities of all sizes",
+    "additionalAdvantages": {
+      "title": "Additional Advantages",
+      "freeTrial": "Free trial period, for as long as you need",
+      "allFeatures": "Includes all current and future features of OpenCouncil",
+      "phoneSupport": "Phone support, daily 09:00 - 21:00",
+      "pastMeetings": "Option to include past meetings",
+      "printOrCd": "Delivery of file in printed form or CD, once a year",
+      "accuracyGuarantee": "Optional guarantee of transcription accuracy at an additional cost per meeting",
+      "suggestFeatures": "Suggest new features and shape OpenCouncil with us",
+      "pilotPrice": "Pilot price valid for the first 8 municipalities"
+    },
+    "calculator": {
+      "title": "Calculate the annual cost",
+      "description": "Fill in the details below to calculate the annual cost of your contract.",
+      "councilCountLabel": "Number of councils per year",
+      "averageDurationLabel": "Average meeting duration (hours)",
+      "populationLabel": "Population",
+      "populationUpTo2000": "up to 2,000",
+      "population200000AndUp": "200,000 and up",
+      "accuracyGuaranteeLabel": "Do you need a guarantee of transcription accuracy?",
+      "calculateButton": "Calculate"
+    },
+    "cards": {
+      "or": "OR",
+      "calculateCostButton": "Calculate your contract",
+      "digitization": {
+        "title": "Meeting Digitization",
+        "description": "Common pricing regardless of municipality size",
+        "price": "9€ / meeting hour",
+        "subtext": "Per-meeting charge",
+        "item1": "Automatic transcription and speaker recognition.",
+        "item2": "Creation of embeddings for each speaker's statement",
+        "item3": "Automatic summaries per statement.",
+        "item4": "Extraction of statistics"
+      },
+      "hosting": {
+        "title": "Platform Usage",
+        "description": "Pricing based on municipality size",
+        "price": "",
+        "subtext": "",
+        "item1": "Free use for all citizens.",
+        "item2": "All platform features",
+        "item3": "1000 messages with the AI Chat per day.",
+        "item4": "Technical support",
+        "tier1": {
+          "population": "Up to 2,000 residents",
+          "price": "Free"
+        },
+        "tier2": {
+          "population": "2,001 - 10,000 residents",
+          "price": "200€ / month"
+        },
+        "tier3": {
+          "population": "10,001 - 30,000 residents",
+          "price": "400€ / month"
+        },
+        "tier4": {
+          "population": "30,001 - 50,000 residents",
+          "price": "600€ / month"
+        },
+        "tier5": {
+          "population": "50,001 - 100,000 residents",
+          "price": "1,200€ / month"
+        }
+      },
+      "card": {
+        "includedServices": "What's included",
+        "contactSales": "Contact Sales"
+      },
+      "tier": {
+        "population": "Population"
+      }
+    }
+  },
+  "ContactForm": {
+    "title": "Contact Us",
+    "estimatedAnnualCost": "Estimated annual cost",
+    "vat": "VAT",
+    "formDescription": "Fill in the details below and we will contact you shortly.",
+    "nameLabel": "Name",
+    "positionLabel": "Position",
+    "municipalityLabel": "Municipality",
+    "emailLabel": "Email",
+    "submitButton": "Contact me",
+    "confirmationMessage": "We will contact you at {email}",
+    "errorMessage": "Oops! Something went wrong. You can try again or contact us at sales@touvlo.co.",
+    "closeButton": "Close"
+  },
+  "ProductRoadmap": {
+    "title": "Development Plan",
+    "openSource": {
+      "name": "Open Source",
+      "description": "Transparent development, continuous improvement. Flexible license that allows commercial use."
+    },
+    "aiAssistant": {
+      "name": "AI Chat Assistant",
+      "date": "April 2025",
+      "description": "Ask questions about council meetings and get answers from the AI chat assistant."
+    },
+    "personalizedUpdates": {
+      "name": "Personalized Updates",
+      "date": "April 2025",
+      "description": "Automated sending of personalized updates to citizens, from the meeting agenda."
+    },
+    "map": {
+      "name": "Map",
+      "date": "May 2025",
+      "description": "Interactive city map with the locations of the topics discussed in the meetings."
+    },
+    "multilingual": {
+      "name": "Multilingual",
+      "date": "May 2025",
+      "description": "Support for multiple languages to serve multicultural cities."
+    }
+  },
+  "DocumentViewer": {
+    "lastUpdated": "Last updated: {lastUpdated}"
+  }
+}

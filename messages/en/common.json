@@ -1,0 +1,62 @@
+{
+  "app": {
+    "layout": {
+      "meta": {
+        "description": "Open local government"
+      }
+    }
+  },
+  "errors": {
+    "unauthorized": "Unauthorized",
+    "unauthorizedDescription": "You are not authorized to view this page.",
+    "goHome": "Go to homepage"
+  },
+  "Error": {
+    "loadingError": "Loading Error",
+    "anErrorOccurred": "An error occurred"
+  },
+  "Breadcrumb": {
+    "more": "More"
+  },
+  "ColorPercentageRing": {
+    "remaining": "Remaining:"
+  },
+  "Dialog": {
+    "close": "Close"
+  },
+  "FloatingPaths": {
+    "backgroundPaths": "Background Paths"
+  },
+  "LinkOrDrop": {
+    "dropFile": "Drop file here to upload"
+  },
+  "MultiSelectDropdown": {
+    "selectAll": "All",
+    "placeholder": "Select options..."
+  },
+  "ProgressFooter": {
+    "title": "Processing your request",
+    "description": "Please wait while we process your request. This may take a few minutes.",
+    "back": "Back"
+  },
+  "sheet": {
+    "close": "Close"
+  },
+  "sidebar": {
+    "toggle": "Toggle Sidebar",
+    "searchPlaceholder": "Search..."
+  },
+  "tabs": {
+    "error": "Tabs compound components cannot be rendered outside the Tabs component"
+  },
+  "Header": {
+    "about": "For Municipalities"
+  },
+  "Footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact Us",
+    "copyright": "All rights reserved",
+    "disclaimer": "The information shown is automatically collected and may not be accurate."
+  }
+}

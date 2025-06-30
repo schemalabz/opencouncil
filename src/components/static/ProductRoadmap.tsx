@@ -3,40 +3,41 @@
 import { useEffect, useRef } from 'react'
 import { motion, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
 import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll, MapIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl';
 
-const features = [
+const getFeatures = (t: Function) => [
     {
-        name: "Ανοιχτός κώδικας",
-        description: "Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια που επιτρέπει την εμπορική χρήση.",
+        name: t('openSource.name'),
+        description: t('openSource.description'),
         icon: Github
     },
     {
-        name: "Βοηθός συνομιλίας AI",
-        date: "Απρίλιος 2025",
-        description: "Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.",
+        name: t('aiAssistant.name'),
+        date: t('aiAssistant.date'),
+        description: t('aiAssistant.description'),
         icon: BotMessageSquare
     },
     {
-        name: "Προσωποποιημένες ενημερώσεις",
-        date: "Απρίλιος 2025",
-        description: "Αυτοματοποιημένη αποστολή εξατομικευμένων ενημερώσεων στους πολίτες, από την ημερήσια διάταξη της συνεδρίασης.",
+        name: t('personalizedUpdates.name'),
+        date: t('personalizedUpdates.date'),
+        description: t('personalizedUpdates.description'),
         icon: Mail
     },
     {
-        name: "Χάρτης",
-        date: "Μάιος 2025",
-        description: "Διαδραστικός χάρτης πόλης με τις τοποθεσίες των θεμάτων που συζητούνται στις συνεδριάσεις.",
+        name: t('map.name'),
+        date: t('map.date'),
+        description: t('map.description'),
         icon: MapIcon
     },
     {
-        name: "Πολύγλωσσο",
-        date: "Μάιος 2025",
-        description: "Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.",
+        name: t('multilingual.name'),
+        date: t('multilingual.date'),
+        description: t('multilingual.description'),
         icon: Globe
     },
 ]
 
-function FeatureItem({ feature, index, progress }: { feature: any, index: number, progress: any }) {
+function FeatureItem({ feature, index, progress, totalFeatures }: { feature: any, index: number, progress: any, totalFeatures: number }) {
     const ref = useRef(null)
     const isInView = useInView(ref, { once: true, margin: "-100px" })
     const mainControls = useAnimation()
@@ -50,7 +51,7 @@ function FeatureItem({ feature, index, progress }: { feature: any, index: number
     const IconComponent = feature.icon
     const iconColor = useTransform(
         progress,
-        [index / features.length, (index + 1) / features.length],
+        [index / totalFeatures, (index + 1) / totalFeatures],
         ["#D1D5DB", "#000000"]
     )
 
@@ -100,6 +101,8 @@ function FeatureItem({ feature, index, progress }: { feature: any, index: number
     )
 }
 export default function ProductRoadmap() {
+    const t = useTranslations('ProductRoadmap');
+    const features = getFeatures(t);
     const containerRef = useRef(null)
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -114,7 +117,7 @@ export default function ProductRoadmap() {
     )
     return (
         <div ref={containerRef} className="max-w-4xl mx-auto py-16 px-4">
-            <h2 className="text-3xl font-bold mb-12 text-center">Πλάνο ανάπτυξης</h2>
+            <h2 className="text-3xl font-bold mb-12 text-center">{t('title')}</h2>
             <div className="relative">
                 <div
                     ref={lineRef}
@@ -132,7 +135,7 @@ export default function ProductRoadmap() {
                 </div>
                 <div className="space-y-16">
                     {features.map((feature, index) => (
-                        <FeatureItem key={index} feature={feature} index={index} progress={scrollYProgress} />
+                        <FeatureItem key={index} feature={feature} index={index} progress={scrollYProgress} totalFeatures={features.length} />
                     ))}
                 </div>
             </div>
