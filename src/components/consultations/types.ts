@@ -94,5 +94,6 @@ export interface RegulationData {
     ccEmails?: string[]; // Additional emails to CC on comments (optional)
     sources: Source[]; // Array of source documents (required in schema)
     referenceFormat?: ReferenceFormat;
+    defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
     regulation: RegulationItem[];
 } 

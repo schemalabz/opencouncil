@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
-import { Geometry } from "./types";
+import { Geometry, RegulationData } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface GeoSetData {
@@ -29,6 +29,7 @@ interface LayerControlsPanelProps {
     comments?: ConsultationCommentWithUpvotes[];
     consultationId?: string;
     cityId?: string;
+    regulationData?: RegulationData;
 }
 
 export default function LayerControlsPanel({
@@ -47,8 +48,20 @@ export default function LayerControlsPanel({
     contactEmail,
     comments,
     consultationId,
-    cityId
+    cityId,
+    regulationData
 }: LayerControlsPanelProps) {
+    // Sort geoSets so that default visible ones appear first
+    const sortedGeoSets = [...geoSets].sort((a, b) => {
+        const defaultVisible = regulationData?.defaultVisibleGeosets || [];
+        const aIsDefault = defaultVisible.includes(a.id);
+        const bIsDefault = defaultVisible.includes(b.id);
+
+        if (aIsDefault && !bIsDefault) return -1;
+        if (!aIsDefault && bIsDefault) return 1;
+        return 0; // Keep original order for items in the same category
+    });
+
     return (
         <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-96 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
             <div className="p-4 flex-shrink-0">
@@ -69,9 +82,11 @@ export default function LayerControlsPanel({
                 className="flex-1 px-4 overflow-y-auto overscroll-contain space-y-3"
                 onWheel={(e) => e.stopPropagation()}
             >
-                {geoSets.map((geoSet, geoSetIndex) => {
+                {sortedGeoSets.map((geoSet, geoSetIndex) => {
                     // Use geoset's own color if available, otherwise fall back to colors array
-                    const color = geoSet.color || colors[geoSetIndex % colors.length];
+                    // Note: we need to find the original index for color assignment
+                    const originalIndex = geoSets.findIndex(gs => gs.id === geoSet.id);
+                    const color = geoSet.color || colors[originalIndex % colors.length];
                     const checkboxState = getGeoSetCheckboxState(geoSet.id);
                     const isExpanded = expandedGeoSets.has(geoSet.id);
 

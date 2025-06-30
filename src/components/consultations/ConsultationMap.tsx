@@ -184,10 +184,32 @@ export default function ConsultationMap({
         const allGeoSetIds = new Set(geoSets.map(gs => gs.id));
         const allGeometryIds = new Set(geoSets.flatMap(gs => gs.geometries.map(g => g.id)));
 
-        setEnabledGeoSets(allGeoSetIds);
-        setEnabledGeometries(allGeometryIds);
+        // Check if defaultVisibleGeosets is specified in regulation data
+        if (regulationData?.defaultVisibleGeosets && regulationData.defaultVisibleGeosets.length > 0) {
+            // Only enable geosets specified in defaultVisibleGeosets
+            const defaultVisibleSet = new Set(regulationData.defaultVisibleGeosets);
+            const enabledGeoSetIds = new Set(
+                geoSets
+                    .filter(gs => defaultVisibleSet.has(gs.id))
+                    .map(gs => gs.id)
+            );
+
+            const enabledGeometryIds = new Set(
+                geoSets
+                    .filter(gs => defaultVisibleSet.has(gs.id))
+                    .flatMap(gs => gs.geometries.map(g => g.id))
+            );
+
+            setEnabledGeoSets(enabledGeoSetIds);
+            setEnabledGeometries(enabledGeometryIds);
+        } else {
+            // Default behavior: enable all geosets and geometries
+            setEnabledGeoSets(allGeoSetIds);
+            setEnabledGeometries(allGeometryIds);
+        }
+
         setExpandedGeoSets(new Set()); // Start with all collapsed
-    }, [geoSets]);
+    }, [geoSets, regulationData]);
 
     // Handle URL hash changes to open detail panels
     useEffect(() => {
@@ -418,6 +440,7 @@ export default function ConsultationMap({
                     comments={comments}
                     consultationId={consultationId}
                     cityId={cityId}
+                    regulationData={regulationData ?? undefined}
                 />
             )}
 
