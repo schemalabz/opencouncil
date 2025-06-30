@@ -11,6 +11,7 @@ import DetailPanel from "./DetailPanel";
 import EditingToolsPanel from "./EditingToolsPanel";
 import { CheckboxState } from "./GeoSetItem";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { Location } from "@/lib/types/onboarding";
 
 interface CurrentUser {
     id?: string;
@@ -142,6 +143,71 @@ function computeDerivedGeometry(derivedGeometry: DerivedGeometry, allGeoSets: Ge
     return null;
 }
 
+// Helper function to create line features between selected locations
+function createLocationLineFeatures(locations: Location[]): MapFeature[] {
+    if (locations.length === 0) return [];
+
+    const lineFeatures: MapFeature[] = [];
+
+    // Create lines between consecutive locations (only if we have 2 or more)
+    if (locations.length >= 2) {
+        for (let i = 0; i < locations.length - 1; i++) {
+            const startLocation = locations[i];
+            const endLocation = locations[i + 1];
+
+            const lineGeometry: GeoJSON.LineString = {
+                type: 'LineString',
+                coordinates: [
+                    startLocation.coordinates,
+                    endLocation.coordinates
+                ]
+            };
+
+            lineFeatures.push({
+                id: `location-line-${i}`,
+                geometry: lineGeometry,
+                properties: {
+                    type: 'location-line',
+                    startLocation: startLocation.text,
+                    endLocation: endLocation.text,
+                    segmentIndex: i
+                },
+                style: {
+                    strokeColor: '#EF4444', // Red color for visibility
+                    strokeWidth: 3,
+                    fillOpacity: 0 // Lines don't need fill
+                }
+            });
+        }
+    }
+
+    // Create point features for each location (works for single or multiple locations)
+    locations.forEach((location, index) => {
+        lineFeatures.push({
+            id: `location-point-${index}`,
+            geometry: {
+                type: 'Point',
+                coordinates: location.coordinates
+            },
+            properties: {
+                type: 'location-point',
+                locationText: location.text,
+                locationIndex: index,
+                isSingleLocation: locations.length === 1
+            },
+            style: {
+                fillColor: '#EF4444',
+                fillOpacity: 0.9, // Slightly more opaque for better visibility
+                strokeColor: '#B91C1C',
+                strokeWidth: locations.length === 1 ? 12 : 10, // Bigger for single location, large for multiple
+                label: locations.length === 1 ? '📍' : `${index + 1}` // Pin emoji for single, numbers for multiple
+            }
+        });
+    });
+
+    return lineFeatures;
+}
+
 export default function ConsultationMap({
     className,
     regulationData,
@@ -172,6 +238,9 @@ export default function ConsultationMap({
     
     // Local storage state for saved geometries
     const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
+
+    // State for selected locations (for line drawing)
+    const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
 
     // Load saved geometries from localStorage on mount and when editing mode changes
     useEffect(() => {
@@ -342,7 +411,7 @@ export default function ConsultationMap({
             if (!enabledGeoSets.has(geoSet.id)) return;
 
             // Use geoset's own color if available, otherwise fall back to default colors
-                    const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
+            const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
 
             geoSet.geometries.forEach(geometry => {
                 if (!enabledGeometries.has(geometry.id)) return;
@@ -351,7 +420,7 @@ export default function ConsultationMap({
                 let isFromLocalStorage = false;
 
                 // First check if we have a saved geometry in localStorage
-                    if (savedGeometries[geometry.id]) {
+                if (savedGeometries[geometry.id]) {
                     geoJSON = savedGeometries[geometry.id];
                     isFromLocalStorage = true;
                 }
@@ -366,18 +435,18 @@ export default function ConsultationMap({
 
                 // Only add to features if we have valid geometry
                 if (geoJSON) {
-                        features.push({
-                            id: geometry.id,
+                    features.push({
+                        id: geometry.id,
                         geometry: geoJSON,
-                            properties: {
-                                geoSetId: geoSet.id,
+                        properties: {
+                            geoSetId: geoSet.id,
                             geoSetName: geoSet.name,
                             name: geometry.name,
                             description: geometry.description,
                             isDerived: geometry.type === 'derived',
                             isFromLocalStorage
-                            },
-                            style: {
+                        },
+                        style: {
                             // Color: use blue for localStorage, otherwise use geoset color
                             fillColor: isFromLocalStorage ? '#3B82F6' : color,
                             // Opacity: derived geometries are very transparent, localStorage medium, regular normal
@@ -388,13 +457,25 @@ export default function ConsultationMap({
                             strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 4 : (isFromLocalStorage ? 3 : 2)),
                             label: geometry.name
                         }
-                        });
-                    }
-                });
+                    });
+                }
+            });
         });
 
+        // Add location features (points and lines) in editing mode
+        if (isEditingMode && selectedLocations.length > 0) {
+            const locationLineFeatures = createLocationLineFeatures(selectedLocations);
+            features.push(...locationLineFeatures);
+            
+            if (selectedLocations.length === 1) {
+                console.log(`📍 Added 1 prominent location marker`);
+            } else {
+                console.log(`🔗 Added ${locationLineFeatures.length} location features (${selectedLocations.length - 1} lines, ${selectedLocations.length} points)`);
+            }
+        }
+
         return features;
-    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries]);
+    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries, isEditingMode, selectedLocations]);
 
     // Get geoset checkbox state (checked, indeterminate, or unchecked)
     const getGeoSetCheckboxState = (geoSetId: string): CheckboxState => {
@@ -542,6 +623,12 @@ export default function ConsultationMap({
         console.log('🗺️ Navigating to location:', coordinates);
     };
 
+    // Handle selected locations change from LocationNavigator
+    const handleSelectedLocationsChange = useCallback((locations: Location[]) => {
+        setSelectedLocations(locations);
+        console.log('📍 Updated selected locations:', locations.map(l => l.text));
+    }, []);
+
     // Function to handle deleting saved geometry
     const handleDeleteSavedGeometry = (geometryId: string) => {
         try {
@@ -596,6 +683,7 @@ export default function ConsultationMap({
                     cityData={cityData}
                     onSetDrawingMode={setDrawingMode}
                     onNavigateToLocation={handleNavigateToLocation}
+                    onSelectedLocationsChange={handleSelectedLocationsChange}
                     onClose={() => handleSelectGeometryForEdit(null)}
                 />
             )}
@@ -637,6 +725,8 @@ export default function ConsultationMap({
                         setIsEditingMode(enabled);
                         if (!enabled) {
                             setSelectedGeometryForEdit(null);
+                            // Clear selected locations when exiting editing mode
+                            setSelectedLocations([]);
                         }
                     }}
                     onSelectGeometryForEdit={handleSelectGeometryForEdit}

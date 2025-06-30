@@ -476,7 +476,51 @@ const Map = memo(function Map({
                 });
             }
 
-            // Add street names layer
+            // Add major street names layer
+            if (!map.current.getLayer('major-street-labels')) {
+                map.current.addLayer({
+                    'id': 'major-street-labels',
+                    'type': 'symbol',
+                    'source': 'mapbox-streets',
+                    'source-layer': 'road',
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 12,
+                            16, 16
+                        ],
+                        'text-anchor': 'center',
+                        'text-offset': [0, 0],
+                        'text-rotation-alignment': 'map',
+                        'text-pitch-alignment': 'viewport',
+                        'symbol-placement': 'line',
+                        'text-max-angle': 30
+                    },
+                    'paint': {
+                        'text-color': '#222222',
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 2,
+                        'text-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0.8,
+                            16, 1
+                        ]
+                    },
+                    'filter': [
+                        'all',
+                        ['has', 'name'],
+                        ['in', 'class', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary']
+                    ]
+                });
+            }
+
+            // Add regular street names layer (including smaller roads)
             if (!map.current.getLayer('street-labels')) {
                 map.current.addLayer({
                     'id': 'street-labels',
@@ -486,29 +530,91 @@ const Map = memo(function Map({
                     'layout': {
                         'text-field': ['get', 'name'],
                         'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-                        'text-size': 12,
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            12, 10,
+                            18, 14
+                        ],
                         'text-anchor': 'center',
                         'text-offset': [0, 0],
                         'text-rotation-alignment': 'map',
                         'text-pitch-alignment': 'viewport',
                         'symbol-placement': 'line',
-                        'text-max-angle': 30
+                        'text-max-angle': 30,
+                        'text-allow-overlap': false,
+                        'text-ignore-placement': false
                     },
                     'paint': {
-                        'text-color': '#333333',
+                        'text-color': '#444444',
                         'text-halo-color': '#ffffff',
-                        'text-halo-width': 2,
-                        'text-opacity': 0.8
+                        'text-halo-width': 1.5,
+                        'text-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            12, 0.6,
+                            18, 1
+                        ]
                     },
                     'filter': [
                         'all',
                         ['has', 'name'],
-                        ['in', 'class', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'street', 'street_limited']
-                    ]
+                        ['in', 'class', 'street', 'street_limited']
+                    ],
+                    'minzoom': 12
                 });
             }
 
-            // Add place labels
+            // Add small roads and paths layer
+            if (!map.current.getLayer('minor-road-labels')) {
+                map.current.addLayer({
+                    'id': 'minor-road-labels',
+                    'type': 'symbol',
+                    'source': 'mapbox-streets',
+                    'source-layer': 'road',
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 9,
+                            18, 12
+                        ],
+                        'text-anchor': 'center',
+                        'text-offset': [0, 0],
+                        'text-rotation-alignment': 'map',
+                        'text-pitch-alignment': 'viewport',
+                        'symbol-placement': 'line',
+                        'text-max-angle': 45,
+                        'text-allow-overlap': false,
+                        'text-ignore-placement': false
+                    },
+                    'paint': {
+                        'text-color': '#666666',
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 1,
+                        'text-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 0.5,
+                            18, 0.9
+                        ]
+                    },
+                    'filter': [
+                        'all',
+                        ['has', 'name'],
+                        ['in', 'class', 'service', 'path', 'pedestrian', 'track', 'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link']
+                    ],
+                    'minzoom': 14
+                });
+            }
+
+            // Add place labels (enhanced to show more types)
             if (!map.current.getLayer('place-labels')) {
                 map.current.addLayer({
                     'id': 'place-labels',
@@ -523,33 +629,91 @@ const Map = memo(function Map({
                             ['linear'],
                             ['zoom'],
                             10, 11,
-                            14, 13
+                            16, 14
                         ],
                         'text-anchor': 'center'
                     },
                     'paint': {
-                        'text-color': '#444444',
+                        'text-color': '#333333',
                         'text-halo-color': '#ffffff',
                         'text-halo-width': 2,
-                        'text-opacity': 0.9
+                        'text-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            10, 0.8,
+                            16, 1
+                        ]
                     },
                     'filter': [
                         'all',
                         ['has', 'name'],
-                        ['in', 'type', 'neighbourhood', 'suburb']
+                        ['in', 'type', 'neighbourhood', 'suburb', 'hamlet', 'village', 'locality']
                     ]
                 });
             }
+
+            // Add POI labels for landmarks
+            if (!map.current.getLayer('poi-labels')) {
+                map.current.addLayer({
+                    'id': 'poi-labels',
+                    'type': 'symbol',
+                    'source': 'mapbox-streets',
+                    'source-layer': 'poi_label',
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+                        'text-size': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 10,
+                            18, 12
+                        ],
+                        'text-anchor': 'top',
+                        'text-offset': [0, 0.5],
+                        'icon-image': ['get', 'maki'],
+                        'icon-size': 0.8
+                    },
+                    'paint': {
+                        'text-color': '#555555',
+                        'text-halo-color': '#ffffff',
+                        'text-halo-width': 1,
+                        'text-opacity': [
+                            'interpolate',
+                            ['linear'],
+                            ['zoom'],
+                            14, 0.7,
+                            18, 1
+                        ]
+                    },
+                    'filter': [
+                        'all',
+                        ['has', 'name'],
+                        ['in', 'class', 'park', 'education', 'medical', 'shopping', 'lodging']
+                    ],
+                    'minzoom': 14
+                });
+            }
+
         } else {
-            // Remove street name layers when exiting editing mode
-            if (map.current.getLayer('street-labels')) {
-                map.current.removeLayer('street-labels');
-            }
-            if (map.current.getLayer('place-labels')) {
-                map.current.removeLayer('place-labels');
-            }
-            // Optionally remove the source too
-            if (map.current.getSource('mapbox-streets')) {
+            // Remove all street and place layers when exiting editing mode
+            const layersToRemove = [
+                'major-street-labels',
+                'street-labels', 
+                'minor-road-labels',
+                'place-labels',
+                'poi-labels'
+            ];
+            
+            layersToRemove.forEach(layerId => {
+                if (map.current?.getLayer(layerId)) {
+                    map.current.removeLayer(layerId);
+                }
+            });
+            
+            // Remove the source too
+            if (map.current?.getSource('mapbox-streets')) {
                 map.current.removeSource('mapbox-streets');
             }
         }

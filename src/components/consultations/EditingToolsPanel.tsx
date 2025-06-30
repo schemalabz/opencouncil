@@ -3,6 +3,7 @@ import { X, MapPin, Pentagon } from "lucide-react";
 import { LocationNavigator } from './LocationNavigator';
 import { CityWithGeometry } from '@/lib/db/cities';
 import { Geometry } from "./types";
+import { Location } from '@/lib/types/onboarding';
 
 type DrawingMode = 'point' | 'polygon';
 
@@ -13,6 +14,7 @@ interface EditingToolsPanelProps {
     cityData: CityWithGeometry | null;
     onSetDrawingMode: (mode: DrawingMode) => void;
     onNavigateToLocation: (coordinates: [number, number]) => void;
+    onSelectedLocationsChange?: (locations: Location[]) => void;
     onClose: () => void;
 }
 
@@ -23,6 +25,7 @@ export default function EditingToolsPanel({
     cityData,
     onSetDrawingMode,
     onNavigateToLocation,
+    onSelectedLocationsChange,
     onClose
 }: EditingToolsPanelProps) {
     return (
@@ -30,61 +33,61 @@ export default function EditingToolsPanel({
             {/* Header */}
             <div className="p-3 bg-blue-600 text-white flex-shrink-0">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm">Εργαλεία Επεξεργασίας</h3>
+                    <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">
+                            Επεξεργασία: {selectedGeometry?.name || selectedGeometryForEdit}
+                        </div>
+                    </div>
                     <Button
-                        onClick={onClose}
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0 text-white hover:bg-white/20"
+                        onClick={onClose}
+                        className="text-white hover:bg-blue-700 -mr-2"
                     >
-                        <X className="h-3 w-3" />
+                        <X className="h-4 w-4" />
                     </Button>
                 </div>
-                {selectedGeometry && (
-                    <div className="text-xs mt-1 opacity-90 truncate">
-                        {selectedGeometry.name}
-                    </div>
-                )}
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {/* Drawing Tools */}
-                <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-                    <h4 className="font-semibold text-xs mb-2 text-center">Εργαλεία Σχεδίασης</h4>
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+                {/* Drawing Mode Selection */}
+                <div className="bg-gray-50 p-3 rounded-md border border-gray-200">
+                    <h4 className="font-semibold text-xs mb-2 flex items-center gap-2">
+                        🎯 Τρόπος Σχεδίασης
+                    </h4>
                     <div className="grid grid-cols-2 gap-2">
                         <Button
-                            onClick={() => onSetDrawingMode('point')}
-                            variant={drawingMode === 'point' ? "default" : "outline"}
+                            variant={drawingMode === 'point' ? 'default' : 'outline'}
                             size="sm"
-                            className="gap-1 text-xs py-2"
+                            onClick={() => onSetDrawingMode('point')}
+                            className="text-xs h-8 gap-1"
                         >
                             <MapPin className="h-3 w-3" />
                             Σημείο
                         </Button>
                         <Button
-                            onClick={() => onSetDrawingMode('polygon')}
-                            variant={drawingMode === 'polygon' ? "default" : "outline"}
+                            variant={drawingMode === 'polygon' ? 'default' : 'outline'}
                             size="sm"
-                            className="gap-1 text-xs py-2"
+                            onClick={() => onSetDrawingMode('polygon')}
+                            className="text-xs h-8 gap-1"
                         >
                             <Pentagon className="h-3 w-3" />
                             Περιοχή
                         </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center mt-2">
+                    <div className="text-xs text-muted-foreground mt-2 leading-relaxed">
                         {drawingMode === 'point' 
-                            ? 'Κάντε κλικ στον χάρτη για σημείο'
-                            : 'Κάντε κλικ για να ξεκινήσετε σχεδίαση περιοχής'
+                            ? 'Κάντε κλικ στον χάρτη για να τοποθετήσετε ένα σημείο.' 
+                            : 'Κάντε κλικ στον χάρτη για να σχεδιάσετε μια περιοχή. Διπλό κλικ για να ολοκληρώσετε.'
                         }
-                    </p>
+                    </div>
                 </div>
 
                 {/* Textual Definition */}
                 {selectedGeometry?.textualDefinition && (
-                    <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
+                    <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
                         <h4 className="font-semibold text-xs mb-2 flex items-center gap-2">
-                            📍 Γεωγραφικός Προσδιορισμός
+                            📝 Περιγραφή Τοποθεσίας
                         </h4>
                         <div className="text-xs text-muted-foreground leading-relaxed">
                             {selectedGeometry.textualDefinition}
@@ -101,6 +104,7 @@ export default function EditingToolsPanel({
                         <LocationNavigator
                             city={cityData}
                             onNavigateToLocation={onNavigateToLocation}
+                            onSelectedLocationsChange={onSelectedLocationsChange}
                         />
                     </div>
                 )}
