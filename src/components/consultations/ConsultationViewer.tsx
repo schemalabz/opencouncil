@@ -6,6 +6,7 @@ import ConsultationHeader from "./ConsultationHeader";
 import ConsultationMap from "./ConsultationMap";
 import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
+import CommentsOverviewSheet from "./CommentsOverviewSheet";
 
 import { RegulationData } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
@@ -54,6 +55,9 @@ export default function ConsultationViewer({
     // Track which chapters and articles are expanded
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
+
+    // Track comments overview sheet state
+    const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
 
     // Update view based on URL on mount and when search params change
     useEffect(() => {
@@ -236,6 +240,24 @@ export default function ConsultationViewer({
         }
     };
 
+    // Handle comment navigation from comments overview sheet
+    const handleCommentClick = (comment: ConsultationCommentWithUpvotes) => {
+        // Navigate to the entity based on comment type
+        if (comment.entityType === 'CHAPTER' || comment.entityType === 'ARTICLE') {
+            // Navigate to document section
+            const params = new URLSearchParams(window.location.search);
+            params.set('view', 'document');
+            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
+            router.push(newUrl, { scroll: false });
+        } else if (comment.entityType === 'GEOSET' || comment.entityType === 'GEOMETRY') {
+            // Navigate to map view
+            const params = new URLSearchParams(window.location.search);
+            params.set('view', 'map');
+            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
+            router.push(newUrl, { scroll: false });
+        }
+    };
+
     // Handle reference navigation
     const handleReferenceClick = (referenceId: string) => {
         if (!regulationData) return;
@@ -288,24 +310,63 @@ export default function ConsultationViewer({
     const title = regulationData?.title || consultation.name;
     const description = "Διαβούλευση για κανονισμό";
 
-    if (currentView === 'map') {
-        // Full-screen map view
-        return (
-            <div className="h-screen relative">
+    // Render the current view content
+    const renderCurrentView = () => {
+        if (currentView === 'map') {
+            // Full-screen map view
+            return (
+                <div className="h-screen relative">
+                    {/* Full-screen map */}
+                    <div className="absolute inset-0">
+                        <ConsultationMap
+                            baseUrl={baseUrl}
+                            className="w-full h-full"
+                            regulationData={regulationData}
+                            comments={comments}
+                            currentUser={currentUser}
+                            consultationId={consultationId}
+                            cityId={cityId}
+                        />
+                    </div>
 
-
-                {/* Full-screen map */}
-                <div className="absolute inset-0">
-                    <ConsultationMap
-                        baseUrl={baseUrl}
-                        className="w-full h-full"
-                        regulationData={regulationData}
-                        comments={comments}
-                        currentUser={currentUser}
-                        consultationId={consultationId}
-                        cityId={cityId}
+                    {/* Floating action button for view toggle */}
+                    <ViewToggleButton
+                        currentView={currentView}
+                        onToggle={toggleView}
                     />
                 </div>
+            );
+        }
+
+        // Normal page layout for document view
+        return (
+            <div className="min-h-screen">
+                {/* Normal header */}
+                <ConsultationHeader
+                    title={title}
+                    description={description}
+                    endDate={consultation.endDate}
+                    isActive={consultation.isActive}
+                    commentCount={comments.length}
+                    currentView={currentView}
+                    onCommentsClick={() => setCommentsSheetOpen(true)}
+                />
+
+                {/* Scrollable document content */}
+                <ConsultationDocument
+                    regulationData={regulationData}
+                    baseUrl={baseUrl}
+                    className=""
+                    expandedChapters={expandedChapters}
+                    expandedArticles={expandedArticles}
+                    onToggleChapter={toggleChapter}
+                    onToggleArticle={toggleArticle}
+                    onReferenceClick={handleReferenceClick}
+                    comments={comments}
+                    currentUser={currentUser}
+                    consultationId={consultationId}
+                    cityId={cityId}
+                />
 
                 {/* Floating action button for view toggle */}
                 <ViewToggleButton
@@ -314,42 +375,21 @@ export default function ConsultationViewer({
                 />
             </div>
         );
-    }
+    };
 
-    // Normal page layout for document view
     return (
-        <div className="min-h-screen">
-            {/* Normal header */}
-            <ConsultationHeader
-                title={title}
-                description={description}
-                endDate={consultation.endDate}
-                isActive={consultation.isActive}
-                commentCount={comments.length}
-                currentView={currentView}
-            />
+        <>
+            {renderCurrentView()}
 
-            {/* Scrollable document content */}
-            <ConsultationDocument
-                regulationData={regulationData}
-                baseUrl={baseUrl}
-                className=""
-                expandedChapters={expandedChapters}
-                expandedArticles={expandedArticles}
-                onToggleChapter={toggleChapter}
-                onToggleArticle={toggleArticle}
-                onReferenceClick={handleReferenceClick}
+            {/* Comments overview sheet - always available regardless of view */}
+            <CommentsOverviewSheet
+                isOpen={commentsSheetOpen}
+                onClose={() => setCommentsSheetOpen(false)}
                 comments={comments}
-                currentUser={currentUser}
-                consultationId={consultationId}
-                cityId={cityId}
+                totalCount={comments.length}
+                regulationData={regulationData || undefined}
+                onCommentClick={handleCommentClick}
             />
-
-            {/* Floating action button for view toggle */}
-            <ViewToggleButton
-                currentView={currentView}
-                onToggle={toggleView}
-            />
-        </div>
+        </>
     );
 } 

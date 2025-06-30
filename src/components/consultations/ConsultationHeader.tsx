@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, MessageSquare } from "lucide-react";
 import { formatConsultationEndDate } from "@/lib/utils/date";
+import { Button } from "@/components/ui/button";
 
 type ViewMode = 'map' | 'document';
 
@@ -11,6 +12,7 @@ interface ConsultationHeaderProps {
     isActive: boolean;
     commentCount?: number;
     currentView: ViewMode;
+    onCommentsClick?: () => void;
 }
 
 export default function ConsultationHeader({
@@ -19,7 +21,8 @@ export default function ConsultationHeader({
     endDate,
     isActive,
     commentCount = 0,
-    currentView
+    currentView,
+    onCommentsClick
 }: ConsultationHeaderProps) {
     const isMapView = currentView === 'map';
     if (isMapView) {
@@ -63,10 +66,23 @@ export default function ConsultationHeader({
                             Λήγει: {formatConsultationEndDate(endDate)}
                         </span>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
-                        <span>{commentCount} σχόλια</span>
-                    </div>
+                    {onCommentsClick && commentCount > 0 ? (
+                        <Button
+                            onClick={onCommentsClick}
+                            variant="outline"
+                            size="sm"
+                            className="h-auto px-2 py-1 text-xs md:text-sm"
+                            title="Δείτε όλα τα σχόλια"
+                        >
+                            <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                            <span>{commentCount} σχόλια</span>
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3 md:h-4 md:w-4" />
+                            <span>{commentCount} σχόλια</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
