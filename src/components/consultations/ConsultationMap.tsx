@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
-import { RegulationData, RegulationItem, Geometry, ReferenceFormat } from "./types";
+import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeometry, DerivedGeometry, BufferOperation, DifferenceOperation } from "./types";
 import LayerControlsButton from "./LayerControlsButton";
 import LayerControlsPanel from "./LayerControlsPanel";
 import DetailPanel from "./DetailPanel";
@@ -48,6 +48,95 @@ const GEOSET_COLORS = [
     '#D53F8C', // Pink
     '#4A5568', // Gray
 ];
+
+// Helper function to create a circular polygon buffer around a point
+function createCircleBuffer(center: [number, number], radiusInMeters: number): GeoJSON.Polygon {
+    const earthRadius = 6371000; // Earth's radius in meters
+    const lat = center[1] * Math.PI / 180; // Convert to radians
+    const lng = center[0] * Math.PI / 180;
+
+    const points: [number, number][] = [];
+    const numPoints = 64; // Number of points to create the circle
+
+    for (let i = 0; i < numPoints; i++) {
+        const angle = (i * 360 / numPoints) * Math.PI / 180;
+
+        // Calculate offset in radians
+        const dLat = radiusInMeters * Math.cos(angle) / earthRadius;
+        const dLng = radiusInMeters * Math.sin(angle) / (earthRadius * Math.cos(lat));
+
+        // Convert back to degrees
+        const newLat = (lat + dLat) * 180 / Math.PI;
+        const newLng = (lng + dLng) * 180 / Math.PI;
+
+        points.push([newLng, newLat]);
+    }
+
+    // Close the polygon by adding the first point at the end
+    points.push(points[0]);
+
+    return {
+        type: 'Polygon',
+        coordinates: [points]
+    };
+}
+
+// Helper function to compute derived geometry
+function computeDerivedGeometry(derivedGeometry: DerivedGeometry, allGeoSets: GeoSetData[]): GeoJSON.Geometry | null {
+    const { derivedFrom } = derivedGeometry;
+
+    if (derivedFrom.operation === 'buffer') {
+        const bufferOp = derivedFrom as BufferOperation;
+        const sourceGeoSet = allGeoSets.find(gs => gs.id === bufferOp.sourceGeoSetId);
+
+        if (!sourceGeoSet) {
+            console.warn(`Source GeoSet not found: ${bufferOp.sourceGeoSetId}`);
+            return null;
+        }
+
+        // Convert radius to meters
+        const radiusInMeters = bufferOp.units === 'kilometers' ? bufferOp.radius * 1000 : bufferOp.radius;
+
+        // For buffer operations, we'll create individual circles for each point
+        // and combine them into a MultiPolygon for simplicity
+        const polygons: number[][][][] = [];
+
+        sourceGeoSet.geometries.forEach(geometry => {
+            if (geometry.type === 'point' && 'geojson' in geometry && geometry.geojson.type === 'Point') {
+                const circle = createCircleBuffer(
+                    geometry.geojson.coordinates as [number, number],
+                    radiusInMeters
+                );
+                polygons.push(circle.coordinates);
+            }
+        });
+
+        if (polygons.length === 0) {
+            return null;
+        }
+
+        // Return as MultiPolygon if we have multiple circles, or Polygon if just one
+        if (polygons.length === 1) {
+            return {
+                type: 'Polygon',
+                coordinates: polygons[0]
+            };
+        } else {
+            return {
+                type: 'MultiPolygon',
+                coordinates: polygons
+            };
+        }
+    }
+
+    // TODO: Implement difference operation
+    if (derivedFrom.operation === 'difference') {
+        console.warn('Difference operation not yet implemented');
+        return null;
+    }
+
+    return null;
+}
 
 export default function ConsultationMap({
     className,
@@ -183,23 +272,38 @@ export default function ConsultationMap({
             geoSet.geometries.forEach(geometry => {
                 if (!enabledGeometries.has(geometry.id)) return;
 
-                features.push({
-                    id: geometry.id,
-                    geometry: geometry.geojson,
-                    properties: {
-                        geoSetId: geoSet.id,
-                        geoSetName: geoSet.name,
-                        name: geometry.name,
-                        description: geometry.description
-                    },
-                    style: {
-                        fillColor: color,
-                        fillOpacity: 0.4,
-                        strokeColor: color,
-                        strokeWidth: geometry.type === 'point' ? 8 : 2,
-                        label: geometry.name
-                    }
-                });
+                let geoJSON: GeoJSON.Geometry | null = null;
+
+                // Handle static geometries
+                if (geometry.type !== 'derived' && 'geojson' in geometry) {
+                    geoJSON = geometry.geojson;
+                }
+                // Handle derived geometries
+                else if (geometry.type === 'derived') {
+                    geoJSON = computeDerivedGeometry(geometry, geoSets);
+                }
+
+                // Only add to features if we have valid geometry
+                if (geoJSON) {
+                    features.push({
+                        id: geometry.id,
+                        geometry: geoJSON,
+                        properties: {
+                            geoSetId: geoSet.id,
+                            geoSetName: geoSet.name,
+                            name: geometry.name,
+                            description: geometry.description,
+                            isDerived: geometry.type === 'derived'
+                        },
+                        style: {
+                            fillColor: color,
+                            fillOpacity: geometry.type === 'derived' ? 0.3 : 0.4, // Slightly more transparent for derived geometries
+                            strokeColor: color,
+                            strokeWidth: geometry.type === 'point' ? 8 : 2,
+                            label: geometry.name
+                        }
+                    });
+                }
             });
         });
 

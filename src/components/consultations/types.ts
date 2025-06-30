@@ -19,14 +19,48 @@ export interface GeoJSONPolygon {
     coordinates: number[][][]; // Array of linear rings, first is exterior boundary
 }
 
-export interface Geometry {
-    type: 'point' | 'circle' | 'polygon';
+export interface GeoJSONMultiPolygon {
+    type: 'MultiPolygon';
+    coordinates: number[][][][]; // Array of polygons, each with array of linear rings
+}
+
+export interface BufferOperation {
+    operation: 'buffer';
+    sourceGeoSetId: string;
+    radius: number;
+    units?: 'meters' | 'kilometers'; // Default: 'meters'
+}
+
+export interface DifferenceOperation {
+    operation: 'difference';
+    baseGeoSetId: string;
+    subtractGeoSetIds: string[];
+}
+
+export type GeometryDerivation = BufferOperation | DifferenceOperation;
+
+// Base geometry interface
+interface BaseGeometry {
     name: string;
     id: string; // Should match pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
     description?: string; // Semantic description (purpose, function, characteristics)
     textualDefinition?: string; // Geographic definition in words (address, boundaries, landmarks)
-    geojson: GeoJSONPoint | GeoJSONPolygon;
 }
+
+// Static geometry with GeoJSON
+export interface StaticGeometry extends BaseGeometry {
+    type: 'point' | 'circle' | 'polygon';
+    geojson: GeoJSONPoint | GeoJSONPolygon | GeoJSONMultiPolygon;
+}
+
+// Derived geometry with operation definition
+export interface DerivedGeometry extends BaseGeometry {
+    type: 'derived';
+    derivedFrom: GeometryDerivation;
+}
+
+// Union type for all geometries
+export type Geometry = StaticGeometry | DerivedGeometry;
 
 export interface Article {
     num: number;

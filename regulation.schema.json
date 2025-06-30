@@ -182,13 +182,22 @@
     },
     "Geometry": {
       "type": "object",
-      "description": "Γεωγραφική τοποθεσία",
-      "required": ["type", "name", "id", "geojson"],
+      "description": "Γεωγραφική τοποθεσία. Μπορεί να οριστεί είτε στατικά μέσω 'geojson' είτε δυναμικά μέσω 'derivedFrom'.",
+      "required": [
+        "type",
+        "name",
+        "id"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["point", "circle", "polygon"],
-          "description": "Τύπος γεωμετρίας"
+          "enum": [
+            "point",
+            "circle",
+            "polygon",
+            "derived"
+          ],
+          "description": "Τύπος γεωμετρίας. Ο τύπος 'derived' υποδεικνύει ότι η γεωμετρία υπολογίζεται από άλλα GeoSets."
         },
         "name": {
           "type": "string",
@@ -200,7 +209,7 @@
           "description": "Σύντομο ID στα αγγλικά"
         },
         "description": {
-          "type": "string", 
+          "type": "string",
           "description": "Προαιρετική σημασιολογική περιγραφή της τοποθεσίας (π.χ. σκοπός, λειτουργία, χαρακτηριστικά)"
         },
         "textualDefinition": {
@@ -208,7 +217,7 @@
           "description": "Προαιρετικός γεωγραφικός προσδιορισμός της περιοχής με λόγια (π.χ. διεύθυνση, όρια, ορόσημα)"
         },
         "geojson": {
-          "description": "GeoJSON αντίστοιχου σχήματος",
+          "description": "GeoJSON αντίστοιχου σχήματος. Απαιτείται αν ο τύπος δεν είναι 'derived'.",
           "oneOf": [
             {
               "$ref": "#/definitions/GeoJSONPoint"
@@ -217,8 +226,39 @@
               "$ref": "#/definitions/GeoJSONPolygon"
             }
           ]
+        },
+        "derivedFrom": {
+          "description": "Ορισμός παραγόμενης γεωμετρίας. Απαιτείται αν ο τύπος είναι 'derived'.",
+          "$ref": "#/definitions/GeometryDerivation"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "derived"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "derivedFrom"
+            ],
+            "properties": {
+              "geojson": false
+            }
+          },
+          "else": {
+            "required": [
+              "geojson"
+            ],
+            "properties": {
+              "derivedFrom": false
+            }
+          }
+        }
+      ]
     },
     "GeoJSONPoint": {
       "type": "object",
@@ -262,6 +302,78 @@
             }
           },
           "description": "Array από linear rings, όπου το πρώτο είναι το εξωτερικό boundary"
+        }
+      }
+    },
+    "GeometryDerivation": {
+      "description": "Ορισμός γεωμετρίας που προκύπτει από άλλα GeoSet μέσω γεωμετρικών πράξεων.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/BufferOperation"
+        },
+        {
+          "$ref": "#/definitions/DifferenceOperation"
+        }
+      ]
+    },
+    "BufferOperation": {
+      "type": "object",
+      "description": "Δημιουργεί μια ζώνη (buffer) γύρω από τις γεωμετρίες ενός GeoSet.",
+      "required": [
+        "operation",
+        "sourceGeoSetId",
+        "radius"
+      ],
+      "properties": {
+        "operation": {
+          "const": "buffer",
+          "description": "Η πράξη που θα εκτελεστεί."
+        },
+        "sourceGeoSetId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Το ID του GeoSet-πηγής."
+        },
+        "radius": {
+          "type": "number",
+          "description": "Η ακτίνα της ζώνης."
+        },
+        "units": {
+          "type": "string",
+          "enum": [
+            "meters",
+            "kilometers"
+          ],
+          "default": "meters",
+          "description": "Οι μονάδες της ακτίνας."
+        }
+      }
+    },
+    "DifferenceOperation": {
+      "type": "object",
+      "description": "Δημιουργεί μια γεωμετρία αφαιρώντας ένα ή περισσότερα GeoSet από ένα βασικό GeoSet.",
+      "required": [
+        "operation",
+        "baseGeoSetId",
+        "subtractGeoSetIds"
+      ],
+      "properties": {
+        "operation": {
+          "const": "difference",
+          "description": "Η πράξη που θα εκτελεστεί."
+        },
+        "baseGeoSetId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Το ID του βασικού GeoSet από το οποίο θα γίνει η αφαίρεση. Πρέπει να είναι ένα GeoSet με μία μόνο γεωμετρία τύπου polygon (π.χ. τα όρια του Δήμου)."
+        },
+        "subtractGeoSetIds": {
+          "type": "array",
+          "description": "Λίστα με τα IDs των GeoSet που θα αφαιρεθούν.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          }
         }
       }
     }

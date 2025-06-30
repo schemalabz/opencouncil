@@ -94,6 +94,8 @@ export default function DetailPanel({
                 return 'Κύκλος';
             case 'polygon':
                 return 'Πολύγωνο';
+            case 'derived':
+                return 'Παραγόμενη Περιοχή';
             default:
                 return 'Άγνωστο';
         }
@@ -239,15 +241,36 @@ export default function DetailPanel({
                                 <h4 className="font-semibold text-sm mb-2">Πληροφορίες Γεωμετρίας</h4>
                                 <div className="text-xs text-muted-foreground space-y-1">
                                     <div>Τύπος: {getGeometryTypeLabel(currentGeometry.type)}</div>
-                                    {currentGeometry.geojson.type === 'Point' && (
-                                        <div>
-                                            Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
-                                        </div>
-                                    )}
-                                    {currentGeometry.geojson.type === 'Polygon' && (
-                                        <div>
-                                            Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
-                                        </div>
+
+                                    {currentGeometry.type === 'derived' ? (
+                                        <>
+                                            <div>Μέθοδος: {currentGeometry.derivedFrom.operation === 'buffer' ? 'Ζώνη Buffer' : 'Αφαίρεση'}</div>
+                                            {currentGeometry.derivedFrom.operation === 'buffer' && (
+                                                <>
+                                                    <div>Πηγή: {currentGeometry.derivedFrom.sourceGeoSetId}</div>
+                                                    <div>Ακτίνα: {currentGeometry.derivedFrom.radius} {currentGeometry.derivedFrom.units || 'meters'}</div>
+                                                </>
+                                            )}
+                                            {currentGeometry.derivedFrom.operation === 'difference' && (
+                                                <>
+                                                    <div>Βάση: {currentGeometry.derivedFrom.baseGeoSetId}</div>
+                                                    <div>Αφαίρεση: {currentGeometry.derivedFrom.subtractGeoSetIds.join(', ')}</div>
+                                                </>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {'geojson' in currentGeometry && currentGeometry.geojson.type === 'Point' && (
+                                                <div>
+                                                    Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
+                                                </div>
+                                            )}
+                                            {'geojson' in currentGeometry && currentGeometry.geojson.type === 'Polygon' && (
+                                                <div>
+                                                    Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
