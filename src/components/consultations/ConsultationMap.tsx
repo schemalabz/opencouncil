@@ -186,7 +186,7 @@ export default function ConsultationMap({
 
         setEnabledGeoSets(allGeoSetIds);
         setEnabledGeometries(allGeometryIds);
-        setExpandedGeoSets(allGeoSetIds); // Start with all expanded
+        setExpandedGeoSets(new Set()); // Start with all collapsed
     }, [geoSets]);
 
     // Handle URL hash changes to open detail panels
