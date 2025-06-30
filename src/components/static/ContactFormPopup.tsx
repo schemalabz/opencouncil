@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2Icon, AlertTriangleIcon } from "lucide-react"
 import { sendContactEmail } from '@/lib/email/contact'
+import { useTranslations } from 'next-intl'
 
 interface ContactFormPopupProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ interface ContactFormPopupProps {
 }
 
 export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: ContactFormPopupProps) {
+    const t = useTranslations('ContactForm');
     const [showConfirmation, setShowConfirmation] = useState(false)
     const [showError, setShowError] = useState(false)
     const [contactName, setContactName] = useState('')
@@ -49,23 +51,23 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                     {!showConfirmation && !showError ? (
                         <>
                             <DialogHeader>
-                                <DialogTitle>Επικοινωνήστε μαζί μας</DialogTitle>
+                                <DialogTitle>{t('title')}</DialogTitle>
                             </DialogHeader>
                             {calculatedPrice !== undefined && calculatedPrice !== null && (
                                 <div className="bg-primary/10 p-4 rounded-md my-4 flex flex-col items-center justify-center">
-                                    <p className="text-center text-primary text-sm mb-1">Εκτιμώμενο <span className="underline">ετήσιο</span> κόστος</p>
+                                    <p className="text-center text-primary text-sm mb-1">{t('estimatedAnnualCost')}</p>
                                     <p className="text-center text-primary font-semibold text-2xl">
-                                        <strong>{calculatedPrice?.toLocaleString('el-GR')}€ + ΦΠΑ</strong>
+                                        <strong>{calculatedPrice?.toLocaleString('el-GR')}€ + {t('vat')}</strong>
                                     </p>
                                 </div>
                             )}
                             <p className="text-center text-muted-foreground text-sm mb-4">
-                                Συμπληρώστε τα παρακάτω στοιχεία και θα επικοινωνήσουμε μαζί σας σύντομα.
+                                {t('formDescription')}
                             </p>
                             <form onSubmit={handleContactRequest}>
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="name">Όνομα</Label>
+                                        <Label htmlFor="name">{t('nameLabel')}</Label>
                                         <Input
                                             id="name"
                                             value={contactName}
@@ -74,7 +76,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="position">Θέση</Label>
+                                        <Label htmlFor="position">{t('positionLabel')}</Label>
                                         <Input
                                             id="position"
                                             value={contactPosition}
@@ -83,7 +85,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="municipality">Δήμος</Label>
+                                        <Label htmlFor="municipality">{t('municipalityLabel')}</Label>
                                         <Input
                                             id="municipality"
                                             value={contactMunicipality}
@@ -92,7 +94,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                                         />
                                     </div>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="email">Email</Label>
+                                        <Label htmlFor="email">{t('emailLabel')}</Label>
                                         <Input
                                             id="email"
                                             type="email"
@@ -103,7 +105,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                                     </div>
                                 </div>
                                 <DialogFooter className="sm:justify-center">
-                                    <Button type="submit">Επικοινωνήστε μαζί μου</Button>
+                                    <Button type="submit">{t('submitButton')}</Button>
                                 </DialogFooter>
                             </form>
                         </>
@@ -111,20 +113,20 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice }: C
                         <div className="bg-green-100 p-6 rounded-md text-center">
                             <CheckCircle2Icon className="mx-auto h-12 w-12 text-green-500 mb-4" />
                             <p className="text-green-800 font-semibold text-lg mb-2">
-                                Θα επικοινωνήσουμε μαζί σας στο {contactEmail}
+                                {t('confirmationMessage', { email: contactEmail })}
                             </p>
                             <Button onClick={onClose} className="mt-4">
-                                Κλείσιμο
+                                {t('closeButton')}
                             </Button>
                         </div>
                     ) : (
                         <div className="bg-yellow-100 p-6 rounded-md text-center">
                             <AlertTriangleIcon className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
                             <p className="text-yellow-800 font-semibold text-lg mb-2">
-                                Ωχ! Κάτι δεν πήγε καλά. Μπορείτε να δοκιμάσετε ξανά ή να επικοινωνήσετε μαζί μας στο sales@touvlo.co.
+                                {t('errorMessage')}
                             </p>
                             <Button onClick={onClose} className="mt-4">
-                                Κλείσιμο
+                                {t('closeButton')}
                             </Button>
                         </div>
                     )}

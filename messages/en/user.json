@@ -1,0 +1,12 @@
+{
+  "user": {
+    "signIn": {
+      "title": "Sign in to OpenCouncil",
+      "description": "You don't need to sign in to OpenCouncil unless you are an administrator of a city, party, or person.",
+      "emailPlaceholder": "Enter your email",
+      "submit": "Continue with Email",
+      "loading": "Please wait...",
+      "error": "There was a problem sending the email. Please try again later."
+    }
+  }
+}

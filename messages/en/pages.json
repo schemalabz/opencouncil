@@ -1,0 +1,30 @@
+{
+  "pages": {
+    "MeetingPage": {
+      "notHeldYet": "This meeting has not happened yet.",
+      "canReadAgenda": "You can read the agenda",
+      "here": "here",
+      "agenda": "Agenda",
+      "subjects": "{count, plural, one {# subject} other {# subjects}}",
+      "noSubjects": "No subjects"
+    },
+    "CouncilMeetingPage": {
+      "notFound": "Not Found",
+      "meta": {
+        "description": "OpenCouncil uses artificial intelligence to monitor city councils and make them simple and understandable",
+        "alt": "{meetingName} - {cityName} City Council"
+      },
+      "subjects": "{count, plural, one {# subject} other {# subjects}}"
+    },
+    "SubjectsPage": {
+      "title": "Subjects",
+      "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
+      "mostDiscussed": "Most discussed first",
+      "orderByAppearance": "Order of appearance"
+    }
+  },
+  "NotFoundPage": {
+    "title": "Not Found",
+    "description": "The page you requested was not found."
+  }
+}

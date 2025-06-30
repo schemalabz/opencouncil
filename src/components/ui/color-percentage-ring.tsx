@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslations } from 'next-intl';
 
 interface ColorPercentage {
     color: string;
@@ -20,6 +21,7 @@ export const ColorPercentageRing: React.FC<ColorPercentageRingProps> = ({
     children,
     emptyColor = '#e5e7eb' // Default gray color for empty space
 }) => {
+    const t = useTranslations('ColorPercentageRing');
     const radius = size / 2;
     let startAngle = 0;
 
@@ -90,7 +92,7 @@ export const ColorPercentageRing: React.FC<ColorPercentageRingProps> = ({
                             {/* Optional: Add title for accessibility */}
                             <title>
                                 {item.color === emptyColor
-                                    ? `Remaining: ${item.percentage.toFixed(1)}%`
+                                    ? `${t('remaining')} ${item.percentage.toFixed(1)}%`
                                     : `${item.percentage.toFixed(1)}%`
                                 }
                             </title>

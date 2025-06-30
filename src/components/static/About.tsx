@@ -40,6 +40,7 @@ const people = [
     }
 ]
 function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
+    const t = useTranslations('AboutPage.hero');
     const heroRef = useRef(null)
     const isHeroInView = useInView(heroRef, { once: true })
     const glowControls = useAnimation()
@@ -67,9 +68,10 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
         >
-            <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-light tracking-tight text-center px-4">
-                    Κάνουμε τους δημότες
+            <div className="flex flex-col items-center justify-center space-y-6">
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-light tracking-tight text-center">
+                    {t.rich('title', {
+                        div: (chunks) => (
                     <motion.div
                         className="font-medium mt-1 sm:mt-2 md:mt-4 relative"
                         initial={{ opacity: 0, y: 10 }}
@@ -84,10 +86,11 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                                 transition: { duration: 0.3 },
                             }}
                         >
-                            να νοιάζονται
+                                    {chunks}
                         </motion.span>
                     </motion.div>
-                    για το δήμο τους
+                        )
+                    })}
                 </h1>
                 <motion.p
                     className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed px-4"
@@ -95,7 +98,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     animate={isHeroInView ? { y: 0, opacity: 1 } : {}}
                     transition={{ delay: 0.7, duration: 0.8 }}
                 >
-                    Η πρώτη ΑΙ πλατφόρμα συμμετοχικότητας για την αυτοδιοίκηση
+                    {t('subtitle')}
                 </motion.p>
                 <motion.div
                     className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 w-full max-w-md sm:max-w-none px-4"
@@ -110,8 +113,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                     >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                             <CalendarClock className="h-4 w-4" />
-                            <span className="hidden xs:inline">Επικοινωνήστε μαζί μας</span>
-                            <span className="xs:hidden">Επικοινωνία</span>
+                            {t('contactUs')}
                         </span>
                         <motion.div
                             className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -182,14 +184,14 @@ export default function AboutPage() {
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-8 sm:mb-12 text-muted-foreground px-4">
-                        Χτίζουμε το μέλλον των δημοτικών συμβουλίων
+                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                        {t('whyOpenCouncil.title')}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
-                            { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
-                            { icon: DatabaseIcon, title: 'Ένα νέο δημόσιο αγαθό', description: 'Δημιουργήστε μια πλούσια, αναζητήσιμη βάση δεδομένων των δημοκρατικών διαδικασιών του συμβουλίου, που ανήκει σε όλους.' },
-                            { icon: Building, title: 'Αποτελεσματική διακυβέρνηση', description: 'Εξοπλίστε το δήμο σας με ισχυρά εργαλεία για την αποτελεσματικότερη χάραξη πολιτικών. Οι προηγμένες λειτουργίες αναζήτησης και οργάνωσης επιτρέπουν γρήγορη πρόσβαση σε προηγούμενες συζητήσεις και αποφάσεις.' },
+                            { icon: Eye, title: t('whyOpenCouncil.features.0.title'), description: t('whyOpenCouncil.features.0.description') },
+                            { icon: DatabaseIcon, title: t('whyOpenCouncil.features.1.title'), description: t('whyOpenCouncil.features.1.description') },
+                            { icon: Building, title: t('whyOpenCouncil.features.2.title'), description: t('whyOpenCouncil.features.2.description') },
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -228,9 +230,8 @@ export default function AboutPage() {
                     >
                         <Link href="/athens">
                             <span className="relative z-10 flex items-center gap-2">
-                                <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                                <span className="hidden sm:inline">Δείτε το OpenCouncil για το Δήμο Αθηναίων</span>
-                                <span className="sm:hidden">Δήμος Αθηναίων</span>
+                                <Building2 className="h-5 w-5" />
+                                {t('demo')}
                             </span>
                             <motion.div
                                 className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
@@ -250,23 +251,17 @@ export default function AboutPage() {
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-8 sm:mb-12 text-muted-foreground px-4">
-                        Τι κάνει το OpenCouncil
+                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                        {t('featureShowcase.title')}
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
-                            { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.' },
-                            { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
-                            { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.' },
-                            { icon: Sparkles, title: 'Highlights', description: 'Αυτόματη δημιουργία ολιγόλεπτων βίντεο με τα πιό σημαντικά μέρη κάθε συνεδρίασης.' },
-                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Απρίλιος 2025' },
-                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.' },
-                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.' },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Μάιος 2025' },
-                            { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
-                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Αυτόματη αναγνώριση θεμάτων από την απομαγνητοφώνηση, και σύνδεση τους με την ημερήσια διάταξη της συνεδρίασης' },
-                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Απρίλιος 2025' },
-                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Μάιος 2025' }
+                            { icon: <Mic2 className="h-6 w-6" />, title: t('featureShowcase.features.0.title'), description: t('featureShowcase.features.0.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.0.badge')}</Badge> },
+                            { icon: <FileText className="h-6 w-6" />, title: t('featureShowcase.features.1.title'), description: t('featureShowcase.features.1.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.1.badge')}</Badge> },
+                            { icon: <BotMessageSquare className="h-6 w-6" />, title: t('featureShowcase.features.2.title'), description: t('featureShowcase.features.2.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.2.badge')}</Badge> },
+                            { icon: <SearchCheck className="h-6 w-6" />, title: t('featureShowcase.features.3.title'), description: t('featureShowcase.features.3.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.3.badge')}</Badge> },
+                            { icon: <Sparkles className="h-6 w-6" />, title: t('featureShowcase.features.4.title'), description: t('featureShowcase.features.4.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.4.badge')}</Badge> },
+                            { icon: <Globe className="h-6 w-6" />, title: t('featureShowcase.features.5.title'), description: t('featureShowcase.features.5.description'), badge: <Badge variant="secondary">{t('featureShowcase.features.5.badge')}</Badge> },
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -275,96 +270,184 @@ export default function AboutPage() {
                                 transition={{ delay: index * 0.1, duration: 0.5 }}
                                 viewport={{ once: true }}
                             >
-
-
                                 <FeatureCard
-                                    icon={<feature.icon className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />}
+                                    icon={feature.icon}
                                     title={feature.title}
                                     description={feature.description}
-                                    badge={feature.releaseDate ? (
-                                        <AnimatedGradientText>
-                                            <CalendarClock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" /> 
-                                            <span className="text-xs sm:text-sm">{feature.releaseDate}</span>
-                                        </AnimatedGradientText>
-                                    ) : null}
+                                    badge={feature.badge}
                                 />
                             </motion.div>
                         ))}
                     </div>
                 </motion.section>
 
-                {/* Pricing Section */}
+                {/* How It Works Section */}
                 <motion.section
-                    className="py-12 sm:py-16 md:py-24"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    className="py-16 sm:py-24"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     transition={{ duration: 0.8 }}
                     viewport={{ once: true }}
                 >
-                    <Pricing />
-                </motion.section>
-
-                <motion.section
-                    className="py-12 sm:py-16 md:py-24 relative"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
-                >
-                    <ProductRoadmap />
-                </motion.section>
-                <motion.section
-                    className="py-12 sm:py-16 md:py-24"
-                    initial={{ opacity: 0, y: 50 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
-                >
-                    <h2 className="text-xl sm:text-2xl md:text-3xl font-light text-center mb-6 sm:mb-8 text-muted-foreground px-4">
-                        Ποιοί είμαστε
+                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-16 text-muted-foreground">
+                        {t('howItWorks.title')}
                     </h2>
-                    <p className="text-center text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 text-muted-foreground px-4">
-                        Είμαστε ομάδα τριών ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
-                        στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ&apos; ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
-                    </p>
+                    <div className="relative">
+                        {/* Desktop Timeline */}
+                        <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-border -translate-x-1/2" />
+                        <div className="hidden md:grid grid-cols-[1fr_auto_1fr] gap-x-8">
+                            {[
+                                {
+                                    icon: <Vote className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.0.title'),
+                                    description: t('howItWorks.steps.0.description')
+                                },
+                                {
+                                    icon: <Scroll className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.1.title'),
+                                    description: t('howItWorks.steps.1.description')
+                                },
+                                {
+                                    icon: <Sparkles className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.2.title'),
+                                    description: t('howItWorks.steps.2.description')
+                                },
+                                {
+                                    icon: <Database className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.3.title'),
+                                    description: t('howItWorks.steps.3.description')
+                                }
+                            ].map((step, index) => (
+                                <React.Fragment key={step.title}>
+                                    {index % 2 === 0 ? (
+                                        <div className="col-start-1 text-right">
+                                            <h3 className="text-lg sm:text-xl font-normal mb-2">{step.title}</h3>
+                                            <p className="text-muted-foreground">{step.description}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="col-start-3 text-left">
+                                            <h3 className="text-lg sm:text-xl font-normal mb-2">{step.title}</h3>
+                                            <p className="text-muted-foreground">{step.description}</p>
+                                        </div>
+                                    )}
+                                    <div className="col-start-2 row-start-1 row-end-5 flex justify-center items-center">
+                                        <div className="w-4 h-4 bg-primary rounded-full" />
+                                    </div>
+                                </React.Fragment>
+                            ))}
+                        </div>
 
-                    <div className="flex flex-col sm:flex-row justify-center gap-8 sm:gap-12 px-4">
-                        {people.map((person, index) => (
-                            <div key={index} className="flex flex-col items-center">
-                                <div className="w-20 h-20 sm:w-24 sm:h-24 mb-3 sm:mb-4 overflow-hidden rounded-full">
-                                    <Image
-                                        src={person.image}
-                                        alt={person.name}
-                                        width={96}
-                                        height={96}
-                                        className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"
-                                    />
+                        {/* Mobile Timeline */}
+                        <div className="md:hidden space-y-12">
+                            {[
+                                {
+                                    icon: <Vote className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.0.title'),
+                                    description: t('howItWorks.steps.0.description')
+                                },
+                                {
+                                    icon: <Scroll className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.1.title'),
+                                    description: t('howItWorks.steps.1.description')
+                                },
+                                {
+                                    icon: <Sparkles className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.2.title'),
+                                    description: t('howItWorks.steps.2.description')
+                                },
+                                {
+                                    icon: <Database className="h-8 w-8 text-primary" />,
+                                    title: t('howItWorks.steps.3.title'),
+                                    description: t('howItWorks.steps.3.description')
+                                }
+                            ].map((step, index) => (
+                                <div key={step.title} className="flex gap-4">
+                                    <div className="flex-shrink-0">
+                                        {step.icon}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg sm:text-xl font-normal mb-2">{step.title}</h3>
+                                        <p className="text-muted-foreground">{step.description}</p>
+                                    </div>
                                 </div>
-                                <h3 className="text-base sm:text-lg md:text-xl font-medium text-center mb-2">{person.name}</h3>
-                                <div className="flex gap-3 sm:gap-4">
-                                    {person.socials.twitter && (
-                                        <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        </a>
-                                    )}
-                                    {person.socials.linkedin && (
-                                        <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Linkedin className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        </a>
-                                    )}
-                                    {person.socials.email && (
-                                        <a href={person.socials.email} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-primary transition-colors">
-                                            <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
-                                        </a>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </motion.section>
 
+                {/* Team Section */}
+                <motion.section
+                    className="py-16 sm:py-24"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true }}
+                >
+                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                        {t('team.title')}
+                    </h2>
+                    <div className="flex flex-col sm:flex-row justify-center gap-8 md:gap-12">
+                        {people.map((person, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, y: 50 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1, duration: 0.5 }}
+                                viewport={{ once: true }}
+                            >
+                                <Card className="h-full flex flex-col">
+                                    <CardHeader>
+                                        <Image src={person.image} alt={person.name} width={128} height={128} className="rounded-full mx-auto" />
+                                        <CardTitle className="mt-4 text-lg sm:text-xl font-normal text-center">{person.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex justify-center gap-4">
+                                        <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                                            <Linkedin className="w-5 h-5" />
+                                        </a>
+                                        <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">
+                                            <Twitter className="w-5 h-5" />
+                                        </a>
+                                        <a href={person.socials.email} className="text-muted-foreground hover:text-primary transition-colors">
+                                            <Mail className="w-5 h-5" />
+                                        </a>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
+                    <p className="text-center mt-12 text-muted-foreground max-w-2xl mx-auto"
+                        dangerouslySetInnerHTML={{ __html: t.raw('team.descriptionHtml') }}
+                    />
+                </motion.section>
 
-            </div >
+                <Pricing />
+
+                {/* FAQ Section */}
+                <motion.section
+                    className="py-16 sm:py-24"
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true }}
+                >
+                    <h2 className="text-2xl sm:text-3xl font-light text-center mb-12 text-muted-foreground">
+                        {t('faq.title')}
+                    </h2>
+                    <div className="max-w-3xl mx-auto">
+                        <div className="space-y-4">
+                            {[
+                                { q: t('faq.questions.0.q'), a: t('faq.questions.0.a') },
+                                { q: t('faq.questions.1.q'), a: t('faq.questions.1.a') },
+                                { q: t('faq.questions.2.q'), a: t('faq.questions.2.a') },
+                                { q: t('faq.questions.3.q'), a: t('faq.questions.3.a') },
+                                { q: t('faq.questions.4.q'), a: t('faq.questions.4.a') },
+                            ].map((faq, index) => (
+                                <FAQItem key={index} q={faq.q} a={faq.a} />
+                            ))}
+                        </div>
+                    </div>
+                </motion.section>
+            </div>
             <motion.section
                 className="py-12 sm:py-16 md:py-24 bg-primary text-primary-foreground w-screen relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw] overflow-hidden"
                 initial={{ opacity: 0, y: 50 }}
@@ -413,20 +496,32 @@ export default function AboutPage() {
             </motion.section>
 
             {/* Contact Form Popup */}
-            <ContactFormPopup
-                isOpen={isContactFormOpen}
-                onClose={() => setIsContactFormOpen(false)}
-            />
+            <ContactFormPopup isOpen={isContactFormOpen} onClose={() => setIsContactFormOpen(false)} />
         </div>
     );
 }
-function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
+
+function FAQItem({ q, a }: { q: string, a: string }) {
+    return (
+        <details className="group border-b pb-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between py-2 text-lg font-medium text-secondary-foreground">
+                {q}
+                <ChevronDown className="h-5 w-5 transition-transform duration-300 group-open:rotate-180" />
+            </summary>
+            <p className="mt-2 text-muted-foreground">
+                {a}
+            </p>
+        </details>
+    )
+}
+
+function FeatureCard({ icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
     const cardContent = (
         <Card className={`h-full flex flex-col ${badge ? 'border-none' : ''}`}>
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center text-sm sm:text-base md:text-lg">
                     <div className="flex-shrink-0">
-                        {React.cloneElement(Icon, { className: "h-5 w-5 sm:h-6 sm:w-6 mr-2" })}
+                        {React.cloneElement(icon, { className: "h-6 w-6 mr-2" })}
                     </div>
                     <span>{title}</span>
                 </CardTitle>

@@ -1,4 +1,56 @@
 {
+  "Admin": {
+    "offers": "Offers",
+    "users": "Users",
+    "people": "People",
+    "cache": "Cache",
+    "tasks": "Tasks"
+  },
+  "TasksAdmin": {
+    "title": "Tasks",
+    "city": "City",
+    "allCities": "All Cities",
+    "status": "Status",
+    "allStatuses": "All Statuses",
+    "submitting": "Submitting...",
+    "running": "Running...",
+    "reRun": "Re-run",
+    "reRunAll": "Re-run All Failed",
+    "reRunSuccess": "Successfully re-ran task",
+    "reRunError": "Error re-running task",
+    "reRunAllSuccess": "Successfully re-ran all failed tasks",
+    "reRunAllError": "Error re-running all failed tasks",
+    "cancel": "Cancel",
+    "cancellationSuccess": "Successfully cancelled task",
+    "cancellationError": "Error cancelling task",
+    "delete": "Delete",
+    "deletionSuccess": "Successfully deleted task",
+    "deletionError": "Error deleting task",
+    "deleteConfirmation": "Are you sure you want to delete this task?",
+    "runningTasks": "Running tasks: {count}",
+    "failedTasks": "Failed tasks: {count}",
+    "completedTasks": "Completed tasks: {count}",
+    "dialog": {
+      "title": "Task Details",
+      "task": "Task",
+      "logs": "Logs",
+      "noLogs": "No logs available"
+    }
+  },
+  "UserAdmin": {
+    "title": "Users",
+    "searchPlaceholder": "Search by email...",
+    "allUsers": "All Users",
+    "addUser": "Add User",
+    "editUser": "Edit User",
+    "deleteUser": "Delete User",
+    "deleteUserConfirmation": "Are you sure you want to delete this user?",
+    "userDeleted": "User deleted successfully",
+    "failedToDeleteUser": "Failed to delete user",
+    "resendInvite": "Resend Invite",
+    "resendInviteSuccess": "Successfully resent invite",
+    "resendInviteError": "Error resending invite"
+  },
   "OfferForm": {
     "respondToName": "Responsible Person Name",
     "respondToNameDescription": "The name of the person responsible for the offer",
@@ -36,5 +88,14 @@
     "startDateDescription": "The contract start date",
     "endDate": "End Date",
     "endDateDescription": "The contract end date"
+  },
+  "Offer": {
+    "title": "Offers",
+    "addNew": "Add New",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirmation": "Are you sure you want to delete this offer?",
+    "offerDeleted": "Offer deleted successfully",
+    "failedToDeleteOffer": "Failed to delete offer"
   }
 }

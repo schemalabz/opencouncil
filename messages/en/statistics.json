@@ -1,0 +1,15 @@
+{
+  "Statistics": {
+    "topicsList": "Topics List",
+    "topSpeakers": "Speakers with longest speaking times (minutes)",
+    "minutes": "Minutes",
+    "speakingTime": "Speaking Time",
+    "occurrences": "Occurrences",
+    "topic": "Topic",
+    "speaker": "Speaker",
+    "noDataAvailable": "No data available",
+    "loading": "Loading...",
+    "totalSpeakingTime": "Total Speaking Time",
+    "totalMinutes": "Total speaking minutes"
+  }
+}

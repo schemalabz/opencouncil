@@ -1,6 +1,14 @@
 import React from 'react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from '@/components/ui/drawer';
 
 interface ProgressFooterProps {
   currentStep: number; // 0-based
@@ -10,6 +18,8 @@ interface ProgressFooterProps {
   actionLabel: string;
   isActionDisabled?: boolean;
   hideBack?: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export function ProgressFooter({
@@ -20,7 +30,11 @@ export function ProgressFooter({
   actionLabel,
   isActionDisabled,
   hideBack,
+  isOpen,
+  onClose,
 }: ProgressFooterProps) {
+  const t = useTranslations('components.ui.ProgressFooter');
+
   return (
     <div className="flex items-center justify-between w-full pt-6">
       {/* Back Button */}
@@ -31,7 +45,7 @@ export function ProgressFooter({
             onClick={onBack}
             className="text-muted-foreground hover:text-primary"
           >
-            Πίσω
+            {t('back')}
           </Button>
         )}
       </div>

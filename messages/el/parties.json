@@ -1,0 +1,23 @@
+{
+  "Party": {
+    "currentMembers": "Μέλη",
+    "pastMembers": "Πρώην Μέλη",
+    "membersCount": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
+    "partyLeader": "Επικεφαλής",
+    "editParty": "Επεξεργασία Παράταξης",
+    "deleteParty": "Διαγραφή Παράταξης",
+    "partyDeleted": "Η παράταξη {name} διαγράφηκε",
+    "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
+    "statistics": "Στατιστικά Παράταξης",
+    "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
+    "searchItems": "Αναζητήστε παρατάξεις",
+    "item": "παράταξη",
+    "addItem": "Προσθήκη Παράταξης",
+    "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil.",
+    "loadingStatistics": "Φόρτωση στατιστικών...",
+    "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
+    "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
+    "loading": "Φόρτωση...",
+    "loadMore": "Περισσότερα"
+  }
+}

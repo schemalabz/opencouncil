@@ -43,6 +43,7 @@ export function SubjectListContainer({
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState<Error | null>(null);
   const t = useTranslations(translationKey);
+  const tError = useTranslations('Error');
 
   // Fetch city and meeting data
   useEffect(() => {
@@ -144,9 +145,9 @@ export function SubjectListContainer({
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <div className="text-center space-y-2">
-          <div className="text-destructive text-lg font-medium">Σφάλμα φόρτωσης</div>
+          <div className="text-destructive text-lg font-medium">{tError('loadingError')}</div>
           <span className="text-muted-foreground">
-            {dataError?.message || statsError?.message || 'An error occurred'}
+            {dataError?.message || statsError?.message || tError('anErrorOccurred')}
           </span>
         </div>
       </div>
