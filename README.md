@@ -9,6 +9,9 @@ Welcome to OpenCouncil - an open-source platform making local government more tr
   <a href="https://discord.gg/VdwtVG43WB" target="_blank">
     <img src="https://img.shields.io/badge/Discord-7289DA?style=for-the-badge&logo=discord&logoColor=white" alt="Discord">
   </a>
+  <a href="https://github.com/orgs/schemalabz/projects/1" target="_blank">
+    <img src="https://img.shields.io/badge/Project%20Board-000000?style=for-the-badge&logo=github&logoColor=white" alt="Project Board">
+  </a>
   <a href="https://twitter.com/opencouncil_gr" target="_blank">
     <img src="https://img.shields.io/badge/X-000000?style=for-the-badge&logo=x&logoColor=white" alt="X (formerly Twitter)">
   </a>
@@ -16,13 +19,17 @@ Welcome to OpenCouncil - an open-source platform making local government more tr
 
 ## About the Project
 
-OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit organization building technology to strengthen democracy. The platform offers:
+OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit organization building technology to strengthen democracy.
 
 - 🎙️ **Automatic Transcription**: Word-for-word transcription of council meetings with speaker recognition
+- 🎯 **Voice Recognition**: Speaker identification using voiceprints
 - 📝 **Smart Summaries**: AI-generated summaries of council member statements
 - 🔍 **Advanced Search**: Full-text search across all council meetings
+- 📊 **Subject Analysis**: Automatic categorization of discussion subjects
+- 📢 **Notification System**: Personalized updates for citizens
 - 🎥 **Meeting Highlights**: Automatic generation of short videos highlighting key moments
 - 🌐 **Open Data**: All data available through a public API
+- 🔐 **Role-Based Access**: Granular permissions for different user types
 - 🤖 **AI Chat Assistant**: Ask questions about council meetings
 - 🌍 **Multilingual Support**: (Coming Soon) Support for multicultural cities
 
@@ -33,9 +40,21 @@ This is a [Next.js](https://nextjs.org/) web application:
 - **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL with pgvector for embeddings
 - **Data Models**: Prisma ORM for type-safe database access
-- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features. 
+- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features.
 
-## Development Setup
+### Prerequisites
+
+- Node.js 18+ and npm
+- PostgreSQL 14+ with pgvector and postgis extensions
+- Docker (optional, but recommended)
+
+## Contributing
+
+We welcome contributions from the community! Please read our [contributing guidelines](./CONTRIBUTING.md) to get started. Our contributor workflow is designed around a human-AI co-creation partnership, and the guidelines will walk you through the process.
+
+To get started, you'll need to set up the project on your local machine.
+
+### Development Setup
 
 Copy the example environment file:
    ```bash
@@ -43,7 +62,7 @@ Copy the example environment file:
    ```
 Then edit the file to include your specific configuration values.
 
-### Docker Setup (Recommended)
+#### Docker Setup (Recommended)
 
 The easiest way to get started is using our Docker setup:
 
@@ -60,7 +79,7 @@ This will automatically:
 
 For more advanced Docker configuration options, see [Docker Usage Guide](./docs/docker-usage.md).
 
-### Manual Setup
+#### Manual Setup
 
 If you prefer to run without Docker:
 
