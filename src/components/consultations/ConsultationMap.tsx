@@ -164,6 +164,55 @@ export default function ConsultationMap({
     const [detailType, setDetailType] = useState<'geoset' | 'geometry' | null>(null);
     const [detailId, setDetailId] = useState<string | null>(null);
 
+    // Editing state
+    const [isEditingMode, setIsEditingMode] = useState(false);
+    const [drawingMode, setDrawingMode] = useState<'point' | 'polygon'>('point');
+    const [selectedGeometryForEdit, setSelectedGeometryForEdit] = useState<string | null>(null);
+
+    // Local storage state for saved geometries
+    const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
+
+    // Load saved geometries from localStorage on mount and when editing mode changes
+    useEffect(() => {
+        const loadSavedGeometries = () => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
+
+                // Only update state if the data actually changed (deep comparison)
+                setSavedGeometries(prev => {
+                    const hasChanged = JSON.stringify(prev) !== JSON.stringify(saved);
+                    return hasChanged ? saved : prev;
+                });
+            } catch (error) {
+                console.error('Error loading saved geometries:', error);
+                setSavedGeometries({});
+            }
+        };
+
+        loadSavedGeometries();
+
+        // Listen for localStorage changes (from other tabs)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'opencouncil-edited-geometries') {
+                loadSavedGeometries();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        // Custom event for same-tab localStorage changes (we'll dispatch this from the map component)
+        const handleCustomStorageChange = () => {
+            loadSavedGeometries();
+        };
+
+        window.addEventListener('opencouncil-storage-change', handleCustomStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('opencouncil-storage-change', handleCustomStorageChange);
+        };
+    }, []);
+
     // Extract geosets from regulation data
     const geoSets: GeoSetData[] = useMemo(() => {
         if (!regulationData) return [];
@@ -298,9 +347,15 @@ export default function ConsultationMap({
                 if (!enabledGeometries.has(geometry.id)) return;
 
                 let geoJSON: GeoJSON.Geometry | null = null;
+                let isFromLocalStorage = false;
 
-                // Handle static geometries
-                if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
+                // First check if we have a saved geometry in localStorage
+                if (savedGeometries[geometry.id]) {
+                    geoJSON = savedGeometries[geometry.id];
+                    isFromLocalStorage = true;
+                }
+                // Otherwise handle static geometries
+                else if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
                     geoJSON = geometry.geojson;
                 }
                 // Handle derived geometries
@@ -318,13 +373,18 @@ export default function ConsultationMap({
                             geoSetName: geoSet.name,
                             name: geometry.name,
                             description: geometry.description,
-                            isDerived: geometry.type === 'derived'
+                            isDerived: geometry.type === 'derived',
+                            isFromLocalStorage
                         },
                         style: {
-                            fillColor: color,
-                            fillOpacity: geometry.type === 'derived' ? 0.15 : 0.4, // Much more transparent for derived geometries
-                            strokeColor: geometry.type === 'derived' ? 'transparent' : color, // No outline for derived geometries
-                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 8 : 2), // No stroke for derived geometries
+                            // Color: use blue for localStorage, otherwise use geoset color
+                            fillColor: isFromLocalStorage ? '#3B82F6' : color,
+                            // Opacity: derived geometries are very transparent, localStorage medium, regular normal
+                            fillOpacity: geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : 0.4),
+                            // Stroke: derived geometries have no stroke, localStorage get blue stroke, regular get geoset color
+                            strokeColor: geometry.type === 'derived' ? 'transparent' : (isFromLocalStorage ? '#1D4ED8' : color),
+                            // Stroke width: derived have none, points are larger, localStorage get thicker stroke
+                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 8 : (isFromLocalStorage ? 3 : 2)),
                             label: geometry.name
                         }
                     });
@@ -333,7 +393,7 @@ export default function ConsultationMap({
         });
 
         return features;
-    }, [geoSets, enabledGeoSets, enabledGeometries]);
+    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries]);
 
     // Get geoset checkbox state (checked, indeterminate, or unchecked)
     const getGeoSetCheckboxState = (geoSetId: string): CheckboxState => {
@@ -400,6 +460,65 @@ export default function ConsultationMap({
         });
     };
 
+    // Function to handle geometry selection for editing with auto-zoom
+    const handleSelectGeometryForEdit = (geometryId: string | null) => {
+        setSelectedGeometryForEdit(geometryId);
+
+        if (geometryId) {
+            // Find the geometry to zoom to
+            const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
+            if (geometry) {
+                let geoJSON: GeoJSON.Geometry | null = null;
+
+                // Check for saved geometry first
+                if (savedGeometries[geometry.id]) {
+                    geoJSON = savedGeometries[geometry.id];
+                }
+                // Otherwise use original geometry
+                else if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
+                    geoJSON = geometry.geojson;
+                }
+                // Handle derived geometries
+                else if (geometry.type === 'derived') {
+                    geoJSON = computeDerivedGeometry(geometry, geoSets);
+                }
+
+                // Store geometry for zooming
+                if (geoJSON) {
+                    setZoomGeometry(geoJSON);
+                    console.log('🎯 Selected geometry for editing and zoom:', geometryId);
+                }
+            }
+        }
+    };
+
+    // State for geometry to zoom to
+    const [zoomGeometry, setZoomGeometry] = useState<GeoJSON.Geometry | null>(null);
+
+    // Function to handle deleting saved geometry
+    const handleDeleteSavedGeometry = (geometryId: string) => {
+        try {
+            const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
+            delete savedGeometries[geometryId];
+            localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
+
+            // IMMEDIATELY update local state to reflect the change
+            setSavedGeometries(savedGeometries);
+
+            // Dispatch custom event to notify components of localStorage change
+            window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
+
+            // If the deleted geometry was selected for editing, deselect it
+            if (selectedGeometryForEdit === geometryId) {
+                setSelectedGeometryForEdit(null);
+            }
+
+            console.log(`🗑️ Deleted saved geometry for ID: ${geometryId}`);
+        } catch (error) {
+            console.error('Error deleting saved geometry:', error);
+        }
+    };
+
     return (
         <div className={cn("relative", className)}>
             {/* Map */}
@@ -410,6 +529,10 @@ export default function ConsultationMap({
                 features={mapFeatures}
                 onFeatureClick={handleMapFeatureClick}
                 className="w-full h-full"
+                editingMode={isEditingMode}
+                drawingMode={drawingMode}
+                selectedGeometryForEdit={selectedGeometryForEdit}
+                zoomToGeometry={zoomGeometry}
             />
 
             {/* Layer Controls Toggle Button */}
@@ -440,7 +563,21 @@ export default function ConsultationMap({
                     comments={comments}
                     consultationId={consultationId}
                     cityId={cityId}
-                    regulationData={regulationData ?? undefined}
+                    currentUser={currentUser}
+                    isEditingMode={isEditingMode}
+                    drawingMode={drawingMode}
+                    selectedGeometryForEdit={selectedGeometryForEdit}
+                    savedGeometries={savedGeometries}
+                    regulationData={regulationData}
+                    onToggleEditingMode={(enabled: boolean) => {
+                        setIsEditingMode(enabled);
+                        if (!enabled) {
+                            setSelectedGeometryForEdit(null);
+                        }
+                    }}
+                    onSetDrawingMode={setDrawingMode}
+                    onSelectGeometryForEdit={handleSelectGeometryForEdit}
+                    onDeleteSavedGeometry={handleDeleteSavedGeometry}
                 />
             )}
 
@@ -461,6 +598,9 @@ export default function ConsultationMap({
                 currentUser={currentUser}
                 consultationId={consultationId}
                 cityId={cityId}
+                isEditingMode={isEditingMode}
+                selectedGeometryForEdit={selectedGeometryForEdit}
+                savedGeometries={savedGeometries}
             />
         </div>
     );

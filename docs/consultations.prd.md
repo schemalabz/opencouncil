@@ -140,6 +140,83 @@ The initial implementation uses Athens' electric scooter regulation, which demon
 - Search functionality to find specific content
 - Mobile-responsive design for accessibility
 
+## Administrator Tools
+
+To facilitate the rapid setup and maintenance of a consultation, especially when dealing with complex geographic data, a suite of administrator-only tools is required. These tools will be accessible to authenticated users with appropriate permissions directly within the consultation interface.
+
+### Map-Based Geolocation Editor
+
+A significant challenge in digitizing regulations is that many geographic boundaries are defined textually (e.g., "the area enclosed by the intersections of streets A, B, and C") rather than with explicit coordinates. The Map-Based Geolocation Editor is a crucial tool for administrators to convert these textual descriptions into valid GeoJSON data directly on the map.
+
+**Problem:** Geometries in the source `regulation.json` file often have a `textualDefinition` but a `null` `geojson` property, preventing them from being displayed on the map.
+
+**Solution:** A comprehensive, real-time, in-map editing interface for administrators.
+
+**Key Features:**
+
+- **Visual Status System:** Clear indicators show geometry status (original data ✓, locally saved 💾, missing ⚠️, selected for editing 🎯)
+- **Contextual Help:** Textual definitions display directly in the editing interface for reference while drawing
+- **Auto-Zoom:** Automatic map focus when selecting geometries for editing
+- **Local Storage Persistence:** Changes saved locally with real-time preview before final export
+- **Complete Export Workflow:** One-click export of complete regulation.json with all edits merged
+- **Professional Drawing Tools:** Powered by Mapbox GL Draw with custom styling for points and polygons
+
+**User Flow:**
+
+1.  **Access Editing Mode:** Super administrators see an "Λειτουργία Επεξεργασίας" toggle button in the layer controls panel. Regular users cannot access editing functionality.
+
+2.  **Activate Editing:** Clicking the toggle enables editing mode, which:
+    *   Displays street name labels on the map for better orientation
+    *   Shows edit buttons next to geometries that lack coordinate data
+    *   Reveals drawing tools and export functionality
+
+3.  **Select Geometry for Editing:** Administrators click the edit button (✏️) next to any geometry. This:
+    *   Auto-zooms the map to show the geometry if it already has coordinates
+    *   Highlights the geometry entry with a blue background
+    *   Displays the textual definition in the editing panel for reference
+    *   Activates drawing mode for that specific geometry
+
+4.  **Choose Drawing Mode:** Select between:
+    *   **Σημείο (Point):** For single location markers
+    *   **Περιοχή (Polygon):** For area boundaries
+
+5.  **Draw Geometry:**
+    *   **For Points:** Click once on the map to place the location
+    *   **For Polygons:** Click multiple points to define the boundary, with visual feedback during drawing
+    *   The textual definition remains visible for reference throughout the drawing process
+
+6.  **Automatic Saving:** Drawn geometries are immediately:
+    *   Saved to browser localStorage with the geometry ID
+    *   Displayed on the map with blue styling to distinguish from original data
+    *   Indicated with a save icon (💾) in the geometry list
+
+7.  **Edit Management:**
+    *   **Visual Feedback:** Geometries show their current status in the layer controls
+    *   **Delete Option:** Locally saved geometries can be deleted with confirmation dialog
+    *   **Real-time Preview:** Changes appear immediately on the map and in detail panels
+
+8.  **Export Complete Data:** The "Εξαγωγή Regulation.json" button:
+    *   Merges all local edits with the original regulation data
+    *   Downloads a complete, production-ready regulation.json file
+    *   Shows count of edited geometries in the button label
+    *   Generates timestamped filename for version control
+
+**Technical Implementation:**
+- **State Management:** Event-driven localStorage synchronization for real-time updates
+- **Drawing Engine:** Mapbox GL Draw with custom styling (blue for inactive, orange for active)
+- **Zoom Integration:** Automatic bounds calculation and map fitting for geometry focus
+- **Export System:** Deep merging of original data structure with local edits
+- **Performance Optimized:** Minimal re-renders with smart state comparison
+
+**Workflow Benefits:**
+- **Non-destructive:** Original data remains unchanged until export
+- **Visual Confirmation:** Immediate feedback for all actions
+- **Context-aware:** Textual definitions provide guidance during drawing
+- **Production-ready:** Complete export process for deployment
+- **User-friendly:** Intuitive interface with clear status indicators
+
+This comprehensive editor transforms the complex task of geocoding textual definitions into an intuitive, guided workflow that ensures accurate geographic data while maintaining a professional administrative interface.
+
 ## Future Features
 
 ### Comment System

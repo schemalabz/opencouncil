@@ -28,6 +28,12 @@ interface GeoSetItemProps {
     comments?: ConsultationCommentWithUpvotes[];
     consultationId?: string;
     cityId?: string;
+    // Editing props
+    isEditingMode?: boolean;
+    selectedGeometryForEdit?: string | null;
+    savedGeometries?: Record<string, any>;
+    onSelectGeometryForEdit?: (id: string) => void;
+    onDeleteSavedGeometry?: (id: string) => void;
 }
 
 export default function GeoSetItem({
@@ -47,7 +53,12 @@ export default function GeoSetItem({
     contactEmail,
     comments,
     consultationId,
-    cityId
+    cityId,
+    isEditingMode = false,
+    selectedGeometryForEdit,
+    savedGeometries = {},
+    onSelectGeometryForEdit,
+    onDeleteSavedGeometry
 }: GeoSetItemProps) {
     const hasGeometries = geometries.length > 0;
     const enabledCount = geometries.filter(g => enabledGeometries.has(g.id)).length;
@@ -137,6 +148,11 @@ export default function GeoSetItem({
                             onToggle={onToggleGeometry}
                             onOpenDetail={onOpenGeometryDetail}
                             comments={comments}
+                            isEditingMode={isEditingMode}
+                            isSelectedForEdit={selectedGeometryForEdit === geometry.id}
+                            hasLocalSave={!!savedGeometries[geometry.id]}
+                            onSelectForEdit={onSelectGeometryForEdit}
+                            onDeleteSavedGeometry={onDeleteSavedGeometry}
                         />
                     ))}
                 </div>
