@@ -11,7 +11,7 @@
     },
     "summary": {
       "type": "string",
-      "description": "Περίληψη της κανονιστικής απόφασης σε markdown με δυνατότητα αναφορών {REF:id}"
+      "description": "Περίληψη της κανονιστικής απόφασης σε markdown με δυνατότητα αναφορών {REF:id} και ορισμών {DEF:id}"
     },
     "contactEmail": {
       "type": "string",
@@ -65,12 +65,49 @@
         }
       }
     },
+    "definitionFormat": {
+      "type": "object",
+      "description": "Καθορίζει τη μορφή των αναφορών σε ορισμούς στο κείμενο",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "default": "\\{DEF:([a-zA-Z][a-zA-Z0-9_-]*)(?::([^}]+))?\\}",
+          "description": "Regex pattern για την αναγνώριση αναφορών σε ορισμούς με προαιρετικό κείμενο εμφάνισης"
+        },
+        "syntax": {
+          "type": "string",
+          "default": "{DEF:id} ή {DEF:id:κείμενο_εμφάνισης}",
+          "description": "Παράδειγμα σύνταξης αναφοράς σε ορισμό. Χρησιμοποιήστε {DEF:id} για εμφάνιση του όρου ή {DEF:id:κείμενο} για προσαρμοσμένο κείμενο εμφάνισης"
+        }
+      }
+    },
     "defaultVisibleGeosets": {
       "type": "array",
       "description": "Λίστα με τα IDs των geosets που θα είναι ορατά by default στο χάρτη",
       "items": {
         "type": "string",
         "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+      }
+    },
+    "definitions": {
+      "type": "object",
+      "description": "Λεξικό ορισμών όρων που χρησιμοποιούνται στον κανονισμό",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-zA-Z][a-zA-Z0-9_-]*$": {
+          "type": "object",
+          "required": ["term", "definition"],
+          "properties": {
+            "term": {
+              "type": "string",
+              "description": "Ο όρος που ορίζεται"
+            },
+            "definition": {
+              "type": "string", 
+              "description": "Ορισμός του όρου σε markdown με δυνατότητα αναφορών {REF:id} και ορισμών {DEF:id}"
+            }
+          }
+        }
       }
     },
     "regulation": {
@@ -117,7 +154,7 @@
         },
         "preludeBody": {
           "type": "string",
-          "description": "Εισαγωγικό κείμενο σε markdown που εμφανίζεται πριν από όλα τα άρθρα με δυνατότητα αναφορών {REF:id}"
+          "description": "Εισαγωγικό κείμενο σε markdown που εμφανίζεται πριν από όλα τα άρθρα με δυνατότητα αναφορών {REF:id} και ορισμών {DEF:id}"
         },
         "articles": {
           "type": "array",
@@ -152,7 +189,7 @@
         },
         "body": {
           "type": "string",
-          "description": "Κύριο κείμενο άρθρου σε markdown με δυνατότητα αναφορών {REF:id}"
+          "description": "Κύριο κείμενο άρθρου σε markdown με δυνατότητα αναφορών {REF:id} και ορισμών {DEF:id}"
         }
       }
     },

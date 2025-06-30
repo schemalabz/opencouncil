@@ -88,6 +88,11 @@ export interface RegulationItem {
     geometries?: Geometry[];
 }
 
+export interface Definition {
+    term: string; // The term being defined
+    definition: string; // Markdown definition with {REF:id} support
+}
+
 export interface RegulationData {
     title: string;
     summary?: string; // Markdown summary of the entire regulation with {REF:id} support
@@ -96,5 +101,6 @@ export interface RegulationData {
     sources: Source[]; // Array of source documents (required in schema)
     referenceFormat?: ReferenceFormat;
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
+    definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
 } 
