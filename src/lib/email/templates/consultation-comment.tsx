@@ -97,10 +97,10 @@ export const ConsultationCommentEmail = ({
 
                     <Text style={text}>
                         Παρακαλώ όπως συμπεριλάβετε το ακόλουθο σχόλιο
-                        στη διαδικασία της διαβούλευσης "<strong>{consultationTitle}</strong>",
-                        και συγκεκριμένα για {getEntityTypeGreek(entityType)} "<Link href={entityPermalink} style={link}>
+                        στη διαδικασία της διαβούλευσης &ldquo;<strong>{consultationTitle}</strong>&rdquo;,
+                        και συγκεκριμένα για {getEntityTypeGreek(entityType)} &ldquo;<Link href={entityPermalink} style={link}>
                             {entityTitle}{entityType === 'geometry' && parentGeosetName ? ` (${parentGeosetName})` : ''}
-                        </Link>".
+                        </Link>&rdquo;.
                     </Text>
 
                     <Container style={commentSection}>
