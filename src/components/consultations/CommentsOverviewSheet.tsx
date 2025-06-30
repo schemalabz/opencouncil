@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +32,15 @@ export default function CommentsOverviewSheet({
     totalCount,
     regulationData
 }: CommentsOverviewSheetProps) {
+    const { data: session } = useSession();
     const [sortBy, setSortBy] = useState<SortOption>('recent');
+    const [upvoting, setUpvoting] = useState<string | null>(null);
+    const [localComments, setLocalComments] = useState(comments);
+
+    // Update local comments when props change
+    useEffect(() => {
+        setLocalComments(comments);
+    }, [comments]);
 
     const getEntityTypeLabel = (entityType: string) => {
         switch (entityType) {
@@ -89,7 +98,7 @@ export default function CommentsOverviewSheet({
         }
     };
 
-    const sortedComments = [...comments].sort((a, b) => {
+    const sortedComments = [...localComments].sort((a, b) => {
         if (sortBy === 'recent') {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         } else {
@@ -100,6 +109,43 @@ export default function CommentsOverviewSheet({
     const handleCommentClick = (comment: ConsultationCommentWithUpvotes) => {
         onCommentClick(comment);
         onClose();
+    };
+
+    const handleUpvote = async (e: React.MouseEvent, commentId: string) => {
+        e.stopPropagation(); // Prevent triggering comment click
+
+        if (!session || upvoting) return;
+
+        setUpvoting(commentId);
+        try {
+            const response = await fetch(`/api/consultations/comments/${commentId}/upvote`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to toggle upvote');
+            }
+
+            const { upvoted, upvoteCount } = await response.json();
+
+            // Update the local comment state
+            setLocalComments(prev => prev.map(comment => {
+                if (comment.id === commentId) {
+                    return { ...comment, upvoteCount, hasUserUpvoted: upvoted };
+                }
+                return comment;
+            }));
+        } catch (error) {
+            console.error('Error toggling upvote:', error);
+            alert("Υπήρξε σφάλμα. Παρακαλώ δοκιμάστε ξανά.");
+        } finally {
+            setUpvoting(null);
+        }
+    };
+
+    const handleReferenceClick = (e: React.MouseEvent, comment: ConsultationCommentWithUpvotes) => {
+        e.stopPropagation(); // Prevent any parent click handlers
+        handleCommentClick(comment);
     };
 
     return (
@@ -156,7 +202,7 @@ export default function CommentsOverviewSheet({
                             <div key={comment.id} className="space-y-3">
                                 {/* Reference Box */}
                                 <div
-                                    onClick={() => handleCommentClick(comment)}
+                                    onClick={(e) => handleReferenceClick(e, comment)}
                                     className="bg-muted/30 border border-muted/50 rounded-md p-2 cursor-pointer hover:bg-muted/50 transition-colors"
                                 >
                                     <div className="flex items-center gap-2">
@@ -170,18 +216,25 @@ export default function CommentsOverviewSheet({
                                 </div>
 
                                 {/* Comment */}
-                                <div
-                                    onClick={() => handleCommentClick(comment)}
-                                    className="flex items-start gap-3 p-3 bg-background border border-border rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
-                                >
+                                <div className="flex items-start gap-3 p-3 bg-background border border-border rounded-lg">
                                     {/* Upvote Section */}
                                     <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                                        <div className={cn(
-                                            "h-6 w-6 flex items-center justify-center",
-                                            comment.hasUserUpvoted ? "text-[hsl(var(--orange))]" : "text-muted-foreground"
-                                        )}>
-                                            <ChevronUp className="h-4 w-4" />
-                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={cn(
+                                                "h-6 w-6 p-0",
+                                                comment.hasUserUpvoted ? "text-[hsl(var(--orange))]" : "text-muted-foreground"
+                                            )}
+                                            onClick={(e) => handleUpvote(e, comment.id)}
+                                            disabled={!session || upvoting === comment.id}
+                                        >
+                                            {upvoting === comment.id ? (
+                                                <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
+                                            ) : (
+                                                <ChevronUp className="h-4 w-4" />
+                                            )}
+                                        </Button>
                                         <span className={cn(
                                             "text-xs font-medium",
                                             comment.hasUserUpvoted ? "text-[hsl(var(--orange))]" : "text-muted-foreground"
@@ -191,7 +244,10 @@ export default function CommentsOverviewSheet({
                                     </div>
 
                                     {/* Comment Content */}
-                                    <div className="flex-1 min-w-0">
+                                    <div
+                                        className="flex-1 min-w-0 cursor-pointer hover:bg-muted/20 transition-colors rounded p-2 -m-2"
+                                        onClick={() => handleCommentClick(comment)}
+                                    >
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="font-medium text-sm">
                                                 {comment.user?.name || 'Ανώνυμος'}
