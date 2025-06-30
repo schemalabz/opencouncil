@@ -93,7 +93,7 @@ export default function DetailPanel({
             className
         )}>
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0 group">
                 <div className="flex items-center gap-2">
                     {detailType === 'geoset' && currentGeoSet && (
                         <span className="font-semibold text-sm">Σύνολο Περιοχών</span>
@@ -105,7 +105,7 @@ export default function DetailPanel({
                     )}
                 </div>
                 <div className="flex items-center gap-1">
-                    <PermalinkButton href={`#${detailId}`} />
+                    <PermalinkButton href={`${baseUrl}?view=map#${detailId}`} />
                     <Button
                         onClick={onClose}
                         variant="ghost"
@@ -125,10 +125,10 @@ export default function DetailPanel({
                 {/* GeoSet Details */}
                 {currentGeoSet && (
                     <div className="p-4 space-y-4">
-                        <div>
+                        <div className="group">
                             <div className="flex items-start justify-between mb-2">
                                 <h3 className="font-bold text-lg">{currentGeoSet.name}</h3>
-                                <PermalinkButton href={`#${currentGeoSet.id}`} />
+                                <PermalinkButton href={`${baseUrl}?view=map#${currentGeoSet.id}`} />
                             </div>
                             {currentGeoSet.description && (
                                 <MarkdownContent
@@ -176,10 +176,10 @@ export default function DetailPanel({
                 {/* Geometry Details */}
                 {currentGeometry && (
                     <div className="p-4 space-y-4">
-                        <div>
+                        <div className="group">
                             <div className="flex items-start justify-between mb-2">
                                 <h3 className="font-bold text-lg">{currentGeometry.name}</h3>
-                                <PermalinkButton href={`#${currentGeometry.id}`} />
+                                <PermalinkButton href={`${baseUrl}?view=map#${currentGeometry.id}`} />
                             </div>
                             {currentGeometryGeoSet && (
                                 <button
