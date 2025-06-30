@@ -4,22 +4,22 @@
   "contactEmail": "christos.porios+testconsultation@gmail.com",
   "ccEmails": [],
   "sources": [
-  {
-    "title": "Ανακοίνωση Διαβούλευσης για τον Κανονισμό Κίνησης και Στάθμευσης ΕΠΗΟ",
-    "url": "https://www.cityofathens.gr/25-06-2026-04-07-2026-diavoyleysi-gia-ton-kanonismo-k/",
-    "description": "Η ανακοίνωση της 25ης Ιουνίου 2025 του Δήμου Αθηναίων για την διαδικασία διαβούλευσης."
-  },
-  {
-    "title": "Αρχεία προτεινόμενης κανονιστικής",
-    "url": "https://shared.cityofathens.gr/index.php/s/TS7GaNNwRZyzwr6",
-    "description": "Τα αρχεία της προτεινόμενης κανονιστικής"
-  },
-  {
-    "title": "Προτεινόμενη κανονιστική για τα ΕΠΗΟ",
-    "url": "https://shared.cityofathens.gr/index.php/s/TS7GaNNwRZyzwr6?dir=/&openfile=true",
-    "description": "Η προτεινόμενη κανονιστική για τα πατίνια του Δήμου Αθηναίων."
-  }
-],
+    {
+      "title": "Ανακοίνωση Διαβούλευσης για τον Κανονισμό Κίνησης και Στάθμευσης ΕΠΗΟ",
+      "url": "https://www.cityofathens.gr/25-06-2026-04-07-2026-diavoyleysi-gia-ton-kanonismo-k/",
+      "description": "Η ανακοίνωση της 25ης Ιουνίου 2025 του Δήμου Αθηναίων για την διαδικασία διαβούλευσης."
+    },
+    {
+      "title": "Αρχεία προτεινόμενης κανονιστικής",
+      "url": "https://shared.cityofathens.gr/index.php/s/TS7GaNNwRZyzwr6",
+      "description": "Τα αρχεία της προτεινόμενης κανονιστικής"
+    },
+    {
+      "title": "Προτεινόμενη κανονιστική για τα ΕΠΗΟ",
+      "url": "https://shared.cityofathens.gr/index.php/s/TS7GaNNwRZyzwr6?dir=/&openfile=true",
+      "description": "Η προτεινόμενη κανονιστική για τα πατίνια του Δήμου Αθηναίων."
+    }
+  ],
   "referenceFormat": {
     "pattern": "{REF:([a-zA-Z][a-zA-Z0-9_-]*)}",
     "syntax": "{REF:id}"
@@ -5504,833 +5504,1547 @@
           "name": "ΠΛ. ΑΙΓΥΠΤΟΥ",
           "id": "slowPublicSpace_58_Aigyptou",
           "textualDefinition": "A/A: 58, ΟΝΟΜΑ: ΠΛ. ΑΙΓΥΠΤΟΥ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.731645, Y: 37.991437",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270170421612,
+              0.0025730815189973716
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ.ΓΡΗΓΟΡΙΟΥ ΑΥΞΕΝΤΙΟΥ",
           "id": "slowPublicSpace_59_GrigoriouAfxentiou",
           "textualDefinition": "A/A: 59, ΟΝΟΜΑ: ΠΛ.ΓΡΗΓΟΡΙΟΥ ΑΥΞΕΝΤΙΟΥ, ΣΥΝΟΙΚΙΑ: ΠΛ.ΑΤΤΙΚΗΣ, ΔΚ: 6η, X: 23.721861, Y: 37.993298",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701616559028,
+              0.00257309830445225
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΙΚΤΩΡΙΑΣ",
           "id": "slowPublicSpace_60_Viktorias",
           "textualDefinition": "A/A: 60, ΟΝΟΜΑ: ΠΛ. ΒΙΚΤΩΡΙΑΣ, ΣΥΝΟΙΚΙΑ: ΠΛ.ΑΤΤΙΚΗΣ, ΔΚ: 6η, X: 23.729353, Y: 37.99319",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701683681566,
+              0.0025730973303659146
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΓΥΖΗ",
           "id": "slowPublicSpace_61_Gyzi",
           "textualDefinition": "A/A: 61, ΟΝΟΜΑ: ΠΛ. ΓΥΖΗ, ΣΥΝΟΙΚΙΑ: ΓΚΥΖΗ, ΔΚ: 7η, X: 23.749154, Y: 37.99307",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701861083254,
+              0.002573096248096266
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΛΕΥΘΕΡΙΟΥ ΒΕΝΙΖΕΛΟΥ",
           "id": "slowPublicSpace_62_EleftheriouVenizelou",
           "textualDefinition": "A/A: 62, ΟΝΟΜΑ: ΠΛ. ΕΛΕΥΘΕΡΙΟΥ ΒΕΝΙΖΕΛΟΥ, ΣΥΝΟΙΚΙΑ: ΠΟΛΥΓΩΝΟ, ΔΚ: 7η, X: 23.756915, Y: 37.997609",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701930615815,
+              0.002573137188143786
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΗΝΕΛΟΠΗΣ ΔΕΛΤΑ",
           "id": "slowPublicSpace_63_PinelopisDelta",
           "textualDefinition": "A/A: 63, ΟΝΟΜΑ: ΠΛ. ΠΗΝΕΛΟΠΗΣ ΔΕΛΤΑ, ΣΥΝΟΙΚΙΑ: ΕΛΛΗΝΟΡΩΣΩΝ-ΕΡΥΘΡΟΣ, ΔΚ: 7η, X: 23.774343, Y: 37.999472",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270208675725,
+              0.0025731539917529045
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΝΑΥΑΡΧΟΥ ΝΟΤΑΡΑ",
           "id": "slowPublicSpace_64_NavarchouNotara",
           "textualDefinition": "A/A: 64, ΟΝΟΜΑ: ΠΛ. ΝΑΥΑΡΧΟΥ ΝΟΤΑΡΑ, ΣΥΝΟΙΚΙΑ: ΕΛΛΗΝΟΡΩΣΩΝ-ΕΡΥΘΡΟΣ, ΔΚ: 7η, X: 23.771569, Y: 37.994951",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512702061904363,
+              0.002573113214079451
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΑΣΙΛΕΙΟΥ ΤΟΥ ΜΕΓΑΛΟΥ",
           "id": "slowPublicSpace_65_VasileiouTouMegalou",
           "textualDefinition": "A/A: 65, ΟΝΟΜΑ: ΠΛ. ΒΑΣΙΛΕΙΟΥ ΤΟΥ ΜΕΓΑΛΟΥ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.703429, Y: 37.975663",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701451422593,
+              0.0025729392435329523
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΓΕΩΡΓΙΑΔΗ",
           "id": "slowPublicSpace_66_Georgiadi",
           "textualDefinition": "A/A: 66, ΟΝΟΜΑ: ΠΛ. ΓΕΩΡΓΙΑΔΗ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.703419, Y: 37.978829",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701451332987,
+              0.00257296779962159
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΦΛΕΜΙΓΚ",
           "id": "slowPublicSpace_67_Fleming",
           "textualDefinition": "A/A: 67, ΟΝΟΜΑ: ΠΛ. ΦΛΕΜΙΓΚ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.706373, Y: 37.97769",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701477798554,
+              0.002572957526297049
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΩΝΙΣΤΩΝ ΕΘΝΙΚΗΣ ΑΝΤΙΣΤΑΣΗΣ",
           "id": "slowPublicSpace_68_AgonistonEthnikisAntistasis",
           "textualDefinition": "A/A: 68, ΟΝΟΜΑ: ΠΛ. ΑΓΩΝΙΣΤΩΝ ΕΘΝΙΚΗΣ ΑΝΤΙΣΤΑΣΗΣ, ΣΥΝΟΙΚΙΑ: ΓΚΥΖΗ, ΔΚ: 7η, X: 23.74142, Y: 37.990379",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270179179259,
+              0.0025730719762901526
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΝΕΑΠΟΛΕΩΣ",
           "id": "slowPublicSpace_69_Neapoleos",
           "textualDefinition": "A/A: 69, ΟΝΟΜΑ: ΠΛ. ΝΕΑΠΟΛΕΩΣ, ΣΥΝΟΙΚΙΑ: ΓΚΥΖΗ, ΔΚ: 7η, X: 23.746408, Y: 37.987519",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701836481238,
+              0.002573046180223528
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΣΚΛΗΠΙΟΥ",
           "id": "slowPublicSpace_70_Asklipiou",
           "textualDefinition": "A/A: 70, ΟΝΟΜΑ: ΠΛ. ΑΣΚΛΗΠΙΟΥ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.744599, Y: 37.986827",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701820273993,
+              0.0025730399386450125
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΡΓΕΝΤΙΝΗΣ ΔΗΜΟΚΡΑΤΙΑΣ",
           "id": "slowPublicSpace_71_ArgentinisDimokratias",
           "textualDefinition": "A/A: 71, ΟΝΟΜΑ: ΠΛ. ΑΡΓΕΝΤΙΝΗΣ ΔΗΜΟΚΡΑΤΙΑΣ, ΣΥΝΟΙΚΙΑ: ΓΚΥΖΗ, ΔΚ: 7η, X: 23.74364, Y: 37.989537",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270181168208,
+              0.0025730643817870017
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΝΑΪΣΣΟΥ",
           "id": "slowPublicSpace_72_Naissou",
           "textualDefinition": "A/A: 72, ΟΝΟΜΑ: ΠΛ. ΝΑΪΣΣΟΥ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.74364, Y: 37.98538",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701811682103,
+              0.0025730268872637212
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΑΒΙΛΗ",
           "id": "slowPublicSpace_73_Mavili",
           "textualDefinition": "A/A: 73, ΟΝΟΜΑ: ΠΛ. ΜΑΒΙΛΗ, ΣΥΝΟΙΚΙΑ: ΚΟΥΝΤΟΥΡΙΩΤΙΚΑ, ΔΚ: 7η, X: 23.756534, Y: 37.98281",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701927202414,
+              0.0025730037069177105
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΥΑΓΓ. ΣΧ. ΣΜΥΡΝΗΣ",
           "id": "slowPublicSpace_74_EvaggSchSmyrnis",
           "textualDefinition": "A/A: 74, ΟΝΟΜΑ: ΠΛ. ΕΥΑΓΓ. ΣΧ. ΣΜΥΡΝΗΣ, ΣΥΝΟΙΚΙΑ: ΚΟΥΝΤΟΥΡΙΩΤΙΚΑ, ΔΚ: 7η, X: 23.760304, Y: 37.985512",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701960978696,
+              0.0025730280779227947
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΛΕΝΑΣ ΒΕΝΙΖΕΛΟΥ",
           "id": "slowPublicSpace_75_ElenasVenizelou",
           "textualDefinition": "A/A: 75, ΟΝΟΜΑ: ΠΛ. ΕΛΕΝΑΣ ΒΕΝΙΖΕΛΟΥ, ΣΥΝΟΙΚΙΑ: ΚΟΥΝΤΟΥΡΙΩΤΙΚΑ, ΔΚ: 7η, X: 23.754817, Y: 37.985001",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701911819406,
+              0.0025730234688783457
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΙΠΠΟΚΡΑΤΕΙΟΥ",
           "id": "slowPublicSpace_76_Ippokrateiou",
           "textualDefinition": "A/A: 76, ΟΝΟΜΑ: ΠΛ. ΙΠΠΟΚΡΑΤΕΙΟΥ, ΣΥΝΟΙΚΙΑ: ΓΟΥΔΗ, ΔΚ: 7η, X: 23.759735, Y: 37.983993",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701955880893,
+              0.0025730143771311494
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΩΣΤΑ ΒΑΡΝΑΛΗ",
           "id": "slowPublicSpace_77_KostaVarnali",
           "textualDefinition": "A/A: 77, ΟΝΟΜΑ: ΠΛ. ΚΩΣΤΑ ΒΑΡΝΑΛΗ, ΣΥΝΟΙΚΙΑ: ΚΟΥΝΤΟΥΡΙΩΤΙΚΑ, ΔΚ: 7η, X: 23.752865, Y: 37.98345",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270189433099,
+              0.0025730094794533032
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛΑΤΕΙΑ ΙΩΑΝΝΗ ΔΟΥΡΟΥ - ΔΟΥΡΟΥΤΗ",
           "id": "slowPublicSpace_78_IoanniDourouDourouti",
           "textualDefinition": "A/A: 78, ΟΝΟΜΑ: ΠΛΑΤΕΙΑ ΙΩΑΝΝΗ ΔΟΥΡΟΥ - ΔΟΥΡΟΥΤΗ, ΣΥΝΟΙΚΙΑ: ΡΟΥΦ, ΔΚ: 3η, X: 23.719651, Y: 37.983133",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701596759175,
+              0.0025730066200962604
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΑΥΡΟΚΟΡΔΑΤΟΥ",
           "id": "slowPublicSpace_79_Mavrokordatou",
           "textualDefinition": "A/A: 79, ΟΝΟΜΑ: ΠΛ. ΜΑΥΡΟΚΟΡΔΑΤΟΥ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.726522, Y: 37.988664",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270165831801,
+              0.002573056507594189
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΛΑΥΡΙΟΥ",
           "id": "slowPublicSpace_80_Lavriou",
           "textualDefinition": "A/A: 80, ΟΝΟΜΑ: ΠΛ. ΛΑΥΡΙΟΥ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.728305, Y: 37.985877",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701674292327,
+              0.0025730313699456357
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΝΕΞΑΡΤΗΣΙΑΣ",
           "id": "slowPublicSpace_81_Anexartisias",
           "textualDefinition": "A/A: 81, ΟΝΟΜΑ: ΠΛ. ΑΝΕΞΑΡΤΗΣΙΑΣ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.726447, Y: 37.987208",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701657646073,
+              0.0025730433750401362
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΟΜΟΝΟΙΑΣ",
           "id": "slowPublicSpace_82_Omonoias",
           "textualDefinition": "A/A: 82, ΟΝΟΜΑ: ΠΛ. ΟΜΟΝΟΙΑΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.727869, Y: 37.983929",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270167038611,
+              0.002573013799741403
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΑΡΑΪΣΚΑΚΗ",
           "id": "slowPublicSpace_83_Karaiskaki",
           "textualDefinition": "A/A: 83, ΟΝΟΜΑ: ΠΛ. ΚΑΡΑΪΣΚΑΚΗ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.721747, Y: 37.985686",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701615537704,
+              0.0025730296471722087
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΕΤΑΞΟΥΡΓΕΙΟΥ",
           "id": "slowPublicSpace_84_Metaxourgeiou",
           "textualDefinition": "A/A: 84, ΟΝΟΜΑ: ΠΛ. ΜΕΤΑΞΟΥΡΓΕΙΟΥ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.719709, Y: 37.985102",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.5127015972788,
+              0.0025730243797107265
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΥΔΗ",
           "id": "slowPublicSpace_85_Avdi",
           "textualDefinition": "A/A: 85, ΟΝΟΜΑ: ΠΛ. ΑΥΔΗ, ΣΥΝΟΙΚΙΑ: ΡΟΥΦ, ΔΚ: 3η, X: 23.719846, Y: 37.982464",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270159850623,
+              0.002573000585977271
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΘΝΙΚΗΣ ΑΝΤΙΣΤΑΣΗΣ - (KOTZIA)",
           "id": "slowPublicSpace_86_EthnikisAntistasisKotzia",
           "textualDefinition": "A/A: 86, ΟΝΟΜΑ: ΠΛ. ΕΘΝΙΚΗΣ ΑΝΤΙΣΤΑΣΗΣ - (KOTZIA), ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.728384, Y: 37.981704",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270167500013,
+              0.00257299373110892
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΩΔΕΙΟΥ",
           "id": "slowPublicSpace_87_Odeiou",
           "textualDefinition": "A/A: 87, ΟΝΟΜΑ: ΠΛ. ΩΔΕΙΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.723263, Y: 37.981791",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701629119913,
+              0.002572994515793448
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΠΑΥΛΟΥ",
           "id": "slowPublicSpace_88_AgiosPavlos",
           "textualDefinition": "A/A: 88, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΠΑΥΛΟΥ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.722422, Y: 37.989245",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701621585173,
+              0.0025730617479709033
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΤΟΥΡΝΑΡΑ",
           "id": "slowPublicSpace_89_Stournara",
           "textualDefinition": "A/A: 89, ΟΝΟΜΑ: ΠΛ. ΣΤΟΥΡΝΑΡΑ, ΣΥΝΟΙΚΙΑ: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η, X: 23.727675, Y: 37.987864",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701668648003,
+              0.0025730492919101952
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΙΕΡΟΥ ΛΟΧΟΥ",
           "id": "slowPublicSpace_90_IerouLochou",
           "textualDefinition": "A/A: 90, ΟΝΟΜΑ: ΠΛ. ΙΕΡΟΥ ΛΟΧΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.728638, Y: 37.979563",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270167727577,
+              0.0025729744201226637
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΞΑΡΧΕΙΩΝ",
           "id": "slowPublicSpace_91_Exarcheion",
           "textualDefinition": "A/A: 91, ΟΝΟΜΑ: ΠΛ. ΕΞΑΡΧΕΙΩΝ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.734852, Y: 37.986594",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701732948393,
+              0.0025730378370344455
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΑΝΙΓΓΟΣ",
           "id": "slowPublicSpace_92_Kaniggos",
           "textualDefinition": "A/A: 92, ΟΝΟΜΑ: ΠΛ. ΚΑΝΙΓΓΟΣ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.731183, Y: 37.985607",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701700076992,
+              0.002573028934662804
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛΑΤΕΙΑ ΔΙΚΑΙΟΣΥΝΗΣ",
           "id": "slowPublicSpace_93_Dikaiosynis",
           "textualDefinition": "A/A: 93, ΟΝΟΜΑ: ΠΛΑΤΕΙΑ ΔΙΚΑΙΟΣΥΝΗΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.730606, Y: 37.982106",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270169490753,
+              0.0025729973570019628
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΟΥΡΝΑ",
           "id": "slowPublicSpace_94_Vourna",
           "textualDefinition": "A/A: 94, ΟΝΟΜΑ: ΠΛ. ΒΟΥΡΝΑ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.739776, Y: 37.982817",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270177706366,
+              0.002573003769984186
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΔΙΟΝΥΣΙΟΥ",
           "id": "slowPublicSpace_95_AgiosDionysios",
           "textualDefinition": "A/A: 95, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΔΙΟΝΥΣΙΟΥ, ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.738883, Y: 37.979836",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270176906307,
+              0.0025729768825197706
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΩΣΤΗ ΠΑΛΑΜΑ",
           "id": "slowPublicSpace_96_KostiPalama",
           "textualDefinition": "A/A: 96, ΟΝΟΜΑ: ΠΛ. ΚΩΣΤΗ ΠΑΛΑΜΑ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.733663, Y: 37.981422",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.5127017222959,
+              0.002572991187600897
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΘΑΝ. ΤΣΑΛΔΑΡΗ - (ΛΥΚΑΒΗΤΤΟΥ)",
           "id": "slowPublicSpace_97_AthanTsaldariLykavittou",
           "textualDefinition": "A/A: 97, ΟΝΟΜΑ: ΠΛ. ΑΘΑΝ. ΤΣΑΛΔΑΡΗ - (ΛΥΚΑΒΗΤΤΟΥ), ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.738951, Y: 37.980705",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.5127017696723,
+              0.0025729847205620904
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΩΝ ΘΕΟΔΩΡΩΝ",
           "id": "slowPublicSpace_98_AgionTheodoron",
           "textualDefinition": "A/A: 98, ΟΝΟΜΑ: ΠΛ. ΑΓΙΩΝ ΘΕΟΔΩΡΩΝ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.730008, Y: 37.979371",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270168954992,
+              0.002572972688363123
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΛΑΥΘΜΩΝΟΣ",
           "id": "slowPublicSpace_99_Klafthmonos",
           "textualDefinition": "A/A: 99, ΟΝΟΜΑ: ΠΛ. ΚΛΑΥΘΜΩΝΟΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.731208, Y: 37.979352",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701700301005,
+              0.002572972516995583
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΠΑΝΙΚΑ",
           "id": "slowPublicSpace_100_Banika",
           "textualDefinition": "A/A: 100, ΟΝΟΜΑ: ΠΛ. ΜΠΑΝΙΚΑ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.735718, Y: 37.984648",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270174070709,
+              0.0025730202848749354
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΟΛΩΝΟΣ",
           "id": "slowPublicSpace_101_Solonos",
           "textualDefinition": "A/A: 101, ΟΝΟΜΑ: ΠΛ. ΣΟΛΩΝΟΣ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.732293, Y: 37.98609",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701710021737,
+              0.0025730332911396464
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΖΩΟΔΟΧΟΥ ΠΗΓΗΣ",
           "id": "slowPublicSpace_102_ZoodochouPigis",
           "textualDefinition": "A/A: 102, ΟΝΟΜΑ: ΠΛ. ΖΩΟΔΟΧΟΥ ΠΗΓΗΣ, ΣΥΝΟΙΚΙΑ: ΜΟΥΣΕΙΟ-ΕΞΑΡΧΕΙΑ-ΝΕΑΠΟΛΗ, ΔΚ: 1η, X: 23.732335, Y: 37.983637",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701710398034,
+              0.0025730111660338365
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΑΙΔΩΝ",
           "id": "slowPublicSpace_103_Paidon",
           "textualDefinition": "A/A: 103, ΟΝΟΜΑ: ΠΛ. ΠΑΙΔΩΝ, ΣΥΝΟΙΚΙΑ: ΓΟΥΔΗ, ΔΚ: 7η, X: 23.76815, Y: 37.983876",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512702031272813,
+              0.0025730133218722067
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΘΩΜΑ",
           "id": "slowPublicSpace_104_AgiosThoma",
           "textualDefinition": "A/A: 104, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΘΩΜΑ, ΣΥΝΟΙΚΙΑ: ΓΟΥΔΗ, ΔΚ: 7η, X: 23.765002, Y: 37.982391",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512702003069165,
+              0.0025729999277364418
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΠΟΛΛΩΝΙΟΥ",
           "id": "slowPublicSpace_105_Apolloniou",
           "textualDefinition": "A/A: 105, ΟΝΟΜΑ: ΠΛ. ΑΠΟΛΛΩΝΙΟΥ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.71473, Y: 37.967062",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701552670876,
+              0.002572861665905777
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΜΑΛΙΑΣ ΜΕΡΚΟΥΡΗ",
           "id": "slowPublicSpace_106_AmaliasMerkouri",
           "textualDefinition": "A/A: 106, ΟΝΟΜΑ: ΠΛ. ΑΜΑΛΙΑΣ ΜΕΡΚΟΥΡΗ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.712738, Y: 37.967246",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701534824092,
+              0.002572863325505804
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΑΝΔΡΕΟΥ",
           "id": "slowPublicSpace_107_AgiosAndreasAnoPetralona",
           "textualDefinition": "A/A: 107, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΑΝΔΡΕΟΥ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.710846, Y: 37.966395",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701517873236,
+              0.0025728556498087834
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΦΑΙΑΣ",
           "id": "slowPublicSpace_108_Afaias",
           "textualDefinition": "A/A: 108, ΟΝΟΜΑ: ΠΛ. ΑΦΑΙΑΣ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.713929, Y: 37.975898",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701545494497,
+              0.0025729413631859098
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΝΙΚΟΛΑΟΥ",
           "id": "slowPublicSpace_109_AgiosNikolaosMakrygianni",
           "textualDefinition": "A/A: 109, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΝΙΚΟΛΑΟΥ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.716867, Y: 37.964373",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701571816763,
+              0.002572837412180603
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΟΙΛΗΣ",
           "id": "slowPublicSpace_110_Koilis",
           "textualDefinition": "A/A: 110, ΟΝΟΜΑ: ΠΛ. ΚΟΙΛΗΣ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.709501, Y: 37.966571",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701505823074,
+              0.002572857237254653
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΝΟΙΞΕΩΣ",
           "id": "slowPublicSpace_111_Anoixeos",
           "textualDefinition": "A/A: 111, ΟΝΟΜΑ: ΠΛ. ΑΝΟΙΞΕΩΣ, ΣΥΝΟΙΚΙΑ: ΡΟΥΦ, ΔΚ: 3η, X: 23.707139, Y: 37.974298",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270148466133,
+              0.0025729269317794987
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΡΓΑΤΙΚΗΣ ΠΡΩΤΟΜΑΓΙΑΣ",
           "id": "slowPublicSpace_112_ErgatikisProtomagias",
           "textualDefinition": "A/A: 112, ΟΝΟΜΑ: ΠΛ. ΕΡΓΑΤΙΚΗΣ ΠΡΩΤΟΜΑΓΙΑΣ, ΣΥΝΟΙΚΙΑ: ΚΑΤΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.708182, Y: 37.97336",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701494005814,
+              0.0025729184713887106
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΑΣ ΑΙΚΑΤΕΡΙΝΗΣ",
           "id": "slowPublicSpace_113_AgiasAikaterinis",
           "textualDefinition": "A/A: 113, ΟΝΟΜΑ: ΠΛ. ΑΓΙΑΣ ΑΙΚΑΤΕΡΙΝΗΣ, ΣΥΝΟΙΚΙΑ: ΚΑΤΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.708202, Y: 37.969931",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270149418502,
+              0.0025728875431424
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΟΥΛΟΥΡΗΣ",
           "id": "slowPublicSpace_114_Koulouris",
           "textualDefinition": "A/A: 114, ΟΝΟΜΑ: ΠΛ. ΚΟΥΛΟΥΡΗΣ, ΣΥΝΟΙΚΙΑ: ΡΟΥΦ, ΔΚ: 3η, X: 23.710243, Y: 37.976671",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270151247078,
+              0.002572948335329706
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΦΙΛΟΠΑΠΠΟΥ",
           "id": "slowPublicSpace_115_Filopappou",
           "textualDefinition": "A/A: 115, ΟΝΟΜΑ: ΠΛ. ΦΙΛΟΠΑΠΠΟΥ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.715182, Y: 37.965076",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701556720458,
+              0.002572843752960078
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΛΠΙΔΟΣ",
           "id": "slowPublicSpace_116_Elpidos",
           "textualDefinition": "A/A: 116, ΟΝΟΜΑ: ΠΛ. ΕΛΠΙΔΟΣ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.71413, Y: 37.964452",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701547295347,
+              0.002572838124718321
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΡΑΜΝΕΣ",
           "id": "slowPublicSpace_117_Ramnes",
           "textualDefinition": "A/A: 117, ΟΝΟΜΑ: ΠΛ. ΡΑΜΝΕΣ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.716179, Y: 37.986092",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270156565272,
+              0.0025730333091107814
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΛΑΙΟΤΡΙΒΕΙΩΝ",
           "id": "slowPublicSpace_118_Elaiotriveion",
           "textualDefinition": "A/A: 118, ΟΝΟΜΑ: ΠΛ. ΕΛΑΙΟΤΡΙΒΕΙΩΝ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.714114, Y: 37.984603",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701547151913,
+              0.0025730198789011565
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΡΟΦΗΤΟΥ ΔΑΝΙΗΛ",
           "id": "slowPublicSpace_119_ProfitouDaniil",
           "textualDefinition": "A/A: 119, ΟΝΟΜΑ: ΠΛ. ΠΡΟΦΗΤΟΥ ΔΑΝΙΗΛ, ΣΥΝΟΙΚΙΑ: ΒΟΤΑΝΙΚΟΣ, ΔΚ: 3η, X: 23.711989, Y: 37.984491",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701528113556,
+              0.0025730188686957367
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΩΝ ΑΣΩΜΑΤΩΝ",
           "id": "slowPublicSpace_120_AgionAsomaton",
           "textualDefinition": "A/A: 120, ΟΝΟΜΑ: ΠΛ. ΑΓΙΩΝ ΑΣΩΜΑΤΩΝ, ΣΥΝΟΙΚΙΑ: ΚΑΤΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.721114, Y: 37.977681",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701609866554,
+              0.002572957445182822
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΑΝΟΥ",
           "id": "slowPublicSpace_121_Manou",
           "textualDefinition": "A/A: 121, ΟΝΟΜΑ: ΠΛ. ΜΑΝΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.734358, Y: 37.973088",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701728522593,
+              0.0025729160181650616
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΑΥΛΟΥ ΜΕΛΑ",
           "id": "slowPublicSpace_122_PavlouMela",
           "textualDefinition": "A/A: 122, ΟΝΟΜΑ: ΠΛ. ΠΑΥΛΟΥ ΜΕΛΑ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.742632, Y: 37.975172",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701802651243,
+              0.0025729348150695104
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΥΝΤΑΓΜΑΤΟΣ",
           "id": "slowPublicSpace_123_Syntagmatos",
           "textualDefinition": "A/A: 123, ΟΝΟΜΑ: ΠΛ. ΣΥΝΤΑΓΜΑΤΟΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.73479, Y: 37.975519",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270173239297,
+              0.0025729379448414308
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΑΡΝΑΒΑ",
           "id": "slowPublicSpace_124_Varnava",
           "textualDefinition": "A/A: 124, ΟΝΟΜΑ: ΠΛ. ΒΑΡΝΑΒΑ, ΣΥΝΟΙΚΙΑ: ΣΤΑΔΙΟ, ΔΚ: 2η, X: 23.743293, Y: 37.965713",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701808573336,
+              0.002572849498571053
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΚΟΥΖΕ",
           "id": "slowPublicSpace_125_Skouze",
           "textualDefinition": "A/A: 125, ΟΝΟΜΑ: ΠΛ. ΣΚΟΥΖΕ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.742385, Y: 37.972105",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270180043832,
+              0.00257290715192127
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΣΠΥΡΙΔΩΝΟΣ",
           "id": "slowPublicSpace_126_AgiosSpyridonos",
           "textualDefinition": "A/A: 126, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΣΠΥΡΙΔΩΝΟΣ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.742907, Y: 37.970145",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270180511505,
+              0.002572889473485749
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΝΙΚΟΥ ΚΙΤΣΙΚΗ",
           "id": "slowPublicSpace_127_NikouKitsiki",
           "textualDefinition": "A/A: 127, ΟΝΟΜΑ: ΠΛ. ΝΙΚΟΥ ΚΙΤΣΙΚΗ, ΣΥΝΟΙΚΙΑ: ΛΥΚΑΒΗΤΤΟΣ, ΔΚ: 1η, X: 23.748367, Y: 37.980846",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701854032397,
+              0.0025729859923670326
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΔΑΝΤΕ",
           "id": "slowPublicSpace_128_Dante",
           "textualDefinition": "A/A: 128, ΟΝΟΜΑ: ΠΛ. ΔΑΝΤΕ, ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.747212, Y: 37.979971",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701843684493,
+              0.002572978100202454
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΕΛΕΥΘΕΡΙΑΣ -(ΚΟΥΜΟΥΝΔΟΥΡΟΥ)",
           "id": "slowPublicSpace_129_EleftheriasKoumoundourou",
           "textualDefinition": "A/A: 129, ΟΝΟΜΑ: ΠΛ. ΕΛΕΥΘΕΡΙΑΣ -(ΚΟΥΜΟΥΝΔΟΥΡΟΥ), ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.721813, Y: 37.980331",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701616129036,
+              0.002572981347155142
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΟΡΕΣΤΟΥ",
           "id": "slowPublicSpace_130_Orestou",
           "textualDefinition": "A/A: 130, ΟΝΟΜΑ: ΠΛ. ΟΡΕΣΤΟΥ, ΣΥΝΟΙΚΙΑ: ΚΑΤΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.703684, Y: 37.968791",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270145370722,
+              0.002572877260766685
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΗΟΥΣ",
           "id": "slowPublicSpace_131_Ious",
           "textualDefinition": "A/A: 131, ΟΝΟΜΑ: ΠΛ. ΗΟΥΣ, ΣΥΝΟΙΚΙΑ: ΚΑΤΩ ΠΕΤΡΑΛΩΝΑ, ΔΚ: 3η, X: 23.706279, Y: 37.967496",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701476956426,
+              0.002572865580381296
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΑΡΑΜΑΝΟΥ",
           "id": "slowPublicSpace_132_Karamanou",
           "textualDefinition": "A/A: 132, ΟΝΟΜΑ: ΠΛ. ΚΑΡΑΜΑΝΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.726752, Y: 37.978235",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701660378674,
+              0.0025729624420711777
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΑΣ ΕΙΡΗΝΗΣ",
           "id": "slowPublicSpace_133_AgiasEirinis",
           "textualDefinition": "A/A: 133, ΟΝΟΜΑ: ΠΛ. ΑΓΙΑΣ ΕΙΡΗΝΗΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.728027, Y: 37.977167",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.5127016718017,
+              0.002572952809131927
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΩΝΙΣΤΩΝ ΤΗΣ ΕΙΡΗΝΗΣ",
           "id": "slowPublicSpace_134_AgonistonTisEirinis",
           "textualDefinition": "A/A: 134, ΟΝΟΜΑ: ΠΛ. ΑΓΩΝΙΣΤΩΝ ΤΗΣ ΕΙΡΗΝΗΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.731407, Y: 37.971475",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270170208392,
+              0.002572901469519919
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΤΕΝΑ",
           "id": "slowPublicSpace_135_Ktena",
           "textualDefinition": "A/A: 135, ΟΝΟΜΑ: ΠΛ. ΚΤΕΝΑ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.729876, Y: 37.976534",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270168836732,
+              0.0025729470997259227
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΟΝΑΣΤΗΡΑΚΙΟΥ",
           "id": "slowPublicSpace_136_Monastirakiou",
           "textualDefinition": "A/A: 136, ΟΝΟΜΑ: ΠΛ. ΜΟΝΑΣΤΗΡΑΚΙΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.725828, Y: 37.976442",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270165210035,
+              0.002572946269904603
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΓΕΩΡΓΙΟΥ ΚΑΡΥΤΣΗ",
           "id": "slowPublicSpace_137_AgiosGeorgiosKarytsi",
           "textualDefinition": "A/A: 137, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΓΕΩΡΓΙΟΥ ΚΑΡΥΤΣΗ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.731212, Y: 37.978",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701700336837,
+              0.002572960322481415
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΟΛΟΚΟΤΡΩΝΗ",
           "id": "slowPublicSpace_138_Kolokotroni",
           "textualDefinition": "A/A: 138, ΟΝΟΜΑ: ΠΛ. ΚΟΛΟΚΟΤΡΩΝΗ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.733347, Y: 37.977554",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701719464786,
+              0.0025729562997438902
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΦΙΛΟΜΟΥΣΟΥ ΕΤΑΙΡΙΑΣ",
           "id": "slowPublicSpace_139_FilomousouEtairias",
           "textualDefinition": "A/A: 139, ΟΝΟΜΑ: ΠΛ. ΦΙΛΟΜΟΥΣΟΥ ΕΤΑΙΡΙΑΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.731291, Y: 37.971876",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270170104464,
+              0.002572905086383473
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΘΕΑΤΡΟΥ",
           "id": "slowPublicSpace_140_Theatrou",
           "textualDefinition": "A/A: 140, ΟΝΟΜΑ: ΠΛ. ΘΕΑΤΡΟΥ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.724926, Y: 37.980897",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701644019117,
+              0.0025729864522681667
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΑΤΩΒΡΙΑΝΔΟΥ",
           "id": "slowPublicSpace_141_Satovriandou",
           "textualDefinition": "A/A: 141, ΟΝΟΜΑ: ΠΛ. ΣΑΤΩΒΡΙΑΝΔΟΥ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.746815, Y: 37.974142",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701840127708,
+              0.0025729255248877615
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΧΡΥΣΟΣΤΟΜΟΥ ΣΜΥΡΝΗΣ (Αγ. Φιλοθέης ως Υπατίας)",
           "id": "slowPublicSpace_142_ChrysostomouSmyrnis",
           "textualDefinition": "A/A: 142, ΟΝΟΜΑ: ΠΛ. ΧΡΥΣΟΣΤΟΜΟΥ ΣΜΥΡΝΗΣ (Αγ. Φιλοθέης ως Υπατίας), ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.730444, Y: 37.975336",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270169345616,
+              0.0025729362942342442
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛΑΤΕΙΑ ΑΓΟΡΑΣ",
           "id": "slowPublicSpace_143_PlateiaAgoras",
           "textualDefinition": "A/A: 143, ΟΝΟΜΑ: ΠΛΑΤΕΙΑ ΑΓΟΡΑΣ, ΣΥΝΟΙΚΙΑ: ΕΜΠΟΡ.ΤΡΙΓΩΝΟ-ΜΟΝΑΣΤΗΡΑΚΙ-ΠΛΑΚΑ, ΔΚ: 1η, X: 23.726146, Y: 37.980595",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270165494938,
+              0.002572983728350774
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΑΔΡΙΤΗΣ",
           "id": "slowPublicSpace_144_Madritis",
           "textualDefinition": "A/A: 144, ΟΝΟΜΑ: ΠΛ. ΜΑΔΡΙΤΗΣ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.750977, Y: 37.975126",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270187741601,
+              0.0025729344002026503
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΙΓΥΠΤΙΩΤΩΝ ΕΛΛΗΝΩΝ",
           "id": "slowPublicSpace_145_AigyptiotonEllinon",
           "textualDefinition": "A/A: 145, ΟΝΟΜΑ: ΠΛ. ΑΙΓΥΠΤΙΩΤΩΝ ΕΛΛΗΝΩΝ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.749498, Y: 37.97481",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701864165308,
+              0.0025729315499992997
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΔΕΞΑΜΕΝΗΣ",
           "id": "slowPublicSpace_146_Dexamenis",
           "textualDefinition": "A/A: 146, ΟΝΟΜΑ: ΠΛ. ΔΕΞΑΜΕΝΗΣ, ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.741379, Y: 37.978776",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270179142532,
+              0.002572967321742565
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΦΙΛΙΚΗΣ ΕΤΑΙΡΙΑΣ",
           "id": "slowPublicSpace_147_FilikisEtairias",
           "textualDefinition": "A/A: 147, ΟΝΟΜΑ: ΠΛ. ΦΙΛΙΚΗΣ ΕΤΑΙΡΙΑΣ, ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.740851, Y: 37.97695",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701786694855,
+              0.002572950851930495
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΕΓΑΛΟΥ ΤΟΥ ΓΕΝΟΥΣ ΣΧΟΛΗΣ",
           "id": "slowPublicSpace_148_MegalouTouGenousScholis",
           "textualDefinition": "A/A: 148, ΟΝΟΜΑ: ΠΛ. ΜΕΓΑΛΟΥ ΤΟΥ ΓΕΝΟΥΣ ΣΧΟΛΗΣ, ΣΥΝΟΙΚΙΑ: ΚΟΛΩΝΑΚΙ, ΔΚ: 1η, X: 23.749619, Y: 37.976759",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701865249362,
+              0.002572949129221816
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΝΕΖΕΡ",
           "id": "slowPublicSpace_149_Nezer",
           "textualDefinition": "A/A: 149, ΟΝΟΜΑ: ΠΛ. ΝΕΖΕΡ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.750248, Y: 37.974452",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701870884737,
+              0.0025729283209817
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΟΥΡΟΥΓΟΥΑΗΣ",
           "id": "slowPublicSpace_150_Ourougouais",
           "textualDefinition": "A/A: 150, ΟΝΟΜΑ: ΠΛ. ΟΥΡΟΥΓΟΥΑΗΣ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.751817, Y: 37.975719",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270188494176,
+              0.0025729397488355728
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΡΑΖΙΛΙΑΣ",
           "id": "slowPublicSpace_151_Vrazilias",
           "textualDefinition": "A/A: 151, ΟΝΟΜΑ: ΠΛ. ΒΡΑΖΙΛΙΑΣ, ΣΥΝΟΙΚΙΑ: ΙΛΙΣΙΑ, ΔΚ: 1η, X: 23.756168, Y: 37.978277",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701923923355,
+              0.0025729628210191097
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΤΡΟΥΜΑΝ",
           "id": "slowPublicSpace_152_Trouman",
           "textualDefinition": "A/A: 152, ΟΝΟΜΑ: ΠΛ. ΤΡΟΥΜΑΝ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.743471, Y: 37.972599",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701810168053,
+              0.0025729116076137325
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΡΟΣΚΟΠΩΝ",
           "id": "slowPublicSpace_153_Proskopon",
           "textualDefinition": "A/A: 153, ΟΝΟΜΑ: ΠΛ. ΠΡΟΣΚΟΠΩΝ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.744246, Y: 37.972145",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701817111452,
+              0.002572907512713575
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΠΛΑΣΤΗΡΑ",
           "id": "slowPublicSpace_154_Plastira",
           "textualDefinition": "A/A: 154, ΟΝΟΜΑ: ΠΛ. ΠΛΑΣΤΗΡΑ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.744152, Y: 37.968072",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701816269303,
+              0.0025728707758372283
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΡΟΥΓΚΑ",
           "id": "slowPublicSpace_155_Rouga",
           "textualDefinition": "A/A: 155, ΟΝΟΜΑ: ΠΛ. ΡΟΥΓΚΑ, ΣΥΝΟΙΚΙΑ: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η, X: 23.745633, Y: 37.971808",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701829537907,
+              0.0025729044731104965
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΛΑΖΑΡΕΤΟΥ",
           "id": "slowPublicSpace_156_Lazaretou",
           "textualDefinition": "A/A: 156, ΟΝΟΜΑ: ΠΛ. ΛΑΖΑΡΕΤΟΥ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.727091, Y: 37.968164",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701663415903,
+              0.002572871605569394
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΒΕΪΚΟΥ",
           "id": "slowPublicSpace_157_Veikou",
           "textualDefinition": "A/A: 157, ΟΝΟΜΑ: ΠΛ. ΒΕΪΚΟΥ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.725412, Y: 37.965891",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701648373355,
+              0.0025728511039863114
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΥΝΟΣΑΡΓΟΥΣ",
           "id": "slowPublicSpace_158_Kynosargous",
           "textualDefinition": "A/A: 158, ΟΝΟΜΑ: ΠΛ. ΚΥΝΟΣΑΡΓΟΥΣ, ΣΥΝΟΙΚΙΑ: ΝΕΟΣ ΚΟΣΜΟΣ, ΔΚ: 2η, X: 23.729806, Y: 37.964371",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701687740215,
+              0.0025728373941960214
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΟΥΝΤΟΥΡΙΩΤΗ",
           "id": "slowPublicSpace_159_Kountourioti",
           "textualDefinition": "A/A: 159, ΟΝΟΜΑ: ΠΛ. ΚΟΥΝΤΟΥΡΙΩΤΗ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.719136, Y: 37.961788",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701592145262,
+              0.0025728140964955373
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΓΕΡΜΑΝΟΥ ΧΡΙΣΤΙΑΝΟΥΠΟΛΕΩΣ",
           "id": "slowPublicSpace_160_GermanouChristianoupoleos",
           "textualDefinition": "A/A: 160, ΟΝΟΜΑ: ΠΛ. ΓΕΡΜΑΝΟΥ ΧΡΙΣΤΙΑΝΟΥΠΟΛΕΩΣ, ΣΥΝΟΙΚΙΑ: ΝΕΟΣ ΚΟΣΜΟΣ, ΔΚ: 2η, X: 23.725839, Y: 37.961337",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270165219897,
+              0.0025728100286792443
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΡΜΕΝΙΩΝ",
           "id": "slowPublicSpace_161_Armenion",
           "textualDefinition": "A/A: 161, ΟΝΟΜΑ: ΠΛ. ΑΡΜΕΝΙΩΝ, ΣΥΝΟΙΚΙΑ: ΝΕΟΣ ΚΟΣΜΟΣ, ΔΚ: 2η, X: 23.722947, Y: 37.96093",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701626288887,
+              0.002572806357685322
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΟΥΚΑΚΗ",
           "id": "slowPublicSpace_162_Koukaki",
           "textualDefinition": "A/A: 162, ΟΝΟΜΑ: ΠΛ. ΚΟΥΚΑΚΗ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.721266, Y: 37.963508",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270161122842,
+              0.0025728296102355947
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΤΣΩΚΡΗ",
           "id": "slowPublicSpace_163_Tsokri",
           "textualDefinition": "A/A: 163, ΟΝΟΜΑ: ΠΛ. ΤΣΩΚΡΗ, ΣΥΝΟΙΚΙΑ: ΜΑΚΡΥΓΙΑΝΝΗ-ΚΟΥΚΑΚΙ-ΒΕΪΚΟΥ-ΦΙΛΟΠΑΠΠΟΥ, ΔΚ: 1η, X: 23.730202, Y: 37.967644",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701691288058,
+              0.002572866915384769
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΛΕΥΚΑΣ",
           "id": "slowPublicSpace_164_Lefkas",
           "textualDefinition": "A/A: 164, ΟΝΟΜΑ: ΠΛ. ΛΕΥΚΑΣ, ΣΥΝΟΙΚΙΑ: ΝΕΟΣ ΚΟΣΜΟΣ, ΔΚ: 2η, X: 23.731567, Y: 37.964591",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701703517415,
+              0.0025728393785178962
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛΑΤΕΙΑ ΑΓ. ΠΑΝΤΕΛΕΗΜΟΝΟΣ",
           "id": "slowPublicSpace_165_PlateiaAgPanteleimonos",
           "textualDefinition": "A/A: 165, ΟΝΟΜΑ: ΠΛΑΤΕΙΑ ΑΓ. ΠΑΝΤΕΛΕΗΜΟΝΟΣ, ΣΥΝΟΙΚΙΑ: ΝΕΟΣ ΚΟΣΜΟΣ, ΔΚ: 2η, X: 23.730524, Y: 37.96527",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701694172943,
+              0.002572845502829417
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΙΩΑΝΝΟΥ ΚΥΝΗΓΟΥ",
           "id": "slowPublicSpace_166_AgiosIoannisKynigou",
           "textualDefinition": "A/A: 166, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΙΩΑΝΝΟΥ ΚΥΝΗΓΟΥ, ΣΥΝΟΙΚΙΑ: ΓΟΥΒΑ, ΔΚ: 2η, X: 23.734977, Y: 37.956494",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270173406843,
+              0.002572766346741351
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΜΒΡΟΣΙΟΥ ΠΛΥΤΑ",
           "id": "slowPublicSpace_167_AmbrosiouPlyta",
           "textualDefinition": "A/A: 167, ΟΝΟΜΑ: ΠΛ. ΑΜΒΡΟΣΙΟΥ ΠΛΥΤΑ, ΣΥΝΟΙΚΙΑ: ΓΟΥΒΑ, ΔΚ: 2η, X: 23.740255, Y: 37.958636",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701781355226,
+              0.0025727856667705773
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΑΡΤΕΜΙΟΥ",
           "id": "slowPublicSpace_168_AgiosArtemios",
           "textualDefinition": "A/A: 168, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΑΡΤΕΜΙΟΥ, ΣΥΝΟΙΚΙΑ: ΓΟΥΒΑ, ΔΚ: 2η, X: 23.742011, Y: 37.960443",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701797087622,
+              0.0025728019652152215
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΜΑΧΗΣ ΑΝΑΛΑΤΟΥ",
           "id": "slowPublicSpace_169_MachisAnalatou",
           "textualDefinition": "A/A: 169, ΟΝΟΜΑ: ΠΛ. ΜΑΧΗΣ ΑΝΑΛΑΤΟΥ, ΣΥΝΟΙΚΙΑ: ΔΟΥΡΓΟΥΤΙ, ΔΚ: 2η, X: 23.725381, Y: 37.955461",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270164809567,
+              0.002572757029442588
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΣΩΣΤΗ",
           "id": "slowPublicSpace_170_AgiosSostis",
           "textualDefinition": "A/A: 170, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΣΩΣΤΗ, ΣΥΝΟΙΚΙΑ: ΔΟΥΡΓΟΥΤΙ, ΔΚ: 2η, X: 23.715835, Y: 37.955652",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701562570875,
+              0.002572758752148002
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΧΡΙΣΤΙΑΝΟΥΠΟΛΕΩΣ",
           "id": "slowPublicSpace_171_Christianoupoleos",
           "textualDefinition": "A/A: 171, ΟΝΟΜΑ: ΠΛ. ΧΡΙΣΤΙΑΝΟΥΠΟΛΕΩΣ, ΣΥΝΟΙΚΙΑ: ΡΙΖΟΥΠΟΛΗ, ΔΚ: 5η, X: 23.748818, Y: 38.025693",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.51270185807282,
+              0.002573390494867284
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΑΓΙΟΥ ΘΩΜΑ",
           "id": "slowPublicSpace_172_AgiosThomaAnoKypseli",
           "textualDefinition": "A/A: 172, ΟΝΟΜΑ: ΠΛ. ΑΓΙΟΥ ΘΩΜΑ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΚΥΨΕΛΗ, ΔΚ: 6η, X: 23.746817, Y: 38.006993",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701840145482,
+              0.0025732218281315283
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΚΥΠΡΙΩΝ ΕΘΝΟΜΑΡΤΥΡΩΝ",
           "id": "slowPublicSpace_173_KyprionEthnomartyron",
           "textualDefinition": "A/A: 173, ΟΝΟΜΑ: ΠΛ. ΚΥΠΡΙΩΝ ΕΘΝΟΜΑΡΤΥΡΩΝ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΚΥΨΕΛΗ, ΔΚ: 6η, X: 23.750773, Y: 38.00643",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701875588196,
+              0.0025732167501072126
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. Ο ΠΛΑΤΑΝΟΣ",
           "id": "slowPublicSpace_174_OPlatanos",
           "textualDefinition": "A/A: 174, ΟΝΟΜΑ: ΠΛ. Ο ΠΛΑΤΑΝΟΣ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΚΥΨΕΛΗ, ΔΚ: 6η, X: 23.737714, Y: 38.005077",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701758589625,
+              0.002573204546518207
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. Ε.Ο.Κ.Α.",
           "id": "slowPublicSpace_175_EOKA",
           "textualDefinition": "A/A: 175, ΟΝΟΜΑ: ΠΛ. Ε.Ο.Κ.Α., ΣΥΝΟΙΚΙΑ: ΑΝΩ ΚΥΨΕΛΗ, ΔΚ: 6η, X: 23.750491, Y: 38.004512",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701873061697,
+              0.002573199450491958
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ. ΣΥΝΤΑΓΜΑΤΑΡΧΟΥ ΔΗΜΗΤΡΙΟΥ ΨΑΡΡΟΥ",
           "id": "slowPublicSpace_176_SyntagmatarchouDimitriouPsarrou",
           "textualDefinition": "A/A: 176, ΟΝΟΜΑ: ΠΛ. ΣΥΝΤΑΓΜΑΤΑΡΧΟΥ ΔΗΜΗΤΡΙΟΥ ΨΑΡΡΟΥ, ΣΥΝΟΙΚΙΑ: ΑΝΩ ΚΥΨΕΛΗ, ΔΚ: 6η, X: 23.747776, Y: 38.005779",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              19.512701848737393,
+              0.002573210878327725
+            ]
+          }
         }
       ]
     },
@@ -6346,1121 +7060,1865 @@
           "name": "ΟΜΟΝΟΙΑ 1",
           "id": "massParking_1_Omonoia1",
           "textualDefinition": "fid: 1, ΟΝΟΜΑ: ΟΜΟΝΟΙΑ 1, ΘΕΣΕΙΣ: 16, ΔΚ: 1, X: 476015.1, Y: 4203769",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728579749572365,
+              37.98384124615608
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΟΜΟΝΟΙΑ 2",
           "id": "massParking_2_Omonoia2",
           "textualDefinition": "fid: 2, ΟΝΟΜΑ: ΟΜΟΝΟΙΑ 2, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 476000.8, Y: 4203796",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728416015962626,
+              37.98408421532196
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΑΝΤΑΡΟΖΑ",
           "id": "massParking_3_Santarosa",
           "textualDefinition": "fid: 3, ΟΝΟΜΑ: ΣΑΝΤΑΡΟΖΑ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 476208.4, Y: 4203609",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.730786161009796,
+              37.982404259512194
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΝΤ. ΤΡΙΤΣΗ",
           "id": "massParking_4_AntTritsi",
           "textualDefinition": "fid: 4, ΟΝΟΜΑ: ΑΝΤ. ΤΡΙΤΣΗ, ΘΕΣΕΙΣ: 14, ΔΚ: 1, X: 476619.7, Y: 4203530",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.735472176857595,
+              37.981702874844814
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΑΝΙΓΓΟΣ",
           "id": "massParking_5_Kaniggos",
           "textualDefinition": "fid: 5, ΟΝΟΜΑ: ΚΑΝΙΓΓΟΣ, ΘΕΣΕΙΣ: 14, ΔΚ: 1, X: 476258.4, Y: 4203951",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731344271734837,
+              37.98548793203926
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΤΟΣΙΤΣΑ 1",
           "id": "massParking_6_Tositsa1",
           "textualDefinition": "fid: 6, ΟΝΟΜΑ: ΤΟΣΙΤΣΑ 1, ΘΕΣΕΙΣ: 18, ΔΚ: 1, X: 476212.6, Y: 4204303",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73081113650992,
+              37.98865923655131
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΤΟΣΙΤΣΑ 2",
           "id": "massParking_7_Tositsa2",
           "textualDefinition": "fid: 7, ΟΝΟΜΑ: ΤΟΣΙΤΣΑ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 1, X: 476420.6, Y: 4204249",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73318158920488,
+              37.98817794369581
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΑΞΟΥΡΓΕΙΟ",
           "id": "massParking_8_Metaxourgeio",
           "textualDefinition": "fid: 8, ΟΝΟΜΑ: ΜΕΤΑΞΟΥΡΓΕΙΟ, ΘΕΣΕΙΣ: 12, ΔΚ: 1, X: 475385.2, Y: 4203890",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72140284148036,
+              37.98491502233607
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΟΔΥΣΣΕΩΣ",
           "id": "massParking_9_Odysseos",
           "textualDefinition": "fid: 9, ΟΝΟΜΑ: ΟΔΥΣΣΕΩΣ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 475234.3, Y: 4203947",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71968253705976,
+              37.985424667834174
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΜΕΤΑΞΟΥΡΓΕΙΟΥ",
           "id": "massParking_10_PlMetaxourgeiou",
           "textualDefinition": "fid: 10, ΟΝΟΜΑ: ΠΛ ΜΕΤΑΞΟΥΡΓΕΙΟΥ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 475232.3, Y: 4203937",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719660105115956,
+              37.98533448586458
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΟΥΜΟΥΝΔΟΥΡΟΥ 1",
           "id": "massParking_11_PlKoumoundourou1",
           "textualDefinition": "fid: 11, ΟΝΟΜΑ: ΠΛ ΚΟΥΜΟΥΝΔΟΥΡΟΥ 1, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 475409.6, Y: 4203333",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.721699651808432,
+              37.9798955641537
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΟΥΜΟΥΝΔΟΥΡΟΥ 2",
           "id": "massParking_12_PlKoumoundourou2",
           "textualDefinition": "fid: 12, ΟΝΟΜΑ: ΠΛ ΚΟΥΜΟΥΝΔΟΥΡΟΥ 2, ΘΕΣΕΙΣ: 16, ΔΚ: 1, X: 475420.9, Y: 4203469",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.7218236934556,
+              37.98112160636394
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΟΤΖΙΑ 1",
           "id": "massParking_13_PlKotzia1",
           "textualDefinition": "fid: 13, ΟΝΟΜΑ: ΠΛ ΚΟΤΖΙΑ 1, ΘΕΣΕΙΣ: 16, ΔΚ: 1, X: 475975.2, Y: 4203574",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72813188486988,
+              37.98208270491165
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΟΤΖΙΑ 2",
           "id": "massParking_14_PlKotzia2",
           "textualDefinition": "fid: 14, ΟΝΟΜΑ: ΠΛ ΚΟΤΖΙΑ 2, ΘΕΣΕΙΣ: 16, ΔΚ: 1, X: 475993.9, Y: 4203506",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728347079321324,
+              37.98147032771179
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΟΡΑΗ",
           "id": "massParking_15_Korai",
           "textualDefinition": "fid: 15, ΟΝΟΜΑ: ΚΟΡΑΗ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 476346.3, Y: 4203348",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73236496658076,
+              37.98005550581437
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΛΑΥΘΜΩΝΟΣ 1",
           "id": "massParking_16_Klafthmonos1",
           "textualDefinition": "fid: 16, ΟΝΟΜΑ: ΚΛΑΥΘΜΩΝΟΣ 1, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 476270.1, Y: 4203307",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731498653666762,
+              37.97968400429623
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΛΑΥΘΜΩΝΟΣ 2",
           "id": "massParking_17_Klafthmonos2",
           "textualDefinition": "fid: 17, ΟΝΟΜΑ: ΚΛΑΥΘΜΩΝΟΣ 2, ΘΕΣΕΙΣ: 18, ΔΚ: 1, X: 476271.8, Y: 4203244",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731520079228783,
+              37.979116242865494
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΕΥΑΓΓΕΛΙΣΜΟΣ 1",
           "id": "massParking_18_Evangelismos1",
           "textualDefinition": "fid: 18, ΟΝΟΜΑ: ΕΥΑΓΓΕΛΙΣΜΟΣ 1, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 477560.2, Y: 4202876",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74620182450909,
+              37.97583209971414
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΕΥΑΓΓΕΛΙΣΜΟΣ 2",
           "id": "massParking_19_Evangelismos2",
           "textualDefinition": "fid: 19, ΟΝΟΜΑ: ΕΥΑΓΓΕΛΙΣΜΟΣ 2, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 477769.7, Y: 4202918",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.748585893106373,
+              37.97621575963199
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΙΟΥΛΙΑΝΟΥ (ΠΕΔΙΟΝ)",
           "id": "massParking_20_IoulianouPedion",
           "textualDefinition": "fid: 20, ΟΝΟΜΑ: ΙΟΥΛΙΑΝΟΥ (ΠΕΔΙΟΝ), ΘΕΣΕΙΣ: 12, ΔΚ: 1, X: 476291.2, Y: 4204600",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73169647972173,
+              37.9913380746616
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤ ΛΑΡΙΣΗΣ",
           "id": "massParking_21_StLarisis",
           "textualDefinition": "fid: 21, ΟΝΟΜΑ: ΣΤ ΛΑΡΙΣΗΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 1, X: 475401, Y: 4204690",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.721555513355465,
+              37.99212566107112
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΥΝΤΑΓΜΑ 1",
           "id": "massParking_22_Syntagma1",
           "textualDefinition": "fid: 22, ΟΝΟΜΑ: ΣΥΝΤΑΓΜΑ 1, ΘΕΣΕΙΣ: 24, ΔΚ: 1, X: 476609.9, Y: 4202861",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.735382234703984,
+              37.97567306638907
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΥΝΤΑΓΜΑ 2",
           "id": "massParking_23_Syntagma2",
           "textualDefinition": "fid: 23, ΟΝΟΜΑ: ΣΥΝΤΑΓΜΑ 2, ΘΕΣΕΙΣ: 18, ΔΚ: 1, X: 476594.9, Y: 4202789",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73521377682696,
+              37.975023760743674
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΥΝΤΑΓΜΑ 3",
           "id": "massParking_24_Syntagma3",
           "textualDefinition": "fid: 24, ΟΝΟΜΑ: ΣΥΝΤΑΓΜΑ 3, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 476515.9, Y: 4202875",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.734311502577555,
+              37.97579683314733
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΒΡΑΖΙΛΙΑΣ",
           "id": "massParking_25_PlVrazilias",
           "textualDefinition": "fid: 25, ΟΝΟΜΑ: ΠΛ ΒΡΑΖΙΛΙΑΣ, ΘΕΣΕΙΣ: 14, ΔΚ: 1, X: 478401.4, Y: 4203101",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.755772982946972,
+              37.977880255519146
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΓΑΡΟ ΜΟΥΣΙΚΗΣ 1",
           "id": "massParking_26_MegaroMousikis1",
           "textualDefinition": "fid: 26, ΟΝΟΜΑ: ΜΕΓΑΡΟ ΜΟΥΣΙΚΗΣ 1, ΘΕΣΕΙΣ: 20, ΔΚ: 1, X: 478159.7, Y: 4203261",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.753016085025568,
+              37.97931655833238
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΘΗΝΑΣ 1",
           "id": "massParking_27_Athinas1",
           "textualDefinition": "fid: 27, ΟΝΟΜΑ: ΑΘΗΝΑΣ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 475830.7, Y: 4203104",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.726502196383283,
+              37.97784288260827
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΑΡΒΑΚΕΙΟΣ 1",
           "id": "massParking_28_Varvakeios1",
           "textualDefinition": "fid: 28, ΟΝΟΜΑ: ΒΑΡΒΑΚΕΙΟΣ 1, ΘΕΣΕΙΣ: 18, ΔΚ: 1, X: 475867.8, Y: 4203410",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.726914407775503,
+              37.98060177598763
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΑΡΒΑΚΕΙΟΣ 2",
           "id": "massParking_29_Varvakeios2",
           "textualDefinition": "fid: 29, ΟΝΟΜΑ: ΒΑΡΒΑΚΕΙΟΣ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 1, X: 475863.8, Y: 4203389",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72686956249043,
+              37.9804124018132
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΥΓΓΡΟΥ ΦΙΞ",
           "id": "massParking_30_SyggrouFix",
           "textualDefinition": "fid: 30, ΟΝΟΜΑ: ΣΥΓΓΡΟΥ ΦΙΞ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 475843.4, Y: 4201657",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.726695154006627,
+              37.964801702410156
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΓΕΝΝΑΙΟΥ ΚΟΛΟΚΟΤΡΩΝΗ",
           "id": "massParking_31_GennaiouKolokotroni",
           "textualDefinition": "fid: 31, ΟΝΟΜΑ: ΓΕΝΝΑΙΟΥ ΚΟΛΟΚΟΤΡΩΝΗ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 475210, Y: 4201321",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71949589696708,
+              37.96175642851969
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΦΙΛΟΠΑΠΠΟΥ",
           "id": "massParking_32_PlFilopappou",
           "textualDefinition": "fid: 32, ΟΝΟΜΑ: ΠΛ ΦΙΛΟΠΑΠΠΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 1, X: 474813.9, Y: 4201698",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.714973655893907,
+              37.965143416992895
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΛΙΝΑ ΜΕΡΚΟΥΡΗ",
           "id": "massParking_33_MelinaMerkouri",
           "textualDefinition": "fid: 33, ΟΝΟΜΑ: ΜΕΛΙΝΑ ΜΕΡΚΟΥΡΗ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 476259.4, Y: 4202205",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731413009456915,
+              37.96975162646063
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΤΣΩΚΡΗ ΧΑΤΖΗΧΡΗΣΤΟΥ",
           "id": "massParking_34_TsokriChatzichristou",
           "textualDefinition": "fid: 34, ΟΝΟΜΑ: ΤΣΩΚΡΗ ΧΑΤΖΗΧΡΗΣΤΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 1, X: 476136.7, Y: 4201953",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.730024385376787,
+              37.967477202521124
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΥΠΑΤΙΑΣ – ΜΗΤΡΟΠΟΛΗ",
           "id": "massParking_35_YpatiasMitropoli",
           "textualDefinition": "fid: 35, ΟΝΟΜΑ: ΥΠΑΤΙΑΣ – ΜΗΤΡΟΠΟΛΗ, ΘΕΣΕΙΣ: 18, ΔΚ: 1, X: 476192.9, Y: 4202807",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73063608186321,
+              37.97517559964913
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΜΑΔΡΙΤΗΣ",
           "id": "massParking_36_PlMadritis",
           "textualDefinition": "fid: 36, ΟΝΟΜΑ: ΠΛ ΜΑΔΡΙΤΗΣ, ΘΕΣΕΙΣ: 10, ΔΚ: 1, X: 477940.7, Y: 4202754",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.750537906036122,
+              37.97474180428936
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΜΑΧΗΣ ΑΝΑΛΑΤΟΥ",
           "id": "massParking_37_PlMachisAnalatou",
           "textualDefinition": "fid: 37, ΟΝΟΜΑ: ΠΛ ΜΑΧΗΣ ΑΝΑΛΑΤΟΥ, ΘΕΣΕΙΣ: 12, ΔΚ: 2, X: 475727.2, Y: 4200640",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.725406434353552,
+              37.955632591596384
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΝΕΟΣ ΚΟΣΜΟΣ",
           "id": "massParking_38_MetroNeosKosmos",
           "textualDefinition": "fid: 38, ΟΝΟΜΑ: ΜΕΤΡΟ ΝΕΟΣ ΚΟΣΜΟΣ, ΘΕΣΕΙΣ: 10, ΔΚ: 2, X: 475991.1, Y: 4200861",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728403028648803,
+              37.95763139716791
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΑΓ ΙΩΑΝΝΗΣ",
           "id": "massParking_39_MetroAgIoannis",
           "textualDefinition": "fid: 39, ΟΝΟΜΑ: ΜΕΤΡΟ ΑΓ ΙΩΑΝΝΗΣ, ΘΕΣΕΙΣ: 16, ΔΚ: 2, X: 476531.3, Y: 4200745",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.734555964132674,
+              37.95659994357945
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΡΙΝΑΓΟΡΟΥ",
           "id": "massParking_40_Krinagorou",
           "textualDefinition": "fid: 40, ΟΝΟΜΑ: ΚΡΙΝΑΓΟΡΟΥ, ΘΕΣΕΙΣ: 12, ΔΚ: 2, X: 475169.5, Y: 4200543",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71906156416974,
+              37.95474336167973
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΑΛΛΙΡΟΗΣ – ΣΥΓΓΡΟΥ",
           "id": "massParking_41_KalliroisSyggrou",
           "textualDefinition": "fid: 41, ΟΝΟΜΑ: ΚΑΛΛΙΡΟΗΣ – ΣΥΓΓΡΟΥ, ΘΕΣΕΙΣ: 20, ΔΚ: 2, X: 475527.2, Y: 4201236",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72310970448774,
+              37.960998893461145
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΥΝΟΣΑΡΓΟΥΣ",
           "id": "massParking_42_PlKynosargous",
           "textualDefinition": "fid: 42, ΟΝΟΜΑ: ΠΛ ΚΥΝΟΣΑΡΓΟΥΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 2, X: 476105.3, Y: 4201616",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72967804229907,
+              37.96443906571978
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΛΥΤΑ 1",
           "id": "massParking_43_PlPlyta1",
           "textualDefinition": "fid: 43, ΟΝΟΜΑ: ΠΛ ΠΛΥΤΑ 1, ΘΕΣΕΙΣ: 8, ΔΚ: 2, X: 477054, Y: 4200914",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.740500493105646,
+              37.95813638446195
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΛΥΤΑ 2",
           "id": "massParking_44_PlPlyta2",
           "textualDefinition": "fid: 44, ΟΝΟΜΑ: ΠΛ ΠΛΥΤΑ 2, ΘΕΣΕΙΣ: 14, ΔΚ: 2, X: 476991.5, Y: 4200967",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.739787356229336,
+              37.958612492923706
+            ]
+          }
         },
         {
           "type": "point",
           "name": "Α ΚΟΙΜΗΤΗΡΙΟ",
           "id": "massParking_45_AKoimitirio",
           "textualDefinition": "fid: 45, ΟΝΟΜΑ: Α ΚΟΙΜΗΤΗΡΙΟ, ΘΕΣΕΙΣ: 14, ΔΚ: 2, X: 476601.6, Y: 4201670",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73532627045889,
+              37.9649386038425
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΒΑΡΝΑΒΑ",
           "id": "massParking_46_PlVarnava",
           "textualDefinition": "fid: 46, ΟΝΟΜΑ: ΠΛ ΒΑΡΝΑΒΑ, ΘΕΣΕΙΣ: 8, ΔΚ: 2, X: 477297.5, Y: 4201760",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74324576428743,
+              37.965767313446776
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΥΜΗΤΤΟΥ + ΠΡ ΗΛΙΑ",
           "id": "massParking_47_YmittouPrIlia",
           "textualDefinition": "fid: 47, ΟΝΟΜΑ: ΥΜΗΤΤΟΥ + ΠΡ ΗΛΙΑ, ΘΕΣΕΙΣ: 12, ΔΚ: 2, X: 477579.8, Y: 4201750",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74645989282739,
+              37.965684155162116
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΜΕΣΟΛΟΓΓΙΟΥ",
           "id": "massParking_48_PlMesologgiou",
           "textualDefinition": "fid: 48, ΟΝΟΜΑ: ΠΛ ΜΕΣΟΛΟΓΓΙΟΥ, ΘΕΣΕΙΣ: 14, ΔΚ: 2, X: 477828.5, Y: 4202117",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.749279945559206,
+              37.96899792723485
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΖΑΠΠΕΙΟ ΗΡ ΑΤΤΙΚΟΥ",
           "id": "massParking_49_ZappeioHrAttikou",
           "textualDefinition": "fid: 49, ΟΝΟΜΑ: ΖΑΠΠΕΙΟ ΗΡ ΑΤΤΙΚΟΥ, ΘΕΣΕΙΣ: 16, ΔΚ: 2, X: 476925.6, Y: 4202337",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.738993495432876,
+              37.970958388692814
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΧΕΛΝΤΡΑΙΧ",
           "id": "massParking_50_Chelntraich",
           "textualDefinition": "fid: 50, ΟΝΟΜΑ: ΧΕΛΝΤΡΑΙΧ, ΘΕΣΕΙΣ: 10, ΔΚ: 2, X: 475415.5, Y: 4200763",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.721854227943545,
+              37.95673283401866
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΘΗΣΕΙΟ 1",
           "id": "massParking_51_Thiseio1",
           "textualDefinition": "fid: 51, ΟΝΟΜΑ: ΘΗΣΕΙΟ 1, ΘΕΣΕΙΣ: 16, ΔΚ: 3, X: 475361.2, Y: 4203069",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.721157544046214,
+              37.97751488491504
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΘΗΣΕΙΟ 2",
           "id": "massParking_52_Thiseio2",
           "textualDefinition": "fid: 52, ΟΝΟΜΑ: ΘΗΣΕΙΟ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 3, X: 475331.1, Y: 4203046",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.720815604606425,
+              37.977306778030375
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΘΕΣΣΑΛΟΝΙΚΗΣ",
           "id": "massParking_53_Thessalonikis",
           "textualDefinition": "fid: 53, ΟΝΟΜΑ: ΘΕΣΣΑΛΟΝΙΚΗΣ, ΘΕΣΕΙΣ: 16, ΔΚ: 3, X: 474747, Y: 4202968",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.714167672600286,
+              37.97658780944178
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΕΖΔΡΟ ΠΕΤΡΑΛΩΝΑ",
           "id": "massParking_54_PezdroPetralona",
           "textualDefinition": "fid: 54, ΟΝΟΜΑ: ΠΕΖΔΡΟ ΠΕΤΡΑΛΩΝΑ, ΘΕΣΕΙΣ: 8, ΔΚ: 3, X: 474395.8, Y: 4202318",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71019192498973,
+              37.9707197183301
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΕΧΕΛΙΔΩΝ - ΣΕΡΑΦΕΙΟ",
           "id": "massParking_55_EchelidonSerafeio",
           "textualDefinition": "fid: 55, ΟΝΟΜΑ: ΕΧΕΛΙΔΩΝ - ΣΕΡΑΦΕΙΟ, ΘΕΣΕΙΣ: 10, ΔΚ: 3, X: 474194.6, Y: 4202596",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.70789130728407,
+              37.97321960606287
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΔΟΥΡΟΥΤΙ",
           "id": "massParking_56_PlDourouti",
           "textualDefinition": "fid: 56, ΟΝΟΜΑ: ΠΛ ΔΟΥΡΟΥΤΙ, ΘΕΣΕΙΣ: 16, ΔΚ: 3, X: 475239.5, Y: 4203694",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719750423985403,
+              37.98314457785355
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΥΔΗ",
           "id": "massParking_57_PlAvdi",
           "textualDefinition": "fid: 57, ΟΝΟΜΑ: ΠΛ ΑΥΔΗ, ΘΕΣΕΙΣ: 8, ΔΚ: 3, X: 475238.2, Y: 4203641",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719737437501667,
+              37.98266686560588
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΓΚΑΖΙ",
           "id": "massParking_58_MetroGkazi",
           "textualDefinition": "fid: 58, ΟΝΟΜΑ: ΜΕΤΡΟ ΓΚΑΖΙ, ΘΕΣΕΙΣ: 24, ΔΚ: 3, X: 474509.2, Y: 4203212",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.711451461016583,
+              37.97878031644053
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΑΡΚΙΝΚ ΠΕΙΡΑΙΩΣ - ΤΕΧΝΟΠ",
           "id": "massParking_59_ParkingPeiraiosTechnop",
           "textualDefinition": "fid: 59, ΟΝΟΜΑ: ΠΑΡΚΙΝΚ ΠΕΙΡΑΙΩΣ - ΤΕΧΝΟΠ, ΘΕΣΕΙΣ: 14, ΔΚ: 3, X: 474914.6, Y: 4203211",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.716067538133043,
+              37.97878253587154
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΡΑΜΝΕΣ - ΑΡΧΑΓΓΕΛΟΣ",
           "id": "massParking_60_PlRamnesArchaggelos",
           "textualDefinition": "fid: 60, ΟΝΟΜΑ: ΠΛ ΡΑΜΝΕΣ - ΑΡΧΑΓΓΕΛΟΣ, ΘΕΣΕΙΣ: 10, ΔΚ: 3, X: 474907.6, Y: 4204003",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.715960321735125,
+              37.98592045818818
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΥΛΟΥ",
           "id": "massParking_61_Pylou",
           "textualDefinition": "fid: 61, ΟΝΟΜΑ: ΠΥΛΟΥ, ΘΕΣΕΙΣ: 12, ΔΚ: 4, X: 474507.1, Y: 4204159",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71139412437464,
+              37.98731534761027
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΟΝΑΣΤΗΡΙΟΥ",
           "id": "massParking_62_Monastiriou",
           "textualDefinition": "fid: 62, ΟΝΟΜΑ: ΜΟΝΑΣΤΗΡΙΟΥ, ΘΕΣΕΙΣ: 12, ΔΚ: 4, X: 474587.3, Y: 4204120",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71230879085746,
+              37.986966087237754
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΕΤΡΟΥΛΑ 1",
           "id": "massParking_63_PlPetroula1",
           "textualDefinition": "fid: 63, ΟΝΟΜΑ: ΠΛ ΠΕΤΡΟΥΛΑ 1, ΘΕΣΕΙΣ: 14, ΔΚ: 4, X: 474760.6, Y: 4204676",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71426283681916,
+              37.99198199131175
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΕΤΡΟΥΛΑ 2",
           "id": "massParking_64_PlPetroula2",
           "textualDefinition": "fid: 64, ΟΝΟΜΑ: ΠΛ ΠΕΤΡΟΥΛΑ 2, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 474722.6, Y: 4204628",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71383175702973,
+              37.99154832697756
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΟΡΘΟΔΟΞΙΑΣ 1",
           "id": "massParking_65_PlOrthodoxias1",
           "textualDefinition": "fid: 65, ΟΝΟΜΑ: ΠΛ ΟΡΘΟΔΟΞΙΑΣ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 474642.6, Y: 4205383",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.712894166556165,
+              37.99835073255709
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΟΡΘΟΔΟΞΙΑΣ 2",
           "id": "massParking_66_PlOrthodoxias2",
           "textualDefinition": "fid: 66, ΟΝΟΜΑ: ΠΛ ΟΡΘΟΔΟΞΙΑΣ 2, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 474630.6, Y: 4205326",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.712759497157066,
+              37.99783667242548
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΓΙΟΥ ΜΕΛΕΤΙΟΥ",
           "id": "massParking_67_PlAgiouMeletiou",
           "textualDefinition": "fid: 67, ΟΝΟΜΑ: ΠΛ ΑΓΙΟΥ ΜΕΛΕΤΙΟΥ, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 475199, Y: 4205746",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719218765217665,
+              38.00163765798455
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΝΤΙΓΟΝΗΣ - ΣΕΠΟΛΙΑ 1",
           "id": "massParking_68_AntigonisSepolia1",
           "textualDefinition": "fid: 68, ΟΝΟΜΑ: ΑΝΤΙΓΟΝΗΣ - ΣΕΠΟΛΙΑ 1, ΘΕΣΕΙΣ: 14, ΔΚ: 4, X: 474734.9, Y: 4205847",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.713929165356202,
+              38.00253520611064
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΕΠΟΛΙΑ – ΑΝΤΙΓΟΝΗΣ 2",
           "id": "massParking_69_SepoliaAntigonis2",
           "textualDefinition": "fid: 69, ΟΝΟΜΑ: ΣΕΠΟΛΙΑ – ΑΝΤΙΓΟΝΗΣ 2, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 474720.8, Y: 4205854",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.713768320271388,
+              38.002597904532756
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΘΥΜΑΡΑΚΙΑ",
           "id": "massParking_70_PlThymarakia",
           "textualDefinition": "fid: 70, ΟΝΟΜΑ: ΠΛ ΘΥΜΑΡΑΚΙΑ, ΘΕΣΕΙΣ: 14, ΔΚ: 4, X: 475607.2, Y: 4206042",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.723858130936403,
+              38.00431643842039
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΑΤΤΙΚΗΣ",
           "id": "massParking_71_MetroAttikis",
           "textualDefinition": "fid: 71, ΟΝΟΜΑ: ΜΕΤΡΟ ΑΤΤΙΚΗΣ, ΘΕΣΕΙΣ: 20, ΔΚ: 4, X: 475487.6, Y: 4205448",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.722516018818695,
+              37.99895966057166
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤΡ ΔΑΓΚΛΗ 1",
           "id": "massParking_72_StrDagli1",
           "textualDefinition": "fid: 72, ΟΝΟΜΑ: ΣΤΡ ΔΑΓΚΛΗ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 4, X: 475689.3, Y: 4207008",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.724760731780844,
+              38.01302493459446
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΟΤΡΥΣ",
           "id": "massParking_73_Votrys",
           "textualDefinition": "fid: 73, ΟΝΟΜΑ: ΒΟΤΡΥΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 4, X: 475186.4, Y: 4206533",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719048189160393,
+              38.008730340302506
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤΡ ΔΑΓΚΛΗ 2",
           "id": "massParking_74_StrDagli2",
           "textualDefinition": "fid: 74, ΟΝΟΜΑ: ΣΤΡ ΔΑΓΚΛΗ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 4, X: 475784.8, Y: 4207151",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72584383855602,
+              38.01431629621127
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤΡ ΔΑΓΚΛΗ 3",
           "id": "massParking_75_StrDagli3",
           "textualDefinition": "fid: 75, ΟΝΟΜΑ: ΣΤΡ ΔΑΓΚΛΗ 3, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 475934.2, Y: 4207379",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.727538181438682,
+              38.01637515383905
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΛΑΜΠΑΚΗ + ΚΑΒΑΦΗ",
           "id": "massParking_76_LampakiKavafi",
           "textualDefinition": "fid: 76, ΟΝΟΜΑ: ΛΑΜΠΑΚΗ + ΚΑΒΑΦΗ, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 475938, Y: 4207629",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.727573131871427,
+              38.01862843556725
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΛΑΜΠΑΚΗ",
           "id": "massParking_77_Lampaki",
           "textualDefinition": "fid: 77, ΟΝΟΜΑ: ΛΑΜΠΑΚΗ, ΘΕΣΕΙΣ: 8, ΔΚ: 5, X: 475972, Y: 4207709",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72795781387672,
+              38.01935035018013
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤ ΑΝΩ ΠΑΤΗΣΙΑ",
           "id": "massParking_78_StAnoPatisia",
           "textualDefinition": "fid: 78, ΟΝΟΜΑ: ΣΤ ΑΝΩ ΠΑΤΗΣΙΑ, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 476729.4, Y: 4208184",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.736571306806205,
+              38.023651040477795
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΑΡΚΟ ΘΕΡΜΙΔΑ",
           "id": "massParking_79_ParkoThermida",
           "textualDefinition": "fid: 79, ΟΝΟΜΑ: ΠΑΡΚΟ ΘΕΡΜΙΔΑ, ΘΕΣΕΙΣ: 18, ΔΚ: 5, X: 477359.4, Y: 4208667",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.743733959111665,
+              38.02802004740815
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΦΕΙΔΑ 1",
           "id": "massParking_80_PlFeida1",
           "textualDefinition": "fid: 80, ΟΝΟΜΑ: ΠΛ ΦΕΙΔΑ 1, ΘΕΣΕΙΣ: 14, ΔΚ: 5, X: 477810.6, Y: 4208351",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.748884669057915,
+              38.025183117582
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΦΕΙΔΑ 2",
           "id": "massParking_81_PlFeida2",
           "textualDefinition": "fid: 81, ΟΝΟΜΑ: ΠΛ ΦΕΙΔΑ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 477807.6, Y: 4208442",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74884768873461,
+              38.026003202883
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΕΡΓΑΤΩΝ ΠΟΛ 1",
           "id": "massParking_82_PlErgatonPol1",
           "textualDefinition": "fid: 82, ΟΝΟΜΑ: ΠΛ ΕΡΓΑΤΩΝ ΠΟΛ 1, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 477720.5, Y: 4208006",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74786876035798,
+              38.02207152865213
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΕΡΓΑΤΩΝ ΠΟΛ 2",
           "id": "massParking_83_PlErgatonPol2",
           "textualDefinition": "fid: 83, ΟΝΟΜΑ: ΠΛ ΕΡΓΑΤΩΝ ΠΟΛ 2, ΘΕΣΕΙΣ: 20, ΔΚ: 5, X: 477632.5, Y: 4207907",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.746869235425276,
+              38.021177114083564
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΑΠΑΔΙΑΜΑΝΤΗ",
           "id": "massParking_84_PlPapadiamanti",
           "textualDefinition": "fid: 84, ΟΝΟΜΑ: ΠΛ ΠΑΠΑΔΙΑΜΑΝΤΗ, ΘΕΣΕΙΣ: 16, ΔΚ: 5, X: 477186.6, Y: 4207783",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.7417930297261,
+              38.0200484901023
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΑΟΥΜΠΕΡРТ",
           "id": "massParking_85_Saoumpert",
           "textualDefinition": "fid: 85, ΟΝΟΜΑ: ΣΑΟΥΜΠΕΡРТ, ΘΕΣΕΙΣ: 14, ΔΚ: 5, X: 477315.8, Y: 4207371",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.743277932103208,
+              38.01633846566778
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΛΟΝΑΡΙΔΗ",
           "id": "massParking_86_Klonaridi",
           "textualDefinition": "fid: 86, ΟΝΟΜΑ: ΚΛΟΝΑΡΙΔΗ, ΘΕΣΕΙΣ: 12, ΔΚ: 5, X: 476613.4, Y: 4207372",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.735276004669927,
+              38.01632973748855
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΔΡΑΚΟΠΟΥΛΟΥ",
           "id": "massParking_87_Drakopoulou",
           "textualDefinition": "fid: 87, ΟΝΟΜΑ: ΔΡΑΚΟΠΟΥΛΟΥ, ΘΕΣΕΙΣ: 10, ΔΚ: 5, X: 476674.5, Y: 4207830",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73595726016117,
+              38.020459132942825
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΓΚΡΑΒΑ 1",
           "id": "massParking_88_Gkrava1",
           "textualDefinition": "fid: 88, ΟΝΟΜΑ: ΓΚΡΑΒΑ 1, ΘΕΣΕΙΣ: 14, ΔΚ: 5, X: 476966.7, Y: 4207194",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.739306557521946,
+              38.014734461792
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΓΚΡΑΒΑ 2",
           "id": "massParking_89_Gkrava2",
           "textualDefinition": "fid: 89, ΟΝΟΜΑ: ΓΚΡΑΒΑ 2, ΘΕΣΕΙΣ: 14, ΔΚ: 5, X: 476958.1, Y: 4206896",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.739218101796904,
+              38.012048447861
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΟΛΙΑΤΣΟΥ",
           "id": "massParking_90_Koliatsou",
           "textualDefinition": "fid: 90, ΟΝΟΜΑ: ΚΟΛΙΑΤΣΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 5, X: 476583.5, Y: 4206695",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.734957347858774,
+              38.010227346771494
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΙΩΝΙΑΣ ΑΧΑΡΝΩΝ",
           "id": "massParking_91_IoniasAcharnon",
           "textualDefinition": "fid: 91, ΟΝΟΜΑ: ΙΩΝΙΑΣ ΑΧΑΡΝΩΝ, ΘΕΣΕΙΣ: 8, ΔΚ: 5, X: 476034.1, Y: 4207089",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72868589820994,
+              38.01376409337687
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΕΖΟΔΡ ΜΙΧ ΝΟΜΙΚΟΥ",
           "id": "massParking_92_PezodrMichNomikou",
           "textualDefinition": "fid: 92, ΟΝΟΜΑ: ΠΕΖΟΔΡ ΜΙΧ ΝΟΜΙΚΟΥ, ΘΕΣΕΙΣ: 10, ΔΚ: 6, X: 476346.3, Y: 4206453",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.732263270701186,
+              38.008040142602226
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ Κ ΠΑΤΗΣΙΑ",
           "id": "massParking_93_MetroKPatisia",
           "textualDefinition": "fid: 93, ΟΝΟΜΑ: ΜΕΤΡΟ Κ ΠΑΤΗΣΙΑ, ΘΕΣΕΙΣ: 18, ΔΚ: 6, X: 476019.6, Y: 4206857",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728528428198803,
+              38.011672757920294
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤ ΑΓ ΝΙΚΟΛΑΟΣ 1",
           "id": "massParking_94_StAgNikolaos1",
           "textualDefinition": "fid: 94, ΟΝΟΜΑ: ΣΤ ΑΓ ΝΙΚΟΛΑΟΣ 1, ΘΕΣΕΙΣ: 12, ΔΚ: 6, X: 475982.6, Y: 4206409",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728121854706806,
+              38.0076340774668
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤ ΑΓ ΝΙΚΟΛΑΟΣ 2",
           "id": "massParking_95_StAgNikolaos2",
           "textualDefinition": "fid: 95, ΟΝΟΜΑ: ΣΤ ΑΓ ΝΙΚΟΛΑΟΣ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 6, X: 476103.9, Y: 4206386",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72950432815403,
+              38.00742997048043
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΜΕΡΙΚΗΣ",
           "id": "massParking_96_PlAmerikis",
           "textualDefinition": "fid: 96, ΟΝΟΜΑ: ΠΛ ΑΜΕΡΙΚΗΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 6, X: 476443.1, Y: 4205858",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73338533105492,
+              38.002680062146
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΓ ΖΩΝΗΣ 1",
           "id": "massParking_97_AgZonis1",
           "textualDefinition": "fid: 97, ΟΝΟΜΑ: ΑΓ ΖΩΝΗΣ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 6, X: 476771.3, Y: 4205712",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.737128260606482,
+              38.00137261455365
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΓ ΖΩΝΗΣ 2",
           "id": "massParking_98_AgZonis2",
           "textualDefinition": "fid: 98, ΟΝΟΜΑ: ΑΓ ΖΩΝΗΣ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 6, X: 476834.3, Y: 4206081",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.737833984610557,
+              38.00469992299897
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΑΝΑΡΗ - ΚΥΨΕΛΗΣ",
           "id": "massParking_99_PlKanariKypselis",
           "textualDefinition": "fid: 99, ΟΝΟΜΑ: ΠΛ ΚΑΝΑΡΗ - ΚΥΨΕΛΗΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 6, X: 477143.6, Y: 4205904",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741362645050256,
+              38.00311246565543
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΓ ΠΑΝΤΕΛΕΗΜΟΝΑΣ",
           "id": "massParking_100_AgPanteleimonas",
           "textualDefinition": "fid: 100, ΟΝΟΜΑ: ΑΓ ΠΑΝΤΕΛΕΗΜΟΝΑΣ, ΘΕΣΕΙΣ: 14, ΔΚ: 6, X: 475894.6, Y: 4205169",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.727160868481246,
+              37.99645594677239
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΤΤΙΚΗΣ",
           "id": "massParking_101_PlAttikis",
           "textualDefinition": "fid: 101, ΟΝΟΜΑ: ΠΛ ΑΤΤΙΚΗΣ, ΘΕΣΕΙΣ: 12, ΔΚ: 6, X: 475477.2, Y: 4205162",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72240728310649,
+              37.996381733856204
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΙΚΤΩΡΙΑ 1",
           "id": "massParking_102_Viktoria1",
           "textualDefinition": "fid: 102, ΟΝΟΜΑ: ΒΙΚΤΩΡΙΑ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 6, X: 476082.8, Y: 4204826",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72931566419239,
+              37.99336952208882
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΙΚΤΩΡΙΑ 2",
           "id": "massParking_103_Viktoria2",
           "textualDefinition": "fid: 103, ΟΝΟΜΑ: ΒΙΚΤΩΡΙΑ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 6, X: 476147.8, Y: 4204804",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.730056653642787,
+              37.9931729425286
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΔΗΜ ΨΑΡΡΟΥ",
           "id": "massParking_104_PlDimPsarrou",
           "textualDefinition": "fid: 104, ΟΝΟΜΑ: ΠΛ ΔΗΜ ΨΑΡΡΟΥ, ΘΕΣΕΙΣ: 10, ΔΚ: 6, X: 477736, Y: 4206186",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74810149348316,
+              38.00566870918156
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΡΓΕΝΤΙΝΗΣ 1",
           "id": "massParking_105_PlArgentinis1",
           "textualDefinition": "fid: 105, ΟΝΟΜΑ: ΠΛ ΑΡΓΕΝΤΙΝΗΣ 1, ΘΕΣΕΙΣ: 10, ΔΚ: 7, X: 477335, Y: 4204404",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.743589792322133,
+              37.98959808463769
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΡΓΕΝΤΙΝΗΣ 2",
           "id": "massParking_106_PlArgentinis2",
           "textualDefinition": "fid: 106, ΟΝΟΜΑ: ΠΛ ΑΡΓΕΝΤΙΝΗΣ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 477330.4, Y: 4204384",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74353803459307,
+              37.9894177148193
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΡΓΕΝΤΙΝΗΣ 3",
           "id": "massParking_107_PlArgentinis3",
           "textualDefinition": "fid: 107, ΟΝΟΜΑ: ΠΛ ΑΡΓΕΝΤΙΝΗΣ 3, ΘΕΣΕΙΣ: 10, ΔΚ: 7, X: 477472.2, Y: 4204364",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.745153485273843,
+              37.989240968983225
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΝΟΡΝΤΑΟΥ",
           "id": "massParking_108_Norntaou",
           "textualDefinition": "fid: 108, ΟΝΟΜΑ: ΝΟΡΝΤΑΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 477691.8, Y: 4204719",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.747643338331677,
+              37.99244589808357
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΝΟΡΝΤΑΟΥ 2",
           "id": "massParking_109_Norntaou2",
           "textualDefinition": "fid: 109, ΟΝΟΜΑ: ΝΟΡΝΤΑΟΥ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 477730.3, Y: 4204742",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.74808108795013,
+              37.99265413189899
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΓΚΥΖΗ",
           "id": "massParking_110_PlGkyzi",
           "textualDefinition": "fid: 110, ΟΝΟΜΑ: ΠΛ ΓΚΥΖΗ, ΘΕΣΕΙΣ: 12, ΔΚ: 7, X: 477838.2, Y: 4204808",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.749307889869208,
+              37.993251600795226
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΑΜΠΕΛΟΚΗΠΟΙ",
           "id": "massParking_111_MetroAmpelokipoi",
           "textualDefinition": "fid: 111, ΟΝΟΜΑ: ΜΕΤΡΟ ΑΜΠΕΛΟΚΗΠΟΙ, ΘΕΣΕΙΣ: 12, ΔΚ: 7, X: 478523.7, Y: 4204120",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.75713526065572,
+              37.98706718237036
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΜΕΤΡΟ ΑΜΠΕΛΟΚΗΠΟΙ 2",
           "id": "massParking_112_MetroAmpelokipoi2",
           "textualDefinition": "fid: 112, ΟΝΟΜΑ: ΜΕΤΡΟ ΑΜΠΕΛΟΚΗΠΟΙ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 7, X: 478521.1, Y: 4204179",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.75710389960814,
+              37.98759887603682
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΓΙΟΥ ΘΩΜΑ",
           "id": "massParking_113_PlAgiouThoma",
           "textualDefinition": "fid: 113, ΟΝΟΜΑ: ΠΛ ΑΓΙΟΥ ΘΩΜΑ, ΘΕΣΕΙΣ: 14, ΔΚ: 7, X: 479160.6, Y: 4203564",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76440411770104,
+              37.98207081566388
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΑΓ ΘΩΜΑ 2",
           "id": "massParking_114_PlAgThoma2",
           "textualDefinition": "fid: 114, ΟΝΟΜΑ: ΠΛ ΑΓ ΘΩΜΑ 2, ΘΕΣΕΙΣ: 12, ΔΚ: 7, X: 479257.4, Y: 4203670",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76550333383976,
+              37.983028375578414
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΠΑΙΔΩΝ",
           "id": "massParking_115_PlPaidon",
           "textualDefinition": "fid: 115, ΟΝΟΜΑ: ΠΛ ΠΑΙΔΩΝ, ΘΕΣΕΙΣ: 6, ΔΚ: 7, X: 479481.1, Y: 4203733",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76804883940689,
+              37.983601232833784
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΑΓ ΔΗΜΗΤΡ ΠΑΝΟΡΜΟΥ",
           "id": "massParking_116_AgDimitrPanormou",
           "textualDefinition": "fid: 116, ΟΝΟΜΑ: ΑΓ ΔΗΜΗΤΡ ΠΑΝΟΡΜΟΥ, ΘΕΣΕΙΣ: 12, ΔΚ: 7, X: 478652.5, Y: 4204354",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.7585950876905,
+              37.98917919517832
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΒΕΛΕΣΤΙΝΟΥ",
           "id": "massParking_117_Velestinou",
           "textualDefinition": "fid: 117, ΟΝΟΜΑ: ΒΕΛΕΣΤΙΝΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 478878.2, Y: 4204426",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.761163264293565,
+              37.989833363236855
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΣΤ ΠΑΝΟΡΜΟΥ 1",
           "id": "massParking_118_StPanormou1",
           "textualDefinition": "fid: 118, ΟΝΟΜΑ: ΣΤ ΠΑΝΟΡΜΟΥ 1, ΘΕΣΕΙΣ: 16, ΔΚ: 7, X: 479107.4, Y: 4204768",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76376354222845,
+              37.99292100890133
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΧΑΙΡΟΠΟΥΛΟΥ",
           "id": "massParking_119_PlChairopoulou",
           "textualDefinition": "fid: 119, ΟΝΟΜΑ: ΠΛ ΧΑΙΡΟΠΟΥΛΟΥ, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 479063.4, Y: 4204955",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.763257026386334,
+              37.99460539263984
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΣΟΦΙΑΣ ΒΕΜΠΟ",
           "id": "massParking_120_PlSofiasVempo",
           "textualDefinition": "fid: 120, ΟΝΟΜΑ: ΠΛ ΣΟΦΙΑΣ ΒΕΜΠΟ, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 479267.5, Y: 4204966",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76558118148579,
+              37.99470918901353
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΑΠΑΨ",
           "id": "massParking_121_Kapaps",
           "textualDefinition": "fid: 121, ΟΝΟΜΑ: ΚΑΠΑΨ, ΘΕΣΕΙΣ: 18, ΔΚ: 7, X: 479106.9, Y: 4205218",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.7637448398583,
+              37.99697675111226
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΚΑΠΑΨ 2",
           "id": "massParking_122_Kapaps2",
           "textualDefinition": "fid: 122, ΟΝΟΜΑ: ΚΑΠΑΨ 2, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 479049.3, Y: 4205131",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.763091341346982,
+              37.99619131942752
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΛ ΚΑΠΕΤΑΝ ΓΡΥΠΑΡΗ",
           "id": "massParking_123_PlKapetanGrypari",
           "textualDefinition": "fid: 123, ΟΝΟΜΑ: ΠΛ ΚΑΠΕΤΑΝ ΓΡΥΠΑΡΗ, ΘΕΣΕΙΣ: 8, ΔΚ: 7, X: 478663.7, Y: 4205343",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.75869343596055,
+              37.998093100841245
+            ]
+          }
         },
         {
           "type": "point",
           "name": "ΠΗΝΕΛ ΔΕΛΤΑ",
           "id": "massParking_124_PinelDelta",
           "textualDefinition": "fid: 124, ΟΝΟΜΑ: ΠΗΝΕΛ ΔΕΛΤΑ, ΘΕΣΕΙΣ: 18, ΔΚ: 7, X: 480090.3, Y: 4205476",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.77493792570676,
+              37.999324014826534
+            ]
+          }
         }
       ]
     },
     {
-        "type": "geoset",
-        "id": "noIndividualParkingZones",
-        "name": "Οδικά Τμήματα Απαγόρευσης Μεμονωμένης Στάθμευσης",
-        "description": "Οδικά τμήματα σε απόσταση 300μ. από χώρους οργανωμένης στάθμευσης, όπου απαγορεύεται η μεμονωμένη στάθμευση, σύμφωνα με το Παράρτημα 2, ενότητα 2.3 του κανονισμού.",
-        "color": "#F012BE",
-        "geometries": [
-          {
-            "type": "derived",
-            "name": "Ζώνες Απαγόρευσης Μεμονωμένης Στάθμευσης (300μ)",
-            "id": "noIndividualParkingBufferZone",
-            "textualDefinition": "Όλα τα οδικά τμήματα που βρίσκονται σε απόσταση μικρότερη ή ίση των 300μ. από έναν χώρο οργανωμένης στάθμευσης και απόθεσης.",
-            "derivedFrom": {
-              "operation": "buffer",
-              "sourceGeoSetId": "designatedParkingSpots",
-              "radius": 300,
-              "units": "meters"
-            }
+      "type": "geoset",
+      "id": "noIndividualParkingZones",
+      "name": "Οδικά Τμήματα Απαγόρευσης Μεμονωμένης Στάθμευσης",
+      "description": "Οδικά τμήματα σε απόσταση 300μ. από χώρους οργανωμένης στάθμευσης, όπου απαγορεύεται η μεμονωμένη στάθμευση, σύμφωνα με το Παράρτημα 2, ενότητα 2.3 του κανονισμού.",
+      "color": "#F012BE",
+      "geometries": [
+        {
+          "type": "derived",
+          "name": "Ζώνες Απαγόρευσης Μεμονωμένης Στάθμευσης (300μ)",
+          "id": "noIndividualParkingBufferZone",
+          "textualDefinition": "Όλα τα οδικά τμήματα που βρίσκονται σε απόσταση μικρότερη ή ίση των 300μ. από έναν χώρο οργανωμένης στάθμευσης και απόθεσης.",
+          "derivedFrom": {
+            "operation": "buffer",
+            "sourceGeoSetId": "designatedParkingSpots",
+            "radius": 300,
+            "units": "meters"
           }
-        ]
-      },
-      {
-        "type": "geoset",
-        "id": "allowedIndividualParkingZones",
-        "name": "Οδικά Τμήματα επιτρεπόμενης Μεμονωμένης Στάθμευσης",
-        "description": "Τα εναπομείναντα οδικά τμήματα του Δήμου Αθηναίων όπου επιτρέπεται η μεμονωμένη στάθμευση, σύμφωνα με το Παράρτημα 2, ενότητα 2.4 του κανονισμού.",
-        "color": "#2ECC40",
-        "geometries": [
-          {
-            "type": "derived",
-            "name": "Περιοχές Επιτρεπόμενης Μεμονωμένης Στάθμευσης",
-            "id": "allowedIndividualParkingArea",
-            "textualDefinition": "Ορίζονται ως τα εναπομείναντα οδικά τμήματα, τα οποία προκύπτουν αφαιρετικά από το σύνολο των οδικών τμημάτων εντός του Δήμου Αθηναίων, αφού ληφθούν υπόψιν και εξαιρεθούν οι περιοχές πλήρους απαγόρευσης κυκλοφορίας, καθώς και τα οδικά τμήματα στα οποία απαγορεύεται η μεμονωμένη στάθμευση.",
-            "derivedFrom": {
-              "operation": "difference",
-              "baseGeoSetId": "municipalityBoundary",
-              "subtractGeoSetIds": [
-                "noGoAndNoParkingZones",
-                "noGoPedestrianStreets",
-                "noGoPublicSpaces",
-                "noIndividualParkingZones"
-              ]
-            }
+        }
+      ]
+    },
+    {
+      "type": "geoset",
+      "id": "allowedIndividualParkingZones",
+      "name": "Οδικά Τμήματα επιτρεπόμενης Μεμονωμένης Στάθμευσης",
+      "description": "Τα εναπομείναντα οδικά τμήματα του Δήμου Αθηναίων όπου επιτρέπεται η μεμονωμένη στάθμευση, σύμφωνα με το Παράρτημα 2, ενότητα 2.4 του κανονισμού.",
+      "color": "#2ECC40",
+      "geometries": [
+        {
+          "type": "derived",
+          "name": "Περιοχές Επιτρεπόμενης Μεμονωμένης Στάθμευσης",
+          "id": "allowedIndividualParkingArea",
+          "textualDefinition": "Ορίζονται ως τα εναπομείναντα οδικά τμήματα, τα οποία προκύπτουν αφαιρετικά από το σύνολο των οδικών τμημάτων εντός του Δήμου Αθηναίων, αφού ληφθούν υπόψιν και εξαιρεθούν οι περιοχές πλήρους απαγόρευσης κυκλοφορίας, καθώς και τα οδικά τμήματα στα οποία απαγορεύεται η μεμονωμένη στάθμευση.",
+          "derivedFrom": {
+            "operation": "difference",
+            "baseGeoSetId": "municipalityBoundary",
+            "subtractGeoSetIds": [
+              "noGoAndNoParkingZones",
+              "noGoPedestrianStreets",
+              "noGoPublicSpaces",
+              "noIndividualParkingZones"
+            ]
           }
-        ]
-      },
-      {
-        "type": "geoset",
-        "id": "highSpeedRoadSegments",
-        "name": "Οδικά τμήματα με όριο ταχύτητας άνω των 50 km/h",
-        "description": "Οδικά τμήματα με όριο ταχύτητας άνω των 50 km/h όπου απαγορεύεται η κυκλοφορία των Ε.Π.Η.Ο., σύμφωνα με το Παράρτημα 1, ενότητα 1.1 του κανονισμού.",
-        "color": "#DC143C",
-        "geometries": [
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Συγγρού - Από Διάκου έως Λαγουμιτζή και από Λαγουμιτζή έως Δέλτα Φαλήρου",
-            "id": "highSpeedRoad_1_SynggrouDiakouLagomitzi",
-            "textualDefinition": "Λεωφόρος Συγγρού στο τμήμα από την οδό Διάκου έως την Λαγουμιτζή και από την Λαγουμιτζή έως το Δέλτα Φαλήρου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Συγγρού - Αθ. Διάκου έως Φραντζή",
-            "id": "highSpeedRoad_2_SynggrouDiakouFrantzi",
-            "textualDefinition": "Λεωφόρος Συγγρού και στα δύο ρεύματα κυκλοφορίας στο τμήμα Αθ. Διάκου έως την Φραντζή",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Συγγρού - Φραντζή έως Λαγουμιτζή",
-            "id": "highSpeedRoad_3_SynggrouFrantziLagomitzi",
-            "textualDefinition": "Λεωφόρος Συγγρού και στα δύο ρεύματα κυκλοφορίας στο τμήμα από Φραντζή έως Λαγουμιτζή",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Χαμοστέρνας",
-            "id": "highSpeedRoad_4_Chamosternas",
-            "textualDefinition": "Οδός Χαμοστέρνας",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Χαμοστέρνας - Πλ. Κουκακίου και οδού Κοίλης",
-            "id": "highSpeedRoad_5_ChamosternasKoukakiouKoilis",
-            "textualDefinition": "Χαμοστέρνας - Τμήμα μεταξύ Πλ. Κουκακίου και οδού Κοίλης",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Χαμοστέρνας - Πειραιώς και Θεσσαλονίκης",
-            "id": "highSpeedRoad_6_ChamosternasPiraiosThessalonikis",
-            "textualDefinition": "Χαμοστέρνας - Μεταξύ Πειραιώς και Θεσσαλονίκης",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Αχαρνών - Από Καυταντζόγλου μέχρι το τέρμα",
-            "id": "highSpeedRoad_7_AcharnonKaftantzoglou",
-            "textualDefinition": "Αχαρνών - Από Καυταντζόγλου μέχρι το τέρμα της οδού",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Ιπποκράτους",
-            "id": "highSpeedRoad_8_Ippokratous",
-            "textualDefinition": "Οδός Ιπποκράτους",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Χαρ. Τρικούπη",
-            "id": "highSpeedRoad_9_CharilaouTrikoupi",
-            "textualDefinition": "Οδός Χαριλάου Τρικούπη",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Ευελπίδων",
-            "id": "highSpeedRoad_10_Evelpidon",
-            "textualDefinition": "Οδός Ευελπίδων",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Πειραιώς - Από Καμπά μέχρι Πολυκράτη",
-            "id": "highSpeedRoad_11_PiraiosKampaPolykrati",
-            "textualDefinition": "Πειραιώς - Από Καμπά μέχρι Πολυκράτη",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Καλλιρρόης",
-            "id": "highSpeedRoad_12_Kallirrois",
-            "textualDefinition": "Οδός Καλλιρρόης",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Βεϊκου",
-            "id": "highSpeedRoad_13_Veikou",
-            "textualDefinition": "Οδός Βεϊκου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Δημητρακοπούλου",
-            "id": "highSpeedRoad_14_Dimitrakopoulou",
-            "textualDefinition": "Οδός Δημητρακοπούλου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Συγγρού",
-            "id": "highSpeedRoad_15_LeoforosSyngrou",
-            "textualDefinition": "Λεωφόρος Συγγρού",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Βας. Κων/νου",
-            "id": "highSpeedRoad_16_LeoforosVasKonstantinou",
-            "textualDefinition": "Λεωφόρος Βασιλέως Κωνσταντίνου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Αμβρ. Φραντζή",
-            "id": "highSpeedRoad_17_AmvrosiosFrantzi",
-            "textualDefinition": "Οδός Αμβροσίου Φραντζή",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Αρδηττού",
-            "id": "highSpeedRoad_18_Ardittou",
-            "textualDefinition": "Οδός Αρδηττού",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Μιχαλακοπούλου",
-            "id": "highSpeedRoad_19_Michalakopoulo",
-            "textualDefinition": "Οδός Μιχαλακοπούλου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Βας. Σοφίας",
-            "id": "highSpeedRoad_20_VasSofias",
-            "textualDefinition": "Λεωφόρος Βασιλίσσης Σοφίας",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Πανόρμου",
-            "id": "highSpeedRoad_21_Panormou",
-            "textualDefinition": "Οδός Πανόρμου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Μεσογείων - Από Βας. Σοφίας μέχρι Σχολής Χωρ/κης",
-            "id": "highSpeedRoad_22_MesogeionVasSofiasScholis",
-            "textualDefinition": "Μεσογείων - Από Βας. Σοφίας μέχρι Σχολής Χωροταξίας",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Ι. Μεταξά (τέως Κηφισίας)",
-            "id": "highSpeedRoad_23_IoannouMetaxa",
-            "textualDefinition": "Ι. Μεταξά (τέως Κηφισίας)",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Κάρπου",
-            "id": "highSpeedRoad_24_Karpou",
-            "textualDefinition": "Οδός Κάρπου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Φιλολάου",
-            "id": "highSpeedRoad_25_Filolaou",
-            "textualDefinition": "Οδός Φιλολάου",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Υμηττού",
-            "id": "highSpeedRoad_26_Ymittou",
-            "textualDefinition": "Οδός Υμηττού",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λεωφ. Κηφισσού",
-            "id": "highSpeedRoad_27_LeoforosKifissou",
-            "textualDefinition": "Λεωφόρος Κηφισσού",
-            "geojson": null
-          },
-          {
-            "type": "polygon",
-            "name": "Λ. Μεσογείων - ρεύμα εξόδου",
-            "id": "highSpeedRoad_28_MesogeionExitFlow",
-            "textualDefinition": "Λ. Μεσογείων στο ρεύμα εξόδου και στο τμήμα της από Λ. Βας. Σοφίας έως Γέφυρα Σταυρού",
-            "geojson": null
-          }
-        ]
-      }
+        }
+      ]
+    },
+    {
+      "type": "geoset",
+      "id": "highSpeedRoadSegments",
+      "name": "Οδικά τμήματα με όριο ταχύτητας άνω των 50 km/h",
+      "description": "Οδικά τμήματα με όριο ταχύτητας άνω των 50 km/h όπου απαγορεύεται η κυκλοφορία των Ε.Π.Η.Ο., σύμφωνα με το Παράρτημα 1, ενότητα 1.1 του κανονισμού.",
+      "color": "#DC143C",
+      "geometries": [
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Συγγρού - Από Διάκου έως Λαγουμιτζή και από Λαγουμιτζή έως Δέλτα Φαλήρου",
+          "id": "highSpeedRoad_1_SynggrouDiakouLagomitzi",
+          "textualDefinition": "Λεωφόρος Συγγρού στο τμήμα από την οδό Διάκου έως την Λαγουμιτζή και από την Λαγουμιτζή έως το Δέλτα Φαλήρου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Συγγρού - Αθ. Διάκου έως Φραντζή",
+          "id": "highSpeedRoad_2_SynggrouDiakouFrantzi",
+          "textualDefinition": "Λεωφόρος Συγγρού και στα δύο ρεύματα κυκλοφορίας στο τμήμα Αθ. Διάκου έως την Φραντζή",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Συγγρού - Φραντζή έως Λαγουμιτζή",
+          "id": "highSpeedRoad_3_SynggrouFrantziLagomitzi",
+          "textualDefinition": "Λεωφόρος Συγγρού και στα δύο ρεύματα κυκλοφορίας στο τμήμα από Φραντζή έως Λαγουμιτζή",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Χαμοστέρνας",
+          "id": "highSpeedRoad_4_Chamosternas",
+          "textualDefinition": "Οδός Χαμοστέρνας",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Χαμοστέρνας - Πλ. Κουκακίου και οδού Κοίλης",
+          "id": "highSpeedRoad_5_ChamosternasKoukakiouKoilis",
+          "textualDefinition": "Χαμοστέρνας - Τμήμα μεταξύ Πλ. Κουκακίου και οδού Κοίλης",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Χαμοστέρνας - Πειραιώς και Θεσσαλονίκης",
+          "id": "highSpeedRoad_6_ChamosternasPiraiosThessalonikis",
+          "textualDefinition": "Χαμοστέρνας - Μεταξύ Πειραιώς και Θεσσαλονίκης",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Αχαρνών - Από Καυταντζόγλου μέχρι το τέρμα",
+          "id": "highSpeedRoad_7_AcharnonKaftantzoglou",
+          "textualDefinition": "Αχαρνών - Από Καυταντζόγλου μέχρι το τέρμα της οδού",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Ιπποκράτους",
+          "id": "highSpeedRoad_8_Ippokratous",
+          "textualDefinition": "Οδός Ιπποκράτους",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Χαρ. Τρικούπη",
+          "id": "highSpeedRoad_9_CharilaouTrikoupi",
+          "textualDefinition": "Οδός Χαριλάου Τρικούπη",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Ευελπίδων",
+          "id": "highSpeedRoad_10_Evelpidon",
+          "textualDefinition": "Οδός Ευελπίδων",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Πειραιώς - Από Καμπά μέχρι Πολυκράτη",
+          "id": "highSpeedRoad_11_PiraiosKampaPolykrati",
+          "textualDefinition": "Πειραιώς - Από Καμπά μέχρι Πολυκράτη",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Καλλιρρόης",
+          "id": "highSpeedRoad_12_Kallirrois",
+          "textualDefinition": "Οδός Καλλιρρόης",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Βεϊκου",
+          "id": "highSpeedRoad_13_Veikou",
+          "textualDefinition": "Οδός Βεϊκου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Δημητρακοπούλου",
+          "id": "highSpeedRoad_14_Dimitrakopoulou",
+          "textualDefinition": "Οδός Δημητρακοπούλου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Συγγρού",
+          "id": "highSpeedRoad_15_LeoforosSyngrou",
+          "textualDefinition": "Λεωφόρος Συγγρού",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Βας. Κων/νου",
+          "id": "highSpeedRoad_16_LeoforosVasKonstantinou",
+          "textualDefinition": "Λεωφόρος Βασιλέως Κωνσταντίνου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Αμβρ. Φραντζή",
+          "id": "highSpeedRoad_17_AmvrosiosFrantzi",
+          "textualDefinition": "Οδός Αμβροσίου Φραντζή",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Αρδηττού",
+          "id": "highSpeedRoad_18_Ardittou",
+          "textualDefinition": "Οδός Αρδηττού",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Μιχαλακοπούλου",
+          "id": "highSpeedRoad_19_Michalakopoulo",
+          "textualDefinition": "Οδός Μιχαλακοπούλου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Βας. Σοφίας",
+          "id": "highSpeedRoad_20_VasSofias",
+          "textualDefinition": "Λεωφόρος Βασιλίσσης Σοφίας",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Πανόρμου",
+          "id": "highSpeedRoad_21_Panormou",
+          "textualDefinition": "Οδός Πανόρμου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Μεσογείων - Από Βας. Σοφίας μέχρι Σχολής Χωρ/κης",
+          "id": "highSpeedRoad_22_MesogeionVasSofiasScholis",
+          "textualDefinition": "Μεσογείων - Από Βας. Σοφίας μέχρι Σχολής Χωροταξίας",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Ι. Μεταξά (τέως Κηφισίας)",
+          "id": "highSpeedRoad_23_IoannouMetaxa",
+          "textualDefinition": "Ι. Μεταξά (τέως Κηφισίας)",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Κάρπου",
+          "id": "highSpeedRoad_24_Karpou",
+          "textualDefinition": "Οδός Κάρπου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Φιλολάου",
+          "id": "highSpeedRoad_25_Filolaou",
+          "textualDefinition": "Οδός Φιλολάου",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Υμηττού",
+          "id": "highSpeedRoad_26_Ymittou",
+          "textualDefinition": "Οδός Υμηττού",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λεωφ. Κηφισσού",
+          "id": "highSpeedRoad_27_LeoforosKifissou",
+          "textualDefinition": "Λεωφόρος Κηφισσού",
+          "geojson": null
+        },
+        {
+          "type": "polygon",
+          "name": "Λ. Μεσογείων - ρεύμα εξόδου",
+          "id": "highSpeedRoad_28_MesogeionExitFlow",
+          "textualDefinition": "Λ. Μεσογείων στο ρεύμα εξόδου και στο τμήμα της από Λ. Βας. Σοφίας έως Γέφυρα Σταυρού",
+          "geojson": null
+        }
+      ]
+    }
   ]
 }
