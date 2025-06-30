@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Info, MessageCircle, AlertTriangle } from "lucide-react";
+import { Info, MessageCircle, AlertTriangle, Edit, Save, CheckCircle, Target, Trash2 } from "lucide-react";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Geometry } from "./types";
 
@@ -14,18 +14,41 @@ interface GeometryItemProps {
     onToggle: (id: string) => void;
     onOpenDetail: (id: string) => void;
     comments?: ConsultationCommentWithUpvotes[];
+    // Editing props
+    isEditingMode?: boolean;
+    isSelectedForEdit?: boolean;
+    hasLocalSave?: boolean;
+    onSelectForEdit?: (id: string) => void;
+    onDeleteSavedGeometry?: (id: string) => void;
 }
 
-export default function GeometryItem({ id, name, enabled, color, geometry, onToggle, onOpenDetail, comments }: GeometryItemProps) {
+export default function GeometryItem({ 
+    id, 
+    name, 
+    enabled, 
+    color, 
+    geometry, 
+    onToggle, 
+    onOpenDetail, 
+    comments,
+    isEditingMode = false,
+    isSelectedForEdit = false,
+    hasLocalSave = false,
+    onSelectForEdit,
+    onDeleteSavedGeometry
+}: GeometryItemProps) {
     // Count comments for this geometry
     const geometryCommentCount = comments?.filter(comment =>
         comment.entityType === 'GEOMETRY' && comment.entityId === id
     ).length || 0;
 
     // Check if geometry has missing geojson data (only for non-derived geometries)
-    const hasIncompleteData = geometry.type !== 'derived' && (!('geojson' in geometry) || !geometry.geojson);
+    const hasOriginalGeojson = !!(geometry as any).geojson;
+    const hasIncompleteData = geometry.type !== 'derived' && !hasOriginalGeojson && !hasLocalSave;
+    const canEdit = geometry.type !== 'derived' && isEditingMode;
+
     return (
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${isSelectedForEdit ? 'bg-blue-50 rounded-md p-1' : ''}`}>
             <div className="relative flex items-center">
                 <Checkbox
                     id={`geometry-${id}`}
@@ -44,12 +67,40 @@ export default function GeometryItem({ id, name, enabled, color, geometry, onTog
                 className="text-xs flex-1 cursor-pointer flex items-center gap-1"
             >
                 {name}
-                {hasIncompleteData && (
+                {/* Status indicators */}
+                {hasLocalSave ? (
+                    <div title="Έχει αποθηκευτεί τοπικά">
+                        <Save className="h-3 w-3 text-blue-600" />
+                    </div>
+                ) : hasOriginalGeojson ? (
+                    <div title="Έχει πρωτότυπες συντεταγμένες">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                    </div>
+                ) : hasIncompleteData ? (
                     <div title="Η γεωμετρία δεν έχει συντεταγμένες">
-                        <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                        <AlertTriangle className="h-3 w-3 text-orange-500" />
+                    </div>
+                ) : null}
+                {isSelectedForEdit && (
+                    <div title="Επιλεγμένη για επεξεργασία">
+                        <Target className="h-3 w-3 text-blue-600" />
                     </div>
                 )}
             </Label>
+            
+            {/* Edit button - only show in editing mode for non-derived geometries */}
+            {canEdit && onSelectForEdit && (
+                <Button
+                    onClick={() => onSelectForEdit(id)}
+                    variant={isSelectedForEdit ? "default" : "outline"}
+                    size="sm"
+                    className="h-5 px-1.5 text-xs"
+                    title="Επεξεργασία γεωμετρίας"
+                >
+                    <Edit className="h-2.5 w-2.5" />
+                </Button>
+            )}
+            
             <Button
                 onClick={() => onOpenDetail(id)}
                 variant="outline"
@@ -61,6 +112,23 @@ export default function GeometryItem({ id, name, enabled, color, geometry, onTog
                 <MessageCircle className="h-2.5 w-2.5 mr-0.5" />
                 <span className="text-xs">{geometryCommentCount}</span>
             </Button>
+
+            {/* Delete button - only show if there's a locally saved geometry */}
+            {hasLocalSave && onDeleteSavedGeometry && (
+                <Button
+                    onClick={() => {
+                        if (confirm(`Θέλετε να διαγράψετε την τοπικά αποθηκευμένη γεωμετρία για "${name}";`)) {
+                            onDeleteSavedGeometry(id);
+                        }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="h-5 px-1.5 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
+                    title="Διαγραφή τοπικά αποθηκευμένης γεωμετρίας"
+                >
+                    <Trash2 className="h-2.5 w-2.5" />
+                </Button>
+            )}
         </div>
     );
 } 

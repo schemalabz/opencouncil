@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { X, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
@@ -41,6 +41,10 @@ interface DetailPanelProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    // Editing props
+    isEditingMode?: boolean;
+    selectedGeometryForEdit?: string | null;
+    savedGeometries?: Record<string, any>;
 }
 
 export default function DetailPanel({
@@ -59,7 +63,10 @@ export default function DetailPanel({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    isEditingMode = false,
+    selectedGeometryForEdit,
+    savedGeometries
 }: DetailPanelProps) {
 
     // Find the current detail data
@@ -242,8 +249,16 @@ export default function DetailPanel({
                                 <div className="text-xs text-muted-foreground space-y-1">
                                     <div>Τύπος: {getGeometryTypeLabel(currentGeometry.type)}</div>
 
+                                    {/* Show saved geometry information */}
+                                    {savedGeometries?.[currentGeometry.id] && (
+                                        <div className="flex items-center gap-1 text-blue-600 bg-blue-50 p-2 rounded-md">
+                                            <Save className="h-3 w-3" />
+                                            <span className="text-xs">Έχει αποθηκευτεί τοπικά νέα γεωμετρία</span>
+                                        </div>
+                                    )}
+
                                     {/* Show error for incomplete non-derived geometries */}
-                                    {currentGeometry.type !== 'derived' && (!('geojson' in currentGeometry) || !currentGeometry.geojson) && (
+                                    {currentGeometry.type !== 'derived' && (!('geojson' in currentGeometry) || !currentGeometry.geojson) && !savedGeometries?.[currentGeometry.id] && (
                                         <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 p-2 rounded-md">
                                             <AlertTriangle className="h-3 w-3" />
                                             <span className="text-xs">Η γεωμετρία δεν έχει συντεταγμένες και δεν εμφανίζεται στον χάρτη</span>
@@ -268,15 +283,33 @@ export default function DetailPanel({
                                         </>
                                     ) : (
                                         <>
-                                            {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Point' && (
-                                                <div>
-                                                    Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
-                                                </div>
-                                            )}
-                                            {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Polygon' && (
-                                                <div>
-                                                    Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
-                                                </div>
+                                            {/* Show saved geometry data if available */}
+                                            {savedGeometries?.[currentGeometry.id] ? (
+                                                <>
+                                                    {savedGeometries?.[currentGeometry.id].type === 'Point' && (
+                                                        <div>
+                                                            Συντεταγμένες (τοπικά): {savedGeometries?.[currentGeometry.id].coordinates[1].toFixed(6)}, {savedGeometries?.[currentGeometry.id].coordinates[0].toFixed(6)}
+                                                        </div>
+                                                    )}
+                                                    {savedGeometries?.[currentGeometry.id].type === 'Polygon' && (
+                                                        <div>
+                                                            Σημεία (τοπικά): {savedGeometries?.[currentGeometry.id].coordinates[0]?.length - 1 || 0} vertices
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Point' && (
+                                                        <div>
+                                                            Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
+                                                        </div>
+                                                    )}
+                                                    {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Polygon' && (
+                                                        <div>
+                                                            Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </>
                                     )}
