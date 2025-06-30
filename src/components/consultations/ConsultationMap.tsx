@@ -8,6 +8,7 @@ import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeomet
 import LayerControlsButton from "./LayerControlsButton";
 import LayerControlsPanel from "./LayerControlsPanel";
 import DetailPanel from "./DetailPanel";
+import EditingToolsPanel from "./EditingToolsPanel";
 import { CheckboxState } from "./GeoSetItem";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
@@ -168,7 +169,7 @@ export default function ConsultationMap({
     const [isEditingMode, setIsEditingMode] = useState(false);
     const [drawingMode, setDrawingMode] = useState<'point' | 'polygon'>('point');
     const [selectedGeometryForEdit, setSelectedGeometryForEdit] = useState<string | null>(null);
-
+    
     // Local storage state for saved geometries
     const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
 
@@ -177,7 +178,7 @@ export default function ConsultationMap({
         const loadSavedGeometries = () => {
             try {
                 const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-
+                
                 // Only update state if the data actually changed (deep comparison)
                 setSavedGeometries(prev => {
                     const hasChanged = JSON.stringify(prev) !== JSON.stringify(saved);
@@ -199,7 +200,7 @@ export default function ConsultationMap({
         };
 
         window.addEventListener('storage', handleStorageChange);
-
+        
         // Custom event for same-tab localStorage changes (we'll dispatch this from the map component)
         const handleCustomStorageChange = () => {
             loadSavedGeometries();
@@ -253,8 +254,8 @@ export default function ConsultationMap({
             setEnabledGeometries(enabledGeometryIds);
         } else {
             // Default behavior: enable all geosets and geometries
-            setEnabledGeoSets(allGeoSetIds);
-            setEnabledGeometries(allGeometryIds);
+        setEnabledGeoSets(allGeoSetIds);
+        setEnabledGeometries(allGeometryIds);
         }
 
         setExpandedGeoSets(new Set()); // Start with all collapsed
@@ -463,13 +464,13 @@ export default function ConsultationMap({
     // Function to handle geometry selection for editing with auto-zoom
     const handleSelectGeometryForEdit = (geometryId: string | null) => {
         setSelectedGeometryForEdit(geometryId);
-
+        
         if (geometryId) {
             // Find the geometry to zoom to
             const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
             if (geometry) {
                 let geoJSON: GeoJSON.Geometry | null = null;
-
+                
                 // Check for saved geometry first
                 if (savedGeometries[geometry.id]) {
                     geoJSON = savedGeometries[geometry.id];
@@ -482,7 +483,7 @@ export default function ConsultationMap({
                 else if (geometry.type === 'derived') {
                     geoJSON = computeDerivedGeometry(geometry, geoSets);
                 }
-
+                
                 // Store geometry for zooming
                 if (geoJSON) {
                     setZoomGeometry(geoJSON);
@@ -495,24 +496,52 @@ export default function ConsultationMap({
     // State for geometry to zoom to
     const [zoomGeometry, setZoomGeometry] = useState<GeoJSON.Geometry | null>(null);
 
+    // City data state
+    const [cityData, setCityData] = useState<any>(null);
+
+    // Fetch city data when cityId changes
+    useEffect(() => {
+        if (cityId) {
+            fetch(`/api/cities/${cityId}`)
+                .then(res => res.json())
+                .then(data => {
+                    setCityData(data); // Store complete city data including geometry
+                })
+                .catch(error => {
+                    console.error('Error fetching city data:', error);
+                });
+        }
+    }, [cityId]);
+
+    // Handle navigation to location (for location search)
+    const handleNavigateToLocation = (coordinates: [number, number]) => {
+        // Create a point geometry for the location and set it for zooming
+        const pointGeometry: GeoJSON.Geometry = {
+            type: 'Point',
+            coordinates: coordinates
+        };
+        setZoomGeometry(pointGeometry);
+        console.log('🗺️ Navigating to location:', coordinates);
+    };
+
     // Function to handle deleting saved geometry
     const handleDeleteSavedGeometry = (geometryId: string) => {
         try {
             const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
             delete savedGeometries[geometryId];
             localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-
+            
             // IMMEDIATELY update local state to reflect the change
             setSavedGeometries(savedGeometries);
-
+            
             // Dispatch custom event to notify components of localStorage change
             window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-
+            
             // If the deleted geometry was selected for editing, deselect it
             if (selectedGeometryForEdit === geometryId) {
                 setSelectedGeometryForEdit(null);
             }
-
+            
             console.log(`🗑️ Deleted saved geometry for ID: ${geometryId}`);
         } catch (error) {
             console.error('Error deleting saved geometry:', error);
@@ -534,6 +563,19 @@ export default function ConsultationMap({
                 selectedGeometryForEdit={selectedGeometryForEdit}
                 zoomToGeometry={zoomGeometry}
             />
+
+            {/* Editing Tools Panel */}
+            {isEditingMode && selectedGeometryForEdit && (
+                <EditingToolsPanel
+                    selectedGeometryForEdit={selectedGeometryForEdit}
+                    selectedGeometry={geoSets.flatMap(gs => gs.geometries).find(g => g.id === selectedGeometryForEdit)}
+                    drawingMode={drawingMode}
+                    cityData={cityData}
+                    onSetDrawingMode={setDrawingMode}
+                    onNavigateToLocation={handleNavigateToLocation}
+                    onClose={() => setSelectedGeometryForEdit(null)}
+                />
+            )}
 
             {/* Layer Controls Toggle Button */}
             {geoSets.length > 0 && (
@@ -565,7 +607,6 @@ export default function ConsultationMap({
                     cityId={cityId}
                     currentUser={currentUser}
                     isEditingMode={isEditingMode}
-                    drawingMode={drawingMode}
                     selectedGeometryForEdit={selectedGeometryForEdit}
                     savedGeometries={savedGeometries}
                     regulationData={regulationData}
@@ -575,7 +616,6 @@ export default function ConsultationMap({
                             setSelectedGeometryForEdit(null);
                         }
                     }}
-                    onSetDrawingMode={setDrawingMode}
                     onSelectGeometryForEdit={handleSelectGeometryForEdit}
                     onDeleteSavedGeometry={handleDeleteSavedGeometry}
                 />

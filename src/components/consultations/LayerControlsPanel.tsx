@@ -1,9 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { X, Edit, MapPin, Pentagon, Download } from "lucide-react";
+import { X, Edit, Download, ChevronDown, ChevronUp } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
 import { Geometry } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { RegulationData } from './types';
+import { CityWithGeometry } from '@/lib/db/cities';
 
 interface GeoSetData {
     id: string;
@@ -19,8 +20,6 @@ interface CurrentUser {
     email?: string | null;
     isSuperAdmin?: boolean;
 }
-
-type DrawingMode = 'point' | 'polygon';
 
 interface LayerControlsPanelProps {
     geoSets: GeoSetData[];
@@ -41,12 +40,10 @@ interface LayerControlsPanelProps {
     cityId?: string;
     currentUser?: CurrentUser;
     isEditingMode?: boolean;
-    drawingMode?: DrawingMode;
     selectedGeometryForEdit?: string | null;
     savedGeometries?: Record<string, any>;
     regulationData?: RegulationData | null;
     onToggleEditingMode?: (enabled: boolean) => void;
-    onSetDrawingMode?: (mode: DrawingMode) => void;
     onSelectGeometryForEdit?: (geometryId: string | null) => void;
     onDeleteSavedGeometry?: (geometryId: string) => void;
 }
@@ -70,12 +67,10 @@ export default function LayerControlsPanel({
     cityId,
     currentUser,
     isEditingMode,
-    drawingMode = 'point',
     selectedGeometryForEdit,
     savedGeometries,
     regulationData,
     onToggleEditingMode,
-    onSetDrawingMode,
     onSelectGeometryForEdit,
     onDeleteSavedGeometry
 }: LayerControlsPanelProps) {
@@ -152,7 +147,7 @@ export default function LayerControlsPanel({
                         
                         {/* Editing Controls - Only visible when editing */}
                         {isEditingMode && (
-                            <div className="mt-3 space-y-3">
+                            <div className="mt-3">
                                 {/* Export Button */}
                                 <Button
                                     onClick={handleExportJSON}
@@ -164,61 +159,11 @@ export default function LayerControlsPanel({
                                     Εξαγωγή Regulation.json ({Object.keys(savedGeometriesData).length} νέες γεωμετρίες)
                                 </Button>
 
-                                {/* Drawing Mode Selection - Only when geometry is selected */}
-                                {selectedGeometryForEdit && onSetDrawingMode && (
-                                    <div className="space-y-2">
-                                        <p className="text-xs font-medium text-center">Τύπος Γεωμετρίας:</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Button
-                                                onClick={() => onSetDrawingMode('point')}
-                                                variant={drawingMode === 'point' ? "default" : "outline"}
-                                                size="sm"
-                                                className="gap-2 text-xs"
-                                            >
-                                                <MapPin className="h-3 w-3" />
-                                                Σημείο
-                                            </Button>
-                                            <Button
-                                                onClick={() => onSetDrawingMode('polygon')}
-                                                variant={drawingMode === 'polygon' ? "default" : "outline"}
-                                                size="sm"
-                                                className="gap-2 text-xs"
-                                            >
-                                                <Pentagon className="h-3 w-3" />
-                                                Περιοχή
-                                            </Button>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground text-center">
-                                            {drawingMode === 'point' 
-                                                ? 'Κάντε κλικ στον χάρτη για σημείο'
-                                                : 'Κάντε κλικ για να ξεκινήσετε σχεδίαση περιοχής'
-                                            }
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Textual Definition - Only when geometry is selected for editing */}
-                                {selectedGeometryForEdit && (() => {
-                                    const selectedGeometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === selectedGeometryForEdit);
-                                    return selectedGeometry?.textualDefinition ? (
-                                        <div className="bg-blue-50 p-3 rounded-md border-2 border-blue-200">
-                                            <h4 className="font-semibold text-xs mb-2 flex items-center gap-2">
-                                                Γεωγραφικός Προσδιορισμός
-                                                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
-                                                    Χρήσιμο για σχεδίαση
-                                                </span>
-                                            </h4>
-                                            <div className="text-xs text-muted-foreground">
-                                                {selectedGeometry.textualDefinition}
-                                            </div>
-                                        </div>
-                                    ) : null;
-                                })()}
-
                                 {/* Message when no geometry selected */}
                                 {!selectedGeometryForEdit && (
-                                    <div className="text-center py-2 text-xs text-muted-foreground bg-muted/50 rounded-md">
-                                        Κάντε κλικ στο κουμπί επεξεργασίας δίπλα σε μια γεωμετρία
+                                    <div className="text-center py-3 mt-3 text-xs text-muted-foreground bg-muted/50 rounded-md">
+                                        <div className="font-medium mb-1">Επιλέξτε γεωμετρία για επεξεργασία</div>
+                                        <div>Κάντε κλικ στο κουμπί επεξεργασίας δίπλα σε μια γεωμετρία</div>
                                     </div>
                                 )}
                             </div>

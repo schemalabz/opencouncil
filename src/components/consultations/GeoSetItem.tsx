@@ -34,6 +34,7 @@ interface GeoSetItemProps {
     savedGeometries?: Record<string, any>;
     onSelectGeometryForEdit?: (id: string) => void;
     onDeleteSavedGeometry?: (id: string) => void;
+    onNavigateToLocation?: (coordinates: [number, number]) => void;
 }
 
 export default function GeoSetItem({
@@ -58,7 +59,8 @@ export default function GeoSetItem({
     selectedGeometryForEdit,
     savedGeometries = {},
     onSelectGeometryForEdit,
-    onDeleteSavedGeometry
+    onDeleteSavedGeometry,
+    onNavigateToLocation
 }: GeoSetItemProps) {
     const hasGeometries = geometries.length > 0;
     const enabledCount = geometries.filter(g => enabledGeometries.has(g.id)).length;

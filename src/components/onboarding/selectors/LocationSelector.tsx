@@ -15,13 +15,15 @@ interface LocationSelectorProps {
     onSelect: (location: Location) => void;
     onRemove: (index: number) => void;
     city: CityWithGeometry;
+    onLocationClick?: (location: Location) => void;
 }
 
 export function LocationSelector({
     selectedLocations,
     onSelect,
     onRemove,
-    city
+    city,
+    onLocationClick
 }: LocationSelectorProps) {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -188,7 +190,10 @@ export function LocationSelector({
                         {selectedLocations.map((location, index) => (
                             <div
                                 key={`loc-${index}`}
-                                className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group"
+                                className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group ${
+                                    onLocationClick ? 'cursor-pointer' : ''
+                                }`}
+                                onClick={() => onLocationClick?.(location)}
                             >
                                 <div className="flex items-center gap-2 min-w-0">
                                     <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
@@ -198,7 +203,10 @@ export function LocationSelector({
                                     variant="ghost"
                                     size="sm"
                                     className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full flex-shrink-0 opacity-80 group-hover:opacity-100"
-                                    onClick={() => onRemove(index)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemove(index);
+                                    }}
                                 >
                                     <X className="h-3 w-3 mr-1" />
                                     Αφαίρεση
