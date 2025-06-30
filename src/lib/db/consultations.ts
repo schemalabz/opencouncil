@@ -362,7 +362,7 @@ export async function addConsultationComment(
         const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
 
         if (entityDetails && regulationData.contactEmail) {
-            const consultationUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/consultations/${consultation.cityId}/${consultationId}`;
+            const consultationUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${consultation.cityId}/consultations/${consultationId}`;
 
             await sendConsultationCommentEmail({
                 userName: user.name || 'Unknown User',

@@ -105,14 +105,14 @@ const Map = memo(function Map({
             map.current.setPaintProperty('feature-points', 'circle-opacity', [
                 'case',
                 featureFilter,
-                Math.min(baseOpacity + 0.3, 1),
+                Math.min(baseOpacity + 0.05, 1),
                 ['get', 'fillOpacity']
             ]);
         } else {
             map.current.setPaintProperty('feature-fills', 'fill-opacity', [
                 'case',
                 featureFilter,
-                Math.min(baseOpacity + 0.3, 1),
+                Math.min(baseOpacity + 0.05, 1),
                 ['get', 'fillOpacity']
             ]);
         }
@@ -174,17 +174,17 @@ const Map = memo(function Map({
         console.log('🗺️ GeoJSON Generated:', JSON.stringify(feature.geometry, null, 2));
         console.log('📍 Feature:', feature);
         console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
-        
+
         // Save to localStorage if we have a selected geometry
         if (selectedGeometryRef.current) {
             try {
                 const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
                 savedGeometries[selectedGeometryRef.current] = feature.geometry;
                 localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-                
+
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-                
+
                 console.log(`💾 Saved geometry for ID: ${selectedGeometryRef.current}`);
                 console.log('📦 All saved geometries:', savedGeometries);
             } catch (error) {
@@ -193,7 +193,7 @@ const Map = memo(function Map({
         } else {
             console.warn('⚠️ No geometry selected for editing - geometry not saved');
         }
-        
+
         // Clear the drawing to allow creating more features
         if (draw.current) {
             draw.current.deleteAll();
@@ -204,17 +204,17 @@ const Map = memo(function Map({
         const feature = e.features[0];
         console.log('🔄 GeoJSON Updated:', JSON.stringify(feature.geometry, null, 2));
         console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
-        
+
         // Also save updates to localStorage
         if (selectedGeometryRef.current) {
             try {
                 const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
                 savedGeometries[selectedGeometryRef.current] = feature.geometry;
                 localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-                
+
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-                
+
                 console.log(`💾 Updated geometry for ID: ${selectedGeometryRef.current}`);
             } catch (error) {
                 console.error('Error updating geometry in localStorage:', error);
@@ -610,7 +610,7 @@ const Map = memo(function Map({
                         }
                     ]
                 });
-                
+
                 map.current.addControl(draw.current, 'top-left');
             }
 
@@ -620,7 +620,7 @@ const Map = memo(function Map({
                 // Remove existing listeners
                 map.current.off('draw.create', handleDrawCreate);
                 map.current.off('draw.update', handleDrawUpdate);
-                
+
                 // Add fresh listeners with updated callback references
                 map.current.on('draw.create', handleDrawCreate);
                 map.current.on('draw.update', handleDrawUpdate);
@@ -629,7 +629,7 @@ const Map = memo(function Map({
             // Change drawing mode based on drawingMode prop
             if (draw.current) {
                 const currentMode = draw.current.getMode();
-                
+
                 if (drawingMode === 'point' && currentMode !== 'draw_point') {
                     draw.current.changeMode('draw_point');
                 } else if (drawingMode === 'polygon' && currentMode !== 'draw_polygon') {
@@ -661,11 +661,11 @@ const Map = memo(function Map({
             const performZoom = (geometry: GeoJSON.Geometry) => {
                 try {
                     const bounds = calculateGeometryBounds(geometry);
-                    
+
                     if (bounds.bounds) {
                         // Add some padding around the geometry
                         const padding = 100; // pixels
-                        
+
                         map.current?.fitBounds([
                             [bounds.bounds.minLng, bounds.bounds.minLat],
                             [bounds.bounds.maxLng, bounds.bounds.maxLat]
@@ -673,7 +673,7 @@ const Map = memo(function Map({
                             padding: padding,
                             maxZoom: 16 // Don't zoom in too much for small geometries
                         });
-                        
+
                         console.log('🔍 Zoomed to geometry bounds:', bounds);
                     } else {
                         // For single points, just center on them
@@ -690,7 +690,7 @@ const Map = memo(function Map({
                     console.error('Error zooming to geometry:', error);
                 }
             };
-            
+
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
