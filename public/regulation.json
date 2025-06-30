@@ -8683,7 +8683,7 @@
           "textualDefinition": "Όλα τα οδικά τμήματα που βρίσκονται σε απόσταση μικρότερη ή ίση των 300μ. από έναν χώρο οργανωμένης στάθμευσης και απόθεσης.",
           "derivedFrom": {
             "operation": "buffer",
-            "sourceGeoSetId": "designatedParkingSpots",
+            "sourceGeoSetId": "massParkingAndDropOffZones",
             "radius": 300,
             "units": "meters"
           }
