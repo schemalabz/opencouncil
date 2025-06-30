@@ -62,7 +62,7 @@ This workflow is designed to be flexible. A single contributor can take a task f
 
 To maintain a clean and understandable project history, we follow best practices for creating commits. While our AI pair programmer assists in this process, the human contributor is the final reviewer responsible for the quality of each commit.
 
--   **Keep Commits Atomic:** In general, commits should be atomic and diffs should be easy to read. For this reason, do not mix any formatting fixes or code moves with actual code changes.
+-   **Keep Commits Atomic:** In general, [commits should be atomic](https://en.wikipedia.org/wiki/Atomic_commit#Atomic_commit_convention) and diffs should be easy to read. For this reason, do not mix any formatting fixes or code moves with actual code changes. When implementing a plan from a PRD, each logical step or sub-step should correspond to a single commit. This ensures the project's history mirrors the structure of the plan, making changes easy to review, understand, and, if necessary, revert.
 
 -   **Ensure Commits are Hygienic:** Make sure each individual commit is hygienic: that it builds successfully on its own without warnings, errors, regressions, or test failures. This means tests must be updated in the same commit that changes the behavior.
 

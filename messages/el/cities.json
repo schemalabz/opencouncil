@@ -1,0 +1,26 @@
+{
+  "CitiesList": {
+    "searchPlaceholder": "Αναζήτηση πόλεων...",
+    "addCity": "Προσθήκη Πόλης",
+    "addNewCity": "Προσθήκη Νέας Πόλης",
+    "noCitiesFound": "Δεν βρέθηκαν πόλεις",
+    "editCity": "Επεξεργασία Πόλης"
+  },
+  "City": {
+    "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
+    "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
+    "councilMeetings": "Συνεδριάσεις",
+    "people": "Πρόσωπα",
+    "parties": "Παρατάξεις",
+    "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
+    "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
+    "addCity": "Προσθήκη Πόλης",
+    "editCity": "Επεξεργασία Πόλης",
+    "searchInCity": "Αναζήτηση στις συνεδριάσεις",
+    "item": "πόλη",
+    "addItem": "Προσθήκη Πόλης",
+    "noItems": "Δεν υπάρχουν πόλεις στο OpenCouncil.",
+    "allAdministrativeBodies": "Όλα τα όργανα",
+    "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο"
+  }
+}
