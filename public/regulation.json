@@ -1,8 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Κανονισμός Κυκλοφορίας και Στάθμευσης Ελαφρών Προσωπικών Ηλεκτρικών Οχημάτων (Ε.Π.Η.Ο) στο Δήμο Αθηναίων",
-  "contactEmail": "christos.porios+testconsultation@gmail.com",
-  "ccEmails": [],
+  "contactEmail": "dimotiki@athens.gr",
+  "ccEmails": [
+    "d.sx.ast.perivallontos@athens.gr"
+  ],
   "sources": [
     {
       "title": "Ανακοίνωση Διαβούλευσης για τον Κανονισμό Κίνησης και Στάθμευσης ΕΠΗΟ",
