@@ -224,6 +224,29 @@ const Map = memo(function Map({
         }
     }, []);
 
+    useEffect(() => {
+        if (draw.current && selectedGeometryForEdit) {
+            // Find the geometry from the features prop
+            const featureToEdit = features.find(f => f.id === selectedGeometryForEdit);
+            if (featureToEdit && featureToEdit.geometry) {
+                // Clear any existing drawings
+                draw.current.deleteAll();
+                
+                // Add the selected geometry to the map for editing
+                const featureId = draw.current.add(featureToEdit.geometry)[0];
+                
+                // Choose appropriate editing mode based on geometry type
+                if (featureToEdit.geometry.type === 'Point') {
+                    // For point features, use simple_select mode to allow dragging/moving
+                    draw.current.changeMode('simple_select', { featureIds: [featureId] });
+                } else {
+                    // For polygon and linestring features, use direct_select mode for vertex editing
+                    draw.current.changeMode('direct_select', { featureId });
+                }
+            }
+        }
+    }, [selectedGeometryForEdit, features]);
+
     // Initialize map only once
     useEffect(() => {
         if (!mapContainer.current || map.current) return;

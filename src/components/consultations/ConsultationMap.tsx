@@ -342,7 +342,7 @@ export default function ConsultationMap({
             if (!enabledGeoSets.has(geoSet.id)) return;
 
             // Use geoset's own color if available, otherwise fall back to default colors
-            const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
+                    const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
 
             geoSet.geometries.forEach(geometry => {
                 if (!enabledGeometries.has(geometry.id)) return;
@@ -351,7 +351,7 @@ export default function ConsultationMap({
                 let isFromLocalStorage = false;
 
                 // First check if we have a saved geometry in localStorage
-                if (savedGeometries[geometry.id]) {
+                    if (savedGeometries[geometry.id]) {
                     geoJSON = savedGeometries[geometry.id];
                     isFromLocalStorage = true;
                 }
@@ -366,18 +366,18 @@ export default function ConsultationMap({
 
                 // Only add to features if we have valid geometry
                 if (geoJSON) {
-                    features.push({
-                        id: geometry.id,
+                        features.push({
+                            id: geometry.id,
                         geometry: geoJSON,
-                        properties: {
-                            geoSetId: geoSet.id,
+                            properties: {
+                                geoSetId: geoSet.id,
                             geoSetName: geoSet.name,
                             name: geometry.name,
                             description: geometry.description,
                             isDerived: geometry.type === 'derived',
                             isFromLocalStorage
-                        },
-                        style: {
+                            },
+                            style: {
                             // Color: use blue for localStorage, otherwise use geoset color
                             fillColor: isFromLocalStorage ? '#3B82F6' : color,
                             // Opacity: derived geometries are very transparent, localStorage medium, regular normal
@@ -388,9 +388,9 @@ export default function ConsultationMap({
                             strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 4 : (isFromLocalStorage ? 3 : 2)),
                             label: geometry.name
                         }
-                    });
-                }
-            });
+                        });
+                    }
+                });
         });
 
         return features;
@@ -566,6 +566,11 @@ export default function ConsultationMap({
         }
     };
 
+    const zoomToGeometry = useMemo(() => {
+        if (!selectedGeometryForEdit) return null;
+        return zoomGeometry;
+    }, [selectedGeometryForEdit, zoomGeometry]);
+
     return (
         <div className={cn("relative", className)}>
             {/* Map */}
@@ -579,7 +584,7 @@ export default function ConsultationMap({
                 editingMode={isEditingMode}
                 drawingMode={drawingMode}
                 selectedGeometryForEdit={selectedGeometryForEdit}
-                zoomToGeometry={zoomGeometry}
+                zoomToGeometry={zoomToGeometry}
             />
 
             {/* Editing Tools Panel */}
