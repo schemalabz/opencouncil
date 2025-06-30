@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { X } from "lucide-react";
+import { X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
@@ -242,6 +242,14 @@ export default function DetailPanel({
                                 <div className="text-xs text-muted-foreground space-y-1">
                                     <div>Τύπος: {getGeometryTypeLabel(currentGeometry.type)}</div>
 
+                                    {/* Show error for incomplete non-derived geometries */}
+                                    {currentGeometry.type !== 'derived' && (!('geojson' in currentGeometry) || !currentGeometry.geojson) && (
+                                        <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 p-2 rounded-md">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            <span className="text-xs">Η γεωμετρία δεν έχει συντεταγμένες και δεν εμφανίζεται στον χάρτη</span>
+                                        </div>
+                                    )}
+
                                     {currentGeometry.type === 'derived' ? (
                                         <>
                                             <div>Μέθοδος: {currentGeometry.derivedFrom.operation === 'buffer' ? 'Ζώνη Buffer' : 'Αφαίρεση'}</div>
@@ -260,12 +268,12 @@ export default function DetailPanel({
                                         </>
                                     ) : (
                                         <>
-                                            {'geojson' in currentGeometry && currentGeometry.geojson.type === 'Point' && (
+                                            {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Point' && (
                                                 <div>
                                                     Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
                                                 </div>
                                             )}
-                                            {'geojson' in currentGeometry && currentGeometry.geojson.type === 'Polygon' && (
+                                            {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Polygon' && (
                                                 <div>
                                                     Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
                                                 </div>

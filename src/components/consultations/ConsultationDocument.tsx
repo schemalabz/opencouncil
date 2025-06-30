@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
@@ -69,6 +70,43 @@ export default function ConsultationDocument({
 
     const chapters = regulationData.regulation.filter(item => item.type === 'chapter');
 
+    // Calculate if all chapters and articles are expanded
+    const allChapterIds = chapters.map(chapter => chapter.id);
+    const allArticleIds = chapters.flatMap(chapter => chapter.articles?.map(article => article.id) || []);
+
+    const allChaptersExpanded = allChapterIds.every(id => expandedChapters.has(id));
+    const allArticlesExpanded = allArticleIds.every(id => expandedArticles.has(id));
+    const allExpanded = allChaptersExpanded && allArticlesExpanded;
+
+    // Function to expand or collapse all
+    const handleExpandCollapseAll = () => {
+        if (allExpanded) {
+            // Collapse all
+            allChapterIds.forEach(chapterId => {
+                if (expandedChapters.has(chapterId)) {
+                    onToggleChapter(chapterId);
+                }
+            });
+            allArticleIds.forEach(articleId => {
+                if (expandedArticles.has(articleId)) {
+                    onToggleArticle(articleId);
+                }
+            });
+        } else {
+            // Expand all
+            allChapterIds.forEach(chapterId => {
+                if (!expandedChapters.has(chapterId)) {
+                    onToggleChapter(chapterId);
+                }
+            });
+            allArticleIds.forEach(articleId => {
+                if (!expandedArticles.has(articleId)) {
+                    onToggleArticle(articleId);
+                }
+            });
+        }
+    };
+
     if (chapters.length === 0) {
         return (
             <div className={`flex items-center justify-center min-h-96 ${className}`}>
@@ -93,6 +131,28 @@ export default function ConsultationDocument({
             <DocumentNavigation regulationData={regulationData} />
 
             <div className="container mx-auto px-3 md:px-4 py-4 md:py-12 max-w-4xl">
+                {/* Expand/Collapse All Button */}
+                <div className="flex justify-end mb-6">
+                    <Button
+                        onClick={handleExpandCollapseAll}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                    >
+                        {allExpanded ? (
+                            <>
+                                <ChevronUp className="h-4 w-4" />
+                                Σύμπτυξη όλων
+                            </>
+                        ) : (
+                            <>
+                                <ChevronDown className="h-4 w-4" />
+                                Επέκταση όλων
+                            </>
+                        )}
+                    </Button>
+                </div>
+
                 <div>
                     {chapters.map((chapter) => (
                         <ChapterView

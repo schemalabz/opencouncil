@@ -102,12 +102,15 @@ function computeDerivedGeometry(derivedGeometry: DerivedGeometry, allGeoSets: Ge
         const polygons: number[][][][] = [];
 
         sourceGeoSet.geometries.forEach(geometry => {
-            if (geometry.type === 'point' && 'geojson' in geometry && geometry.geojson.type === 'Point') {
-                const circle = createCircleBuffer(
-                    geometry.geojson.coordinates as [number, number],
-                    radiusInMeters
-                );
-                polygons.push(circle.coordinates);
+            if (geometry.type === 'point') {
+                const staticGeometry = geometry as StaticGeometry;
+                if (staticGeometry.geojson && staticGeometry.geojson.type === 'Point') {
+                    const circle = createCircleBuffer(
+                        staticGeometry.geojson.coordinates as [number, number],
+                        radiusInMeters
+                    );
+                    polygons.push(circle.coordinates);
+                }
             }
         });
 
@@ -275,7 +278,7 @@ export default function ConsultationMap({
                 let geoJSON: GeoJSON.Geometry | null = null;
 
                 // Handle static geometries
-                if (geometry.type !== 'derived' && 'geojson' in geometry) {
+                if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
                     geoJSON = geometry.geojson;
                 }
                 // Handle derived geometries

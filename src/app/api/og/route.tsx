@@ -2,6 +2,8 @@ import { ImageResponse } from 'next/og';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getCouncilMeetingsCountForCity } from '@/lib/db/meetings';
+import { getConsultationDataForOG } from '@/lib/db/consultations';
+import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity } from '@/lib/db/people';
@@ -31,7 +33,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
 
     return (
         <Container>
-            <OgHeader 
+            <OgHeader
                 city={{
                     name: data.city.name_municipality,
                     logoImage: data.city.logoImage
@@ -295,14 +297,150 @@ const CityOGImage = async (cityId: string) => {
     );
 };
 
+// Consultation OG Image
+const ConsultationOGImage = async (cityId: string, consultationId: string) => {
+    // Helper function to fetch regulation data
+    const fetchRegulationData = async (jsonUrl: string): Promise<RegulationData | null> => {
+        try {
+            const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) return null;
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching regulation data:', error);
+            return null;
+        }
+    };
+
+    // Fetch consultation data with city info and comment count
+    const consultationData = await getConsultationDataForOG(cityId, consultationId);
+
+    if (!consultationData) return null;
+
+    // Fetch regulation data
+    const regulationData = await fetchRegulationData(consultationData.jsonUrl);
+
+    // Calculate statistics
+    const chaptersCount = regulationData?.regulation?.filter(item => item.type === 'chapter').length || 0;
+    const geosetsCount = regulationData?.regulation?.filter(item => item.type === 'geoset').length || 0;
+    const commentsCount = consultationData._count.comments;
+
+    // Note: Removed date display to keep the layout clean
+
+    return (
+        <Container>
+            <OgHeader
+                city={{
+                    name: consultationData.city.name_municipality,
+                    logoImage: consultationData.city.logoImage
+                }}
+            />
+
+            {/* Main Content */}
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+                paddingTop: '8px',
+            }}>
+                {/* Consultation Badge */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    backgroundColor: '#dbeafe',
+                    color: '#1d4ed8',
+                    padding: '10px 20px',
+                    borderRadius: '9999px',
+                    fontSize: 20,
+                    fontWeight: 600,
+                    alignSelf: 'flex-start',
+                    marginBottom: '8px',
+                }}>
+                    <span>💬</span>
+                    <span>Δημόσια Διαβούλευση</span>
+                </div>
+
+                {/* Title */}
+                <h1 style={{
+                    fontSize: 44,
+                    fontWeight: 700,
+                    color: '#111827',
+                    lineHeight: 1.2,
+                    margin: 0,
+                    maxWidth: '95%',
+                    marginBottom: '24px',
+                }}>
+                    {regulationData?.title || consultationData.name}
+                </h1>
+
+
+
+                {/* Key highlights */}
+                {regulationData?.regulation && chaptersCount > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                    }}>
+                        <div style={{
+                            fontSize: 20,
+                            fontWeight: 600,
+                            color: '#374151',
+                            marginBottom: '4px',
+                        }}>
+                            Κύρια Θέματα:
+                        </div>
+                        <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                        }}>
+                            {regulationData.regulation
+                                .filter(item => item.type === 'chapter')
+                                .slice(0, 3)
+                                .map((chapter, index) => (
+                                    <div key={chapter.id} style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        backgroundColor: '#e0f2fe',
+                                        color: '#0369a1',
+                                        padding: '8px 16px',
+                                        borderRadius: '20px',
+                                        fontSize: 16,
+                                        fontWeight: 500,
+                                        maxWidth: '300px',
+                                    }}>
+                                        <span style={{
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                        }}>
+                                            {chapter.num ? `${chapter.num}. ` : ''}{chapter.title?.substring(0, 40) || 'Άτιτλο Κεφάλαιο'}{chapter.title && chapter.title.length > 40 ? '...' : ''}
+                                        </span>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+                )}
+            </div>
+        </Container>
+    );
+};
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cityId = searchParams.get('cityId');
     const meetingId = searchParams.get('meetingId');
+    const consultationId = searchParams.get('consultationId');
 
     try {
         let element;
-        if (meetingId && cityId) {
+        if (consultationId && cityId) {
+            element = await ConsultationOGImage(cityId, consultationId);
+        } else if (meetingId && cityId) {
             element = await MeetingOGImage(cityId, meetingId);
         } else if (cityId) {
             element = await CityOGImage(cityId);

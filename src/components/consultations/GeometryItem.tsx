@@ -1,24 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Info, MessageCircle } from "lucide-react";
+import { Info, MessageCircle, AlertTriangle } from "lucide-react";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { Geometry } from "./types";
 
 interface GeometryItemProps {
     id: string;
     name: string;
     enabled: boolean;
     color: string;
+    geometry: Geometry;
     onToggle: (id: string) => void;
     onOpenDetail: (id: string) => void;
     comments?: ConsultationCommentWithUpvotes[];
 }
 
-export default function GeometryItem({ id, name, enabled, color, onToggle, onOpenDetail, comments }: GeometryItemProps) {
+export default function GeometryItem({ id, name, enabled, color, geometry, onToggle, onOpenDetail, comments }: GeometryItemProps) {
     // Count comments for this geometry
     const geometryCommentCount = comments?.filter(comment =>
         comment.entityType === 'GEOMETRY' && comment.entityId === id
     ).length || 0;
+
+    // Check if geometry has missing geojson data (only for non-derived geometries)
+    const hasIncompleteData = geometry.type !== 'derived' && (!('geojson' in geometry) || !geometry.geojson);
     return (
         <div className="flex items-center gap-2">
             <div className="relative flex items-center">
@@ -36,9 +41,14 @@ export default function GeometryItem({ id, name, enabled, color, onToggle, onOpe
             </div>
             <Label
                 htmlFor={`geometry-${id}`}
-                className="text-xs flex-1 cursor-pointer"
+                className="text-xs flex-1 cursor-pointer flex items-center gap-1"
             >
                 {name}
+                {hasIncompleteData && (
+                    <div title="Η γεωμετρία δεν έχει συντεταγμένες">
+                        <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                    </div>
+                )}
             </Label>
             <Button
                 onClick={() => onOpenDetail(id)}

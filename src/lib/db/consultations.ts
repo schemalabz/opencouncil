@@ -45,6 +45,34 @@ export async function getConsultationById(cityId: string, consultationId: string
     });
 }
 
+// Optimized function for OG image generation
+export async function getConsultationDataForOG(cityId: string, consultationId: string) {
+    return await prisma.consultation.findFirst({
+        where: {
+            id: consultationId,
+            cityId,
+            isActive: true
+        },
+        include: {
+            city: {
+                select: {
+                    id: true,
+                    name: true,
+                    name_municipality: true,
+                    logoImage: true,
+                    authorityType: true,
+                    officialSupport: true,
+                }
+            },
+            _count: {
+                select: {
+                    comments: true
+                }
+            }
+        }
+    });
+}
+
 export async function getAllConsultationsForCity(cityId: string): Promise<Consultation[]> {
     return await prisma.consultation.findMany({
         where: {

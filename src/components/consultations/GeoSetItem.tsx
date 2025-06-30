@@ -133,6 +133,7 @@ export default function GeoSetItem({
                             name={geometry.name}
                             enabled={enabledGeometries.has(geometry.id)}
                             color={color}
+                            geometry={geometry}
                             onToggle={onToggleGeometry}
                             onOpenDetail={onOpenGeometryDetail}
                             comments={comments}
