@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
@@ -254,34 +254,25 @@ export default function ConsultationMap({
             setEnabledGeometries(enabledGeometryIds);
         } else {
             // Default behavior: enable all geosets and geometries
-        setEnabledGeoSets(allGeoSetIds);
-        setEnabledGeometries(allGeometryIds);
+            setEnabledGeoSets(allGeoSetIds);
+            setEnabledGeometries(allGeometryIds);
         }
 
         setExpandedGeoSets(new Set()); // Start with all collapsed
     }, [geoSets, regulationData]);
 
-    // Handle URL hash changes to open detail panels
-    useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash.substring(1); // Remove #
-            if (hash) {
-                openDetailFromId(hash);
-            } else {
-                closeDetail();
-            }
-        };
+    const closeDetail = useCallback(() => {
+        setDetailType(null);
+        setDetailId(null);
+        // Remove hash from URL
+        if (window.location.hash) {
+            // Use history.pushState to remove hash without page reload
+            const url = window.location.href.split('#')[0];
+            window.history.pushState({}, '', url);
+        }
+    }, []);
 
-        // Check initial hash
-        handleHashChange();
-
-        // Listen for hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [geoSets]);
-
-    // Functions to manage detail panel
-    const openDetailFromId = (id: string) => {
+    const openDetailFromId = useCallback((id: string) => {
         // Check if it's a geoset
         const geoSet = geoSets.find(gs => gs.id === id);
         if (geoSet) {
@@ -300,8 +291,28 @@ export default function ConsultationMap({
 
         // If not found, close detail
         closeDetail();
-    };
+    }, [geoSets, closeDetail]);
 
+    // Handle URL hash changes to open detail panels
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.substring(1); // Remove #
+            if (hash) {
+                openDetailFromId(hash);
+            } else {
+                closeDetail();
+            }
+        };
+
+        // Check initial hash
+        handleHashChange();
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [geoSets, openDetailFromId, closeDetail]);
+
+    // Functions to manage detail panel
     const openGeoSetDetail = (geoSetId: string) => {
         setDetailType('geoset');
         setDetailId(geoSetId);
@@ -314,17 +325,6 @@ export default function ConsultationMap({
         setDetailId(geometryId);
         // Update URL hash without triggering navigation
         window.location.hash = geometryId;
-    };
-
-    const closeDetail = () => {
-        setDetailType(null);
-        setDetailId(null);
-        // Remove hash from URL
-        if (window.location.hash) {
-            // Use history.pushState to remove hash without page reload
-            const url = window.location.href.split('#')[0];
-            window.history.pushState({}, '', url);
-        }
     };
 
     // Handle map feature clicks
@@ -438,6 +438,9 @@ export default function ConsultationMap({
     };
 
     const toggleGeometry = (geometryId: string) => {
+        const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === geometryId));
+
+        let newEnabledGeometries: Set<string> | undefined;
         setEnabledGeometries(prev => {
             const newSet = new Set(prev);
             if (newSet.has(geometryId)) {
@@ -445,8 +448,23 @@ export default function ConsultationMap({
             } else {
                 newSet.add(geometryId);
             }
+            newEnabledGeometries = newSet;
             return newSet;
         });
+
+        if (parentGeoSet && newEnabledGeometries) {
+            setEnabledGeoSets(prevGeoSets => {
+                const newGeoSets = new Set(prevGeoSets);
+                const enabledCount = parentGeoSet.geometries.filter(g => (newEnabledGeometries as Set<string>).has(g.id)).length;
+                
+                if (enabledCount > 0) {
+                    newGeoSets.add(parentGeoSet.id);
+                } else {
+                    newGeoSets.delete(parentGeoSet.id);
+                }
+                return newGeoSets;
+            });
+        }
     };
 
     const toggleGeoSetExpansion = (geoSetId: string) => {
@@ -573,7 +591,7 @@ export default function ConsultationMap({
                     cityData={cityData}
                     onSetDrawingMode={setDrawingMode}
                     onNavigateToLocation={handleNavigateToLocation}
-                    onClose={() => setSelectedGeometryForEdit(null)}
+                    onClose={() => handleSelectGeometryForEdit(null)}
                 />
             )}
 
