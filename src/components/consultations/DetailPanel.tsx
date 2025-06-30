@@ -20,6 +20,7 @@ interface GeoSetData {
     id: string;
     name: string;
     description?: string;
+    color?: string;
     geometries: Geometry[];
 }
 
@@ -179,6 +180,11 @@ export default function DetailPanel({
                                                         {geometry.description}
                                                     </p>
                                                 )}
+                                                {geometry.textualDefinition && (
+                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">
+                                                        {geometry.textualDefinition}
+                                                    </p>
+                                                )}
                                             </div>
                                         </button>
                                     ))}
@@ -200,14 +206,30 @@ export default function DetailPanel({
                                     </button>
                                 )}
                                 {currentGeometry.description && (
-                                    <MarkdownContent
-                                        content={currentGeometry.description}
-                                        variant="muted"
-                                        className="text-sm"
-                                        referenceFormat={referenceFormat}
-                                        onReferenceClick={onReferenceClick}
-                                        regulationData={regulationData}
-                                    />
+                                    <div className="mb-3">
+                                        <h4 className="font-semibold text-sm mb-2">Περιγραφή</h4>
+                                        <MarkdownContent
+                                            content={currentGeometry.description}
+                                            variant="muted"
+                                            className="text-sm"
+                                            referenceFormat={referenceFormat}
+                                            onReferenceClick={onReferenceClick}
+                                            regulationData={regulationData}
+                                        />
+                                    </div>
+                                )}
+                                {currentGeometry.textualDefinition && (
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-2">Γεωγραφικός Προσδιορισμός</h4>
+                                        <MarkdownContent
+                                            content={currentGeometry.textualDefinition}
+                                            variant="muted"
+                                            className="text-sm"
+                                            referenceFormat={referenceFormat}
+                                            onReferenceClick={onReferenceClick}
+                                            regulationData={regulationData}
+                                        />
+                                    </div>
                                 )}
                             </div>
 

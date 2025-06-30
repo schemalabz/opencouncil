@@ -134,6 +134,7 @@ export default function ConsultationDocument({
                     <SourcesList
                         sources={regulationData.sources}
                         contactEmail={regulationData.contactEmail}
+                        ccEmails={regulationData.ccEmails}
                     />
                 </div>
             </div>

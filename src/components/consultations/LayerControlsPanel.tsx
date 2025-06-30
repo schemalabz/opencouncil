@@ -8,6 +8,7 @@ interface GeoSetData {
     id: string;
     name: string;
     description?: string;
+    color?: string;
     geometries: Geometry[];
 }
 
@@ -69,7 +70,8 @@ export default function LayerControlsPanel({
                 onWheel={(e) => e.stopPropagation()}
             >
                 {geoSets.map((geoSet, geoSetIndex) => {
-                    const color = colors[geoSetIndex % colors.length];
+                    // Use geoset's own color if available, otherwise fall back to colors array
+                    const color = geoSet.color || colors[geoSetIndex % colors.length];
                     const checkboxState = getGeoSetCheckboxState(geoSet.id);
                     const isExpanded = expandedGeoSets.has(geoSet.id);
 

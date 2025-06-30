@@ -17,6 +17,7 @@ interface ConsultationCommentEmailData {
     commentBody: string;
     consultationUrl: string;
     municipalityEmail: string;
+    ccEmails?: string[];
 }
 
 export async function sendConsultationCommentEmail(data: ConsultationCommentEmailData) {
@@ -31,7 +32,8 @@ export async function sendConsultationCommentEmail(data: ConsultationCommentEmai
         parentGeosetName,
         commentBody,
         consultationUrl,
-        municipalityEmail
+        municipalityEmail,
+        ccEmails
     } = data;
 
     // Get the entity reference for the subject line
@@ -68,11 +70,16 @@ export async function sendConsultationCommentEmail(data: ConsultationCommentEmai
         })
     );
 
-    // Send email to municipality with user CC'd
+    // Send email to municipality with user and additional emails CC'd
+    const allCcEmails = [userEmail];
+    if (ccEmails && ccEmails.length > 0) {
+        allCcEmails.push(...ccEmails);
+    }
+
     const result = await sendEmail({
         from: `OpenCouncil <noreply@${env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr'}>`,
         to: municipalityEmail,
-        cc: userEmail,
+        cc: allCcEmails.join(', '),
         subject,
         html: emailHtml,
     });

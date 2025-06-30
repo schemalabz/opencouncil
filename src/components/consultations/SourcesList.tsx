@@ -5,9 +5,10 @@ import { Source } from "./types";
 interface SourcesListProps {
     sources: Source[];
     contactEmail: string;
+    ccEmails?: string[];
 }
 
-export default function SourcesList({ sources, contactEmail }: SourcesListProps) {
+export default function SourcesList({ sources, contactEmail, ccEmails }: SourcesListProps) {
     if (sources.length === 0) return null;
 
     return (
@@ -62,6 +63,24 @@ export default function SourcesList({ sources, contactEmail }: SourcesListProps)
                     >
                         {contactEmail}
                     </a>
+                    {ccEmails && ccEmails.length > 0 && (
+                        <div className="mt-3">
+                            <p className="text-xs text-muted-foreground mb-1">
+                                Επιπρόσθετες διευθύνσεις που λαμβάνουν κοινοποίηση:
+                            </p>
+                            <div className="space-y-1">
+                                {ccEmails.map((email, index) => (
+                                    <a
+                                        key={index}
+                                        href={`mailto:${email}`}
+                                        className="text-sm text-blue-600 hover:underline block"
+                                    >
+                                        {email}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="pt-3 border-t">
                     <h4 className="font-medium text-sm text-muted-foreground mb-2">Σχετικά με την εφαρμογή</h4>

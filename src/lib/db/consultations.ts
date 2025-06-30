@@ -347,7 +347,8 @@ export async function addConsultationComment(
                 parentGeosetName: entityDetails.parentGeosetName,
                 commentBody: body.trim(),
                 consultationUrl,
-                municipalityEmail: regulationData.contactEmail
+                municipalityEmail: regulationData.contactEmail,
+                ccEmails: regulationData.ccEmails
             });
         }
     } catch (emailError) {

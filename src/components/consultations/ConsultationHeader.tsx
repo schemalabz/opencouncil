@@ -71,7 +71,7 @@ export default function ConsultationHeader({
                             onClick={onCommentsClick}
                             variant="outline"
                             size="sm"
-                            className="h-auto px-2 py-1 text-xs md:text-sm"
+                            className="h-auto p-0 text-xs md:text-sm"
                             title="Δείτε όλα τα σχόλια"
                         >
                             <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1" />

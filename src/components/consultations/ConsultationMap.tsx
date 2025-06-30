@@ -33,6 +33,7 @@ interface GeoSetData {
     id: string;
     name: string;
     description?: string;
+    color?: string;
     geometries: Geometry[];
 }
 
@@ -81,6 +82,7 @@ export default function ConsultationMap({
                 id: item.id,
                 name: item.name || item.title || 'Unnamed GeoSet',
                 description: item.description,
+                color: item.color,
                 geometries: item.geometries || []
             }));
     }, [regulationData]);
@@ -175,7 +177,8 @@ export default function ConsultationMap({
         geoSets.forEach((geoSet, geoSetIndex) => {
             if (!enabledGeoSets.has(geoSet.id)) return;
 
-            const color = GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
+            // Use geoset's own color if available, otherwise fall back to default colors
+            const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
 
             geoSet.geometries.forEach(geometry => {
                 if (!enabledGeometries.has(geometry.id)) return;

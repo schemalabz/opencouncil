@@ -23,7 +23,8 @@ export interface Geometry {
     type: 'point' | 'circle' | 'polygon';
     name: string;
     id: string; // Should match pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
-    description?: string;
+    description?: string; // Semantic description (purpose, function, characteristics)
+    textualDefinition?: string; // Geographic definition in words (address, boundaries, landmarks)
     geojson: GeoJSONPoint | GeoJSONPolygon;
 }
 
@@ -49,12 +50,14 @@ export interface RegulationItem {
     // GeoSet-specific fields
     name?: string; // GeoSet name
     description?: string; // GeoSet description
+    color?: string; // GeoSet color in hex format (e.g. #FF5733)
     geometries?: Geometry[];
 }
 
 export interface RegulationData {
     title: string;
     contactEmail: string; // Email for citizen comments (required in schema)
+    ccEmails?: string[]; // Additional emails to CC on comments (optional)
     sources: Source[]; // Array of source documents (required in schema)
     referenceFormat?: ReferenceFormat;
     regulation: RegulationItem[];
