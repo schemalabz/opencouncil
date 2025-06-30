@@ -1,0 +1,26 @@
+{
+  "CitiesList": {
+    "searchPlaceholder": "Search cities...",
+    "addCity": "Add City",
+    "addNewCity": "Add New City",
+    "noCitiesFound": "No cities found",
+    "editCity": "Edit City"
+  },
+  "City": {
+    "addCouncilMeeting": "Add Council Meeting",
+    "councilMeetingsTracked": "{count, plural, =0 {No council meetings on OpenCouncil} =1 {1 council meeting on OpenCouncil} other {# council meetings on OpenCouncil}}",
+    "councilMeetings": "Council Meetings",
+    "people": "People",
+    "parties": "Parties",
+    "membersComingSoon": "Members will be available soon",
+    "partiesComingSoon": "Parties will be available soon",
+    "addCity": "Add City",
+    "editCity": "Edit City",
+    "searchInCity": "Search in city council meetings",
+    "item": "city",
+    "addItem": "Add City",
+    "noItems": "There are no cities on OpenCouncil.",
+    "allAdministrativeBodies": "All Bodies",
+    "filterByAdminBody": "Filter by Administrative Body"
+  }
+}

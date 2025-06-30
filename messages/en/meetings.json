@@ -1,0 +1,38 @@
+{
+  "MeetingCard": {
+    "noVideo": "No media",
+    "withVideo": "Video",
+    "withAudio": "Audio",
+    "withAgenda": "Agenda",
+    "subjects": "subjects",
+    "moreSubjects": "and {count} more subjects",
+    "mostRecent": "Most recent meeting",
+    "beingProcessed": "Processing the meeting",
+    "loading": "Loading...",
+    "notPublic": "Not public",
+    "upcoming": "Upcoming",
+    "today": "Today's meeting"
+  },
+  "TranscriptOptions": {
+    "title": "Transcript Options",
+    "editMode": {
+      "label": "Edit Mode",
+      "description": "Enable edit mode for transcript text"
+    },
+    "highlightUncertain": {
+      "label": "Highlight Uncertain Words",
+      "description": "Highlight words with low recognition confidence"
+    },
+    "maxUtteranceDrift": {
+      "label": "Maximum Utterance Drift",
+      "description": "Maximum allowed time drift for each utterance in seconds"
+    }
+  },
+  "CouncilMeeting": {
+    "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
+    "searchItems": "Search meetings",
+    "item": "meeting",
+    "addItem": "Add Meeting",
+    "noItems": "There are no meetings in OpenCouncil."
+  }
+}
