@@ -11678,7 +11678,13 @@
           "id": "slowPublicSpace_1_Kolonou",
           "description": "Συνοικία: ΚΟΛΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.716727, Y: 37.994126).",
           "textualDefinition": "ΠΛ. ΚΟΛΩΝΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.716727,
+              37.994126
+            ]
+          }
         },
         {
           "type": "point",
@@ -11686,7 +11692,13 @@
           "id": "slowPublicSpace_2_AgiosKonstantinos",
           "description": "Συνοικία: ΚΟΛΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.714155, Y: 37.993119).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΚΩΝΣΤΑΝΤΙΝΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.714155,
+              37.993119
+            ]
+          }
         },
         {
           "type": "point",
@@ -11694,7 +11706,13 @@
           "id": "slowPublicSpace_3_Petroula",
           "description": "Συνοικία: ΚΟΛΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.714049, Y: 37.991557).",
           "textualDefinition": "ΠΛ. Σ. ΠΕΤΡΟΥΛΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.714049,
+              37.991557
+            ]
+          }
         },
         {
           "type": "point",
@@ -11702,7 +11720,13 @@
           "id": "slowPublicSpace_4_AkadimiaPlatonos",
           "description": "Συνοικία: ΑΚΑΔΗΜΙΑ ΠΛΑΤΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.71152, Y: 37.987147).",
           "textualDefinition": "ΠΛ. ΑΚΑΔΗΜΙΑ ΠΛΑΤΩΝΟΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71152,
+              37.987147
+            ]
+          }
         },
         {
           "type": "point",
@@ -11710,7 +11734,13 @@
           "id": "slowPublicSpace_5_AgiosAntonios",
           "description": "Συνοικία: ΡΙΖΟΥΠΟΛΗ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.741897, Y: 38.025032).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΑΝΤΩΝΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741897,
+              38.025032
+            ]
+          }
         },
         {
           "type": "point",
@@ -11718,7 +11748,13 @@
           "id": "slowPublicSpace_6_AgiaVarvara",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.736611, Y: 38.02397).",
           "textualDefinition": "ΠΛ. ΑΓΙΑΣ ΒΑΡΒΑΡΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.736611,
+              38.02397
+            ]
+          }
         },
         {
           "type": "point",
@@ -11726,7 +11762,13 @@
           "id": "slowPublicSpace_7_AgiosEleftherios",
           "description": "Συνοικία: ΑΓΙΟΣ ΕΛΕΥΘΕΡΙΟΣ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.729296, Y: 38.01899).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΕΛΕΥΘΕΡΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.729296,
+              38.01899
+            ]
+          }
         },
         {
           "type": "point",
@@ -11734,7 +11776,13 @@
           "id": "slowPublicSpace_8_AgiosLoukas",
           "description": "Συνοικία: ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.73489, Y: 38.014127).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΛΟΥΚΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.73489,
+              38.014127
+            ]
+          }
         },
         {
           "type": "point",
@@ -11742,7 +11790,13 @@
           "id": "slowPublicSpace_9_NapoleonZerva",
           "description": "Συνοικία: ΑΓΙΟΣ ΕΛΕΥΘΕΡΙΟΣ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.729854, Y: 38.017381).",
           "textualDefinition": "ΠΛ. ΝΑΠΟΛΕΩΝ ΖΕΡΒΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.729854,
+              38.017381
+            ]
+          }
         },
         {
           "type": "point",
@@ -11750,7 +11804,13 @@
           "id": "slowPublicSpace_10_Zagoras",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.7339, Y: 38.022041).",
           "textualDefinition": "ΠΛ. ΖΑΓΟΡΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.7339,
+              38.022041
+            ]
+          }
         },
         {
           "type": "point",
@@ -11758,7 +11818,13 @@
           "id": "slowPublicSpace_11_AgiaParaskevi",
           "description": "Συνοικία: ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.731547, Y: 38.012782).",
           "textualDefinition": "ΠΛ. ΑΓΙΑΣ ΠΑΡΑΣΚΕΥΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731547,
+              38.012782
+            ]
+          }
         },
         {
           "type": "point",
@@ -11766,7 +11832,13 @@
           "id": "slowPublicSpace_12_AgiosDimitriosOplon",
           "description": "Συνοικία: NIPBANA, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.722432, Y: 38.013028).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΔΗΜΗΤΡΙΟΥ ΟΠΛΩΝ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.722432,
+              38.013028
+            ]
+          }
         },
         {
           "type": "point",
@@ -11774,7 +11846,13 @@
           "id": "slowPublicSpace_13_Papadiamanti",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.741638, Y: 38.020023).",
           "textualDefinition": "ΠΛ. ΠΑΠΑΔΙΑΜΑΝΤΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741638,
+              38.020023
+            ]
+          }
         },
         {
           "type": "point",
@@ -11782,7 +11860,13 @@
           "id": "slowPublicSpace_14_Nikolopoulou",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.739829, Y: 38.016677).",
           "textualDefinition": "ΠΛ. ΝΙΚΟΛΟΠΟΥΛΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.739829,
+              38.016677
+            ]
+          }
         },
         {
           "type": "point",
@@ -11790,7 +11874,13 @@
           "id": "slowPublicSpace_15_ErgatonPolemiston",
           "description": "Συνοικία: ΡΙΖΟΥΠΟΛΗ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.746514, Y: 38.021994).",
           "textualDefinition": "ΠΛ. ΕΡΓΑΤΩΝ ΠΟΛΕΜΙΣΤΩΝ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.746514,
+              38.021994
+            ]
+          }
         },
         {
           "type": "point",
@@ -11798,7 +11888,13 @@
           "id": "slowPublicSpace_16_Papalouka",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.741234, Y: 38.017489).",
           "textualDefinition": "ΠΛ. ΠΑΠΑΛΟΥΚΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741234,
+              38.017489
+            ]
+          }
         },
         {
           "type": "point",
@@ -11806,7 +11902,13 @@
           "id": "slowPublicSpace_17_Karkavitsa",
           "description": "Συνοικία: ΑΝΩ ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.743874, Y: 38.017315).",
           "textualDefinition": "ΠΛ. ΚΑΡΚΑΒΙΤΣΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.743874,
+              38.017315
+            ]
+          }
         },
         {
           "type": "point",
@@ -11814,7 +11916,13 @@
           "id": "slowPublicSpace_18_AgiosDimitrios",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.758651, Y: 37.989045).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΔΗΜΗΤΡΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.758651,
+              37.989045
+            ]
+          }
         },
         {
           "type": "point",
@@ -11822,7 +11930,13 @@
           "id": "slowPublicSpace_19_Mesolora",
           "description": "Συνοικία: ΕΛΛΗΝΟΡΩΣΩΝ-ΕΡΥΘΡΟΣ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.769357, Y: 37.993146).",
           "textualDefinition": "ΠΛ. ΜΕΣΟΛΩΡΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.769357,
+              37.993146
+            ]
+          }
         },
         {
           "type": "point",
@@ -11830,7 +11944,13 @@
           "id": "slowPublicSpace_20_AthKanellopoulou",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.763587, Y: 37.992947).",
           "textualDefinition": "ΠΛ. ΑΘ.ΚΑΝΕΛΛΟΠΟΥΛΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.763587,
+              37.992947
+            ]
+          }
         },
         {
           "type": "point",
@@ -11838,7 +11958,13 @@
           "id": "slowPublicSpace_21_Charami",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.767062, Y: 37.992175).",
           "textualDefinition": "ΠΛ. ΧΑΡΑΜΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.767062,
+              37.992175
+            ]
+          }
         },
         {
           "type": "point",
@@ -11846,7 +11972,13 @@
           "id": "slowPublicSpace_22_Lakonias",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.762899, Y: 37.991817).",
           "textualDefinition": "ΠΛ. ΛΑΚΩΝΙΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.762899,
+              37.991817
+            ]
+          }
         },
         {
           "type": "point",
@@ -11854,7 +11986,13 @@
           "id": "slowPublicSpace_23_Pallikaridi",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.761547, Y: 37.989572).",
           "textualDefinition": "ΠΛ. ΠΑΛΛΗΚΑΡΙΔΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.761547,
+              37.989572
+            ]
+          }
         },
         {
           "type": "point",
@@ -11862,7 +12000,13 @@
           "id": "slowPublicSpace_24_EPON",
           "description": "Συνοικία: ΑΜΠΕΛΟΚΗΠΟΙ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.76053, Y: 37.98868).",
           "textualDefinition": "ΠΛ. Ε.Π.Ο.Ν.",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.76053,
+              37.98868
+            ]
+          }
         },
         {
           "type": "point",
@@ -11870,7 +12014,13 @@
           "id": "slowPublicSpace_25_EthnikisEnotitas",
           "description": "Συνοικία: ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.731828, Y: 38.010006).",
           "textualDefinition": "ΠΛ. ΕΘΝΙΚΗΣ ΕΝΟΤΗΤΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731828,
+              38.010006
+            ]
+          }
         },
         {
           "type": "point",
@@ -11878,7 +12028,13 @@
           "id": "slowPublicSpace_26_Koliatsou",
           "description": "Συνοικία: ΠΑΤΗΣΙΑ, ΔΚ: 5η. Συντεταγμένες από πηγή (X: 23.734973, Y: 38.010097).",
           "textualDefinition": "ΠΛ. ΚΟΛΙΑΤΣΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.734973,
+              38.010097
+            ]
+          }
         },
         {
           "type": "point",
@@ -11886,7 +12042,13 @@
           "id": "slowPublicSpace_27_AgiosMeletios",
           "description": "Συνοικία: ΣΕΠΟΛΙΑ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.719195, Y: 38.001371).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΜΕΛΕΤΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.719195,
+              38.001371
+            ]
+          }
         },
         {
           "type": "point",
@@ -11894,7 +12056,13 @@
           "id": "slowPublicSpace_28_AthanasiosDiakos",
           "description": "Συνοικία: NIPBANA, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.723784, Y: 38.004208).",
           "textualDefinition": "ΠΛ. ΑΘΑΝΑΣΙΟΥ ΔΙΑΚΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.723784,
+              38.004208
+            ]
+          }
         },
         {
           "type": "point",
@@ -11902,7 +12070,13 @@
           "id": "slowPublicSpace_29_AgiosPanteleimonas",
           "description": "Συνοικία: ΠΛ.ΑΤΤΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.726904, Y: 37.996892).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΠΑΝΤΕΛΕΗΜΟΝΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.726904,
+              37.996892
+            ]
+          }
         },
         {
           "type": "point",
@@ -11910,7 +12084,13 @@
           "id": "slowPublicSpace_30_AgiosAndreas",
           "description": "Συνοικία: NIPBANA, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.72675, Y: 38.010469).",
           "textualDefinition": "ΠΛ. ΑΓ. ΑΝΔΡΕΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.72675,
+              38.010469
+            ]
+          }
         },
         {
           "type": "point",
@@ -11918,7 +12098,13 @@
           "id": "slowPublicSpace_31_LelasKaragianni",
           "description": "Συνοικία: ΣΕΠΟΛΙΑ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.715789, Y: 38.008206).",
           "textualDefinition": "ΠΛ. ΛΕΛΑΣ ΚΑΡΑΓΙΑΝΝΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.715789,
+              38.008206
+            ]
+          }
         },
         {
           "type": "point",
@@ -11926,7 +12112,13 @@
           "id": "slowPublicSpace_32_Orthodoxias",
           "description": "Συνοικία: ΚΟΛΟΚΥΝΘΟΥ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.712738, Y: 37.998245).",
           "textualDefinition": "ΠΛ. ΟΡΘΟΔΟΞΙΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.712738,
+              37.998245
+            ]
+          }
         },
         {
           "type": "point",
@@ -11934,7 +12126,13 @@
           "id": "slowPublicSpace_33_Chilis",
           "description": "Συνοικία: ΙΛΙΣΙΑ, ΔΚ: 1η. Συντεταγμένες από πηγή (X: 23.750603, Y: 37.973869).",
           "textualDefinition": "ΠΛ. ΧΙΛΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.750603,
+              37.973869
+            ]
+          }
         },
         {
           "type": "point",
@@ -11942,7 +12140,13 @@
           "id": "slowPublicSpace_34_Amerikis",
           "description": "Συνοικία: ΠΛ.ΑΜΕΡΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.733459, Y: 38.00241).",
           "textualDefinition": "ΠΛ. ΑΜΕΡΙΚΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.733459,
+              38.00241
+            ]
+          }
         },
         {
           "type": "point",
@@ -11950,7 +12154,13 @@
           "id": "slowPublicSpace_35_Bakogianni",
           "description": "Συνοικία: ΠΛ.ΑΜΕΡΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.733095, Y: 38.001411).",
           "textualDefinition": "ΠΛ. ΜΠΑΚΟΓΙΑΝΝΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.733095,
+              38.001411
+            ]
+          }
         },
         {
           "type": "point",
@@ -11958,7 +12168,13 @@
           "id": "slowPublicSpace_36_AgiosNikolaos",
           "description": "Συνοικία: ΠΛ.ΑΜΕΡΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.728818, Y: 38.007667).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΝΙΚΟΛΑΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.728818,
+              38.007667
+            ]
+          }
         },
         {
           "type": "point",
@@ -11966,7 +12182,13 @@
           "id": "slowPublicSpace_37_Kalliga",
           "description": "Συνοικία: ΠΛ.ΑΜΕΡΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.733269, Y: 38.00516).",
           "textualDefinition": "ΠΛ. ΚΑΛΛΙΓΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.733269,
+              38.00516
+            ]
+          }
         },
         {
           "type": "point",
@@ -11974,7 +12196,13 @@
           "id": "slowPublicSpace_38_Armenias",
           "description": "Συνοικία: ΠΛ.ΑΜΕΡΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.731203, Y: 38.000959).",
           "textualDefinition": "ΠΛ. ΑΡΜΕΝΙΑΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.731203,
+              38.000959
+            ]
+          }
         },
         {
           "type": "point",
@@ -11982,7 +12210,13 @@
           "id": "slowPublicSpace_39_AlexandrosDiakos",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.759891, Y: 38.000617).",
           "textualDefinition": "ΠΛ. ΑΛΕΞΑΝΔΡΟΥ ΔΙΑΚΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.759891,
+              38.000617
+            ]
+          }
         },
         {
           "type": "point",
@@ -11990,7 +12224,13 @@
           "id": "slowPublicSpace_40_ProfitisIlias",
           "description": "Συνοικία: ΠΡΟΦ.ΗΛΙΑΣ, ΔΚ: 2η. Συντεταγμένες από πηγή (X: 23.746737, Y: 37.965208).",
           "textualDefinition": "ΠΛ. ΠΡΟΦΗΤΗ ΗΛΙΑ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.746737,
+              37.965208
+            ]
+          }
         },
         {
           "type": "point",
@@ -11998,7 +12238,13 @@
           "id": "slowPublicSpace_41_Mesologgiou",
           "description": "Συνοικία: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η. Συντεταγμένες από πηγή (X: 23.749088, Y: 37.968677).",
           "textualDefinition": "ΠΛ. ΜΕΣΟΛΟΓΓΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.749088,
+              37.968677
+            ]
+          }
         },
         {
           "type": "point",
@@ -12006,7 +12252,13 @@
           "id": "slowPublicSpace_42_Pagkratiou",
           "description": "Συνοικία: ΠΑΓΚΡΑΤΙ, ΔΚ: 2η. Συντεταγμένες από πηγή (X: 23.747033, Y: 37.967542).",
           "textualDefinition": "ΠΛ. ΠΑΓΚΡΑΤΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.747033,
+              37.967542
+            ]
+          }
         },
         {
           "type": "point",
@@ -12014,7 +12266,13 @@
           "id": "slowPublicSpace_43_AgiosEfthimios",
           "description": "Συνοικία: ΝΕΑ ΚΥΨΕΛΗ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.741887, Y: 37.998018).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΕΥΘΥΜΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741887,
+              37.998018
+            ]
+          }
         },
         {
           "type": "point",
@@ -12022,7 +12280,13 @@
           "id": "slowPublicSpace_44_Kanari",
           "description": "Συνοικία: ΚΥΨΕΛΗ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.741491, Y: 38.002762).",
           "textualDefinition": "ΠΛ. ΚΑΝΑΡΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.741491,
+              38.002762
+            ]
+          }
         },
         {
           "type": "point",
@@ -12030,7 +12294,13 @@
           "id": "slowPublicSpace_45_AgiosGeorgios",
           "description": "Συνοικία: ΚΥΨΕΛΗ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.735336, Y: 37.997651).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΓΕΩΡΓΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.735336,
+              37.997651
+            ]
+          }
         },
         {
           "type": "point",
@@ -12038,7 +12308,13 @@
           "id": "slowPublicSpace_46_AgiosDimitrios2",
           "description": "Συνοικία: ΚΥΨΕΛΗ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.738081, Y: 37.998655).",
           "textualDefinition": "ΠΛ. ΑΓΙΟΥ ΔΗΜΗΤΡΙΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.738081,
+              37.998655
+            ]
+          }
         },
         {
           "type": "point",
@@ -12046,7 +12322,13 @@
           "id": "slowPublicSpace_47_Pantazopoulou",
           "description": "Συνοικία: ΚΟΛΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.718353, Y: 37.992173).",
           "textualDefinition": "ΠΛ. ΠΑΝΤΑΖΟΠΟΥΛΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.718353,
+              37.992173
+            ]
+          }
         },
         {
           "type": "point",
@@ -12054,7 +12336,13 @@
           "id": "slowPublicSpace_48_Kardamati",
           "description": "Συνοικία: ΚΟΛΩΝΟΣ, ΔΚ: 4η. Συντεταγμένες από πηγή (X: 23.71792, Y: 37.989734).",
           "textualDefinition": "ΠΛ. ΚΑΡΔΑΜΑΤΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.71792,
+              37.989734
+            ]
+          }
         },
         {
           "type": "point",
@@ -12062,7 +12350,13 @@
           "id": "slowPublicSpace_49_StathmosLarisis",
           "description": "Συνοικία: ΑΓ.ΚΩΝ/ΝΟΣ-ΠΛ.ΒΑΘΗΣ-ΑΓ.ΠΑΥΛΟΣ, ΔΚ: 1η. Συντεταγμένες από πηγή (X: 23.721094, Y: 37.991214).",
           "textualDefinition": "ΠΛ. ΣΤΑΘΜΟΥ ΛΑΡΙΣΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.721094,
+              37.991214
+            ]
+          }
         },
         {
           "type": "point",
@@ -12070,7 +12364,13 @@
           "id": "slowPublicSpace_50_Chairopoulou",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.763209, Y: 37.994474).",
           "textualDefinition": "ΠΛ. ΧΑΙΡΟΠΟΥΛΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.763209,
+              37.994474
+            ]
+          }
         },
         {
           "type": "point",
@@ -12078,7 +12378,13 @@
           "id": "slowPublicSpace_51_PavlosGyparis",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.759014, Y: 37.997952).",
           "textualDefinition": "ΠΛ. ΠΑΥΛΟΥ ΓΥΠΑΡΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.759014,
+              37.997952
+            ]
+          }
         },
         {
           "type": "point",
@@ -12086,7 +12392,13 @@
           "id": "slowPublicSpace_52_Romis",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.768396, Y: 37.997142).",
           "textualDefinition": "ΠΛ. ΡΩΜΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.768396,
+              37.997142
+            ]
+          }
         },
         {
           "type": "point",
@@ -12094,7 +12406,13 @@
           "id": "slowPublicSpace_53_Theodektou",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.759492, Y: 37.99415).",
           "textualDefinition": "ΠΛ. ΘΕΟΔΕΚΤΟΥ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.759492,
+              37.99415
+            ]
+          }
         },
         {
           "type": "point",
@@ -12102,7 +12420,13 @@
           "id": "slowPublicSpace_54_SofiasVempo",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.765139, Y: 37.994372).",
           "textualDefinition": "ΠΛ. ΣΟΦΙΑΣ ΒΕΜΠΟ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.765139,
+              37.994372
+            ]
+          }
         },
         {
           "type": "point",
@@ -12110,7 +12434,13 @@
           "id": "slowPublicSpace_55_Partheni",
           "description": "Συνοικία: ΓΗΡΟΚΟΜΕΙΟ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.761586, Y: 37.999206).",
           "textualDefinition": "ΠΛ. ΠΑΡΘΕΝΗ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.761586,
+              37.999206
+            ]
+          }
         },
         {
           "type": "point",
@@ -12118,7 +12448,13 @@
           "id": "slowPublicSpace_56_Eirinis",
           "description": "Συνοικία: ΕΛΛΗΝΟΡΩΣΩΝ-ΕΡΥΘΡΟΣ, ΔΚ: 7η. Συντεταγμένες από πηγή (X: 23.77956, Y: 37.997989).",
           "textualDefinition": "ΠΛ. ΕΙΡΗΝΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.77956,
+              37.997989
+            ]
+          }
         },
         {
           "type": "point",
@@ -12126,7 +12462,13 @@
           "id": "slowPublicSpace_57_Attikis",
           "description": "Συνοικία: ΠΛ.ΑΤΤΙΚΗΣ, ΔΚ: 6η. Συντεταγμένες από πηγή (X: 23.722679, Y: 37.996538).",
           "textualDefinition": "ΠΛ. ΑΤΤΙΚΗΣ",
-          "geojson": null
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              23.722679,
+              37.996538
+            ]
+          }
         },
         {
           "type": "point",
