@@ -322,9 +322,9 @@ export default function ConsultationMap({
                         },
                         style: {
                             fillColor: color,
-                            fillOpacity: geometry.type === 'derived' ? 0.3 : 0.4, // Slightly more transparent for derived geometries
-                            strokeColor: color,
-                            strokeWidth: geometry.type === 'point' ? 8 : 2,
+                            fillOpacity: geometry.type === 'derived' ? 0.15 : 0.4, // Much more transparent for derived geometries
+                            strokeColor: geometry.type === 'derived' ? 'transparent' : color, // No outline for derived geometries
+                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 8 : 2), // No stroke for derived geometries
                             label: geometry.name
                         }
                     });

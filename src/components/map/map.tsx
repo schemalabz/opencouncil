@@ -86,17 +86,20 @@ const Map = memo(function Map({
         map.current.getCanvas().style.cursor = 'pointer';
         const baseOpacity = feature.properties.fillOpacity || 0.4;
 
+        // Use unique feature ID property for precise highlighting
+        const featureFilter = ['==', ['get', 'uniqueFeatureId'], feature.properties.uniqueFeatureId];
+
         if (feature.geometry.type === 'Point') {
             map.current.setPaintProperty('feature-points', 'circle-opacity', [
                 'case',
-                ['==', ['get', 'id'], feature.properties.id],
+                featureFilter,
                 Math.min(baseOpacity + 0.3, 1),
                 ['get', 'fillOpacity']
             ]);
         } else {
             map.current.setPaintProperty('feature-fills', 'fill-opacity', [
                 'case',
-                ['==', ['get', 'id'], feature.properties.id],
+                featureFilter,
                 Math.min(baseOpacity + 0.3, 1),
                 ['get', 'fillOpacity']
             ]);
@@ -203,11 +206,13 @@ const Map = memo(function Map({
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: features.map(feature => ({
+                    features: features.map((feature, index) => ({
                         type: 'Feature',
+                        id: `${feature.id}-${index}`, // Ensure unique ID at feature level
                         geometry: feature.geometry,
                         properties: {
                             id: feature.id,
+                            uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
                             subjectId: feature.id,
                             ...feature.properties,
                             fillColor: feature.style?.fillColor || '#627BBC',
@@ -327,11 +332,13 @@ const Map = memo(function Map({
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',
-            features: features.map(feature => ({
+            features: features.map((feature, index) => ({
                 type: 'Feature',
+                id: `${feature.id}-${index}`, // Ensure unique ID at feature level
                 geometry: feature.geometry,
                 properties: {
                     id: feature.id,
+                    uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
                     subjectId: feature.id,
                     ...feature.properties,
                     fillColor: feature.style?.fillColor || '#627BBC',
