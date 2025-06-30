@@ -54,7 +54,7 @@ function SummaryCard({ summary, referenceFormat, onReferenceClick, regulationDat
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2">
                                 <FileTextIcon className="h-4 w-4" style={{ color: 'hsl(var(--primary))' }} />
-                                <span className="text-md font-bold">
+                                <span className="text-sm md:text-md font-bold">
                                     Σύνοψη κανονισμού με ΑΙ
                                 </span>
                             </div>

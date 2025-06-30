@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import sanitizeHtml from 'sanitize-html';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,29 @@ export default function CommentsOverviewSheet({
     const [sortBy, setSortBy] = useState<SortOption>('recent');
     const [upvoting, setUpvoting] = useState<string | null>(null);
     const [localComments, setLocalComments] = useState(comments);
+    const [expandedComments, setExpandedComments] = useState(new Set<string>());
+
+    // Sanitize HTML content to prevent XSS attacks
+    const getSafeHtmlContent = (html: string): string => {
+        return sanitizeHtml(html, {
+            allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li'],
+            allowedAttributes: {
+                'a': ['href', 'target', 'rel']
+            },
+            allowedSchemes: ['http', 'https', 'mailto'],
+            transformTags: {
+                // Ensure external links open in new tab with security attributes
+                'a': (tagName, attribs) => ({
+                    tagName: 'a',
+                    attribs: {
+                        ...attribs,
+                        target: '_blank',
+                        rel: 'noopener noreferrer'
+                    }
+                })
+            }
+        });
+    };
 
     // Update local comments when props change
     useEffect(() => {
@@ -148,6 +172,42 @@ export default function CommentsOverviewSheet({
         handleCommentClick(comment);
     };
 
+    const toggleCommentExpansion = (commentId: string) => {
+        setExpandedComments(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(commentId)) {
+                newSet.delete(commentId);
+            } else {
+                newSet.add(commentId);
+            }
+            return newSet;
+        });
+    };
+
+    const isCommentTruncated = (content: string): boolean => {
+        // Strip HTML tags to get plain text
+        const textContent = content.replace(/<[^>]*>/g, '');
+
+        // Check if content is longer than ~300 characters
+        if (textContent.length > 300) {
+            return true;
+        }
+
+        // Check for multiple paragraphs (more than one <p> tag)
+        const paragraphCount = (content.match(/<p>/g) || []).length;
+        if (paragraphCount > 1) {
+            return true;
+        }
+
+        // Check for multiple line breaks
+        const lineBreakCount = (content.match(/<br\s*\/?>/gi) || []).length;
+        if (lineBreakCount > 2) {
+            return true;
+        }
+
+        return false;
+    };
+
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <SheetContent
@@ -244,25 +304,57 @@ export default function CommentsOverviewSheet({
                                     </div>
 
                                     {/* Comment Content */}
-                                    <div
-                                        className="flex-1 min-w-0 cursor-pointer hover:bg-muted/20 transition-colors rounded p-2 -m-2"
-                                        onClick={() => handleCommentClick(comment)}
-                                    >
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="font-medium text-sm">
-                                                {comment.user?.name || 'Ανώνυμος'}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(new Date(comment.createdAt), {
-                                                    addSuffix: true,
-                                                    locale: el
-                                                })}
-                                            </span>
-                                        </div>
+                                    <div className="flex-1 min-w-0 space-y-2">
                                         <div
-                                            className="prose prose-sm max-w-none text-sm line-clamp-4"
-                                            dangerouslySetInnerHTML={{ __html: comment.body }}
-                                        />
+                                            className="cursor-pointer hover:bg-muted/20 transition-colors rounded p-2 -m-2"
+                                            onClick={() => handleCommentClick(comment)}
+                                        >
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="font-medium text-sm">
+                                                    {comment.user?.name || 'Ανώνυμος'}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {formatDistanceToNow(new Date(comment.createdAt), {
+                                                        addSuffix: true,
+                                                        locale: el
+                                                    })}
+                                                </span>
+                                            </div>
+                                            <div
+                                                className={cn(
+                                                    "prose prose-sm max-w-none text-sm",
+                                                    !expandedComments.has(comment.id) && isCommentTruncated(comment.body) && "line-clamp-4"
+                                                )}
+                                                dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
+                                            />
+                                        </div>
+
+                                        {/* Show More/Less Button */}
+                                        {isCommentTruncated(comment.body) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleCommentExpansion(comment.id);
+                                                }}
+                                                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                            >
+                                                <div className="flex items-center gap-1">
+                                                    {expandedComments.has(comment.id) ? (
+                                                        <>
+                                                            <ChevronUp className="h-3 w-3" />
+                                                            <span>Εμφάνιση λιγότερων</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <ChevronDown className="h-3 w-3" />
+                                                            <span>Εμφάνιση περισσότερων</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
 
