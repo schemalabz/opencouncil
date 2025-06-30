@@ -5,7 +5,7 @@ import { env } from '@/env.mjs';
 interface EmailParams {
     from: string;
     to: string;
-    cc?: string;
+    cc?: string | string[];
     subject: string;
     html: string;
     text?: string;
