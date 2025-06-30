@@ -2,11 +2,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight, Info, MessageCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, MessageCircle, TriangleAlert } from "lucide-react";
 import GeometryItem from "./GeometryItem";
 import CommentSection from "./CommentSection";
 import { Geometry } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export type CheckboxState = 'checked' | 'indeterminate' | 'unchecked';
 
@@ -28,6 +34,7 @@ interface GeoSetItemProps {
     comments?: ConsultationCommentWithUpvotes[];
     consultationId?: string;
     cityId?: string;
+    hasInvalidGeometries?: boolean;
     // Editing props
     isEditingMode?: boolean;
     selectedGeometryForEdit?: string | null;
@@ -55,6 +62,7 @@ export default function GeoSetItem({
     comments,
     consultationId,
     cityId,
+    hasInvalidGeometries,
     isEditingMode = false,
     selectedGeometryForEdit,
     savedGeometries = {},
@@ -85,6 +93,7 @@ export default function GeoSetItem({
                             borderColor: color,
                             backgroundColor: 'white'
                         }}
+                        disabled={hasInvalidGeometries && !isEditingMode}
                     />
                     {checkboxState === 'indeterminate' && (
                         <div
@@ -103,6 +112,9 @@ export default function GeoSetItem({
                 >
                     {name}
                 </Label>
+                {hasInvalidGeometries && (
+                    <TriangleAlert className="h-4 w-4 text-yellow-500" />
+                )}
                 <Button
                     onClick={() => onOpenGeoSetDetail(id)}
                     variant="outline"
@@ -120,6 +132,7 @@ export default function GeoSetItem({
                         variant="ghost"
                         size="sm"
                         className="h-6 w-6 p-0"
+                        disabled={hasInvalidGeometries && !isEditingMode}
                     >
                         {isExpanded ? (
                             <ChevronDown className="h-3 w-3" />

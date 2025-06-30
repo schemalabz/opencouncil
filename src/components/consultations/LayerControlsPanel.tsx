@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { X, Edit, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Edit, Download, ChevronDown, ChevronUp, TriangleAlert } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
 import { Geometry } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
@@ -77,6 +77,10 @@ export default function LayerControlsPanel({
     
     // Use savedGeometries from props (now synced from ConsultationMap)
     const savedGeometriesData = savedGeometries || {};
+    
+    const containsInvalidGeoSets = geoSets.some(gs => 
+        gs.geometries.length > 0 && gs.geometries.every((g: any) => !g.geojson && g.type !== 'derived')
+    );
     
     // Export function to merge original data with saved geometries
     const handleExportJSON = () => {
@@ -170,6 +174,14 @@ export default function LayerControlsPanel({
                         )}
                     </div>
                 )}
+                {containsInvalidGeoSets && !isEditingMode && (
+                    <div className="mb-4 p-2 bg-yellow-100/50 border border-yellow-200/50 rounded-md text-xs text-yellow-800 flex items-start gap-2">
+                        <TriangleAlert className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                        <span><b>Βάζουμε τις περιοχές στον χάρτη, και αυτό είναι μια δουλειά που θέλει χρόνο</b>.
+                            Δεδομένου ότι αυτή η σελίδα δημιουργήθηκε σε μόλις 48 ώρες, κάτι έπρεπε να μείνει πίσω. 
+                            Μέχρι τότε, ορισμένες περιοχές ενδέχεται να μην είναι ορατές.</span>
+                    </div>
+                )}
             </div>
 
             <div
@@ -181,6 +193,10 @@ export default function LayerControlsPanel({
                     const color = geoSet.color || colors[geoSetIndex % colors.length];
                     const checkboxState = getGeoSetCheckboxState(geoSet.id);
                     const isExpanded = expandedGeoSets.has(geoSet.id);
+                    
+                    const hasInvalidGeometries = geoSet.geometries.length > 0 && geoSet.geometries.every(
+                        (g: any) => !g.geojson && g.type !== 'derived'
+                    );
 
                     return (
                         <GeoSetItem
@@ -202,6 +218,7 @@ export default function LayerControlsPanel({
                             comments={comments}
                             consultationId={consultationId}
                             cityId={cityId}
+                            hasInvalidGeometries={hasInvalidGeometries}
                             isEditingMode={isEditingMode}
                             selectedGeometryForEdit={selectedGeometryForEdit}
                             savedGeometries={savedGeometriesData}
