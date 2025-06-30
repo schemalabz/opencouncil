@@ -1,13 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, ChevronDown, ChevronUp, FileTextIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
-import { RegulationData } from "./types";
+import MarkdownContent from "./MarkdownContent";
+import { RegulationData, ReferenceFormat } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface CurrentUser {
@@ -29,6 +33,58 @@ interface ConsultationDocumentProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+}
+
+interface SummaryCardProps {
+    summary: string;
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
+    regulationData?: RegulationData;
+    className?: string;
+}
+
+function SummaryCard({ summary, referenceFormat, onReferenceClick, regulationData, className }: SummaryCardProps) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    return (
+        <Card className={cn("mb-6", className)}>
+            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+                <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between w-full hover:bg-muted/50 rounded-md p-4 transition-colors">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <FileTextIcon className="h-4 w-4" style={{ color: 'hsl(var(--primary))' }} />
+                                <span className="text-md font-bold">
+                                    Σύνοψη κανονισμού με ΑΙ
+                                </span>
+                            </div>
+                            <div className="inline-flex items-center gap-1 text-xs font-medium relative overflow-hidden rounded-md px-2 py-1">
+                                <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-20"></span>
+                                <span className="relative z-10 flex items-center gap-1">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                    Ξεκινήστε εδώ
+                                </span>
+                            </div>
+                        </div>
+                        <ChevronDown className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform",
+                            isOpen && "rotate-180"
+                        )} />
+                    </div>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent className="px-4 pb-4">
+                    <MarkdownContent
+                        content={summary}
+                        referenceFormat={referenceFormat}
+                        onReferenceClick={onReferenceClick}
+                        regulationData={regulationData}
+                        className="text-sm leading-relaxed"
+                    />
+                </CollapsibleContent>
+            </Collapsible>
+        </Card>
+    );
 }
 
 export default function ConsultationDocument({
@@ -131,8 +187,18 @@ export default function ConsultationDocument({
             <DocumentNavigation regulationData={regulationData} />
 
             <div className="container mx-auto px-3 md:px-4 py-4 md:py-12 max-w-4xl">
+                {/* Summary Card */}
+                {regulationData.summary && (
+                    <SummaryCard
+                        summary={regulationData.summary}
+                        referenceFormat={regulationData.referenceFormat}
+                        onReferenceClick={handleReferenceClick}
+                        regulationData={regulationData}
+                    />
+                )}
+
                 {/* Expand/Collapse All Button */}
-                <div className="flex justify-end mb-6">
+                <div className="flex justify-center mb-6">
                     <Button
                         onClick={handleExpandCollapseAll}
                         variant="outline"

@@ -90,6 +90,7 @@ export interface RegulationItem {
 
 export interface RegulationData {
     title: string;
+    summary?: string; // Markdown summary of the entire regulation with {REF:id} support
     contactEmail: string; // Email for citizen comments (required in schema)
     ccEmails?: string[]; // Additional emails to CC on comments (optional)
     sources: Source[]; // Array of source documents (required in schema)

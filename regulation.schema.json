@@ -9,6 +9,10 @@
       "type": "string",
       "description": "Ο τίτλος της κανονιστικής απόφασης"
     },
+    "summary": {
+      "type": "string",
+      "description": "Περίληψη της κανονιστικής απόφασης σε markdown με δυνατότητα αναφορών {REF:id}"
+    },
     "contactEmail": {
       "type": "string",
       "format": "email",
