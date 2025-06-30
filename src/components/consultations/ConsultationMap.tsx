@@ -383,8 +383,8 @@ export default function ConsultationMap({
                             fillOpacity: geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : 0.4),
                             // Stroke: derived geometries have no stroke, localStorage get blue stroke, regular get geoset color
                             strokeColor: geometry.type === 'derived' ? 'transparent' : (isFromLocalStorage ? '#1D4ED8' : color),
-                            // Stroke width: derived have none, points are larger, localStorage get thicker stroke
-                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 8 : (isFromLocalStorage ? 3 : 2)),
+                            // Stroke width: derived have none, points are smaller, localStorage get thicker stroke
+                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 4 : (isFromLocalStorage ? 3 : 2)),
                             label: geometry.name
                         }
                     });

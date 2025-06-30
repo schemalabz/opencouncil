@@ -69,12 +69,12 @@ export default function ConsultationHeader({
                     {onCommentsClick && commentCount > 0 ? (
                         <Button
                             onClick={onCommentsClick}
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
-                            className="h-auto p-0 text-xs md:text-sm"
+                            className="text-xs md:text-sm bg-orange hover:bg-orange/90 text-white border-orange transition-colors"
                             title="Δείτε όλα τα σχόλια"
                         >
-                            <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1" />
+                            <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1.5" />
                             <span>{commentCount} σχόλια</span>
                         </Button>
                     ) : (
