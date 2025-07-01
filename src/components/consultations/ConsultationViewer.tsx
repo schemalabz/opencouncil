@@ -249,6 +249,7 @@ export default function ConsultationViewer({
             params.set('view', 'document');
             const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
             router.push(newUrl, { scroll: false });
+            window.location.hash = `#${comment.entityId}`; // To trigger hash change event
         } else if (comment.entityType === 'GEOSET' || comment.entityType === 'GEOMETRY') {
             // Navigate to map view
             const params = new URLSearchParams(window.location.search);
