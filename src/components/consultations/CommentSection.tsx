@@ -24,6 +24,7 @@ interface CommentSectionProps {
     contactEmail?: string;
     className?: string;
     initialOpen?: boolean;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 export default function CommentSection({
@@ -35,7 +36,8 @@ export default function CommentSection({
     comments: initialComments,
     contactEmail,
     className,
-    initialOpen = false
+    initialOpen = false,
+    onCommentUpvote
 }: CommentSectionProps) {
     const { data: session, status } = useSession();
     const [isOpen, setIsOpen] = useState(initialOpen);
@@ -167,15 +169,20 @@ export default function CommentSection({
             const { upvoted, upvoteCount } = await response.json();
             // console.log('Upvote response:', { upvoted, upvoteCount });
 
-            // Update the comment in the list
-            setComments(prev => prev.map(comment => {
-                if (comment.id === commentId) {
-                    const updated = { ...comment, upvoteCount, hasUserUpvoted: upvoted };
-                    // console.log('Updated comment:', updated);
-                    return updated;
-                }
-                return comment;
-            }));
+            // Use the callback to update parent state if available, otherwise update local state
+            if (onCommentUpvote) {
+                onCommentUpvote(commentId, upvoted, upvoteCount);
+            } else {
+                // Fallback to local state management
+                setComments(prev => prev.map(comment => {
+                    if (comment.id === commentId) {
+                        const updated = { ...comment, upvoteCount, hasUserUpvoted: upvoted };
+                        // console.log('Updated comment:', updated);
+                        return updated;
+                    }
+                    return comment;
+                }));
+            }
         } catch (error) {
             console.error('Error toggling upvote:', error);
             alert("Υπήρξε σφάλμα. Παρακαλώ δοκιμάστε ξανά.");

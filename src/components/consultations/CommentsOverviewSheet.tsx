@@ -23,6 +23,7 @@ interface CommentsOverviewSheetProps {
     onCommentClick: (comment: ConsultationCommentWithUpvotes) => void;
     totalCount: number;
     regulationData?: RegulationData;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 export default function CommentsOverviewSheet({
@@ -31,12 +32,12 @@ export default function CommentsOverviewSheet({
     comments,
     onCommentClick,
     totalCount,
-    regulationData
+    regulationData,
+    onCommentUpvote
 }: CommentsOverviewSheetProps) {
     const { data: session } = useSession();
     const [sortBy, setSortBy] = useState<SortOption>('recent');
     const [upvoting, setUpvoting] = useState<string | null>(null);
-    const [localComments, setLocalComments] = useState(comments);
     const [expandedComments, setExpandedComments] = useState(new Set<string>());
 
     // Sanitize HTML content to prevent XSS attacks
@@ -60,11 +61,6 @@ export default function CommentsOverviewSheet({
             }
         });
     };
-
-    // Update local comments when props change
-    useEffect(() => {
-        setLocalComments(comments);
-    }, [comments]);
 
     const getEntityTypeLabel = (entityType: string) => {
         switch (entityType) {
@@ -122,7 +118,7 @@ export default function CommentsOverviewSheet({
         }
     };
 
-    const sortedComments = [...localComments].sort((a, b) => {
+    const sortedComments = [...comments].sort((a, b) => {
         if (sortBy === 'recent') {
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         } else {
@@ -138,7 +134,7 @@ export default function CommentsOverviewSheet({
     const handleUpvote = async (e: React.MouseEvent, commentId: string) => {
         e.stopPropagation(); // Prevent triggering comment click
 
-        if (!session || upvoting) return;
+        if (!session || upvoting || !onCommentUpvote) return;
 
         setUpvoting(commentId);
         try {
@@ -152,13 +148,8 @@ export default function CommentsOverviewSheet({
 
             const { upvoted, upvoteCount } = await response.json();
 
-            // Update the local comment state
-            setLocalComments(prev => prev.map(comment => {
-                if (comment.id === commentId) {
-                    return { ...comment, upvoteCount, hasUserUpvoted: upvoted };
-                }
-                return comment;
-            }));
+            // Use the callback to update the parent state
+            onCommentUpvote(commentId, upvoted, upvoteCount);
         } catch (error) {
             console.error('Error toggling upvote:', error);
             alert("Υπήρξε σφάλμα. Παρακαλώ δοκιμάστε ξανά.");

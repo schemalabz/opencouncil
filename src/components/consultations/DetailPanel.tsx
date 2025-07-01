@@ -45,6 +45,7 @@ interface DetailPanelProps {
     isEditingMode?: boolean;
     selectedGeometryForEdit?: string | null;
     savedGeometries?: Record<string, any>;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 export default function DetailPanel({
@@ -66,7 +67,8 @@ export default function DetailPanel({
     cityId,
     isEditingMode = false,
     selectedGeometryForEdit,
-    savedGeometries
+    savedGeometries,
+    onCommentUpvote
 }: DetailPanelProps) {
 
     // Find the current detail data
@@ -328,6 +330,7 @@ export default function DetailPanel({
                             comments={comments}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onCommentUpvote={onCommentUpvote}
                         />
                     </div>
                 </div>

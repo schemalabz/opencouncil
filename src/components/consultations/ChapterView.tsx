@@ -28,6 +28,7 @@ interface ChapterViewProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 export default function ChapterView({
@@ -44,7 +45,8 @@ export default function ChapterView({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    onCommentUpvote
 }: ChapterViewProps) {
     if (!chapter.articles) return null;
 
@@ -142,6 +144,7 @@ export default function ChapterView({
                             comments={comments}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onCommentUpvote={onCommentUpvote}
                         />
                     </div>
                 </CollapsibleContent>

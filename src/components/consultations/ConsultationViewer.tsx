@@ -41,7 +41,7 @@ export default function ConsultationViewer({
     consultation,
     regulationData,
     baseUrl,
-    comments,
+    comments: initialComments,
     currentUser,
     consultationId,
     cityId
@@ -58,6 +58,24 @@ export default function ConsultationViewer({
 
     // Track comments overview sheet state
     const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
+
+    // Manage comments state locally to prevent loss of upvote changes
+    const [comments, setComments] = useState(initialComments);
+
+    // Update comments when initial comments change (only on first load or page refresh)
+    useEffect(() => {
+        setComments(initialComments);
+    }, []);
+
+    // Function to update comment upvote state
+    const updateCommentUpvote = (commentId: string, upvoted: boolean, upvoteCount: number): void => {
+        setComments(prev => prev.map(comment => {
+            if (comment.id === commentId) {
+                return { ...comment, upvoteCount, hasUserUpvoted: upvoted };
+            }
+            return comment;
+        }));
+    };
 
     // Update view based on URL on mount and when search params change
     useEffect(() => {
@@ -327,6 +345,7 @@ export default function ConsultationViewer({
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onCommentUpvote={updateCommentUpvote}
                         />
                     </div>
 
@@ -367,6 +386,7 @@ export default function ConsultationViewer({
                     currentUser={currentUser}
                     consultationId={consultationId}
                     cityId={cityId}
+                    onCommentUpvote={updateCommentUpvote}
                 />
 
                 {/* Floating action button for view toggle */}
@@ -390,6 +410,7 @@ export default function ConsultationViewer({
                 totalCount={comments.length}
                 regulationData={regulationData || undefined}
                 onCommentClick={handleCommentClick}
+                onCommentUpvote={updateCommentUpvote}
             />
         </>
     );

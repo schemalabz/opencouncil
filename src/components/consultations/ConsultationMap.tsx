@@ -29,6 +29,7 @@ interface ConsultationMapProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 interface GeoSetData {
@@ -217,7 +218,8 @@ export default function ConsultationMap({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    onCommentUpvote
 }: ConsultationMapProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -731,6 +733,7 @@ export default function ConsultationMap({
                     }}
                     onSelectGeometryForEdit={handleSelectGeometryForEdit}
                     onDeleteSavedGeometry={handleDeleteSavedGeometry}
+                    onCommentUpvote={onCommentUpvote}
                 />
             )}
 
@@ -754,6 +757,7 @@ export default function ConsultationMap({
                 isEditingMode={isEditingMode}
                 selectedGeometryForEdit={selectedGeometryForEdit}
                 savedGeometries={savedGeometries}
+                onCommentUpvote={onCommentUpvote}
             />
         </div>
     );

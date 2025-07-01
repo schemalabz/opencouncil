@@ -33,6 +33,7 @@ interface ConsultationDocumentProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 interface SummaryCardProps {
@@ -99,7 +100,8 @@ export default function ConsultationDocument({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    onCommentUpvote
 }: ConsultationDocumentProps) {
 
     // Use the passed-down reference click handler or fallback to console.log
@@ -236,6 +238,7 @@ export default function ConsultationDocument({
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onCommentUpvote={onCommentUpvote}
                         >
                             {chapter.articles?.map((article) => (
                                 <ArticleView
@@ -251,6 +254,7 @@ export default function ConsultationDocument({
                                     currentUser={currentUser}
                                     consultationId={consultationId}
                                     cityId={cityId}
+                                    onCommentUpvote={onCommentUpvote}
                                 />
                             ))}
                         </ChapterView>

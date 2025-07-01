@@ -46,6 +46,7 @@ interface LayerControlsPanelProps {
     onToggleEditingMode?: (enabled: boolean) => void;
     onSelectGeometryForEdit?: (geometryId: string | null) => void;
     onDeleteSavedGeometry?: (geometryId: string) => void;
+    onCommentUpvote?: (commentId: string, upvoted: boolean, upvoteCount: number) => void;
 }
 
 export default function LayerControlsPanel({
@@ -72,7 +73,8 @@ export default function LayerControlsPanel({
     regulationData,
     onToggleEditingMode,
     onSelectGeometryForEdit,
-    onDeleteSavedGeometry
+    onDeleteSavedGeometry,
+    onCommentUpvote
 }: LayerControlsPanelProps) {
     
     // Use savedGeometries from props (now synced from ConsultationMap)
@@ -224,6 +226,7 @@ export default function LayerControlsPanel({
                             savedGeometries={savedGeometriesData}
                             onSelectGeometryForEdit={onSelectGeometryForEdit}
                             onDeleteSavedGeometry={onDeleteSavedGeometry}
+                            onCommentUpvote={onCommentUpvote}
                         />
                     );
                 })}
