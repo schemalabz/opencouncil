@@ -10,6 +10,7 @@ export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
     return [
         {
             url: baseUrl,
+            lastModified: new Date(),
             changeFrequency: 'daily',
             priority: 1,
             alternates: {
@@ -21,7 +22,8 @@ export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
             url: `${baseUrl}/about`,
-            changeFrequency: 'weekly',
+            lastModified: new Date('2024-09-15'),
+            changeFrequency: 'monthly',
             priority: 0.8,
             alternates: {
                 languages: {
@@ -32,8 +34,9 @@ export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
             url: `${baseUrl}/explain`,
-            changeFrequency: 'weekly',
-            priority: 0.8,
+            lastModified: new Date('2024-09-15'),
+            changeFrequency: 'monthly',
+            priority: 0.9,
             alternates: {
                 languages: {
                     el: `${baseUrl}/explain`,
@@ -43,12 +46,37 @@ export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
             url: `${baseUrl}/corrections`,
-            changeFrequency: 'weekly',
-            priority: 0.8,
+            lastModified: new Date('2024-09-15'),
+            changeFrequency: 'monthly',
+            priority: 0.7,
             alternates: {
                 languages: {
                     el: `${baseUrl}/corrections`,
                     en: `${baseUrl}/en/corrections`
+                }
+            }
+        },
+        {
+            url: `${baseUrl}/privacy`,
+            lastModified: new Date('2024-09-15'),
+            changeFrequency: 'monthly',
+            priority: 0.6,
+            alternates: {
+                languages: {
+                    el: `${baseUrl}/privacy`,
+                    en: `${baseUrl}/en/privacy`
+                }
+            }
+        },
+        {
+            url: `${baseUrl}/terms`,
+            lastModified: new Date('2024-09-15'),
+            changeFrequency: 'monthly',
+            priority: 0.6,
+            alternates: {
+                languages: {
+                    el: `${baseUrl}/terms`,
+                    en: `${baseUrl}/en/terms`
                 }
             }
         },
@@ -60,8 +88,9 @@ export async function generateCitiesSitemap(): Promise<MetadataRoute.Sitemap> {
     const cities = await getCities()
     return cities.map(city => ({
         url: `${baseUrl}/${city.id}`,
-        changeFrequency: 'daily',
-        priority: 0.9,
+        lastModified: new Date(city.updatedAt),
+        changeFrequency: city.officialSupport ? 'daily' : 'weekly',
+        priority: city.officialSupport ? 0.9 : 0.7,
         alternates: {
             languages: {
                 el: `${baseUrl}/${city.id}`,
@@ -69,6 +98,32 @@ export async function generateCitiesSitemap(): Promise<MetadataRoute.Sitemap> {
             }
         }
     }))
+}
+
+// Consultations sitemap
+export async function generateConsultationsSitemap(): Promise<MetadataRoute.Sitemap> {
+    const cities = await getCities()
+    const routes: MetadataRoute.Sitemap = []
+
+    for (const city of cities) {
+        // Add consultations index page for cities that have consultations enabled
+        if ((city as any).consultationsEnabled) {
+            routes.push({
+                url: `${baseUrl}/${city.id}/consultations`,
+                lastModified: new Date(city.updatedAt),
+                changeFrequency: 'weekly',
+                priority: 0.8,
+                alternates: {
+                    languages: {
+                        el: `${baseUrl}/${city.id}/consultations`,
+                        en: `${baseUrl}/en/${city.id}/consultations`
+                    }
+                }
+            })
+        }
+    }
+
+    return routes
 }
 
 // Meetings sitemap
@@ -79,10 +134,15 @@ export async function generateMeetingsSitemap(): Promise<MetadataRoute.Sitemap> 
     for (const city of cities) {
         for (const meeting of city.councilMeetings) {
             if (!meeting.released) continue
+            
+            const meetingDate = new Date(meeting.dateTime)
+            const isRecent = (Date.now() - meetingDate.getTime()) < (30 * 24 * 60 * 60 * 1000) // 30 days
+            
             routes.push({
                 url: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
-                changeFrequency: 'weekly',
-                priority: 0.7,
+                lastModified: new Date(meeting.updatedAt),
+                changeFrequency: isRecent ? 'daily' : 'weekly',
+                priority: isRecent ? 0.8 : 0.7,
                 alternates: {
                     languages: {
                         el: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
@@ -105,11 +165,16 @@ export async function generateSubjectsSitemap(): Promise<MetadataRoute.Sitemap> 
         for (const meeting of city.councilMeetings) {
             if (!meeting.released) continue
             const subjects = await getSubjectsForMeeting(city.id, meeting.id)
+            
+            const meetingDate = new Date(meeting.dateTime)
+            const isRecent = (Date.now() - meetingDate.getTime()) < (30 * 24 * 60 * 60 * 1000) // 30 days
+            
             for (const subject of subjects) {
                 routes.push({
                     url: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
-                    changeFrequency: 'weekly',
-                    priority: 0.6,
+                    lastModified: new Date(subject.updatedAt || meeting.updatedAt),
+                    changeFrequency: isRecent ? 'weekly' : 'monthly',
+                    priority: isRecent ? 0.7 : 0.6,
                     alternates: {
                         languages: {
                             el: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
@@ -126,9 +191,10 @@ export async function generateSubjectsSitemap(): Promise<MetadataRoute.Sitemap> 
 
 // Main sitemap index
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const [staticSitemap, citiesSitemap, meetingsSitemap, subjectsSitemap] = await Promise.all([
+    const [staticSitemap, citiesSitemap, consultationsSitemap, meetingsSitemap, subjectsSitemap] = await Promise.all([
         generateStaticSitemap(),
         generateCitiesSitemap(),
+        generateConsultationsSitemap(),
         generateMeetingsSitemap(),
         generateSubjectsSitemap()
     ])
@@ -136,6 +202,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [
         ...staticSitemap,
         ...citiesSitemap,
+        ...consultationsSitemap,
         ...meetingsSitemap,
         ...subjectsSitemap
     ]
