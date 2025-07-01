@@ -6,8 +6,10 @@ import dynamic from "next/dynamic";
 import sanitizeHtml from 'sanitize-html';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2 } from "lucide-react";
+import { MessageCircle, ChevronDown, ChevronUp, Trash2, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
@@ -44,6 +46,15 @@ export default function CommentSection({
     const [comments, setComments] = useState(initialComments || []);
     const [upvoting, setUpvoting] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
+    
+    // Registration form state
+    const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+    const [registrationData, setRegistrationData] = useState({
+        name: '',
+        email: ''
+    });
+    const [isRegistering, setIsRegistering] = useState(false);
+    const [registrationSent, setRegistrationSent] = useState(false);
 
     // Sanitize HTML content to prevent XSS attacks
     const getSafeHtmlContent = (html: string): string => {
@@ -106,6 +117,12 @@ export default function CommentSection({
         e.preventDefault();
         if (!comment.trim() || !session || !consultationId || !cityId) return;
 
+        // Check if user has a name - if not, require it
+        if (!session.user.name?.trim()) {
+            alert("Παρακαλώ συμπληρώστε το όνομά σας στο προφίλ σας για να αφήσετε σχόλιο.");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const response = await fetch(`/api/consultations/${consultationId}/comments`, {
@@ -146,6 +163,44 @@ export default function CommentSection({
             alert(error instanceof Error ? error.message : "Υπήρξε σφάλμα κατά την υποβολή του σχολίου. Παρακαλώ δοκιμάστε ξανά.");
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleRegistration = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!registrationData.name.trim() || !registrationData.email.trim()) {
+            return;
+        }
+
+        setIsRegistering(true);
+        try {
+            // Create the return URL to this specific consultation page
+            const currentUrl = window.location.href;
+            const callbackUrl = encodeURIComponent(currentUrl);
+            
+            const response = await fetch('/api/auth/register-for-comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: registrationData.name.trim(),
+                    email: registrationData.email.trim(),
+                    callbackUrl: currentUrl
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to register');
+            }
+
+            setRegistrationSent(true);
+        } catch (error) {
+            console.error('Error during registration:', error);
+            alert(error instanceof Error ? error.message : "Υπήρξε σφάλμα κατά την εγγραφή. Παρακαλώ δοκιμάστε ξανά.");
+        } finally {
+            setIsRegistering(false);
         }
     };
 
@@ -213,11 +268,6 @@ export default function CommentSection({
         } finally {
             setDeleting(null);
         }
-    };
-
-    const handleLoginRedirect = () => {
-        // This would redirect to login page
-        window.location.href = '/sign-in';
     };
 
     const commentCount = comments?.filter(c =>
@@ -383,7 +433,7 @@ export default function CommentSection({
                                         <div className="flex justify-end">
                                             <Button
                                                 type="submit"
-                                                disabled={!comment.trim() || isSubmitting}
+                                                disabled={!comment.trim() || isSubmitting || !session.user.name?.trim()}
                                                 className="w-full md:w-auto md:min-w-[250px] h-auto py-3"
                                             >
                                                 {isSubmitting ? (
@@ -391,6 +441,8 @@ export default function CommentSection({
                                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                                         <span>Υποβολή...</span>
                                                     </>
+                                                ) : !session.user.name?.trim() ? (
+                                                    <span className="whitespace-nowrap">Συμπληρώστε το όνομά σας στο προφίλ</span>
                                                 ) : (
                                                     <span className="whitespace-nowrap">Δημοσιεύση και αποστολή στο δήμο</span>
                                                 )}
@@ -399,24 +451,111 @@ export default function CommentSection({
                                     </div>
                                 </form>
                             ) : (
-                                <div className="text-center py-6 space-y-4">
-                                    <div className="text-muted-foreground">
-                                        <LogIn className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">
-                                            Συνδεθείτε για να αφήσετε σχόλιο για αυτό το {getEntityTypeLabel(entityType)}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center justify-center">
-                                        <Button
-                                            onClick={handleLoginRedirect}
-                                            variant="default"
-                                            size="sm"
-                                            className="flex items-center gap-2"
-                                        >
-                                            <LogIn className="h-4 w-4" />
-                                            Συνδεθείτε
-                                        </Button>
-                                    </div>
+                                <div className="space-y-6">
+                                    {/* Quick Registration Form */}
+                                    {!showRegistrationForm && !registrationSent ? (
+                                        <div className="text-center py-6 space-y-4">
+                                            <div className="text-muted-foreground">
+                                                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                                <p className="text-sm mb-4">
+                                                    Για να αφήσετε σχόλιο για αυτό το {getEntityTypeLabel(entityType)}, παρακαλώ εισάγετε τα στοιχεία σας
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-col gap-3 items-center">
+                                                <Button
+                                                    onClick={() => setShowRegistrationForm(true)}
+                                                    variant="default"
+                                                    size="lg"
+                                                    className="flex items-center gap-2 min-w-[200px]"
+                                                >
+                                                    <Mail className="h-4 w-4" />
+                                                    Εγγραφή για σχόλιο
+                                                </Button>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Θα σας στείλουμε ένα email επιβεβαίωσης
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : registrationSent ? (
+                                        <div className="text-center py-6 space-y-4">
+                                            <div className="text-green-600">
+                                                <Mail className="h-8 w-8 mx-auto mb-2" />
+                                                <p className="font-medium">Email επιβεβαίωσης στάλθηκε!</p>
+                                                <p className="text-sm text-muted-foreground mt-2">
+                                                    Ελέγξτε το email σας και κάντε κλικ στο σύνδεσμο για να επιστρέψετε εδώ και να σχολιάσετε.
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    Θα σας φέρει πίσω σε αυτή τη σελίδα με έτοιμη φόρμα σχολίου.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div className="text-center mb-4">
+                                                <h3 className="font-medium mb-2">Εγγραφή για να σχολιάσετε</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Χρειαζόμαστε το όνομα και το email σας για να επιβεβαιώσουμε την ταυτότητά σας
+                                                </p>
+                                            </div>
+                                            <form onSubmit={handleRegistration} className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="reg-name">Πλήρες όνομα *</Label>
+                                                    <Input
+                                                        id="reg-name"
+                                                        type="text"
+                                                        required
+                                                        value={registrationData.name}
+                                                        onChange={(e) => setRegistrationData(prev => ({ ...prev, name: e.target.value }))}
+                                                        placeholder="π.χ. Μαρία Παπαδοπούλου"
+                                                        disabled={isRegistering}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="reg-email">Email *</Label>
+                                                    <Input
+                                                        id="reg-email"
+                                                        type="email"
+                                                        required
+                                                        value={registrationData.email}
+                                                        onChange={(e) => setRegistrationData(prev => ({ ...prev, email: e.target.value }))}
+                                                        placeholder="π.χ. maria@example.com"
+                                                        disabled={isRegistering}
+                                                    />
+                                                </div>
+                                                <div className="bg-blue-50 p-3 rounded-lg">
+                                                    <p className="text-xs text-blue-800 leading-relaxed">
+                                                        Θα σας στείλουμε ένα email επιβεβαίωσης. Κάντε κλικ στο σύνδεσμο και θα επιστρέψετε εδώ για να αφήσετε το σχόλιό σας.
+                                                        Το όνομα σας θα είναι δημόσια ορατό με το σχόλιό σας.
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => setShowRegistrationForm(false)}
+                                                        disabled={isRegistering}
+                                                        className="flex-1"
+                                                    >
+                                                        Ακύρωση
+                                                    </Button>
+                                                    <Button
+                                                        type="submit"
+                                                        disabled={!registrationData.name.trim() || !registrationData.email.trim() || isRegistering}
+                                                        className="flex-1"
+                                                    >
+                                                        {isRegistering ? (
+                                                            <>
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                                                Αποστολή...
+                                                            </>
+                                                        ) : (
+                                                            'Αποστολή email επιβεβαίωσης'
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

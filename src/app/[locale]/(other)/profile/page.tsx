@@ -14,7 +14,7 @@ export default async function ProfilePage() {
     return (
         <div className="container max-w-2xl py-8 space-y-8">
             <DevelopmentSection />
-            {user.onboarded && <AdminSection user={user} t={t} />}
+            {user.onboarded && user.name && <AdminSection user={user} t={t} />}
             <UserInfoForm user={user} isOnboarded={!!user.onboarded} />
         </div>
     );
