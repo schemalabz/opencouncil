@@ -136,7 +136,8 @@ export default function CommentSection({
                     name: session.user.name
                 },
                 upvoteCount: 0,
-                hasUserUpvoted: false
+                hasUserUpvoted: false,
+                canUserDelete: true // User can always delete their own comment
             };
 
             setComments(prev => [commentWithUpvotes, ...prev]);
@@ -306,23 +307,23 @@ export default function CommentSection({
                                                                 </span>
                                                             </div>
 
-                                                            {/* Delete Button - only show for comment author */}
-                                                            {session?.user?.id === comment.userId && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                                                    onClick={() => handleDelete(comment.id)}
-                                                                    disabled={deleting === comment.id}
-                                                                    title="Διαγραφή σχολίου"
-                                                                >
-                                                                    {deleting === comment.id ? (
-                                                                        <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
-                                                                    ) : (
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    )}
-                                                                </Button>
-                                                            )}
+                                                                                                        {/* Delete Button - show for comment author or admins */}
+                                            {(session?.user?.id === comment.userId || comment.canUserDelete) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => handleDelete(comment.id)}
+                                                    disabled={deleting === comment.id}
+                                                    title={session?.user?.id === comment.userId ? "Διαγραφή σχολίου" : "Διαγραφή σχολίου (ως διαχειριστής)"}
+                                                >
+                                                    {deleting === comment.id ? (
+                                                        <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
+                                                    ) : (
+                                                        <Trash2 className="h-3 w-3" />
+                                                    )}
+                                                </Button>
+                                            )}
                                                         </div>
                                                         <div
                                                             className="prose prose-sm max-w-none text-sm"

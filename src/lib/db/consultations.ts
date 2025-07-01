@@ -12,6 +12,7 @@ export interface ConsultationCommentWithUpvotes extends ConsultationComment {
     user: Pick<User, 'id' | 'name'>;
     upvoteCount: number;
     hasUserUpvoted: boolean;
+    canUserDelete?: boolean;
 }
 
 export interface RegulationEntity {
@@ -237,14 +238,42 @@ export async function getConsultationComments(
         }
     });
 
+    // Get user admin information if session exists
+    let currentUser: { isSuperAdmin: boolean; administers: { cityId: string | null }[] } | null = null;
+    if (session?.user?.id) {
+        currentUser = await prisma.user.findUnique({
+            where: {
+                id: session.user.id
+            },
+            select: {
+                isSuperAdmin: true,
+                administers: {
+                    select: {
+                        cityId: true
+                    }
+                }
+            }
+        });
+    }
+
     const result = comments.map(comment => {
         const hasUserUpvoted = session?.user?.id ? comment.upvotes.some(upvote => upvote.userId === session.user.id) : false;
-        // console.log(`Comment ${comment.id}: userId=${session?.user?.id}, upvotes=[${comment.upvotes.map(u => u.userId).join(',')}], hasUserUpvoted=${hasUserUpvoted}`);
+        
+        // Check if current user can delete this comment
+        const canUserDelete = session?.user?.id ? (
+            // User owns the comment
+            comment.userId === session.user.id ||
+            // User is a super admin
+            (currentUser?.isSuperAdmin === true) ||
+            // User is a city admin for this city
+            (currentUser?.administers.some((admin: { cityId: string | null }) => admin.cityId === cityId) === true)
+        ) : false;
 
         return {
             ...comment,
             upvoteCount: comment.upvotes.length,
-            hasUserUpvoted
+            hasUserUpvoted,
+            canUserDelete
         };
     });
 
@@ -284,11 +313,44 @@ export async function getCommentsForEntity(
         }
     });
 
-    return comments.map(comment => ({
-        ...comment,
-        upvoteCount: comment.upvotes.length,
-        hasUserUpvoted: session?.user?.id ? comment.upvotes.some(upvote => upvote.userId === session.user.id) : false
-    }));
+    // Get user admin information if session exists
+    let currentUser: { isSuperAdmin: boolean; administers: { cityId: string | null }[] } | null = null;
+    if (session?.user?.id) {
+        currentUser = await prisma.user.findUnique({
+            where: {
+                id: session.user.id
+            },
+            select: {
+                isSuperAdmin: true,
+                administers: {
+                    select: {
+                        cityId: true
+                    }
+                }
+            }
+        });
+    }
+
+    return comments.map(comment => {
+        const hasUserUpvoted = session?.user?.id ? comment.upvotes.some(upvote => upvote.userId === session.user.id) : false;
+        
+        // Check if current user can delete this comment
+        const canUserDelete = session?.user?.id ? (
+            // User owns the comment
+            comment.userId === session.user.id ||
+            // User is a super admin
+            (currentUser?.isSuperAdmin === true) ||
+            // User is a city admin for this city
+            (currentUser?.administers.some((admin: { cityId: string | null }) => admin.cityId === cityId) === true)
+        ) : false;
+
+        return {
+            ...comment,
+            upvoteCount: comment.upvotes.length,
+            hasUserUpvoted,
+            canUserDelete
+        };
+    });
 }
 
 // Add a new comment (with server-side validation and auth)
@@ -438,7 +500,7 @@ export async function toggleCommentUpvote(
     };
 }
 
-// Delete a comment (with auth and ownership check)
+// Delete a comment (with auth and ownership/admin check)
 export async function deleteConsultationComment(
     commentId: string,
     session: Session | null
@@ -448,14 +510,20 @@ export async function deleteConsultationComment(
         throw new Error('Authentication required');
     }
 
-    // Get the comment to check ownership
+    // Get the comment with consultation and city information
     const comment = await prisma.consultationComment.findUnique({
         where: {
             id: commentId
         },
         select: {
             id: true,
-            userId: true
+            userId: true,
+            cityId: true,
+            consultation: {
+                select: {
+                    cityId: true
+                }
+            }
         }
     });
 
@@ -463,8 +531,36 @@ export async function deleteConsultationComment(
         throw new Error('Comment not found');
     }
 
-    // Check if user owns the comment
-    if (comment.userId !== session.user.id) {
+    // Get user with admin information
+    const user = await prisma.user.findUnique({
+        where: {
+            id: session.user.id
+        },
+        select: {
+            id: true,
+            isSuperAdmin: true,
+            administers: {
+                select: {
+                    cityId: true
+                }
+            }
+        }
+    });
+
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    // Check if user can delete the comment
+    const canDelete = 
+        // User owns the comment
+        comment.userId === session.user.id ||
+        // User is a super admin
+        user.isSuperAdmin ||
+        // User is a city admin for the consultation's city
+        user.administers.some((admin: { cityId: string | null }) => admin.cityId === comment.cityId);
+
+    if (!canDelete) {
         throw new Error('You can only delete your own comments');
     }
 

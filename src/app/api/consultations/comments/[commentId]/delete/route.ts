@@ -24,7 +24,8 @@ export async function DELETE(
                 {
                     status: error.message === 'Authentication required' ? 401 :
                         error.message === 'You can only delete your own comments' ? 403 :
-                            error.message === 'Comment not found' ? 404 : 400
+                            error.message === 'Comment not found' ? 404 :
+                                error.message === 'User not found' ? 404 : 400
                 }
             );
         }
