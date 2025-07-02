@@ -304,6 +304,12 @@ export async function addConsultationComment(
     if (!session?.user?.id) {
         throw new Error('Authentication required');
     }
+
+    // Check if user has a name - this is required for comments
+    if (!session.user.name?.trim()) {
+        throw new Error('User name is required to leave comments');
+    }
+
     // First, get the consultation to access the regulation data
     const consultation = await getConsultationById(cityId, consultationId);
     if (!consultation) {
