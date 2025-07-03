@@ -8,7 +8,7 @@ import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
 
-import { RegulationData } from "./types";
+import { RegulationData } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface CurrentUser {

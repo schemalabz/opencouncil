@@ -14,4 +14,3 @@ export { default as LayerControlsPanel } from './LayerControlsPanel';
 export { default as GeoSetItem } from './GeoSetItem';
 export { default as GeometryItem } from './GeometryItem';
 export { default as SourcesList } from './SourcesList';
-export * from './types'; 

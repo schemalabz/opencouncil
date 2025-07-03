@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
-import { Geometry, RegulationData, ReferenceFormat } from "./types";
+import { Geometry, RegulationData, ReferenceFormat } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface CurrentUser {

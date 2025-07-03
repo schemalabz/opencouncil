@@ -2,7 +2,7 @@ import { Consultation, User, ConsultationComment, ConsultationCommentEntityType 
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { sendConsultationCommentEmail } from "../email/consultation";
-import { RegulationData } from "@/components/consultations/types";
+import { RegulationData } from "@/lib/consultations/types";
 
 // Re-export the enum for use in other files
 export { ConsultationCommentEntityType };

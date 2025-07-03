@@ -3,7 +3,7 @@ import { getCityCached } from "@/lib/cache";
 import { getConsultationById, getConsultationComments } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
-import { RegulationData } from "@/components/consultations/types";
+import { RegulationData } from "@/lib/consultations/types";
 import { auth } from "@/auth";
 
 interface PageProps {

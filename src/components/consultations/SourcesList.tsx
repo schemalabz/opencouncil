@@ -1,6 +1,6 @@
 import { ExternalLink, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Source } from "./types";
+import { Source } from "@/lib/consultations/types";
 
 interface SourcesListProps {
     sources: Source[];

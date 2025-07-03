@@ -11,7 +11,7 @@ import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
 import MarkdownContent from "./MarkdownContent";
-import { RegulationData, ReferenceFormat } from "./types";
+import { RegulationData, ReferenceFormat } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 interface CurrentUser {

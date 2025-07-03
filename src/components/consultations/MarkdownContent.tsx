@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import { Link2Off, Map, BookOpen } from 'lucide-react';
-import { ReferenceFormat, RegulationData } from './types';
+import { ReferenceFormat, RegulationData } from "@/lib/consultations/types";
 
 interface MarkdownContentProps {
     content: string;

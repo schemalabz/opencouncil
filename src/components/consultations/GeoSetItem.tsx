@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { ChevronDown, ChevronRight, Info, MessageCircle, TriangleAlert } from "lucide-react";
 import GeometryItem from "./GeometryItem";
 import CommentSection from "./CommentSection";
-import { Geometry } from "./types";
+import { Geometry } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import {
     Tooltip,

@@ -3,11 +3,8 @@ import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getCouncilMeetingsCountForCity } from '@/lib/db/meetings';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
-import { RegulationData } from '@/components/consultations/types';
+import { RegulationData } from '@/lib/consultations/types';
 import prisma from '@/lib/db/prisma';
-import { getPartiesForCity } from '@/lib/db/parties';
-import { getPeopleForCity } from '@/lib/db/people';
-import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, OgHeader } from '@/components/og/shared-components';
 
 // Meeting OG Image

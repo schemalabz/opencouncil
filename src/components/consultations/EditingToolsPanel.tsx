@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { X, MapPin, Pentagon } from "lucide-react";
 import { LocationNavigator } from './LocationNavigator';
 import { CityWithGeometry } from '@/lib/db/cities';
-import { Geometry } from "./types";
+import { Geometry } from "@/lib/consultations/types";
 import { Location } from '@/lib/types/onboarding';
 
 type DrawingMode = 'point' | 'polygon';

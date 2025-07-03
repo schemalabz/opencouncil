@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { el } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-import { RegulationData } from "./types";
+import { RegulationData } from "@/lib/consultations/types";
 
 type SortOption = 'recent' | 'liked';
 

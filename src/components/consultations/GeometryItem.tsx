@@ -3,7 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Info, MessageCircle, AlertTriangle, Edit, Save, CheckCircle, Target, Trash2 } from "lucide-react";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-import { Geometry } from "./types";
+import { Geometry } from "@/lib/consultations/types";
 
 interface GeometryItemProps {
     id: string;

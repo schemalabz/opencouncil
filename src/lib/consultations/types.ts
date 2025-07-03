@@ -1,3 +1,5 @@
+import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+
 export interface Source {
     title: string;
     url: string;
@@ -103,4 +105,32 @@ export interface RegulationData {
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
     definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
+}
+
+// From src/components/consultations/ConsultationMap.tsx
+
+export interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+}
+
+export interface ConsultationMapProps {
+    className?: string;
+    regulationData?: RegulationData | null;
+    baseUrl: string;
+    referenceFormat?: ReferenceFormat;
+    onReferenceClick?: (referenceId: string) => void;
+    comments?: ConsultationCommentWithUpvotes[];
+    currentUser?: CurrentUser;
+    consultationId?: string;
+    cityId?: string;
+}
+
+export interface GeoSetData {
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+    geometries: Geometry[];
 } 

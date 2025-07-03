@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { X, Edit, Download, ChevronDown, ChevronUp, TriangleAlert } from "lucide-react";
+import { X, Edit, Download, TriangleAlert } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
-import { Geometry } from "./types";
+import { Geometry, RegulationData } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-import { RegulationData } from './types';
-import { CityWithGeometry } from '@/lib/db/cities';
 
 interface GeoSetData {
     id: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { RegulationData } from "./types";
+import { RegulationData } from "@/lib/consultations/types";
 
 interface DocumentNavigationProps {
     regulationData: RegulationData;
