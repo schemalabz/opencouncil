@@ -13,6 +13,7 @@ import { CheckboxState } from "./GeoSetItem";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Location } from "@/lib/types/onboarding";
 import { createCircleBuffer, computeDerivedGeometry, createLocationLineFeatures } from "@/lib/consultations/geometryUtils";
+import { useEditedGeometries } from "@/hooks/consultations/useEditedGeometries";
 
 // All local interfaces have been moved to src/lib/consultations/types.ts
 
@@ -58,52 +59,11 @@ export default function ConsultationMap({
     const [drawingMode, setDrawingMode] = useState<'point' | 'polygon'>('point');
     const [selectedGeometryForEdit, setSelectedGeometryForEdit] = useState<string | null>(null);
     
-    // Local storage state for saved geometries
-    const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
+    // Custom hook to manage edited geometries in local storage
+    const { savedGeometries, deleteSavedGeometry } = useEditedGeometries();
 
     // State for selected locations (for line drawing)
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
-
-    // Load saved geometries from localStorage on mount and when editing mode changes
-    useEffect(() => {
-        const loadSavedGeometries = () => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-                
-                // Only update state if the data actually changed (deep comparison)
-                setSavedGeometries(prev => {
-                    const hasChanged = JSON.stringify(prev) !== JSON.stringify(saved);
-                    return hasChanged ? saved : prev;
-                });
-            } catch (error) {
-                console.error('Error loading saved geometries:', error);
-                setSavedGeometries({});
-            }
-        };
-
-        loadSavedGeometries();
-
-        // Listen for localStorage changes (from other tabs)
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'opencouncil-edited-geometries') {
-                loadSavedGeometries();
-            }
-        };
-
-        window.addEventListener('storage', handleStorageChange);
-        
-        // Custom event for same-tab localStorage changes (we'll dispatch this from the map component)
-        const handleCustomStorageChange = () => {
-            loadSavedGeometries();
-        };
-
-        window.addEventListener('opencouncil-storage-change', handleCustomStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('opencouncil-storage-change', handleCustomStorageChange);
-        };
-    }, []);
 
     // Extract geosets from regulation data
     const geoSets: GeoSetData[] = useMemo(() => {
@@ -451,27 +411,12 @@ export default function ConsultationMap({
         console.log('📍 Updated selected locations:', locations.map(l => l.text));
     }, []);
 
-    // Function to handle deleting saved geometry
+    // Function to handle deleting saved geometry and updating local editing state
     const handleDeleteSavedGeometry = (geometryId: string) => {
-        try {
-            const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-            delete savedGeometries[geometryId];
-            localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-            
-            // IMMEDIATELY update local state to reflect the change
-            setSavedGeometries(savedGeometries);
-            
-            // Dispatch custom event to notify components of localStorage change
-            window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-            
-            // If the deleted geometry was selected for editing, deselect it
-            if (selectedGeometryForEdit === geometryId) {
-                setSelectedGeometryForEdit(null);
-            }
-            
-            console.log(`🗑️ Deleted saved geometry for ID: ${geometryId}`);
-        } catch (error) {
-            console.error('Error deleting saved geometry:', error);
+        deleteSavedGeometry(geometryId);
+        // If the deleted geometry was being edited, deselect it.
+        if (selectedGeometryForEdit === geometryId) {
+            setSelectedGeometryForEdit(null);
         }
     };
 
