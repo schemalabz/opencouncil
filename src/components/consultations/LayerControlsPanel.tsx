@@ -1,23 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { X, Edit, Download, TriangleAlert } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
-import { Geometry, RegulationData } from "@/lib/consultations/types";
+import { RegulationData, GeoSetData, ExtendedCurrentUser } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface GeoSetData {
-    id: string;
-    name: string;
-    description?: string;
-    color?: string;
-    geometries: Geometry[];
-}
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-    isSuperAdmin?: boolean;
-}
 
 interface LayerControlsPanelProps {
     geoSets: GeoSetData[];
@@ -36,7 +21,7 @@ interface LayerControlsPanelProps {
     comments?: ConsultationCommentWithUpvotes[];
     consultationId?: string;
     cityId?: string;
-    currentUser?: CurrentUser;
+    currentUser?: ExtendedCurrentUser;
     isEditingMode?: boolean;
     selectedGeometryForEdit?: string | null;
     savedGeometries?: Record<string, any>;

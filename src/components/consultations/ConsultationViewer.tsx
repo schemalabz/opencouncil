@@ -8,24 +8,8 @@ import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
 
-import { RegulationData } from "@/lib/consultations/types";
+import { RegulationData, CurrentUser, ViewMode, Consultation } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
-
-type ViewMode = 'map' | 'document';
-
-interface Consultation {
-    id: string;
-    name: string;
-    jsonUrl: string;
-    endDate: Date;
-    isActive: boolean;
-}
 
 interface ConsultationViewerProps {
     consultation: Consultation;

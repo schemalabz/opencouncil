@@ -4,14 +4,8 @@ import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
-import { RegulationItem, ReferenceFormat, RegulationData } from "@/lib/consultations/types";
+import { RegulationItem, ReferenceFormat, RegulationData, CurrentUser } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
 
 interface ChapterViewProps {
     chapter: RegulationItem;

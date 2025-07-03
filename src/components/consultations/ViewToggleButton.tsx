@@ -8,8 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-type ViewMode = 'map' | 'document';
+import { ViewMode } from "@/lib/consultations/types";
 
 interface ViewToggleButtonProps {
     currentView: ViewMode;

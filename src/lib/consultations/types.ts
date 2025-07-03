@@ -115,6 +115,16 @@ export interface CurrentUser {
     email?: string | null;
 }
 
+export type ViewMode = 'map' | 'document';
+
+export interface Consultation {
+    id: string;
+    name: string;
+    jsonUrl: string;
+    endDate: Date;
+    isActive: boolean;
+}
+
 export interface ConsultationMapProps {
     className?: string;
     regulationData?: RegulationData | null;
@@ -133,4 +143,9 @@ export interface GeoSetData {
     description?: string;
     color?: string;
     geometries: Geometry[];
+}
+
+// Extend CurrentUser for cases where we need isSuperAdmin
+export interface ExtendedCurrentUser extends CurrentUser {
+    isSuperAdmin?: boolean;
 } 

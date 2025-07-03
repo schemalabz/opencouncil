@@ -7,22 +7,8 @@ import { cn } from "@/lib/utils";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
-import { Geometry, RegulationData, ReferenceFormat } from "@/lib/consultations/types";
+import { RegulationData, ReferenceFormat, CurrentUser, GeoSetData } from "@/lib/consultations/types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
-
-interface GeoSetData {
-    id: string;
-    name: string;
-    description?: string;
-    color?: string;
-    geometries: Geometry[];
-}
 
 interface DetailPanelProps {
     isOpen: boolean;

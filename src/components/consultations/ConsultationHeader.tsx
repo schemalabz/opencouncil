@@ -2,8 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays, MessageSquare } from "lucide-react";
 import { formatConsultationEndDate } from "@/lib/utils/date";
 import { Button } from "@/components/ui/button";
-
-type ViewMode = 'map' | 'document';
+import { ViewMode } from "@/lib/consultations/types";
 
 interface ConsultationHeaderProps {
     title: string;
