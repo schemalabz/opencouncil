@@ -139,34 +139,40 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
-
         try {
+            const commonData = {
+                recipientName: values.recipientName,
+                platformPrice: values.platformPrice,
+                ingestionPerHourPrice: values.ingestionPerHourPrice,
+                hoursToIngest: values.hoursToIngest,
+                discountPercentage: values.discountPercentage,
+                type: values.type,
+                startDate: values.startDate,
+                endDate: values.endDate,
+                respondToName: values.respondToName,
+                respondToEmail: values.respondToEmail,
+                respondToPhone: values.respondToPhone,
+                cityId: values.cityId || null,
+                correctnessGuarantee: values.correctnessGuarantee,
+                equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
+                equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
+                equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
+                physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
+                version: CURRENT_OFFER_VERSION
+            };
+
             if (offer) {
                 await updateOffer(offer.id, {
-                    ...values,
-                    cityId: values.cityId || null,
+                    ...commonData,
                     meetingsToIngest: values.correctnessGuarantee && offer.version === 1 ? values.meetingsToIngest : null,
                     hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
-                    correctnessGuarantee: values.correctnessGuarantee,
-                    equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
-                    equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
-                    equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
-                    physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
-                    version: CURRENT_OFFER_VERSION
-                })
+                });
             } else {
                 await createOffer({
-                    ...values,
-                    cityId: values.cityId || null,
+                    ...commonData,
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
-                    correctnessGuarantee: values.correctnessGuarantee,
-                    equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
-                    equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
-                    equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
-                    physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
-                    version: CURRENT_OFFER_VERSION
-                })
+                });
             }
 
             setIsSuccess(true)
