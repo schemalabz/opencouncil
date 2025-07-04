@@ -18,40 +18,62 @@ export default async function PetitionPage() {
     });
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-2xl mx-auto space-y-8">
-                <div className="text-center space-y-6">
-                    <h1 className="text-3xl sm:text-4xl font-normal">
+        <div className="min-h-screen flex flex-col items-center justify-start px-4 pt-8 pb-8 sm:pt-12 sm:pb-12">
+            <div className="w-full max-w-3xl mx-auto space-y-8 sm:space-y-12">
+                {/* Header Section */}
+                <div className="text-center space-y-4 sm:space-y-6">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-normal leading-tight">
                         Υποστηρίξτε την προσθήκη του Δήμου σας στο{' '}
                         <span className="relative z-10 text-[hsl(var(--orange))]">
                             OpenCouncil
                         </span>
                     </h1>
-                    
-                    <div className="space-y-4 text-lg text-muted-foreground">
-                        <OpenCouncilDescription />
-                        <p>
-                            Μπορείτε να μας βοηθήσετε να φέρουμε το δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
-                            όνομά σας όταν μιλήσουμε με το δήμο, ως δημότη που θα ήθελε να έχει το OpenCouncil στο δήμο του.
-                        </p>
-                    </div>
                 </div>
 
-                <Suspense fallback={
-                    <div className="flex items-center justify-center min-h-[200px]">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                {/* Description Section */}
+                <div className="space-y-4 sm:space-y-6">
+                    <div className="text-base sm:text-lg text-muted-foreground text-center">
+                        <OpenCouncilDescription />
                     </div>
-                }>
-                    <PetitionMunicipalitySelector cities={cities} />
-                </Suspense>
 
-                <p className="text-center text-lg text-muted-foreground">
-                    Έχουμε εμπορική δραστηριότητα με τους δήμους που συνεργαζόμαστε. Οι τιμές και ο τρόπος που τιμολογούμε είναι δημόσια διαθέσιμες στο <a href="https://opencouncil.gr/about" className="text-blue-500 hover:underline">opencouncil.gr/about</a>.
-                </p>
+                    <p className="text-base sm:text-lg text-muted-foreground text-left leading-relaxed">
+                        Μπορείτε να μας βοηθήσετε να φέρουμε το δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
+                        όνομά σας όταν μιλήσουμε με το δήμο, ως δημότη που θα ήθελε να έχει το OpenCouncil στο δήμο του.
+                    </p>
+                </div>
 
-                <div className="flex items-center justify-center gap-2 text-green-700">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <p className="font-medium">Θα σας ενημερώσουμε όταν ο δήμος ενταχθεί στο δίκτυο OpenCouncil</p>
+                {/* Municipality Selector Section */}
+                <div className="w-full">
+                    <Suspense fallback={
+                        <div className="flex items-center justify-center min-h-[200px]">
+                            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary"></div>
+                        </div>
+                    }>
+                        <PetitionMunicipalitySelector cities={cities} />
+                    </Suspense>
+                </div>
+
+                {/* Pricing Information */}
+                <div className="space-y-4">
+                    <p className="text-sm sm:text-base text-muted-foreground text-left leading-relaxed">
+                        Έχουμε εμπορική δραστηριότητα με τους δήμους που συνεργαζόμαστε. Οι τιμές και ο τρόπος που τιμολογούμε είναι δημόσια διαθέσιμες στο{' '}
+                        <a
+                            href="https://opencouncil.gr/about"
+                            className="text-blue-600 hover:text-blue-800 underline transition-colors duration-200"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            opencouncil.gr/about
+                        </a>.
+                    </p>
+
+                    {/* Success Message */}
+                    <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm sm:text-base text-green-800 font-medium leading-relaxed">
+                            Θα σας ενημερώσουμε όταν ο δήμος ενταχθεί στο δίκτυο OpenCouncil
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
