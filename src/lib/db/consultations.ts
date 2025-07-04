@@ -3,6 +3,7 @@ import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { RegulationData } from "@/components/consultations/types";
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 // Re-export the enum for use in other files
 export { ConsultationCommentEntityType };
@@ -14,35 +15,98 @@ export interface ConsultationCommentWithUpvotes extends ConsultationComment {
     hasUserUpvoted: boolean;
 }
 
+export type ConsultationWithStatus = Consultation & {
+    isActiveComputed: boolean;
+    city: {
+        timezone: string;
+    };
+}
+
+// Type for consultations that include city timezone
+export type ConsultationWithCity = Consultation & {
+    city: {
+        timezone: string;
+    };
+}
+
 export interface RegulationEntity {
     id: string;
     name?: string;
     title?: string;
 }
 
-export async function getConsultationsForCity(cityId: string): Promise<Consultation[]> {
+// Helper function to check if a consultation is truly active
+export function isConsultationActive(consultation: Consultation, cityTimezone: string): boolean {
+    if (!consultation.isActive) {
+        return false;
+    }
+
+    // The consultation.endDate from database should be interpreted as city timezone, but JavaScript treats it as UTC
+    // We need to extract the time components and treat them as if they're in the city timezone
+
+    // Use UTC methods to get the "raw" time components from the database
+    const endDate = consultation.endDate;
+    const year = endDate.getUTCFullYear();
+    const month = String(endDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(endDate.getUTCDate()).padStart(2, '0');
+    const hours = String(endDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(endDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(endDate.getUTCSeconds()).padStart(2, '0');
+
+    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+    // Now treat this as city timezone and convert to proper UTC
+    const correctDate = fromZonedTime(dateTimeString, cityTimezone);
+
+    // Compare with current UTC time
+    const now = new Date();
+
+    return correctDate > now;
+}
+
+export async function getConsultationsForCity(cityId: string): Promise<ConsultationWithCity[]> {
     return await prisma.consultation.findMany({
         where: {
             cityId,
-            isActive: true,
-            endDate: {
-                gte: new Date() // Only show consultations that haven't ended yet
+            isActive: true, // Keep filtering for active flag - can show ended consultations that are still flagged as active
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
             }
         },
-        orderBy: {
-            endDate: 'asc'
-        }
+        orderBy: [
+            {
+                endDate: 'desc' // Show most recent first
+            }
+        ]
     });
 }
 
-export async function getConsultationById(cityId: string, consultationId: string): Promise<Consultation | null> {
-    return await prisma.consultation.findFirst({
+export async function getConsultationById(cityId: string, consultationId: string): Promise<ConsultationWithStatus | null> {
+    const consultation = await prisma.consultation.findFirst({
         where: {
             id: consultationId,
             cityId,
-            isActive: true
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
+            }
         }
     });
+    if (!consultation) {
+        return null;
+    }
+
+    return {
+        ...consultation,
+        isActiveComputed: isConsultationActive(consultation, consultation.city.timezone)
+    };
 }
 
 // Optimized function for OG image generation
@@ -73,10 +137,17 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
     });
 }
 
-export async function getAllConsultationsForCity(cityId: string): Promise<Consultation[]> {
+export async function getAllConsultationsForCity(cityId: string): Promise<ConsultationWithCity[]> {
     return await prisma.consultation.findMany({
         where: {
             cityId
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
+            }
         },
         orderBy: {
             endDate: 'desc'
@@ -128,7 +199,7 @@ async function validateEntityExists(
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
         // Handle relative URLs by prepending the base URL
-        const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
+        const url = jsonUrl.startsWith('http') ? jsonUrl : jsonUrl;
         const response = await fetch(url, { cache: 'no-store' });
 
         if (!response.ok) {
@@ -304,10 +375,16 @@ export async function addConsultationComment(
     if (!session?.user?.id) {
         throw new Error('Authentication required');
     }
+
     // First, get the consultation to access the regulation data
     const consultation = await getConsultationById(cityId, consultationId);
     if (!consultation) {
         throw new Error('Consultation not found');
+    }
+
+    // Check if consultation is active (both flag and date)
+    if (!consultation.isActiveComputed) {
+        throw new Error('This consultation is no longer accepting comments');
     }
 
     // Fetch and validate the regulation data
@@ -356,32 +433,34 @@ export async function addConsultationComment(
         }
     });
 
-    // Send email notification
-    try {
-        // Get entity details for the email
-        const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
+    // Only send email notification if consultation is still active
+    if (consultation.isActiveComputed) {
+        try {
+            // Get entity details for the email
+            const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
 
-        if (entityDetails && regulationData.contactEmail) {
-            const consultationUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${consultation.cityId}/consultations/${consultationId}`;
+            if (entityDetails && regulationData.contactEmail) {
+                const consultationUrl = `/${consultation.cityId}/consultation/${consultationId}`;
 
-            await sendConsultationCommentEmail({
-                userName: user.name || 'Unknown User',
-                userEmail: user.email,
-                consultationTitle: regulationData.title || 'Consultation',
-                entityType: entityDetails.entityTypeForEmail,
-                entityId: entityId,
-                entityTitle: entityDetails.entityTitle,
-                entityNumber: entityDetails.entityNumber,
-                parentGeosetName: entityDetails.parentGeosetName,
-                commentBody: body.trim(),
-                consultationUrl,
-                municipalityEmail: regulationData.contactEmail,
-                ccEmails: regulationData.ccEmails
-            });
+                await sendConsultationCommentEmail({
+                    userName: user.name || 'Unknown User',
+                    userEmail: user.email,
+                    consultationTitle: regulationData.title || 'Consultation',
+                    entityType: entityDetails.entityTypeForEmail,
+                    entityId: entityId,
+                    entityTitle: entityDetails.entityTitle,
+                    entityNumber: entityDetails.entityNumber,
+                    parentGeosetName: entityDetails.parentGeosetName,
+                    commentBody: body.trim(),
+                    consultationUrl,
+                    municipalityEmail: regulationData.contactEmail,
+                    ccEmails: regulationData.ccEmails
+                });
+            }
+        } catch (emailError) {
+            // Log email error but don't fail the comment creation
+            console.error('Failed to send comment notification email:', emailError);
         }
-    } catch (emailError) {
-        // Log email error but don't fail the comment creation
-        console.error('Failed to send comment notification email:', emailError);
     }
 
     return comment;

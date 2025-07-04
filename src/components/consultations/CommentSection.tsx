@@ -7,7 +7,7 @@ import sanitizeHtml from 'sanitize-html';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2 } from "lucide-react";
+import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
@@ -24,6 +24,7 @@ interface CommentSectionProps {
     contactEmail?: string;
     className?: string;
     initialOpen?: boolean;
+    consultationIsActive?: boolean;
 }
 
 export default function CommentSection({
@@ -35,7 +36,8 @@ export default function CommentSection({
     comments: initialComments,
     contactEmail,
     className,
-    initialOpen = false
+    initialOpen = false,
+    consultationIsActive = true
 }: CommentSectionProps) {
     const { data: session, status } = useSession();
     const [isOpen, setIsOpen] = useState(initialOpen);
@@ -104,7 +106,7 @@ export default function CommentSection({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!comment.trim() || !session || !consultationId || !cityId) return;
+        if (!comment.trim() || !session || !consultationId || !cityId || !consultationIsActive) return;
 
         setIsSubmitting(true);
         try {
@@ -342,6 +344,16 @@ export default function CommentSection({
                                 <div className="text-center py-4 text-muted-foreground">
                                     <p className="text-sm">Τα σχόλια δεν είναι διαθέσιμα για αυτή τη σελίδα.</p>
                                 </div>
+                            ) : !consultationIsActive ? (
+                                <div className="text-center py-6 text-muted-foreground">
+                                    <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm font-medium mb-1">
+                                        Η διαβούλευση έχει λήξει
+                                    </p>
+                                    <p className="text-xs">
+                                        Δεν μπορείτε πλέον να αφήσετε σχόλια για αυτή τη διαβούλευση.
+                                    </p>
+                                </div>
                             ) : status === "loading" ? (
                                 <div className="text-center py-4">
                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
@@ -383,7 +395,7 @@ export default function CommentSection({
                                         <div className="flex justify-end">
                                             <Button
                                                 type="submit"
-                                                disabled={!comment.trim() || isSubmitting}
+                                                disabled={!comment.trim() || isSubmitting || !consultationIsActive}
                                                 className="w-full md:w-auto md:min-w-[250px] h-auto py-3"
                                             >
                                                 {isSubmitting ? (

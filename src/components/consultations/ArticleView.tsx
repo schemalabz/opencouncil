@@ -25,6 +25,7 @@ interface ArticleViewProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    consultationIsActive?: boolean;
 }
 
 export default function ArticleView({
@@ -38,7 +39,8 @@ export default function ArticleView({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    consultationIsActive = true
 }: ArticleViewProps) {
     // Count comments for this article
     const articleCommentCount = comments?.filter(comment =>
@@ -92,6 +94,7 @@ export default function ArticleView({
                         comments={comments}
                         consultationId={consultationId}
                         cityId={cityId}
+                        consultationIsActive={consultationIsActive}
                     />
                 </CollapsibleContent>
             </Collapsible>
