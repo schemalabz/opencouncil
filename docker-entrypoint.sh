@@ -46,6 +46,8 @@ if [ "$APP_ENV" = "production" ]; then
   npm run production:build
   npm run production:start
 else
+  echo "🔄 Starting Prisma Studio in background..."
+  npm run prisma:studio &
   echo "🔄 Starting development server with hot reload..."
   npm run dev
 fi
