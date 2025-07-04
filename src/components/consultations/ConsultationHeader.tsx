@@ -10,6 +10,7 @@ interface ConsultationHeaderProps {
     description: string;
     endDate: Date;
     isActive: boolean;
+    isActiveComputed: boolean;
     commentCount?: number;
     currentView: ViewMode;
     onCommentsClick?: () => void;
@@ -20,6 +21,7 @@ export default function ConsultationHeader({
     description,
     endDate,
     isActive,
+    isActiveComputed,
     commentCount = 0,
     currentView,
     onCommentsClick
@@ -52,10 +54,10 @@ export default function ConsultationHeader({
                         </p>
                     </div>
                     <Badge
-                        variant={isActive ? "default" : "secondary"}
+                        variant={isActiveComputed ? "default" : "secondary"}
                         className="shrink-0 self-start text-xs"
                     >
-                        {isActive ? "Ενεργή" : "Ανενεργή"}
+                        {isActiveComputed ? "Ενεργή" : "Ανενεργή"}
                     </Badge>
                 </div>
 

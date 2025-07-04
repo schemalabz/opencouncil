@@ -25,6 +25,7 @@ interface Consultation {
     jsonUrl: string;
     endDate: Date;
     isActive: boolean;
+    isActiveComputed: boolean;
 }
 
 interface ConsultationViewerProps {
@@ -348,6 +349,7 @@ export default function ConsultationViewer({
                     description={description}
                     endDate={consultation.endDate}
                     isActive={consultation.isActive}
+                    isActiveComputed={consultation.isActiveComputed}
                     commentCount={comments.length}
                     currentView={currentView}
                     onCommentsClick={() => setCommentsSheetOpen(true)}
@@ -367,6 +369,7 @@ export default function ConsultationViewer({
                     currentUser={currentUser}
                     consultationId={consultationId}
                     cityId={cityId}
+                    consultationIsActive={consultation.isActiveComputed}
                 />
 
                 {/* Floating action button for view toggle */}

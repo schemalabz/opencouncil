@@ -14,35 +14,52 @@ export interface ConsultationCommentWithUpvotes extends ConsultationComment {
     hasUserUpvoted: boolean;
 }
 
+export type ConsultationWithStatus = Consultation & {
+    isActiveComputed: boolean;
+}
+
 export interface RegulationEntity {
     id: string;
     name?: string;
     title?: string;
 }
 
+// Helper function to check if a consultation is truly active
+export function isConsultationActive(consultation: Consultation): boolean {
+    return consultation.isActive && new Date(consultation.endDate) > new Date();
+}
+
 export async function getConsultationsForCity(cityId: string): Promise<Consultation[]> {
     return await prisma.consultation.findMany({
         where: {
             cityId,
-            isActive: true,
-            endDate: {
-                gte: new Date() // Only show consultations that haven't ended yet
-            }
+            isActive: true, // Keep filtering for active flag - can show ended consultations that are still flagged as active
         },
-        orderBy: {
-            endDate: 'asc'
-        }
+        orderBy: [
+            {
+                endDate: 'desc' // Show most recent first
+            }
+        ]
     });
 }
 
-export async function getConsultationById(cityId: string, consultationId: string): Promise<Consultation | null> {
-    return await prisma.consultation.findFirst({
+export async function getConsultationById(cityId: string, consultationId: string): Promise<ConsultationWithStatus | null> {
+    const consultation = await prisma.consultation.findFirst({
         where: {
             id: consultationId,
             cityId,
             isActive: true
         }
     });
+
+    if (!consultation) {
+        return null;
+    }
+
+    return {
+        ...consultation,
+        isActiveComputed: isConsultationActive(consultation)
+    };
 }
 
 // Optimized function for OG image generation
@@ -128,7 +145,7 @@ async function validateEntityExists(
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
         // Handle relative URLs by prepending the base URL
-        const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
+        const url = jsonUrl.startsWith('http') ? jsonUrl : jsonUrl;
         const response = await fetch(url, { cache: 'no-store' });
 
         if (!response.ok) {
@@ -304,10 +321,16 @@ export async function addConsultationComment(
     if (!session?.user?.id) {
         throw new Error('Authentication required');
     }
+
     // First, get the consultation to access the regulation data
     const consultation = await getConsultationById(cityId, consultationId);
     if (!consultation) {
         throw new Error('Consultation not found');
+    }
+
+    // Check if consultation is active (both flag and date)
+    if (!consultation.isActiveComputed) {
+        throw new Error('This consultation is no longer accepting comments');
     }
 
     // Fetch and validate the regulation data
@@ -356,32 +379,34 @@ export async function addConsultationComment(
         }
     });
 
-    // Send email notification
-    try {
-        // Get entity details for the email
-        const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
+    // Only send email notification if consultation is still active
+    if (consultation.isActiveComputed) {
+        try {
+            // Get entity details for the email
+            const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
 
-        if (entityDetails && regulationData.contactEmail) {
-            const consultationUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${consultation.cityId}/consultations/${consultationId}`;
+            if (entityDetails && regulationData.contactEmail) {
+                const consultationUrl = `/${consultation.cityId}/consultation/${consultationId}`;
 
-            await sendConsultationCommentEmail({
-                userName: user.name || 'Unknown User',
-                userEmail: user.email,
-                consultationTitle: regulationData.title || 'Consultation',
-                entityType: entityDetails.entityTypeForEmail,
-                entityId: entityId,
-                entityTitle: entityDetails.entityTitle,
-                entityNumber: entityDetails.entityNumber,
-                parentGeosetName: entityDetails.parentGeosetName,
-                commentBody: body.trim(),
-                consultationUrl,
-                municipalityEmail: regulationData.contactEmail,
-                ccEmails: regulationData.ccEmails
-            });
+                await sendConsultationCommentEmail({
+                    userName: user.name || 'Unknown User',
+                    userEmail: user.email,
+                    consultationTitle: regulationData.title || 'Consultation',
+                    entityType: entityDetails.entityTypeForEmail,
+                    entityId: entityId,
+                    entityTitle: entityDetails.entityTitle,
+                    entityNumber: entityDetails.entityNumber,
+                    parentGeosetName: entityDetails.parentGeosetName,
+                    commentBody: body.trim(),
+                    consultationUrl,
+                    municipalityEmail: regulationData.contactEmail,
+                    ccEmails: regulationData.ccEmails
+                });
+            }
+        } catch (emailError) {
+            // Log email error but don't fail the comment creation
+            console.error('Failed to send comment notification email:', emailError);
         }
-    } catch (emailError) {
-        // Log email error but don't fail the comment creation
-        console.error('Failed to send comment notification email:', emailError);
     }
 
     return comment;

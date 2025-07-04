@@ -28,6 +28,7 @@ interface ChapterViewProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    consultationIsActive?: boolean;
 }
 
 export default function ChapterView({
@@ -44,7 +45,8 @@ export default function ChapterView({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    consultationIsActive = true
 }: ChapterViewProps) {
     if (!chapter.articles) return null;
 
@@ -142,6 +144,7 @@ export default function ChapterView({
                             comments={comments}
                             consultationId={consultationId}
                             cityId={cityId}
+                            consultationIsActive={consultationIsActive}
                         />
                     </div>
                 </CollapsibleContent>
