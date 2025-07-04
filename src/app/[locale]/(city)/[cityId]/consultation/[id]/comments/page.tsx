@@ -241,7 +241,7 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
                         type: 'τοποθεσία',
                         title: geometry.name,
                         number: null,
-                        parentContext: `γεωγραφικό σύνολο "${geoset.name}"`
+                        parentContext: `γεωγραφικό σύνολο &quot;${geoset.name}&quot;`
                     };
                 }
             }
@@ -342,7 +342,7 @@ export default async function CommentsPage({ params }: PageProps) {
                 {documentComments.length > 0 && (
                     <div className="mb-12">
                         <h2 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
-                            Σχόλια στα κεφάλαια και άρθρα της κανονιστικής
+                            Σχόλια στα κεφάλαια και άρθρα της κανονιστικής ({documentComments.length})
                         </h2>
 
                         <div className="space-y-6">
@@ -375,7 +375,7 @@ export default async function CommentsPage({ params }: PageProps) {
                 {locationComments.length > 0 && (
                     <div className={documentComments.length > 0 ? "print:break-before-page" : ""}>
                         <h2 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b border-gray-300">
-                            Σχόλια σε γεωγραφικές τοποθεσίες
+                            Σχόλια σε γεωγραφικές τοποθεσίες ({locationComments.length})
                         </h2>
 
                         <div className="space-y-6">
@@ -385,7 +385,7 @@ export default async function CommentsPage({ params }: PageProps) {
                                 return (
                                     <div key={comment.id} className="border-l-4 border-green-200 pl-4">
                                         <div className="text-sm font-medium text-gray-900 mb-2">
-                                            Στη {entityDetails.type} "{entityDetails.title}"
+                                            Στη {entityDetails.type} &quot;{entityDetails.title}&quot;
                                             {entityDetails.parentContext && ` του ${entityDetails.parentContext}`},
                                             ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
                                             {formatDate(new Date(comment.createdAt))}:
