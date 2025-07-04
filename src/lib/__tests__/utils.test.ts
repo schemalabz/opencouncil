@@ -1,12 +1,11 @@
-import { 
-  monthsBetween, 
-  formatCurrency, 
-  formatDate, 
+import {
+  monthsBetween,
+  formatCurrency,
+  formatDate,
   formatDateTime,
   formatDateRange,
-  calculateOfferTotals, 
-  cn, 
-  debounce, 
+  cn,
+  debounce,
   subjectToMapFeature,
   sortSubjectsByImportance,
   joinTranscriptSegments,
@@ -15,9 +14,10 @@ import {
   filterInactiveRoles,
   normalizeText
 } from '../utils';
+import { calculateOfferTotals } from '../pricing';
 
 // Mock for Greek klitiki library
-jest.mock('greek-name-klitiki', () => 
+jest.mock('greek-name-klitiki', () =>
   function mockKlitiki(name: string) {
     // Simple mock implementation for testing
     const conversions: Record<string, string> = {
@@ -173,9 +173,9 @@ describe('debounce', () => {
     debouncedFn();
     jest.advanceTimersByTime(200);
     debouncedFn();
-    
+
     expect(mockFn).not.toBeCalled();
-    
+
     // Fast-forward remaining time
     jest.advanceTimersByTime(500);
     expect(mockFn).toBeCalledTimes(1);
@@ -187,7 +187,7 @@ describe('debounce', () => {
 
     debouncedFn('test', 123);
     jest.advanceTimersByTime(500);
-    
+
     expect(mockFn).toBeCalledWith('test', 123);
   });
 });
@@ -203,7 +203,7 @@ describe('subjectToMapFeature', () => {
     };
 
     const feature = subjectToMapFeature(subject as any);
-    
+
     expect(feature).toEqual({
       id: '123',
       geometry: {
@@ -296,14 +296,14 @@ describe('joinTranscriptSegments', () => {
     ];
 
     const joined = joinTranscriptSegments(segments as any);
-    
+
     expect(joined).toHaveLength(2);
     expect(joined[0].speakerTag.personId).toBe('1');
     expect(joined[0].startTimestamp).toBe(0);
     expect(joined[0].endTimestamp).toBe(20);
     expect(joined[0].utterances).toHaveLength(2);
     expect(joined[0].topicLabels).toHaveLength(2);
-    
+
     expect(joined[1].speakerTag.personId).toBe('2');
   });
 
@@ -365,20 +365,20 @@ describe('isRoleActive', () => {
 
   it('should check both dates', () => {
     // Active - within range
-    expect(isRoleActive({ 
-      startDate: new Date('2023-01-01'), 
+    expect(isRoleActive({
+      startDate: new Date('2023-01-01'),
       endDate: new Date('2025-01-01')
     })).toBe(true);
-    
+
     // Inactive - before range
-    expect(isRoleActive({ 
-      startDate: new Date('2025-01-01'), 
+    expect(isRoleActive({
+      startDate: new Date('2025-01-01'),
       endDate: new Date('2026-01-01')
     })).toBe(false);
-    
+
     // Inactive - after range
-    expect(isRoleActive({ 
-      startDate: new Date('2022-01-01'), 
+    expect(isRoleActive({
+      startDate: new Date('2022-01-01'),
       endDate: new Date('2023-01-01')
     })).toBe(false);
   });
@@ -406,7 +406,7 @@ describe('filterActiveRoles and filterInactiveRoles', () => {
     const activeRoles = filterActiveRoles(roles);
     expect(activeRoles).toHaveLength(3);
     expect(activeRoles.map(r => r.id)).toEqual(['1', '2', '4']);
-    
+
     const inactiveRoles = filterInactiveRoles(roles);
     expect(inactiveRoles).toHaveLength(1);
     expect(inactiveRoles[0].id).toBe('3');
@@ -437,6 +437,7 @@ describe('calculateOfferTotals', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       type: 'STANDARD',
+      version: 1,
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-12-31'),
       recipientName: 'Test Municipality',
@@ -445,6 +446,11 @@ describe('calculateOfferTotals', () => {
       hoursToIngest: 10,
       correctnessGuarantee: true,
       meetingsToIngest: 5,
+      hoursToGuarantee: null,
+      equipmentRentalPrice: null,
+      equipmentRentalName: null,
+      equipmentRentalDescription: null,
+      physicalPresenceHours: null,
       discountPercentage: 10,
       respondToEmail: 'test@example.com',
       respondToName: 'Test Person',
@@ -476,6 +482,7 @@ describe('calculateOfferTotals', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       type: 'STANDARD',
+      version: 1,
       startDate: new Date('2024-01-01'),
       endDate: new Date('2024-12-31'),
       recipientName: 'Test Municipality',
@@ -484,6 +491,11 @@ describe('calculateOfferTotals', () => {
       hoursToIngest: 10,
       correctnessGuarantee: false,
       meetingsToIngest: 5,
+      hoursToGuarantee: null,
+      equipmentRentalPrice: null,
+      equipmentRentalName: null,
+      equipmentRentalDescription: null,
+      physicalPresenceHours: null,
       discountPercentage: 10,
       respondToEmail: 'test@example.com',
       respondToName: 'Test Person',
@@ -497,5 +509,45 @@ describe('calculateOfferTotals', () => {
     expect(result.subtotal).toBe(1700); // 1200 + 500 + 0
     expect(result.discount).toBe(170); // 1700 * 0.10
     expect(result.total).toBe(1530); // 1700 - 170
+  });
+
+  it('should calculate totals correctly with equipment rental and physical presence', () => {
+    const offer = {
+      id: '3',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      type: 'STANDARD',
+      version: 3,
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-12-31'),
+      recipientName: 'Test Municipality',
+      platformPrice: 100,
+      ingestionPerHourPrice: 50,
+      hoursToIngest: 10,
+      correctnessGuarantee: false,
+      meetingsToIngest: null,
+      hoursToGuarantee: null,
+      equipmentRentalPrice: 150, // €150/month
+      equipmentRentalName: 'Professional AV Package',
+      equipmentRentalDescription: 'Cameras and microphones',
+      physicalPresenceHours: 8, // 8 hours at €25/hour
+      discountPercentage: 0,
+      respondToEmail: 'test@example.com',
+      respondToName: 'Test Person',
+      cityId: '1',
+      respondToPhone: '+30123456789'
+    } as const;
+
+    const result = calculateOfferTotals(offer);
+
+    expect(result.months).toBe(12);
+    expect(result.platformTotal).toBe(1200); // 100 * 12 months
+    expect(result.ingestionTotal).toBe(500); // 50 * 10 hours
+    expect(result.equipmentRentalTotal).toBe(1800); // 150 * 12 months
+    expect(result.physicalPresenceTotal).toBe(200); // 8 * 25
+    expect(result.correctnessGuaranteeCost).toBe(0);
+    expect(result.subtotal).toBe(3700); // 1200 + 500 + 1800 + 200 + 0
+    expect(result.discount).toBe(0); // 0% discount
+    expect(result.total).toBe(3700); // 3700 - 0
   });
 });

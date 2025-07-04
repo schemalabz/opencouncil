@@ -519,6 +519,15 @@ model Offer {
   cityId String?
 
   correctnessGuarantee Boolean @default(false)
+  
+  // Equipment rental fields
+  equipmentRentalPrice Float?  // Monthly price for equipment rental
+  equipmentRentalName String?  // Name/description of equipment
+  equipmentRentalDescription String? // Detailed description
+  
+  // Physical presence fields
+  physicalPresenceHours Int?  // Number of hours for physical presence
+  
   respondToEmail String
   respondToPhone String
   respondToName String

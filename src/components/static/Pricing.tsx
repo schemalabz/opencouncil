@@ -13,6 +13,13 @@ import { Inter } from 'next/font/google'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { formatCurrency } from '@/lib/utils'
+import {
+    estimateYearlyPricing,
+    PLATFORM_PRICING_TIERS,
+    SESSION_PROCESSING,
+    getCurrentCorrectnessGuaranteePrice
+} from '@/lib/pricing'
 
 const inter = Inter({ subsets: ['greek', 'latin'] })
 
@@ -38,27 +45,14 @@ export default function Pricing() {
     }, [isDialogOpen])
 
     const calculatePrice = () => {
-        let monthlyFee = 0
-        if (population <= 2000) {
-            monthlyFee = 0
-        } else if (population <= 10000) {
-            monthlyFee = 200
-        } else if (population <= 30000) {
-            monthlyFee = 400
-        } else if (population <= 50000) {
-            monthlyFee = 600
-        } else if (population <= 100000) {
-            monthlyFee = 1200
-        } else {
-            monthlyFee = 2000
-        }
+        const estimate = estimateYearlyPricing(
+            population,
+            councilCount,
+            averageDuration,
+            needsAccuracyGuarantee
+        )
 
-        const yearlyHostingFee = monthlyFee * 12
-        const yearlySessionFee = councilCount * averageDuration * 9
-        const yearlyAccuracyGuaranteeFee = needsAccuracyGuarantee ? councilCount * 80 : 0
-        const totalYearlyPrice = yearlyHostingFee + yearlySessionFee + yearlyAccuracyGuaranteeFee
-
-        setCalculatedPrice(totalYearlyPrice)
+        setCalculatedPrice(estimate.totalYearlyCost)
         setIsContactFormOpen(true)
     }
 
@@ -232,9 +226,9 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                 <div className="flex-1">
                     <PricingCard
                         icon={<FileInput className="h-10 w-10 text-primary stroke-[1.5]" />}
-                        title="Ψηφιοποίηση συνεδρίασης"
-                        description="Κοινή τιμολόγηση ανεξαρτήτως μεγέθους δήμου"
-                        price="9€ / ώρα συνεδρίασης"
+                        title={SESSION_PROCESSING.label}
+                        description={SESSION_PROCESSING.description}
+                        price={`${formatCurrency(SESSION_PROCESSING.pricePerHour)} / ώρα συνεδρίασης`}
                         subtext="Χρέωση ανά συνεδρίαση"
                         includedItems={[
                             "Αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλιτή.",
@@ -263,12 +257,14 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                         subtext=""  // Add an empty string or appropriate subtext
                         content={
                             <ul className="space-y-2">
-                                <PricingTier icon={<UsersIcon />} population="Έως 2.000 κάτοικοι" price="Δωρεάν" />
-                                <PricingTier icon={<UsersIcon />} population="2.001 - 10.000 κάτοικοι" price="200€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="10.001 - 30.000 κάτοικοι" price="400€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="30.001 - 50.000 κάτοικοι" price="600€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="50.001 - 100.000 κάτοικοι" price="1.200€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="100.001+ κάτοικοι" price="2.000€ / μήνα" />
+                                {PLATFORM_PRICING_TIERS.map((tier, index) => (
+                                    <PricingTier
+                                        key={index}
+                                        icon={<UsersIcon />}
+                                        population={tier.label}
+                                        price={tier.monthlyPrice === 0 ? "Δωρεάν" : `${formatCurrency(tier.monthlyPrice)} / μήνα`}
+                                    />
+                                ))}
                             </ul>
                         }
                         includedItems={[
