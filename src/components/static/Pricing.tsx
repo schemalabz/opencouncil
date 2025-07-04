@@ -8,11 +8,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2 } from "lucide-react"
+import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone } from "lucide-react"
 import { Inter } from 'next/font/google'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
+import { formatCurrency } from '@/lib/utils'
+import {
+    estimateYearlyPricing,
+    PLATFORM_PRICING_TIERS,
+    SESSION_PROCESSING,
+    getCurrentCorrectnessGuaranteePrice
+} from '@/lib/pricing'
 
 const inter = Inter({ subsets: ['greek', 'latin'] })
 
@@ -38,27 +45,14 @@ export default function Pricing() {
     }, [isDialogOpen])
 
     const calculatePrice = () => {
-        let monthlyFee = 0
-        if (population <= 2000) {
-            monthlyFee = 0
-        } else if (population <= 10000) {
-            monthlyFee = 200
-        } else if (population <= 30000) {
-            monthlyFee = 400
-        } else if (population <= 50000) {
-            monthlyFee = 600
-        } else if (population <= 100000) {
-            monthlyFee = 1200
-        } else {
-            monthlyFee = 2000
-        }
+        const estimate = estimateYearlyPricing(
+            population,
+            councilCount,
+            averageDuration,
+            needsAccuracyGuarantee
+        )
 
-        const yearlyHostingFee = monthlyFee * 12
-        const yearlySessionFee = councilCount * averageDuration * 9
-        const yearlyAccuracyGuaranteeFee = needsAccuracyGuarantee ? councilCount * 80 : 0
-        const totalYearlyPrice = yearlyHostingFee + yearlySessionFee + yearlyAccuracyGuaranteeFee
-
-        setCalculatedPrice(totalYearlyPrice)
+        setCalculatedPrice(estimate.totalYearlyCost)
         setIsContactFormOpen(true)
     }
 
@@ -104,16 +98,40 @@ export default function Pricing() {
                                     <span>Παράδοση αρχείου σε έντυπη μορφή ή και CD, μία φορά το χρόνο</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <FileBadge2 className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Προαιρετικά, εγγύηση ορθότητας απομαγνητοφωνήσεων με επιπλέον κόστος ανά συνεδρίαση</span>
-                                </li>
-                                <li className="flex items-start">
                                     <Cuboid className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                                     <span>Προτείνετε νέες λειτουργίες και διαμορφώστε μαζί μας το OpenCouncil</span>
                                 </li>
                                 <li className="flex items-start">
                                     <Gem className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                                     <span>Πιλοτική τιμή που ισχύει για τους πρώτους 8 δήμους</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <Megaphone className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                    <span>Προώθηση του OpenCouncil στους δημότες, online αλλά και δια ζώσης</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-gray-200">
+                            <h3 className="text-lg font-semibold mb-4 text-gray-600">Με επιπλέον χρέωση:</h3>
+                            <ul className="space-y-4">
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Παροχή εξοπλισμού για τη μαγνητοσκόπηση συνεδριάσεων (π.χ. Δημοτικής Επιτροπής, Δημοτικών Συμβουλίων ή Κοινοτήτων)</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Τεχνική υποστήριξη με φυσική παρουσία σε κάθε συνεδρίαση</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Διόρθωση των αυτόματων απομαγνητοφωνήσεων από άνθρωπο, ώστε να είναι κατάλληλα για τα επίσημα πρακτικά του δήμου.</span>
                                 </li>
                             </ul>
                         </div>
@@ -232,9 +250,9 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                 <div className="flex-1">
                     <PricingCard
                         icon={<FileInput className="h-10 w-10 text-primary stroke-[1.5]" />}
-                        title="Ψηφιοποίηση συνεδρίασης"
-                        description="Κοινή τιμολόγηση ανεξαρτήτως μεγέθους δήμου"
-                        price="9€ / ώρα συνεδρίασης"
+                        title={SESSION_PROCESSING.label}
+                        description={SESSION_PROCESSING.description}
+                        price={`${formatCurrency(SESSION_PROCESSING.pricePerHour)} / ώρα συνεδρίασης`}
                         subtext="Χρέωση ανά συνεδρίαση"
                         includedItems={[
                             "Αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλιτή.",
@@ -263,12 +281,14 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                         subtext=""  // Add an empty string or appropriate subtext
                         content={
                             <ul className="space-y-2">
-                                <PricingTier icon={<UsersIcon />} population="Έως 2.000 κάτοικοι" price="Δωρεάν" />
-                                <PricingTier icon={<UsersIcon />} population="2.001 - 10.000 κάτοικοι" price="200€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="10.001 - 30.000 κάτοικοι" price="400€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="30.001 - 50.000 κάτοικοι" price="600€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="50.001 - 100.000 κάτοικοι" price="1.200€ / μήνα" />
-                                <PricingTier icon={<UsersIcon />} population="100.001+ κάτοικοι" price="2.000€ / μήνα" />
+                                {PLATFORM_PRICING_TIERS.map((tier, index) => (
+                                    <PricingTier
+                                        key={index}
+                                        icon={<UsersIcon />}
+                                        population={tier.label}
+                                        price={tier.monthlyPrice === 0 ? "Δωρεάν" : `${formatCurrency(tier.monthlyPrice)} / μήνα`}
+                                    />
+                                ))}
                             </ul>
                         }
                         includedItems={[
