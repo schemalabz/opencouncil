@@ -1,54 +1,32 @@
-export function formatConsultationEndDate(endDate: Date, locale: string = 'el-GR'): string {
-    const now = new Date();
-    const diffMs = endDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { formatDistanceToNow } from 'date-fns';
+import { el } from 'date-fns/locale';
 
-    // Format the date with time
-    const dateTimeString = endDate.toLocaleDateString(locale, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+export function formatConsultationEndDate(endDate: Date, cityTimezone: string, locale: string = 'el-GR'): string {
+    // The endDate from database should be interpreted as city timezone, but JavaScript treats it as UTC
+    // We need to extract the time components and treat them as if they're in the city timezone
+
+    // Use UTC methods to get the "raw" time components from the database
+    const year = endDate.getUTCFullYear();
+    const month = String(endDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(endDate.getUTCDate()).padStart(2, '0');
+    const hours = String(endDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(endDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(endDate.getUTCSeconds()).padStart(2, '0');
+
+    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+    // Now treat this as city timezone and convert to proper UTC
+    const correctDate = fromZonedTime(dateTimeString, cityTimezone);
+
+    // Format the date in city timezone (should show the original database time)
+    const formattedDateTime = formatInTimeZone(correctDate, cityTimezone, 'dd MMM yyyy, HH:mm');
+
+    // Use date-fns to get proper relative time formatting with Greek locale
+    const relativeTime = formatDistanceToNow(correctDate, {
+        addSuffix: true,
+        locale: el
     });
 
-    // Create time ago string
-    let timeAgoString = '';
-
-    if (diffDays > 0) {
-        if (diffDays === 1) {
-            timeAgoString = 'αύριο';
-        } else if (diffDays <= 7) {
-            timeAgoString = `σε ${diffDays} ημέρες`;
-        } else if (diffDays <= 30) {
-            const weeks = Math.ceil(diffDays / 7);
-            timeAgoString = weeks === 1 ? 'σε 1 εβδομάδα' : `σε ${weeks} εβδομάδες`;
-        } else if (diffDays <= 365) {
-            const months = Math.ceil(diffDays / 30);
-            timeAgoString = months === 1 ? 'σε 1 μήνα' : `σε ${months} μήνες`;
-        } else {
-            const years = Math.ceil(diffDays / 365);
-            timeAgoString = years === 1 ? 'σε 1 χρόνο' : `σε ${years} χρόνια`;
-        }
-    } else {
-        const absDiffDays = Math.abs(diffDays);
-        if (absDiffDays === 0) {
-            timeAgoString = 'σήμερα';
-        } else if (absDiffDays === 1) {
-            timeAgoString = 'χθες';
-        } else if (absDiffDays <= 7) {
-            timeAgoString = `πριν από ${absDiffDays} ημέρες`;
-        } else if (absDiffDays <= 30) {
-            const weeks = Math.ceil(absDiffDays / 7);
-            timeAgoString = weeks === 1 ? 'πριν από 1 εβδομάδα' : `πριν από ${weeks} εβδομάδες`;
-        } else if (absDiffDays <= 365) {
-            const months = Math.ceil(absDiffDays / 30);
-            timeAgoString = months === 1 ? 'πριν από 1 μήνα' : `πριν από ${months} μήνες`;
-        } else {
-            const years = Math.ceil(absDiffDays / 365);
-            timeAgoString = years === 1 ? 'πριν από 1 χρόνο' : `πριν από ${years} χρόνια`;
-        }
-    }
-
-    return `${dateTimeString} (${timeAgoString})`;
+    return `${formattedDateTime} (${relativeTime})`;
 } 

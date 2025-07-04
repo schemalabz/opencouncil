@@ -1,13 +1,12 @@
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays, FileText, MapPin } from "lucide-react";
-import { Consultation } from "@prisma/client";
 import { ClickableCard } from "@/components/ui/clickable-card";
 import { formatConsultationEndDate } from "@/lib/utils/date";
-import { isConsultationActive } from "@/lib/db/consultations";
+import { isConsultationActive, ConsultationWithCity } from "@/lib/db/consultations";
 
 interface CityConsultationsProps {
-    consultations: Consultation[];
+    consultations: ConsultationWithCity[];
     cityId: string;
     canEdit: boolean;
 }
@@ -18,9 +17,9 @@ export default function CityConsultations({ consultations, cityId, canEdit }: Ci
         return (
             <div className="text-center py-12">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Δεν υπάρχουν ενεργές διαβουλεύσεις</h3>
+                <h3 className="text-lg font-semibold mb-2">Δεν υπάρχουν διαβουλεύσεις</h3>
                 <p className="text-muted-foreground">
-                    Δεν υπάρχουν διαθέσιμες διαβουλεύσεις αυτή τη στιγμή.
+                    Δεν υπάρχουν διαθέσιμες διαβουλεύσεις για αυτόν τον δήμο.
                 </p>
             </div>
         );
@@ -29,10 +28,11 @@ export default function CityConsultations({ consultations, cityId, canEdit }: Ci
     return (
         <div className="grid gap-6">
             {consultations.map((consultation) => {
-                const isActive = isConsultationActive(consultation);
-                
+                const isActive = isConsultationActive(consultation, consultation.city.timezone);
+
                 return (
                     <ClickableCard
+                        key={consultation.id}
                         href={`/${cityId}/consultation/${consultation.id}`}
                     >
                         <CardHeader>
@@ -56,7 +56,7 @@ export default function CityConsultations({ consultations, cityId, canEdit }: Ci
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                                 <CalendarDays className="h-4 w-4" />
                                 <span>
-                                    Λήγει: {formatConsultationEndDate(consultation.endDate)}
+                                    {isActive ? "Λήγει:" : "Έληξε:"} {formatConsultationEndDate(consultation.endDate, consultation.city.timezone)}
                                 </span>
                             </div>
                         </CardHeader>

@@ -9,6 +9,7 @@ interface ConsultationHeaderProps {
     title: string;
     description: string;
     endDate: Date;
+    cityTimezone: string;
     isActive: boolean;
     isActiveComputed: boolean;
     commentCount?: number;
@@ -20,6 +21,7 @@ export default function ConsultationHeader({
     title,
     description,
     endDate,
+    cityTimezone,
     isActive,
     isActiveComputed,
     commentCount = 0,
@@ -65,7 +67,7 @@ export default function ConsultationHeader({
                     <div className="flex items-center gap-1">
                         <CalendarDays className="h-3 w-3 md:h-4 md:w-4" />
                         <span>
-                            Λήγει: {formatConsultationEndDate(endDate)}
+                            {isActiveComputed ? "Λήγει:" : "Έληξε:"} {formatConsultationEndDate(endDate, cityTimezone)}
                         </span>
                     </div>
                     {onCommentsClick && commentCount > 0 ? (

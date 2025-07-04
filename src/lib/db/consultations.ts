@@ -3,6 +3,7 @@ import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { RegulationData } from "@/components/consultations/types";
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 // Re-export the enum for use in other files
 export { ConsultationCommentEntityType };
@@ -16,6 +17,16 @@ export interface ConsultationCommentWithUpvotes extends ConsultationComment {
 
 export type ConsultationWithStatus = Consultation & {
     isActiveComputed: boolean;
+    city: {
+        timezone: string;
+    };
+}
+
+// Type for consultations that include city timezone
+export type ConsultationWithCity = Consultation & {
+    city: {
+        timezone: string;
+    };
 }
 
 export interface RegulationEntity {
@@ -25,15 +36,46 @@ export interface RegulationEntity {
 }
 
 // Helper function to check if a consultation is truly active
-export function isConsultationActive(consultation: Consultation): boolean {
-    return consultation.isActive && new Date(consultation.endDate) > new Date();
+export function isConsultationActive(consultation: Consultation, cityTimezone: string): boolean {
+    if (!consultation.isActive) {
+        return false;
+    }
+
+    // The consultation.endDate from database should be interpreted as city timezone, but JavaScript treats it as UTC
+    // We need to extract the time components and treat them as if they're in the city timezone
+
+    // Use UTC methods to get the "raw" time components from the database
+    const endDate = consultation.endDate;
+    const year = endDate.getUTCFullYear();
+    const month = String(endDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(endDate.getUTCDate()).padStart(2, '0');
+    const hours = String(endDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(endDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(endDate.getUTCSeconds()).padStart(2, '0');
+
+    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+
+    // Now treat this as city timezone and convert to proper UTC
+    const correctDate = fromZonedTime(dateTimeString, cityTimezone);
+
+    // Compare with current UTC time
+    const now = new Date();
+
+    return correctDate > now;
 }
 
-export async function getConsultationsForCity(cityId: string): Promise<Consultation[]> {
+export async function getConsultationsForCity(cityId: string): Promise<ConsultationWithCity[]> {
     return await prisma.consultation.findMany({
         where: {
             cityId,
             isActive: true, // Keep filtering for active flag - can show ended consultations that are still flagged as active
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
+            }
         },
         orderBy: [
             {
@@ -48,17 +90,22 @@ export async function getConsultationById(cityId: string, consultationId: string
         where: {
             id: consultationId,
             cityId,
-            isActive: true
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
+            }
         }
     });
-
     if (!consultation) {
         return null;
     }
 
     return {
         ...consultation,
-        isActiveComputed: isConsultationActive(consultation)
+        isActiveComputed: isConsultationActive(consultation, consultation.city.timezone)
     };
 }
 
@@ -90,10 +137,17 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
     });
 }
 
-export async function getAllConsultationsForCity(cityId: string): Promise<Consultation[]> {
+export async function getAllConsultationsForCity(cityId: string): Promise<ConsultationWithCity[]> {
     return await prisma.consultation.findMany({
         where: {
             cityId
+        },
+        include: {
+            city: {
+                select: {
+                    timezone: true
+                }
+            }
         },
         orderBy: {
             endDate: 'desc'
