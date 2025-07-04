@@ -27,7 +27,8 @@ import { updateOffer } from '@/lib/db/offers'
 import { getCities } from '@/lib/db/cities'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEffect } from 'react'
-import { calculateOfferTotals, formatCurrency } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
+import { calculateOfferTotals, CURRENT_OFFER_VERSION } from '@/lib/pricing'
 import { Switch } from "@/components/ui/switch"
 
 const formSchema = z.object({
@@ -65,7 +66,13 @@ const formSchema = z.object({
     cityId: z.string().optional(),
     correctnessGuarantee: z.boolean().default(false),
     meetingsToIngest: z.number().int().min(1).optional(),
-    hoursToGuarantee: z.number().int().min(1).optional()
+    hoursToGuarantee: z.number().int().min(1).optional(),
+    includeEquipmentRental: z.boolean().default(false),
+    equipmentRentalPrice: z.number().min(0).optional(),
+    equipmentRentalName: z.string().optional(),
+    equipmentRentalDescription: z.string().optional(),
+    includePhysicalPresence: z.boolean().default(false),
+    physicalPresenceHours: z.number().int().min(0).optional()
 })
 
 interface OfferFormProps {
@@ -111,12 +118,24 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
             cityId: cityId || offer?.cityId || undefined,
             correctnessGuarantee: offer?.correctnessGuarantee || false,
             meetingsToIngest: offer?.meetingsToIngest || 1,
-            hoursToGuarantee: offer?.hoursToGuarantee || 1
+            hoursToGuarantee: offer?.hoursToGuarantee || 1,
+            includeEquipmentRental: ((offer as any)?.equipmentRentalPrice && (offer as any)?.equipmentRentalPrice > 0) || false,
+            equipmentRentalPrice: (offer as any)?.equipmentRentalPrice || 0,
+            equipmentRentalName: (offer as any)?.equipmentRentalName || "",
+            equipmentRentalDescription: (offer as any)?.equipmentRentalDescription || "",
+            includePhysicalPresence: ((offer as any)?.physicalPresenceHours && (offer as any)?.physicalPresenceHours > 0) || false,
+            physicalPresenceHours: (offer as any)?.physicalPresenceHours || 0
         },
     })
 
     const watchedValues = form.watch()
-    const { total } = calculateOfferTotals({ ...watchedValues, version: 3 } as Offer)
+    const { total } = calculateOfferTotals({
+        ...watchedValues,
+        version: CURRENT_OFFER_VERSION,
+        id: 'temp',
+        createdAt: new Date(),
+        updatedAt: new Date()
+    } as unknown as Offer)
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -129,7 +148,11 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     meetingsToIngest: values.correctnessGuarantee && offer.version === 1 ? values.meetingsToIngest : null,
                     hoursToGuarantee: values.correctnessGuarantee && offer.version !== null && offer.version > 1 ? values.hoursToGuarantee : null,
                     correctnessGuarantee: values.correctnessGuarantee,
-                    version: 3
+                    equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
+                    equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
+                    equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
+                    physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
+                    version: CURRENT_OFFER_VERSION
                 })
             } else {
                 await createOffer({
@@ -138,7 +161,11 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
                     correctnessGuarantee: values.correctnessGuarantee,
-                    version: 3
+                    equipmentRentalPrice: values.includeEquipmentRental ? values.equipmentRentalPrice || null : null,
+                    equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
+                    equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
+                    physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
+                    version: CURRENT_OFFER_VERSION
                 })
             }
 
@@ -163,7 +190,13 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 cityId: undefined,
                 correctnessGuarantee: false,
                 meetingsToIngest: 1,
-                hoursToGuarantee: 1
+                hoursToGuarantee: 1,
+                includeEquipmentRental: false,
+                equipmentRentalPrice: 0,
+                equipmentRentalName: "",
+                equipmentRentalDescription: "",
+                includePhysicalPresence: false,
+                physicalPresenceHours: 0
             })
             toast({
                 title: t('success'),
@@ -418,6 +451,148 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                         )}
                     />
                 )}
+
+                {/* Equipment Rental Section */}
+                <div className="space-y-4 border-t pt-4">
+                    <FormField
+                        control={form.control}
+                        name="includeEquipmentRental"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">
+                                        Equipment Rental
+                                    </FormLabel>
+                                    <FormDescription>
+                                        Include cameras, microphones and conferencing equipment (optional)
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+
+                    {form.watch('includeEquipmentRental') && (
+                        <div className="space-y-4 ml-4">
+                            <FormField
+                                control={form.control}
+                                name="equipmentRentalPrice"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Monthly Equipment Price (€)</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                {...field}
+                                                onChange={e => field.onChange(parseFloat(e.target.value) || 0)}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Monthly price for cameras, microphones and conferencing equipment
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="equipmentRentalName"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Equipment Name/Title</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} placeholder="e.g., Professional Video & Audio Package" />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Short name or title for the equipment package
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="equipmentRentalDescription"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Equipment Description</FormLabel>
+                                        <FormControl>
+                                            <textarea
+                                                className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                {...field}
+                                                placeholder="Detailed description of equipment included..."
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Detailed description of what equipment is included
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Physical Presence Section */}
+                <div className="space-y-4 border-t pt-4">
+                    <FormField
+                        control={form.control}
+                        name="includePhysicalPresence"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">
+                                        Physical Presence
+                                    </FormLabel>
+                                    <FormDescription>
+                                        Include personnel to be physically present at meetings (optional)
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+
+                    {form.watch('includePhysicalPresence') && (
+                        <div className="space-y-4 ml-4">
+
+                            <FormField
+                                control={form.control}
+                                name="physicalPresenceHours"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Physical Presence Hours</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                {...field}
+                                                onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            Number of hours for personnel to be physically present at meetings (€25/hour)
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
+                </div>
 
                 <FormField
                     control={form.control}

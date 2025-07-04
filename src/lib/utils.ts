@@ -220,88 +220,8 @@ export function sortSubjectsByImportance<T extends Subject & {
   });
 }
 
-export const calculateOfferTotals = (offer: Offer): {
-  months: number,
-  platformTotal: number,
-  ingestionTotal: number,
-  subtotal: number,
-  discount: number,
-  total: number,
-  hoursToGuarantee: number,
-  correctnessGuaranteeCost: number,
-  paymentPlan: { dueDate: Date, amount: number }[]
-} => {
-  const months = monthsBetween(offer.startDate, offer.endDate)
-  const platformTotal = offer.platformPrice * months
-  const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest
-
-  // Calculate correctness guarantee cost based on version
-  let correctnessGuaranteeCost = 0
-  let hoursToGuarantee = 0
-
-  if (offer.correctnessGuarantee) {
-    if (offer.version === 3) {
-      // Version 3: Price per hour
-      hoursToGuarantee = offer.hoursToGuarantee || 0
-      correctnessGuaranteeCost = hoursToGuarantee * 11 // 11 EUR per hour
-    } else if (offer.version === 2) {
-      // Version 2: Price per hour
-      hoursToGuarantee = offer.hoursToGuarantee || 0
-      correctnessGuaranteeCost = hoursToGuarantee * 20 // 20 EUR per hour
-    } else {
-      // Version 1: Price per meeting
-      const meetingsToIngest = offer.meetingsToIngest || 0
-      correctnessGuaranteeCost = meetingsToIngest * 80 // 80 EUR per meeting
-      hoursToGuarantee = meetingsToIngest // For display purposes
-    }
-  }
-
-  const subtotal = platformTotal + ingestionTotal + correctnessGuaranteeCost
-  const discount = subtotal * (offer.discountPercentage / 100)
-  const total = subtotal - discount
-
-  // Calculate payment dates
-  const startDate = new Date(offer.startDate)
-  const endDate = new Date(offer.endDate)
-  const midPoint = new Date((startDate.getTime() + endDate.getTime()) / 2)
-
-  // First payment date: Find Friday before midPoint - 15 days
-  const firstPaymentDate = new Date(midPoint)
-  firstPaymentDate.setDate(firstPaymentDate.getDate() - 15)
-  while (firstPaymentDate.getDay() !== 5) { // 5 = Friday
-    firstPaymentDate.setDate(firstPaymentDate.getDate() - 1)
-  }
-
-  // Second payment date: Find Friday before endDate - 15 days
-  const secondPaymentDate = new Date(endDate)
-  secondPaymentDate.setDate(secondPaymentDate.getDate() - 15)
-  while (secondPaymentDate.getDay() !== 5) {
-    secondPaymentDate.setDate(secondPaymentDate.getDate() - 1)
-  }
-
-  const paymentPlan = [
-    {
-      dueDate: firstPaymentDate,
-      amount: total / 2
-    },
-    {
-      dueDate: secondPaymentDate,
-      amount: total / 2
-    }
-  ]
-
-  return {
-    months,
-    platformTotal,
-    ingestionTotal,
-    subtotal,
-    discount,
-    total,
-    hoursToGuarantee,
-    correctnessGuaranteeCost,
-    paymentPlan
-  }
-}
+// Re-export calculateOfferTotals from the pricing module for backward compatibility
+export { calculateOfferTotals } from './pricing'
 
 
 export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {
@@ -470,8 +390,8 @@ export function buildCityUrl(cityId: string, path: string = '', locale: string =
 }
 
 type GeometryBounds = {
-    bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
-    center: [number, number];
+  bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+  center: [number, number];
 };
 
 /**
@@ -479,63 +399,63 @@ type GeometryBounds = {
  * @param geometry The GeoJSON geometry to process
  */
 export function calculateGeometryBounds(geometry: any): GeometryBounds {
-    const DEFAULT_RETURN: GeometryBounds = {
-        bounds: null,
-        center: [23.7275, 37.9838] // Default to Athens
+  const DEFAULT_RETURN: GeometryBounds = {
+    bounds: null,
+    center: [23.7275, 37.9838] // Default to Athens
+  };
+
+  if (!geometry) {
+    console.log('[Location] No geometry available, using default coordinates');
+    return DEFAULT_RETURN;
+  }
+
+  try {
+    let minLng = Infinity, maxLng = -Infinity;
+    let minLat = Infinity, maxLat = -Infinity;
+
+    // Check for supported geometry types
+    if (!['Point', 'Polygon', 'MultiPolygon'].includes(geometry.type)) {
+      console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
+      return DEFAULT_RETURN;
+    }
+
+    const processCoordinates = (coords: number[][]) => {
+      coords.forEach(point => {
+        const [lng, lat] = point;
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      });
     };
 
-    if (!geometry) {
-        console.log('[Location] No geometry available, using default coordinates');
-        return DEFAULT_RETURN;
+    if (geometry.type === 'Polygon') {
+      processCoordinates(geometry.coordinates[0]);
+    } else if (geometry.type === 'MultiPolygon') {
+      geometry.coordinates.forEach((polygon: number[][][]) => {
+        processCoordinates(polygon[0]);
+      });
+    } else if (geometry.type === 'Point') {
+      const [lng, lat] = geometry.coordinates;
+      minLng = maxLng = lng;
+      minLat = maxLat = lat;
     }
 
-    try {
-        let minLng = Infinity, maxLng = -Infinity;
-        let minLat = Infinity, maxLat = -Infinity;
+    const bounds = {
+      minLng,
+      maxLng,
+      minLat,
+      maxLat
+    };
 
-        // Check for supported geometry types
-        if (!['Point', 'Polygon', 'MultiPolygon'].includes(geometry.type)) {
-            console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
-            return DEFAULT_RETURN;
-        }
+    const center: [number, number] = [
+      (minLng + maxLng) / 2,
+      (minLat + maxLat) / 2
+    ];
 
-        const processCoordinates = (coords: number[][]) => {
-            coords.forEach(point => {
-                const [lng, lat] = point;
-                minLng = Math.min(minLng, lng);
-                maxLng = Math.max(maxLng, lng);
-                minLat = Math.min(minLat, lat);
-                maxLat = Math.max(maxLat, lat);
-            });
-        };
-
-        if (geometry.type === 'Polygon') {
-            processCoordinates(geometry.coordinates[0]);
-        } else if (geometry.type === 'MultiPolygon') {
-            geometry.coordinates.forEach((polygon: number[][][]) => {
-                processCoordinates(polygon[0]);
-            });
-        } else if (geometry.type === 'Point') {
-            const [lng, lat] = geometry.coordinates;
-            minLng = maxLng = lng;
-            minLat = maxLat = lat;
-        }
-
-        const bounds = {
-            minLng,
-            maxLng,
-            minLat,
-            maxLat
-        };
-
-        const center: [number, number] = [
-            (minLng + maxLng) / 2,
-            (minLat + maxLat) / 2
-        ];
-
-        return { bounds, center };
-    } catch (error) {
-        console.error('[Location] Error calculating geometry bounds:', error);
-        return DEFAULT_RETURN;
-    }
+    return { bounds, center };
+  } catch (error) {
+    console.error('[Location] Error calculating geometry bounds:', error);
+    return DEFAULT_RETURN;
+  }
 }

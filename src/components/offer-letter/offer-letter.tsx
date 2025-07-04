@@ -1,5 +1,6 @@
 "use client"
-import { calculateOfferTotals, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+import { calculateOfferTotals, PHYSICAL_PRESENCE } from "@/lib/pricing";
 import { Offer } from "@prisma/client";
 import { Button } from "../ui/button";
 import { monthsBetween, formatDate } from "@/lib/utils";
@@ -9,7 +10,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 export default function OfferLetter({ offer }: { offer: Offer }) {
-    const { months, platformTotal, ingestionTotal, subtotal, discount, total, hoursToGuarantee, correctnessGuaranteeCost, paymentPlan } = calculateOfferTotals(offer)
+    const { months, platformTotal, ingestionTotal, equipmentRentalTotal, physicalPresenceTotal, subtotal, discount, total, hoursToGuarantee, correctnessGuaranteeCost, paymentPlan } = calculateOfferTotals(offer)
     const isRegion = offer.recipientName.startsWith("Περιφέρεια"); // awful, fix this
 
     const CTABox = () => (
@@ -78,6 +79,24 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
+                            {(offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0 && (
+                                <tr className="border-b bg-white">
+                                    <td className="py-2">
+                                        {"Παροχή εξοπλισμού"}
+                                    </td>
+                                    <td className="text-right">{months} μήνες</td>
+                                    <td className="text-right">{formatCurrency((offer as any).equipmentRentalPrice)}/μήνα</td>
+                                    <td className="text-right">{formatCurrency(equipmentRentalTotal)}</td>
+                                </tr>
+                            )}
+                            {(offer as any).physicalPresenceHours && (offer as any).physicalPresenceHours > 0 && (
+                                <tr className="border-b bg-white">
+                                    <td className="py-2">Φυσική παρουσία σε συνεδριάσεις</td>
+                                    <td className="text-right">{(offer as any).physicalPresenceHours} ώρες</td>
+                                    <td className="text-right">{formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα</td>
+                                    <td className="text-right">{formatCurrency(physicalPresenceTotal)}</td>
+                                </tr>
+                            )}
                             {offer.correctnessGuarantee && hoursToGuarantee && (
                                 <tr className="border-b bg-white">
                                     <td className="py-2">Έλεγχος απομαγνητοφωνήσεων από άνθρωπο</td>
@@ -255,6 +274,61 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                         </ul>
                     </ModuleCard>
                 </div>
+
+                {/* Equipment Rental and Physical Presence Services */}
+                {(((offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0) ||
+                    ((offer as any).physicalPresenceHours && (offer as any).physicalPresenceHours > 0)) && (
+                        <div className="mt-8 print:break-inside-avoid">
+                            <h4 className="text-xl font-semibold mb-4">Επιπλέον Υπηρεσίες</h4>
+                            <div className="grid gap-6">
+                                {(offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0 && (
+                                    <Card className="print:break-inside-avoid">
+                                        <CardHeader className="pb-4">
+                                            <div className="flex items-center gap-3">
+                                                <Package className="w-8 h-8 text-primary" />
+                                                <div>
+                                                    <CardTitle className="text-lg">
+                                                        {(offer as any).equipmentRentalName || "Παροχή εξοπλισμού συνεδριάσεων"}
+                                                    </CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Παροχή εξοπλισμού για τη καταγραφή συνεδριάσεων
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {(offer as any).equipmentRentalDescription && (
+                                                <p className="text-gray-700">
+                                                    {(offer as any).equipmentRentalDescription}
+                                                </p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )}
+
+                                {(offer as any).physicalPresenceHours && (offer as any).physicalPresenceHours > 0 && (
+                                    <Card className="print:break-inside-avoid">
+                                        <CardHeader className="pb-4">
+                                            <div className="flex items-center gap-3">
+                                                <Clock className="w-8 h-8 text-primary" />
+                                                <div>
+                                                    <CardTitle className="text-lg">Φυσική παρουσία σε συνεδριάσεις</CardTitle>
+                                                    <CardDescription className="text-sm">
+                                                        Εξειδικευμένο προσωπικό για τεχνική υποστήριξη της καταγραφής κατά τη διάρκεια των συνεδριάσεων
+                                                    </CardDescription>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-gray-700">
+                                                Εξειδικευμένο προσωπικό θα είναι παρόν κατά τη διάρκεια των συνεδριάσεων για τεχνική υποστήριξη του εξοπλισμού καταγραφής και άμεση επίλυση τυχόν προβλημάτων.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </div>
+                        </div>
+                    )}
             </section>
 
             <section className="mb-8 print:break-inside-avoid-page">

@@ -63,6 +63,7 @@ TABLES=(
     "PodcastSpec"
     "PodcastPart"
     "PodcastPartAudioUtterance"
+    "Offer"
 )
 
 # Delete all rows from destination tables if --clear flag is set

@@ -255,18 +255,18 @@ export default function AboutPage() {
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
-                            { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.' },
-                            { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.' },
-                            { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.' },
+                            { icon: Mic, title: 'Απομαγνητοφώνηση', description: 'Αυτόματη, κατά λέξη απομαγνητοφώνηση όλων των διαδικασιών του συμβουλίου, και αυτόματη αναγνώριση ομιλιτή.', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025/transcript" } },
+                            { icon: LetterText, title: 'Περίληψη', description: 'Αυτόματη δημιουργία συνοπτικών περιλήψεων κάθε τοποθέτησης στο συμβούλιο.', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025/subjects/cmcck9ojq010jrmgxp76tqjg1" } },
+                            { icon: SearchCheck, title: 'Αναζήτηση', description: 'Αναζήτηση σε όλα όσα έχουν ειπωθεί στα δημοτικά συμβούλια.', demo: { text: "Δοκιμάστε το", link: "/search" } },
                             { icon: Sparkles, title: 'Highlights', description: 'Αυτόματη δημιουργία ολιγόλεπτων βίντεο με τα πιό σημαντικά μέρη κάθε συνεδρίασης.' },
-                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', releaseDate: 'Απρίλιος 2025' },
-                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.' },
-                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.' },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Μάιος 2025' },
+                            { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', demo: { text: "Δοκιμάστε το", link: "/chat" } },
+                            { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', demo: { text: "Διαβάστε περισσότερα", link: "https://schemalabs.substack.com/p/opensource" } },
+                            { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', demo: { text: "Δείτε τo API", link: "/docs" } },
+                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Σεπτέμβριος 2025' },
                             { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
-                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Αυτόματη αναγνώριση θεμάτων από την απομαγνητοφώνηση, και σύνδεση τους με την ημερήσια διάταξη της συνεδρίασης' },
-                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Απρίλιος 2025' },
-                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Μάιος 2025' }
+                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Σύνδεση των θεμάτων που συζητούνται στις συνεδριάσεις με την ημερήσια διάταξη', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025/subjects/" } },
+                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Ιούλιος 2025' },
+                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Σεπτέμβριος 2025' }
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -283,9 +283,18 @@ export default function AboutPage() {
                                     description={feature.description}
                                     badge={feature.releaseDate ? (
                                         <AnimatedGradientText>
-                                            <CalendarClock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" /> 
+                                            <CalendarClock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                                             <span className="text-xs sm:text-sm">{feature.releaseDate}</span>
                                         </AnimatedGradientText>
+                                    ) : null}
+                                    demoButton={feature.demo ? (
+                                        <Link href={feature.demo.link} className="inline-block">
+                                            <AnimatedGradientText className="cursor-pointer hover:scale-105 transition-all duration-200 hover:shadow-md">
+                                                <span className="text-xs sm:text-sm font-medium">
+                                                    {feature.demo.text}
+                                                </span>
+                                            </AnimatedGradientText>
+                                        </Link>
                                     ) : null}
                                 />
                             </motion.div>
@@ -303,6 +312,8 @@ export default function AboutPage() {
                 >
                     <Pricing />
                 </motion.section>
+
+
 
                 <motion.section
                     className="py-12 sm:py-16 md:py-24 relative"
@@ -324,7 +335,7 @@ export default function AboutPage() {
                         Ποιοί είμαστε
                     </h2>
                     <p className="text-center text-sm sm:text-base md:text-lg lg:text-xl mb-6 sm:mb-8 text-muted-foreground px-4">
-                        Είμαστε ομάδα τριών ατόμων που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
+                        Είμαστε μια μικρή ομάδα που δουλεύουμε καθημερινά στην εφαρμογή των νέων τεχνολογιών
                         στην αυτοδιοίκηση. Η OpenCouncil είναι ΙΚΕ, που ανήκει εξ&apos; ολοκλήρου στη <Link href="https://schemalabs.gr" className="underline" target="_blank" rel="noopener noreferrer">Schema Labs</Link>, μια ελληνική μη-κερδοσκοπική εταιρεία που αναπτύσσει τεχνολογία για τους δημοκρατικούς θεσμούς.
                     </p>
 
@@ -420,9 +431,12 @@ export default function AboutPage() {
         </div>
     );
 }
-function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode }) {
-    const cardContent = (
-        <Card className={`h-full flex flex-col ${badge ? 'border-none' : ''}`}>
+
+function FeatureCard({ icon: Icon, title, description, badge, demoButton }: { icon: React.ReactElement, title: string, description: string, badge?: React.ReactNode, demoButton?: React.ReactNode }) {
+    const hasBottomElement = badge || demoButton;
+
+    return <Card className="h-full">
+        <div className="h-full flex flex-col">
             <CardHeader className="pb-3">
                 <CardTitle className="flex items-center text-sm sm:text-base md:text-lg">
                     <div className="flex-shrink-0">
@@ -431,25 +445,25 @@ function FeatureCard({ icon: Icon, title, description, badge }: { icon: React.Re
                     <span>{title}</span>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow pt-0">
-                <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">{description}</p>
+            <CardContent className="flex-1 pt-0 flex flex-col">
+                <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed flex-1">
+                    {description}
+                </p>
+                {hasBottomElement && (
+                    <div className="mt-4 flex justify-center">
+                        {badge && (
+                            <div className="inline-flex">
+                                {badge}
+                            </div>
+                        )}
+                        {demoButton && (
+                            <div className="inline-flex">
+                                {demoButton}
+                            </div>
+                        )}
+                    </div>
+                )}
             </CardContent>
-            <CardFooter className="mt-auto flex justify-end pt-2">
-                {badge}
-            </CardFooter>
-        </Card>
-    );
-
-    if (badge) {
-        return (
-            <ShineBorder
-                className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden border bg-background md:shadow-xl"
-                color={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
-            >
-                {cardContent}
-            </ShineBorder>
-        );
-    } else {
-        return cardContent;
-    }
+        </div>
+    </Card>;
 }
