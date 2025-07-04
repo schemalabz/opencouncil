@@ -1,7 +1,25 @@
 User-agent: *
 Allow: /
 
-# Prevent indexing of transcript pages
+# Prevent indexing of transcript pages (may contain sensitive real-time speech recognition)
 Disallow: */meetings/*/transcript
 
-Sitemap: https://opencouncil.co/sitemap.xml
+# Prevent indexing of admin pages
+Disallow: /admin/
+Disallow: */admin/
+
+# Prevent indexing of search parameter variations to avoid duplicate content
+Disallow: /*?*
+
+# Allow specific important search paths
+Allow: /*?q=*
+
+# Crawl delay for better server performance
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://opencouncil.gr/sitemap.xml
+
+# Additional sitemaps for better organization (if implemented later)
+# Sitemap: https://opencouncil.gr/cities-sitemap.xml
+# Sitemap: https://opencouncil.gr/meetings-sitemap.xml

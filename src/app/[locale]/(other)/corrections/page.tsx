@@ -1,4 +1,53 @@
+import { Metadata } from "next";
 import DocumentViewer from "@/components/static/DocumentViewer";
+import { env } from "@/env.mjs";
+
+export const metadata: Metadata = {
+    title: "Διορθώσεις - OpenCouncil",
+    description: "Αιτήματα διόρθωσης για το OpenCouncil. Ενημερωθείτε για τον τρόπο υποβολής αιτημάτων διόρθωσης προσωπικών δεδομένων και λανθασμένων αποδόσεων λόγων στην πλατφόρμα μας.",
+    keywords: [
+        'διορθώσεις',
+        'προσωπικά δεδομένα',
+        'λανθασμένη απόδοση',
+        'αιτήματα',
+        'GDPR',
+        'προστασία δεδομένων',
+        'ακρίβεια πληροφοριών',
+        'τεχνητή νοημοσύνη',
+        'δημοτικά συμβούλια'
+    ],
+    openGraph: {
+        title: "Διορθώσεις - OpenCouncil",
+        description: "Αιτήματα διόρθωσης για το OpenCouncil. Ενημερωθείτε για τον τρόπο υποβολής αιτημάτων διόρθωσης προσωπικών δεδομένων και λανθασμένων αποδόσεων λόγων.",
+        type: 'website',
+        url: `${env.NEXT_PUBLIC_BASE_URL}/corrections`,
+        images: [
+            {
+                url: '/landing-screenshot.png',
+                width: 1200,
+                height: 630,
+                alt: 'OpenCouncil - Διορθώσεις',
+            }
+        ],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: "Διορθώσεις - OpenCouncil",
+        description: "Αιτήματα διόρθωσης για το OpenCouncil. Ενημερωθείτε για τον τρόπο υποβολής αιτημάτων διόρθωσης προσωπικών δεδομένων και λανθασμένων αποδόσεων λόγων.",
+        images: ['/landing-screenshot.png'],
+    },
+    alternates: {
+        canonical: "/corrections",
+        languages: {
+            'el': '/corrections',
+            'en': '/en/corrections',
+        },
+    },
+    robots: {
+        index: true,
+        follow: true,
+    },
+};
 
 const sections = [
     {
