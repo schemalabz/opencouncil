@@ -1,4 +1,4 @@
-import { ExternalLink, FileText } from "lucide-react";
+import { ExternalLink, FileText, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Source } from "./types";
 
@@ -6,9 +6,17 @@ interface SourcesListProps {
     sources: Source[];
     contactEmail: string;
     ccEmails?: string[];
+    consultationId?: string;
+    cityId?: string;
 }
 
-export default function SourcesList({ sources, contactEmail, ccEmails }: SourcesListProps) {
+export default function SourcesList({
+    sources,
+    contactEmail,
+    ccEmails,
+    consultationId,
+    cityId
+}: SourcesListProps) {
     if (sources.length === 0) return null;
 
     return (
@@ -20,6 +28,25 @@ export default function SourcesList({ sources, contactEmail, ccEmails }: Sources
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+                {/* Consultation Summary */}
+                {consultationId && cityId && (
+                    <div className="pb-4 border-b">
+                        <h4 className="font-medium text-sm text-muted-foreground mb-3">Σύνοψη Διαβούλευσης</h4>
+                        <p className="text-xs text-muted-foreground mb-3">
+                            Μπορείτε να εκτυπώσετε μια συγκεντρωτική σύνοψη όλων των σχολίων που έχουν υποβληθεί στη διαβούλευση, ταξινομημένα κατά τη σειρά εμφάνισής τους στον κανονισμό.
+                        </p>
+                        <a
+                            href={`/${cityId}/consultation/${consultationId}/comments`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                        >
+                            <Printer className="h-4 w-4" />
+                            Εκτύπωση Σχολίων
+                        </a>
+                    </div>
+                )}
+
                 {/* Sources */}
                 <div>
                     <h4 className="font-medium text-sm text-muted-foreground mb-3">Πηγές κανονισμού</h4>

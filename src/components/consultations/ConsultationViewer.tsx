@@ -9,7 +9,7 @@ import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
 
 import { RegulationData } from "./types";
-import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
 
 interface CurrentUser {
     id?: string;
@@ -25,10 +25,11 @@ interface Consultation {
     jsonUrl: string;
     endDate: Date;
     isActive: boolean;
+    isActiveComputed: boolean;
 }
 
 interface ConsultationViewerProps {
-    consultation: Consultation;
+    consultation: ConsultationWithStatus;
     regulationData: RegulationData | null;
     baseUrl: string; // Base URL for the consultation page (for permalinks)
     comments: ConsultationCommentWithUpvotes[];
@@ -347,7 +348,9 @@ export default function ConsultationViewer({
                     title={title}
                     description={description}
                     endDate={consultation.endDate}
+                    cityTimezone={consultation.city.timezone}
                     isActive={consultation.isActive}
+                    isActiveComputed={consultation.isActiveComputed}
                     commentCount={comments.length}
                     currentView={currentView}
                     onCommentsClick={() => setCommentsSheetOpen(true)}
@@ -367,6 +370,7 @@ export default function ConsultationViewer({
                     currentUser={currentUser}
                     consultationId={consultationId}
                     cityId={cityId}
+                    consultationIsActive={consultation.isActiveComputed}
                 />
 
                 {/* Floating action button for view toggle */}

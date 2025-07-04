@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import {
     getConsultationComments,
     addConsultationComment,
-    ConsultationCommentEntityType
+    ConsultationCommentEntityType,
+    getConsultationById
 } from '@/lib/db/consultations';
 
 export async function GET(
@@ -60,6 +61,22 @@ export async function POST(
             return NextResponse.json(
                 { error: 'Invalid entity type' },
                 { status: 400 }
+            );
+        }
+
+        // Check if consultation exists and is active
+        const consultation = await getConsultationById(cityId, params.id);
+        if (!consultation) {
+            return NextResponse.json(
+                { error: 'Consultation not found' },
+                { status: 404 }
+            );
+        }
+
+        if (!consultation.isActiveComputed) {
+            return NextResponse.json(
+                { error: 'This consultation is no longer accepting comments' },
+                { status: 403 }
             );
         }
 

@@ -33,6 +33,7 @@ interface ConsultationDocumentProps {
     currentUser?: CurrentUser;
     consultationId?: string;
     cityId?: string;
+    consultationIsActive?: boolean; // Add consultation active status
 }
 
 interface SummaryCardProps {
@@ -99,7 +100,8 @@ export default function ConsultationDocument({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    consultationIsActive = true // Default to true for backward compatibility
 }: ConsultationDocumentProps) {
 
     // Use the passed-down reference click handler or fallback to console.log
@@ -236,6 +238,7 @@ export default function ConsultationDocument({
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            consultationIsActive={consultationIsActive}
                         >
                             {chapter.articles?.map((article) => (
                                 <ArticleView
@@ -251,6 +254,7 @@ export default function ConsultationDocument({
                                     currentUser={currentUser}
                                     consultationId={consultationId}
                                     cityId={cityId}
+                                    consultationIsActive={consultationIsActive}
                                 />
                             ))}
                         </ChapterView>
@@ -261,6 +265,8 @@ export default function ConsultationDocument({
                         sources={regulationData.sources}
                         contactEmail={regulationData.contactEmail}
                         ccEmails={regulationData.ccEmails}
+                        consultationId={consultationId}
+                        cityId={cityId}
                     />
                 </div>
             </div>

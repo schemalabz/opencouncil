@@ -124,6 +124,7 @@ export default async function ConsultationPage({ params }: PageProps) {
     }
 
     if (!consultation) {
+        console.error(`Consultation not found: ${params.id}`);
         notFound();
     }
 
