@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2 } from "lucide-react"
+import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone } from "lucide-react"
 import { Inter } from 'next/font/google'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
@@ -98,16 +98,40 @@ export default function Pricing() {
                                     <span>Παράδοση αρχείου σε έντυπη μορφή ή και CD, μία φορά το χρόνο</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <FileBadge2 className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Προαιρετικά, εγγύηση ορθότητας απομαγνητοφωνήσεων με επιπλέον κόστος ανά συνεδρίαση</span>
-                                </li>
-                                <li className="flex items-start">
                                     <Cuboid className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                                     <span>Προτείνετε νέες λειτουργίες και διαμορφώστε μαζί μας το OpenCouncil</span>
                                 </li>
                                 <li className="flex items-start">
                                     <Gem className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                                     <span>Πιλοτική τιμή που ισχύει για τους πρώτους 8 δήμους</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <Megaphone className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                    <span>Προώθηση του OpenCouncil στους δημότες, online αλλά και δια ζώσης</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-gray-200">
+                            <h3 className="text-lg font-semibold mb-4 text-gray-600">Με επιπλέον χρέωση:</h3>
+                            <ul className="space-y-4">
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Παροχή εξοπλισμού για τη μαγνητοσκόπηση συνεδριάσεων (π.χ. Δημοτικής Επιτροπής, Δημοτικών Συμβουλίων ή Κοινοτήτων)</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Τεχνική υποστήριξη με φυσική παρουσία σε κάθε συνεδρίαση</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    </div>
+                                    <span>Διόρθωση των αυτόματων απομαγνητοφωνήσεων από άνθρωπο, ώστε να είναι κατάλληλα για τα επίσημα πρακτικά του δήμου.</span>
                                 </li>
                             </ul>
                         </div>
