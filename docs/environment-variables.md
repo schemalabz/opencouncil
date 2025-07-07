@@ -59,6 +59,14 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 | `RESEND_API_KEY` | API key for Resend email service. | Yes | - |
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
+| `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+
+#### NEXTAUTH_SECRET
+You can quickly create a good value on the command line via this openssl command:
+```bash
+openssl rand -base64 32
+```
+Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 
 ### AI and LLM Features
 | Variable | Description | Required | Default |
