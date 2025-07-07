@@ -65,6 +65,18 @@ export async function GET() {
                             }
                         }
                     }
+                },
+                notificationPreferences: {
+                    include: {
+                        city: true,
+                        interests: true,
+                        locations: true
+                    }
+                },
+                petitions: {
+                    include: {
+                        city: true
+                    }
                 }
             },
             orderBy: {
