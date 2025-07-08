@@ -35,6 +35,10 @@ export type UserPreference = {
     topics?: Topic[];
 };
 
+export type SaveResult<T> = 
+    | { data: T; error?: never }
+    | { error: string; data?: never };
+
 /**
  * Get server session wrapper
  */
@@ -235,7 +239,7 @@ export async function saveNotificationPreferences(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
-}): Promise<NotificationPreference> {
+}): Promise<SaveResult<NotificationPreference>> {
     const { cityId, locationIds, topicIds, phone, email, name } = data;
     const session = await getServerSession();
 
@@ -277,8 +281,8 @@ export async function saveNotificationPreferences(data: {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - throw error instead of continuing
-                throw new Error("email_exists");
+                // Email exists but user is not authenticated - return error
+                return { error: "email_exists" };
             } else {
                 // Create new user
                 const newUser = await prisma.user.create({
@@ -383,7 +387,7 @@ export async function saveNotificationPreferences(data: {
             }
 
             // Finally, fetch the updated preferences with the new relationships
-            return await prisma.notificationPreference.findUnique({
+            const result = await prisma.notificationPreference.findUnique({
                 where: { id: updatedPreference.id },
                 include: {
                     city: true,
@@ -391,9 +395,10 @@ export async function saveNotificationPreferences(data: {
                     interests: true
                 }
             }) as NotificationPreference;
+            return { data: result };
         } else {
             // Create new preferences with existing relationships
-            return await prisma.notificationPreference.create({
+            const result = await prisma.notificationPreference.create({
                 data: {
                     userId,
                     cityId,
@@ -411,10 +416,11 @@ export async function saveNotificationPreferences(data: {
                     interests: true
                 }
             });
+            return { data: result };
         }
     } catch (error) {
         console.error('Error saving notification preferences:', error);
-        throw error;
+        return { error: 'An unexpected error occurred.' };
     }
 }
 
@@ -428,7 +434,7 @@ export async function savePetition(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string; // We'll store this in user if needed, but not in petition
-}): Promise<Petition> {
+}): Promise<SaveResult<Petition>> {
     const { cityId, isResident, isCitizen, phone, email, name } = data;
     const session = await getServerSession();
 
@@ -463,8 +469,8 @@ export async function savePetition(data: {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - throw error instead of continuing
-                throw new Error("email_exists");
+                // Email exists but user is not authenticated - return error
+                return { error: "email_exists" };
             } else {
                 // Create new user
                 const newUser = await prisma.user.create({
@@ -498,7 +504,7 @@ export async function savePetition(data: {
 
         if (existingPetition) {
             // Update existing petition
-            return await prisma.petition.update({
+            const result = await prisma.petition.update({
                 where: { id: existingPetition.id },
                 data: {
                     is_resident: isResident,
@@ -508,9 +514,10 @@ export async function savePetition(data: {
                     city: true
                 }
             });
+            return { data: result };
         } else {
             // Create new petition
-            return await prisma.petition.create({
+            const result = await prisma.petition.create({
                 data: {
                     userId,
                     cityId,
@@ -521,9 +528,10 @@ export async function savePetition(data: {
                     city: true
                 }
             });
+            return { data: result };
         }
     } catch (error) {
         console.error('Error saving petition:', error);
-        throw error;
+        return { error: 'An unexpected error occurred.' };
     }
 } 

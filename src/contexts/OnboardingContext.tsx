@@ -156,7 +156,7 @@ export function OnboardingProvider({
             const topicIds = selectedTopics.map(topic => topic.id);
 
             // Submit notification preferences
-            await saveNotificationPreferences({
+            const result = await saveNotificationPreferences({
                 cityId: city.id,
                 locationIds,
                 topicIds,
@@ -165,15 +165,19 @@ export function OnboardingProvider({
                 name: session?.user?.name || name
             });
 
-            // Move to completion stage
-            setStage(OnboardingStage.NOTIFICATION_COMPLETE);
+            if (result.error) {
+                if (result.error === "email_exists") {
+                    setEmailExistsError(session?.user?.email || email);
+                } else {
+                    setError('genericError');
+                }
+            } else {
+                // Move to completion stage
+                setStage(OnboardingStage.NOTIFICATION_COMPLETE);
+            }
         } catch (error: any) {
             console.error('Error saving notification preferences:', error);
-            if (error.message === "email_exists" || error.message?.includes("email_exists")) {
-                setEmailExistsError(session?.user?.email || email);
-            } else {
-                setError('genericError');
-            }
+            setError('genericError');
         } finally {
             setUpdating(false);
         }
@@ -187,7 +191,7 @@ export function OnboardingProvider({
 
         try {
             // Submit petition data
-            await savePetition({
+            const result = await savePetition({
                 cityId: city.id,
                 isResident: petitionData.isResident,
                 isCitizen: petitionData.isCitizen,
@@ -196,15 +200,19 @@ export function OnboardingProvider({
                 name: petitionData.name
             });
 
-            // Move to completion stage
-            setStage(OnboardingStage.PETITION_COMPLETE);
+            if (result.error) {
+                if (result.error === "email_exists") {
+                    setEmailExistsError(session?.user?.email || email);
+                } else {
+                    setError('genericError');
+                }
+            } else {
+                // Move to completion stage
+                setStage(OnboardingStage.PETITION_COMPLETE);
+            }
         } catch (error: any) {
             console.error('Error saving petition:', error);
-            if (error.message === "email_exists" || error.message?.includes("email_exists")) {
-                setEmailExistsError(session?.user?.email || email);
-            } else {
-                setError('genericError');
-            }
+            setError('genericError');
         } finally {
             setUpdating(false);
         }
