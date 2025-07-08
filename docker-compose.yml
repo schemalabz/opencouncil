@@ -1,10 +1,4 @@
 services:
-  base:
-    build:
-      context: .
-      dockerfile: Dockerfile.base
-    image: opencouncil-base
-
   app:
     build:
       context: .
@@ -19,8 +13,6 @@ services:
       - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
       - APP_ENV=production
     depends_on:
-      base:
-        condition: service_completed_successfully
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
@@ -43,8 +35,6 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      base:
-        condition: service_completed_successfully
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
