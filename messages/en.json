@@ -12,7 +12,7 @@
         "about": "For Municipalities"
     },
     "Footer": {
-        "privacy": "Privacy Policy", 
+        "privacy": "Privacy Policy",
         "terms": "Terms of Service",
         "contact": "Contact Us",
         "copyright": "All rights reserved",
@@ -21,7 +21,7 @@
     "CitiesList": {
         "searchPlaceholder": "Search cities...",
         "addCity": "Add City",
-        "addNewCity": "Add New City", 
+        "addNewCity": "Add New City",
         "noCitiesFound": "No cities found",
         "editCity": "Edit City"
     },
@@ -35,7 +35,7 @@
         "cityIdDescription": "The ID will be used in the city's URL.",
         "submitting": "Submitting...",
         "updateCity": "Update City",
-        "createCity": "Create City", 
+        "createCity": "Create City",
         "cancel": "Cancel",
         "failedToSaveCity": "Failed to save city",
         "unexpectedError": "An unexpected error occurred",
@@ -52,7 +52,7 @@
         "cityNameEnDescription": "Enter the name of the city in English.",
         "cityMunicipalityPlaceholder": "Municipality Name",
         "cityMunicipalityDescription": "Enter the name of the municipality.",
-        "cityMunicipalityEnPlaceholder": "Municipality Name (English)", 
+        "cityMunicipalityEnPlaceholder": "Municipality Name (English)",
         "cityMunicipalityEnDescription": "Enter the name of the municipality in English.",
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
@@ -130,8 +130,14 @@
         "meetingAgendaDescription": "Provide a URL or upload a file with the meeting agenda."
     },
     "NotFoundPage": {
-        "title": "Not Found",
-        "description": "The page you requested was not found."
+        "title": "Page Not Found",
+        "description": "The page you are looking for doesn't exist or has been moved.",
+        "suggestion": "Please check the URL or return to the home page.",
+        "homeButton": "Home Page",
+        "searchButton": "Search",
+        "goBack": "Go back to previous page",
+        "helpTitle": "Need help?",
+        "helpDescription": "If you believe this is an error, you can contact us."
     },
     "AboutPage": {
         "hero": {
