@@ -26,6 +26,7 @@ services:
         - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
     ports:
       - "3000:3000"
+      - "5555:5555"
     env_file:
       - ${ENV_FILE:-.env}
     environment:
