@@ -15,12 +15,20 @@ export function PetitionMunicipalitySelector({ cities }: PetitionMunicipalitySel
     const [isNavigating, setIsNavigating] = useState(false);
 
     const handleCitySelect = (city: CityMinimalWithCounts | null) => {
-        setSelectedCity(city);
-        if (city) {
-            setIsNavigating(true);
-            const targetUrl = !city.isListed ? `/${city.id}/petition` : `/${city.id}`;
-            router.push(targetUrl);
+        if (!city) {
+            setSelectedCity(null);
+            return;
         }
+
+        setSelectedCity(city);
+        setIsNavigating(true);
+
+        const targetUrl = !city.isListed ? `/${city.id}/petition` : `/${city.id}`;
+
+        // Force a proper history entry by ensuring the browser processes this as a user action
+        setTimeout(() => {
+            router.push(targetUrl);
+        }, 0);
     };
 
     return (

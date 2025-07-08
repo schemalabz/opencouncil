@@ -14,6 +14,15 @@ const nextConfig = {
     swcMinify: true,
     // Enable custom domains - we'll handle this entirely in middleware
     // Removing the invalid rewrite configuration
+    async redirects() {
+        return [
+            {
+                source: '/petitions',
+                destination: '/petition',
+                permanent: true,
+            },
+        ];
+    },
 };
 
 export default withNextIntl(nextConfig);

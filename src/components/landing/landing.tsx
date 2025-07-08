@@ -20,12 +20,21 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     const [isNavigating, setIsNavigating] = useState(false);
 
     const handleCitySelect = (city: CityMinimalWithCounts | null) => {
-        setSelectedCity(city);
-        if (city) {
-            setIsNavigating(true);
-            const targetUrl = city.isPending ? `/${city.id}/petition` : `/${city.id}`;
-            router.push(targetUrl);
+        if (!city) {
+            setSelectedCity(null);
+            return;
         }
+
+        setSelectedCity(city);
+        setIsNavigating(true);
+
+        const targetUrl = city.isPending ? `/${city.id}/petition` : `/${city.id}`;
+
+        // Force a proper history entry by ensuring the browser processes this as a user action
+        // Use setTimeout with 0 delay to ensure this runs in the next tick
+        setTimeout(() => {
+            router.push(targetUrl);
+        }, 0);
     };
 
     // Fetch additional user-specific cities when authenticated
@@ -49,7 +58,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                                 `/api/cities/${city.id}/meetings?limit=1`,
                                 { next: { tags: [`city:${city.id}:meetings`] } }
                             ).then(r => r.json());
-                            
+
                             return {
                                 ...city,
                                 mostRecentMeeting: meetings[0]
@@ -63,7 +72,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                         }
                     })
                 );
-                
+
                 // Replace cities entirely with user-specific list
                 setCitiesWithMeetings(userCitiesWithMeetings);
             } catch (error) {
@@ -75,7 +84,6 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
 
         fetchUserSpecificCities();
     }, [status]);
-
 
     const scrollToContent = () => {
         window.scrollTo({
@@ -141,7 +149,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                                 showPrivateLabel={!city.isListed}
                             />
                         ))}
-                        
+
                         {/* Loading indicator for additional cities */}
                         {isLoadingUserCities && (
                             <div className="flex items-center justify-center py-8">
