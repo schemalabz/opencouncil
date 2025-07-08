@@ -79,13 +79,13 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                                 <td className="text-right">{formatCurrency(offer.ingestionPerHourPrice)}/ώρα</td>
                                 <td className="text-right">{formatCurrency(ingestionTotal)}</td>
                             </tr>
-                            {(offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0 && (
+                            {((offer as any).equipmentRentalName || (offer as any).equipmentRentalDescription) && (
                                 <tr className="border-b bg-white">
                                     <td className="py-2">
-                                        {"Παροχή εξοπλισμού"}
+                                        {(offer as any).equipmentRentalName || "Παροχή εξοπλισμού"}
                                     </td>
                                     <td className="text-right">{months} μήνες</td>
-                                    <td className="text-right">{formatCurrency((offer as any).equipmentRentalPrice)}/μήνα</td>
+                                    <td className="text-right">{formatCurrency((offer as any).equipmentRentalPrice || 0)}/μήνα</td>
                                     <td className="text-right">{formatCurrency(equipmentRentalTotal)}</td>
                                 </tr>
                             )}
@@ -276,12 +276,12 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 </div>
 
                 {/* Equipment Rental and Physical Presence Services */}
-                {(((offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0) ||
+                {(((offer as any).equipmentRentalName || (offer as any).equipmentRentalDescription) ||
                     ((offer as any).physicalPresenceHours && (offer as any).physicalPresenceHours > 0)) && (
                         <div className="mt-8 print:break-inside-avoid">
                             <h4 className="text-xl font-semibold mb-4">Επιπλέον Υπηρεσίες</h4>
                             <div className="grid gap-6">
-                                {(offer as any).equipmentRentalPrice && (offer as any).equipmentRentalPrice > 0 && (
+                                {((offer as any).equipmentRentalName || (offer as any).equipmentRentalDescription) && (
                                     <Card className="print:break-inside-avoid">
                                         <CardHeader className="pb-4">
                                             <div className="flex items-center gap-3">
