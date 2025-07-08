@@ -58,7 +58,11 @@ This will automatically:
 - Seed the database with sample data
 - Run the application in development mode
 
-For more advanced Docker configuration options, see [Docker Usage Guide](./docs/docker-usage.md).
+
+> **Note:**  
+> For more advanced Docker configuration options, see [Docker Usage Guide](./docs/docker-usage.md).
+> 
+> For a full list of required environment variables and instructions on how to generate secure values (such as `NEXTAUTH_SECRET`), see [Environment Variables Reference](./docs/environment-variables.md).
 
 ### Manual Setup
 
