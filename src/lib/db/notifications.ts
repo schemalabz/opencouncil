@@ -35,10 +35,9 @@ export type UserPreference = {
     topics?: Topic[];
 };
 
-export type SaveResult<T> = {
-    data?: T;
-    error?: string;
-};
+export type SaveResult<T> = 
+    | { data: T; error?: never }
+    | { error: string; data?: never };
 
 /**
  * Get server session wrapper
