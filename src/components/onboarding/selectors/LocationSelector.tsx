@@ -5,7 +5,7 @@ import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Location } from '@/lib/types/onboarding';
-import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion } from '@/lib/google-maps';
+import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestionsResult } from '@/lib/google-maps';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn, calculateGeometryBounds } from '@/lib/utils';
 import { CityWithGeometry } from '@/lib/db/cities';
@@ -34,6 +34,29 @@ export function LocationSelector({
     // Debounce the input value to avoid making too many API calls
     const debouncedInputValue = useDebounce(inputValue, 300);
 
+    // Helper function to get user-friendly error messages
+    const getErrorMessage = (result: PlaceSuggestionsResult, searchQuery: string): string => {
+        if (!result.error) {
+            // No API error, just empty results
+            return `Δεν βρέθηκαν αποτελέσματα για "${searchQuery}" στον δήμο ${city.name}`;
+        }
+
+        // Handle different types of API errors
+        if (result.error.type === 'API_ERROR') {
+            if (result.error.status === 'REQUEST_DENIED') {
+                return 'Η υπηρεσία αναζήτησης τοποθεσιών δεν είναι διαθέσιμη προς το παρόν. Παρακαλώ δοκιμάστε ξανά αργότερα.';
+            } else if (result.error.status === 'OVER_QUERY_LIMIT') {
+                return 'Έχει γίνει υπέρβαση του ορίου αναζητήσεων. Παρακαλώ δοκιμάστε ξανά αργότερα.';
+            } else {
+                return `Σφάλμα υπηρεσίας αναζήτησης (${result.error.status}). Παρακαλώ δοκιμάστε ξανά.`;
+            }
+        } else if (result.error.type === 'NETWORK_ERROR') {
+            return 'Πρόβλημα σύνδεσης. Παρακαλώ ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.';
+        }
+
+        return 'Σφάλμα κατά την αναζήτηση τοποθεσιών. Παρακαλώ δοκιμάστε ξανά.';
+    };
+
     // Fetch place suggestions from the Google API
     useEffect(() => {
         async function fetchSuggestions() {
@@ -53,21 +76,21 @@ export function LocationSelector({
                     }
 
                     // Pass the city name and coordinates to restrict suggestions to this municipality
-                    const placeSuggestions = await getPlaceSuggestions(
+                    const result = await getPlaceSuggestions(
                         debouncedInputValue,
                         city.name,
                         cityCoordinates
                     );
 
-                    setSuggestions(placeSuggestions);
+                    setSuggestions(result.suggestions);
 
-                    // If we got no results, set a friendly message
-                    if (placeSuggestions.length === 0 && debouncedInputValue.trim().length > 3) {
-                        setError(`Δεν βρέθηκαν αποτελέσματα για "${debouncedInputValue}" στον δήμο ${city.name}`);
+                    // Show error if there's an API error or no results for longer queries
+                    if (result.error || (result.suggestions.length === 0 && debouncedInputValue.trim().length > 3)) {
+                        setError(getErrorMessage(result, debouncedInputValue));
                     }
                 } catch (error) {
-                    console.error('Error fetching place suggestions:', error);
-                    setError('Σφάλμα κατά την αναζήτηση τοποθεσιών. Παρακαλώ δοκιμάστε ξανά.');
+                    console.error('Unexpected error fetching place suggestions:', error);
+                    setError('Απροσδόκητο σφάλμα κατά την αναζήτηση. Παρακαλώ δοκιμάστε ξανά.');
                 } finally {
                     setIsLoading(false);
                     // Maintain focus on input after suggestions are loaded
@@ -190,9 +213,8 @@ export function LocationSelector({
                         {selectedLocations.map((location, index) => (
                             <div
                                 key={`loc-${index}`}
-                                className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group ${
-                                    onLocationClick ? 'cursor-pointer' : ''
-                                }`}
+                                className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group ${onLocationClick ? 'cursor-pointer' : ''
+                                    }`}
                                 onClick={() => onLocationClick?.(location)}
                             >
                                 <div className="flex items-center gap-2 min-w-0">

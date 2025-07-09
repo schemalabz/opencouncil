@@ -12,6 +12,19 @@ export type PlaceSuggestion = {
     placeId: string;
 };
 
+// Error type for API failures
+export type PlaceSuggestionsError = {
+    type: 'API_ERROR' | 'NETWORK_ERROR';
+    message: string;
+    status?: string;
+};
+
+// Result type that can either be suggestions or an error
+export type PlaceSuggestionsResult = {
+    suggestions: PlaceSuggestion[];
+    error?: PlaceSuggestionsError;
+};
+
 /**
  * Get place suggestions based on input text
  * Uses location-based search to restrict results to the selected city area
@@ -20,9 +33,9 @@ export async function getPlaceSuggestions(
     input: string,
     cityName?: string,
     cityCoordinates?: [number, number] // In format [lng, lat]
-): Promise<PlaceSuggestion[]> {
+): Promise<PlaceSuggestionsResult> {
     if (!input || input.trim().length < 2) {
-        return [];
+        return { suggestions: [] };
     }
 
     try {
@@ -39,22 +52,42 @@ export async function getPlaceSuggestions(
         // Check for error status
         if (response.status !== 'OK') {
             console.error('Error getting place suggestions:', response.error || response.status);
-            return [];
+
+            // ZERO_RESULTS is not an error, it's a valid response with no results
+            if (response.status === 'ZERO_RESULTS') {
+                return { suggestions: [] };
+            }
+
+            return {
+                suggestions: [],
+                error: {
+                    type: 'API_ERROR',
+                    message: response.error || `Google API error: ${response.status}`,
+                    status: response.status
+                }
+            };
         }
 
         // Check if we have valid predictions
         if (response.predictions && Array.isArray(response.predictions)) {
-            return response.predictions.map((prediction: any) => ({
+            const suggestions = response.predictions.map((prediction: any) => ({
                 id: prediction.place_id,
                 placeId: prediction.place_id,
                 text: prediction.description
             }));
+            return { suggestions };
         }
 
-        return [];
+        return { suggestions: [] };
     } catch (error) {
         console.error('Error fetching place suggestions:', error);
-        return []; // Return empty array instead of throwing an error
+        return {
+            suggestions: [],
+            error: {
+                type: 'NETWORK_ERROR',
+                message: error instanceof Error ? error.message : 'Network error occurred'
+            }
+        };
     }
 }
 
