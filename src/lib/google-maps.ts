@@ -38,7 +38,7 @@ export async function getPlaceSuggestions(
 
     try {
         // Call the server action with the appropriate parameters
-        const response = await fetchPlaceSuggestions({
+        const result = await fetchPlaceSuggestions({
             input: input.trim(),
             cityName,
             // Pass coordinates if available (format: "lat,lng")
@@ -47,10 +47,23 @@ export async function getPlaceSuggestions(
             })
         });
 
-        // Check for error status
-        if (response.status !== 'OK') {
-            console.error('Error getting place suggestions:', response.error || response.status);
+        // Check if the server action failed
+        if (!result.success) {
+            console.error('Error getting place suggestions:', result.error);
+            return {
+                data: [],
+                error: {
+                    type: 'API_ERROR',
+                    message: result.error,
+                    status: 'UNKNOWN'
+                }
+            };
+        }
 
+        const response = result.data;
+
+        // Check for Google API error status (ZERO_RESULTS is not an error)
+        if (response.status !== 'OK') {
             // ZERO_RESULTS is not an error, it's a valid response with no results
             if (response.status === 'ZERO_RESULTS') {
                 return { data: [] };
@@ -99,11 +112,19 @@ export async function getPlaceDetails(placeId: string): Promise<{ text: string; 
 
     try {
         // Call the server action to get place details
-        const response = await fetchPlaceDetails({ placeId });
+        const result = await fetchPlaceDetails({ placeId });
 
-        // Check for error status
+        // Check if the server action failed
+        if (!result.success) {
+            console.error('Error getting place details:', result.error);
+            return null;
+        }
+
+        const response = result.data;
+
+        // Check for Google API error status
         if (response.status !== 'OK') {
-            console.error('Error getting place details:', response.error || response.status);
+            console.error('Error getting place details:', response.status);
             return null;
         }
 

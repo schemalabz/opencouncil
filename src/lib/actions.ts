@@ -2,17 +2,10 @@
 
 import axios from 'axios';
 import { env } from '@/env.mjs';
+import { Result, createSuccess, createError } from '@/lib/result';
 
 // The radius to use for location-based search, in meters (40km)
 const SEARCH_RADIUS = 40000;
-
-// Error response type
-type ErrorResponse = {
-    status: 'ERROR' | string;
-    error: string;
-    predictions?: [];
-    result?: null;
-};
 
 /**
  * Server action to get place suggestions from Google Places API
@@ -21,26 +14,18 @@ export async function getPlaceSuggestions(data: {
     input: string;
     cityName?: string;
     location?: string; // Format: "lat,lng"
-}) {
+}): Promise<Result<any>> {
     const { input, cityName, location } = data;
 
     if (!input) {
-        return {
-            status: 'ERROR',
-            error: 'Input parameter is required',
-            predictions: []
-        } as ErrorResponse;
+        return createError('Input parameter is required');
     }
 
     try {
         // Make sure we have a Google API key
         if (!env.GOOGLE_API_KEY) {
             console.error('Google API key is not defined');
-            return {
-                status: 'ERROR',
-                error: 'API configuration error',
-                predictions: []
-            } as ErrorResponse;
+            return createError('API configuration error');
         }
 
         // Use location-based search if coordinates are provided, otherwise fall back to text
@@ -76,50 +61,33 @@ export async function getPlaceSuggestions(data: {
         // If Google API returned an error, provide helpful error message
         if (response.data.status !== 'OK') {
             console.error('Google Places API returned non-OK status:', response.data.status);
-            return {
-                status: response.data.status,
-                error: `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`,
-                predictions: []
-            } as ErrorResponse;
+            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
+            return createError(errorMsg);
         }
 
-        return response.data;
+        return createSuccess(response.data);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Error fetching place suggestions:', error);
-
-        // Return a structured error response
-        return {
-            status: 'ERROR',
-            error: `Failed to fetch place suggestions: ${errorMessage}`,
-            predictions: []
-        } as ErrorResponse;
+        return createError(`Failed to fetch place suggestions: ${errorMessage}`);
     }
 }
 
 /**
  * Server action to get place details from Google Places API
  */
-export async function getPlaceDetails(data: { placeId: string }) {
+export async function getPlaceDetails(data: { placeId: string }): Promise<Result<any>> {
     const { placeId } = data;
 
     if (!placeId) {
-        return {
-            status: 'ERROR',
-            error: 'placeId parameter is required',
-            result: null
-        } as ErrorResponse;
+        return createError('placeId parameter is required');
     }
 
     try {
         // Make sure we have a Google API key
         if (!env.GOOGLE_API_KEY) {
             console.error('Google API key is not defined');
-            return {
-                status: 'ERROR',
-                error: 'API configuration error',
-                result: null
-            } as ErrorResponse;
+            return createError('API configuration error');
         }
 
         const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
@@ -134,23 +102,14 @@ export async function getPlaceDetails(data: { placeId: string }) {
 
         if (response.data.status !== 'OK') {
             console.error('Google Places Details API returned non-OK status:', response.data.status);
-            return {
-                status: response.data.status,
-                error: `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`,
-                result: null
-            } as ErrorResponse;
+            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
+            return createError(errorMsg);
         }
 
-        return response.data;
+        return createSuccess(response.data);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('Error fetching place details:', error);
-
-        // Return a structured error response
-        return {
-            status: 'ERROR',
-            error: `Failed to fetch place details: ${errorMessage}`,
-            result: null
-        } as ErrorResponse;
+        return createError(`Failed to fetch place details: ${errorMessage}`);
     }
 } 
