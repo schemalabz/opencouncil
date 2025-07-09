@@ -44,20 +44,20 @@ async function getCitiesForPrompt(): Promise<{ id: string; name: string; name_en
 export async function extractFilters(query: string): Promise<ExtractedFilters> {
     // Get cities for the prompt
     const cities = await getCitiesForPrompt();
-    
+
     // Format cities list for the prompt
-    const citiesList = cities.map(city => 
+    const citiesList = cities.map(city =>
         `- ${city.name} (${city.name_en}): ${city.id}`
     ).join('\n');
-    
+
     // Get today's date in ISO format
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Create the prompt with cities list and today's date
     const prompt = FILTER_EXTRACTION_PROMPT
         .replace('{{CITIES_LIST}}', citiesList)
         .replace('{{TODAY_DATE}}', today);
-    
+
     const { result } = await aiChat<ExtractedFilters>(prompt, query);
     return result;
 }
@@ -68,7 +68,7 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
         // Get city with geometry directly
         const citiesWithGeometry = await getCitiesWithGeometry([{ id: cityId } as any]);
         const cityWithGeometry = citiesWithGeometry[0];
-        
+
         if (!cityWithGeometry) {
             return undefined;
         }
@@ -77,14 +77,20 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
         const { center } = calculateGeometryBounds(cityWithGeometry.geometry);
 
         // Get place suggestions with city center
-        const suggestions = await getPlaceSuggestions(locationName, cityWithGeometry.name, center);
+        const result = await getPlaceSuggestions(locationName, cityWithGeometry.name, center);
 
-        if (suggestions.length === 0) {
+        // Check for API errors
+        if (result.error) {
+            console.error('[Location] API error getting place suggestions:', result.error);
+            return undefined;
+        }
+
+        if (result.data.length === 0) {
             return undefined;
         }
 
         // Get details for the first suggestion
-        const details = await getPlaceDetails(suggestions[0].placeId);
+        const details = await getPlaceDetails(result.data[0].placeId);
         if (!details) {
             return undefined;
         }
@@ -110,7 +116,7 @@ export async function processFilters(extractedFilters: ExtractedFilters): Promis
     locations: Location[] | undefined;
 }> {
     let locations: Location[] = [];
-    
+
     // Resolve location coordinates if a location name was extracted
     if (extractedFilters.locationName) {
         const locationName = extractedFilters.locationName;
@@ -126,7 +132,7 @@ export async function processFilters(extractedFilters: ExtractedFilters): Promis
         } else {
             // If no specific city, try all cities
             const cities = await getCities();
-            
+
             // Try each city and collect all matches
             const locationPromises = cities.map(async (city) => {
                 const location = await resolveLocationCoordinates(
