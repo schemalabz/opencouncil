@@ -85,12 +85,12 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
             return undefined;
         }
 
-        if (result.suggestions.length === 0) {
+        if (result.data.length === 0) {
             return undefined;
         }
 
         // Get details for the first suggestion
-        const details = await getPlaceDetails(result.suggestions[0].placeId);
+        const details = await getPlaceDetails(result.data[0].placeId);
         if (!details) {
             return undefined;
         }

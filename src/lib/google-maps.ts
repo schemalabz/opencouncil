@@ -1,4 +1,5 @@
 import { getPlaceSuggestions as fetchPlaceSuggestions, getPlaceDetails as fetchPlaceDetails } from './actions';
+import { ApiResult } from '@/lib/result';
 
 // Define types for Google API responses
 export type LatLng = {
@@ -20,10 +21,7 @@ export type PlaceSuggestionsError = {
 };
 
 // Result type that can either be suggestions or an error
-export type PlaceSuggestionsResult = {
-    suggestions: PlaceSuggestion[];
-    error?: PlaceSuggestionsError;
-};
+export type PlaceSuggestionsResult = ApiResult<PlaceSuggestion[], PlaceSuggestionsError>;
 
 /**
  * Get place suggestions based on input text
@@ -35,7 +33,7 @@ export async function getPlaceSuggestions(
     cityCoordinates?: [number, number] // In format [lng, lat]
 ): Promise<PlaceSuggestionsResult> {
     if (!input || input.trim().length < 2) {
-        return { suggestions: [] };
+        return { data: [] };
     }
 
     try {
@@ -55,11 +53,11 @@ export async function getPlaceSuggestions(
 
             // ZERO_RESULTS is not an error, it's a valid response with no results
             if (response.status === 'ZERO_RESULTS') {
-                return { suggestions: [] };
+                return { data: [] };
             }
 
             return {
-                suggestions: [],
+                data: [],
                 error: {
                     type: 'API_ERROR',
                     message: response.error || `Google API error: ${response.status}`,
@@ -75,14 +73,14 @@ export async function getPlaceSuggestions(
                 placeId: prediction.place_id,
                 text: prediction.description
             }));
-            return { suggestions };
+            return { data: suggestions };
         }
 
-        return { suggestions: [] };
+        return { data: [] };
     } catch (error) {
         console.error('Error fetching place suggestions:', error);
         return {
-            suggestions: [],
+            data: [],
             error: {
                 type: 'NETWORK_ERROR',
                 message: error instanceof Error ? error.message : 'Network error occurred'

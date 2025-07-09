@@ -5,6 +5,7 @@ import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { auth, signIn } from "@/auth";
 import { getCitiesWithGeometry } from "./cities";
 import prisma from "@/lib/db/prisma";
+import { Result, createSuccess, createError } from "@/lib/result";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -34,10 +35,6 @@ export type UserPreference = {
     }[];
     topics?: Topic[];
 };
-
-export type SaveResult<T> = 
-    | { data: T; error?: never }
-    | { error: string; data?: never };
 
 /**
  * Get server session wrapper
@@ -239,7 +236,7 @@ export async function saveNotificationPreferences(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
-}): Promise<SaveResult<NotificationPreference>> {
+}): Promise<Result<NotificationPreference>> {
     const { cityId, locationIds, topicIds, phone, email, name } = data;
     const session = await getServerSession();
 
@@ -282,7 +279,7 @@ export async function saveNotificationPreferences(data: {
 
             if (user) {
                 // Email exists but user is not authenticated - return error
-                return { error: "email_exists" };
+                return createError("email_exists");
             } else {
                 // Create new user
                 const newUser = await prisma.user.create({
@@ -395,7 +392,7 @@ export async function saveNotificationPreferences(data: {
                     interests: true
                 }
             }) as NotificationPreference;
-            return { data: result };
+            return createSuccess(result);
         } else {
             // Create new preferences with existing relationships
             const result = await prisma.notificationPreference.create({
@@ -416,11 +413,11 @@ export async function saveNotificationPreferences(data: {
                     interests: true
                 }
             });
-            return { data: result };
+            return createSuccess(result);
         }
     } catch (error) {
         console.error('Error saving notification preferences:', error);
-        return { error: 'An unexpected error occurred.' };
+        return createError('An unexpected error occurred.');
     }
 }
 
@@ -434,7 +431,7 @@ export async function savePetition(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string; // We'll store this in user if needed, but not in petition
-}): Promise<SaveResult<Petition>> {
+}): Promise<Result<Petition>> {
     const { cityId, isResident, isCitizen, phone, email, name } = data;
     const session = await getServerSession();
 
@@ -470,7 +467,7 @@ export async function savePetition(data: {
 
             if (user) {
                 // Email exists but user is not authenticated - return error
-                return { error: "email_exists" };
+                return createError("email_exists");
             } else {
                 // Create new user
                 const newUser = await prisma.user.create({
@@ -514,7 +511,7 @@ export async function savePetition(data: {
                     city: true
                 }
             });
-            return { data: result };
+            return createSuccess(result);
         } else {
             // Create new petition
             const result = await prisma.petition.create({
@@ -528,10 +525,10 @@ export async function savePetition(data: {
                     city: true
                 }
             });
-            return { data: result };
+            return createSuccess(result);
         }
     } catch (error) {
         console.error('Error saving petition:', error);
-        return { error: 'An unexpected error occurred.' };
+        return createError('An unexpected error occurred.');
     }
 } 

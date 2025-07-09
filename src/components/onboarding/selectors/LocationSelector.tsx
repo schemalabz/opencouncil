@@ -82,10 +82,10 @@ export function LocationSelector({
                         cityCoordinates
                     );
 
-                    setSuggestions(result.suggestions);
+                    setSuggestions(result.data);
 
                     // Show error if there's an API error or no results for longer queries
-                    if (result.error || (result.suggestions.length === 0 && debouncedInputValue.trim().length > 3)) {
+                    if (result.error || (result.data.length === 0 && debouncedInputValue.trim().length > 3)) {
                         setError(getErrorMessage(result, debouncedInputValue));
                     }
                 } catch (error) {
