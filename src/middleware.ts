@@ -19,8 +19,14 @@ export default async function middleware(req: NextRequest) {
     const chaniaResponse = handleChaniaSubdomain(req);
     if (chaniaResponse) return chaniaResponse;
 
-    // Handle i18n first
     const pathname = req.nextUrl.pathname;
+
+    // Exclude /map from i18n middleware
+    if (pathname === '/map') {
+        return auth(req as any);
+    }
+    
+    // Handle i18n for all other relevant paths
     if (/^\/(?!api|_next|_vercel|\..+).*/.test(pathname)) {
         const response = await i18nMiddleware(req);
         if (response) return response;

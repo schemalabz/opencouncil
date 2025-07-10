@@ -428,9 +428,7 @@ const Map = memo(function Map({
                 id: `${feature.id}-${index}`, // Ensure unique ID at feature level
                 geometry: feature.geometry,
                 properties: {
-                    id: feature.id,
                     uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
-                    subjectId: feature.id,
                     ...feature.properties,
                     fillColor: feature.style?.fillColor || '#627BBC',
                     fillOpacity: feature.style?.fillOpacity || 0.4,

@@ -257,7 +257,7 @@ export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, in
     }
 }
 
-export async function getCitiesWithGeometry(cities: City[]): Promise<CityWithGeometry[]> {
+export async function getCitiesWithGeometry<T extends City>(cities: T[]): Promise<(T & { geometry: GeoJSON.Geometry | null })[]> {
     if (cities.length === 0) return [];
 
     const cityWithGeometry = await prisma.$queryRaw<
