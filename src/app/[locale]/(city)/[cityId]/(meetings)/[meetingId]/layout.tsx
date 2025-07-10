@@ -1,7 +1,7 @@
 "use server";
 import { notFound } from 'next/navigation';
 import { getTranscript } from '@/lib/db/transcript';
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { getHighlightsForMeeting } from '@/lib/db/highlights';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';

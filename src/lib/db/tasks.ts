@@ -4,8 +4,9 @@ import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
 
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
-    withUserAuthorizedToEdit({ councilMeetingId: meetingId })
     try {
+        await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId })
+
         const tasks = await prisma.taskStatus.findMany({
             where: {
                 cityId: cityId,
