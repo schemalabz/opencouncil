@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
+import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 
 export default function AdminActions({
 }: {
@@ -30,6 +31,7 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
+    const [isSyncingElasticsearch, setIsSyncingElasticsearch] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -212,6 +214,26 @@ export default function AdminActions({
         }
     };
 
+    const handleSyncElasticsearch = async () => {
+        setIsSyncingElasticsearch(true);
+        try {
+            // PostgreSQL connector supports only full sync, so we use that
+            await requestSyncElasticsearch(meeting.cityId, meeting.id, 'full');
+            toast({
+                title: "Elasticsearch sync requested",
+                description: `The full sync process has started.`,
+            });
+        } catch (error) {
+            toast({
+                title: "Error requesting Elasticsearch sync",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSyncingElasticsearch(false);
+        }
+    };
+
     return (<div>
         <div className="mt-6">
             <div className="flex justify-between items-center mb-4">
@@ -342,6 +364,9 @@ export default function AdminActions({
                 </Popover>
                 <Button onClick={handleFixTranscript}>
                     Fix Transcript
+                </Button>
+                <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
+                    {isSyncingElasticsearch ? 'Syncing...' : 'Sync Elasticsearch'}
                 </Button>
                 <Button onClick={handleEmbed} disabled={isEmbedding}>
                     Embed
