@@ -138,6 +138,9 @@
     "yargs": "^17.7.2",
     "zod": "^3.25.67"
   },
+  "overrides": {
+    "hls.js": "^1.6.7"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
