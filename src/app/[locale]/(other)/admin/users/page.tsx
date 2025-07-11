@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon } from "lucide-react"
-import { User, Administers, NotificationPreference, Petition } from "@prisma/client"
 import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
 import { toast } from "@/hooks/use-toast"
@@ -12,12 +11,7 @@ import { UserStats } from "@/components/admin/users/user-stats"
 import { AnalyticsDashboard } from "@/components/admin/users/analytics-dashboard"
 import { SeedUsersDialog } from "@/components/admin/users/seed-users-dialog"
 import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
-
-interface UserWithRelations extends Omit<User, 'administers' | 'notificationPreferences' | 'petitions'> {
-    administers: Administers[];
-    notificationPreferences: NotificationPreference[];
-    petitions: Petition[];
-}
+import { UserWithRelations } from "@/lib/types"
 
 export default function UsersPage() {
     const [users, setUsers] = useState<UserWithRelations[]>([])
@@ -78,12 +72,8 @@ export default function UsersPage() {
     async function onResendInvite(userId: string) {
         setResendingInvite(userId)
         try {
-            const response = await fetch("/api/admin/users/resend-invite", {
+            const response = await fetch(`/api/admin/users/${userId}/resend-invite`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ userId }),
             })
 
             if (!response.ok) throw new Error("Failed to resend invite")
