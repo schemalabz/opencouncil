@@ -114,7 +114,7 @@ export function ExpandableUserRow({
             <TableCell>
                 <div className="flex items-center gap-2">
                     <Mail className={`h-4 w-4 ${user.allowContact ? 'text-blue-600' : 'text-gray-300'}`} />
-                    <Phone className={`h-4 w-4 ${user.allowContact ? 'text-green-600' : 'text-gray-300'}`} />
+                    <Phone className={`h-4 w-4 ${user.allowContact && user.phone ? 'text-green-600' : 'text-gray-300'}`} />
                 </div>
             </TableCell>
 
