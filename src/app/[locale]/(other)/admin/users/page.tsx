@@ -95,6 +95,7 @@ export default function UsersPage() {
                 description: `User "${userToDelete.name || userToDelete.email}" has been deleted.`,
             })
 
+            setDialogOpen(false) // Close the edit dialog
             refreshUsers()
         } catch (error) {
             console.error("Failed to delete user:", error)
@@ -209,7 +210,6 @@ export default function UsersPage() {
                                     key={user.id}
                                     user={user}
                                     onEdit={onEditUser}
-                                    onDelete={onDeleteUser}
                                     onResendInvite={onResendInvite}
                                     resendingInvite={resendingInvite}
                                 />
@@ -228,6 +228,7 @@ export default function UsersPage() {
                     }
                 }}
                 user={selectedUser}
+                onDelete={onDeleteUser}
             />
 
             <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
