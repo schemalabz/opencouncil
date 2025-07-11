@@ -25,13 +25,15 @@ import { UserWithRelations } from "@/lib/types"
 interface ExpandableUserRowProps {
     user: UserWithRelations
     onEdit: (user: UserWithRelations) => void
+    onDelete: (user: UserWithRelations) => void
     onResendInvite: (userId: string) => void
     resendingInvite: string | null
 }
 
 export function ExpandableUserRow({ 
     user, 
-    onEdit, 
+    onEdit,
+    onDelete,
     onResendInvite, 
     resendingInvite 
 }: ExpandableUserRowProps) {
@@ -159,6 +161,13 @@ export function ExpandableUserRow({
                         onClick={() => onEdit(user)}
                     >
                         Edit
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete(user)}
+                    >
+                        Delete
                     </Button>
                     {!user.onboarded && (
                         <Button
