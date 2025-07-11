@@ -47,7 +47,7 @@
     "@mapbox/mapbox-gl-draw": "^1.5.0",
     "@mux/mux-player-react": "^2.9.1",
     "@mux/mux-video": "^0.20.2",
-    "@mux/mux-video-react": "^0.11.3",
+    "@mux/mux-video-react": "^0.26.1",
     "@prisma/adapter-pg": "^6.1.0",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-checkbox": "^1.1.1",
