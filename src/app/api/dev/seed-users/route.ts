@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { NextResponse } from "next/server"
 import { subDays } from "date-fns"
-import { saveNotificationPreferences } from "@/lib/db/notifications"
+import { saveNotificationPreferences, savePetition } from "@/lib/db/notifications"
 
 interface SeedRequest {
     persona: string
@@ -104,10 +104,10 @@ export async function POST(request: Request) {
             const createdAt = subDays(new Date(), daysAgo)
 
             // For most personas, we still need to create the user manually
-            // But for engaged-citizen, `saveNotificationPreferences` will handle it.
+            // But for engaged-citizen and activist, the save methods will handle it.
             let newUser
 
-            if (persona !== 'engaged-citizen') {
+            if (persona !== 'engaged-citizen' && persona !== 'activist') {
                  // Create user with persona-specific data
                 const userData: any = {
                     email,
@@ -164,23 +164,28 @@ export async function POST(request: Request) {
                 
                 console.log("Archetype Seed API - Added", selectedCities.length, "notification preferences for user:", email)
                 
-            } else if (persona === 'activist' && newUser && unsupportedCities.length > 0) {
+            } else if (persona === 'activist' && unsupportedCities.length > 0) {
                 // Create 1 petition for one unsupported city
                 const selectedCities = getRandomItems(unsupportedCities, 1, 1)
                 
                 for (const city of selectedCities) {
-                await prisma.petition.create({
-                    data: {
-                        userId: newUser.id,
-                            cityId: city.id,
-                            is_resident: Math.random() > 0.3, // 70% chance of being resident
-                            is_citizen: Math.random() > 0.3   // 70% chance of being citizen
+                    const result = await savePetition({
+                        email,
+                        name,
+                        cityId: city.id,
+                        isResident: Math.random() > 0.3, // 70% chance of being resident
+                        isCitizen: Math.random() > 0.3   // 70% chance of being citizen
+                    })
+
+                    if (result.success && result.data) {
+                        if (!newUser) newUser = await prisma.user.findUnique({ where: { email }})
+                        totalPetitions++
+                    } else {
+                        console.error("Failed to save petition for seed user:", result.error)
                     }
-                })
-                    totalPetitions++
                 }
                 
-                console.log("Archetype Seed API - Added", selectedCities.length, "petitions for user:", newUser.email)
+                console.log("Archetype Seed API - Added", selectedCities.length, "petitions for user:", email)
             }
             
             if (newUser) {
