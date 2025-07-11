@@ -139,8 +139,8 @@ export async function POST(request: Request) {
 
             // Add persona-specific relations with enhanced logic
             if (persona === 'engaged-citizen' && supportedCities.length > 0 && topics.length > 0) {
-                // Create notification preferences for 2-4 cities
-                const selectedCities = getRandomItems(supportedCities, 2, Math.min(4, supportedCities.length))
+                // Create notification preferences for 1 city
+                const selectedCities = getRandomItems(supportedCities, 1, 1)
                 
                 for (const city of selectedCities) {
                     // Select 3-6 topics for each city
@@ -165,8 +165,8 @@ export async function POST(request: Request) {
                 console.log("Archetype Seed API - Added", selectedCities.length, "notification preferences for user:", email)
                 
             } else if (persona === 'activist' && newUser && unsupportedCities.length > 0) {
-                // Create 1-3 petitions for different unsupported cities
-                const selectedCities = getRandomItems(unsupportedCities, 1, Math.min(3, unsupportedCities.length))
+                // Create 1 petition for one unsupported city
+                const selectedCities = getRandomItems(unsupportedCities, 1, 1)
                 
                 for (const city of selectedCities) {
                 await prisma.petition.create({
