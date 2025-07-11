@@ -20,37 +20,7 @@ import {
     Tag
 } from "lucide-react"
 import { format } from "date-fns"
-
-interface UserWithRelations {
-    id: string
-    name: string | null
-    email: string
-    emailVerified: Date | null
-    phone: string | null
-    createdAt: Date
-    updatedAt: Date
-    onboarded: boolean
-    allowContact: boolean
-    isSuperAdmin: boolean
-    administers: Array<{
-        id: string
-        city?: { id: string; name: string } | null
-        party?: { id: string; name: string; city: { id: string; name: string } } | null
-        person?: { id: string; name: string; city: { id: string; name: string } } | null
-    }>
-    notificationPreferences: Array<{
-        id: string
-        city: { id: string; name: string }
-        interests: Array<{ id: string; name: string }>
-        locations: Array<{ id: string; name: string }>
-    }>
-    petitions: Array<{
-        id: string
-        city: { id: string; name: string }
-        is_resident: boolean
-        is_citizen: boolean
-    }>
-}
+import { UserWithRelations } from "@/lib/types"
 
 interface ExpandableUserRowProps {
     user: UserWithRelations
