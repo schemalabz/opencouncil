@@ -128,7 +128,7 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
 
         setLoading(true)
         try {
-            const response = await fetch("/api/dev/seed-archetype-users", {
+            const response = await fetch("/api/dev/seed-users", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
