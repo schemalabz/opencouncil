@@ -128,7 +128,8 @@ export default function UsersPage() {
             </div>
 
             {/* Analytics Dashboard */}
-            <AnalyticsDashboard 
+            <AnalyticsDashboard
+                users={users}
                 dateRange={dateRange} 
                 onDateRangeChange={setDateRange} 
             />
