@@ -235,181 +235,98 @@ export async function saveNotificationPreferences(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
+    userId?: string; // Explicit user ID for admin actions
 }): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name } = data;
+    const { cityId, locationIds, topicIds, phone, email, name, userId: explicitUserId } = data;
     const session = await getServerSession();
 
     let userId: string;
 
-    console.log('Saving notification preferences for cityId:', cityId);
-    console.log('Location IDs:', locationIds);
-    console.log('Topic IDs:', topicIds);
-    console.log('Phone:', phone);
-    console.log('Email:', email);
-    console.log('Name:', name);
-
     try {
-        // Get or create user
-        if (session?.user?.email) {
-            // Authenticated user
-            const user = await prisma.user.findUnique({
-                where: { email: session.user.email }
-            });
-
-            if (!user) {
-                throw new Error("User not found");
-            }
-
-            userId = user.id;
-
-            // Update phone if provided
-            if (phone) {
+        if (explicitUserId) {
+            userId = explicitUserId;
+        } else if (session?.user?.id) {
+            userId = session.user.id;
+            if (phone && session.user.phone !== phone) {
                 await prisma.user.update({
-                    where: { id: user.id },
+                    where: { id: userId },
                     data: { phone }
                 });
             }
         } else if (email) {
-            // Non-authenticated user
-            // Check if this email already exists
             let user = await prisma.user.findUnique({
-                where: { email }
+                where: { email },
             });
 
-            if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
-            } else {
-                // Create new user
-                const newUser = await prisma.user.create({
+            if (!user) {
+                console.log(`User with email ${email} not found. Creating new user...`);
+                user = await prisma.user.create({
                     data: {
                         email,
                         name: name || '',
-                        phone,
-                        allowContact: true,
+                        phone: phone || null,
                         onboarded: true,
-                    }
+                        allowContact: true,
+                    },
                 });
-
-                userId = newUser.id;
-
-                // Send magic link for verification
-                await sendMagicLink(email);
-            }
-        } else {
-            throw new Error("Either authenticated session or email must be provided");
-        }
-
-        // Verify locations and topics exist before trying to connect them
-        let validLocationIds: string[] = [];
-        let validTopicIds: string[] = [];
-
-        if (locationIds && locationIds.length > 0) {
-            // Verify locations exist
-            const locations = await prisma.location.findMany({
-                where: {
-                    id: {
-                        in: locationIds
-                    }
-                },
-                select: { id: true }
-            });
-            validLocationIds = locations.map(loc => loc.id);
-
-            console.log('Valid location IDs:', validLocationIds);
-        }
-
-        if (topicIds && topicIds.length > 0) {
-            // Verify topics exist
-            const topics = await prisma.topic.findMany({
-                where: {
-                    id: {
-                        in: topicIds
-                    }
-                },
-                select: { id: true }
-            });
-            validTopicIds = topics.map(topic => topic.id);
-
-            console.log('Valid topic IDs:', validTopicIds);
-        }
-
-        // Check if notification preferences already exist
-        const existingPreference = await prisma.notificationPreference.findUnique({
-            where: {
-                userId_cityId: {
-                    userId,
-                    cityId
+                console.log('New user created:', user);
+            } else {
+                console.log('Existing user found:', user);
+                if (phone && user.phone !== phone) {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { phone }
+                    });
+                    console.log(`Updated phone for user ${user.id}`);
                 }
             }
+            userId = user.id;
+        } else {
+            return createError("User not authenticated and no email provided");
+        }
+
+        const validLocationIds = await prisma.location.findMany({
+            where: {
+                id: { in: locationIds },
+            },
+            select: { id: true }
+        }).then(locations => locations.map(l => l.id));
+
+        const validTopicIds = await prisma.topic.findMany({
+            where: {
+                id: { in: topicIds }
+            },
+            select: { id: true }
+        }).then(topics => topics.map(t => t.id));
+
+        const existingPreference = await prisma.notificationPreference.findFirst({
+            where: { userId: userId, cityId: cityId },
         });
 
         if (existingPreference) {
-            // For existing preferences, update using Prisma's connect/disconnect
-            const updatedPreference = await prisma.notificationPreference.update({
+            const result = await prisma.notificationPreference.update({
                 where: { id: existingPreference.id },
                 data: {
-                    // Disconnect all existing locations and topics
                     locations: {
-                        set: [] // First clear all connections
+                        set: validLocationIds.map(id => ({ id }))
                     },
                     interests: {
-                        set: [] // First clear all connections
+                        set: validTopicIds.map(id => ({ id }))
                     }
                 }
             });
-
-            // Then add the new connections if there are any
-            if (validLocationIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        locations: {
-                            connect: validLocationIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            if (validTopicIds.length > 0) {
-                await prisma.notificationPreference.update({
-                    where: { id: updatedPreference.id },
-                    data: {
-                        interests: {
-                            connect: validTopicIds.map(id => ({ id }))
-                        }
-                    }
-                });
-            }
-
-            // Finally, fetch the updated preferences with the new relationships
-            const result = await prisma.notificationPreference.findUnique({
-                where: { id: updatedPreference.id },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
-                }
-            }) as NotificationPreference;
             return createSuccess(result);
         } else {
-            // Create new preferences with existing relationships
             const result = await prisma.notificationPreference.create({
                 data: {
-                    userId,
-                    cityId,
-                    // Connect locations and topics directly
-                    locations: validLocationIds.length > 0 ? {
+                    user: { connect: { id: userId } },
+                    city: { connect: { id: cityId } },
+                    locations: {
                         connect: validLocationIds.map(id => ({ id }))
-                    } : undefined,
-                    interests: validTopicIds.length > 0 ? {
+                    },
+                    interests: {
                         connect: validTopicIds.map(id => ({ id }))
-                    } : undefined
-                },
-                include: {
-                    city: true,
-                    locations: true,
-                    interests: true
+                    }
                 }
             });
             return createSuccess(result);
@@ -421,7 +338,7 @@ export async function saveNotificationPreferences(data: {
 }
 
 /**
- * Create or update petition
+ * Create or update a petition
  */
 export async function savePetition(data: {
     cityId: string;
@@ -430,64 +347,55 @@ export async function savePetition(data: {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string; // We'll store this in user if needed, but not in petition
+    userId?: string; // Explicit user ID for admin actions
 }): Promise<Result<Petition>> {
-    const { cityId, isResident, isCitizen, phone, email, name } = data;
+    const { cityId, isResident, isCitizen, phone, email, name, userId: explicitUserId } = data;
     const session = await getServerSession();
 
     let userId: string;
 
     try {
-        // Get or create user
-        if (session?.user?.email) {
-            // Authenticated user
-            const user = await prisma.user.findUnique({
-                where: { email: session.user.email }
-            });
-
-            if (!user) {
-                throw new Error("User not found");
-            }
-
-            userId = user.id;
-
-            // Update phone if provided
-            if (phone) {
+        if (explicitUserId) {
+            userId = explicitUserId;
+        } else if (session?.user?.id) {
+            userId = session.user.id;
+            if (phone && session.user.phone !== phone) {
                 await prisma.user.update({
-                    where: { id: user.id },
+                    where: { id: userId },
                     data: { phone }
                 });
             }
         } else if (email) {
-            // Non-authenticated user
-            // Check if this email already exists
             let user = await prisma.user.findUnique({
-                where: { email }
+                where: { email },
             });
 
-            if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
-            } else {
-                // Create new user
-                const newUser = await prisma.user.create({
+            if (!user) {
+                console.log(`User with email ${email} not found. Creating new user...`);
+                user = await prisma.user.create({
                     data: {
                         email,
                         name: name || '',
-                        phone,
-                        allowContact: true,
+                        phone: phone || null,
                         onboarded: true,
-                    }
+                        allowContact: true,
+                    },
                 });
-
-                userId = newUser.id;
-
-                // Send magic link for verification
-                await sendMagicLink(email);
+                console.log('New user created from petition:', user);
+            } else {
+                console.log('Existing user found from petition:', user);
+                if (phone && user.phone !== phone) {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { phone }
+                    });
+                }
             }
+            userId = user.id;
         } else {
-            throw new Error("Either authenticated session or email must be provided");
+            return createError("User not authenticated and no email provided");
         }
-
+        
         // Check if petition already exists
         const existingPetition = await prisma.petition.findUnique({
             where: {
