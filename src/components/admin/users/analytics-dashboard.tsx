@@ -5,86 +5,108 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Users, Bell, FileText, TrendingUp, MapPin, Target } from "lucide-react"
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { useState, useEffect } from "react"
-
-interface UserAnalytics {
-    totalUsers: number
-    onboardedUsers: number
-    usersWithNotifications: number
-    usersWithPetitions: number
-    newUsersThisWeek: number
-    newUsersThisMonth: number
-    growthPercentage: number
-    registrationTimeline: Array<{
-        date: string
-        count: number
-    }>
-    cityDistribution: Array<{
-        city: string
-        notifications: number
-        petitions: number
-    }>
-    topicPopularity: Array<{
-        topic: string
-        count: number
-    }>
-}
+import { useState, useEffect, useMemo } from "react"
+import { UserWithRelations } from "@/lib/types"
+import { subDays, format } from 'date-fns'
 
 interface AnalyticsDashboardProps {
+    users: UserWithRelations[]
     dateRange: string
     onDateRangeChange: (range: string) => void
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
 
-export function AnalyticsDashboard({ dateRange, onDateRangeChange }: AnalyticsDashboardProps) {
-    const [analytics, setAnalytics] = useState<UserAnalytics | null>(null)
-    const [loading, setLoading] = useState(true)
+export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: AnalyticsDashboardProps) {
+    const analytics = useMemo(() => {
+        const dateCutoff = dateRange === 'all' ? null : subDays(new Date(), parseInt(dateRange, 10))
 
-    useEffect(() => {
-        async function fetchAnalytics() {
-            try {
-                const response = await fetch(`/api/admin/users/analytics?dateRange=${dateRange}`)
-                if (!response.ok) throw new Error('Failed to fetch analytics')
-                const data = await response.json()
-                setAnalytics(data)
-            } catch (error) {
-                console.error('Failed to fetch analytics:', error)
-            } finally {
-                setLoading(false)
+        const filteredUsers = dateCutoff
+            ? users.filter(user => new Date(user.createdAt) >= dateCutoff)
+            : users
+        
+        const growthPercentage = (() => {
+            if (dateRange === 'all' || isNaN(parseInt(dateRange, 10))) return 0
+
+            const days = parseInt(dateRange, 10)
+            const previousPeriodCutoff = subDays(new Date(), days * 2)
+            const currentPeriodCutoff = subDays(new Date(), days)
+            
+            const previousFilteredUsers = users.filter(user => {
+                const createdAt = new Date(user.createdAt)
+                return createdAt < currentPeriodCutoff && createdAt >= previousPeriodCutoff
+            })
+
+            if (previousFilteredUsers.length === 0) {
+                return filteredUsers.length > 0 ? 100 : 0
             }
+
+            return ((filteredUsers.length - previousFilteredUsers.length) / previousFilteredUsers.length) * 100
+        })()
+
+        const registrationTimeline = filteredUsers.reduce((acc, user) => {
+            const date = format(new Date(user.createdAt), 'yyyy-MM-dd')
+            const entry = acc.find(e => e.date === date)
+            if (entry) {
+                entry.count++
+            } else {
+                acc.push({ date, count: 1 })
+            }
+            return acc
+        }, [] as Array<{ date: string; count: number }>).sort((a, b) => a.date.localeCompare(b.date));
+
+        const cityDistribution = filteredUsers.reduce((acc, user) => {
+            user.notificationPreferences.forEach(pref => {
+                const city = pref.city.name
+                let entry = acc.find(e => e.city === city)
+                if (!entry) {
+                    entry = { city, notifications: 0, petitions: 0 }
+                    acc.push(entry)
+                }
+                entry.notifications++
+            })
+            user.petitions.forEach(petition => {
+                const city = petition.city.name
+                let entry = acc.find(e => e.city === city)
+                if (!entry) {
+                    entry = { city, notifications: 0, petitions: 0 }
+                    acc.push(entry)
+                }
+                entry.petitions++
+            })
+            return acc
+        }, [] as Array<{ city: string; notifications: number; petitions: number }>)
+
+        const topicPopularity = filteredUsers.reduce((acc, user) => {
+            user.notificationPreferences.forEach(pref => {
+                pref.interests.forEach(interest => {
+                    const topic = interest.name
+                    let entry = acc.find(e => e.topic === topic)
+                    if (entry) {
+                        entry.count++
+                    } else {
+                        acc.push({ topic, count: 1 })
+                    }
+                })
+            })
+            return acc
+        }, [] as Array<{ topic: string; count: number }>)
+
+        const totalUsersInPeriod = filteredUsers.length
+        const totalUsersOverall = users.length
+
+        return {
+            totalUsers: dateRange === 'all' ? totalUsersOverall : totalUsersInPeriod,
+            onboardedUsers: filteredUsers.filter(u => u.onboarded).length,
+            usersWithNotifications: filteredUsers.filter(u => u.notificationPreferences.length > 0).length,
+            usersWithPetitions: filteredUsers.filter(u => u.petitions.length > 0).length,
+            growthPercentage,
+            registrationTimeline,
+            cityDistribution,
+            topicPopularity,
+            totalUsersOverall
         }
-
-        fetchAnalytics()
-    }, [dateRange])
-
-    if (loading) {
-        return (
-            <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-4">
-                    {[...Array(4)].map((_, i) => (
-                        <Card key={i}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Loading...</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-8 bg-muted animate-pulse rounded" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {[...Array(3)].map((_, i) => (
-                        <Card key={i}>
-                            <CardContent className="p-6">
-                                <div className="h-64 bg-muted animate-pulse rounded" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-            </div>
-        )
-    }
+    }, [users, dateRange])
 
     if (!analytics) return <div className="text-center p-8">Loading analytics...</div>
 
@@ -110,7 +132,9 @@ export function AnalyticsDashboard({ dateRange, onDateRangeChange }: AnalyticsDa
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                        <CardTitle className="text-sm font-medium">
+                            {dateRange === 'all' ? 'Total Users' : `New Users (${dateRange === '90' ? 'Last 90 days' : dateRange === '30' ? 'Last 30 days' : 'Last 7 days'})`}
+                        </CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
@@ -130,7 +154,7 @@ export function AnalyticsDashboard({ dateRange, onDateRangeChange }: AnalyticsDa
                     <CardContent>
                         <div className="text-2xl font-bold">{analytics.onboardedUsers.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">
-                            {((analytics.onboardedUsers / analytics.totalUsers) * 100).toFixed(1)}% of total
+                            {((analytics.onboardedUsers / (analytics.totalUsersOverall || 1)) * 100).toFixed(1)}% of total
                         </p>
                     </CardContent>
                 </Card>
@@ -143,7 +167,7 @@ export function AnalyticsDashboard({ dateRange, onDateRangeChange }: AnalyticsDa
                     <CardContent>
                         <div className="text-2xl font-bold">{analytics.usersWithNotifications.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">
-                            {((analytics.usersWithNotifications / analytics.totalUsers) * 100).toFixed(1)}% of total
+                            {((analytics.usersWithNotifications / (analytics.totalUsersOverall || 1)) * 100).toFixed(1)}% of total
                         </p>
                     </CardContent>
                 </Card>
@@ -156,7 +180,7 @@ export function AnalyticsDashboard({ dateRange, onDateRangeChange }: AnalyticsDa
                     <CardContent>
                         <div className="text-2xl font-bold">{analytics.usersWithPetitions.toLocaleString()}</div>
                         <p className="text-xs text-muted-foreground">
-                            {((analytics.usersWithPetitions / analytics.totalUsers) * 100).toFixed(1)}% of total
+                            {((analytics.usersWithPetitions / (analytics.totalUsersOverall || 1)) * 100).toFixed(1)}% of total
                         </p>
                     </CardContent>
                 </Card>
