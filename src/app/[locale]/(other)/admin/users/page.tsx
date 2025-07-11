@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { PlusIcon } from "lucide-react"
-import { User, Administers } from "@prisma/client"
+import { User, Administers, NotificationPreference, Petition } from "@prisma/client"
 import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
 import { toast } from "@/hooks/use-toast"
@@ -13,25 +13,10 @@ import { AnalyticsDashboard } from "@/components/admin/users/analytics-dashboard
 import { SeedUsersDialog } from "@/components/admin/users/seed-users-dialog"
 import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
 
-interface UserWithRelations extends Omit<User, 'administers'> {
-    administers: Array<{
-        id: string;
-        city?: { id: string; name: string } | null;
-        party?: { id: string; name: string; city: { id: string; name: string } } | null;
-        person?: { id: string; name: string; city: { id: string; name: string } } | null;
-    }>;
-    notificationPreferences: Array<{
-        id: string;
-        city: { id: string; name: string };
-        interests: Array<{ id: string; name: string }>;
-        locations: Array<{ id: string; name: string }>;
-    }>;
-    petitions: Array<{
-        id: string;
-        city: { id: string; name: string };
-        is_resident: boolean;
-        is_citizen: boolean;
-    }>;
+interface UserWithRelations extends Omit<User, 'administers' | 'notificationPreferences' | 'petitions'> {
+    administers: Administers[];
+    notificationPreferences: NotificationPreference[];
+    petitions: Petition[];
 }
 
 export default function UsersPage() {
