@@ -26,30 +26,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { UserWithRelations } from "@/lib/types"
 
 interface UserDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    user?: {
-        id: string
-        name: string | null
-        email: string
-        isSuperAdmin: boolean
-        administers?: Array<{
-            id: string
-            city?: { id: string; name: string } | null
-            party?: {
-                id: string
-                name: string
-                city: { id: string; name: string }
-            } | null
-            person?: {
-                id: string
-                name: string
-                city: { id: string; name: string }
-            } | null
-        }>
-    }
+    onDelete: (user: UserWithRelations) => void;
+    user?: UserWithRelations
 }
 
 type EntityType = 'city' | 'party' | 'person'
@@ -100,7 +83,7 @@ function mapAdministersToEntities(administers: NonNullable<UserDialogProps['user
     return entities
 }
 
-export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
+export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogProps) {
     const [loading, setLoading] = useState(false)
     const [entities, setEntities] = useState<EntityOption[]>([])
     const [selectedEntities, setSelectedEntities] = useState<EntityOption[]>([])
@@ -345,17 +328,24 @@ export function UserDialog({ open, onOpenChange, user }: UserDialogProps) {
                             </div>
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Saving..." : isEditing ? "Save Changes" : "Create User"}
-                        </Button>
+                    <DialogFooter className="sm:justify-between">
+                        <div>
+                            {isEditing && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => onDelete(user!)}
+                                >
+                                    Delete User
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                            <Button type="submit" disabled={loading}>
+                                {loading ? "Saving..." : "Save Changes"}
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </form>
             </DialogContent>

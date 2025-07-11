@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PlusIcon } from "lucide-react"
 import { useState, useEffect } from "react"
 import { UserDialog } from "@/components/admin/users/user-dialog"
@@ -17,7 +18,9 @@ export default function UsersPage() {
     const [users, setUsers] = useState<UserWithRelations[]>([])
     const [dialogOpen, setDialogOpen] = useState(false)
     const [selectedUser, setSelectedUser] = useState<UserWithRelations | undefined>()
+    const [userToDelete, setUserToDelete] = useState<UserWithRelations | null>(null)
     const [loading, setLoading] = useState(true)
+    const [deleting, setDeleting] = useState(false)
     const [resendingInvite, setResendingInvite] = useState<string | null>(null)
     const [dateRange, setDateRange] = useState("30")
 
@@ -67,6 +70,44 @@ export default function UsersPage() {
     function onEditUser(user: UserWithRelations) {
         setSelectedUser(user)
         setDialogOpen(true)
+    }
+
+    function onDeleteUser(user: UserWithRelations) {
+        setUserToDelete(user)
+    }
+
+    async function handleConfirmDelete() {
+        if (!userToDelete) return
+        setDeleting(true)
+
+        try {
+            const response = await fetch(`/api/admin/users/${userToDelete.id}`, {
+                method: 'DELETE',
+            })
+
+            if (!response.ok) {
+                const errorData = await response.text()
+                throw new Error(errorData || 'Failed to delete user')
+            }
+
+            toast({
+                title: "Success",
+                description: `User "${userToDelete.name || userToDelete.email}" has been deleted.`,
+            })
+
+            setDialogOpen(false) // Close the edit dialog
+            refreshUsers()
+        } catch (error) {
+            console.error("Failed to delete user:", error)
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "An unknown error occurred.",
+                variant: "destructive",
+            })
+        } finally {
+            setDeleting(false)
+            setUserToDelete(null)
+        }
     }
 
     async function onResendInvite(userId: string) {
@@ -183,7 +224,28 @@ export default function UsersPage() {
                     }
                 }}
                 user={selectedUser}
+                onDelete={onDeleteUser}
             />
+
+            <Dialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Are you absolutely sure?</DialogTitle>
+                        <DialogDescription>
+                            This action cannot be undone. This will permanently delete the user account
+                            for <span className="font-semibold">{userToDelete?.name || userToDelete?.email}</span>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline" disabled={deleting}>Cancel</Button>
+                        </DialogClose>
+                        <Button onClick={handleConfirmDelete} disabled={deleting}>
+                            {deleting ? 'Deleting...' : 'Yes, delete user'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 } 
