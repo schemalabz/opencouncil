@@ -1,0 +1,254 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getCurrentUser } from '@/lib/auth';
+import { getCity } from '@/lib/db/cities';
+import prisma from '@/lib/db/prisma';
+import { AdministrativeBodyType } from '@prisma/client';
+
+// Zod schema for city JSON validation
+const cityPopulationSchema = z.object({
+    cityId: z.string(),
+    parties: z.array(z.object({
+        name: z.string(),
+        name_en: z.string(),
+        name_short: z.string(),
+        name_short_en: z.string(),
+        colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        logo: z.string().optional(),
+    })),
+    administrativeBodies: z.array(z.object({
+        name: z.string(),
+        name_en: z.string(),
+        type: z.enum(['council', 'committee', 'community']),
+    })),
+    people: z.array(z.object({
+        name: z.string(),
+        name_en: z.string(),
+        name_short: z.string(),
+        name_short_en: z.string(),
+        image: z.string().optional(),
+        isAdministrativeRole: z.boolean().optional(),
+        activeFrom: z.string().optional(),
+        activeTo: z.string().optional(),
+        profileUrl: z.string().optional(),
+        partyName: z.string().optional(),
+        roles: z.array(z.object({
+            type: z.enum(['party', 'city', 'adminBody']),
+            name: z.string(),
+            name_en: z.string(),
+            isHead: z.boolean().optional(),
+            partyName: z.string().optional(),
+            administrativeBodyName: z.string().optional(),
+        })).optional(),
+    })),
+});
+
+// GET: Load initial empty structure
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { cityId: string } }
+) {
+    try {
+        const user = await getCurrentUser();
+
+        if (!user?.isSuperAdmin) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const city = await getCity(params.cityId);
+        if (!city) {
+            return NextResponse.json({ error: 'City not found' }, { status: 404 });
+        }
+
+        if (!city.isPending) {
+            return NextResponse.json({ error: 'City is not pending' }, { status: 400 });
+        }
+
+        // Check if city has any existing data
+        const existingData = await prisma.city.findUnique({
+            where: { id: params.cityId },
+            include: {
+                parties: true,
+                persons: true,
+                councilMeetings: true,
+                roles: true,
+            },
+        });
+
+        if (existingData && (
+            existingData.parties.length > 0 ||
+            existingData.persons.length > 0 ||
+            existingData.councilMeetings.length > 0 ||
+            existingData.roles.length > 0
+        )) {
+            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
+        }
+
+        // Return empty council structure
+        const emptyCouncilStructure = {
+            cityId: params.cityId,
+            parties: [],
+            administrativeBodies: [
+                {
+                    name: "Δημοτικό Συμβούλιο",
+                    name_en: "Municipal Council",
+                    type: "council" as const,
+                },
+            ],
+            people: [],
+            roles: [],
+        };
+
+        return NextResponse.json(emptyCouncilStructure);
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+}
+
+// POST: Save city data
+export async function POST(
+    request: NextRequest,
+    { params }: { params: { cityId: string } }
+) {
+    try {
+        const user = await getCurrentUser();
+
+        if (!user?.isSuperAdmin) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const city = await getCity(params.cityId);
+        if (!city) {
+            return NextResponse.json({ error: 'City not found' }, { status: 404 });
+        }
+
+        if (!city.isPending) {
+            return NextResponse.json({ error: 'City is not pending' }, { status: 400 });
+        }
+
+        const body = await request.json();
+        const validatedData = cityPopulationSchema.parse(body);
+
+        // Save all data in a single transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // Create administrative bodies
+            const adminBodies = await Promise.all(
+                validatedData.administrativeBodies.map(adminBody =>
+                    tx.administrativeBody.create({
+                        data: {
+                            name: adminBody.name,
+                            name_en: adminBody.name_en,
+                            type: adminBody.type as AdministrativeBodyType,
+                            cityId: params.cityId,
+                        },
+                    })
+                )
+            );
+
+            // Create parties
+            const parties = await Promise.all(
+                validatedData.parties.map(party =>
+                    tx.party.create({
+                        data: {
+                            name: party.name,
+                            name_en: party.name_en,
+                            name_short: party.name_short,
+                            name_short_en: party.name_short_en,
+                            colorHex: party.colorHex,
+                            logo: party.logo,
+                            cityId: params.cityId,
+                        },
+                    })
+                )
+            );
+
+            // Create people
+            const people = await Promise.all(
+                validatedData.people.map(person =>
+                    tx.person.create({
+                        data: {
+                            name: person.name,
+                            name_en: person.name_en,
+                            name_short: person.name_short,
+                            name_short_en: person.name_short_en,
+                            image: person.image,
+                            isAdministrativeRole: person.isAdministrativeRole || false,
+                            activeFrom: person.activeFrom ? new Date(person.activeFrom) : null,
+                            activeTo: person.activeTo ? new Date(person.activeTo) : null,
+                            profileUrl: person.profileUrl,
+                            cityId: params.cityId,
+                            partyId: person.partyName
+                                ? parties.find(p => p.name === person.partyName)?.id
+                                : null,
+                        },
+                    })
+                )
+            );
+
+            // Create roles from people data
+            await Promise.all(
+                validatedData.people.flatMap((personData, personIndex) => {
+                    const person = people[personIndex];
+                    if (!personData.roles) return [];
+
+                    return personData.roles.map(role => {
+                        const party = role.partyName
+                            ? parties.find(p => p.name === role.partyName)
+                            : null;
+
+                        const adminBody = role.administrativeBodyName
+                            ? adminBodies.find(ab => ab.name === role.administrativeBodyName)
+                            : null;
+
+                        return tx.role.create({
+                            data: {
+                                personId: person.id,
+                                name: role.name,
+                                name_en: role.name_en,
+                                isHead: role.isHead || false,
+                                startDate: null,
+                                endDate: null,
+                                cityId: role.type === 'city' ? params.cityId : null,
+                                partyId: role.type === 'party' ? party?.id : null,
+                                administrativeBodyId: role.type === 'adminBody' ? adminBody?.id : null,
+                            },
+                        });
+                    });
+                })
+            );
+
+            // Set city as non-pending
+            await tx.city.update({
+                where: { id: params.cityId },
+                data: { isPending: false },
+            });
+
+            const totalRoles = validatedData.people.reduce((count, person) => count + (person.roles?.length || 0), 0);
+
+            return {
+                partiesCount: parties.length,
+                peopleCount: people.length,
+                rolesCount: totalRoles,
+                adminBodiesCount: adminBodies.length,
+            };
+        });
+
+        return NextResponse.json({
+            success: true,
+            message: 'City data saved successfully',
+            stats: result,
+        });
+    } catch (error) {
+        console.error('Error saving city data:', error);
+
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({
+                error: 'Invalid data format',
+                details: error.errors
+            }, { status: 400 });
+        }
+
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+} 

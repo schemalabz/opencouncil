@@ -4,7 +4,7 @@ This module of OpenCouncil is a tool for public consultations on regulatory text
 
 A regulation is a document with chapters, articles and locations. A user can view the document, as well as the embedded locations on a map.
 
-Essentially the tool is a viewer for JSON files that follow the regulation JSON schema (`./regulation.schema.json`). Users will later be able to leave comments and upvote the comments of others.
+Essentially the tool is a viewer for JSON files that follow the regulation JSON schema (`./json-schemas/regulation.schema.json`). Users will later be able to leave comments and upvote the comments of others.
 
 ## How It Works
 

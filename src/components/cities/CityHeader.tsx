@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import { BadgeCheck, BadgeX, Building2, Bell } from 'lucide-react';
+import { BadgeCheck, BadgeX, Building2, Bell, Database } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -16,6 +16,10 @@ import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import { getUserPreferences } from '@/lib/db/notifications';
 import { CityMessage as CityMessageComponent } from '@/components/cities/CityMessage';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import CityCreator from '@/components/cities/CityCreator';
+import { IS_DEV } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 type CityHeaderProps = {
     city: City,
@@ -26,14 +30,17 @@ type CityHeaderProps = {
 export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHeaderProps) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isCityCreatorOpen, setIsCityCreatorOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [canEdit, setCanEdit] = useState(false);
     const [hasNotifications, setHasNotifications] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
     const router = useRouter();
     const { data: session } = useSession();
-    
+    const { toast } = useToast();
+
     const isSuperAdmin = session?.user?.isSuperAdmin;
-    
+
     // Show message if it exists and is active, or if user is superadmin (for preview)
     const shouldShowMessage = cityMessage && (cityMessage.isActive || isSuperAdmin);
 
@@ -48,7 +55,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHead
     useEffect(() => {
         const checkNotifications = async () => {
             if (!session?.user) return;
-            
+
             try {
                 const preferences = await getUserPreferences();
                 const hasCityNotifications = preferences.some(
@@ -73,6 +80,50 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHead
 
     const handleNotificationSignup = () => {
         router.push(`/${city.id}/notifications`);
+    };
+
+    const handleCityCreatorSuccess = () => {
+        setIsCityCreatorOpen(false);
+        // Refresh the page to show the updated city
+        window.location.reload();
+    };
+
+    const handleResetCity = async () => {
+        if (!confirm('Are you sure you want to reset this city? This will delete ALL data (meetings, people, parties, roles, etc.) and set the city back to pending status. This action cannot be undone.')) {
+            return;
+        }
+
+        setIsResetting(true);
+
+        try {
+            const response = await fetch(`/api/cities/${city.id}/reset`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to reset city');
+            }
+
+            toast({
+                title: 'Success',
+                description: 'City has been reset successfully',
+            });
+
+            // Refresh the page to show the updated city
+            window.location.reload();
+        } catch (err) {
+            toast({
+                title: 'Error',
+                description: err instanceof Error ? err.message : 'Failed to reset city',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsResetting(false);
+        }
     };
 
     return (
@@ -139,14 +190,53 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHead
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5 }}
                 >
-                    {canEdit && (
-                        <FormSheet
-                            FormComponent={CityForm}
-                            formProps={{ city, cityMessage, onSuccess: () => setIsSheetOpen(false) }}
-                            title={t('editCity')}
-                            type="edit"
-                        />
-                    )}
+                    <div className="flex gap-2">
+                        {canEdit && (
+                            <FormSheet
+                                FormComponent={CityForm}
+                                formProps={{ city, cityMessage, onSuccess: () => setIsSheetOpen(false) }}
+                                title={t('editCity')}
+                                type="edit"
+                            />
+                        )}
+                        {isSuperAdmin && city.isPending && (
+                            <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
+                                <SheetTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <Database className="w-4 h-4 mr-2" />
+                                        Import Data
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent className="max-w-4xl w-full sm:max-w-4xl overflow-y-auto">
+                                    <SheetHeader>
+                                        <SheetTitle>City Creator</SheetTitle>
+                                        <SheetDescription>
+                                            Populate {city.name} with municipal data including parties, people, and roles.
+                                        </SheetDescription>
+                                    </SheetHeader>
+                                    <div className="mt-6">
+                                        <CityCreator
+                                            cityId={city.id}
+                                            cityName={city.name}
+                                            onSuccess={handleCityCreatorSuccess}
+                                            onCancel={() => setIsCityCreatorOpen(false)}
+                                        />
+                                    </div>
+                                </SheetContent>
+                            </Sheet>
+                        )}
+                        {IS_DEV && isSuperAdmin && !city.isPending && (
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={handleResetCity}
+                                disabled={isResetting}
+                            >
+                                {isResetting ? <Database className="w-4 h-4 mr-2 animate-spin" /> : <Database className="w-4 h-4 mr-2" />}
+                                Reset City
+                            </Button>
+                        )}
+                    </div>
                     {city.supportsNotifications && (
                         <Button
                             onClick={handleNotificationSignup}
@@ -198,7 +288,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHead
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.55, duration: 0.5 }}
                 >
-                    <CityMessageComponent 
+                    <CityMessageComponent
                         message={cityMessage}
                         className={!cityMessage.isActive && isSuperAdmin ? "opacity-75 border-dashed" : ""}
                     />

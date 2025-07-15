@@ -56,5 +56,5 @@ scripts/clear_advisory_locks.sh
 *.txt
 *.swp
 
-# Prompt logs
-logs/prompts/
+# Logs
+logs/

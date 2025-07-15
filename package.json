@@ -32,7 +32,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.33.1",
+    "@anthropic-ai/sdk": "^0.56.0",
     "@auth/core": "^0.39.1",
     "@auth/prisma-adapter": "^2.7.4",
     "@aws-sdk/client-s3": "^3.637.0",
