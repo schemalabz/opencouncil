@@ -181,22 +181,22 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
 /**
  * Retrieves cities based on user permissions and city status.
  */
-export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {    
+export async function getCities({ includeUnlisted = false, includePending = false }: { includeUnlisted?: boolean, includePending?: boolean } = {}): Promise<CityWithCounts[]> {
     // Get current user for authorization
     const currentUser = includeUnlisted ? await getCurrentUser() : null;
-    
+
     // Validate permissions
     if (includeUnlisted && !currentUser) {
         throw new Error("Not authorized to view unlisted cities");
     }
-    
+
     // Build where clause based on user permissions
     let whereClause: any = {
         // In Prisma, undefined means "ignore this condition entirely"
         // So we can use it to conditionally include or exclude pending cities
         isPending: includePending ? undefined : false
     };
-    
+
     if (!includeUnlisted) {
         // Public mode: only show listed cities
         whereClause.isListed = true;
@@ -205,7 +205,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
         const administerableCityIds = currentUser?.administers
             .filter(a => a.cityId)
             .map(a => a.cityId) || [];
-            
+
         whereClause = {
             ...whereClause,
             OR: [
@@ -218,7 +218,7 @@ export async function getCities({ includeUnlisted = false, includePending = fals
         };
     }
     // Superadmin mode: show all cities (no additional filter needed beyond isPending)
-    
+
     try {
         const cities = await prisma.city.findMany({
             where: whereClause,
@@ -277,4 +277,39 @@ export async function getCitiesWithGeometry(cities: City[]): Promise<CityWithGeo
             geometry: parsed
         };
     });
+}
+
+/**
+ * Check if a city can use the city creator tool.
+ * Returns true if the city exists and has no existing data, false otherwise.
+ */
+export async function canUseCityCreator(cityId: string): Promise<boolean> {
+    // Check if city exists
+    const city = await getCity(cityId);
+    if (!city) {
+        return false;
+    }
+
+    // Check if city has any existing data
+    const existingData = await prisma.city.findUnique({
+        where: { id: cityId },
+        include: {
+            parties: true,
+            persons: true,
+            councilMeetings: true,
+            roles: true,
+        },
+    });
+
+    if (existingData && (
+        existingData.parties.length > 0 ||
+        existingData.persons.length > 0 ||
+        existingData.councilMeetings.length > 0 ||
+        existingData.roles.length > 0
+    )) {
+        return false;
+    }
+
+    // City is eligible for city creator
+    return true;
 }

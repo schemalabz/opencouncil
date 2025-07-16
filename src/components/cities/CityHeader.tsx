@@ -25,9 +25,10 @@ type CityHeaderProps = {
     city: City,
     councilMeetingsCount: number,
     cityMessage: CityMessage | null,
+    hasNoData?: boolean,
 };
 
-export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHeaderProps) {
+export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData = false }: CityHeaderProps) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isCityCreatorOpen, setIsCityCreatorOpen] = useState(false);
@@ -199,7 +200,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage }: CityHead
                                 type="edit"
                             />
                         )}
-                        {isSuperAdmin && city.isPending && (
+                        {isSuperAdmin && (city.isPending || hasNoData) && (
                             <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
                                 <SheetTrigger asChild>
                                     <Button variant="outline" size="sm">

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { CityHeader } from "@/components/cities/CityHeader";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCouncilMeetingsCountForCityCached, getCityMessageCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsCountForCityCached, getCityMessageCached, getPartiesForCityCached, getPeopleForCityCached } from "@/lib/cache";
 export default async function TabsLayout({
     children,
     params: { cityId }
@@ -11,15 +11,20 @@ export default async function TabsLayout({
     children: React.ReactNode,
     params: { cityId: string }
 }) {
-    const [city, councilMeetingsCount, cityMessage] = await Promise.all([
+    const [city, councilMeetingsCount, cityMessage, parties, people] = await Promise.all([
         getCityCached(cityId),
         getCouncilMeetingsCountForCityCached(cityId),
-        getCityMessageCached(cityId)
+        getCityMessageCached(cityId),
+        getPartiesForCityCached(cityId),
+        getPeopleForCityCached(cityId)
     ]);
 
     if (!city) {
         notFound();
     }
+
+    // Check if city has no data (eligible for city creator)
+    const hasNoData = councilMeetingsCount === 0 && parties.length === 0 && people.length === 0;
 
     return (
         <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 space-y-8 z-0">
@@ -28,6 +33,7 @@ export default async function TabsLayout({
                     city={city}
                     councilMeetingsCount={councilMeetingsCount}
                     cityMessage={cityMessage}
+                    hasNoData={hasNoData}
                 />
 
                 <CityNavigation cityId={cityId} city={city as any} />

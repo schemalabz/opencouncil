@@ -1,41 +1,67 @@
 # City Creator
 
 ## Overview
-Build a city creator tool for superadmins to populate pending cities with municipal data. Only works on cities where `isPending = true` and no related data exists (meetings, people, parties, roles).
+A city creator tool for superadmins to populate cities with real municipal data using AI-powered web search. Works on cities that have no existing data (meetings, parties, people, or roles), regardless of their pending status.
 
-## Data Structure (see schema.prisma)
-- **City**: Main entity with `isPending` flag
-- **AdministrativeBody**: Council, committee, or community entities
-- **Party**: Political parties with colors and logos
-- **Person**: People with roles in the city
-- **Role**: Connects persons to cities/parties/administrative bodies
+## How It Works
 
-## Implementation Parts
+The system uses Claude Sonnet 4 with web search to find current information about Greek municipal councils, then generates a complete city structure with parties, people, and roles.
 
-### 1. AI Fill-in (Future Release)
-- **Current**: Return empty council JSON structure
-- **Future**: Web search for municipal information
-- **Output**: JSON matching `json-schemas/city.schema.json`
+### Data Structure
+- **Parties**: Political parties/coalitions in the council
+- **Administrative Bodies**: Council, committees, communities  
+- **People**: Council members, mayor, deputy mayors with embedded roles
+- **Roles**: Three types embedded in person objects:
+  - `party`: Party membership/leadership
+  - `city`: Mayor, deputy mayor positions
+  - `adminBody`: Administrative body membership
 
-### 2. Editing UI
-- **Location**: Single-screen interface
-- **Features**:
-  - Stats display: councillor count, party count, role count
-  - Edit all JSON fields inline
-  - Real-time JSON updates in browser
-- **Access**: Import button on city page (superadmins only)
+### User Flow
+1. Superadmin navigates to city page (pending or non-pending with no data)
+2. Clicks "Import Data" button (appears when city has no existing data)
+3. Clicks "✨ Import with AI" button
+4. AI searches web for municipal information using Greek queries
+5. System generates data matching `json-schemas/city.schema.json`
+6. User reviews/edits data in tabbed interface
+7. Click "Save" to create all entities and activate city (sets `city.isPending = false` if needed)
 
-### 3. Saving
-- **Process**: Single database transaction
-- **Actions**:
-  - Save JSON data to database using Prisma
-  - Set `city.isPending = false`
-- **Result**: City becomes active and visible
+## Technical Implementation
 
-## Entry Point
-Main city page → Import button (visible to superadmins only)
+### Eligibility Check (`canUseCityCreator`)
+- Centralized function checks if city can use creator
+- Verifies city exists and has no existing data (parties, people, meetings, roles)
+- Used across all API routes and UI components for consistency
 
-## Technical Notes
-- Browser-only data storage during editing
-- JSON schema validation required
-- Use Prisma API for database operations
+### AI Generation (`/api/cities/[cityId]/populate/ai`)
+- Uses eligibility check before proceeding
+- Uses web search to find current council member data
+- Handles incomplete information gracefully with null values
+- Validates against JSON schema and business logic
+- Searches for 15-30+ council members per municipality
+
+### Editing Interface
+- Full-screen modal with real-time stats dashboard
+- Tabbed interface: General, Parties, Admin Bodies, People
+- Inline editing with embedded role management
+- Form validation and error handling
+
+### Data Persistence (`/api/cities/[cityId]/populate`)
+- Uses eligibility check before saving
+- Single database transaction creates all entities
+- Proper foreign key relationship handling
+- Sets city as active upon completion
+
+## Access & Security
+- Superadmin permissions required
+- Only works on cities with no existing data (meetings, parties, people, roles)
+- Works on both pending and non-pending cities if they meet data criteria
+- Development reset available with `IS_DEV` environment check
+
+## Schema Design
+The JSON schema is flexible to handle real-world data collection:
+- Required fields: basic names and identifiers
+- Optional fields accept null for missing information
+- Embedded roles structure matches UI expectations
+- Graceful degradation for incomplete data
+
+This system enables rapid city setup with real municipal data rather than manual data entry, working seamlessly for both new pending cities and existing cities that need data population.

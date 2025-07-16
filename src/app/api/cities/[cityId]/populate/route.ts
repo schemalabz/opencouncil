@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
-import { getCity } from '@/lib/db/cities';
+import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { AdministrativeBodyType } from '@prisma/client';
 
@@ -55,32 +55,14 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const city = await getCity(params.cityId);
-        if (!city) {
-            return NextResponse.json({ error: 'City not found' }, { status: 404 });
-        }
-
-        if (!city.isPending) {
-            return NextResponse.json({ error: 'City is not pending' }, { status: 400 });
-        }
-
-        // Check if city has any existing data
-        const existingData = await prisma.city.findUnique({
-            where: { id: params.cityId },
-            include: {
-                parties: true,
-                persons: true,
-                councilMeetings: true,
-                roles: true,
-            },
-        });
-
-        if (existingData && (
-            existingData.parties.length > 0 ||
-            existingData.persons.length > 0 ||
-            existingData.councilMeetings.length > 0 ||
-            existingData.roles.length > 0
-        )) {
+        // Check if city can use city creator
+        const canUseCreator = await canUseCityCreator(params.cityId);
+        if (!canUseCreator) {
+            // Check if city exists to provide appropriate error message
+            const city = await getCity(params.cityId);
+            if (!city) {
+                return NextResponse.json({ error: 'City not found' }, { status: 404 });
+            }
             return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
@@ -118,13 +100,15 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const city = await getCity(params.cityId);
-        if (!city) {
-            return NextResponse.json({ error: 'City not found' }, { status: 404 });
-        }
-
-        if (!city.isPending) {
-            return NextResponse.json({ error: 'City is not pending' }, { status: 400 });
+        // Check if city can use city creator
+        const canUseCreator = await canUseCityCreator(params.cityId);
+        if (!canUseCreator) {
+            // Check if city exists to provide appropriate error message
+            const city = await getCity(params.cityId);
+            if (!city) {
+                return NextResponse.json({ error: 'City not found' }, { status: 404 });
+            }
+            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
         const body = await request.json();

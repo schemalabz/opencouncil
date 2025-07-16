@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { getCity } from '@/lib/db/cities';
-import prisma from '@/lib/db/prisma';
+import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import { generateCityDataWithAI } from '@/lib/cityCreatorAI';
 
 // POST: AI-powered city data population
@@ -16,33 +15,22 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // Check if city can use city creator
+        const canUseCreator = await canUseCityCreator(params.cityId);
+        if (!canUseCreator) {
+            // Check if city exists to provide appropriate error message
+            const city = await getCity(params.cityId);
+            if (!city) {
+                return NextResponse.json({ error: 'City not found' }, { status: 404 });
+            }
+            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
+        }
+
+        // Get city for AI generation (we know it exists from canUseCityCreator check)
         const city = await getCity(params.cityId);
         if (!city) {
+            // This should never happen after canUseCityCreator check, but TypeScript safety
             return NextResponse.json({ error: 'City not found' }, { status: 404 });
-        }
-
-        if (!city.isPending) {
-            return NextResponse.json({ error: 'City is not pending' }, { status: 400 });
-        }
-
-        // Check if city has any existing data
-        const existingData = await prisma.city.findUnique({
-            where: { id: params.cityId },
-            include: {
-                parties: true,
-                persons: true,
-                councilMeetings: true,
-                roles: true,
-            },
-        });
-
-        if (existingData && (
-            existingData.parties.length > 0 ||
-            existingData.persons.length > 0 ||
-            existingData.councilMeetings.length > 0 ||
-            existingData.roles.length > 0
-        )) {
-            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
         // Generate data using AI with web search

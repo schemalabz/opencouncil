@@ -69,6 +69,7 @@ And everyone -- except for independents -- should have a party role connecting t
 The mayor and deputy mayors should have city roles connecting them to city-wide positions.
 
 ROLES have NULL NAMES (null for both name and name_en) if they are simple "members" -- membership is implied. They only have names like "Αντιδήμαρχος Οικονομικών"/"Deputy Mayor of Finance" or "Πρόεδρος"/"President" if the role is something other than a simple member.
+The role name for the head of a party is "Επικεφαλής".
 
 HANDLING MISSING DATA:
 - If you can't find party information for someone, set partyName to null
