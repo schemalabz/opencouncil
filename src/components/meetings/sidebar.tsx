@@ -64,7 +64,7 @@ export default function MeetingSidebar() {
             setCanEdit(authorized)
         }
         checkAuth()
-    }, [meeting.id])
+    }, [meeting.id, meeting.cityId])
 
     const handleMenuItemClick = () => {
         // Only close sidebar on mobile

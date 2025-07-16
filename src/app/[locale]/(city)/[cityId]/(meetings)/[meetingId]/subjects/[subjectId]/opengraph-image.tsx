@@ -394,6 +394,7 @@ export default async function SubjectOgImage({
                                                 }}
                                             >
                                                 {person.image ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
                                                     <img
                                                         src={person.image}
                                                         alt={person.name}
