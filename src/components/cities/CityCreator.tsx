@@ -108,7 +108,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
 
             // Check if we got a streaming response
             const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/x-ndjson')) {
+            if (!contentType || !contentType.includes('text/event-stream')) {
                 // Fallback to regular JSON response
                 const result = await response.json();
                 if (result.success && result.data) {
@@ -142,9 +142,9 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                     buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
                     for (const line of lines) {
-                        if (line.trim()) { // Process non-empty lines
+                        if (line.startsWith('data: ')) { // Process SSE data lines
                             try {
-                                const data = JSON.parse(line);
+                                const data = JSON.parse(line.slice(6));
 
                                 if (data.type === 'status') {
                                     console.log('[AI Stream]', data.message);

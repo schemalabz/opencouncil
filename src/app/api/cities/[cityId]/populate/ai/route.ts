@@ -39,7 +39,7 @@ export async function POST(
                 const encoder = new TextEncoder();
 
                 const sendEvent = (type: string, data: any) => {
-                    const message = JSON.stringify({ type, ...data }) + '\n';
+                    const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
                     controller.enqueue(encoder.encode(message));
                 };
 
@@ -90,10 +90,9 @@ export async function POST(
 
         return new Response(stream, {
             headers: {
-                'Content-Type': 'application/x-ndjson',
+                'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive',
-                'Alt-Svc': 'clear', // Disable QUIC for this response
             },
         });
     } catch (error) {
