@@ -506,7 +506,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                             </Card>
                         ))}
                         {cityData.parties.length === 0 && (
-                            <p className="text-center text-muted-foreground py-8">No parties added yet. Click "Add Party" to get started.</p>
+                            <p className="text-center text-muted-foreground py-8">No parties added yet. Click &quot;Add Party&quot; to get started.</p>
                         )}
                     </TabsContent>
 
@@ -697,7 +697,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                             </Card>
                         ))}
                         {cityData.people.length === 0 && (
-                            <p className="text-center text-muted-foreground py-8">No people added yet. Click "Add Person" to get started.</p>
+                            <p className="text-center text-muted-foreground py-8">No people added yet. Click &quot;Add Person&quot; to get started.</p>
                         )}
                     </TabsContent>
 
@@ -759,7 +759,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                             </Card>
                         ))}
                         {cityData.administrativeBodies.length === 0 && (
-                            <p className="text-center text-muted-foreground py-8">No administrative bodies added yet. Click "Add Administrative Body" to get started.</p>
+                            <p className="text-center text-muted-foreground py-8">No administrative bodies added yet. Click &quot;Add Administrative Body&quot; to get started.</p>
                         )}
                     </TabsContent>
                 </Tabs>
