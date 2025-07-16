@@ -36,7 +36,7 @@ export async function POST(
         // Generate data using AI with web search
         const result = await generateCityDataWithAI(params.cityId, city.name, {
             useWebSearch: true,
-            webSearchMaxUses: 10
+            webSearchMaxUses: 15
         });
 
         if (!result.success) {

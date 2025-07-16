@@ -25,68 +25,137 @@ export async function generateCityDataWithAI(
 ): Promise<CityCreatorResult> {
     const { useWebSearch = true, webSearchMaxUses = 10 } = options;
 
-    const systemPrompt = `You are an expert municipal government researcher tasked with extracting information about city council members by searching the web. You must generate accurate, real data about city council members (δημοτικοί σύμβουλοι), the mayor, deputy mayors and party memberships.
+    const systemPrompt = `You are an expert municipal government researcher tasked with extracting comprehensive information about Greek city councils by searching the web. Your mission is to generate accurate, real data about municipal governance structures.
 
-CRITICAL REQUIREMENTS:
-1. Generate ONLY valid JSON that matches the provided schema exactly.
-2. Use real data from the web that is accurate and up to date.
-3. Completeness: Include as many council members as you can find.
-4. For missing information, use null values (not empty strings).
-5. Bilingual names can be inferred or translated if needed.
-6. Always provide at least basic required fields (name, name_en, name_short, name_short_en).
-7. For optional fields (image, profileUrl, activeFrom, activeTo, partyName), use null if not available.
-8. For roles: always specify type, use null for name/name_en if it's simple membership.
-9. Better to provide partial but accurate data than to skip people entirely.
-10. Do not get lazy! Municipal councils often have 15-30+ members.
+CORE MISSION: NEVER REFUSE TO PROVIDE DATA
+- You MUST ALWAYS return valid JSON, even if information is incomplete
+- NEVER say "I cannot find information" - always provide what you can find
+- It is ALWAYS better to provide partial data than no data
+- If you find even 1 council member, create a complete structure around them
+- Missing fields should be null, never skip entire records
+
+SEARCH STRATEGY FOR MAXIMUM DATA COLLECTION:
+1. Start with multiple search approaches simultaneously
+2. Use these Greek search patterns systematically:
+   - "{cityName} δημοτικό συμβούλιο 2023" (current council)
+   - "{cityName} δημοτικές εκλογές 2023 αποτελέσματα" (election results)
+   - "{cityName} δήμαρχος αντιδήμαρχοι" (mayor and deputies)
+   - "{cityName} δημοτικοί σύμβουλοι λίστα" (councilor list)
+   - "{cityName} δημοτικές παρατάξεις" (municipal parties)
+   - "{cityName} δημοτικό συμβούλιο μέλη 2024" (current members)
+3. Try alternative spellings and historical searches if current data is limited
+4. Search for meeting minutes, press releases, official announcements
+5. Look for party websites, candidate lists, election coverage
+
+DATA QUALITY STANDARDS:
+1. Generate ONLY valid JSON that matches the provided schema exactly
+2. Use real data from web searches - never fabricate information
+3. Greek municipal councils typically have 15-41 members - aim for completeness
+4. For missing information, use null values (not empty strings)
+5. Bilingual names can be inferred/translated if only one language is available
+6. Always provide at least basic required fields (name, name_en, name_short, name_short_en)
+7. For optional fields, use null if not available
+8. For roles: always specify type, use null for name/name_en if it's simple membership
+
+RESPONSE REQUIREMENTS:
+- Return ONLY the JSON data structure
+- No explanations, no markdown formatting, no additional text
+- Even if you find minimal information, structure it properly in the full schema
 
 JSON SCHEMA TO MATCH:
-${JSON.stringify(citySchemaJson, null, 2)}
+${JSON.stringify(citySchemaJson, null, 2)}`;
 
-RESPONSE FORMAT:
-Return ONLY the JSON data structure. No explanations, no markdown formatting, no additional text.`;
+    const userPrompt = `TARGET MUNICIPALITY: "${cityName}" (ID: ${cityId})
 
-    const userPrompt = `Research and generate comprehensive data for the city council of city: "${cityName}" (ID: ${cityId}).
+${useWebSearch ? `COMPREHENSIVE SEARCH PROTOCOL:
+Execute these searches systematically to maximize data collection:
 
-${useWebSearch ? `Use web search to find current information about:
-- Current mayor, deputy mayors and municipal council members.
-- Political parties (δημοτικπές παρατάξεις) active in this municipality -- NOT central political parties.
-- Recent municipal elections results
+PRIMARY SEARCHES (try all of these):
+1. "${cityName} δημοτικό συμβούλιο μέλη 2024"
+2. "${cityName} δημοτικές εκλογές 2023 αποτελέσματα"
+3. "${cityName} δήμαρχος ${new Date().getFullYear()}"
+4. "${cityName} αντιδήμαρχοι λίστα"
+5. "${cityName} δημοτικές παρατάξεις"
+6. "${cityName} δημοτικοί σύμβουλοι ονόματα"
 
-Search for information with queries like "${cityName} δημοτικοί σύμβουλοι", "${cityName} αντιδήμαρχοι", "${cityName} δημοτικό συμβούλιο" to get accurate current data.` : ''}
+SECONDARY SEARCHES (if primary data is limited):
+7. "${cityName} δημοτικό συμβούλιο 2023"
+8. "${cityName} δημοτική αρχή μέλη"
+9. "${cityName} εκλογές 2023 υποψήφιοι"
+10. "δήμος ${cityName} συμβούλιο"
 
-Generate a complete city council structure including:
-1. **Parties**: The parties (δημοτικπές παρατάξεις) present in the city council.
-2. **Administrative Bodies**: Create just the Δημοτικό Συμβούλιο (city council).
-3. **People**: The people who are members of the city council, with embedded roles for each person.
+FALLBACK SEARCHES (for historical data):
+11. "${cityName} δημοτικό συμβούλιο 2019-2023"
+12. "${cityName} προηγούμενο συμβούλιο"
 
-Each person should have a "roles" array with these types of roles:
-1. **Party roles** (type: "party"): indicates that a person is a member of a party (or a head of a party).
-2. **Administrative body roles** (type: "adminBody"): indicates that a person is a member of an administrative body. Every member of Δημοτικό Συμβούλιο should have this role.
-3. **City-wide roles** (type: "city"): mayor, deputy mayor etc.
+TARGET INFORMATION:
+- Current mayor and full name
+- All deputy mayors (αντιδήμαρχοι) with their portfolios
+- Complete list of municipal councilors (δημοτικοί σύμβουλοι)
+- Municipal parties/coalitions (δημοτικές παρατάξεις) - NOT national parties
+- Party leaders and member assignments
+- Council leadership (president, secretary, etc.)` : ''}
 
-Every council member (except the mayor, who is not part of the city council) should have an role to the Δημοτικό Συμβούλιο administrative body with empty name, making them a member of the city council.
-And everyone -- except for independents -- should have a party role connecting them to the party.
-The mayor and deputy mayors should have city roles connecting them to city-wide positions.
-Roles have NULL NAMES (null for both name and name_en) if they are simple "members" -- simple membership is implied. They only have names like "Αντιδήμαρχος Οικονομικών"/"Deputy Mayor of Finance" or "Πρόεδρος"/"President" if the role is something other than a simple member.
-The role name for the head of a party is "Επικεφαλής".
+MUNICIPAL STRUCTURE TO CREATE:
 
-HANDLING MISSING DATA:
-- If you can't find party information for someone, set partyName to null
-- If someone appears to be independent, don't create a party role for them
-- If you can't find exact role titles, use null for role names
-- If you can't find images or profile URLs, set them to null
-- If you can't find active dates, set them to null
-- Always include at least the basic name fields and role types
+1. **PARTIES SECTION**:
+   - Municipal parties/coalitions that won seats in the council
+   - Typically 3-8 parties depending on municipality size
+   - Use actual party names, not national party names
+   - Include party colors if available from election materials
 
-Ensure all data is:
-- Factually accurate and complete.
-- Properly formatted with bilingual naming
-- Structurally sound with valid relationships
-- Complete with all required schema fields.
+2. **ADMINISTRATIVE BODIES SECTION**:
+   - Create exactly one body: "Δημοτικό Συμβούλιο" / "Municipal Council" (type: "council")
 
-Do not make up any data -- rely only on web search results.
+3. **PEOPLE SECTION**:
+   - Mayor + all deputy mayors + all municipal councilors
+   - Greek councils range from 15 members (small) to 41 members (large cities)
+   - Include ALL people you find - don't limit arbitrarily
 
-Generate the JSON structure now:`;
+ROLE ASSIGNMENT LOGIC:
+Each person gets specific roles in their "roles" array:
+
+**Council Members**: 
+- Role type "adminBody" connecting to "Δημοτικό Συμβούλιο"
+- Role name is null for regular members
+- Role name is "Πρόεδρος"/"President" for council president
+- Role name is "Γραμματέας"/"Secretary" for council secretary
+
+**Party Members**:
+- Role type "party" connecting to their municipal party
+- Role name is null for regular party members  
+- Role name is "Επικεφαλής"/"Leader" for party leaders
+
+**City Officials**:
+- Role type "city" with specific titles:
+  - "Δήμαρχος"/"Mayor"
+  - "Αντιδήμαρχος Οικονομικών"/"Deputy Mayor of Finance"
+  - "Αντιδήμαρχος Τεχνικών Υπηρεσιών"/"Deputy Mayor of Technical Services"
+  - etc. (use actual portfolios found)
+
+**Independents**: 
+- Have adminBody role for council membership
+- Have city role if they're mayor/deputy mayor
+- NO party role
+
+DATA COMPLETION REQUIREMENTS:
+- NEVER skip a person because information is incomplete
+- If you find someone's name but not their party → include them with partyName: null
+- If you find a party but not all members → include the party and whatever members you find
+- If you find only partial names → use what you have and make reasonable short versions
+- If you find only Greek names → translate to English as best you can
+- If you find only English names → transliterate to Greek
+
+MINIMUM SUCCESS CRITERIA:
+Even if searches yield limited results, you MUST provide:
+- At least the mayor (if you can find their name)
+- At least 1-2 council members (if you can find any)
+- At least 1 party (even if it's "Δημοτική Παράταξη" as a generic party)
+- The "Δημοτικό Συμβούλιο" administrative body
+
+Remember: Partial accurate data is infinitely better than no data. Greek municipalities are well-documented online - with systematic searching you should find substantial information.
+
+Generate the complete JSON structure now:`;
 
     const config: Partial<AIConfig> = {
         maxTokens: 16384,
