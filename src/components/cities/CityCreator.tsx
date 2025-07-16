@@ -88,7 +88,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
         loadData();
     }, [cityId]);
 
-    // Handle AI import
+    // Handle AI import with streaming
     const handleAiImport = async () => {
         setAiLoading(true);
         setError(null);
@@ -106,16 +106,69 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                 throw new Error(errorData.error || 'Failed to generate AI data');
             }
 
-            const result = await response.json();
+            // Check if we got a streaming response
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/x-ndjson')) {
+                // Fallback to regular JSON response
+                const result = await response.json();
+                if (result.success && result.data) {
+                    setCityData(result.data);
+                    toast({
+                        title: 'Success',
+                        description: 'AI data generation completed successfully',
+                    });
+                } else {
+                    throw new Error(result.error || 'Invalid response from AI service');
+                }
+                return;
+            }
 
-            if (result.success && result.data) {
-                setCityData(result.data);
-                toast({
-                    title: 'Success',
-                    description: 'AI data generation completed successfully',
-                });
-            } else {
-                throw new Error('Invalid response from AI service');
+            // Handle streaming response
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('Failed to get stream reader');
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (line.trim()) { // Process non-empty lines
+                            try {
+                                const data = JSON.parse(line);
+
+                                if (data.type === 'status') {
+                                    console.log('[AI Stream]', data.message);
+                                } else if (data.type === 'complete') {
+                                    if (data.success && data.data) {
+                                        setCityData(data.data);
+                                        toast({
+                                            title: 'Success',
+                                            description: 'AI data generation completed successfully',
+                                        });
+                                    } else {
+                                        throw new Error('Invalid completion data');
+                                    }
+                                } else if (data.type === 'error') {
+                                    throw new Error(data.error || 'AI generation failed');
+                                }
+                            } catch (parseError) {
+                                console.error('Failed to parse stream data:', line);
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to generate AI data');
