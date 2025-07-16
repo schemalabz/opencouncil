@@ -93,6 +93,7 @@ export async function POST(
                 'Content-Type': 'application/x-ndjson',
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive',
+                'Alt-Svc': 'clear', // Disable QUIC for this response
             },
         });
     } catch (error) {
