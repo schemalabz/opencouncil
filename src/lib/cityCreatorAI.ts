@@ -64,11 +64,10 @@ Each person should have a "roles" array with these types of roles:
 2. **Administrative body roles** (type: "adminBody"): indicates that a person is a member of an administrative body. Every member of Δημοτικό Συμβούλιο should have this role.
 3. **City-wide roles** (type: "city"): mayor, deputy mayor etc.
 
-So every council member (except the mayor, who technically is not part of the city council) should have an adminBody role with empty name connecting them to the administrative body of the city council.
+Every council member (except the mayor, who is not part of the city council) should have an role to the Δημοτικό Συμβούλιο administrative body with empty name, making them a member of the city council.
 And everyone -- except for independents -- should have a party role connecting them to the party.
 The mayor and deputy mayors should have city roles connecting them to city-wide positions.
-
-ROLES have NULL NAMES (null for both name and name_en) if they are simple "members" -- membership is implied. They only have names like "Αντιδήμαρχος Οικονομικών"/"Deputy Mayor of Finance" or "Πρόεδρος"/"President" if the role is something other than a simple member.
+Roles have NULL NAMES (null for both name and name_en) if they are simple "members" -- simple membership is implied. They only have names like "Αντιδήμαρχος Οικονομικών"/"Deputy Mayor of Finance" or "Πρόεδρος"/"President" if the role is something other than a simple member.
 The role name for the head of a party is "Επικεφαλής".
 
 HANDLING MISSING DATA:
