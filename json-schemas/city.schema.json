@@ -1,0 +1,205 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "City Council Structure",
+    "description": "Complete structure for a city council that maps directly to the Prisma schema",
+    "type": "object",
+    "properties": {
+        "cityId": {
+            "type": "string",
+            "description": "Reference to existing city ID in the database"
+        },
+        "parties": {
+            "type": "array",
+            "description": "Political parties/coalitions in the council",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "name_en": {
+                        "type": "string"
+                    },
+                    "name_short": {
+                        "type": "string"
+                    },
+                    "name_short_en": {
+                        "type": "string"
+                    },
+                    "colorHex": {
+                        "type": "string",
+                        "pattern": "^#[0-9a-fA-F]{6}$"
+                    },
+                    "logo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "URL to party logo"
+                    }
+                },
+                "required": [
+                    "name",
+                    "name_en",
+                    "name_short",
+                    "name_short_en",
+                    "colorHex"
+                ]
+            }
+        },
+        "administrativeBodies": {
+            "type": "array",
+            "description": "Administrative bodies like council, committees, communities",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "name_en": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "council",
+                            "committee",
+                            "community"
+                        ]
+                    }
+                },
+                "required": [
+                    "name",
+                    "name_en",
+                    "type"
+                ]
+            }
+        },
+        "people": {
+            "type": "array",
+            "description": "All people in the council",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "name_en": {
+                        "type": "string"
+                    },
+                    "name_short": {
+                        "type": "string"
+                    },
+                    "name_short_en": {
+                        "type": "string"
+                    },
+                    "image": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "URL to person's photo"
+                    },
+                    "isAdministrativeRole": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "activeFrom": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "activeTo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "profileUrl": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "partyName": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Reference to party name (null for independents)"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "description": "Roles assigned to this person",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "party",
+                                        "city",
+                                        "adminBody"
+                                    ],
+                                    "description": "Type of role: party membership, city-wide position, or administrative body role"
+                                },
+                                "name": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Role name in local language (empty/null for simple membership)"
+                                },
+                                "name_en": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Role name in English (empty/null for simple membership)"
+                                },
+                                "isHead": {
+                                    "type": "boolean",
+                                    "default": false,
+                                    "description": "Whether this person is head of the party/body"
+                                },
+                                "partyName": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Party name for party-type roles"
+                                },
+                                "administrativeBodyName": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "Administrative body name for adminBody-type roles"
+                                }
+                            },
+                            "required": [
+                                "type"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "name_en",
+                    "name_short",
+                    "name_short_en"
+                ]
+            }
+        }
+    },
+    "required": [
+        "cityId",
+        "parties",
+        "administrativeBodies",
+        "people"
+    ],
+    "additionalProperties": false
+}

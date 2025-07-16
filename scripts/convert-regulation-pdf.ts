@@ -36,7 +36,7 @@ class RegulationConverter {
 
     constructor() {
         // Load and setup JSON schema validation
-        const schemaPath = path.join(process.cwd(), 'regulation.schema.json');
+        const schemaPath = path.join(process.cwd(), 'json-schemas/regulation.schema.json');
         this.schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 
         this.ajv = new Ajv({
