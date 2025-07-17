@@ -137,6 +137,29 @@ This command:
 
 Note: This command only affects Docker resources related to OpenCouncil and won't interfere with other Docker projects on your system.
 
+## Connecting to the Task Server
+
+For local development that requires communication with the `opencouncil-tasks` project, our Docker setup is pre-configured to facilitate this.
+
+- The `docker-compose.dev.yml` file defines a shared Docker network named `opencouncil-net`.
+- The `./run.sh` script automatically applies this file when you run in the default development mode.
+
+This allows the main OpenCouncil application to communicate with the services in the `opencouncil-tasks` project, as long as the `opencouncil-tasks` services are also configured to join the `opencouncil-net` network.
+
+For proper bidirectional communication between the applications, you need to configure two environment variables in your `.env` file:
+
+```bash
+# Used by OpenCouncil to send requests to the task server
+TASK_API_URL=http://opencouncil-tasks-app-1:3005
+
+# Used to construct callback URLs that the task server uses to report task completion status back to OpenCouncil
+NEXT_PUBLIC_BASE_URL=http://opencouncil-app-dev-1:3000
+```
+
+The service names (`opencouncil-tasks-app-1` and `opencouncil-app-dev-1`) are derived from the respective project's `docker-compose.yml` files, and the ports correspond to the internal container ports.
+
+
+
 ## Development Mode Caching
 
 When running in development mode (`./run.sh`), the application uses Docker volumes to mount your local code into the container. This setup, combined with Next.js's data caching, means that if you switch between local and remote databases during development, you may need to clear the Next.js cache to see the updated data.

@@ -180,4 +180,9 @@ fi
 check_config_changed
 
 # Run docker compose with profiles
-docker compose --env-file $ENV_FILE $PROFILES up $DETACHED $EXTRA_OPTIONS
+COMPOSE_FILES="-f docker-compose.yml"
+if [ "$MODE" = "dev" ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.dev.yml"
+fi
+
+docker compose --env-file $ENV_FILE $COMPOSE_FILES $PROFILES up $DETACHED $EXTRA_OPTIONS
