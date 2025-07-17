@@ -46,6 +46,8 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         cityName: city.name,
         partiesWithPeople: parties.map(p => ({
             name: p.name,
+            // Note: Currently using deprecated partyId since roles are not included in this query
+            // TODO: Update to use roles-based party determination when roles are available
             people: people.filter(person => person.partyId === p.id).map(person => ({
                 name: person.name,
                 role: person.role || ''

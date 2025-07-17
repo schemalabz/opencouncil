@@ -29,10 +29,10 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768); // 768px is the standard md breakpoint
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        
+
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
@@ -91,6 +91,8 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const onPersonChange = (personName: string | null) => {
         const person = people.find(p => p.name_short === personName);
         if (person) {
+            // Note: Currently using deprecated partyId since roles are not included in this query
+            // TODO: Update to use roles-based party determination when roles are available
             setFilters({ ...filters, personId: person.id, partyId: person.partyId ?? undefined });
         } else {
             setFilters({ ...filters, personId: undefined });
@@ -101,17 +103,17 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const availablePeople = selectedPartyId ? people.filter(p => p.partyId === selectedPartyId) : people;
 
     // Memoize selected values
-    const selectedCity = useMemo(() => 
+    const selectedCity = useMemo(() =>
         cities.find(c => c.id === filters.cityId) ?? null,
         [cities, filters.cityId]
     );
 
-    const selectedParty = useMemo(() => 
+    const selectedParty = useMemo(() =>
         parties.find(p => p.id === filters.partyId) ?? null,
         [parties, filters.partyId]
     );
 
-    const selectedPerson = useMemo(() => 
+    const selectedPerson = useMemo(() =>
         people.find(p => p.id === filters.personId) ?? null,
         [people, filters.personId]
     );
@@ -186,8 +188,8 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     if (isMobile) {
         return (
             <>
-                <Button 
-                    variant="outline" 
+                <Button
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => setIsOpen(true)}
                 >

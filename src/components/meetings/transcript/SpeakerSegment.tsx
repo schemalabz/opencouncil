@@ -107,7 +107,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 onLabelChange={handleLabelChange}
                                                 availablePeople={people.map(p => ({
                                                     ...p,
-                                                    party: p.partyId ? getParty(p.partyId) || null : null
+                                                    party: getPartyFromRoles(p.roles)
                                                 }))}
                                             />
                                         )}
