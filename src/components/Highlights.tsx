@@ -13,6 +13,7 @@ import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
 import { PersonBadge } from "./persons/PersonBadge";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { HighlightVideo } from '@/components/meetings/HighlightVideo';
+import { getPartyFromRoles } from "@/lib/utils";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean, canEdit: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
@@ -247,7 +248,8 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                             }
                             const speakerTag = getSpeakerTag(segment?.speakerTagId!);
                             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                            const party = person?.partyId ? getParty(person.partyId) : undefined;
+                            // Use roles-based party determination (same logic as PersonBadge)
+                            const party = person ? getPartyFromRoles(person.roles) : null;
                             if (!speakerTag) {
                                 console.error("speakerTag not found for segment", segment?.id);
                             }
