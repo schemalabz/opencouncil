@@ -58,8 +58,6 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_BASE_URL: z.string().url(),
-    NEXT_PUBLIC_URL: z.string().url(),
-    NEXT_PUBLIC_MAIN_DOMAIN: z.string(),
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().min(1),
     NEXT_PUBLIC_CONTACT_PHONE: z.string().optional(),
     NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
@@ -97,8 +95,6 @@ export const env = createEnv({
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-    NEXT_PUBLIC_URL: process.env.NEXT_PUBLIC_URL,
-    NEXT_PUBLIC_MAIN_DOMAIN: process.env.NEXT_PUBLIC_MAIN_DOMAIN,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:
       process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
     NEXT_PUBLIC_CONTACT_PHONE: process.env.NEXT_PUBLIC_CONTACT_PHONE,

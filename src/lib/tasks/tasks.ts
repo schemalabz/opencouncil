@@ -39,7 +39,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     });
 
     // Prepare callback URL
-    const callbackUrl = `${env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
+    const callbackUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
     console.log(`Callback URL: ${callbackUrl}`);
 
     // Add callback URL to request body

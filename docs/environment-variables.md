@@ -50,8 +50,6 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 |----------|-------------|----------|---------|
 | `NODE_ENV` | Environment (development/production/test). | No | `development` |
 | `NEXT_PUBLIC_BASE_URL` | Base URL of the application. | Yes | - |
-| `NEXT_PUBLIC_URL` | Full URL for authentication and callbacks. | Yes | - |
-| `NEXT_PUBLIC_MAIN_DOMAIN` | Main domain for the application. | Yes | - |
 
 ### Authentication
 | Variable | Description | Required | Default |

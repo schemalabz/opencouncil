@@ -302,8 +302,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
     // Helper function to fetch regulation data
     const fetchRegulationData = async (jsonUrl: string): Promise<RegulationData | null> => {
         try {
-            const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await fetch(jsonUrl, { cache: 'no-store' });
             if (!response.ok) return null;
             return await response.json();
         } catch (error) {
