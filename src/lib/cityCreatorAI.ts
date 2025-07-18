@@ -37,12 +37,10 @@ CORE MISSION: NEVER REFUSE TO PROVIDE DATA
 SEARCH STRATEGY FOR MAXIMUM DATA COLLECTION:
 1. Start with multiple search approaches simultaneously
 2. Use these Greek search patterns systematically:
-   - "{cityName} δημοτικό συμβούλιο 2023" (current council)
-   - "{cityName} δημοτικές εκλογές 2023 αποτελέσματα" (election results)
+   - "{cityName} δημοτικό συμβούλιο " (current council)
    - "{cityName} δήμαρχος αντιδήμαρχοι" (mayor and deputies)
    - "{cityName} δημοτικοί σύμβουλοι λίστα" (councilor list)
    - "{cityName} δημοτικές παρατάξεις" (municipal parties)
-   - "{cityName} δημοτικό συμβούλιο μέλη 2024" (current members)
 3. Try alternative spellings and historical searches if current data is limited
 4. Search for meeting minutes, press releases, official announcements
 5. Look for party websites, candidate lists, election coverage
