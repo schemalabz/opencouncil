@@ -149,9 +149,11 @@ Even if searches yield limited results, you MUST provide:
 - At least the mayor (if you can find their name)
 - At least 1-2 council members (if you can find any)
 - At least 1 party (even if it's "Δημοτική Παράταξη" as a generic party)
+- At leaast a few simple council members ("Δημοτικοί σύμβουλοι")
 - The "Δημοτικό Συμβούλιο" administrative body
 
 Remember: Partial accurate data is infinitely better than no data. Greek municipalities are well-documented online - with systematic searching you should find substantial information.
+We care about all Δημοτικοί Σύμβουλοι, not just deputy mayors and heads of parties.
 
 Generate the complete JSON structure now:`;
 
