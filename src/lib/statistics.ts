@@ -2,6 +2,7 @@
 import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, TopicLabel, Role } from "@prisma/client";
 import prisma from "./db/prisma";
 import { PersonWithRelations } from "./db/people";
+import { getPartyFromRoles } from "./utils";
 
 export type TopicStatistics = Required<Pick<Statistics, 'topics'>> & Omit<Statistics, 'topics'>;
 export type PartyStatistics = Required<Pick<Statistics, 'parties'>> & Omit<Statistics, 'parties'>;
@@ -50,6 +51,16 @@ export async function getStatisticsFor(
     groupBy: ("person" | "topic" | "party")[]
 ): Promise<Statistics> {
     let transcript: SpeakerSegmentInfo[];
+    let meetingDate: Date | undefined;
+
+    // Get meeting date if meetingId is provided, for role date checking
+    if (meetingId && cityId) {
+        const meeting = await prisma.councilMeeting.findUnique({
+            where: { cityId_id: { cityId, id: meetingId } },
+            select: { dateTime: true }
+        });
+        meetingDate = meeting?.dateTime;
+    }
 
     transcript = await prisma.speakerSegment.findMany({
         where: {
@@ -57,13 +68,8 @@ export async function getStatisticsFor(
             cityId: cityId,
             speakerTag: {
                 personId: personId,
-                person: partyId ? {
-                    roles: {
-                        some: {
-                            partyId: partyId
-                        }
-                    }
-                } : undefined
+                // Remove party filtering from query - we'll filter in application code
+                // to ensure we only include segments from when person was actually affiliated with the party
             },
             subjects: subjectId ? {
                 // TODO: this is somewhat incorrect, as a speaker segment can have multiple subjects.
@@ -105,7 +111,17 @@ export async function getStatisticsFor(
         }
     });
 
-    return getStatisticsForTranscript(transcript, groupBy);
+    // Filter by party in application code to ensure role was active at meeting time
+    if (partyId && meetingDate) {
+        transcript = transcript.filter(segment => {
+            const person = segment.speakerTag.person;
+            if (!person) return false;
+            const activeParty = getPartyFromRoles(person.roles, meetingDate);
+            return activeParty?.id === partyId;
+        });
+    }
+
+    return getStatisticsForTranscript(transcript, groupBy, meetingDate);
 }
 
 function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
@@ -136,7 +152,7 @@ function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSeg
     return joinedSegments;
 }
 
-export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[], groupBy: ("person" | "topic" | "party")[]): Promise<Statistics> {
+export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[], groupBy: ("person" | "topic" | "party")[], meetingDate?: Date): Promise<Statistics> {
     const statistics: Statistics = {
         speakingSeconds: 0
     };
@@ -167,18 +183,18 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         }
 
         // Handle party statistics
-        if (groupBy.includes("party") && segment.speakerTag.person?.roles) {
-            segment.speakerTag.person.roles.forEach((role) => {
-                if (role.party && !segment.speakerTag.person?.isAdministrativeRole) { // e.g. council chair
-                    const partyStatistics = statistics.parties!.find(p => p.item.id === role.party!.id);
-                    if (partyStatistics) {
-                        partyStatistics.speakingSeconds += segmentDuration;
-                        partyStatistics.count++;
-                    } else {
-                        statistics.parties!.push({ item: role.party, speakingSeconds: segmentDuration, count: 1 });
-                    }
+        if (groupBy.includes("party") && segment.speakerTag.person?.roles && !segment.speakerTag.person?.isAdministrativeRole) {
+            // Get the party the person was affiliated with at the time of speaking
+            const activeParty = getPartyFromRoles(segment.speakerTag.person.roles, meetingDate);
+            if (activeParty) {
+                const partyStatistics = statistics.parties!.find(p => p.item.id === activeParty.id);
+                if (partyStatistics) {
+                    partyStatistics.speakingSeconds += segmentDuration;
+                    partyStatistics.count++;
+                } else {
+                    statistics.parties!.push({ item: activeParty, speakingSeconds: segmentDuration, count: 1 });
                 }
-            });
+            }
         }
 
         // Handle topic statistics

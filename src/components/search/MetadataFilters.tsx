@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Combobox from "../Combobox";
-import { cn } from "@/lib/utils";
+import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { City, Party, Person } from "@prisma/client";
@@ -91,21 +91,22 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const onPersonChange = (personName: string | null) => {
         const person = people.find(p => p.name_short === personName);
         if (person) {
-            // Auto-select party from person's active roles
-            const activePartyRole = person.roles.find(role => role.party);
-            const partyId = activePartyRole?.party?.id;
+            // Auto-select party from person's currently active roles
+            const activeParty = getPartyFromRoles(person.roles);
+            const partyId = activeParty?.id;
             setFilters({ ...filters, personId: person.id, partyId });
         } else {
             setFilters({ ...filters, personId: undefined });
         }
     }
 
-    // Filter people by selected party through their roles
+    // Filter people by selected party through their currently active roles
     const availablePeople = useMemo(() => {
         if (!filters.partyId) return people;
-        return people.filter(person =>
-            person.roles.some(role => role.party?.id === filters.partyId)
-        );
+        return people.filter(person => {
+            const activeParty = getPartyFromRoles(person.roles);
+            return activeParty?.id === filters.partyId;
+        });
     }, [people, filters.partyId]);
 
     // Memoize selected values
