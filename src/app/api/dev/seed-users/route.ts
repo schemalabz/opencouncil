@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { NextResponse } from "next/server"
 import { subDays } from "date-fns"
+import { IS_DEV } from '@/lib/utils'
 import { saveNotificationPreferences, savePetition } from "@/lib/db/notifications"
 
 interface SeedRequest {
@@ -18,6 +19,10 @@ function getRandomItems<T>(array: T[], min: number, max: number): T[] {
 }
 
 export async function POST(request: Request) {
+    // Only allow in development environment
+    if (!IS_DEV) {
+        return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
+    }
     try {
         const user = await getCurrentUser()
         console.log("Archetype Seed API - User check:", user ? { id: user.id, email: user.email, isSuperAdmin: user.isSuperAdmin } : "No user")

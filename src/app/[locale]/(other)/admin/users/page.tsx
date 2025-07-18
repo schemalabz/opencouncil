@@ -12,6 +12,7 @@ import { UserStats } from "@/components/admin/users/user-stats"
 import { AnalyticsDashboard } from "@/components/admin/users/analytics-dashboard"
 import { SeedUsersDialog } from "@/components/admin/users/seed-users-dialog"
 import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
+import { IS_DEV } from '@/lib/utils'
 import { UserWithRelations } from "@/lib/types"
 
 export default function UsersPage() {
@@ -156,7 +157,7 @@ export default function UsersPage() {
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold">User Management</h1>
                 <div className="flex gap-2">
-                    <SeedUsersDialog onUsersCreated={refreshUsers} />
+                    {IS_DEV && <SeedUsersDialog onUsersCreated={refreshUsers} />}
                     <Button onClick={onCreateUser}>
                         <PlusIcon className="mr-2 h-4 w-4" />
                         Create User
