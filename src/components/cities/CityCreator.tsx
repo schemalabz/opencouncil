@@ -14,6 +14,7 @@ import { AlertCircle, Users, Building2, UserCheck, Save, Loader2, Sparkles } fro
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface CityCreatorProps {
     cityId: string;
@@ -65,6 +66,8 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const [saving, setSaving] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [userProvidedText, setUserProvidedText] = useState<string>('');
+    const [showAiDialog, setShowAiDialog] = useState(false);
     const { toast } = useToast();
 
     // Load initial data
@@ -88,17 +91,37 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
         loadData();
     }, [cityId]);
 
-    // Handle AI import with streaming
-    const handleAiImport = async () => {
+    // Handle opening AI dialog
+    const handleAiImport = () => {
+        setShowAiDialog(true);
+    };
+
+    // Handle closing AI dialog (clear text input)
+    const handleAiDialogClose = (open: boolean) => {
+        setShowAiDialog(open);
+        if (!open && !aiLoading) {
+            // Clear text when dialog is closed (but not when AI is processing)
+            setUserProvidedText('');
+        }
+    };
+
+    // Handle actual AI import with streaming
+    const handleAiImportExecute = async () => {
         setAiLoading(true);
         setError(null);
 
         try {
+            const hasUserText = userProvidedText.trim().length > 0;
             const response = await fetch(`/api/cities/${cityId}/populate/ai`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                ...(hasUserText && {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userProvidedText: userProvidedText.trim()
+                    }),
+                })
             });
 
             if (!response.ok) {
@@ -179,6 +202,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
             });
         } finally {
             setAiLoading(false);
+            setShowAiDialog(false);
         }
     };
 
@@ -817,6 +841,72 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* AI Import Dialog */}
+            <Dialog open={showAiDialog} onOpenChange={handleAiDialogClose}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Import with AI</DialogTitle>
+                        <DialogDescription>
+                            The AI will search the web for municipal data about {cityName}.
+                            Optionally, you can provide additional text data to help guide the search.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="user-text">Additional Text Data (Optional)</Label>
+                            <Textarea
+                                id="user-text"
+                                placeholder="Paste list of council members, municipal data, or other relevant information here..."
+                                value={userProvidedText}
+                                onChange={(e) => setUserProvidedText(e.target.value)}
+                                disabled={aiLoading}
+                                rows={8}
+                                className="w-full mt-2"
+                            />
+                            {userProvidedText.length > 0 && (
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    {userProvidedText.length} characters • The AI will prioritize this data over web search
+                                </p>
+                            )}
+                        </div>
+
+                        {aiLoading && (
+                            <div className="flex items-center gap-2 text-blue-600">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span className="text-sm">AI is searching the web and generating content...</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleAiDialogClose(false)}
+                            disabled={aiLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleAiImportExecute}
+                            disabled={aiLoading}
+                        >
+                            {aiLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4 mr-2" />
+                                    Generate Data
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 } 

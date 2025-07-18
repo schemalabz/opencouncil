@@ -26,6 +26,21 @@ export async function POST(
             return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
+        // Parse request body for optional user-provided text
+        let userProvidedText: string | undefined;
+        try {
+            // Only try to parse if there's actually a body
+            const contentLength = request.headers.get('content-length');
+            if (contentLength && parseInt(contentLength) > 0) {
+                const body = await request.json();
+                userProvidedText = body.userProvidedText?.trim() || undefined;
+            }
+        } catch (error) {
+            // If body parsing fails, continue without user text
+            console.warn('Failed to parse request body for user text:', error);
+            userProvidedText = undefined;
+        }
+
         // Get city for AI generation (we know it exists from canUseCityCreator check)
         const city = await getCity(params.cityId);
         if (!city) {
@@ -53,7 +68,8 @@ export async function POST(
                     // Generate data using AI with web search
                     const result = await generateCityDataWithAI(params.cityId, city.name, {
                         useWebSearch: true,
-                        webSearchMaxUses: 3
+                        webSearchMaxUses: 3,
+                        userProvidedText
                     });
 
                     if (!result.success) {

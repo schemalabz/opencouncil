@@ -21,9 +21,10 @@ export async function generateCityDataWithAI(
     options: {
         useWebSearch?: boolean;
         webSearchMaxUses?: number;
+        userProvidedText?: string;
     } = {}
 ): Promise<CityCreatorResult> {
-    const { useWebSearch = true, webSearchMaxUses = 10 } = options;
+    const { useWebSearch = true, webSearchMaxUses = 10, userProvidedText } = options;
 
     const systemPrompt = `You are an expert municipal government researcher tasked with extracting comprehensive information about Greek city councils by searching the web. Your mission is to generate accurate, real data about municipal governance structures.
 
@@ -54,6 +55,7 @@ DATA QUALITY STANDARDS:
 6. Always provide at least basic required fields (name, name_en, name_short, name_short_en)
 7. For optional fields, use null if not available
 8. For roles: always specify type, use null for name/name_en if it's simple membership
+9. For names: use the conventional form (not all caps, first name first). The short name for e.g. Έφη Σπυροπούλου is Ε. Σπυροπούλου.
 
 RESPONSE REQUIREMENTS:
 - Return ONLY the JSON data structure
@@ -65,7 +67,16 @@ ${JSON.stringify(citySchemaJson, null, 2)}`;
 
     const userPrompt = `TARGET MUNICIPALITY: "${cityName}" (ID: ${cityId})
 
-${useWebSearch ? `COMPREHENSIVE SEARCH PROTOCOL:
+${userProvidedText ? `USER-PROVIDED DATA:
+The user has provided the following text that contains information about this municipality. Use this as your PRIMARY data source and supplement with web search as needed:
+
+---
+${userProvidedText}
+---
+
+Please extract all relevant information from this text, including names of council members, parties, roles, etc. This user-provided data should be prioritized over web search results where there are conflicts. Yet, people should be deduplicated, and their names should appear in the conventional form (not all caps, first name first).
+
+` : ''}${useWebSearch ? `COMPREHENSIVE SEARCH PROTOCOL:
 Execute these searches systematically to maximize data collection:
 
 PRIMARY SEARCHES (try all of these):
@@ -167,6 +178,7 @@ Generate the complete JSON structure now:`;
     try {
         console.log(`[AI City Creator] Generating data for ${cityName} (${cityId})`);
         console.log(`[AI City Creator] Web search enabled: ${useWebSearch}`);
+        console.log(`[AI City Creator] User-provided text: ${userProvidedText ? `${userProvidedText.length} characters` : 'none'}`);
 
         const result = await aiChat(systemPrompt, userPrompt, undefined, undefined, config);
 
