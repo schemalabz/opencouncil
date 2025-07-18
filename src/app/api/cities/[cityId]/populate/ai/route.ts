@@ -33,23 +33,25 @@ export async function POST(
             return NextResponse.json({ error: 'City not found' }, { status: 404 });
         }
 
+        // Parse request body for optional user-provided text BEFORE streaming
+        let userProvidedText: string | undefined;
+        try {
+            // Clone the request to avoid consuming the original stream
+            const clonedRequest = request.clone();
+            const contentLength = clonedRequest.headers.get('content-length');
+            if (contentLength && parseInt(contentLength) > 0) {
+                const body = await clonedRequest.json();
+                userProvidedText = body.userProvidedText?.trim() || undefined;
+            }
+        } catch (error) {
+            // If body parsing fails, continue without user text
+            console.warn('Failed to parse request body for user text:', error);
+            userProvidedText = undefined;
+        }
+
         // Create a streaming response
         const stream = new ReadableStream({
             async start(controller) {
-                // Parse request body for optional user-provided text INSIDE the stream
-                let userProvidedText: string | undefined;
-                try {
-                    // Only try to parse if there's actually a body
-                    const contentLength = request.headers.get('content-length');
-                    if (contentLength && parseInt(contentLength) > 0) {
-                        const body = await request.json();
-                        userProvidedText = body.userProvidedText?.trim() || undefined;
-                    }
-                } catch (error) {
-                    // If body parsing fails, continue without user text
-                    console.warn('Failed to parse request body for user text:', error);
-                    userProvidedText = undefined;
-                }
                 const encoder = new TextEncoder();
 
                 const sendEvent = (type: string, data: any) => {
