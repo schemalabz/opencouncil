@@ -126,7 +126,11 @@ export async function createEmptySpeakerSegmentAfter(
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true
+                                }
+                            }
                         }
                     }
                 }

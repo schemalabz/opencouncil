@@ -94,7 +94,6 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 },
                 introducedBy: {
                     include: {
-                        party: true,
                         roles: {
                             include: {
                                 party: true,
@@ -126,9 +125,9 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 ...subject,
                 location: subject.location
                     ? {
-                          ...subject.location,
-                          coordinates: locationCoordinates.find(l => l.id === subject.location!.id),
-                      }
+                        ...subject.location,
+                        coordinates: locationCoordinates.find(l => l.id === subject.location!.id),
+                    }
                     : null,
             }));
         }
@@ -162,7 +161,6 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 },
                 introducedBy: {
                     include: {
-                        party: true,
                         roles: {
                             include: {
                                 party: true,

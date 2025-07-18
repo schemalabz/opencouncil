@@ -53,10 +53,10 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
         // Extract filters from the query
         const extractedFilters = await extractFilters(request.query);
         logEssential('[Search] Extracted filters:', extractedFilters);
-        
+
         // Process filters and resolve locations
         const processedFilters = await processFilters(extractedFilters);
-        
+
         // Merge with explicit filters
         const mergedRequest: SearchRequest = {
             ...request,
@@ -68,11 +68,11 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
         // Build and execute the search query
         const searchQuery = buildSearchQuery(mergedRequest, extractedFilters);
         const response = await client.search(searchQuery);
-        
+
         // Get total hits
         const total = response.hits.total as { value: number; relation: string };
         const totalHits = total.value;
-        
+
         // Log search session completion with results summary
         logEssential('Search Session Completed', {
             query: request.query,
@@ -106,7 +106,6 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                                     include: {
                                         person: {
                                             include: {
-                                                party: true,
                                                 roles: {
                                                     include: {
                                                         party: true,
@@ -133,7 +132,6 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 },
                 introducedBy: {
                     include: {
-                        party: true,
                         roles: {
                             include: {
                                 party: true,
@@ -177,9 +175,9 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
 
                 const subject = subjectMap.get(hit._source.public_subject_id);
                 if (!subject) {
-                    logEssential('[Search] Subject not found', { 
+                    logEssential('[Search] Subject not found', {
                         subjectId: hit._source.public_subject_id,
-                        score: hit._score 
+                        score: hit._score
                     });
                     throw new Error(`Subject ${hit._source.public_subject_id} not found`);
                 }

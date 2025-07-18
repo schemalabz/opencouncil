@@ -7,6 +7,7 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { getPodcastSpecsForMeeting, PodcastSpecWithRelations } from "@/lib/db/podcasts";
 import { requestSplitMediaFileForPodcast } from "@/lib/tasks/splitMediaFile";
 import { useToast } from '@/hooks/use-toast';
+import { getPartyFromRoles } from "@/lib/utils";
 
 export default function PodcastSpecs() {
     const { meeting, getSpeakerTag, getPerson, getParty, getSpeakerSegmentById } = useCouncilMeetingData();
@@ -117,7 +118,8 @@ export default function PodcastSpecs() {
                                                 const speakerSegment = getSpeakerSegmentById(utterance.utterance.speakerSegmentId);
                                                 const speakerTag = speakerSegment?.speakerTagId ? getSpeakerTag(speakerSegment.speakerTagId) : null;
                                                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
-                                                const party = person?.partyId ? getParty(person.partyId) : null;
+                                                // Use roles-based party determination (same logic as PersonBadge)
+                                                const party = person ? getPartyFromRoles(person.roles) : null;
                                                 return (
                                                     <div key={index} className="flex items-center space-x-2">
                                                         <PersonBadge

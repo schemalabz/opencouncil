@@ -120,8 +120,11 @@ export async function getFullCity(cityId: string) {
                             topic: true,
                             introducedBy: {
                                 include: {
-                                    party: true,
-                                    roles: true
+                                    roles: {
+                                        include: {
+                                            party: true
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -132,7 +135,6 @@ export async function getFullCity(cityId: string) {
             parties: true,
             persons: {
                 include: {
-                    party: true,
                     speakerTags: true,
                     roles: {
                         include: {

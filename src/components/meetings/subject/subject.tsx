@@ -9,7 +9,7 @@ import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
-import { subjectToMapFeature } from "@/lib/utils";
+import { subjectToMapFeature, getPartyFromRoles } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useMemo } from "react";
@@ -161,7 +161,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             speakerSegments.map(segment => {
                                 const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                const party = person?.partyId ? getParty(person.partyId) : undefined;
+                                // Use roles-based party determination (same logic as PersonBadge)
+                                const party = person ? getPartyFromRoles(person.roles) : null;
                                 if (!speakerTag) return null;
 
                                 const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;

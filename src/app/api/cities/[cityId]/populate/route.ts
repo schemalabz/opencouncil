@@ -161,10 +161,7 @@ export async function POST(
                             activeFrom: person.activeFrom ? new Date(person.activeFrom) : null,
                             activeTo: person.activeTo ? new Date(person.activeTo) : null,
                             profileUrl: person.profileUrl,
-                            cityId: params.cityId,
-                            partyId: person.partyName
-                                ? parties.find(p => p.name === person.partyName)?.id
-                                : null,
+                            cityId: params.cityId
                         },
                     })
                 )
