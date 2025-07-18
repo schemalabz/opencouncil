@@ -1,7 +1,7 @@
 "use client";
 import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useVideo } from "../VideoProvider";
 import { Utterance } from "@prisma/client";
 import { Transcript as TranscriptType } from "@/lib/db/transcript";
@@ -16,6 +16,7 @@ export default function Transcript() {
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const containerRef = useRef<HTMLDivElement>(null);
+    const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
@@ -57,28 +58,57 @@ export default function Transcript() {
         [setCurrentScrollInterval]
     );
 
+    // Single intersection observer for tracking visible segments AND updating scroll interval
+    const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
+        let hasChanges = false;
+        const updates: { index: number; visible: boolean }[] = [];
+
+        entries.forEach((entry) => {
+            const segmentIndex = parseInt(entry.target.id.split('-')[2]);
+            const isCurrentlyVisible = visibleSegments.has(segmentIndex);
+
+            if (entry.isIntersecting && !isCurrentlyVisible) {
+                updates.push({ index: segmentIndex, visible: true });
+                hasChanges = true;
+            } else if (!entry.isIntersecting && isCurrentlyVisible) {
+                updates.push({ index: segmentIndex, visible: false });
+                hasChanges = true;
+            }
+        });
+
+        if (hasChanges) {
+            const newVisibleSegments = new Set(visibleSegments);
+            updates.forEach(({ index, visible }) => {
+                if (visible) {
+                    newVisibleSegments.add(index);
+                } else {
+                    newVisibleSegments.delete(index);
+                }
+            });
+
+            setVisibleSegments(newVisibleSegments);
+
+            // Update scroll interval with debouncing for performance
+            const visibleSegmentsList = Array.from(newVisibleSegments)
+                .sort((a, b) => a - b)
+                .map(index => displayedSegments[index])
+                .filter(Boolean); // Filter out any undefined segments
+
+            if (visibleSegmentsList.length > 0) {
+                const firstVisible = visibleSegmentsList[0];
+                const lastVisible = visibleSegmentsList[visibleSegmentsList.length - 1];
+                debouncedSetCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
+            }
+        }
+    }, [visibleSegments, displayedSegments, debouncedSetCurrentScrollInterval]);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const updateScrollInterval = () => {
-            const visibleSegments = Array.from(containerRef.current!.children)
-                .filter((child) => {
-                    const rect = child.getBoundingClientRect();
-                    return rect.top < window.innerHeight && rect.bottom >= 0;
-                })
-                .map((child) => displayedSegments[parseInt(child.id.split('-')[2])]);
-
-            if (visibleSegments.length > 0) {
-                const firstVisible = visibleSegments[0];
-                const lastVisible = visibleSegments[visibleSegments.length - 1];
-                debouncedSetCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
-            }
-        };
-
-        const observer = new IntersectionObserver(updateScrollInterval, {
+        const observer = new IntersectionObserver(handleIntersection, {
             root: null,
-            rootMargin: '0px',
-            threshold: 0.1,
+            rootMargin: '200px', // Load segments when they're 200px away from viewport
+            threshold: 0,
         });
 
         Array.from(containerRef.current.children).forEach((child) => {
@@ -86,7 +116,7 @@ export default function Transcript() {
         });
 
         return () => observer.disconnect();
-    }, [displayedSegments, debouncedSetCurrentScrollInterval]);
+    }, [displayedSegments, handleIntersection]);
 
     if (displayedSegments.length === 0) {
         return <div className="container py-8">
@@ -99,47 +129,24 @@ export default function Transcript() {
 
     return (
         <div className="container" ref={containerRef} >
-            {displayedSegments.map((segment, index: number) =>
-                <SpeakerSegmentWrapper key={index} segment={segment} index={index} speakerSegments={displayedSegments} />
-            )}
-        </div>
-    );
-}
+            {displayedSegments.map((segment, index: number) => {
+                // Determine if this segment should be fully rendered
+                const shouldRender = visibleSegments.has(index) ||
+                    visibleSegments.has(index - 1) ||
+                    visibleSegments.has(index + 1);
 
-function SpeakerSegmentWrapper({ segment, index, speakerSegments }: { segment: TranscriptType[number], index: number, speakerSegments: SpeakerSegmentType[] }) {
-    const { ref, inView } = useInView({
-        threshold: 0,
-        root: null,
-        rootMargin: '200px', // Increase this value to load more segments
-    });
-
-    const { inView: prevInView } = useInView({
-        threshold: 0,
-        root: null,
-        rootMargin: '200px',
-    });
-
-    const { inView: nextInView } = useInView({
-        threshold: 0,
-        root: null,
-        rootMargin: '200px',
-    });
-
-    const isPrevInView = index > 0 && prevInView;
-    const isNextInView = index < speakerSegments.length - 1 && nextInView;
-
-    const shouldRender = inView || isPrevInView || isNextInView;
-
-    return (
-        <div
-            key={index}
-            id={`speaker-segment-${index}`}
-            ref={ref}
-        >
-            <SpeakerSegment
-                segment={segment}
-                renderMock={!shouldRender}
-            />
+                return (
+                    <div
+                        key={index}
+                        id={`speaker-segment-${index}`}
+                    >
+                        <SpeakerSegment
+                            segment={segment}
+                            renderMock={!shouldRender}
+                        />
+                    </div>
+                );
+            })}
         </div>
     );
 }
