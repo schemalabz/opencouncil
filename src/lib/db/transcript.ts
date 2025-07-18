@@ -145,16 +145,3 @@ export async function getTranscript(meetingId: string, cityId: string, {
     */
 
 }
-
-
-export async function updateEmbeddings(embeddings: { speakerSegmentId: SpeakerSegment["id"], embedding: number[] }[]) {
-  await prisma.$transaction(
-    embeddings.map(e =>
-      prisma.$executeRaw`
-                UPDATE "SpeakerSegment"
-                SET embedding = ${e.embedding}::vector
-                WHERE id = ${e.speakerSegmentId}
-            `
-    )
-  );
-}
