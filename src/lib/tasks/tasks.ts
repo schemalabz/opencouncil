@@ -119,7 +119,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
             where: { id: taskId },
-            data: { status: 'failed', requestBody: update.error, version: update.version }
+            data: { status: 'failed', responseBody: update.error, version: update.version }
         });
     } else if (update.status === 'processing') {
         await prisma.taskStatus.update({
