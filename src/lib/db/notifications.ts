@@ -225,108 +225,200 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
     }
 }
 
-/**
- * Create or update notification preferences
- */
-export async function saveNotificationPreferences(data: {
+type OnboardingData = {
     cityId: string;
-    locationIds: string[];
-    topicIds: string[];
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
-    userId?: string; // Explicit user ID for admin actions
+    // If provided, the user is being seeded from the seed-users API
+    // This bypasses the session check and the magic link check
+    seedUser?: Partial<User>;
+}
+
+/**
+ * Create or update notification preferences
+ */
+export async function saveNotificationPreferences(data: OnboardingData & {
+    locationIds: string[];
+    topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name, userId: explicitUserId } = data;
+    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
     const session = await getServerSession();
 
     let userId: string;
 
+    console.log('Saving notification preferences for cityId:', cityId);
+    console.log('Location IDs:', locationIds);
+    console.log('Topic IDs:', topicIds);
+    console.log('Phone:', phone);
+    console.log('Email:', email);
+    console.log('Name:', name);
+
     try {
-        if (explicitUserId) {
-            userId = explicitUserId;
-        } else if (session?.user?.id) {
-            userId = session.user.id;
-            if (phone && session.user.phone !== phone) {
+        // Get or create user
+        if (!seedUser && session?.user?.email) {
+            // Authenticated user
+            const user = await prisma.user.findUnique({
+                where: { email: session.user.email }
+            });
+
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            userId = user.id;
+
+            // Update phone if provided
+            if (phone) {
                 await prisma.user.update({
-                    where: { id: userId },
+                    where: { id: user.id },
                     data: { phone }
                 });
             }
         } else if (email) {
+            // Non-authenticated user
+            // Check if this email already exists
             let user = await prisma.user.findUnique({
-                where: { email },
+                where: { email }
             });
 
-            if (!user) {
-                console.log(`User with email ${email} not found. Creating new user...`);
-                user = await prisma.user.create({
+            if (user) {
+                // Email exists but user is not authenticated - return error
+                return createError("email_exists");
+            } else {
+                // Create new user
+                const newUser = await prisma.user.create({
                     data: {
                         email,
                         name: name || '',
-                        phone: phone || null,
-                        onboarded: true,
+                        phone,
                         allowContact: true,
-                    },
+                        onboarded: true,
+                        ...seedUser
+                    }
                 });
-                console.log('New user created:', user);
-            } else {
-                console.log('Existing user found:', user);
-                if (phone && user.phone !== phone) {
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: { phone }
-                    });
-                    console.log(`Updated phone for user ${user.id}`);
+
+                userId = newUser.id;
+
+                if (!seedUser) {
+                    // seed users are created during development, so we don't need to send a magic link
+                    await sendMagicLink(email);
                 }
             }
-            userId = user.id;
         } else {
-            return createError("User not authenticated and no email provided");
+            throw new Error("Either authenticated session or email must be provided");
         }
 
-        const validLocationIds = await prisma.location.findMany({
-            where: {
-                id: { in: locationIds },
-            },
-            select: { id: true }
-        }).then(locations => locations.map(l => l.id));
+        // Verify locations and topics exist before trying to connect them
+        let validLocationIds: string[] = [];
+        let validTopicIds: string[] = [];
 
-        const validTopicIds = await prisma.topic.findMany({
-            where: {
-                id: { in: topicIds }
-            },
-            select: { id: true }
-        }).then(topics => topics.map(t => t.id));
+        if (locationIds && locationIds.length > 0) {
+            // Verify locations exist
+            const locations = await prisma.location.findMany({
+                where: {
+                    id: {
+                        in: locationIds
+                    }
+                },
+                select: { id: true }
+            });
+            validLocationIds = locations.map(loc => loc.id);
 
-        const existingPreference = await prisma.notificationPreference.findFirst({
-            where: { userId: userId, cityId: cityId },
+            console.log('Valid location IDs:', validLocationIds);
+        }
+
+        if (topicIds && topicIds.length > 0) {
+            // Verify topics exist
+            const topics = await prisma.topic.findMany({
+                where: {
+                    id: {
+                        in: topicIds
+                    }
+                },
+                select: { id: true }
+            });
+            validTopicIds = topics.map(topic => topic.id);
+
+            console.log('Valid topic IDs:', validTopicIds);
+        }
+
+        // Check if notification preferences already exist
+        const existingPreference = await prisma.notificationPreference.findUnique({
+            where: {
+                userId_cityId: {
+                    userId,
+                    cityId
+                }
+            }
         });
 
         if (existingPreference) {
-            const result = await prisma.notificationPreference.update({
+            // For existing preferences, update using Prisma's connect/disconnect
+            const updatedPreference = await prisma.notificationPreference.update({
                 where: { id: existingPreference.id },
                 data: {
+                    // Disconnect all existing locations and topics
                     locations: {
-                        set: validLocationIds.map(id => ({ id }))
+                        set: [] // First clear all connections
                     },
                     interests: {
-                        set: validTopicIds.map(id => ({ id }))
+                        set: [] // First clear all connections
                     }
                 }
             });
+
+            // Then add the new connections if there are any
+            if (validLocationIds.length > 0) {
+                await prisma.notificationPreference.update({
+                    where: { id: updatedPreference.id },
+                    data: {
+                        locations: {
+                            connect: validLocationIds.map(id => ({ id }))
+                        }
+                    }
+                });
+            }
+
+            if (validTopicIds.length > 0) {
+                await prisma.notificationPreference.update({
+                    where: { id: updatedPreference.id },
+                    data: {
+                        interests: {
+                            connect: validTopicIds.map(id => ({ id }))
+                        }
+                    }
+                });
+            }
+
+            // Finally, fetch the updated preferences with the new relationships
+            const result = await prisma.notificationPreference.findUnique({
+                where: { id: updatedPreference.id },
+                include: {
+                    city: true,
+                    locations: true,
+                    interests: true
+                }
+            }) as NotificationPreference;
             return createSuccess(result);
         } else {
+            // Create new preferences with existing relationships
             const result = await prisma.notificationPreference.create({
                 data: {
-                    user: { connect: { id: userId } },
-                    city: { connect: { id: cityId } },
-                    locations: {
+                    userId,
+                    cityId,
+                    // Connect locations and topics directly
+                    locations: validLocationIds.length > 0 ? {
                         connect: validLocationIds.map(id => ({ id }))
-                    },
-                    interests: {
+                    } : undefined,
+                    interests: validTopicIds.length > 0 ? {
                         connect: validTopicIds.map(id => ({ id }))
-                    }
+                    } : undefined
+                },
+                include: {
+                    city: true,
+                    locations: true,
+                    interests: true
                 }
             });
             return createSuccess(result);
@@ -338,64 +430,72 @@ export async function saveNotificationPreferences(data: {
 }
 
 /**
- * Create or update a petition
+ * Create or update petition
  */
-export async function savePetition(data: {
-    cityId: string;
+export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
-    phone?: string;
-    email?: string; // For non-authenticated users
-    name?: string; // We'll store this in user if needed, but not in petition
-    userId?: string; // Explicit user ID for admin actions
 }): Promise<Result<Petition>> {
-    const { cityId, isResident, isCitizen, phone, email, name, userId: explicitUserId } = data;
+    const { cityId, isResident, isCitizen, phone, email, name, seedUser } = data;
     const session = await getServerSession();
 
     let userId: string;
 
     try {
-        if (explicitUserId) {
-            userId = explicitUserId;
-        } else if (session?.user?.id) {
-            userId = session.user.id;
-            if (phone && session.user.phone !== phone) {
+        // Get or create user
+        if (!seedUser && session?.user?.email) {
+            // Authenticated user
+            const user = await prisma.user.findUnique({
+                where: { email: session.user.email }
+            });
+
+            if (!user) {
+                throw new Error("User not found");
+            }
+
+            userId = user.id;
+
+            // Update phone if provided
+            if (phone) {
                 await prisma.user.update({
-                    where: { id: userId },
+                    where: { id: user.id },
                     data: { phone }
                 });
             }
         } else if (email) {
+            // Non-authenticated user
+            // Check if this email already exists
             let user = await prisma.user.findUnique({
-                where: { email },
+                where: { email }
             });
 
-            if (!user) {
-                console.log(`User with email ${email} not found. Creating new user...`);
-                user = await prisma.user.create({
+            if (user) {
+                // Email exists but user is not authenticated - return error
+                return createError("email_exists");
+            } else {
+                // Create new user
+                const newUser = await prisma.user.create({
                     data: {
                         email,
                         name: name || '',
-                        phone: phone || null,
-                        onboarded: true,
+                        phone,
                         allowContact: true,
-                    },
+                        onboarded: true,
+                        ...seedUser
+                    }
                 });
-                console.log('New user created from petition:', user);
-            } else {
-                console.log('Existing user found from petition:', user);
-                if (phone && user.phone !== phone) {
-                    await prisma.user.update({
-                        where: { id: user.id },
-                        data: { phone }
-                    });
+
+                userId = newUser.id;
+
+                if (!seedUser) {
+                    // seed users are created during development, so we don't need to send a magic link
+                    await sendMagicLink(email);
                 }
             }
-            userId = user.id;
         } else {
-            return createError("User not authenticated and no email provided");
+            throw new Error("Either authenticated session or email must be provided");
         }
-        
+
         // Check if petition already exists
         const existingPetition = await prisma.petition.findUnique({
             where: {

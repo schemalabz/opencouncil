@@ -80,7 +80,7 @@ export async function POST(request: Request) {
             return new NextResponse("Not enough topics available for engaged citizens (need at least 3 topics)", { status: 400 })
         }
 
-        const createdUsers = []
+        let totalCreatedUsers = 0
         let totalNotificationPreferences = 0
         let totalPetitions = 0
 
@@ -104,16 +104,11 @@ export async function POST(request: Request) {
             const createdAt = subDays(new Date(), daysAgo)
 
             const userData: any = {
-                email,
-                name,
                 createdAt,
                 onboarded: persona === 'engaged-citizen' || persona === 'activist' || persona === 'lurker',
                 allowContact: persona === 'engaged-citizen' || persona === 'activist' || (persona === 'lurker' && Math.random() > 0.5),
             }
             
-            const newUser = await prisma.user.create({ data: userData })
-            console.log("Archetype Seed API - Created user:", newUser.email)
-
             // Add persona-specific relations with enhanced logic
             if (persona === 'engaged-citizen' && supportedCities.length > 0 && topics.length > 0) {
                 // Create notification preferences for 1 city
@@ -122,10 +117,12 @@ export async function POST(request: Request) {
                 if (selectedCity) {
                     const selectedTopics = getRandomItems(topics, 3, Math.min(6, topics.length))
                     const result = await saveNotificationPreferences({
-                        userId: newUser.id,
+                        email,
+                        name,
                         cityId: selectedCity.id,
                         topicIds: selectedTopics.map(t => t.id),
-                        locationIds: []
+                        locationIds: [],
+                        seedUser: userData
                     })
 
                     if (result.success) {
@@ -140,10 +137,12 @@ export async function POST(request: Request) {
                 
                 if (selectedCity) {
                     const result = await savePetition({
-                        userId: newUser.id,
+                        email,
+                        name,
                         cityId: selectedCity.id,
                         isResident: Math.random() > 0.3,
-                        isCitizen: Math.random() > 0.3
+                        isCitizen: Math.random() > 0.3,
+                        seedUser: userData
                     })
 
                     if (result.success) {
@@ -154,15 +153,15 @@ export async function POST(request: Request) {
                 }
             }
             
-            createdUsers.push(newUser)
+            totalCreatedUsers++
         }
 
         const summary = {
             success: true,
-            count: createdUsers.length,
+            count: totalCreatedUsers,
             persona: persona,
             details: {
-                users: createdUsers.length,
+                users: totalCreatedUsers,
                 notificationPreferences: totalNotificationPreferences,
                 petitions: totalPetitions,
                 availableCities: cities.length,
@@ -170,7 +169,7 @@ export async function POST(request: Request) {
                 unsupportedCities: unsupportedCities.length,
                 availableTopics: topics.length
             },
-            message: `Successfully created ${createdUsers.length} ${persona.replace('-', ' ')} users`
+            message: `Successfully created ${totalCreatedUsers} ${persona.replace('-', ' ')} users`
         }
 
         if (totalNotificationPreferences > 0) {

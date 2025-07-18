@@ -32,7 +32,7 @@ const PERSONAS = [
             petitions: false,
             allowContact: true
         },
-        expectedData: "2-4 cities with notifications, 3-6 topics per city",
+        expectedData: "Notification preferences for 1 city with 3-6 topics",
         defaultQuantity: 15,
         testingUse: "Perfect for testing notification flows and user engagement features"
     },
@@ -51,7 +51,7 @@ const PERSONAS = [
             petitions: true,
             allowContact: true
         },
-        expectedData: "1-3 petition submissions, resident/citizen status varies",
+        expectedData: "Petition submission for 1 city, resident/citizen status varies",
         defaultQuantity: 8,
         testingUse: "Ideal for testing petition flows and community expansion features"
     },
