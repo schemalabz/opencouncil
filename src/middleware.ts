@@ -59,11 +59,10 @@ function handleChaniaSubdomain(req: NextRequest) {
     }
 
     const url = req.nextUrl.clone();
-    const mainDomain = env.NEXT_PUBLIC_MAIN_DOMAIN || 'opencouncil.gr';
     const path = url.pathname;
 
     // Create URL for the main domain
-    const mainSiteUrl = new URL(`https://${mainDomain}`);
+    const mainSiteUrl = new URL(env.NEXT_PUBLIC_BASE_URL);
 
     // Append original path to /chania
     if (path === '/') {

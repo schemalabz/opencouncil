@@ -8,7 +8,6 @@ USE_LOCAL_DB="true"
 ENV_FILE=".env"
 DETACHED=""
 EXTRA_OPTIONS=""
-USE_ELASTIC="false"
 
 # Track the last used configuration
 LAST_CONFIG_FILE=".last_docker_config"
@@ -33,7 +32,7 @@ function clean_resources() {
 
 # Function to check if configuration has changed
 check_config_changed() {
-    local current_config="MODE=$MODE:USE_LOCAL_DB=$USE_LOCAL_DB:USE_ELASTIC=$USE_ELASTIC"
+    local current_config="MODE=$MODE:USE_LOCAL_DB=$USE_LOCAL_DB"
     
     if [ -f "$LAST_CONFIG_FILE" ]; then
         local last_config=$(cat "$LAST_CONFIG_FILE")
@@ -61,7 +60,6 @@ function show_help {
   echo "  --remote-db          Use a remote/external database (with auto-migration but NO seeding)"
   echo "  --env FILE           Specify the environment file (default: .env)"
   echo "  --detached, -d       Run in detached mode (background)"
-  echo "  --elastic            Enable elastic connector service"
   echo "  --help               Show this help message"
   echo "Helper commands:"
   echo "  --clean              Remove all OpenCouncil Docker resources (containers, volumes, networks)"
@@ -96,7 +94,6 @@ while [[ "$#" -gt 0 ]]; do
         --remote-db) USE_LOCAL_DB="false" ;;
         --env) ENV_FILE="$2"; shift ;;
         --detached|-d) DETACHED="-d" ;;
-        --elastic) USE_ELASTIC="true" ;;
         --help) show_help ;;
         --clean)
             clean_resources
@@ -179,14 +176,13 @@ else # dev mode
   fi
 fi
 
-# Add elastic connector profile if enabled
-if [ "$USE_ELASTIC" = "true" ]; then
-  echo "🔌 Running with Elastic Connector..."
-  PROFILES="$PROFILES --profile with-elastic"
-fi
-
 # Check if configuration changed and force rebuild if necessary
 check_config_changed
 
 # Run docker compose with profiles
-docker compose --env-file $ENV_FILE $PROFILES up $DETACHED $EXTRA_OPTIONS
+COMPOSE_FILES="-f docker-compose.yml"
+if [ "$MODE" = "dev" ]; then
+  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.dev.yml"
+fi
+
+docker compose --env-file $ENV_FILE $COMPOSE_FILES $PROFILES up $DETACHED $EXTRA_OPTIONS

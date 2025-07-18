@@ -112,7 +112,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                             {task.status === 'failed' && task.responseBody && (
                                 <div className="flex items-center justify-between">
                                     <code className="font-mono truncate block max-w-[300px]">
-                                        {JSON.parse(task.responseBody).error || 'Unknown error'}
+                                        {task.responseBody || 'Unknown error'}
                                     </code>
                                     <div className="flex space-x-1">
                                         <Button

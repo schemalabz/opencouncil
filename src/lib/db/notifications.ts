@@ -1,7 +1,6 @@
 "use server";
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { auth, signIn } from "@/auth";
 import { getCitiesWithGeometry } from "./cities";
 import prisma from "@/lib/db/prisma";

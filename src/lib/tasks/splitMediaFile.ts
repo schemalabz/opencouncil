@@ -19,7 +19,7 @@ export async function requestSplitMediaFileForPodcast(podcastId: string) {
     }
 
 
-    withUserAuthorizedToEdit({ councilMeetingId: meeting.id });
+    await withUserAuthorizedToEdit({cityId: meeting.cityId, councilMeetingId: meeting.id });
 
     if (!meeting.audioUrl) {
         throw new Error('Meeting audio URL not found');
@@ -63,7 +63,7 @@ export async function requestSplitMediaFileForHighlight(highlightId: string) {
         throw new Error('Highlight not found');
     }
 
-    withUserAuthorizedToEdit({ councilMeetingId: highlight.meeting.id });
+    await withUserAuthorizedToEdit({cityId: highlight.cityId, councilMeetingId: highlight.meeting.id });
 
     if (!highlight.meeting.videoUrl) {
         throw new Error('Meeting video URL not found');

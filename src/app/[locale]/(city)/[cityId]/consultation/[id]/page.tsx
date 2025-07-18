@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { RegulationData } from "@/components/consultations/types";
 import { auth } from "@/auth";
+import { env } from "@/env.mjs";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -12,9 +13,7 @@ interface PageProps {
 
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
-        // Handle relative URLs by prepending the base URL
-        const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
-        const response = await fetch(url, { cache: 'no-store' });
+        const response = await fetch(jsonUrl, { cache: 'no-store' });
 
         if (!response.ok) {
             console.error(`Failed to fetch regulation data: ${response.status}`);
@@ -58,7 +57,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${city.name}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
+    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
 
     return {
         title: `${title} | ${city.name} | OpenCouncil`,
@@ -136,6 +135,9 @@ export default async function ConsultationPage({ params }: PageProps) {
 
     // Base URL for permalinks
     const baseUrl = `/${params.cityId}/consultation/${params.id}`;
+    const consultationUrl = new URL(baseUrl, env.NEXT_PUBLIC_BASE_URL);
+    const cityUrl = new URL(`/${params.cityId}`, env.NEXT_PUBLIC_BASE_URL);
+
 
     // Generate structured data for SEO
     const structuredData = {
@@ -143,11 +145,11 @@ export default async function ConsultationPage({ params }: PageProps) {
         "@type": "GovernmentPermit",
         "name": regulationData?.title || consultation.name,
         "description": `Δημόσια διαβούλευση για ${regulationData?.title || consultation.name} στον Δήμο ${city.name}`,
-        "url": `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${baseUrl}`,
+        "url": consultationUrl.toString(),
         "issuedBy": {
             "@type": "GovernmentOrganization",
             "name": `Δήμος ${city.name}`,
-            "url": `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/${params.cityId}`
+            "url": cityUrl.toString()
         },
         "validFrom": consultation.createdAt.toISOString(),
         "validThrough": consultation.endDate.toISOString(),

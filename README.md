@@ -40,7 +40,7 @@ This is a [Next.js](https://nextjs.org/) web application:
 - **Frontend**: Next.js with TypeScript
 - **Database**: PostgreSQL with pgvector for embeddings
 - **Data Models**: Prisma ORM for type-safe database access
-- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features.
+- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features. For details, see the [Task Workflow Architecture](./docs/task-architecture.md).
 
 ### Prerequisites
 

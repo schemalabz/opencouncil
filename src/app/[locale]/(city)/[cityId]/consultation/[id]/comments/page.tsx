@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
 import PrintButton from "@/components/consultations/PrintButton";
+import { env } from "@/env.mjs";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -14,8 +15,7 @@ interface PageProps {
 
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
-        const url = jsonUrl.startsWith('http') ? jsonUrl : `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}${jsonUrl}`;
-        const response = await fetch(url, { cache: 'no-store' });
+        const response = await fetch(jsonUrl, { cache: 'no-store' });
 
         if (!response.ok) {
             console.error(`Failed to fetch regulation data: ${response.status}`);
@@ -414,8 +414,8 @@ export default async function CommentsPage({ params }: PageProps) {
                 {/* Footer */}
                 <div className="mt-12 pt-6 border-t border-gray-200 text-xs text-gray-500">
                     <p>
-                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({process.env.NEXT_PUBLIC_URL}).
-                        Για ερωτήσεις και τεχνική υποστήριξη: {process.env.NEXT_PUBLIC_CONTACT_EMAIL} ή {process.env.NEXT_PUBLIC_CONTACT_PHONE}
+                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({env.NEXT_PUBLIC_BASE_URL}).
+                        Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {env.NEXT_PUBLIC_CONTACT_PHONE}
                     </p>
                 </div>
             </div>

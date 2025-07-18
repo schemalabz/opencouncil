@@ -1,4 +1,4 @@
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { sendEmail } from "@/lib/email/resend"
 import { renderAsync } from "@react-email/render"
@@ -23,7 +23,7 @@ async function generateSignInLink(email: string) {
     })
 
     // Generate the sign-in URL
-    const signInUrl = `${env.NEXT_PUBLIC_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
+    const signInUrl = `${env.NEXT_PUBLIC_BASE_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
     return signInUrl
 }
 
@@ -178,3 +178,4 @@ export async function PUT(request: Request) {
         return new NextResponse("Failed to update user", { status: 500 })
     }
 } 
+
