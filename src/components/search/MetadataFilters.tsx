@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { City, Party, Person } from "@prisma/client";
-import { getPeopleForCity } from "@/lib/db/people";
+import { getPeopleForCity, PersonWithRelations } from "@/lib/db/people";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FilterIcon, X } from "lucide-react";
@@ -20,7 +20,7 @@ export type Filters = {
 export default function MetadataFilters({ className, filters, setFilters }: { className?: string, filters: Filters, setFilters: (filters: Filters) => void }) {
     const [cities, setCities] = useState<City[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
-    const [people, setPeople] = useState<Person[]>([]);
+    const [people, setPeople] = useState<PersonWithRelations[]>([]);
     const [isMobile, setIsMobile] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
 
@@ -91,16 +91,22 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const onPersonChange = (personName: string | null) => {
         const person = people.find(p => p.name_short === personName);
         if (person) {
-            // Note: Currently using deprecated partyId since roles are not included in this query
-            // TODO: Update to use roles-based party determination when roles are available
-            setFilters({ ...filters, personId: person.id, partyId: person.partyId ?? undefined });
+            // Auto-select party from person's active roles
+            const activePartyRole = person.roles.find(role => role.party);
+            const partyId = activePartyRole?.party?.id;
+            setFilters({ ...filters, personId: person.id, partyId });
         } else {
             setFilters({ ...filters, personId: undefined });
         }
     }
 
-    const selectedPartyId = filters.partyId;
-    const availablePeople = selectedPartyId ? people.filter(p => p.partyId === selectedPartyId) : people;
+    // Filter people by selected party through their roles
+    const availablePeople = useMemo(() => {
+        if (!filters.partyId) return people;
+        return people.filter(person =>
+            person.roles.some(role => role.party?.id === filters.partyId)
+        );
+    }, [people, filters.partyId]);
 
     // Memoize selected values
     const selectedCity = useMemo(() =>

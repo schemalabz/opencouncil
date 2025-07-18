@@ -58,7 +58,11 @@ export async function getStatisticsFor(
             speakerTag: {
                 personId: personId,
                 person: partyId ? {
-                    partyId: partyId
+                    roles: {
+                        some: {
+                            partyId: partyId
+                        }
+                    }
                 } : undefined
             },
             subjects: subjectId ? {

@@ -1,7 +1,7 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City } from '@prisma/client';
+import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary } from '@prisma/client';
 import { PersonWithRelations } from './people';
 
 export type SegmentWithRelations = {
@@ -20,7 +20,12 @@ export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
     cityId: string,
     meetingId: string
-) {
+): Promise<SpeakerSegment & {
+    utterances: Utterance[];
+    speakerTag: SpeakerTag;
+    topicLabels: (TopicLabel & { topic: Topic })[];
+    summary: Summary | null;
+}> {
     // First get the segment we're inserting after to get its end timestamp and speaker tag info
     const currentSegment = await prisma.speakerSegment.findUnique({
         where: { id: afterSegmentId },
@@ -75,7 +80,13 @@ export async function createEmptySpeakerSegmentAfter(
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true,
+                                    city: true,
+                                    administrativeBody: true
+                                }
+                            }
                         }
                     }
                 }
@@ -257,7 +268,13 @@ async function getSegmentWithIncludes(segmentId: string) {
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true,
+                                    city: true,
+                                    administrativeBody: true
+                                }
+                            }
                         }
                     }
                 }
@@ -309,7 +326,7 @@ export async function deleteEmptySpeakerSegment(
     })
 
     return segmentId;
-} 
+}
 
 export async function getLatestSegmentsForSpeaker(
     personId: string,
@@ -346,7 +363,6 @@ export async function getLatestSegmentsForSpeaker(
                     include: {
                         person: {
                             include: {
-                                party: true,
                                 roles: {
                                     include: {
                                         party: true,
@@ -509,51 +525,51 @@ export async function getLatestSegmentsForParty(
     ]);
 
     const results = segments
-    .filter(segment => {
-        // Safely check for minimum text length
-        const text = segment.utterances.map(u => u.text).join(' ');
-        // Safe check for person and roles
-        const hasPerson = segment.speakerTag?.person != null;
-        const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
-        // Only include segments with at least 100 characters and a person with roles
-        return text.length >= 100 && hasPerson && hasRoles;
-    })
-    .flatMap(segment => {
-        const text = segment.utterances.map(u => u.text).join(' ');
-        const person = segment.speakerTag?.person;
-        
-        // At this point we know person exists thanks to our filter
-        // But TypeScript might not recognize this, so we add a safety check
-        if (!person || !Array.isArray(person.roles)) {
-            return [];
-        }
-        
-        const meetingDate = new Date(segment.meeting.dateTime);
-        
-        // Check for active role at meeting time
-        const hasActiveRole = person.roles.some(role => {
-            const startDate = role.startDate ? new Date(role.startDate) : null;
-            const endDate = role.endDate ? new Date(role.endDate) : null;
-            
-            return (!startDate || startDate <= meetingDate) &&
-                   (!endDate || endDate >= meetingDate);
+        .filter(segment => {
+            // Safely check for minimum text length
+            const text = segment.utterances.map(u => u.text).join(' ');
+            // Safe check for person and roles
+            const hasPerson = segment.speakerTag?.person != null;
+            const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+            // Only include segments with at least 100 characters and a person with roles
+            return text.length >= 100 && hasPerson && hasRoles;
+        })
+        .flatMap(segment => {
+            const text = segment.utterances.map(u => u.text).join(' ');
+            const person = segment.speakerTag?.person;
+
+            // At this point we know person exists thanks to our filter
+            // But TypeScript might not recognize this, so we add a safety check
+            if (!person || !Array.isArray(person.roles)) {
+                return [];
+            }
+
+            const meetingDate = new Date(segment.meeting.dateTime);
+
+            // Check for active role at meeting time
+            const hasActiveRole = person.roles.some(role => {
+                const startDate = role.startDate ? new Date(role.startDate) : null;
+                const endDate = role.endDate ? new Date(role.endDate) : null;
+
+                return (!startDate || startDate <= meetingDate) &&
+                    (!endDate || endDate >= meetingDate);
+            });
+
+            // Skip if no active role
+            if (!hasActiveRole) {
+                return [];
+            }
+
+            return [{
+                id: segment.id,
+                startTimestamp: segment.startTimestamp,
+                endTimestamp: segment.endTimestamp,
+                meeting: segment.meeting,
+                person: person,
+                text: text,
+                summary: segment.summary ? { text: segment.summary.text } : null
+            }];
         });
-        
-        // Skip if no active role
-        if (!hasActiveRole) {
-            return [];
-        }
-        
-        return [{
-            id: segment.id,
-            startTimestamp: segment.startTimestamp,
-            endTimestamp: segment.endTimestamp,
-            meeting: segment.meeting,
-            person: person,
-            text: text,
-            summary: segment.summary ? { text: segment.summary.text } : null
-        }];
-    });
 
     return {
         results,

@@ -176,7 +176,7 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
                             // Only end date set - active if in future
                             { startDate: null, endDate: { gt: now } },
                             // Both dates set - active if current time is within range
-                            { 
+                            {
                                 startDate: { lte: now },
                                 endDate: { gt: now }
                             }

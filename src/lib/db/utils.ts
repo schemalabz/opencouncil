@@ -10,6 +10,8 @@ import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } fro
 import prisma from "./prisma";
 import { getSubjectsForMeeting } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
+import { getPartyFromRoles } from "../utils";
+
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
     const people = await getPeopleForCity(cityId);
@@ -26,7 +28,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         transcript: transcript.map(segment => {
             const speakerTag = segment.speakerTag;
             const person = people.find(p => p.id === speakerTag.personId);
-            const party = parties.find(p => p.id === person?.partyId);
+            const party = person ? getPartyFromRoles(person.roles) : null;
 
             return {
                 speakerName: person?.name || speakerTag.label,
@@ -46,9 +48,10 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         cityName: city.name,
         partiesWithPeople: parties.map(p => ({
             name: p.name,
-            // Note: Currently using deprecated partyId since roles are not included in this query
-            // TODO: Update to use roles-based party determination when roles are available
-            people: people.filter(person => person.partyId === p.id).map(person => ({
+            people: people.filter(person => {
+                const party = getPartyFromRoles(person.roles, councilMeeting.dateTime);
+                return party?.id === p.id;
+            }).map(person => ({
                 name: person.name,
                 role: person.role || ''
             }))

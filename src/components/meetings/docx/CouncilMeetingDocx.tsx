@@ -3,6 +3,8 @@ import { Transcript } from '@/lib/db/transcript';
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
+import { PersonWithRelations } from '@/lib/db/people';
+import { getPartyFromRoles } from '@/lib/utils';
 
 const formatTimestamp = (timestamp: number) => {
     const hours = Math.floor(timestamp / 3600);
@@ -90,7 +92,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
     ];
 };
 
-const createTranscriptSection = (transcript: Transcript, people: Person[], parties: Party[]) => {
+const createTranscriptSection = (transcript: Transcript, people: (PersonWithRelations | any)[], parties: Party[]) => {
     const paragraphs = [
         new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -105,7 +107,7 @@ const createTranscriptSection = (transcript: Transcript, people: Person[], parti
     transcript.forEach((speakerSegment) => {
         const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
         const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
-        const party = speaker?.partyId ? parties.find(p => p.id === speaker.partyId) : null;
+        const party = speaker ? getPartyFromRoles(speaker.roles || []) : null;
 
         const children = [
             new TextRun({
@@ -148,7 +150,7 @@ export const renderDocx = async ({ meeting, transcript, people, parties, speaker
     city: City,
     meeting: CouncilMeeting,
     transcript: Transcript,
-    people: Person[],
+    people: (PersonWithRelations | any)[],
     parties: Party[],
     speakerTags: SpeakerTag[]
 }) => {
