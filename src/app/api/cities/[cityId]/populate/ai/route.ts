@@ -26,21 +26,6 @@ export async function POST(
             return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
-        // Parse request body for optional user-provided text
-        let userProvidedText: string | undefined;
-        try {
-            // Only try to parse if there's actually a body
-            const contentLength = request.headers.get('content-length');
-            if (contentLength && parseInt(contentLength) > 0) {
-                const body = await request.json();
-                userProvidedText = body.userProvidedText?.trim() || undefined;
-            }
-        } catch (error) {
-            // If body parsing fails, continue without user text
-            console.warn('Failed to parse request body for user text:', error);
-            userProvidedText = undefined;
-        }
-
         // Get city for AI generation (we know it exists from canUseCityCreator check)
         const city = await getCity(params.cityId);
         if (!city) {
@@ -51,6 +36,20 @@ export async function POST(
         // Create a streaming response
         const stream = new ReadableStream({
             async start(controller) {
+                // Parse request body for optional user-provided text INSIDE the stream
+                let userProvidedText: string | undefined;
+                try {
+                    // Only try to parse if there's actually a body
+                    const contentLength = request.headers.get('content-length');
+                    if (contentLength && parseInt(contentLength) > 0) {
+                        const body = await request.json();
+                        userProvidedText = body.userProvidedText?.trim() || undefined;
+                    }
+                } catch (error) {
+                    // If body parsing fails, continue without user text
+                    console.warn('Failed to parse request body for user text:', error);
+                    userProvidedText = undefined;
+                }
                 const encoder = new TextEncoder();
 
                 const sendEvent = (type: string, data: any) => {
@@ -107,8 +106,13 @@ export async function POST(
         return new Response(stream, {
             headers: {
                 'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'X-Accel-Buffering': 'no', // Disable nginx buffering
+                'X-Content-Type-Options': 'nosniff',
             },
         });
     } catch (error) {
