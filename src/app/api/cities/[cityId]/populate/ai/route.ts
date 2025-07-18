@@ -33,90 +33,85 @@ export async function POST(
             return NextResponse.json({ error: 'City not found' }, { status: 404 });
         }
 
-        // Parse request body for optional user-provided text BEFORE streaming
+        // Parse request body FIRST (same pattern as chat)
         let userProvidedText: string | undefined;
         try {
-            // Clone the request to avoid consuming the original stream
-            const clonedRequest = request.clone();
-            const contentLength = clonedRequest.headers.get('content-length');
-            if (contentLength && parseInt(contentLength) > 0) {
-                const body = await clonedRequest.json();
-                userProvidedText = body.userProvidedText?.trim() || undefined;
-            }
+            const body = await request.json();
+            userProvidedText = body.userProvidedText?.trim() || undefined;
         } catch (error) {
-            // If body parsing fails, continue without user text
-            console.warn('Failed to parse request body for user text:', error);
+            // If no body or parsing fails, continue without user text
             userProvidedText = undefined;
         }
 
-        // Create a streaming response
-        const stream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
+        // Use TransformStream pattern (EXACT same as chat) - this works on DigitalOcean!
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
 
-                const sendEvent = (type: string, data: any) => {
-                    const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
-                    controller.enqueue(encoder.encode(message));
-                };
+        const stream = new TransformStream();
+        const writer = stream.writable.getWriter();
 
-                try {
-                    // Send initial status
-                    sendEvent('status', {
-                        message: 'Starting AI data generation...',
-                        cityName: city.name
-                    });
-
-                    // Generate data using AI with web search
-                    const result = await generateCityDataWithAI(params.cityId, city.name, {
-                        useWebSearch: true,
-                        webSearchMaxUses: 3,
-                        userProvidedText
-                    });
-
-                    if (!result.success) {
-                        console.error('AI generation failed:', result.errors);
-                        sendEvent('error', {
-                            error: 'Failed to generate city data with AI',
-                            details: result.errors
-                        });
-                        controller.close();
-                        return;
-                    }
-
-                    console.log('AI generation successful, usage:', result.usage);
-
-                    // Send success with data
-                    sendEvent('complete', {
-                        success: true,
-                        message: 'AI data generation completed',
-                        data: result.data,
-                        usage: result.usage
-                    });
-
-                    controller.close();
-                } catch (error) {
-                    console.error('Error in AI data generation:', error);
-                    sendEvent('error', {
-                        error: 'Internal server error',
-                        message: error instanceof Error ? error.message : String(error)
-                    });
-                    controller.close();
-                }
-            }
-        });
-
-        return new Response(stream, {
+        // Return response immediately (EXACT same headers as chat)
+        const streamResponse = new Response(stream.readable, {
             headers: {
                 'Content-Type': 'text/event-stream',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'POST',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'X-Accel-Buffering': 'no', // Disable nginx buffering
-                'X-Content-Type-Options': 'nosniff',
             },
         });
+
+        // Process asynchronously OUTSIDE stream constructor (same as chat)
+        (async () => {
+            const sendEvent = async (type: string, data: any) => {
+                const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
+                await writer.write(encoder.encode(message));
+            };
+
+            try {
+                // Send initial status
+                await sendEvent('status', {
+                    message: 'Starting AI data generation...',
+                    cityName: city.name
+                });
+
+                // Generate data using AI with web search
+                const result = await generateCityDataWithAI(params.cityId, city.name, {
+                    useWebSearch: true,
+                    webSearchMaxUses: 3,
+                    userProvidedText
+                });
+
+                if (!result.success) {
+                    console.error('AI generation failed:', result.errors);
+                    await sendEvent('error', {
+                        error: 'Failed to generate city data with AI',
+                        details: result.errors
+                    });
+                    await writer.close();
+                    return;
+                }
+
+                console.log('AI generation successful, usage:', result.usage);
+
+                // Send success with data
+                await sendEvent('complete', {
+                    success: true,
+                    message: 'AI data generation completed',
+                    data: result.data,
+                    usage: result.usage
+                });
+
+                await writer.close();
+            } catch (error) {
+                console.error('Error in AI data generation:', error);
+                await sendEvent('error', {
+                    error: 'Internal server error',
+                    message: error instanceof Error ? error.message : String(error)
+                });
+                await writer.close();
+            }
+        })();
+
+        return streamResponse;
     } catch (error) {
         console.error('Error in AI data generation route:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

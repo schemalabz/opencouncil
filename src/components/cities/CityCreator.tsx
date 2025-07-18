@@ -111,17 +111,15 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
         setError(null);
 
         try {
-            const hasUserText = userProvidedText.trim().length > 0;
+            // Send user text in request body (same pattern as chat)
             const response = await fetch(`/api/cities/${cityId}/populate/ai`, {
                 method: 'POST',
-                ...(hasUserText && {
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userProvidedText: userProvidedText.trim()
-                    }),
-                })
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userProvidedText: userProvidedText.trim() || undefined
+                }),
             });
 
             if (!response.ok) {
