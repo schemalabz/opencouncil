@@ -70,8 +70,6 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `ANTHROPIC_API_KEY` | API key for Claude. | Yes | - |
-| `VOYAGE_API_KEY` | API key for Voyage AI. | Yes | - |
-| `VOYAGE_API_BASE_URL` | Base URL for Voyage AI API. | No | `https://api.voyageai.com/v1` |
 
 ### Search Configuration
 | Variable | Description | Required | Default |

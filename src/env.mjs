@@ -23,11 +23,6 @@ export const env = createEnv({
 
     // Services
     ANTHROPIC_API_KEY: z.string().min(1),
-    VOYAGE_API_KEY: z.string().min(1),
-    VOYAGE_API_BASE_URL: z
-      .string()
-      .url()
-      .default("https://api.voyageai.com/v1"),
     GOOGLE_API_KEY: z.string().min(1),
 
     // Storage
@@ -79,8 +74,6 @@ export const env = createEnv({
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-    VOYAGE_API_KEY: process.env.VOYAGE_API_KEY,
-    VOYAGE_API_BASE_URL: process.env.VOYAGE_API_BASE_URL,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,
     DO_SPACES_KEY: process.env.DO_SPACES_KEY,

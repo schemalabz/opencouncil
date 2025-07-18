@@ -117,7 +117,7 @@ This means you can keep your `.env` file configured for the remote database, and
 
 In our Prisma setup:
 - `DATABASE_URL`: Primary connection string used for most database operations. In production with connection pooling, this points to the pooler.
-- `DIRECT_URL`: Direct database connection that bypasses connection poolers. Required for migrations and managing extensions like pgvector and postgis.
+- `DIRECT_URL`: Direct database connection that bypasses connection poolers. Required for migrations and managing extensions like postgis.
 
 For local development, both URLs typically point to the same database. In production, they may differ if using connection pooling.
 

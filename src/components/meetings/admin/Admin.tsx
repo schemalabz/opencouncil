@@ -12,7 +12,6 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { embedCouncilMeeting } from '@/lib/search/embed';
 import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
@@ -42,7 +41,6 @@ export default function AdminActions({
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
-    const [isEmbedding, setIsEmbedding] = React.useState(false);
     const [isReleased, setIsReleased] = React.useState(meeting.released);
     const [forceAgenda, setForceAgenda] = React.useState(false);
     React.useEffect(() => {
@@ -131,12 +129,6 @@ export default function AdminActions({
             });
         }
     };
-
-    const handleEmbed = async () => {
-        setIsEmbedding(true);
-        await embedCouncilMeeting(meeting.cityId, meeting.id);
-        setIsEmbedding(false);
-    }
 
     const handleDeleteTask = async (taskId: string) => {
         try {
@@ -368,9 +360,6 @@ export default function AdminActions({
                 <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
                     {isSyncingElasticsearch ? 'Syncing...' : 'Sync Elasticsearch'}
                 </Button>
-                <Button onClick={handleEmbed} disabled={isEmbedding}>
-                    Embed
-                </Button>
             </div>
         </div>
         <div className="mt-6">
@@ -412,7 +401,7 @@ export default function AdminActions({
                 >
                     Refresh Meeting Cache
                 </Button>
-                
+
                 <Button
                     variant="outline"
                     onClick={async () => {

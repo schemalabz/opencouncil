@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  extensions = [pgvector(map: "vector"), postgis(version: "3.3.5")]
+  extensions = [postgis(version: "3.3.5")]
 }
 
 model City {
@@ -242,7 +242,6 @@ model SpeakerSegment {
 
   speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
-  embedding Unsupported("vector")?
 
   utterances Utterance[]
 

@@ -38,14 +38,14 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 This is a [Next.js](https://nextjs.org/) web application:
 
 - **Frontend**: Next.js with TypeScript
-- **Database**: PostgreSQL with pgvector for embeddings
+- **Database**: PostgreSQL
 - **Data Models**: Prisma ORM for type-safe database access
 - **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features. For details, see the [Task Workflow Architecture](./docs/task-architecture.md).
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL 14+ with pgvector and postgis extensions
+- PostgreSQL 14+ with the postgis extensions
 - Docker (optional, but recommended)
 
 ## Contributing
@@ -101,7 +101,7 @@ If you prefer to run without Docker:
      ```
      DATABASE_URL="postgresql://user:password@host:port/database"
      ```
-     The database must have the `pgvector` and `postgis` extensions installed.
+     The database must have the `postgis` extension installed.
 
 3. Set up the database:
    ```bash
