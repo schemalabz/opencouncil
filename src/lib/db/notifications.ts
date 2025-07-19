@@ -225,18 +225,24 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
     }
 }
 
-/**
- * Create or update notification preferences
- */
-export async function saveNotificationPreferences(data: {
+type OnboardingData = {
     cityId: string;
-    locationIds: string[];
-    topicIds: string[];
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
+    // If provided, the user is being seeded from the seed-users API
+    // This bypasses the session check and the magic link check
+    seedUser?: Partial<User>;
+}
+
+/**
+ * Create or update notification preferences
+ */
+export async function saveNotificationPreferences(data: OnboardingData & {
+    locationIds: string[];
+    topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
-    const { cityId, locationIds, topicIds, phone, email, name } = data;
+    const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
     const session = await getServerSession();
 
     let userId: string;
@@ -250,7 +256,7 @@ export async function saveNotificationPreferences(data: {
 
     try {
         // Get or create user
-        if (session?.user?.email) {
+        if (!seedUser && session?.user?.email) {
             // Authenticated user
             const user = await prisma.user.findUnique({
                 where: { email: session.user.email }
@@ -288,13 +294,16 @@ export async function saveNotificationPreferences(data: {
                         phone,
                         allowContact: true,
                         onboarded: true,
+                        ...seedUser
                     }
                 });
 
                 userId = newUser.id;
 
-                // Send magic link for verification
-                await sendMagicLink(email);
+                if (!seedUser) {
+                    // seed users are created during development, so we don't need to send a magic link
+                    await sendMagicLink(email);
+                }
             }
         } else {
             throw new Error("Either authenticated session or email must be provided");
@@ -423,22 +432,18 @@ export async function saveNotificationPreferences(data: {
 /**
  * Create or update petition
  */
-export async function savePetition(data: {
-    cityId: string;
+export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
-    phone?: string;
-    email?: string; // For non-authenticated users
-    name?: string; // We'll store this in user if needed, but not in petition
 }): Promise<Result<Petition>> {
-    const { cityId, isResident, isCitizen, phone, email, name } = data;
+    const { cityId, isResident, isCitizen, phone, email, name, seedUser } = data;
     const session = await getServerSession();
 
     let userId: string;
 
     try {
         // Get or create user
-        if (session?.user?.email) {
+        if (!seedUser && session?.user?.email) {
             // Authenticated user
             const user = await prisma.user.findUnique({
                 where: { email: session.user.email }
@@ -476,13 +481,16 @@ export async function savePetition(data: {
                         phone,
                         allowContact: true,
                         onboarded: true,
+                        ...seedUser
                     }
                 });
 
                 userId = newUser.id;
 
-                // Send magic link for verification
-                await sendMagicLink(email);
+                if (!seedUser) {
+                    // seed users are created during development, so we don't need to send a magic link
+                    await sendMagicLink(email);
+                }
             }
         } else {
             throw new Error("Either authenticated session or email must be provided");
