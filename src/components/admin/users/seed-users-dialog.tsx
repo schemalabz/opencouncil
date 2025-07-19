@@ -51,7 +51,7 @@ const PERSONAS = [
             petitions: true,
             allowContact: true
         },
-        expectedData: "Petition submission for 1 city, resident/citizen status varies",
+        expectedData: "Petition for 1 unsupported city, resident/citizen status varies",
         defaultQuantity: 8,
         testingUse: "Ideal for testing petition flows and community expansion features"
     },
@@ -70,7 +70,7 @@ const PERSONAS = [
             petitions: false,
             allowContact: false
         },
-        expectedData: "Only basic account information, recent registration dates",
+        expectedData: "Only basic account information, no onboarding",
         defaultQuantity: 12,
         testingUse: "Essential for testing onboarding flows and first-time user experience"
     },
@@ -386,30 +386,10 @@ export function SeedUsersDialog({ onUsersCreated }: SeedUsersDialogProps) {
                                     <p>
                                         <strong>Will create:</strong> {quantity} {selectedPersonaData?.name.toLowerCase()} users
                                     </p>
-                                    {selectedPersona === 'engaged-citizen' && (
-                                        <p className="text-green-700">
-                                            <Bell className="h-3 w-3 inline mr-1" />
-                                            Each user will have 2-4 notification preferences with 3-6 topics each
-                                        </p>
-                                    )}
-                                    {selectedPersona === 'activist' && (
-                                        <p className="text-blue-700">
-                                            <FileText className="h-3 w-3 inline mr-1" />
-                                            Each user will submit 1-3 petitions for unsupported cities
-                                        </p>
-                                    )}
-                                    {selectedPersona === 'newcomer' && (
-                                        <p className="text-yellow-700">
-                                            <Calendar className="h-3 w-3 inline mr-1" />
-                                            Users will be unboarded with recent registration dates
-                                        </p>
-                                    )}
-                                    {selectedPersona === 'lurker' && (
-                                        <p className="text-gray-700">
-                                            <Users className="h-3 w-3 inline mr-1" />
-                                            Users will be onboarded but with no activity data
-                                        </p>
-                                    )}
+                                    <p className="text-gray-700">
+                                        <Users className="h-3 w-3 inline mr-1" />
+                                        {selectedPersonaData?.expectedData}
+                                    </p>
                                 </div>
                             </div>
                         </div>
