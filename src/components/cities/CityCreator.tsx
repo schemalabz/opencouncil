@@ -316,9 +316,21 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     // Remove items
     const removeParty = (index: number) => {
         if (!cityData) return;
+        const partyToRemove = cityData.parties[index];
+        const updatedParties = cityData.parties.filter((_, i) => i !== index);
+
+        // Remove any role references to this party
+        const updatedPeople = cityData.people.map(person => ({
+            ...person,
+            roles: person.roles?.filter(role =>
+                !(role.type === 'party' && role.partyName === partyToRemove.name)
+            ) || []
+        }));
+
         setCityData({
             ...cityData,
-            parties: cityData.parties.filter((_, i) => i !== index),
+            parties: updatedParties,
+            people: updatedPeople
         });
     };
 
@@ -341,9 +353,21 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
 
     const removeAdministrativeBody = (index: number) => {
         if (!cityData) return;
+        const bodyToRemove = cityData.administrativeBodies[index];
+        const updatedBodies = cityData.administrativeBodies.filter((_, i) => i !== index);
+
+        // Remove any role references to this administrative body
+        const updatedPeople = cityData.people.map(person => ({
+            ...person,
+            roles: person.roles?.filter(role =>
+                !(role.type === 'adminBody' && role.administrativeBodyName === bodyToRemove.name)
+            ) || []
+        }));
+
         setCityData({
             ...cityData,
-            administrativeBodies: cityData.administrativeBodies.filter((_, i) => i !== index),
+            administrativeBodies: updatedBodies,
+            people: updatedPeople
         });
     };
 
@@ -351,8 +375,23 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const updateParty = (index: number, field: string, value: string) => {
         if (!cityData) return;
         const updated = [...cityData.parties];
+        const oldPartyName = updated[index].name;
         updated[index] = { ...updated[index], [field]: value };
-        setCityData({ ...cityData, parties: updated });
+
+        // If we're updating the party name, also update all role references
+        if (field === 'name' && oldPartyName !== value) {
+            const updatedPeople = cityData.people.map(person => ({
+                ...person,
+                roles: person.roles?.map(role =>
+                    role.type === 'party' && role.partyName === oldPartyName
+                        ? { ...role, partyName: value }
+                        : role
+                ) || []
+            }));
+            setCityData({ ...cityData, parties: updated, people: updatedPeople });
+        } else {
+            setCityData({ ...cityData, parties: updated });
+        }
     };
 
     const updatePerson = (index: number, field: string, value: string | boolean) => {
@@ -377,8 +416,23 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const updateAdministrativeBody = (index: number, field: string, value: string) => {
         if (!cityData) return;
         const updated = [...cityData.administrativeBodies];
+        const oldBodyName = updated[index].name;
         updated[index] = { ...updated[index], [field]: value };
-        setCityData({ ...cityData, administrativeBodies: updated });
+
+        // If we're updating the administrative body name, also update all role references
+        if (field === 'name' && oldBodyName !== value) {
+            const updatedPeople = cityData.people.map(person => ({
+                ...person,
+                roles: person.roles?.map(role =>
+                    role.type === 'adminBody' && role.administrativeBodyName === oldBodyName
+                        ? { ...role, administrativeBodyName: value }
+                        : role
+                ) || []
+            }));
+            setCityData({ ...cityData, administrativeBodies: updated, people: updatedPeople });
+        } else {
+            setCityData({ ...cityData, administrativeBodies: updated });
+        }
     };
 
     if (loading) {

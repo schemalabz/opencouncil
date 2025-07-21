@@ -19,6 +19,7 @@ export interface AIConfig {
     promptsDir?: string;
     enableWebSearch?: boolean;
     webSearchMaxUses?: number;
+    maxContinuationAttempts?: number;
 }
 
 // Default configuration
@@ -29,7 +30,8 @@ const DEFAULT_CONFIG: AIConfig = {
     logPrompts: IS_DEV,
     promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
     enableWebSearch: false,
-    webSearchMaxUses: 10
+    webSearchMaxUses: 10,
+    maxContinuationAttempts: 3
 };
 
 let lastUseTimestamp = 0;
@@ -201,7 +203,8 @@ export async function aiChat<T>(
     userPrompt: string,
     prefillSystemResponse?: string,
     prependToResponse?: string,
-    config: Partial<AIConfig> = {}
+    config: Partial<AIConfig> = {},
+    continuationAttempt: number = 0
 ): Promise<ResultWithUsage<T>> {
     lastUseTimestamp = Date.now();
 
@@ -281,13 +284,35 @@ export async function aiChat<T>(
 
         if (response.stop_reason === "max_tokens") {
             console.log(`Claude stopped because it reached the max tokens of ${mergedConfig.maxTokens}`);
-            console.log(`Attempting to continue with a longer response...`);
+
+            if (continuationAttempt >= mergedConfig.maxContinuationAttempts!) {
+                console.log(`Reached maximum continuation attempts (${mergedConfig.maxContinuationAttempts}). Stopping.`);
+                // Return what we have so far
+                let responseContent = finalTextBlock.text;
+                if (prependToResponse) {
+                    responseContent = prependToResponse + responseContent;
+                }
+
+                try {
+                    const responseJson = extractAndParseJSON<T>(responseContent, mergedConfig.logPrompts || false);
+                    return {
+                        usage: response.usage,
+                        result: responseJson
+                    };
+                } catch (e) {
+                    console.error(`Error parsing JSON from truncated response. Content (first 200 chars):`, responseContent.slice(0, 200));
+                    throw e;
+                }
+            }
+
+            console.log(`Attempting to continue with a longer response... (attempt ${continuationAttempt + 1}/${mergedConfig.maxContinuationAttempts})`);
             const response2 = await aiChat<T>(
                 systemPrompt,
                 userPrompt,
                 (prefillSystemResponse + finalTextBlock.text).trim(),
                 (prependToResponse + finalTextBlock.text).trim(),
-                mergedConfig
+                mergedConfig,
+                continuationAttempt + 1
             );
             return {
                 usage: {

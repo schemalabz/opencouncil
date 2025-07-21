@@ -56,6 +56,7 @@ DATA QUALITY STANDARDS:
 7. For optional fields, use null if not available
 8. For roles: always specify type, use null for name/name_en if it's simple membership
 9. For names: use the conventional form (not all caps, first name first). The short name for e.g. Έφη Σπυροπούλου is Ε. Σπυροπούλου.
+10. For party names: Avoid all-caps names. The english name should be greeklish (e.g. for Λαϊκή Συσπείρωση, Laiki Syspirosi).
 
 RESPONSE REQUIREMENTS:
 - Return ONLY the JSON data structure
