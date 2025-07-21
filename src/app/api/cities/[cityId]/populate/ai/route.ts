@@ -58,11 +58,30 @@ export async function POST(
                     cityName: city.name
                 });
 
-                const result = await generateCityDataWithAI(params.cityId, city.name, {
-                    useWebSearch: true,
-                    webSearchMaxUses: 3,
-                    userProvidedText
-                });
+                // Start heartbeat to keep connection alive during long AI operation
+                const heartbeatInterval = setInterval(async () => {
+                    try {
+                        await sendEvent('heartbeat', {
+                            message: 'AI is processing...',
+                            timestamp: Date.now()
+                        });
+                    } catch (error) {
+                        console.error('Heartbeat failed:', error);
+                        clearInterval(heartbeatInterval);
+                    }
+                }, 10000); // Send heartbeat every 10 seconds
+
+                let result;
+                try {
+                    result = await generateCityDataWithAI(params.cityId, city.name, {
+                        useWebSearch: true,
+                        webSearchMaxUses: 3,
+                        userProvidedText
+                    });
+                } finally {
+                    // Always clear the heartbeat interval
+                    clearInterval(heartbeatInterval);
+                }
 
                 if (!result.success) {
                     console.error('AI generation failed:', result.errors);

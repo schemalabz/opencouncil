@@ -68,6 +68,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const [error, setError] = useState<string | null>(null);
     const [userProvidedText, setUserProvidedText] = useState<string>('');
     const [showAiDialog, setShowAiDialog] = useState(false);
+    const [aiStatusMessage, setAiStatusMessage] = useState<string>('');
     const { toast } = useToast();
 
     // Load initial data
@@ -169,6 +170,11 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
 
                                 if (data.type === 'status') {
                                     console.log('[AI Stream]', data.message);
+                                    setAiStatusMessage(data.message);
+                                } else if (data.type === 'heartbeat') {
+                                    // Keep connection alive - no action needed
+                                    console.log('[AI Stream] Heartbeat:', data.message);
+                                    setAiStatusMessage(data.message);
                                 } else if (data.type === 'complete') {
                                     if (data.success && data.data) {
                                         setCityData(data.data);
@@ -201,6 +207,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
         } finally {
             setAiLoading(false);
             setShowAiDialog(false);
+            setAiStatusMessage('');
         }
     };
 
@@ -488,6 +495,11 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                 Generating municipal data with AI.<br />
                                 This may take a few minutes...
                             </p>
+                            {aiStatusMessage && (
+                                <p className="text-sm text-blue-600 mt-3 font-medium">
+                                    {aiStatusMessage}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}
@@ -873,7 +885,9 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                         {aiLoading && (
                             <div className="flex items-center gap-2 text-blue-600">
                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                <span className="text-sm">AI is searching the web and generating content...</span>
+                                <span className="text-sm">
+                                    {aiStatusMessage || 'AI is searching the web and generating content...'}
+                                </span>
                             </div>
                         )}
                     </div>
