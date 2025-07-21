@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { AdministrativeBodyType } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 
 // Zod schema for city JSON validation
 const cityPopulationSchema = z.object({
@@ -217,6 +218,12 @@ export async function POST(
                 adminBodiesCount: adminBodies.length,
             };
         });
+
+        try {
+            revalidateTag(`city:${params.cityId}`);
+        } catch (error) {
+            console.error('Error revalidating city:', error);
+        }
 
         return NextResponse.json({
             success: true,
