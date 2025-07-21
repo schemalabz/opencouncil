@@ -13,7 +13,7 @@ export type CouncilMeetingWithAdminBodyAndSubjects = CouncilMeetingWithAdminBody
 }
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id });
+    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
         await prisma.councilMeeting.delete({
             where: { cityId_id: { cityId, id } },
@@ -41,7 +41,7 @@ export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'cr
 }
 
 export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id });
+    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
@@ -116,7 +116,7 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
 }
 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id });
+    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },
