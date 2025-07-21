@@ -40,11 +40,6 @@ const menuItems = [
         url: "/admin/offers",
     },
     {
-        title: "Waitlist",
-        icon: Rocket,
-        url: "/admin/waitlist",
-    },
-    {
         title: "Tasks",
         icon: List,
         url: "/admin/tasks"

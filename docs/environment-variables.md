@@ -50,8 +50,6 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 |----------|-------------|----------|---------|
 | `NODE_ENV` | Environment (development/production/test). | No | `development` |
 | `NEXT_PUBLIC_BASE_URL` | Base URL of the application. | Yes | - |
-| `NEXT_PUBLIC_URL` | Full URL for authentication and callbacks. | Yes | - |
-| `NEXT_PUBLIC_MAIN_DOMAIN` | Main domain for the application. | Yes | - |
 
 ### Authentication
 | Variable | Description | Required | Default |
@@ -72,8 +70,6 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `ANTHROPIC_API_KEY` | API key for Claude. | Yes | - |
-| `VOYAGE_API_KEY` | API key for Voyage AI. | Yes | - |
-| `VOYAGE_API_BASE_URL` | Base URL for Voyage AI API. | No | `https://api.voyageai.com/v1` |
 
 ### Search Configuration
 | Variable | Description | Required | Default |

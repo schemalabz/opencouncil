@@ -31,7 +31,6 @@ yarn-error.log*
 .env*.local
 .env
 .last_docker_config
-connectors-config/config.yml
 
 # vercel
 .vercel

@@ -25,7 +25,8 @@ export async function POST(
         }
 
         // Send email with simple sign in link
-        const signInUrl = `${env.NEXT_PUBLIC_URL}/sign-in?email=${user.email}`
+        const signInUrl = `${env.NEXT_PUBLIC_BASE_URL}/sign-in?email=${user.email}`
+
         const emailHtml = await renderAsync(UserInviteEmail({
             name: user.name || user.email,
             inviteUrl: signInUrl
