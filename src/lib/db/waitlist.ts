@@ -17,7 +17,7 @@ export async function addToWaitlist(email: string, municipalityIds: string): Pro
 }
 
 export async function getWaitlistEntry(email: string) {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         const entry = await prisma.waitlist.findFirst({
             where: { email }
@@ -30,7 +30,7 @@ export async function getWaitlistEntry(email: string) {
 }
 
 export async function getWaitlistEntries() {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         const entries = await prisma.waitlist.findMany();
         return entries;
@@ -41,7 +41,7 @@ export async function getWaitlistEntries() {
 }
 
 export async function deleteWaitlistEntry(id: string) {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.waitlist.delete({ where: { id } });
     } catch (error) {

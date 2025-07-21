@@ -4,7 +4,7 @@ import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
 
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
-    withUserAuthorizedToEdit({ councilMeetingId: meetingId })
+    await withUserAuthorizedToEdit({ councilMeetingId: meetingId })
     try {
         const tasks = await prisma.taskStatus.findMany({
             where: {
@@ -60,7 +60,7 @@ export async function getVoiceprintTasksForPerson(personId: string): Promise<Tas
                 createdAt: 'desc',
             },
         });
-        
+
         // Filter tasks that contain this personId in their requestBody
         const personTasks = tasks.filter(task => {
             try {
@@ -70,7 +70,7 @@ export async function getVoiceprintTasksForPerson(personId: string): Promise<Tas
                 return false;
             }
         });
-        
+
         return personTasks;
     } catch (error) {
         console.error('Error fetching voiceprint tasks:', error);

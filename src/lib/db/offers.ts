@@ -4,7 +4,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
 export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Offer> {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         const newOffer = await prisma.offer.create({
             data: offerData,
@@ -17,7 +17,7 @@ export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'u
 }
 
 export async function updateOffer(id: string, offerData: Partial<Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Offer> {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         const updatedOffer = await prisma.offer.update({
             where: { id },
@@ -31,7 +31,7 @@ export async function updateOffer(id: string, offerData: Partial<Omit<Offer, 'id
 }
 
 export async function deleteOffer(id: string): Promise<void> {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         await prisma.offer.delete({
             where: { id },
@@ -86,7 +86,7 @@ export async function getOffer(id: string): Promise<Offer | OfferSupersededBy | 
 }
 
 export async function getOffers(): Promise<Offer[]> {
-    withUserAuthorizedToEdit({});
+    await withUserAuthorizedToEdit({});
     try {
         const offers = await prisma.offer.findMany();
         return offers;
