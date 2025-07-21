@@ -15,86 +15,105 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if city can use city creator
-        const canUseCreator = await canUseCityCreator(params.cityId);
-        if (!canUseCreator) {
-            // Check if city exists to provide appropriate error message
-            const city = await getCity(params.cityId);
-            if (!city) {
-                return NextResponse.json({ error: 'City not found' }, { status: 404 });
-            }
-            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
-        }
-
-        // Get city for AI generation (we know it exists from canUseCityCreator check)
         const city = await getCity(params.cityId);
         if (!city) {
-            // This should never happen after canUseCityCreator check, but TypeScript safety
             return NextResponse.json({ error: 'City not found' }, { status: 404 });
         }
 
-        // Create a streaming response
-        const stream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
+        const canUseCreator = await canUseCityCreator(params.cityId);
+        if (!canUseCreator) {
+            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
+        }
 
-                const sendEvent = (type: string, data: any) => {
-                    const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
-                    controller.enqueue(encoder.encode(message));
-                };
+        let userProvidedText: string | undefined;
+        try {
+            const body = await request.json();
+            userProvidedText = body.userProvidedText?.trim() || undefined;
+        } catch (error) {
+            userProvidedText = undefined;
+        }
 
-                try {
-                    // Send initial status
-                    sendEvent('status', {
-                        message: 'Starting AI data generation...',
-                        cityName: city.name
-                    });
+        const encoder = new TextEncoder();
 
-                    // Generate data using AI with web search
-                    const result = await generateCityDataWithAI(params.cityId, city.name, {
-                        useWebSearch: true,
-                        webSearchMaxUses: 10
-                    });
+        const stream = new TransformStream();
+        const writer = stream.writable.getWriter();
 
-                    if (!result.success) {
-                        console.error('AI generation failed:', result.errors);
-                        sendEvent('error', {
-                            error: 'Failed to generate city data with AI',
-                            details: result.errors
-                        });
-                        controller.close();
-                        return;
-                    }
-
-                    console.log('AI generation successful, usage:', result.usage);
-
-                    // Send success with data
-                    sendEvent('complete', {
-                        success: true,
-                        message: 'AI data generation completed',
-                        data: result.data,
-                        usage: result.usage
-                    });
-
-                    controller.close();
-                } catch (error) {
-                    console.error('Error in AI data generation:', error);
-                    sendEvent('error', {
-                        error: 'Internal server error',
-                        message: error instanceof Error ? error.message : String(error)
-                    });
-                    controller.close();
-                }
-            }
-        });
-
-        return new Response(stream, {
+        const streamResponse = new Response(stream.readable, {
             headers: {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
                 'Connection': 'keep-alive',
             },
         });
+
+        (async () => {
+            const sendEvent = async (type: string, data: any) => {
+                const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
+                await writer.write(encoder.encode(message));
+            };
+
+            try {
+                await sendEvent('status', {
+                    message: 'Starting AI data generation...',
+                    cityName: city.name
+                });
+
+                // Start heartbeat to keep connection alive during long AI operation
+                const heartbeatInterval = setInterval(async () => {
+                    try {
+                        await sendEvent('heartbeat', {
+                            message: 'AI is processing...',
+                            timestamp: Date.now()
+                        });
+                    } catch (error) {
+                        console.error('Heartbeat failed:', error);
+                        clearInterval(heartbeatInterval);
+                    }
+                }, 10000); // Send heartbeat every 10 seconds
+
+                let result;
+                try {
+                    result = await generateCityDataWithAI(params.cityId, city.name, {
+                        useWebSearch: true,
+                        webSearchMaxUses: 3,
+                        userProvidedText
+                    });
+                } finally {
+                    // Always clear the heartbeat interval
+                    clearInterval(heartbeatInterval);
+                }
+
+                if (!result.success) {
+                    console.error('AI generation failed:', result.errors);
+                    await sendEvent('error', {
+                        error: 'Failed to generate city data with AI',
+                        details: result.errors
+                    });
+                    await writer.close();
+                    return;
+                }
+
+                console.log('AI generation successful, usage:', result.usage);
+
+                await sendEvent('complete', {
+                    success: true,
+                    message: 'AI data generation completed',
+                    data: result.data,
+                    usage: result.usage
+                });
+
+                await writer.close();
+            } catch (error) {
+                console.error('Error in AI data generation:', error);
+                await sendEvent('error', {
+                    error: 'Internal server error',
+                    message: error instanceof Error ? error.message : String(error)
+                });
+                await writer.close();
+            }
+        })();
+
+        return streamResponse;
     } catch (error) {
         console.error('Error in AI data generation route:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
