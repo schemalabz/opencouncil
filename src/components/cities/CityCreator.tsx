@@ -159,13 +159,13 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                     if (done) break;
 
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
+                    const lines = buffer.split('\n\n');
                     buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
                     for (const line of lines) {
                         if (line.startsWith('data: ')) { // Process SSE data lines
                             try {
-                                const data = JSON.parse(line.slice(6));
+                                const data = JSON.parse(line.substring(6));
 
                                 if (data.type === 'status') {
                                     console.log('[AI Stream]', data.message);

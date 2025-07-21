@@ -15,42 +15,29 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if city can use city creator
-        const canUseCreator = await canUseCityCreator(params.cityId);
-        if (!canUseCreator) {
-            // Check if city exists to provide appropriate error message
-            const city = await getCity(params.cityId);
-            if (!city) {
-                return NextResponse.json({ error: 'City not found' }, { status: 404 });
-            }
-            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
-        }
-
-        // Get city for AI generation (we know it exists from canUseCityCreator check)
         const city = await getCity(params.cityId);
         if (!city) {
-            // This should never happen after canUseCityCreator check, but TypeScript safety
             return NextResponse.json({ error: 'City not found' }, { status: 404 });
         }
 
-        // Parse request body FIRST (same pattern as chat)
+        const canUseCreator = await canUseCityCreator(params.cityId);
+        if (!canUseCreator) {
+            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
+        }
+
         let userProvidedText: string | undefined;
         try {
             const body = await request.json();
             userProvidedText = body.userProvidedText?.trim() || undefined;
         } catch (error) {
-            // If no body or parsing fails, continue without user text
             userProvidedText = undefined;
         }
 
-        // Use TransformStream pattern (EXACT same as chat) - this works on DigitalOcean!
         const encoder = new TextEncoder();
-        const decoder = new TextDecoder();
 
         const stream = new TransformStream();
         const writer = stream.writable.getWriter();
 
-        // Return response immediately (EXACT same headers as chat)
         const streamResponse = new Response(stream.readable, {
             headers: {
                 'Content-Type': 'text/event-stream',
@@ -59,7 +46,6 @@ export async function POST(
             },
         });
 
-        // Process asynchronously OUTSIDE stream constructor (same as chat)
         (async () => {
             const sendEvent = async (type: string, data: any) => {
                 const message = `data: ${JSON.stringify({ type, ...data })}\n\n`;
@@ -67,13 +53,11 @@ export async function POST(
             };
 
             try {
-                // Send initial status
                 await sendEvent('status', {
                     message: 'Starting AI data generation...',
                     cityName: city.name
                 });
 
-                // Generate data using AI with web search
                 const result = await generateCityDataWithAI(params.cityId, city.name, {
                     useWebSearch: true,
                     webSearchMaxUses: 3,
@@ -92,7 +76,6 @@ export async function POST(
 
                 console.log('AI generation successful, usage:', result.usage);
 
-                // Send success with data
                 await sendEvent('complete', {
                     success: true,
                     message: 'AI data generation completed',
