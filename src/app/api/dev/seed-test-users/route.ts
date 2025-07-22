@@ -3,6 +3,7 @@ import prisma from '@/lib/db/prisma'
 import { TEST_USERS } from '@/lib/dev/test-users'
 import { IS_DEV } from '@/lib/utils'
 import { env } from '@/env.mjs'
+import { createUser } from '@/lib/db/users'
 
 const DEV_TEST_CITY_ID = env.DEV_TEST_CITY_ID
 
@@ -20,8 +21,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (!testCity) {
-      return NextResponse.json({ 
-        error: `City with id "${DEV_TEST_CITY_ID}" not found. Please ensure your database is seeded with city data.` 
+      return NextResponse.json({
+        error: `City with id "${DEV_TEST_CITY_ID}" not found. Please ensure your database is seeded with city data.`
       }, { status: 404 })
     }
 
@@ -88,26 +89,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Create user with administers relationship
-      const newUser = await prisma.user.create({
-        data: {
-          email: testUser.email,
-          name: finalName,
-          isSuperAdmin: testUser.isSuperAdmin,
-          onboarded: true,
-          administers: {
-            create: administers
-          }
-        },
-        include: {
-          administers: {
-            include: {
-              city: true,
-              party: true,
-              person: true
-            }
-          }
-        }
-      })
+      const newUser = await createUser({
+        email: testUser.email,
+        name: finalName,
+        isSuperAdmin: testUser.isSuperAdmin,
+        onboarded: true,
+        administers
+      }, { skipAuthCheck: true })
+
 
       createdUsers.push({
         email: newUser.email,
@@ -147,7 +136,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const testUserEmails = TEST_USERS.map(user => user.email)
-    
+
     const existingUsers = await prisma.user.findMany({
       where: {
         email: {
@@ -161,7 +150,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const allTestUsersExist = testUserEmails.every(email => 
+    const allTestUsersExist = testUserEmails.every(email =>
       existingUsers.some(user => user.email === email)
     )
 
