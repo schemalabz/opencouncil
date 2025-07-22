@@ -13,20 +13,10 @@ import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { City, Party, Person } from "@prisma/client"
 import { Badge } from "@/components/ui/badge"
 import { Check, ChevronsUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { UserWithRelations } from "@/lib/types"
+import { UserWithRelations } from "@/lib/db/users"
 
 interface UserDialogProps {
     open: boolean

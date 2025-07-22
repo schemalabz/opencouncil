@@ -13,7 +13,7 @@ import { AnalyticsDashboard } from "@/components/admin/users/analytics-dashboard
 import { SeedUsersDialog } from "@/components/admin/users/seed-users-dialog"
 import { ExpandableUserRow } from "@/components/admin/users/expandable-user-row"
 import { IS_DEV } from '@/lib/utils'
-import { UserWithRelations } from "@/lib/types"
+import { UserWithRelations } from "@/lib/db/users"
 
 export default function UsersPage() {
     const [users, setUsers] = useState<UserWithRelations[]>([])

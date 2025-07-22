@@ -2,11 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Users, Bell, FileText, TrendingUp, MapPin, Target } from "lucide-react"
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { useState, useEffect, useMemo } from "react"
-import { UserWithRelations } from "@/lib/types"
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { useMemo } from "react"
+import { UserWithRelations } from "@/lib/db/users"
 import { subDays, format } from 'date-fns'
 
 interface AnalyticsDashboardProps {

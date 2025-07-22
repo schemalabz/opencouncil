@@ -20,7 +20,7 @@ import {
     Tag
 } from "lucide-react"
 import { format } from "date-fns"
-import { UserWithRelations } from "@/lib/types"
+import { UserWithRelations } from "@/lib/db/users"
 
 interface ExpandableUserRowProps {
     user: UserWithRelations

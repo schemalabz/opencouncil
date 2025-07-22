@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth"
-import prisma from "@/lib/db/prisma"
+import { deleteUser } from "@/lib/db/users"
 import { NextResponse } from "next/server"
 
 export async function DELETE(
@@ -12,20 +12,18 @@ export async function DELETE(
         if (!currentUser) {
             return new NextResponse("Unauthorized", { status: 401 })
         }
-        
+
         if (!currentUser.isSuperAdmin) {
             return new NextResponse("Forbidden", { status: 403 })
         }
-        
+
         const { userId } = params
 
         if (userId === currentUser.id) {
             return new NextResponse("You cannot delete your own account.", { status: 400 })
         }
 
-        await prisma.user.delete({
-            where: { id: userId },
-        })
+        await deleteUser(userId)
 
         return NextResponse.json({ message: "User deleted successfully" })
     } catch (error) {
