@@ -59,7 +59,7 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit }:
   // Check if the user is authorized to edit the city
   // This happens OUTSIDE the cached function to avoid using headers() inside cache
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
-  
+
   return createCache(
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
     ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
@@ -68,6 +68,7 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit }:
 }
 
 /** 
+ * foo
  * Cached version of getCouncilMeetingsCountForCity that fetches and caches the count of all meetings for a city
  */
 export async function getCouncilMeetingsCountForCityCached(cityId: string) {
@@ -76,7 +77,7 @@ export async function getCouncilMeetingsCountForCityCached(cityId: string) {
     ['city', cityId, 'meetings', 'count'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
-} 
+}
 
 /**
  * Cached version of getPartiesForCity that fetches and caches all parties for a city

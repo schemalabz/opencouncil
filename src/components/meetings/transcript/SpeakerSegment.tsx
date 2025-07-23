@@ -89,7 +89,47 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
             <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
                     <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30'>
-                        {renderMock ? <div className='w-full h-full bg-muted' /> : (
+                        {renderMock ? (
+                            <div className='flex flex-col w-full space-y-2 py-2'>
+                                <div className='flex items-center justify-between w-full px-4'>
+                                    <div className='flex-grow overflow-hidden'>
+                                        <div className='h-6 bg-muted rounded animate-pulse' />
+                                    </div>
+                                    <div className='flex items-center gap-3 ml-4'>
+                                        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+                                            <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {summary && (
+                                    <div className='px-4 space-y-2'>
+                                        <div className='text-sm'>
+                                            <div className='h-4 bg-muted rounded animate-pulse' />
+                                        </div>
+                                        <div className='flex items-center justify-between'>
+                                            {segment.topicLabels.length > 0 && (
+                                                <div className='flex flex-wrap gap-2'>
+                                                    {segment.topicLabels.map(tl =>
+                                                        <div key={tl.topic.id} className='h-6 w-16 bg-muted rounded animate-pulse' />
+                                                    )}
+                                                </div>
+                                            )}
+                                            <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
+                                                {summary?.type === 'procedural' && (
+                                                    <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                        Διαδικαστικό
+                                                    </span>
+                                                )}
+                                                <div className='flex items-center gap-1'>
+                                                    <Bot className="h-3 w-3" />
+                                                    <span>Αυτόματη σύνοψη</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
                             <div className='flex flex-col w-full space-y-2 py-2'>
                                 <div className='flex items-center justify-between w-full px-4'>
                                     <div className='flex-grow overflow-hidden'>
@@ -176,7 +216,13 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     </div>
                 </div>
             </div>
-            {!renderMock && options.editable && <AddSegmentButton segmentId={segment.id} />}
+            {options.editable && (
+                renderMock ? (
+                    <div className="w-full h-2" />
+                ) : (
+                    <AddSegmentButton segmentId={segment.id} />
+                )
+            )}
         </>
     );
 });
