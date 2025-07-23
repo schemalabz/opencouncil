@@ -219,7 +219,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 throttledSetCurrentTime(newTime);
             }
         }
-    }, [isSeeking, isPlaying]);
+    }, [isSeeking, isPlaying, throttledSetCurrentTime]);
 
     // Create a throttled version of setCurrentTime
     const throttledSetCurrentTime = useRef(

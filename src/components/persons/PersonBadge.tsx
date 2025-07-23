@@ -29,7 +29,7 @@ interface PersonDisplayProps {
 
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
-    const activeRoles = useMemo(() => person ? filterActiveRoles(person.roles) : [], [person?.roles]);
+    const activeRoles = useMemo(() => person ? filterActiveRoles(person.roles) : [], [person]);
     const activePartyRole = useMemo(() => activeRoles.find(role => role.party), [activeRoles]);
     const partyColor = activePartyRole?.party?.colorHex || 'gray';
 

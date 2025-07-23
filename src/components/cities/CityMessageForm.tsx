@@ -79,7 +79,7 @@ export default function CityMessageForm({ existingMessage, onMessageChange }: Ci
         setMessageState(newState);
         // Always inform parent of current state
         onMessageChange?.(newState);
-    }, [existingMessage]);
+    }, [existingMessage, onMessageChange]);
 
     // Helper function to update message state
     const updateMessageState = (updates: Partial<MessageFormState>) => {
