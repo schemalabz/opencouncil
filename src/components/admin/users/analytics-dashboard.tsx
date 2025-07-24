@@ -22,14 +22,14 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
         const filteredUsers = dateCutoff
             ? users.filter(user => new Date(user.createdAt) >= dateCutoff)
             : users
-        
+
         const growthPercentage = (() => {
             if (dateRange === 'all' || isNaN(parseInt(dateRange, 10))) return 0
 
             const days = parseInt(dateRange, 10)
             const previousPeriodCutoff = subDays(new Date(), days * 2)
             const currentPeriodCutoff = subDays(new Date(), days)
-            
+
             const previousFilteredUsers = users.filter(user => {
                 const createdAt = new Date(user.createdAt)
                 return createdAt < currentPeriodCutoff && createdAt >= previousPeriodCutoff
@@ -42,16 +42,45 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
             return ((filteredUsers.length - previousFilteredUsers.length) / previousFilteredUsers.length) * 100
         })()
 
-        const registrationTimeline = filteredUsers.reduce((acc, user) => {
-            const date = format(new Date(user.createdAt), 'yyyy-MM-dd')
-            const entry = acc.find(e => e.date === date)
-            if (entry) {
-                entry.count++
+        const registrationTimeline = (() => {
+            // Determine date range
+            const endDate = new Date()
+            let startDate: Date
+
+            if (dateRange === 'all') {
+                // Find earliest user registration date, or use 30 days ago as fallback
+                const earliestUser = users.reduce((earliest, user) => {
+                    const userDate = new Date(user.createdAt)
+                    return !earliest || userDate < earliest ? userDate : earliest
+                }, null as Date | null)
+                startDate = earliestUser || subDays(endDate, 30)
             } else {
-                acc.push({ date, count: 1 })
+                startDate = subDays(endDate, parseInt(dateRange, 10))
             }
-            return acc
-        }, [] as Array<{ date: string; count: number }>).sort((a, b) => a.date.localeCompare(b.date));
+
+            // Create complete date range with zero counts
+            const dateRange_array: Array<{ date: string; count: number }> = []
+            const currentDate = new Date(startDate)
+
+            while (currentDate <= endDate) {
+                dateRange_array.push({
+                    date: format(currentDate, 'yyyy-MM-dd'),
+                    count: 0
+                })
+                currentDate.setDate(currentDate.getDate() + 1)
+            }
+
+            // Fill in actual registration counts
+            filteredUsers.forEach(user => {
+                const date = format(new Date(user.createdAt), 'yyyy-MM-dd')
+                const entry = dateRange_array.find(e => e.date === date)
+                if (entry) {
+                    entry.count++
+                }
+            })
+
+            return dateRange_array
+        })()
 
         const cityDistribution = filteredUsers.reduce((acc, user) => {
             user.notificationPreferences.forEach(pref => {
