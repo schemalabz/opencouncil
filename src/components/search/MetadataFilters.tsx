@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import Combobox from "../Combobox";
-import { cn } from "@/lib/utils";
+import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { City, Party, Person } from "@prisma/client";
-import { getPeopleForCity } from "@/lib/db/people";
+import { getPeopleForCity, PersonWithRelations } from "@/lib/db/people";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FilterIcon, X } from "lucide-react";
@@ -20,7 +20,7 @@ export type Filters = {
 export default function MetadataFilters({ className, filters, setFilters }: { className?: string, filters: Filters, setFilters: (filters: Filters) => void }) {
     const [cities, setCities] = useState<City[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
-    const [people, setPeople] = useState<Person[]>([]);
+    const [people, setPeople] = useState<PersonWithRelations[]>([]);
     const [isMobile, setIsMobile] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
 
@@ -29,10 +29,10 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768); // 768px is the standard md breakpoint
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        
+
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
@@ -91,27 +91,36 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     const onPersonChange = (personName: string | null) => {
         const person = people.find(p => p.name_short === personName);
         if (person) {
-            setFilters({ ...filters, personId: person.id, partyId: person.partyId ?? undefined });
+            // Auto-select party from person's currently active roles
+            const activeParty = getPartyFromRoles(person.roles);
+            const partyId = activeParty?.id;
+            setFilters({ ...filters, personId: person.id, partyId });
         } else {
             setFilters({ ...filters, personId: undefined });
         }
     }
 
-    const selectedPartyId = filters.partyId;
-    const availablePeople = selectedPartyId ? people.filter(p => p.partyId === selectedPartyId) : people;
+    // Filter people by selected party through their currently active roles
+    const availablePeople = useMemo(() => {
+        if (!filters.partyId) return people;
+        return people.filter(person => {
+            const activeParty = getPartyFromRoles(person.roles);
+            return activeParty?.id === filters.partyId;
+        });
+    }, [people, filters.partyId]);
 
     // Memoize selected values
-    const selectedCity = useMemo(() => 
+    const selectedCity = useMemo(() =>
         cities.find(c => c.id === filters.cityId) ?? null,
         [cities, filters.cityId]
     );
 
-    const selectedParty = useMemo(() => 
+    const selectedParty = useMemo(() =>
         parties.find(p => p.id === filters.partyId) ?? null,
         [parties, filters.partyId]
     );
 
-    const selectedPerson = useMemo(() => 
+    const selectedPerson = useMemo(() =>
         people.find(p => p.id === filters.personId) ?? null,
         [people, filters.personId]
     );
@@ -186,8 +195,8 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
     if (isMobile) {
         return (
             <>
-                <Button 
-                    variant="outline" 
+                <Button
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => setIsOpen(true)}
                 >

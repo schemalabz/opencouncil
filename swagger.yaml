@@ -511,8 +511,6 @@ components:
         role_en:
           type: string
           nullable: true
-        isAdministrativeRole:
-          type: boolean
         activeFrom:
           type: string
           format: date-time

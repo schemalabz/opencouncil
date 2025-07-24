@@ -93,8 +93,7 @@ model Party {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // TODO: remove the persons relation -- deprecated
-  persons Person[]
+
 
   city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
@@ -120,7 +119,6 @@ model Person {
 
   roles Role[]
 
-  isAdministrativeRole Boolean @default(false)
   activeFrom DateTime?
   activeTo DateTime?
   createdAt DateTime @default(now())
@@ -131,14 +129,12 @@ model Person {
   voicePrints VoicePrint[]
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
-  party  Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
-  partyId String?
+
 
   administrators Administers[]
   subjectsIntroduced Subject[]
 
   @@index([cityId])
-  @@index([partyId])
 }
 
 model CouncilMeeting {

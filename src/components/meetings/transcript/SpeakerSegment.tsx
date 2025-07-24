@@ -11,6 +11,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Bot } from "lucide-react";
+import { getPartyFromRoles } from "@/lib/utils";
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -50,8 +51,10 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     const memoizedData = useMemo(() => {
         const speakerTag = getSpeakerTag(segment.speakerTagId);
         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-        const party = person?.partyId ? getParty(person.partyId) : undefined;
+
+        const party = person ? getPartyFromRoles(person.roles) : null;
         const borderColor = party?.colorHex || '#D3D3D3';
+
         const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
         return { speakerTag, person, party, borderColor, segmentCount };
     }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag, getSpeakerSegmentCount]);
@@ -103,7 +106,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 onLabelChange={handleLabelChange}
                                                 availablePeople={people.map(p => ({
                                                     ...p,
-                                                    party: p.partyId ? getParty(p.partyId) || null : null
+                                                    party: getPartyFromRoles(p.roles)
                                                 }))}
                                             />
                                         )}

@@ -34,7 +34,6 @@ async function processCSV(filePath: string, cityId: string, dryRun: boolean) {
                             name_en: person.name_en,
                             name_short: person.name_short,
                             name_short_en: person.name_short_en,
-                            isAdministrativeRole: person.role ? true : false,
                             cityId: cityId,
                         };
 

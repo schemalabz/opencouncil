@@ -12,6 +12,7 @@ import { getParty } from "@/lib/db/parties";
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
+import { getPartyFromRoles } from "@/lib/utils";
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
@@ -47,7 +48,7 @@ export default function SearchPage() {
     // Update URL parameters
     const updateSearchParams = useCallback((updates: Record<string, string | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
-        
+
         // Update or remove parameters
         Object.entries(updates).forEach(([key, value]) => {
             if (value === undefined || value === '') {
@@ -58,7 +59,7 @@ export default function SearchPage() {
         });
 
         // Reset to page 1 when query or filters change
-        if (updates.query !== undefined || updates.cityId !== undefined || 
+        if (updates.query !== undefined || updates.cityId !== undefined ||
             updates.personId !== undefined || updates.partyId !== undefined) {
             params.set('page', '1');
         }
@@ -154,7 +155,8 @@ export default function SearchPage() {
                     if (person) {
                         updates.personId = person.id;
                         updates.cityId = person.cityId;
-                        updates.partyId = person.partyId ?? undefined;
+                        const party = getPartyFromRoles(person.roles);
+                        updates.partyId = party?.id ?? undefined;
                     } else {
                         updates.personId = undefined;
                     }
@@ -221,19 +223,19 @@ export default function SearchPage() {
             <div className="flex flex-col lg:flex-row gap-4">
                 <div className="w-full lg:w-1/4">
                     <div className="sticky top-4">
-                        <MetadataFilters 
-                            className="w-full" 
-                            filters={{ cityId, personId, partyId }} 
-                            setFilters={(filters) => updateSearchParams(filters)} 
+                        <MetadataFilters
+                            className="w-full"
+                            filters={{ cityId, personId, partyId }}
+                            setFilters={(filters) => updateSearchParams(filters)}
                         />
                     </div>
                 </div>
                 <div className="w-full lg:w-3/4">
-                    <form 
-                        onSubmit={(e) => { 
-                            e.preventDefault(); 
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
                             updateSearchParams({ query: localQuery });
-                        }} 
+                        }}
                         className="relative w-full"
                     >
                         <div className="relative">

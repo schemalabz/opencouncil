@@ -34,7 +34,6 @@ describe('Statistics', () => {
               id: 'person-1',
               name: 'John Doe',
               role: 'Mayor',
-              isAdministrativeRole: false,
               party: {
                 id: 'party-1',
                 name: 'Party A'
@@ -238,7 +237,6 @@ describe('Statistics', () => {
           speakerTag: {
             person: {
               id: 'person-1',
-              isAdministrativeRole: false,
               party: {
                 id: 'party-1',
                 name: 'Party A'
@@ -253,7 +251,6 @@ describe('Statistics', () => {
           speakerTag: {
             person: {
               id: 'person-2',
-              isAdministrativeRole: true, // Should be excluded from party stats
               party: {
                 id: 'party-1',
                 name: 'Party A'
@@ -268,7 +265,6 @@ describe('Statistics', () => {
           speakerTag: {
             person: {
               id: 'person-3',
-              isAdministrativeRole: false,
               party: {
                 id: 'party-2',
                 name: 'Party B'
