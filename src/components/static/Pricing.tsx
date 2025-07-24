@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
-import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone } from "lucide-react"
+import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone, DollarSignIcon, BadgeEuro } from "lucide-react"
 import { Inter } from 'next/font/google'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
@@ -18,7 +18,8 @@ import {
     estimateYearlyPricing,
     PLATFORM_PRICING_TIERS,
     SESSION_PROCESSING,
-    getCurrentCorrectnessGuaranteePrice
+    getCurrentCorrectnessGuaranteePrice,
+    getCombinedProcessingPrice
 } from '@/lib/pricing'
 
 const inter = Inter({ subsets: ['greek', 'latin'] })
@@ -33,7 +34,6 @@ export default function Pricing() {
     const [councilCount, setCouncilCount] = useState(20)
     const [averageDuration, setAverageDuration] = useState(3)
     const [population, setPopulation] = useState(50000)
-    const [needsAccuracyGuarantee, setNeedsAccuracyGuarantee] = useState(false)
     const [isContactFormOpen, setIsContactFormOpen] = useState(false)
     const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null)
 
@@ -49,7 +49,7 @@ export default function Pricing() {
             population,
             councilCount,
             averageDuration,
-            needsAccuracyGuarantee
+            true // Always include correctness guarantee now
         )
 
         setCalculatedPrice(estimate.totalYearlyCost)
@@ -85,7 +85,7 @@ export default function Pricing() {
                                 </li>
                                 <li className="flex items-start">
                                     <PhoneIcon className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Τηλεφωνική υποστήριξη, καθημερινά 09:00 - 21:00</span>
+                                    <span>Τηλεφωνική υποστήριξη για όλους: πολίτες, δημοτικούς υπαλλήλους και αιρετούς</span>
                                 </li>
                                 <li className="flex items-start">
                                     <RotateCcw className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -102,8 +102,8 @@ export default function Pricing() {
                                     <span>Προτείνετε νέες λειτουργίες και διαμορφώστε μαζί μας το OpenCouncil</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <Gem className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Πιλοτική τιμή που ισχύει για τους πρώτους 8 δήμους</span>
+                                    <BadgeEuro className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                                    <span>Απλή και διαφανής τιμολόγηση για όλους τους δήμους</span>
                                 </li>
                                 <li className="flex items-start">
                                     <Megaphone className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -126,12 +126,6 @@ export default function Pricing() {
                                         <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                                     </div>
                                     <span>Τεχνική υποστήριξη με φυσική παρουσία σε κάθε συνεδρίαση</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                    </div>
-                                    <span>Διόρθωση των αυτόματων απομαγνητοφωνήσεων από άνθρωπο, ώστε να είναι κατάλληλα για τα επίσημα πρακτικά του δήμου.</span>
                                 </li>
                             </ul>
                         </div>
@@ -205,16 +199,6 @@ export default function Pricing() {
                                             {population <= 2000 ? 'μέχρι 2.000' : population >= 200000 ? '200.000 και πάνω' : population}
                                         </div>
                                     </div>
-                                    <div className="flex items-center space-x-2">
-                                        <Switch
-                                            id="accuracy-guarantee"
-                                            checked={needsAccuracyGuarantee}
-                                            onCheckedChange={setNeedsAccuracyGuarantee}
-                                        />
-                                        <Label htmlFor="accuracy-guarantee">
-                                            Χρειάζεστε εγγύηση ορθότητας απομαγνητοφωνήσεων;
-                                        </Label>
-                                    </div>
                                 </div>
                                 <DialogFooter className="sm:justify-center">
                                     <Button onClick={calculatePrice}>Υπολογισμός</Button>
@@ -250,19 +234,26 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                 <div className="flex-1">
                     <PricingCard
                         icon={<FileInput className="h-10 w-10 text-primary stroke-[1.5]" />}
-                        title={SESSION_PROCESSING.label}
-                        description={SESSION_PROCESSING.description}
-                        price={`${formatCurrency(SESSION_PROCESSING.pricePerHour)} / ώρα συνεδρίασης`}
-                        subtext="Χρέωση ανά συνεδρίαση"
+                        title={getCombinedProcessingPrice().label}
+                        description={getCombinedProcessingPrice().description}
+                        price={`${formatCurrency(getCombinedProcessingPrice().pricePerHour)} / ώρα`}
+                        subtext="Χρέωση ανά ώρα συνεδρίασης"
                         includedItems={[
                             "Αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλιτή.",
+                            "Διόρθωση απομαγνητοφώνησης από άνθρωπο.",
                             "Δημιουργία embeddings για κάθε τοποθέτηση ομιλητή",
                             "Αυτόματες συνόψεις ανά τοποθέτηση.",
                             "Εξαγωγή στατιστικών"
                         ]}
                         isOpen={isOpen}
                         toggleOpen={toggleOpen}
-                        content={null}
+                        content={
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                <p className="text-sm text-muted-foreground">
+                                    Η προσθήκη παλαιότερων συνεδριάσεων, χωρίς διόρθωση της απομαγνητοφώνησης από άνθρωπο, χρεώνεται στα {formatCurrency(SESSION_PROCESSING.pricePerHour)} την ώρα.
+                                </p>
+                            </div>
+                        }
                     />
                 </div>
 
@@ -277,8 +268,8 @@ export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: bool
                         icon={<LayoutTemplateIcon className="h-10 w-10 text-primary stroke-[1.5]" />}
                         title="Χρήση Πλατφόρμας"
                         description="Τιμολόγηση βάσει μεγέθους δήμου"
-                        price=""  // Add an empty string or appropriate price
-                        subtext=""  // Add an empty string or appropriate subtext
+                        price=""
+                        subtext=""
                         content={
                             <ul className="space-y-2">
                                 {PLATFORM_PRICING_TIERS.map((tier, index) => (
