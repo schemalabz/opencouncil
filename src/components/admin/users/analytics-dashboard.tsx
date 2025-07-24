@@ -2,10 +2,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { UserWithRelations } from "@/lib/db/users"
-import { subDays, format } from 'date-fns'
+import { subDays, format, startOfWeek } from 'date-fns'
 
 interface AnalyticsDashboardProps {
     users: UserWithRelations[]
@@ -16,6 +18,8 @@ interface AnalyticsDashboardProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
 
 export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: AnalyticsDashboardProps) {
+    const [aggregateByWeek, setAggregateByWeek] = useState(false)
+
     const analytics = useMemo(() => {
         const dateCutoff = dateRange === 'all' ? null : subDays(new Date(), parseInt(dateRange, 10))
 
@@ -79,6 +83,32 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
                 }
             })
 
+            // Aggregate by week if enabled and date range is 30+ days
+            const shouldAggregateByWeek = aggregateByWeek && (dateRange === 'all' || parseInt(dateRange, 10) >= 30)
+
+            if (shouldAggregateByWeek) {
+                const weeklyData: Array<{ date: string; count: number }> = []
+                const weekGroups = new Map<string, number>()
+
+                dateRange_array.forEach(entry => {
+                    const weekStart = startOfWeek(new Date(entry.date), { weekStartsOn: 1 }) // Monday start
+                    const weekKey = format(weekStart, 'yyyy-MM-dd')
+
+                    if (weekGroups.has(weekKey)) {
+                        weekGroups.set(weekKey, weekGroups.get(weekKey)! + entry.count)
+                    } else {
+                        weekGroups.set(weekKey, entry.count)
+                    }
+                })
+
+                // Convert to array and sort
+                weekGroups.forEach((count, date) => {
+                    weeklyData.push({ date, count })
+                })
+
+                return weeklyData.sort((a, b) => a.date.localeCompare(b.date))
+            }
+
             return dateRange_array
         })()
 
@@ -133,7 +163,7 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
             topicPopularity,
             totalUsersOverall
         }
-    }, [users, dateRange])
+    }, [users, dateRange, aggregateByWeek])
 
     if (!analytics) return <div className="text-center p-8">Loading analytics...</div>
 
@@ -160,7 +190,21 @@ export function AnalyticsDashboard({ users, dateRange, onDateRangeChange }: Anal
                 {/* Registration Timeline */}
                 <Card className="md:col-span-2">
                     <CardHeader>
-                        <CardTitle>Registration Timeline</CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle>Registration Timeline</CardTitle>
+                            {(dateRange === 'all' || parseInt(dateRange, 10) >= 30) && (
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="week-toggle"
+                                        checked={aggregateByWeek}
+                                        onCheckedChange={setAggregateByWeek}
+                                    />
+                                    <Label htmlFor="week-toggle" className="text-sm">
+                                        Aggregate by week
+                                    </Label>
+                                </div>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <ResponsiveContainer width="100%" height={300}>
