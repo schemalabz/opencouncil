@@ -150,7 +150,7 @@ export const renderDocx = async ({ meeting, transcript, people, parties, speaker
     city: City,
     meeting: CouncilMeeting,
     transcript: Transcript,
-    people: (PersonWithRelations | any)[],
+    people: PersonWithRelations[],
     parties: Party[],
     speakerTags: SpeakerTag[]
 }) => {

@@ -161,7 +161,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             speakerSegments.map(segment => {
                                 const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                // Use roles-based party determination (same logic as PersonBadge)
                                 const party = person ? getPartyFromRoles(person.roles) : null;
                                 if (!speakerTag) return null;
 

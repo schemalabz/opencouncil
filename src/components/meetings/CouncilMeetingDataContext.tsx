@@ -62,7 +62,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getSpeakerSegmentCount: (tagId: string) => speakerTagSegmentCounts.get(tagId) || 0,
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
         getPersonsForParty: (partyId: string) => data.people.filter(person => {
-            // Use roles-based party determination instead of deprecated partyId
             const party = getPartyFromRoles(person.roles);
             return party?.id === partyId;
         }),

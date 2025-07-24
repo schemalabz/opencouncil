@@ -248,8 +248,6 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                             }
                             const speakerTag = getSpeakerTag(segment?.speakerTagId!);
                             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                            // Use roles-based party determination (same logic as PersonBadge)
-                            const party = person ? getPartyFromRoles(person.roles) : null;
                             if (!speakerTag) {
                                 console.error("speakerTag not found for segment", segment?.id);
                             }

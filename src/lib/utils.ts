@@ -1,4 +1,4 @@
-import { Offer, Subject, Topic } from "@prisma/client";
+import { Offer, Party, Role, Subject, Topic } from "@prisma/client";
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
@@ -266,29 +266,6 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
 }
 
 
-export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
-  const now = new Date();
-
-  // Both dates null = active
-  if (!role.startDate && !role.endDate) return true;
-
-  // Only start date set - active if in past
-  if (role.startDate && !role.endDate) {
-    return role.startDate <= now;
-  }
-
-  // Only end date set - active if in future
-  if (!role.startDate && role.endDate) {
-    return role.endDate > now;
-  }
-
-  // Both dates set - active if current time is within range
-  if (role.startDate && role.endDate) {
-    return role.startDate <= now && role.endDate > now;
-  }
-
-  return false;
-}
 
 
 export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
@@ -321,17 +298,20 @@ export function isRoleActiveAt(role: { startDate: Date | null, endDate: Date | n
   return false;
 }
 
+export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
+  const now = new Date();
+  return isRoleActiveAt(role, now);
+}
+
 /**
  * Extracts party affiliation from a list of roles at a specific date.
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)
  * @returns The party from the first active party role, or null if none found
  */
-export function getPartyFromRoles<T extends {
-  startDate: Date | null,
-  endDate: Date | null,
-  party?: { id: string; name: string; colorHex: string;[key: string]: any } | null
-}>(roles: T[], date?: Date): T['party'] | null {
+export function getPartyFromRoles(
+  roles: (Role & { party?: Party | null })[],
+  date?: Date): Party | null {
   const checkDate = date || new Date();
 
   // Filter roles that are active at the specified date

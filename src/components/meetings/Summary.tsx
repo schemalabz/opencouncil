@@ -45,7 +45,6 @@ export default function Summary() {
 
     const filteredTranscript = transcript.filter(segment => {
         const person = segment.speakerTag.personId ? getPerson(segment.speakerTag.personId) : null;
-        // Use roles-based party determination (same logic as PersonBadge)
         const party = person ? getPartyFromRoles(person.roles) : null;
         const segmentTopics = segment.topicLabels.map(tl => tl.topic.name);
 
@@ -80,7 +79,6 @@ export default function Summary() {
                 {filteredTranscript.map((segment) => {
                     if (!segment.summary) return null;
                     const person = segment.speakerTag.personId ? getPerson(segment.speakerTag.personId) : null;
-                    // Use roles-based party determination (same logic as PersonBadge)
                     const party = person ? getPartyFromRoles(person.roles) : null;
                     const color = party ? party.colorHex : 'gray';
                     const startTime = segment.startTimestamp;

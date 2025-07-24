@@ -21,7 +21,6 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
     };
 
-    // Use roles-based party determination (same logic as PersonBadge)
     const party = result.person ? getPartyFromRoles(result.person.roles) : null;
     const borderColor = party?.colorHex || '#D3D3D3';
     const timeParam = `t=${Math.floor(result.startTimestamp)}`;

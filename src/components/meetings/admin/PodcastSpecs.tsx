@@ -118,8 +118,6 @@ export default function PodcastSpecs() {
                                                 const speakerSegment = getSpeakerSegmentById(utterance.utterance.speakerSegmentId);
                                                 const speakerTag = speakerSegment?.speakerTagId ? getSpeakerTag(speakerSegment.speakerTagId) : null;
                                                 const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
-                                                // Use roles-based party determination (same logic as PersonBadge)
-                                                const party = person ? getPartyFromRoles(person.roles) : null;
                                                 return (
                                                     <div key={index} className="flex items-center space-x-2">
                                                         <PersonBadge

@@ -3,6 +3,7 @@ import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
 import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary } from '@prisma/client';
 import { PersonWithRelations } from './people';
+import { isRoleActive, isRoleActiveAt } from '../utils';
 
 export type SegmentWithRelations = {
     id: string;
@@ -547,13 +548,7 @@ export async function getLatestSegmentsForParty(
             const meetingDate = new Date(segment.meeting.dateTime);
 
             // Check for active role at meeting time
-            const hasActiveRole = person.roles.some(role => {
-                const startDate = role.startDate ? new Date(role.startDate) : null;
-                const endDate = role.endDate ? new Date(role.endDate) : null;
-
-                return (!startDate || startDate <= meetingDate) &&
-                    (!endDate || endDate >= meetingDate);
-            });
+            const hasActiveRole = person.roles.some(role => isRoleActiveAt(role, meetingDate));
 
             // Skip if no active role
             if (!hasActiveRole) {

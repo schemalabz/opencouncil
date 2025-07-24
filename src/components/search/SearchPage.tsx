@@ -155,7 +155,6 @@ export default function SearchPage() {
                     if (person) {
                         updates.personId = person.id;
                         updates.cityId = person.cityId;
-                        // Use roles-based party determination instead of deprecated partyId
                         const party = getPartyFromRoles(person.roles);
                         updates.partyId = party?.id ?? undefined;
                     } else {

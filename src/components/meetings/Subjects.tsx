@@ -133,8 +133,6 @@ export default function Subjects() {
                                         .map(segment => {
                                             const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
-                                            // Use roles-based party determination (same logic as PersonBadge)
-                                            const party = person ? getPartyFromRoles(person.roles) : null;
                                             const segmentTimestamp = transcript.find(s => s.id === segment.speakerSegment.id)?.startTimestamp;
                                             return (
                                                 <li key={segment.id} className="text-sm">

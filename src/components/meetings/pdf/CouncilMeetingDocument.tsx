@@ -97,7 +97,6 @@ const TranscriptPage = ({ meeting, transcript, people, parties, speakerTags }: {
         {transcript.map((speakerSegment, index) => {
             const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
             const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
-            // Use roles-based party determination instead of deprecated partyId
             const party = speaker ? getPartyFromRoles((speaker as any).roles || []) : null;
             const color = party ? party.colorHex : 'gray';
             return <View key={index} style={{ marginBottom: 10, flexDirection: 'column', alignItems: 'flex-start', borderLeftWidth: 2, borderLeftColor: color, paddingLeft: 5 }}>
