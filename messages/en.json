@@ -184,7 +184,7 @@
         "roleEnPlaceholder": "Role (English)",
         "selectParty": "Select Party",
         "party": "Party",
-        "partyDescription": "Select the party this member belongs to.",
+        "partyDescription": "Select the party this member belongs to."
     },
     "PersonCard": {
         "party": "Party",
