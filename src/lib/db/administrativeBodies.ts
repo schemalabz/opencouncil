@@ -20,7 +20,7 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdministrativeBody> {
-    withUserAuthorizedToEdit({ cityId: bodyData.cityId });
+    await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
         const newBody = await prisma.administrativeBody.create({
             data: bodyData,
@@ -42,7 +42,7 @@ export async function editAdministrativeBody(
     });
     if (!existingBody) throw new Error('Administrative body not found');
 
-    withUserAuthorizedToEdit({ cityId: existingBody.cityId });
+    await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
     try {
         const updatedBody = await prisma.administrativeBody.update({
             where: { id },
@@ -62,7 +62,7 @@ export async function deleteAdministrativeBody(id: string): Promise<void> {
     });
     if (!existingBody) throw new Error('Administrative body not found');
 
-    withUserAuthorizedToEdit({ cityId: existingBody.cityId });
+    await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
     try {
         await prisma.administrativeBody.delete({
             where: { id },

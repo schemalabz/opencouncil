@@ -13,7 +13,7 @@ export type PersonWithRelations = Person & {
 };
 
 export async function deletePerson(id: string): Promise<void> {
-    withUserAuthorizedToEdit({ personId: id });
+    await withUserAuthorizedToEdit({ personId: id });
     try {
         await prisma.person.delete({
             where: { id },
@@ -34,7 +34,7 @@ export async function createPerson(data: {
     profileUrl: string | null;
     roles: Role[];
 }): Promise<Person> {
-    withUserAuthorizedToEdit({ cityId: data.cityId });
+    await withUserAuthorizedToEdit({ cityId: data.cityId });
     try {
         const newPerson = await prisma.person.create({
             data: {
@@ -84,7 +84,7 @@ export async function editPerson(id: string, data: {
     profileUrl: string | null;
     roles: Role[];
 }): Promise<Person> {
-    withUserAuthorizedToEdit({ personId: id });
+    await withUserAuthorizedToEdit({ personId: id });
     try {
         const updatedPerson = await prisma.$transaction(async (tx) => {
             // First delete all existing roles

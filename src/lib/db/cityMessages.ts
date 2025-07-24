@@ -16,10 +16,10 @@ export async function getCityMessage(cityId: string): Promise<CityMessage | null
 }
 
 export async function upsertCityMessage(
-    cityId: string, 
+    cityId: string,
     messageData: Omit<CityMessage, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>
 ): Promise<CityMessage> {
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
     try {
         const message = await prisma.cityMessage.upsert({
             where: { cityId },
@@ -37,7 +37,7 @@ export async function upsertCityMessage(
 }
 
 export async function deleteCityMessage(cityId: string): Promise<void> {
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
     try {
         await prisma.cityMessage.delete({
             where: { cityId }

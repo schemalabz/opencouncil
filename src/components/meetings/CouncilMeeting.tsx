@@ -16,7 +16,6 @@ import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
 import { Transcript as TranscriptType } from '@/lib/db/transcript'
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '../ui/button'
-import { ChatInterface } from './Chat'
 import { Statistics } from './Statistics'
 import ShareC from './Share'
 import Summary from './Summary'

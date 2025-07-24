@@ -4,6 +4,7 @@ import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityConsultations from "@/components/cities/CityConsultations";
 import { getCityCached } from "@/lib/cache";
 import { getAllConsultationsForCity, isConsultationActive } from "@/lib/db/consultations";
+import { env } from "@/env.mjs";
 
 interface PageProps {
     params: { cityId: string };
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         : `Δεν υπάρχουν διαβουλεύσεις στον Δήμο ${city.name} αυτή τη στιγμή. Ελέγχετε ξανά σύντομα για νέες ευκαιρίες συμμετοχής.`;
 
     // Generate OG image URL for city
-    const ogImageUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}`;
 
     return {
         title: `Δημόσιες Διαβουλεύσεις | ${city.name} | OpenCouncil`,

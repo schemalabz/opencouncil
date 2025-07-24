@@ -1,4 +1,4 @@
-import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth"
+import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { sendEmail } from "@/lib/email/resend"
 import { renderAsync } from "@react-email/render"
@@ -6,6 +6,7 @@ import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { NextResponse } from "next/server"
 import { createHash } from "crypto"
 import { env } from "@/env.mjs"
+import { createUser, getUsers, updateUser } from "@/lib/db/users"
 
 async function generateSignInLink(email: string) {
     // Create a token that expires in 24 hours
@@ -23,7 +24,7 @@ async function generateSignInLink(email: string) {
     })
 
     // Generate the sign-in URL
-    const signInUrl = `${env.NEXT_PUBLIC_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
+    const signInUrl = `${env.NEXT_PUBLIC_BASE_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
     return signInUrl
 }
 
@@ -49,29 +50,7 @@ export async function GET() {
     }
 
     try {
-        const users = await prisma.user.findMany({
-            include: {
-                administers: {
-                    include: {
-                        city: true,
-                        party: {
-                            include: {
-                                city: true
-                            }
-                        },
-                        person: {
-                            include: {
-                                city: true
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        })
-
+        const users = await getUsers()
         return NextResponse.json(users)
     } catch (error) {
         console.error("Failed to fetch users:", error)
@@ -89,33 +68,7 @@ export async function POST(request: Request) {
     const { email, name, isSuperAdmin, administers } = data
 
     try {
-        const newUser = await prisma.user.create({
-            data: {
-                email,
-                name,
-                isSuperAdmin,
-                administers: {
-                    create: administers
-                }
-            },
-            include: {
-                administers: {
-                    include: {
-                        city: true,
-                        party: {
-                            include: {
-                                city: true
-                            }
-                        },
-                        person: {
-                            include: {
-                                city: true
-                            }
-                        }
-                    }
-                }
-            }
-        })
+        const newUser = await createUser({ email, name, isSuperAdmin, administers })
 
         // Send invitation email
         await sendInviteEmail(email, name)
@@ -137,44 +90,11 @@ export async function PUT(request: Request) {
     const { id, email, name, isSuperAdmin, administers } = data
 
     try {
-        // First delete all existing administers relations
-        await prisma.administers.deleteMany({
-            where: { userId: id }
-        })
-
-        // Then update the user with new data
-        const updatedUser = await prisma.user.update({
-            where: { id },
-            data: {
-                email,
-                name,
-                isSuperAdmin,
-                administers: {
-                    create: administers
-                }
-            },
-            include: {
-                administers: {
-                    include: {
-                        city: true,
-                        party: {
-                            include: {
-                                city: true
-                            }
-                        },
-                        person: {
-                            include: {
-                                city: true
-                            }
-                        }
-                    }
-                }
-            }
-        })
-
+        const updatedUser = await updateUser(id, { email, name, isSuperAdmin, administers })
         return NextResponse.json(updatedUser)
     } catch (error) {
         console.error("Failed to update user:", error)
         return new NextResponse("Failed to update user", { status: 500 })
     }
-} 
+}
+

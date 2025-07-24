@@ -12,7 +12,6 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { embedCouncilMeeting } from '@/lib/search/embed';
 import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
@@ -21,6 +20,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
+import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 
 export default function AdminActions({
 }: {
@@ -30,6 +30,7 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
+    const [isSyncingElasticsearch, setIsSyncingElasticsearch] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -40,7 +41,6 @@ export default function AdminActions({
     const [forceTranscribe, setForceTranscribe] = React.useState(false);
     const [topics, setTopics] = React.useState(['']);
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
-    const [isEmbedding, setIsEmbedding] = React.useState(false);
     const [isReleased, setIsReleased] = React.useState(meeting.released);
     const [forceAgenda, setForceAgenda] = React.useState(false);
     React.useEffect(() => {
@@ -130,12 +130,6 @@ export default function AdminActions({
         }
     };
 
-    const handleEmbed = async () => {
-        setIsEmbedding(true);
-        await embedCouncilMeeting(meeting.cityId, meeting.id);
-        setIsEmbedding(false);
-    }
-
     const handleDeleteTask = async (taskId: string) => {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/taskStatuses/${taskId}`, {
@@ -209,6 +203,26 @@ export default function AdminActions({
             });
         } finally {
             setIsProcessingAgenda(false);
+        }
+    };
+
+    const handleSyncElasticsearch = async () => {
+        setIsSyncingElasticsearch(true);
+        try {
+            // PostgreSQL connector supports only full sync, so we use that
+            await requestSyncElasticsearch(meeting.cityId, meeting.id, 'full');
+            toast({
+                title: "Elasticsearch sync requested",
+                description: `The full sync process has started.`,
+            });
+        } catch (error) {
+            toast({
+                title: "Error requesting Elasticsearch sync",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsSyncingElasticsearch(false);
         }
     };
 
@@ -343,8 +357,8 @@ export default function AdminActions({
                 <Button onClick={handleFixTranscript}>
                     Fix Transcript
                 </Button>
-                <Button onClick={handleEmbed} disabled={isEmbedding}>
-                    Embed
+                <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
+                    {isSyncingElasticsearch ? 'Syncing...' : 'Sync Elasticsearch'}
                 </Button>
             </div>
         </div>
@@ -387,7 +401,7 @@ export default function AdminActions({
                 >
                     Refresh Meeting Cache
                 </Button>
-                
+
                 <Button
                     variant="outline"
                     onClick={async () => {

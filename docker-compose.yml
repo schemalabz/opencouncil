@@ -64,12 +64,5 @@ services:
       timeout: 10s
     profiles: ["with-db"]
 
-  elastic-connector:
-    image: docker.elastic.co/integrations/elastic-connectors:9.0.0
-    volumes:
-      - ./connectors-config:/config
-    command: /app/bin/elastic-ingest -c /config/config.yml
-    profiles: ["with-elastic"]
-
 volumes:
   pgdata:

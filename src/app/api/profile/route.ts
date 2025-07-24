@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import prisma from "@/lib/db/prisma";
+import { updateUserProfile } from "@/lib/db/users";
 
 export async function POST(request: Request) {
     try {
@@ -14,15 +14,7 @@ export async function POST(request: Request) {
         // Remove email if present in data to prevent email updates
         const { email, ...updateData } = data;
 
-        const updatedUser = await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                name: updateData.name,
-                phone: updateData.phone,
-                allowContact: updateData.allowContact,
-                onboarded: updateData.onboarded ?? user.onboarded
-            }
-        });
+        const updatedUser = await updateUserProfile(user.id, updateData);
 
         return NextResponse.json(updatedUser);
     } catch (error) {
