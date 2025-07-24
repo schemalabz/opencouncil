@@ -1,6 +1,6 @@
 'use client'
 import { motion, useScroll, useSpring, useTransform, useInView, useAnimation } from 'framer-motion'
-import { PhoneCall, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail, Twitter, Linkedin } from 'lucide-react'
+import { PhoneCall, Megaphone, HelpCircle, Search, Database, Mic, FileText, LetterText, BotMessageSquare, Sparkles, Github, Globe, Zap, Clock, ChevronDown, Eye, Users, DatabaseIcon, Building, SearchCheck, Mic2, CalendarClock, Phone, Building2, Vote, Scroll, Mail, Twitter, Linkedin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { useRef, useEffect, useState } from 'react'
@@ -187,9 +187,9 @@ export default function AboutPage() {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
+                            { icon: Scroll, title: 'Γρήγορα, αναζητήσιμα πρακτικά', description: 'Ακριβή, ψηφιακά πρακτικά των συλλογικών οργάνων του δήμου (Δημοτικά Συμβούλια, Επιτροπές, Κοινότητες) διαθέσιμα σε όλους σε ώρες, όχι σε μέρες και εβδομάδες.' },
                             { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
-                            { icon: DatabaseIcon, title: 'Ένα νέο δημόσιο αγαθό', description: 'Δημιουργήστε μια πλούσια, αναζητήσιμη βάση δεδομένων των δημοκρατικών διαδικασιών του συμβουλίου, που ανήκει σε όλους.' },
-                            { icon: Building, title: 'Αποτελεσματική διακυβέρνηση', description: 'Εξοπλίστε το δήμο σας με ισχυρά εργαλεία για την αποτελεσματικότερη χάραξη πολιτικών. Οι προηγμένες λειτουργίες αναζήτησης και οργάνωσης επιτρέπουν γρήγορη πρόσβαση σε προηγούμενες συζητήσεις και αποφάσεις.' },
+                            { icon: Megaphone, title: 'Συμμετοχικότητα στο σήμερα', description: 'Φέρτε τα δημοτικά συμβούλια του δήμου σας εκεί που οι πολίτες ήδη περνάνε το χρόνο τους: στο WhatsApp και στα Social Media. Επιτρέψτε τους να ενημερωθούν για τα θέματα της γειτονιάς τους άμεσα και απλά.' },
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}
@@ -226,11 +226,11 @@ export default function AboutPage() {
                         className="relative group text-sm sm:text-base md:text-lg px-4 sm:px-6 md:px-8 py-3 sm:py-4 md:py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 bg-primary hover:bg-primary/90"
                         asChild
                     >
-                        <Link href="/athens">
+                        <Link href="/chania">
                             <span className="relative z-10 flex items-center gap-2">
                                 <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                                <span className="hidden sm:inline">Δείτε το OpenCouncil για το Δήμο Αθηναίων</span>
-                                <span className="sm:hidden">Δήμος Αθηναίων</span>
+                                <span className="hidden sm:inline">Δείτε το OpenCouncil για το Δήμο Χανίων</span>
+                                <span className="sm:hidden">Δήμος Χανίων</span>
                             </span>
                             <motion.div
                                 className="absolute inset-0 rounded-xl bg-primary opacity-0 group-hover:opacity-100 transition-opacity"

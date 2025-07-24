@@ -34,25 +34,25 @@ export const PLATFORM_PRICING_TIERS: readonly PlatformPricingTier[] = [
     },
     {
         maxPopulation: 10000,
-        monthlyPrice: 200,
+        monthlyPrice: 300,
         label: "2.001 - 10.000 κάτοικοι",
         labelEn: "2,001 - 10,000 residents"
     },
     {
         maxPopulation: 30000,
-        monthlyPrice: 400,
+        monthlyPrice: 600,
         label: "10.001 - 30.000 κάτοικοι",
         labelEn: "10,001 - 30,000 residents"
     },
     {
         maxPopulation: 50000,
-        monthlyPrice: 600,
+        monthlyPrice: 900,
         label: "30.001 - 50.000 κάτοικοι",
         labelEn: "30,001 - 50,000 residents"
     },
     {
         maxPopulation: 100000,
-        monthlyPrice: 1200,
+        monthlyPrice: 1500,
         label: "50.001 - 100.000 κάτοικοι",
         labelEn: "50,001 - 100,000 residents"
     },

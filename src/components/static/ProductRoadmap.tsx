@@ -104,6 +104,7 @@ export default function ProductRoadmap() {
     return (
         <div ref={containerRef} className="max-w-4xl mx-auto py-16 px-4">
             <h2 className="text-3xl font-bold mb-12 text-center">Πλάνο ανάπτυξης</h2>
+
             <div className="relative">
                 <div
                     ref={lineRef}
@@ -125,6 +126,11 @@ export default function ProductRoadmap() {
                     ))}
                 </div>
             </div>
+            <p className="text-center text-sm text-muted-foreground mb-8 mt-8">
+                <a href="https://github.com/orgs/schemalabz/projects/1" target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Δείτε όλο το roadmap στο GitHub
+                </a>
+            </p>
         </div>
     )
 }
