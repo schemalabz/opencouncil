@@ -92,7 +92,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
     ];
 };
 
-const createTranscriptSection = (transcript: Transcript, people: (PersonWithRelations | any)[], parties: Party[]) => {
+const createTranscriptSection = (transcript: Transcript, people: (PersonWithRelations | any)[], parties: Party[], meeting: CouncilMeeting) => {
     const paragraphs = [
         new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -107,7 +107,7 @@ const createTranscriptSection = (transcript: Transcript, people: (PersonWithRela
     transcript.forEach((speakerSegment) => {
         const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
         const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
-        const party = speaker ? getPartyFromRoles(speaker.roles || []) : null;
+        const party = speaker ? getPartyFromRoles(speaker.roles || [], new Date(meeting.dateTime)) : null;
 
         const children = [
             new TextRun({
@@ -165,7 +165,7 @@ export const renderDocx = async ({ meeting, transcript, people, parties, speaker
             properties: {},
             children: [
                 ...createTitlePage(meeting, city),
-                ...createTranscriptSection(transcript, people, parties),
+                ...createTranscriptSection(transcript, people, parties, meeting),
             ],
         }],
     });

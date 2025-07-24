@@ -112,7 +112,7 @@ export async function getStatisticsFor(
     });
 
     // Filter by party in application code to ensure role was active at meeting time
-    if (partyId && meetingDate) {
+    if (partyId) {
         transcript = transcript.filter(segment => {
             const person = segment.speakerTag.person;
             if (!person) return false;
