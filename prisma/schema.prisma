@@ -119,7 +119,6 @@ model Person {
 
   roles Role[]
 
-  isAdministrativeRole Boolean @default(false)
   activeFrom DateTime?
   activeTo DateTime?
   createdAt DateTime @default(now())

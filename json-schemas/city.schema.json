@@ -100,10 +100,6 @@
                         ],
                         "description": "URL to person's photo"
                     },
-                    "isAdministrativeRole": {
-                        "type": "boolean",
-                        "default": false
-                    },
                     "activeFrom": {
                         "type": [
                             "string",

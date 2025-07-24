@@ -185,8 +185,6 @@
         "selectParty": "Select Party",
         "party": "Party",
         "partyDescription": "Select the party this member belongs to.",
-        "isAdministrativeRole": "Administrative Council Member",
-        "isAdministrativeRoleDescription": "Speaking time of administrative members is not counted towards party speaking time."
     },
     "PersonCard": {
         "party": "Party",
