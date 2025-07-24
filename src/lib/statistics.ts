@@ -183,7 +183,7 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
         }
 
         // Handle party statistics
-        if (groupBy.includes("party") && segment.speakerTag.person?.roles && !segment.speakerTag.person?.isAdministrativeRole) {
+        if (groupBy.includes("party") && segment.speakerTag.person?.roles) {
             // Get the party the person was affiliated with at the time of speaking
             const activeParty = getPartyFromRoles(segment.speakerTag.person.roles, meetingDate);
             if (activeParty) {
