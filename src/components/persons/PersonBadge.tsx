@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Person, Party, SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
-import { cn, filterActiveRoles } from "@/lib/utils";
+import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
 import {
     Popover,
     PopoverContent,
@@ -30,8 +30,8 @@ interface PersonDisplayProps {
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
     const activeRoles = useMemo(() => person ? filterActiveRoles(person.roles) : [], [person?.roles]);
-    const activePartyRole = useMemo(() => activeRoles.find(role => role.party), [activeRoles]);
-    const partyColor = activePartyRole?.party?.colorHex || 'gray';
+    const party = useMemo(() => person ? getPartyFromRoles(person.roles) : null, [person?.roles]);
+    const partyColor = party?.colorHex || 'gray';
 
     const imageSizes = {
         sm: 40,
@@ -74,7 +74,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 <div
                     className={cn(
                         "absolute inset-0 rounded-full opacity-20",
-                        activePartyRole?.party && `bg-[${partyColor}]`
+                        party && `bg-[${partyColor}]`
                     )}
                 />
                 <ImageOrInitials

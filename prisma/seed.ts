@@ -423,7 +423,6 @@ async function seedPersons(persons: any[]) {
     name_short: person.name_short,
     name_short_en: person.name_short_en,
     image: person.image,
-    isAdministrativeRole: person.isAdministrativeRole || false,
     activeFrom: person.activeFrom,
     activeTo: person.activeTo,
     profileUrl: person.profileUrl,

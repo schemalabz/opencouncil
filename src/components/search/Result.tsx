@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, getPartyFromRoles } from "@/lib/utils";
 import { PersonBadge } from "../persons/PersonBadge";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { useState } from "react";
@@ -21,7 +21,8 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
     };
 
-    const borderColor = result.person?.roles[0]?.party?.colorHex || '#D3D3D3';
+    const party = result.person ? getPartyFromRoles(result.person.roles) : null;
+    const borderColor = party?.colorHex || '#D3D3D3';
     const timeParam = `t=${Math.floor(result.startTimestamp)}`;
     const transcriptUrl = `/${result.meeting.city.id}/${result.meeting.id}/transcript?${timeParam}`;
 

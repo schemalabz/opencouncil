@@ -12,6 +12,7 @@ import { requestGeneratePodcastSpec } from '@/lib/tasks/generatePodcastSpec';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { PersonBadge } from "@/components/persons/PersonBadge";
+import { getPartyFromRoles } from "@/lib/utils";
 
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
@@ -132,7 +133,6 @@ export default function Subjects() {
                                         .map(segment => {
                                             const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
-                                            const party = person?.partyId ? getParty(person.partyId) : null;
                                             const segmentTimestamp = transcript.find(s => s.id === segment.speakerSegment.id)?.startTimestamp;
                                             return (
                                                 <li key={segment.id} className="text-sm">

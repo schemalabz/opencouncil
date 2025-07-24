@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { BarChart2, BarChartIcon, Clock, FileBarChart2, FileIcon, Loader2, PieChartIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { PersonWithRelations } from "@/lib/db/people"
+import { PersonWithRelations } from "@/lib/db/people";
+import { getPartyFromRoles } from '@/lib/utils';
 
 export function Statistics() {
     const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null)
@@ -55,7 +56,7 @@ export function Statistics() {
             .map(person => ({
                 name: person.item.name,
                 minutes: Math.round(person.speakingSeconds / 60),
-                fill: person.item.roles?.find((role: Role) => role.partyId)?.partyId ? getParty(person.item.roles.find((role: Role) => role.partyId)!.partyId!)?.colorHex ?? "gray" : "gray"
+                fill: getPartyFromRoles(person.item.roles || [])?.colorHex ?? "gray"
             }));
     }, [statistics, getParty]);
 

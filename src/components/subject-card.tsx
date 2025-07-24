@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ColorPercentageRing } from "./ui/color-percentage-ring";
 import Icon from "./icon";
 import { MapPin, ScrollText, Calendar } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getPartyFromRoles } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
@@ -38,13 +38,13 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         .slice(0, 5)
         .map(p => ({
             ...p.item,
-            party: p.item.partyId ? parties.find(party => party.id === p.item.partyId) || null : null
+            party: getPartyFromRoles(p.item.roles)
         })) || [];
 
     // Add the introducer at the start if they exist and aren't already in top speakers
     const introducerWithParty = subject.introducedBy ? {
         ...subject.introducedBy,
-        party: subject.introducedBy?.partyId ? parties.find(party => party.id === subject.introducedBy!.partyId) || null : null,
+        party: getPartyFromRoles(subject.introducedBy.roles),
         isIntroducer: true
     } : null;
 

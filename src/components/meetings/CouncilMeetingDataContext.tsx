@@ -7,6 +7,7 @@ import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript'
 import { MeetingData } from '@/lib/getMeetingData';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
 import { PersonWithRelations } from '@/lib/db/people';
+import { getPartyFromRoles } from "@/lib/utils";
 
 export interface CouncilMeetingDataContext extends MeetingData {
     getPerson: (id: string) => PersonWithRelations | undefined;
@@ -60,7 +61,10 @@ export function CouncilMeetingDataProvider({ children, data }: {
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
         getSpeakerSegmentCount: (tagId: string) => speakerTagSegmentCounts.get(tagId) || 0,
         getSpeakerSegmentById: (id: string) => speakerSegmentsMap.get(id),
-        getPersonsForParty: (partyId: string) => data.people.filter(person => person.partyId === partyId),
+        getPersonsForParty: (partyId: string) => data.people.filter(person => {
+            const party = getPartyFromRoles(person.roles);
+            return party?.id === partyId;
+        }),
         updateSpeakerTagPerson: async (tagId: string, personId: string | null) => {
             console.log(`Updating speaker tag ${tagId} to person ${personId}`);
             await updateSpeakerTag(tagId, { personId });

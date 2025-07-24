@@ -1,8 +1,9 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City } from '@prisma/client';
+import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary } from '@prisma/client';
 import { PersonWithRelations } from './people';
+import { isRoleActive, isRoleActiveAt } from '../utils';
 
 export type SegmentWithRelations = {
     id: string;
@@ -20,7 +21,12 @@ export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
     cityId: string,
     meetingId: string
-) {
+): Promise<SpeakerSegment & {
+    utterances: Utterance[];
+    speakerTag: SpeakerTag;
+    topicLabels: (TopicLabel & { topic: Topic })[];
+    summary: Summary | null;
+}> {
     // First get the segment we're inserting after to get its end timestamp and speaker tag info
     const currentSegment = await prisma.speakerSegment.findUnique({
         where: { id: afterSegmentId },
@@ -75,7 +81,13 @@ export async function createEmptySpeakerSegmentAfter(
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true,
+                                    city: true,
+                                    administrativeBody: true
+                                }
+                            }
                         }
                     }
                 }
@@ -257,7 +269,13 @@ async function getSegmentWithIncludes(segmentId: string) {
                 include: {
                     person: {
                         include: {
-                            party: true
+                            roles: {
+                                include: {
+                                    party: true,
+                                    city: true,
+                                    administrativeBody: true
+                                }
+                            }
                         }
                     }
                 }
@@ -346,7 +364,6 @@ export async function getLatestSegmentsForSpeaker(
                     include: {
                         person: {
                             include: {
-                                party: true,
                                 roles: {
                                     include: {
                                         party: true,
@@ -531,13 +548,8 @@ export async function getLatestSegmentsForParty(
             const meetingDate = new Date(segment.meeting.dateTime);
 
             // Check for active role at meeting time
-            const hasActiveRole = person.roles.some(role => {
-                const startDate = role.startDate ? new Date(role.startDate) : null;
-                const endDate = role.endDate ? new Date(role.endDate) : null;
+            const hasActiveRole = person.roles.some(role => isRoleActiveAt(role, meetingDate));
 
-                return (!startDate || startDate <= meetingDate) &&
-                    (!endDate || endDate >= meetingDate);
-            });
 
             // Skip if no active role
             if (!hasActiveRole) {
