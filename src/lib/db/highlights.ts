@@ -63,7 +63,7 @@ export async function upsertHighlight(
 ): Promise<Highlight & { highlightedUtterances: HighlightedUtterance[] }> {
     let { id, name, meetingId, cityId, utteranceIds } = highlightData;
 
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
 
     if (!id) {
         id = await getNewHighlightId();
@@ -176,7 +176,7 @@ export async function toggleHighlightShowcase(id: Highlight["id"]) {
             throw new Error('Highlight not found');
         }
 
-        withUserAuthorizedToEdit({ cityId: highlight.cityId });
+        await withUserAuthorizedToEdit({ cityId: highlight.cityId });
 
         if (!highlight.muxPlaybackId) {
             throw new Error('Cannot showcase highlight without video');

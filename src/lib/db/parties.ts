@@ -4,7 +4,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
 export async function deleteParty(id: string): Promise<void> {
-    withUserAuthorizedToEdit({ partyId: id });
+    await withUserAuthorizedToEdit({ partyId: id });
     try {
         await prisma.party.delete({
             where: { id },
@@ -16,7 +16,7 @@ export async function deleteParty(id: string): Promise<void> {
 }
 
 export async function createParty(partyData: Omit<Party, 'id' | 'createdAt' | 'updatedAt'>): Promise<Party> {
-    withUserAuthorizedToEdit({ cityId: partyData.cityId });
+    await withUserAuthorizedToEdit({ cityId: partyData.cityId });
     try {
         const newParty = await prisma.party.create({
             data: partyData,
@@ -29,7 +29,7 @@ export async function createParty(partyData: Omit<Party, 'id' | 'createdAt' | 'u
 }
 
 export async function editParty(id: string, partyData: Partial<Omit<Party, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Party> {
-    withUserAuthorizedToEdit({ partyId: id });
+    await withUserAuthorizedToEdit({ partyId: id });
     try {
         const updatedParty = await prisma.party.update({
             where: { id },

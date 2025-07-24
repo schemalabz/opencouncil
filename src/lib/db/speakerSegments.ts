@@ -40,7 +40,7 @@ export async function createEmptySpeakerSegmentAfter(
         throw new Error('Segment not found');
     }
 
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
 
     // Find the next segment to ensure we place the new segment correctly
     const nextSegment = await prisma.speakerSegment.findFirst({
@@ -135,7 +135,7 @@ async function moveUtterancesToSegment(
         throw new Error('Current segment not found');
     }
 
-    withUserAuthorizedToEdit({ cityId: currentSegment.cityId });
+    await withUserAuthorizedToEdit({ cityId: currentSegment.cityId });
 
     // Find the target segment (previous or next)
     const targetSegment = await prisma.speakerSegment.findFirst({
@@ -235,7 +235,7 @@ export async function updateSegmentTimestamps(segmentId: string) {
         throw new Error('Segment not found');
     }
 
-    withUserAuthorizedToEdit({ cityId: segment.cityId });
+    await withUserAuthorizedToEdit({ cityId: segment.cityId });
 
     const earliestStart = Math.min(...segment.utterances.map(u => u.startTimestamp));
     const latestEnd = Math.max(...segment.utterances.map(u => u.endTimestamp));
@@ -311,7 +311,7 @@ export async function deleteEmptySpeakerSegment(
         throw new Error('City ID mismatch');
     }
 
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
 
     const text = segment.utterances.map((u) => u.text).join(" ");
     const isOnlyWhitespace = text.trim().length === 0;
@@ -549,6 +549,7 @@ export async function getLatestSegmentsForParty(
 
             // Check for active role at meeting time
             const hasActiveRole = person.roles.some(role => isRoleActiveAt(role, meetingDate));
+
 
             // Skip if no active role
             if (!hasActiveRole) {

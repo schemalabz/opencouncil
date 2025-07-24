@@ -19,7 +19,7 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
     eligiblePeople: Array<{ id: string; name: string }>;
     count: number;
 }> {
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
 
     // First, get all people in this city who don't have voiceprints
     const peopleWithoutVoiceprints = await prisma.person.findMany({
@@ -64,7 +64,7 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
  * Request to generate voiceprints for all eligible people in a city
  */
 export async function requestGenerateVoiceprintsForCity(cityId: string) {
-    withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId });
 
     const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId);
 
@@ -129,7 +129,7 @@ export async function requestGenerateVoiceprint(personId: string) {
         throw new Error("Meeting not found");
     }
 
-    withUserAuthorizedToEdit({ cityId: segment.cityId });
+    await withUserAuthorizedToEdit({ cityId: segment.cityId });
 
     const mediaUrl = meeting.audioUrl || meeting.videoUrl;
     if (!mediaUrl) {

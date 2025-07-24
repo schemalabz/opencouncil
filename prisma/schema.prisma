@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  extensions = [pgvector(map: "vector"), postgis(version: "3.3.5")]
+  extensions = [postgis(version: "3.3.5")]
 }
 
 model City {
@@ -239,7 +239,6 @@ model SpeakerSegment {
 
   speakerTag SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
   speakerTagId String
-  embedding Unsupported("vector")?
 
   utterances Utterance[]
 
@@ -528,15 +527,6 @@ model Offer {
   respondToEmail String
   respondToPhone String
   respondToName String
-}
-
-model Waitlist {
-  id        String   @id  @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  email String
-  municipalityIds String // comma-separated list of integers for now
 }
 
 // Users and authentication

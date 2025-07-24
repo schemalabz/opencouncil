@@ -9,6 +9,7 @@ import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
+import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 
@@ -38,7 +39,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     });
 
     // Prepare callback URL
-    const callbackUrl = `${env.NEXT_PUBLIC_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
+    const callbackUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
     console.log(`Callback URL: ${callbackUrl}`);
 
     // Add callback URL to request body
@@ -48,7 +49,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
     let response;
     let error;
     try {
-        console.log(`Calling ${env.TASK_API_URL}/${taskType}`);
+        console.log(`Calling ${env.TASK_API_URL}/${taskType} with body ${JSON.stringify(fullRequestBody)}`);
         response = await fetch(`${env.TASK_API_URL}/${taskType}`, {
             method: 'POST',
             headers: {
@@ -70,12 +71,21 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
             data: { status: 'failed' }
         });
 
-        let body = null;
+        let errorMessage = 'no response body';
         if (response) {
             console.log(`Status: ${response.status}`);
-            body = await response.json();
+            const responseText = await response.text();
+            try {
+                const body = JSON.parse(responseText);
+                errorMessage = body.error || responseText;
+            } catch (e) {
+                errorMessage = responseText;
+            }
+        } else if (error) {
+            errorMessage = (error as Error).message;
         }
-        throw new Error(`Failed to start task: ${response?.statusText} (${body ? body.error : 'no response body'})`);
+        
+        throw new Error(`Failed to start task: ${response?.statusText} (${errorMessage})`);
     }
 
     // Update task with full request body including callback URL
@@ -109,7 +119,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
             where: { id: taskId },
-            data: { status: 'failed', requestBody: update.error, version: update.version }
+            data: { status: 'failed', responseBody: update.error, version: update.version }
         });
     } else if (update.status === 'processing') {
         await prisma.taskStatus.update({
@@ -140,6 +150,8 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         await handleProcessAgendaResult(taskId, JSON.parse(task.responseBody!));
     } else if (taskType === 'generateVoiceprint') {
         await handleGenerateVoiceprintResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'syncElasticsearch') {
+        await handleSyncElasticsearchResult(taskId, JSON.parse(task.responseBody!));
     } else {
         throw new Error(`Unsupported task type: ${taskType}`);
     }
