@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { useInView } from 'framer-motion';
 import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
@@ -45,7 +43,45 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
+const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: { 
+    segmentId: string, 
+    isFirstSegment: boolean 
+}) => {
+    const { createEmptySegmentBefore } = useCouncilMeetingData();
+    const { options } = useTranscriptOptions();
+
+    // Only show for the first segment
+    if (!options.editable || !isFirstSegment) return null;
+
+    return (
+        <div className="w-full h-2 group relative">
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 bg-white hover:bg-gray-100"
+                            onClick={() => createEmptySegmentBefore(segmentId)}
+                        >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add segment before
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Add a new empty segment before the first segment</p>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        </div>
+    );
+};
+
+const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: { 
+    segment: TranscriptType[number], 
+    renderMock: boolean,
+    isFirstSegment?: boolean 
+}) => {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
@@ -94,6 +130,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
     return (
         <>
+            {/* Add the new button before the segment */}
+            {options.editable && isFirstSegment && !renderMock && (
+                <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
+            )}
+            
             <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
                     <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30'>
