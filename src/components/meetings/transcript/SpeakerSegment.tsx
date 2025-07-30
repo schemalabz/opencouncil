@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useInView } from 'framer-motion';
@@ -10,8 +10,10 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot } from "lucide-react";
+import { Plus, Trash2, Bot, FileJson } from "lucide-react";
 import { getPartyFromRoles } from "@/lib/utils";
+import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
+import { useSession } from 'next-auth/react';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -47,6 +49,9 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin;
+    const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
 
     const memoizedData = useMemo(() => {
         const speakerTag = getSpeakerTag(segment.speakerTagId);
@@ -169,6 +174,23 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
+                                        {isSuperAdmin && !renderMock && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                        onClick={() => setMetadataDialogOpen(true)}
+                                                    >
+                                                        <FileJson className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>View segment metadata</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
                                         <div className='flex items-center gap-2 text-xs text-muted-foreground'>
                                             <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
                                         </div>
@@ -226,6 +248,12 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     <AddSegmentButton segmentId={segment.id} />
                 )
             )}
+
+            <SpeakerSegmentMetadataDialog
+                segment={segment}
+                open={metadataDialogOpen}
+                onOpenChange={setMetadataDialogOpen}
+            />
         </>
     );
 });
