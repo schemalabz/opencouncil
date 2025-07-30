@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -18,6 +18,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
+    createEmptySegmentBefore: (beforeSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     deleteEmptySegment: (segmentId: string) => Promise<void>;
@@ -128,6 +129,27 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 ...prev.slice(0, segmentIndex + 1),
                 newSegment,
                 ...prev.slice(segmentIndex + 1)
+            ]);
+
+            // Add the new speaker tag to our state
+            setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
+        },
+        createEmptySegmentBefore: async (beforeSegmentId: string) => {
+            const newSegment = await createEmptySpeakerSegmentBefore(
+                beforeSegmentId,
+                data.meeting.cityId,
+                data.meeting.id
+            );
+
+            // Find the index of the segment we're inserting before
+            const segmentIndex = transcript.findIndex(s => s.id === beforeSegmentId);
+            if (segmentIndex === -1) return;
+
+            // Insert the new segment before it
+            setTranscript(prev => [
+                ...prev.slice(0, segmentIndex),
+                newSegment,
+                ...prev.slice(segmentIndex)
             ]);
 
             // Add the new speaker tag to our state
