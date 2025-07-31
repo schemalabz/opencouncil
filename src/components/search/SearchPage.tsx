@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Sparkles } from "lucide-react";
+import { Search, Sparkles, AlertTriangle } from "lucide-react";
 import { Input } from "../ui/input";
 import MetadataFilters from "./MetadataFilters";
 import { useEffect, useState, useCallback, useMemo } from "react";
@@ -16,6 +16,9 @@ import { getPartyFromRoles } from "@/lib/utils";
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
+
+// Temporary flag to disable search functionality
+const SEARCH_TEMPORARILY_DISABLED = true;
 
 export default function SearchPage() {
     const router = useRouter();
@@ -95,6 +98,12 @@ export default function SearchPage() {
 
     // Perform search
     const performSearch = useCallback(async () => {
+        // Skip search if temporarily disabled
+        if (SEARCH_TEMPORARILY_DISABLED) {
+            setState(prev => ({ ...prev, results: [], total: 0, isLoading: false }));
+            return;
+        }
+
         if (!query) {
             setState(prev => ({ ...prev, results: [], total: 0 }));
             return;
@@ -202,6 +211,22 @@ export default function SearchPage() {
 
     return (
         <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 py-8">
+            {/* Temporary maintenance message */}
+            {SEARCH_TEMPORARILY_DISABLED && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                        <div>
+                            <h3 className="font-medium text-amber-800">Προσωρινή Διακοπή Λειτουργίας</h3>
+                            <p className="text-sm text-amber-700 mt-1">
+                                Η λειτουργία αναζήτησης είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. 
+                                Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col gap-2">
                 <div className="flex justify-center mb-2">
                     <div className="flex items-center justify-center">
@@ -227,6 +252,7 @@ export default function SearchPage() {
                             className="w-full"
                             filters={{ cityId, personId, partyId }}
                             setFilters={(filters) => updateSearchParams(filters)}
+                            disabled={SEARCH_TEMPORARILY_DISABLED}
                         />
                     </div>
                 </div>
@@ -234,23 +260,32 @@ export default function SearchPage() {
                     <form
                         onSubmit={(e) => {
                             e.preventDefault();
-                            updateSearchParams({ query: localQuery });
+                            if (!SEARCH_TEMPORARILY_DISABLED) {
+                                updateSearchParams({ query: localQuery });
+                            }
                         }}
                         className="relative w-full"
                     >
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
-                                placeholder="Πληκτρολογήστε για αναζήτηση..."
+                                placeholder={SEARCH_TEMPORARILY_DISABLED ? "Η αναζήτηση είναι προσωρινά απενεργοποιημένη..." : "Πληκτρολογήστε για αναζήτηση..."}
                                 className="pl-12 h-12 text-base"
                                 value={localQuery}
-                                onChange={(e) => setLocalQuery(e.target.value)}
+                                onChange={(e) => {
+                                    if (!SEARCH_TEMPORARILY_DISABLED) {
+                                        setLocalQuery(e.target.value);
+                                    }
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
-                                        updateSearchParams({ query: localQuery });
+                                        if (!SEARCH_TEMPORARILY_DISABLED) {
+                                            updateSearchParams({ query: localQuery });
+                                        }
                                     }
                                 }}
+                                disabled={SEARCH_TEMPORARILY_DISABLED}
                             />
                         </div>
                     </form>

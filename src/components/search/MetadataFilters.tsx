@@ -17,7 +17,7 @@ export type Filters = {
     personId?: Person["id"];
 }
 
-export default function MetadataFilters({ className, filters, setFilters }: { className?: string, filters: Filters, setFilters: (filters: Filters) => void }) {
+export default function MetadataFilters({ className, filters, setFilters, disabled = false }: { className?: string, filters: Filters, setFilters: (filters: Filters) => void, disabled?: boolean }) {
     const [cities, setCities] = useState<City[]>([]);
     const [parties, setParties] = useState<Party[]>([]);
     const [people, setPeople] = useState<PersonWithRelations[]>([]);
@@ -148,6 +148,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                     className="w-full"
                     getItemLabel={(city) => city.name}
                     getItemValue={(city) => city.name}
+                    disabled={disabled}
                 />
             </div>
             <div className="space-y-2">
@@ -157,7 +158,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                     value={selectedParty}
                     onChange={(party) => onPartyChange(party?.name_short ?? null)}
                     placeholder="Επιλέξτε παράταξη"
-                    disabled={!filters.cityId}
+                    disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && parties.length === 0}
                     className="w-full"
                     getItemLabel={(party) => party.name_short}
@@ -171,7 +172,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                     value={selectedPerson}
                     onChange={(person) => onPersonChange(person?.name_short ?? null)}
                     placeholder="Επιλέξτε πρόσωπο"
-                    disabled={!filters.cityId}
+                    disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && people.length === 0}
                     className="w-full"
                     getItemLabel={(person) => person.name_short}
@@ -184,6 +185,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                     size="sm"
                     onClick={clearFilters}
                     className="w-full justify-start text-muted-foreground hover:text-foreground"
+                    disabled={disabled}
                 >
                     <X className="w-4 h-4 mr-2" />
                     Καθαρισμός φίλτρων
@@ -199,6 +201,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                     variant="outline"
                     className="w-full justify-start"
                     onClick={() => setIsOpen(true)}
+                    disabled={disabled}
                 >
                     <FilterIcon className="mr-2 h-4 w-4" />
                     Φίλτρα
@@ -232,6 +235,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
                         size="sm"
                         onClick={clearFilters}
                         className="text-muted-foreground hover:text-foreground"
+                        disabled={disabled}
                     >
                         <X className="w-4 h-4 mr-2" />
                         Καθαρισμός
