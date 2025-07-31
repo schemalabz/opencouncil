@@ -661,15 +661,26 @@ export async function updateSpeakerSegmentData(
             });
         }
 
-        // Update existing utterances
+        // Update existing utterances and create new ones
         for (const utteranceData of data.utterances) {
             if (existingUtteranceIds.has(utteranceData.id)) {
+                // Update existing utterance
                 await prisma.utterance.update({
                     where: { id: utteranceData.id },
                     data: {
                         text: utteranceData.text,
                         startTimestamp: utteranceData.startTimestamp,
                         endTimestamp: utteranceData.endTimestamp
+                    }
+                });
+            } else if (utteranceData.id.startsWith('temp_')) {
+                // Create new utterance (temporary ID indicates a new utterance)
+                await prisma.utterance.create({
+                    data: {
+                        text: utteranceData.text || '',
+                        startTimestamp: utteranceData.startTimestamp,
+                        endTimestamp: utteranceData.endTimestamp,
+                        speakerSegmentId: segmentId
                     }
                 });
             }
