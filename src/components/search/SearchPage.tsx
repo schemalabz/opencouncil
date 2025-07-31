@@ -18,7 +18,7 @@ const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
 
 // Temporary flag to disable search functionality
-const SEARCH_TEMPORARILY_DISABLED = true;
+const SEARCH_TEMPORARILY_DISABLED = false;
 
 export default function SearchPage() {
     const router = useRouter();

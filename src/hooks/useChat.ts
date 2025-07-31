@@ -3,7 +3,7 @@ import { ChatMessage } from '@/types/chat';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 // Temporary flag to disable chat functionality
-const CHAT_TEMPORARILY_DISABLED = true;
+const CHAT_TEMPORARILY_DISABLED = false;
 
 export function useChat() {
     const router = useRouter();
