@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Copy, Check, Clock, Hash, FileText, User, Tag, Edit, AlertTriangle } from "lucide-react";
+import { Copy, Check, Clock, Hash, FileText, User, Tag, Edit, AlertTriangle, Plus } from "lucide-react";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import { toast } from "@/hooks/use-toast";
 import { useSpeakerSegmentEditor } from '@/hooks/useSpeakerSegmentEditor';
@@ -198,8 +198,19 @@ export default function SpeakerSegmentMetadataDialog({
                     <div className="relative">
                         {editor.isEditMode ? (
                             <div className="space-y-2">
-                                <div className="text-sm text-muted-foreground">
-                                    Edit utterances and summary data. Remove utterances by deleting them from the array.
+                                <div className="flex items-center justify-between">
+                                    <div className="text-sm text-muted-foreground">
+                                        Edit utterances and summary data. Remove utterances by deleting them from the array.
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={editor.actions.addEmptyUtterance}
+                                        className="flex items-center gap-1"
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                        Add Empty Utterance
+                                    </Button>
                                 </div>
                                 <Textarea
                                     value={editor.editedData}

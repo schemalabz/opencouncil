@@ -109,6 +109,47 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
         }
     }, [validationErrors.length]);
 
+    // Add empty utterance to the JSON
+    const addEmptyUtterance = useCallback(() => {
+        try {
+            const data = JSON.parse(editedData) as EditableSpeakerSegmentData;
+            
+            // Calculate a reasonable timestamp for the new utterance
+            // Place it at the end of the segment with a 1-second duration
+            const existingTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+            const maxTimestamp = existingTimestamps.length > 0 ? Math.max(...existingTimestamps) : 0;
+            const newStartTimestamp = maxTimestamp + 0.1; // Small gap after last utterance
+            const newEndTimestamp = newStartTimestamp + 1; // 1 second duration
+            
+            // Create new utterance with temporary ID
+            const newUtterance = {
+                id: `temp_${Date.now()}`, // Temporary ID that will be replaced by database
+                text: "",
+                startTimestamp: newStartTimestamp,
+                endTimestamp: newEndTimestamp
+            };
+            
+            // Add to utterances array
+            const updatedData = {
+                ...data,
+                utterances: [...data.utterances, newUtterance]
+            };
+            
+            // Update the edited data
+            setEditedData(JSON.stringify(updatedData, null, 2));
+            
+            toast({
+                description: "Empty utterance added. Edit the text and timestamps as needed.",
+            });
+        } catch (error) {
+            console.error('Failed to add empty utterance:', error);
+            toast({
+                variant: "destructive",
+                description: "Failed to add empty utterance. Please check JSON format.",
+            });
+        }
+    }, [editedData]);
+
     // Save changes
     const saveChanges = useCallback(async () => {
         const errors = validateData(editedData);
@@ -156,7 +197,8 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
             cancelEdit,
             updateEditedData,
             saveChanges,
-            validateData
+            validateData,
+            addEmptyUtterance
         }
     };
 } 
