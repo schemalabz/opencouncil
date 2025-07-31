@@ -44,6 +44,20 @@ const speakerSegmentWithRelationsInclude = {
 
 export type SpeakerSegmentWithRelations = Prisma.SpeakerSegmentGetPayload<{ include: typeof speakerSegmentWithRelationsInclude }>;
 
+// New interface for editable speaker segment data
+export interface EditableSpeakerSegmentData {
+    utterances: Array<{
+        id: string;          // read-only for reference
+        text: string;        // editable
+        startTimestamp: number; // editable
+        endTimestamp: number;   // editable
+    }>;
+    summary?: {
+        text: string;        // editable
+        type: 'procedural' | 'substantive'; // editable
+    } | null;
+}
+
 export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
     cityId: string,
@@ -589,4 +603,123 @@ export async function getLatestSegmentsForParty(
         results,
         totalCount
     };
+}
+
+export async function updateSpeakerSegmentData(
+    segmentId: string,
+    data: EditableSpeakerSegmentData,
+    cityId: string
+): Promise<SpeakerSegmentWithRelations> {
+    // Get the current segment to verify ownership and get current state
+    const currentSegment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: {
+            utterances: true,
+            summary: true
+        }
+    });
+
+    if (!currentSegment) {
+        throw new Error('Speaker segment not found');
+    }
+
+    if (currentSegment.cityId !== cityId) {
+        throw new Error('City ID mismatch');
+    }
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    // Validate the input data
+    if (data.utterances.length === 0) {
+        throw new Error('At least one utterance must remain');
+    }
+
+    // Validate utterance timestamps
+    for (const utterance of data.utterances) {
+        if (utterance.startTimestamp >= utterance.endTimestamp) {
+            throw new Error(`Invalid timestamps for utterance ${utterance.id}: start must be less than end`);
+        }
+    }
+
+    // Validate summary if provided
+    if (data.summary && (!data.summary.text || data.summary.text.trim().length === 0)) {
+        throw new Error('Summary text cannot be empty if summary is provided');
+    }
+
+    return await prisma.$transaction(async (prisma) => {
+        // Get existing utterance IDs for comparison
+        const existingUtteranceIds = new Set(currentSegment.utterances.map(u => u.id));
+        const newUtteranceIds = new Set(data.utterances.map(u => u.id));
+
+        // Find utterances to delete (in existing but not in new)
+        const utterancesToDelete = Array.from(existingUtteranceIds).filter(id => !newUtteranceIds.has(id));
+
+        // Delete removed utterances
+        if (utterancesToDelete.length > 0) {
+            await prisma.utterance.deleteMany({
+                where: { id: { in: utterancesToDelete } }
+            });
+        }
+
+        // Update existing utterances
+        for (const utteranceData of data.utterances) {
+            if (existingUtteranceIds.has(utteranceData.id)) {
+                await prisma.utterance.update({
+                    where: { id: utteranceData.id },
+                    data: {
+                        text: utteranceData.text,
+                        startTimestamp: utteranceData.startTimestamp,
+                        endTimestamp: utteranceData.endTimestamp
+                    }
+                });
+            }
+        }
+
+        // Calculate new segment timestamps based on utterances
+        const allTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+        const newSegmentStart = Math.min(...allTimestamps);
+        const newSegmentEnd = Math.max(...allTimestamps);
+
+        // Update or delete summary
+        if (data.summary) {
+            await prisma.summary.upsert({
+                where: { speakerSegmentId: segmentId },
+                update: {
+                    text: data.summary.text,
+                    type: data.summary.type
+                },
+                create: {
+                    text: data.summary.text,
+                    type: data.summary.type,
+                    speakerSegmentId: segmentId
+                }
+            });
+        } else if (currentSegment.summary) {
+            // Delete summary if it exists but wasn't provided in the update
+            await prisma.summary.delete({
+                where: { speakerSegmentId: segmentId }
+            });
+        }
+
+        // Update segment timestamps
+        await prisma.speakerSegment.update({
+            where: { id: segmentId },
+            data: {
+                startTimestamp: newSegmentStart,
+                endTimestamp: newSegmentEnd
+            }
+        });
+
+        // Return the updated segment with all relations
+        const updatedSegment = await prisma.speakerSegment.findUnique({
+            where: { id: segmentId },
+            include: speakerSegmentWithRelationsInclude
+        });
+
+        if (!updatedSegment) {
+            throw new Error('Failed to retrieve updated segment');
+        }
+
+        return updatedSegment;
+    });
 }
