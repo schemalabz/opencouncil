@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -22,6 +22,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     deleteEmptySegment: (segmentId: string) => Promise<void>;
+    updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
     addHighlight: (highlight: HighlightWithUtterances) => void;
@@ -223,7 +224,16 @@ export function CouncilMeetingDataProvider({ children, data }: {
         },
         addHighlight,
         updateHighlight,
-        removeHighlight
+        removeHighlight,
+        updateSpeakerSegmentData: async (segmentId: string, editData: EditableSpeakerSegmentData) => {
+            console.log(`Updating speaker segment ${segmentId} data`);
+            const updatedSegment = await updateSpeakerSegmentData(segmentId, editData, data.meeting.cityId);
+            
+            // Update transcript state with the fully updated segment data
+            setTranscript(prev => prev.map(segment =>
+                segment.id === segmentId ? updatedSegment : segment
+            ));
+        }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight]);
 
     return (

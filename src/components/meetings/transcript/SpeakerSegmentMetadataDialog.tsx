@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, Check, Clock, Hash, FileText, User, Tag } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Copy, Check, Clock, Hash, FileText, User, Tag, Edit, AlertTriangle } from "lucide-react";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import { toast } from "@/hooks/use-toast";
+import { useSpeakerSegmentEditor } from '@/hooks/useSpeakerSegmentEditor';
 
 interface SpeakerSegmentMetadataDialogProps {
     segment: TranscriptType[number];
@@ -29,6 +31,7 @@ export default function SpeakerSegmentMetadataDialog({
     onOpenChange
 }: SpeakerSegmentMetadataDialogProps) {
     const [copied, setCopied] = useState(false);
+    const editor = useSpeakerSegmentEditor(segment);
 
     // Compute additional metadata for debugging
     const computedMetadata = useMemo(() => {
@@ -53,7 +56,7 @@ export default function SpeakerSegmentMetadataDialog({
         };
     }, [segment]);
 
-    // Format the metadata for display
+    // Format the metadata for display (read-only mode)
     const formattedMetadata = useMemo(() => {
         const formatTimestamp = (timestamp: number) => {
             const hours = Math.floor(timestamp / 3600);
@@ -91,14 +94,15 @@ export default function SpeakerSegmentMetadataDialog({
         };
     }, [segment, computedMetadata]);
 
-    // JSON string for display and copying
+    // JSON string for display and copying (read-only mode)
     const jsonString = useMemo(() => {
         return JSON.stringify(formattedMetadata, null, 2);
     }, [formattedMetadata]);
 
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(jsonString);
+            const contentToCopy = editor.isEditMode ? editor.editedData : jsonString;
+            await navigator.clipboard.writeText(contentToCopy);
             setCopied(true);
             toast({
                 description: "Metadata copied to clipboard",
@@ -126,7 +130,7 @@ export default function SpeakerSegmentMetadataDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <FileText className="h-5 w-5" />
-                        SpeakerSegment Metadata
+                        SpeakerSegment {editor.isEditMode ? 'Editor' : 'Metadata'}
                     </DialogTitle>
                     <DialogDescription className="flex flex-wrap items-center gap-4 text-sm">
                         <span className="flex items-center gap-1">
@@ -141,6 +145,12 @@ export default function SpeakerSegmentMetadataDialog({
                             <User className="h-3 w-3" />
                             {segment.speakerTag.personId ? 'Assigned Speaker' : 'Unassigned'}
                         </span>
+                        {editor.isEditMode && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                                <Edit className="h-3 w-3" />
+                                Edit Mode
+                            </Badge>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -169,48 +179,115 @@ export default function SpeakerSegmentMetadataDialog({
                     )}
                 </div>
 
-                {/* JSON Content */}
+                {/* Validation Errors */}
+                {editor.validationErrors.length > 0 && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="space-y-1">
+                                {editor.validationErrors.map((error, index) => (
+                                    <div key={index}>• {error}</div>
+                                ))}
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Content Area */}
                 <ScrollArea className="flex-1 min-h-0">
                     <div className="relative">
-                        <Textarea
-                            value={jsonString}
-                            readOnly
-                            className="min-h-[400px] font-mono text-sm resize-none border-0 bg-muted/30"
-                            style={{ 
-                                whiteSpace: 'pre',
-                                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
-                            }}
-                            aria-label="SpeakerSegment metadata in JSON format"
-                        />
+                        {editor.isEditMode ? (
+                            <div className="space-y-2">
+                                <div className="text-sm text-muted-foreground">
+                                    Edit utterances and summary data. Remove utterances by deleting them from the array.
+                                </div>
+                                <Textarea
+                                    value={editor.editedData}
+                                    onChange={(e) => editor.actions.updateEditedData(e.target.value)}
+                                    className="min-h-[400px] font-mono text-sm resize-none"
+                                    style={{ 
+                                        whiteSpace: 'pre-wrap',
+                                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                                    }}
+                                    placeholder="Edit the JSON data..."
+                                    aria-label="Editable JSON data for SpeakerSegment"
+                                />
+                            </div>
+                        ) : (
+                            <Textarea
+                                value={jsonString}
+                                readOnly
+                                className="min-h-[400px] font-mono text-sm resize-none border-0 bg-muted/30"
+                                style={{ 
+                                    whiteSpace: 'pre-wrap',
+                                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                                }}
+                                aria-label="SpeakerSegment metadata in JSON format"
+                            />
+                        )}
                     </div>
                 </ScrollArea>
 
                 <DialogFooter className="flex justify-between items-center">
                     <div className="text-xs text-muted-foreground">
-                        {jsonString.length.toLocaleString()} characters • {jsonString.split('\n').length} lines
+                        {editor.isEditMode 
+                            ? `${editor.editedData.length.toLocaleString()} characters • ${editor.editedData.split('\n').length} lines`
+                            : `${jsonString.length.toLocaleString()} characters • ${jsonString.split('\n').length} lines`
+                        }
                     </div>
                     <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopy}
-                            className="flex items-center gap-2"
-                        >
-                            {copied ? (
-                                <>
-                                    <Check className="h-4 w-4" />
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="h-4 w-4" />
-                                    Copy JSON
-                                </>
-                            )}
-                        </Button>
-                        <Button variant="default" onClick={() => onOpenChange(false)}>
-                            Close
-                        </Button>
+                        {editor.isEditMode ? (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={editor.actions.cancelEdit}
+                                    disabled={editor.isSaving}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={editor.actions.saveChanges}
+                                    disabled={editor.isSaving || editor.validationErrors.length > 0}
+                                >
+                                    {editor.isSaving ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCopy}
+                                    className="flex items-center gap-2"
+                                >
+                                    {copied ? (
+                                        <>
+                                            <Check className="h-4 w-4" />
+                                            Copied!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="h-4 w-4" />
+                                            Copy JSON
+                                        </>
+                                    )}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={editor.actions.enterEditMode}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Edit className="h-4 w-4" />
+                                    Edit Data
+                                </Button>
+                                <Button variant="default" onClick={() => onOpenChange(false)}>
+                                    Close
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </DialogFooter>
             </DialogContent>
