@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { buildSyncQuery } from '@/lib/elasticsearch/queryTemplate';
 import Combobox from '@/components/Combobox';
+import DocumentPreview from './DocumentPreview';
 import { ConnectorStatus, ValidationResult } from '@/types/elasticsearch';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
 
@@ -326,6 +327,12 @@ export default function ConfigurationEditDialog({
                       </div>
                     </div>
                   )}
+
+                  <DocumentPreview 
+                    selectedCityIds={selectedCityIds}
+                    cities={cities}
+                    connectorInfo={connectorInfo}
+                  />
                 </div>
               )}
             </div>
