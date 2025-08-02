@@ -12,17 +12,15 @@ import {
     ChevronDown, 
     FileText, 
     Calendar,
-    Clock,
     Building,
     CheckCircle,
     XCircle,
     AlertCircle,
     FileDown,
-    Loader2,
     ExternalLink
 } from "lucide-react";
 import { getMeetingState } from "@/lib/utils";
-import { exportMeetingToPDF, exportMeetingToDocx, generateMeetingFileName, downloadFile } from "@/lib/export/meetings";
+import { MeetingExportButtons } from "@/components/meetings/MeetingExportButtons";
 import { MeetingData } from "@/lib/getMeetingData";
 import Link from "next/link";
 
@@ -40,8 +38,6 @@ export function ExpandableMeetingRow({
     onSelect
 }: ExpandableMeetingRowProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [isExportingPDF, setIsExportingPDF] = useState(false);
-    const [isExportingDocx, setIsExportingDocx] = useState(false);
 
     const meetingState = getMeetingState(meeting);
     const subjectCount = meeting.subjects.length;
@@ -70,36 +66,6 @@ export function ExpandableMeetingRow({
         }
         const data = await response.json();
         return data;
-    };
-
-    const handleExportPDF = async () => {
-        setIsExportingPDF(true);
-        try {
-            const meetingData = await fetchCompleteMeetingData();
-            const blob = await exportMeetingToPDF(meetingData);
-            const fileName = generateMeetingFileName(selectedCityId, meeting.id, 'pdf');
-            downloadFile(blob, fileName);
-        } catch (error) {
-            console.error('Error exporting to PDF:', error);
-            // Could add toast notification here
-        } finally {
-            setIsExportingPDF(false);
-        }
-    };
-
-    const handleExportDocx = async () => {
-        setIsExportingDocx(true);
-        try {
-            const meetingData = await fetchCompleteMeetingData();
-            const blob = await exportMeetingToDocx(meetingData);
-            const fileName = generateMeetingFileName(selectedCityId, meeting.id, 'docx');
-            downloadFile(blob, fileName);
-        } catch (error) {
-            console.error('Error exporting to DOCX:', error);
-            // Could add toast notification here
-        } finally {
-            setIsExportingDocx(false);
-        }
     };
 
     // Main row content
@@ -234,43 +200,13 @@ export function ExpandableMeetingRow({
                             Export Options
                         </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="space-y-2">
-                            <Button 
-                                onClick={handleExportPDF} 
-                                className="w-full" 
-                                size="sm"
-                                disabled={isExportingPDF || meetingState.icon === 'ban'}
-                            >
-                                {isExportingPDF ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <FileDown className="w-4 h-4 mr-2" />
-                                )}
-                                Export PDF
-                            </Button>
-                            
-                            <Button 
-                                onClick={handleExportDocx} 
-                                className="w-full" 
-                                size="sm"
-                                variant="outline"
-                                disabled={isExportingDocx || meetingState.icon === 'ban'}
-                            >
-                                {isExportingDocx ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <FileDown className="w-4 h-4 mr-2" />
-                                )}
-                                Export DOCX
-                            </Button>
-                        </div>
-                        
-                        {meetingState.icon === 'ban' && (
-                            <p className="text-xs text-muted-foreground">
-                                No content available for export
-                            </p>
-                        )}
+                    <CardContent>
+                        <MeetingExportButtons
+                            getMeetingData={fetchCompleteMeetingData}
+                            cityId={selectedCityId}
+                            meetingId={meeting.id}
+                            disabled={meetingState.icon === 'ban'}
+                        />
                     </CardContent>
                 </Card>
             </div>
