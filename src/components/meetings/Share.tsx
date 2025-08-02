@@ -1,8 +1,4 @@
 "use client";
-import ReactPDF from '@react-pdf/renderer';
-import { pdf } from '@react-pdf/renderer';
-import { CouncilMeetingDocument } from './pdf/CouncilMeetingDocument';
-import { renderDocx } from './docx/CouncilMeetingDocx';
 import { useVideo } from './VideoProvider';
 import { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
@@ -11,6 +7,7 @@ import { Checkbox } from "../ui/checkbox";
 import { CheckCircle, CopyIcon, FileDown, LinkIcon, Loader2 } from "lucide-react";
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useTranscriptOptions } from './options/OptionsContext';
+import { exportMeetingToPDF, exportMeetingToDocx, downloadFile } from '@/lib/export/meetings';
 export default function ShareC() {
     const { currentTime } = useVideo();
     const [url, setUrl] = useState('');
@@ -49,32 +46,35 @@ export default function ShareC() {
 
     const handleExportToPDF = async () => {
         setIsExporting(true);
-        const pdfDocument = <CouncilMeetingDocument city={city} meeting={meeting} transcript={transcript} people={people} parties={parties} speakerTags={speakerTags} />;
-        const pdfBlob = await pdf(pdfDocument).toBlob();
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = 'council_meeting.pdf';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-        setIsExporting(false);
+        try {
+            const pdfBlob = await exportMeetingToPDF({ 
+                city, 
+                meeting, 
+                transcript, 
+                people, 
+                parties, 
+                speakerTags 
+            });
+            downloadFile(pdfBlob, 'council_meeting.pdf');
+        } catch (error) {
+            console.error('Error exporting to PDF:', error);
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const handleExportToDocx = async () => {
         setIsExportingDocx(true);
         try {
-            const doc = await renderDocx({ city, meeting, transcript, people, parties, speakerTags });
-            const blob = await doc.save();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = 'council_meeting.docx';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
+            const blob = await exportMeetingToDocx({ 
+                city, 
+                meeting, 
+                transcript, 
+                people, 
+                parties, 
+                speakerTags 
+            });
+            downloadFile(blob, 'council_meeting.docx');
         } catch (error) {
             console.error('Error exporting to DOCX:', error);
         } finally {
