@@ -129,10 +129,11 @@ const createTranscriptSection = ({transcript, people, meeting}: Pick<MeetingData
             color: '666666'
         }));
 
-        // Add the utterance text with proper spacing
+        // Add the utterance text with proper line break
         children.push(new TextRun({
-            text: '\n' + speakerSegment.utterances.map(u => u.text).join(' '),
-            size: 24 // 12pt
+            text: speakerSegment.utterances.map(u => u.text).join(' '),
+            size: 24, // 12pt
+            break: 1
         }));
 
         paragraphs.push(new Paragraph({
