@@ -8,6 +8,7 @@ import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { AdministrativeBodyFilter } from "@/components/AdministrativeBodyFilter";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
+import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
 
 interface MeetingsProps {
     meetings: CouncilMeetingWithAdminBodyAndSubjects[];
@@ -91,6 +92,24 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
         [filteredMeetings],
     );
 
+    const statsItems: StatsCardItem[] = useMemo(() => [
+        {
+            title: "Total Meetings",
+            value: stats.totalMeetings,
+            description: "Total count of meetings",
+        },
+        {
+            title: "Released",
+            value: stats.releasedMeetings,
+            description: "Meetings that have been released",
+        },
+        {
+            title: "With Content",
+            value: stats.meetingsWithContent,
+            description: "Meetings with audio, video, or YouTube content",
+        },
+    ], [stats]);
+
     return (
         <>
             <div className='relative flex-1 mb-6'>
@@ -113,32 +132,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
             )}
 
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Meetings</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalMeetings}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Released</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.releasedMeetings}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">With Content</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.meetingsWithContent}</div>
-                    </CardContent>
-                </Card>
-            </div>
+            <StatsCard items={statsItems} columns={3} />
 
             <Card>
                 <CardHeader>
