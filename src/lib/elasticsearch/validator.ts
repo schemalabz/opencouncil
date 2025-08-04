@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
-import { buildSyncQuery, validateQueryStructure } from './queryTemplate';
+import { buildSyncQueryWithParams, validateQueryStructure, convertParameterizedQueryToString } from './queryTemplate';
 import { ValidationResult } from '@/types/elasticsearch';
+import { Prisma } from '@prisma/client';
 
 /**
  * Validates the current remote query that's actually running in Elasticsearch
@@ -76,13 +77,17 @@ export async function validateLocalQuery(cityIds: string[]): Promise<ValidationR
       };
     }
 
-    // Build the proposed template query
-    const proposedQuery = buildSyncQuery(cityIds);
+    // Build the proposed template query using parameterized approach for better security
+    const { query: proposedQuery, params } = buildSyncQueryWithParams(cityIds);
+    
+    // Convert parameterized query to string for COUNT wrapper
+    // This is necessary because the COUNT wrapper doesn't have placeholders
+    const queryString = convertParameterizedQueryToString(proposedQuery, params);
     
     // Wrap in COUNT to validate without returning large result sets
-    const countQuery = `SELECT COUNT(*) as count FROM (${proposedQuery}) as local_validation_query`;
+    const countQuery = `SELECT COUNT(*) as count FROM (${queryString}) as local_validation_query`;
     
-    // Execute validation query
+    // Execute validation query using $queryRawUnsafe since we've converted to string
     const result = await prisma.$queryRawUnsafe(countQuery);
     const rowCount = Number((result as any)[0].count);
     

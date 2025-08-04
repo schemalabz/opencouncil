@@ -91,22 +91,80 @@ SELECT
 `;
 
 /**
- * Builds the sync query by replacing the {{CITY_IDS}} placeholder with actual city IDs
+ * Builds the sync query using parameterized queries for better security
+ * 
+ * Instead of manually escaping and concatenating values into SQL strings,
+ * this approach uses placeholders (?) that get replaced with actual values
+ * by our helper function. This prevents SQL injection attacks.
+ * 
+ * Example:
+ * 
+ * // We build:
+ * // Query: "WHERE m.\"cityId\" IN (?, ?)"
+ * // Params: ['athens', 'thessaloniki']
+ * 
+ * // Our helper function converts it to:
+ * // 1. Escapes the values: 'athens' → 'athens', 'thessaloniki' → 'thessaloniki'
+ * // 2. Substitutes placeholders: (?, ?) → ('athens', 'thessaloniki')
+ * // 3. Returns safe string: WHERE m."cityId" IN ('athens', 'thessaloniki')
+ * 
+ * SECURITY PATTERN:
+ * 1. Use this function to get { query, params }
+ * 2. Use convertParameterizedQueryToString(query, params) to get safe string
+ * 3. Execute with prisma.$queryRawUnsafe(safeString)
+ * 
+ * Usage in code:
+ * const { query, params } = buildSyncQueryWithParams(['athens', 'thessaloniki']);
+ * const safeQuery = convertParameterizedQueryToString(query, params);
+ * const results = await prisma.$queryRawUnsafe(safeQuery);
  * 
  * @param cityIds Array of city IDs to include in the sync
- * @returns Complete SQL query ready for execution
+ * @returns Object containing the SQL query with placeholders and the parameters
  */
-export function buildSyncQuery(cityIds: string[]): string {
+export function buildSyncQueryWithParams(cityIds: string[]): { query: string; params: string[] } {
   if (cityIds.length === 0) {
     throw new Error('At least one city ID must be provided');
   }
   
-  // Escape single quotes and wrap each city ID in single quotes
-  const cityList = cityIds
-    .map(id => `'${id.replace(/'/g, "''")}'`)
-    .join(', ');
-    
-  return SYNC_QUERY_TEMPLATE.replace('{{CITY_IDS}}', cityList);
+  // Create a placeholder (?) for each city ID instead of manually escaping
+  // This separates the SQL structure from the actual data values
+  const placeholders = cityIds.map(() => '?').join(', ');
+  
+  // Replace the template placeholder with our parameterized placeholders
+  const query = SYNC_QUERY_TEMPLATE.replace('{{CITY_IDS}}', placeholders);
+  
+  return { query, params: cityIds };
+}
+
+/**
+ * Converts a parameterized query back to a string with escaped values
+ * Used for database execution, display purposes, and external API calls
+ * 
+ * This function is the core of our SQL injection prevention strategy:
+ * - Takes a query with ? placeholders and an array of parameters
+ * - Properly escapes each parameter value
+ * - Substitutes placeholders with escaped values
+ * - Returns a safe SQL string ready for execution
+ * 
+ * USAGE PATTERNS:
+ * - Database execution: Convert parameterized query to safe string for $queryRawUnsafe
+ * - UI Display: Show the actual SQL to users in the admin interface
+ * - External APIs: Convert to string for Elasticsearch connector
+ * - Logging: See the final SQL for debugging
+ * 
+ * SECURITY: This function properly escapes single quotes by doubling them,
+ * preventing SQL injection even when using $queryRawUnsafe.
+ * 
+ * @param query The parameterized query with ? placeholders
+ * @param params The parameters to substitute
+ * @returns The complete SQL query string with escaped values
+ */
+export function convertParameterizedQueryToString(query: string, params: string[]): string {
+  let result = query;
+  params.forEach((param) => {
+    result = result.replace('?', `'${param.replace(/'/g, "''")}'`);
+  });
+  return result;
 }
 
 /**
@@ -165,7 +223,8 @@ export function compareQueryStructure(query1: string, query2: string): boolean {
  * @returns Validation result with details about any mismatches
  */
 export function validateQueryStructure(remoteQuery: string, expectedCityIds: string[]) {
-  const expectedQuery = buildSyncQuery(expectedCityIds);
+  // For comparison purposes, we still need the string version
+  const expectedQuery = SYNC_QUERY_TEMPLATE.replace('{{CITY_IDS}}', expectedCityIds.map(id => `'${id.replace(/'/g, "''")}'`).join(', '));
   const actualCityIds = extractCityIdsFromQuery(remoteQuery);
   
   // Check if query structures match

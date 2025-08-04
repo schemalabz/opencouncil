@@ -1,5 +1,5 @@
 import { env } from '@/env.mjs';
-import { buildSyncQuery, extractCityIdsFromQuery } from './queryTemplate';
+import { buildSyncQueryWithParams, extractCityIdsFromQuery, convertParameterizedQueryToString } from './queryTemplate';
 import { ConnectorStatus } from '@/types/elasticsearch';
 import { validateLocalQuery, validateCityIds } from './validator';
 
@@ -111,7 +111,22 @@ export class ConnectorService {
     }
     
     try {
-      const query = buildSyncQuery(cityIds);
+      // First validate that all city IDs exist in the database
+      const cityValidation = await validateCityIds(cityIds);
+      if (!cityValidation.isValid) {
+        throw new Error(`City validation failed: ${cityValidation.errorMessage}`);
+      }
+      
+      // Then validate that the proposed query would work correctly
+      const queryValidation = await validateLocalQuery(cityIds);
+      if (!queryValidation.isValid) {
+        throw new Error(`Query validation failed: ${queryValidation.errorMessage}`);
+      }
+      
+      // For external API calls, we need the string version of the query
+      const { query: queryTemplate, params } = buildSyncQueryWithParams(cityIds);
+      // Convert parameterized query back to string for external API
+      const query = convertParameterizedQueryToString(queryTemplate, params);
       
       const filteringConfig = {
         advanced_snippet: {

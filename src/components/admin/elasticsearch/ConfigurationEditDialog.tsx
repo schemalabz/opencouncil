@@ -21,7 +21,7 @@ import {
   Code,
   Clock
 } from 'lucide-react';
-import { buildSyncQuery } from '@/lib/elasticsearch/queryTemplate';
+import { buildSyncQueryWithParams, convertParameterizedQueryToString } from '@/lib/elasticsearch/queryTemplate';
 import Combobox from '@/components/Combobox';
 import DocumentPreview from './DocumentPreview';
 import { ConnectorStatus, ValidationResult } from '@/types/elasticsearch';
@@ -294,7 +294,8 @@ export default function ConfigurationEditDialog({
                       <pre className={`text-xs whitespace-pre-wrap ${hasChanges ? 'text-green-900' : 'text-gray-900'}`}>
                         {(() => {
                           try {
-                            return buildSyncQuery(selectedCityIds);
+                            const { query, params } = buildSyncQueryWithParams(selectedCityIds);
+                            return convertParameterizedQueryToString(query, params);
                           } catch (error) {
                             return `Error generating query: ${error instanceof Error ? error.message : 'Unknown error'}`;
                           }
