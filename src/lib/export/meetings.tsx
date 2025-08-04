@@ -4,31 +4,29 @@ import { CouncilMeetingDocument } from '@/components/meetings/pdf/CouncilMeeting
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { MeetingData } from '@/lib/getMeetingData';
 
-export async function exportMeetingToPDF(data: MeetingData): Promise<Blob> {
-  const { city, meeting, transcript, people, parties, speakerTags } = data;
+export type MeetingDataForExport = Omit<MeetingData, 'parties' | 'highlights' | 'subjects' | 'speakerTags'>;
+
+export async function exportMeetingToPDF(data: MeetingDataForExport): Promise<Blob> {
+  const { city, meeting, transcript, people } = data;
   
   const pdfDocument = <CouncilMeetingDocument 
     city={city} 
     meeting={meeting} 
     transcript={transcript} 
-    people={people} 
-    parties={parties} 
-    speakerTags={speakerTags} 
+    people={people}
   />;
   
   return await pdf(pdfDocument).toBlob();
 }
 
-export async function exportMeetingToDocx(data: MeetingData): Promise<Blob> {
-  const { city, meeting, transcript, people, parties, speakerTags } = data;
+export async function exportMeetingToDocx(data: MeetingDataForExport): Promise<Blob> {
+  const { city, meeting, transcript, people } = data;
   
   const doc = await renderDocx({ 
     city, 
     meeting, 
     transcript, 
-    people, 
-    parties, 
-    speakerTags 
+    people
   });
   
   return await doc.save();

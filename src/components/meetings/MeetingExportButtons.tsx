@@ -4,10 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown, Loader2 } from "lucide-react";
 import { exportMeetingToPDF, exportMeetingToDocx, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
-import { MeetingData } from "@/lib/getMeetingData";
+import { MeetingDataForExport } from "@/lib/export/meetings";
+
 interface MeetingExportButtonsProps {
   /** Function to get the meeting data for export */
-  getMeetingData: () => Promise<MeetingData> | MeetingData;
+  getMeetingData: () => Promise<MeetingDataForExport> | MeetingDataForExport;
   /** City ID for filename generation */
   cityId: string;
   /** Meeting ID for filename generation */

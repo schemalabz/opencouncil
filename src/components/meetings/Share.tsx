@@ -40,15 +40,13 @@ export default function ShareC() {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
-    const { meeting, transcript, people, parties, speakerTags, city } = useCouncilMeetingData();
+    const { meeting, transcript, people, city } = useCouncilMeetingData();
 
     const getMeetingData = () => ({
         city, 
         meeting, 
         transcript, 
-        people, 
-        parties, 
-        speakerTags 
+        people
     });
 
     return (

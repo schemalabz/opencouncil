@@ -1,10 +1,8 @@
-import { City, CouncilMeeting, Party, Person, SpeakerTag } from '@prisma/client';
-import { Transcript } from '@/lib/db/transcript';
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
-import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from '@/lib/utils';
+import { MeetingDataForExport } from '@/lib/export/meetings';
 
 const formatTimestamp = (timestamp: number) => {
     const hours = Math.floor(timestamp / 3600);
@@ -13,7 +11,7 @@ const formatTimestamp = (timestamp: number) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const createTitlePage = (meeting: CouncilMeeting, city: City) => {
+const createTitlePage = ({meeting, city}: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
     return [
         new Paragraph({ spacing: { before: 2880 } }),
 
@@ -92,7 +90,7 @@ const createTitlePage = (meeting: CouncilMeeting, city: City) => {
     ];
 };
 
-const createTranscriptSection = (transcript: Transcript, people: (PersonWithRelations | any)[], parties: Party[], meeting: CouncilMeeting) => {
+const createTranscriptSection = ({transcript, people, meeting}: Pick<MeetingDataForExport, 'transcript' | 'people' | 'meeting'>) => {
     const paragraphs = [
         new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -146,14 +144,7 @@ const createTranscriptSection = (transcript: Transcript, people: (PersonWithRela
     return paragraphs;
 };
 
-export const renderDocx = async ({ meeting, transcript, people, parties, speakerTags, city }: {
-    city: City,
-    meeting: CouncilMeeting,
-    transcript: Transcript,
-    people: PersonWithRelations[],
-    parties: Party[],
-    speakerTags: SpeakerTag[]
-}) => {
+export const renderDocx = async ({ meeting, transcript, people, city }: MeetingDataForExport) => {
     const doc = new Document({
         creator: "OpenCouncil",
         description: "Council Meeting Transcript",
@@ -164,8 +155,8 @@ export const renderDocx = async ({ meeting, transcript, people, parties, speaker
         sections: [{
             properties: {},
             children: [
-                ...createTitlePage(meeting, city),
-                ...createTranscriptSection(transcript, people, parties, meeting),
+                ...createTitlePage({meeting, city}),
+                ...createTranscriptSection({transcript, people, meeting}),
             ],
         }],
     });
