@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { ConnectorService } from '@/lib/elasticsearch/connector';
 
+// This prevents Next.js from trying to statically pre-render this route
+// This is because the connector configuration is updated dynamically
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/elasticsearch/connector
  * 
