@@ -1,8 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font } from '@react-pdf/renderer';
 import { Image, Link } from '@react-pdf/renderer';
-import { City, CouncilMeeting, Party, Person, SpeakerTag } from '@prisma/client';
-import { Transcript } from '@/lib/db/transcript';
+import { MeetingDataForExport } from '@/lib/export/meetings';
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { getPartyFromRoles } from '@/lib/utils';
@@ -49,7 +48,7 @@ const styles = StyleSheet.create({
     }
 });
 
-export const TitlePage = ({ meeting, city }: { meeting: CouncilMeeting, city: City }) => {
+export const TitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
     return <Page size="A4" style={styles.page}>
         <View style={styles.header}>
             <View style={{ flexDirection: 'column', alignItems: 'center' }}>
@@ -91,13 +90,13 @@ const formatTimestamp = (timestamp: number) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const TranscriptPage = ({ meeting, transcript, people, parties, speakerTags }: { meeting: CouncilMeeting, transcript: Transcript, people: Person[], parties: Party[], speakerTags: SpeakerTag[] }) => {
+const TranscriptPage = ({ transcript, people, meeting } : Pick<MeetingDataForExport, 'transcript' | 'people' | 'meeting'>) => {
     return <Page size="A4" style={styles.page}>
         <Text>Αυτόματη απομαγνητοφώνηση</Text>
         {transcript.map((speakerSegment, index) => {
             const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
             const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
-            const party = speaker ? getPartyFromRoles((speaker as any).roles || []) : null;
+            const party = speaker ? getPartyFromRoles(speaker.roles || [], meeting.dateTime) : null;
             const color = party ? party.colorHex : 'gray';
             return <View key={index} style={{ marginBottom: 10, flexDirection: 'column', alignItems: 'flex-start', borderLeftWidth: 2, borderLeftColor: color, paddingLeft: 5 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', fontSize: 10, justifyContent: 'space-between', width: '100%' }}>
@@ -127,11 +126,11 @@ const TranscriptPage = ({ meeting, transcript, people, parties, speakerTags }: {
     </Page>
 }
 
-export const CouncilMeetingDocument = ({ meeting, transcript, people, parties, speakerTags, city }: { city: City, meeting: CouncilMeeting, transcript: Transcript, people: Person[], parties: Party[], speakerTags: SpeakerTag[] }) => {
+export const CouncilMeetingDocument = ({ meeting, transcript, people, city } : MeetingDataForExport) => {
     return (
         <Document>
             <TitlePage meeting={meeting} city={city} />
-            <TranscriptPage meeting={meeting} transcript={transcript} people={people} parties={parties} speakerTags={speakerTags} />
+            <TranscriptPage transcript={transcript} people={people} meeting={meeting} />
         </Document>
     );
 }

@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, ImageIcon, Award, Volume2 } from "lucide-react";
+import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
 
 interface PeopleStatsProps {
     totalPeople: number;
@@ -14,7 +14,7 @@ export function PeopleStats({
     peopleWithImages,
     peopleWithVoiceprints,
 }: PeopleStatsProps) {
-    const statsItems = [
+    const statsItems: StatsCardItem[] = [
         {
             title: "Total People",
             value: totalPeople,
@@ -44,27 +44,5 @@ export function PeopleStats({
         },
     ];
 
-    return (
-        <div className='grid gap-4 md:grid-cols-4 mb-6'>
-            {statsItems.map(item => (
-                <Card key={item.title}>
-                    <CardHeader className='flex flex-row items-center justify-between pb-2'>
-                        <CardTitle className='text-sm font-medium'>{item.title}</CardTitle>
-                        <div className='text-muted-foreground rounded-full p-1'>{item.icon}</div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className='text-2xl font-bold'>
-                            {item.value}
-                            {item.percent !== undefined && (
-                                <span className='text-sm font-normal text-muted-foreground ml-2'>
-                                    ({item.percent}%)
-                                </span>
-                            )}
-                        </div>
-                        <p className='text-xs text-muted-foreground'>{item.description}</p>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
-    );
+    return <StatsCard items={statsItems} columns={4} />;
 }
