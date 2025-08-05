@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useMemo, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -157,17 +158,28 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
                             {meetings.length === 0 ? 'No meetings found for this city' : 'No meetings match your search criteria'}
                         </div>
                     ) : (
-                        <div className='space-y-2'>
-                            {filteredMeetings.map(meeting => (
-                                <ExpandableMeetingRow
-                                    key={meeting.id}
-                                    meeting={meeting}
-                                    selectedCityId={selectedCityId}
-                                    isSelected={selectedMeetingIds.has(meeting.id)}
-                                    onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
-                                />
-                            ))}
-                        </div>
+                        <Table className="table-fixed">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12"></TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                    <TableHead>Meeting</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Subjects</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredMeetings.map(meeting => (
+                                    <ExpandableMeetingRow
+                                        key={meeting.id}
+                                        meeting={meeting}
+                                        selectedCityId={selectedCityId}
+                                        isSelected={selectedMeetingIds.has(meeting.id)}
+                                        onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
+                                    />
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
             </Card>

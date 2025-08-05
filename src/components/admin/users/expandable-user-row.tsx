@@ -1,13 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import { TableCell, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { UserWithRelations } from "@/lib/db/users"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { TableCell } from "@/components/ui/table"
 import { 
-    ChevronRight, 
-    ChevronDown, 
     Bell, 
     FileText, 
     CheckCircle, 
@@ -20,7 +18,7 @@ import {
     Tag
 } from "lucide-react"
 import { format } from "date-fns"
-import { UserWithRelations } from "@/lib/db/users"
+import { ExpandableTableRow } from "@/components/ui/expandable-table-row"
 
 interface ExpandableUserRowProps {
     user: UserWithRelations
@@ -35,151 +33,12 @@ export function ExpandableUserRow({
     onResendInvite, 
     resendingInvite 
 }: ExpandableUserRowProps) {
-    const [isExpanded, setIsExpanded] = useState(false)
-
     const notificationCount = user.notificationPreferences.length
     const petitionCount = user.petitions.length
     const hasActivity = notificationCount > 0 || petitionCount > 0
 
-    const toggleExpanded = () => setIsExpanded(!isExpanded)
-
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            toggleExpanded()
-        }
-    }
-
-    // Main row content
-    const renderMainRow = () => (
-        <TableRow 
-            className="group hover:bg-muted/50 cursor-pointer" 
-            onClick={toggleExpanded}
-            onKeyDown={handleKeyDown}
-            tabIndex={0}
-            role="button"
-            aria-expanded={isExpanded}
-            aria-label={`${user.name || user.email} - ${isExpanded ? 'Collapse' : 'Expand'} details`}
-        >
-            {/* Expander */}
-            <TableCell className="w-12">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={(e) => {
-                        e.stopPropagation()
-                        toggleExpanded()
-                    }}
-                    aria-label={isExpanded ? "Collapse row" : "Expand row"}
-                >
-                    {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 transition-transform" />
-                    ) : (
-                        <ChevronRight className="h-4 w-4 transition-transform" />
-                    )}
-                </Button>
-            </TableCell>
-
-            {/* User Info */}
-            <TableCell>
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium">{user.name || 'Unnamed User'}</span>
-                        {user.isSuperAdmin && (
-                            <Badge variant="default" className="text-xs">
-                                Super Admin
-                            </Badge>
-                        )}
-                    </div>
-                    <span className="text-sm text-muted-foreground">{user.email}</span>
-                </div>
-            </TableCell>
-
-            {/* Status */}
-            <TableCell>
-                <div className="flex items-center gap-2">
-                    {user.onboarded ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                    ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                    )}
-                    <span className="text-sm">
-                        {user.onboarded ? 'Onboarded' : 'Pending'}
-                    </span>
-                </div>
-            </TableCell>
-
-            {/* Contact */}
-            <TableCell>
-                <div className="flex items-center gap-2">
-                    <Mail className={`h-4 w-4 ${user.allowContact ? 'text-blue-600' : 'text-gray-300'}`} />
-                    <Phone className={`h-4 w-4 ${user.allowContact && user.phone ? 'text-green-600' : 'text-gray-300'}`} />
-                </div>
-            </TableCell>
-
-            {/* Activity Summary */}
-            <TableCell>
-                {hasActivity ? (
-                    <div className="flex items-center gap-3">
-                        {notificationCount > 0 && (
-                            <div className="flex items-center gap-1">
-                                <Bell className="h-3 w-3 text-blue-600" />
-                                <span className="text-sm font-medium">{notificationCount}</span>
-                            </div>
-                        )}
-                        {petitionCount > 0 && (
-                            <div className="flex items-center gap-1">
-                                <FileText className="h-3 w-3 text-green-600" />
-                                <span className="text-sm font-medium">{petitionCount}</span>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <span className="text-sm text-muted-foreground">No activity</span>
-                )}
-            </TableCell>
-
-            {/* Registration Date */}
-            <TableCell>
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm">
-                        {format(new Date(user.createdAt), 'MMM dd, yyyy')}
-                    </span>
-                </div>
-            </TableCell>
-
-            {/* Actions */}
-            <TableCell>
-                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit(user)}
-                    >
-                        Edit
-                    </Button>
-                    {!user.onboarded && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onResendInvite(user.id)}
-                            disabled={resendingInvite === user.id}
-                        >
-                            {resendingInvite === user.id ? 'Sending...' : 'Resend Invite'}
-                        </Button>
-                    )}
-                </div>
-            </TableCell>
-        </TableRow>
-    )
-
-    // Expanded content sections
-    const renderExpandedContent = () => (
-        <TableRow>
-            <TableCell colSpan={7} className="p-0 align-top">
-                <div className="bg-muted/30 p-4 max-h-56 overflow-y-auto border-l-2 border-primary/20">
+    // Expanded content
+    const expandedContent = (
                     <div className="grid gap-4 md:grid-cols-3">
                         {/* Administrative Roles Section */}
                         <Card className="shadow-sm">
@@ -297,15 +156,111 @@ export function ExpandableUserRow({
                             </CardContent>
                         </Card>
                     </div>
-                </div>
-            </TableCell>
-        </TableRow>
     )
 
     return (
-        <>
-            {renderMainRow()}
-            {isExpanded && renderExpandedContent()}
-        </>
+        <ExpandableTableRow
+            rowId={user.id}
+            expandedContent={expandedContent}
+            ariaLabel={user.name || user.email}
+        >
+            {/* User Info */}
+            <TableCell className="w-[300px]">
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium truncate">{user.name || 'Unnamed User'}</span>
+                        {user.isSuperAdmin && (
+                            <Badge variant="default" className="text-xs flex-shrink-0">
+                                Super Admin
+                            </Badge>
+                        )}
+                    </div>
+                    <span className="text-sm text-muted-foreground truncate">{user.email}</span>
+                </div>
+            </TableCell>
+
+            {/* Status */}
+            <TableCell className="w-24">
+                <div className="flex items-center gap-2">
+                    {user.onboarded ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <span className="text-sm whitespace-nowrap">
+                        {user.onboarded ? 'Onboarded' : 'Pending'}
+                    </span>
+                </div>
+            </TableCell>
+
+            {/* Contact */}
+            <TableCell className="w-20">
+                <div className="flex items-center gap-2">
+                    <Mail className={`h-4 w-4 ${user.allowContact ? 'text-blue-600' : 'text-gray-300'}`} />
+                    <Phone className={`h-4 w-4 ${user.allowContact && user.phone ? 'text-green-600' : 'text-gray-300'}`} />
+                </div>
+            </TableCell>
+
+            {/* Activity Summary */}
+            <TableCell className="w-24">
+                {hasActivity ? (
+                    <div className="flex items-center gap-3">
+                        {notificationCount > 0 && (
+                            <div className="flex items-center gap-1">
+                                <Bell className="h-3 w-3 text-blue-600" />
+                                <span className="text-sm font-medium">{notificationCount}</span>
+                            </div>
+                        )}
+                        {petitionCount > 0 && (
+                            <div className="flex items-center gap-1">
+                                <FileText className="h-3 w-3 text-green-600" />
+                                <span className="text-sm font-medium">{petitionCount}</span>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">No activity</span>
+                )}
+            </TableCell>
+
+            {/* Registration Date */}
+            <TableCell className="w-28">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-sm whitespace-nowrap">
+                        {format(new Date(user.createdAt), 'MMM dd, yyyy')}
+                    </span>
+                </div>
+            </TableCell>
+
+            {/* Actions */}
+            <TableCell className="w-32">
+                <div className="flex gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit(user)
+                        }}
+                    >
+                        Edit
+                    </Button>
+                    {!user.onboarded && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onResendInvite(user.id)
+                            }}
+                            disabled={resendingInvite === user.id}
+                        >
+                            {resendingInvite === user.id ? 'Sending...' : 'Resend Invite'}
+                        </Button>
+                    )}
+                </div>
+            </TableCell>
+        </ExpandableTableRow>
     )
 } 
