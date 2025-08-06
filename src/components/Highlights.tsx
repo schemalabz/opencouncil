@@ -1,9 +1,10 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Download, Trash, Users, Star } from "lucide-react";
+import { Clock, Download, Trash, Users, Star, Edit } from "lucide-react";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./meetings/options/OptionsContext";
+import { useHighlight } from "./meetings/HighlightContext";
 import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, toggleHighlightShowcase, upsertHighlight } from "@/lib/db/highlights";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { getPartyFromRoles } from "@/lib/utils";
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean, canEdit: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
     const { options, updateOptions } = useTranscriptOptions();
+    const { setEditingHighlight, editingHighlight } = useHighlight();
 
     const utterances = highlight.highlightedUtterances.map(hu =>
         transcript.map((ss) => ss.utterances.find(u => u.id === hu.utteranceId)).find(u => u !== undefined)
@@ -27,10 +29,45 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
     const speakerCount = new Set(utterances.map(u => u.speakerSegmentId)).size;
 
     const handleClick = () => {
+        // If we're in editing mode, don't allow switching highlights
+        if (editingHighlight) return;
+        
         updateOptions({ selectedHighlight: options.selectedHighlight?.id === highlight.id ? null : highlight });
     };
 
+    const handleEdit = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingHighlight(highlight);
+        updateOptions({ selectedHighlight: highlight });
+    };
+
+    const handleDelete = async () => {
+        // If we're deleting the highlight that's currently being edited, clear the editing state
+        if (editingHighlight?.id === highlight.id) {
+            setEditingHighlight(null);
+            updateOptions({ selectedHighlight: null });
+        }
+        
+        try {
+            await deleteHighlight(highlight.id);
+            requestUpdate();
+            toast({
+                title: "Success",
+                description: "Highlight deleted successfully.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error('Failed to delete highlight:', error);
+            toast({
+                title: "Error",
+                description: "Failed to delete highlight. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
     const isSelected = options.selectedHighlight?.id === highlight.id;
+    const isBeingEdited = editingHighlight?.id === highlight.id;
 
     const removeUtterance = (utteranceId: string) => {
         if (!canEdit) return;
@@ -156,7 +193,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
 
     return (
         <Card
-            className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''}`}
+            className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''} ${isBeingEdited ? 'bg-primary/5 border-primary border-2' : ''}`}
             onClick={handleClick}
         >
             <CardContent className="p-2">
@@ -165,6 +202,12 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         <Badge variant="outline" className="text-xs font-normal">
                             {highlight.name}
                         </Badge>
+                        {isBeingEdited && (
+                            <Badge variant="default" className="text-xs font-normal flex items-center">
+                                <Edit className="w-3 h-3 mr-1" />
+                                Editing
+                            </Badge>
+                        )}
                         {highlight.isShowcased && (
                             <Badge variant="secondary" className="text-xs font-normal flex items-center">
                                 <Star className="w-3 h-3 mr-1" />
@@ -183,6 +226,15 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         </div>
                         {canEdit && (
                             <div className="flex items-center space-x-1">
+                                <Button
+                                    size="icon"
+                                    variant={isBeingEdited ? "default" : "outline"}
+                                    onClick={handleEdit}
+                                    disabled={!!editingHighlight && !isBeingEdited}
+                                    title="Edit highlight"
+                                >
+                                    <Edit className="h-3 w-3" />
+                                </Button>
                                 {highlight.muxPlaybackId && (
                                     <Button
                                         size="icon"
@@ -195,8 +247,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                                 )}
                                 <Button size="icon" variant="ghost" onClick={(e) => {
                                     e.stopPropagation();
-                                    deleteHighlight(highlight.id);
-                                    requestUpdate();
+                                    handleDelete();
                                 }}>
                                     <Trash className="h-3 w-3 text-muted-foreground" />
                                 </Button>
