@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ export function LocationSelector({
     const debouncedInputValue = useDebounce(inputValue, 300);
 
     // Helper function to get user-friendly error messages
-    const getErrorMessage = (result: PlaceSuggestionsResult, searchQuery: string): string => {
+    const getErrorMessage = useCallback((result: PlaceSuggestionsResult, searchQuery: string): string => {
         if (!result.error) {
             // No API error, just empty results
             return `Δεν βρέθηκαν αποτελέσματα για "${searchQuery}" στον δήμο ${city.name}`;
@@ -55,7 +55,7 @@ export function LocationSelector({
         }
 
         return 'Σφάλμα κατά την αναζήτηση τοποθεσιών. Παρακαλώ δοκιμάστε ξανά.';
-    };
+    }, [city.name]);
 
     // Fetch place suggestions from the Google API
     useEffect(() => {
@@ -104,7 +104,7 @@ export function LocationSelector({
         }
 
         fetchSuggestions();
-    }, [debouncedInputValue, city.name, city.geometry]);
+    }, [debouncedInputValue, city.name, city.geometry, getErrorMessage]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputValue(e.target.value);

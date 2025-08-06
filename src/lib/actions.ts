@@ -58,8 +58,11 @@ export async function getPlaceSuggestions(data: {
         });
         console.log('Response status:', response.data.status);
 
-        // If Google API returned an error, provide helpful error message
-        if (response.data.status !== 'OK') {
+        // Handle different Google API response statuses
+        if (response.data.status === 'ZERO_RESULTS') {
+            // ZERO_RESULTS is not an error, it's a valid response with no results
+            return createSuccess({ status: 'ZERO_RESULTS', predictions: [] });
+        } else if (response.data.status !== 'OK') {
             console.error('Google Places API returned non-OK status:', response.data.status);
             const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
             return createError(errorMsg);

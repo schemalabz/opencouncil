@@ -386,7 +386,7 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
             setCanEdit(authorized);
         };
         checkAuth();
-    }, [meeting.id]);
+    }, [meeting.cityId]);
 
     const reloadHighlights = React.useCallback(async () => {
         try {

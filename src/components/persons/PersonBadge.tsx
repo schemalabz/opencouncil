@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Person, Party, SpeakerTag } from "@prisma/client";
+import { useState } from 'react';
+import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
 import {
@@ -7,11 +7,9 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "../ui/badge";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
 
@@ -29,8 +27,8 @@ interface PersonDisplayProps {
 
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick }: PersonDisplayProps) {
-    const activeRoles = useMemo(() => person ? filterActiveRoles(person.roles) : [], [person?.roles]);
-    const party = useMemo(() => person ? getPartyFromRoles(person.roles) : null, [person?.roles]);
+    const activeRoles = person ? filterActiveRoles(person.roles) : [];
+    const party = person ? getPartyFromRoles(person.roles) : null;
     const partyColor = party?.colorHex || 'gray';
 
     const imageSizes = {
