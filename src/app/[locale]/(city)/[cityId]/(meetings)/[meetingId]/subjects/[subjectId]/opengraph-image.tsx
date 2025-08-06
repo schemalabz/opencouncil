@@ -394,6 +394,10 @@ export default async function SubjectOgImage({
                                                 }}
                                             >
                                                 {person.image ? (
+                                                    // Note: Using <img> instead of Next.js <Image /> because this is server-side
+                                                    // OpenGraph image generation with ImageResponse. Next.js Image component
+                                                    // doesn't work in this context and <img> is the standard approach.
+                                                    // eslint-disable-next-line @next/next/no-img-element
                                                     <img
                                                         src={person.image}
                                                         alt={person.name}

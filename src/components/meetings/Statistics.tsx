@@ -16,7 +16,7 @@ import { getPartyFromRoles } from '@/lib/utils';
 
 export function Statistics() {
     const [statistics, setStatistics] = useState<StatisticsOfCouncilMeeting | null>(null)
-    const { meeting, getParty } = useCouncilMeetingData();
+    const { meeting } = useCouncilMeetingData();
     const t = useTranslations('Statistics');
 
     useEffect(() => {
@@ -58,7 +58,7 @@ export function Statistics() {
                 minutes: Math.round(person.speakingSeconds / 60),
                 fill: getPartyFromRoles(person.item.roles || [])?.colorHex ?? "gray"
             }));
-    }, [statistics, getParty]);
+    }, [statistics]);
 
     const chartConfig: ChartConfig = {
         minutes: {

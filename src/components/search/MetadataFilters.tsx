@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import Combobox from "../Combobox";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getCities, getCity } from "@/lib/db/cities";
@@ -36,7 +36,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    const fetchCities = async () => {
+    const fetchCities = useCallback(async () => {
         try {
             const fetchedCities = await getCities();
             let allCities = [...fetchedCities];
@@ -55,7 +55,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
         } catch (error) {
             console.error('Error fetching cities:', error);
         }
-    }
+    }, [filters.cityId]);
 
     const fetchParties = async (cityId: City["id"]) => {
         const fetchedParties = await getPartiesForCity(cityId);
@@ -69,7 +69,7 @@ export default function MetadataFilters({ className, filters, setFilters }: { cl
 
     useEffect(() => {
         fetchCities();
-    }, [filters.cityId]);
+    }, [fetchCities]);
 
     useEffect(() => {
         if (cities.length > 0 && filters.cityId) {

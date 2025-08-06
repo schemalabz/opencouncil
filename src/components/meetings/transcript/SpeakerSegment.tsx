@@ -44,7 +44,7 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
 };
 
 const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getParty, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
 
@@ -57,7 +57,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
         const segmentCount = speakerTag ? getSpeakerSegmentCount(speakerTag.id) : 0;
         return { speakerTag, person, party, borderColor, segmentCount };
-    }, [segment.speakerTagId, getPerson, getParty, getSpeakerTag, getSpeakerSegmentCount]);
+    }, [segment.speakerTagId, getPerson, getSpeakerTag, getSpeakerSegmentCount]);
 
     const utterances = segment.utterances;
     if (!utterances) {

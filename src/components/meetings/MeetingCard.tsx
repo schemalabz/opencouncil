@@ -89,7 +89,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         }
 
         return result;
-    }, [meeting.subjects]);
+    }, [meeting.subjects, meeting.id, meeting.name]);
 
     const handleClick = async (e: React.MouseEvent) => {
         e.preventDefault();

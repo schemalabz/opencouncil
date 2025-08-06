@@ -219,6 +219,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 throttledSetCurrentTime(newTime);
             }
         }
+        // throttledSetCurrentTime is intentionally excluded from dependencies because:
+        // 1. It's created with useRef, making it stable across renders
+        // 2. Adding it to dependencies would be redundant since it never changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSeeking, isPlaying]);
 
     // Create a throttled version of setCurrentTime
