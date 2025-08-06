@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Options } from './options/Options'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
+import { HighlightProvider } from './HighlightContext'
 import { Statistics } from './Statistics'
 import ShareC from './Share'
 import Summary from './Summary'
@@ -86,10 +87,12 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable}>
-                    <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
-                        <KeyboardShortcuts />
-                        {children}
-                    </VideoProvider>
+                    <HighlightProvider>
+                        <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                            <KeyboardShortcuts />
+                            {children}
+                        </VideoProvider>
+                    </HighlightProvider>
                 </TranscriptOptionsProvider>
             </CouncilMeetingDataProvider>
         </LayoutContext.Provider>
