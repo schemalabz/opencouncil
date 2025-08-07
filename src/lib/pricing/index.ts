@@ -17,7 +17,8 @@ export {
     estimateYearlyPricing,
     getPlatformMonthlyPrice,
     getSessionProcessingPrice,
-    getCurrentCorrectnessGuaranteePrice
+    getCurrentCorrectnessGuaranteePrice,
+    getCombinedProcessingPrice
 } from './calculations';
 
 export {
