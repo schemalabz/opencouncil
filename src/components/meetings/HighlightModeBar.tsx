@@ -1,30 +1,22 @@
 "use client";
 import React from 'react';
 import { useHighlight } from './HighlightContext';
-import { useTranscriptOptions } from './options/OptionsContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Users, Eye, EyeOff, Save, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { upsertHighlight } from '@/lib/db/highlights';
+import { formatTime } from '@/lib/utils';
 
 export function HighlightModeBar() {
-  const { editingHighlight, previewMode, setEditingHighlight, setPreviewMode } = useHighlight();
-  const { updateOptions } = useTranscriptOptions();
+  const { editingHighlight, previewMode, setEditingHighlight, setPreviewMode, statistics } = useHighlight();
 
   if (!editingHighlight) {
     return null;
   }
 
-  const utteranceCount = editingHighlight.highlightedUtterances.length;
-  const duration = editingHighlight.highlightedUtterances.length > 0 
-    ? editingHighlight.highlightedUtterances.reduce((sum, hu) => {
-        // Note: For now we'll show a placeholder duration calculation
-        // This will be enhanced in Phase 1.3 with proper composition metadata
-        return sum + 5; // Placeholder: assume 5 seconds per utterance
-      }, 0)
-    : 0;
+  const formattedDuration = statistics ? formatTime(statistics.duration) : '0:00';
 
   const handleSave = async () => {
     try {
@@ -54,7 +46,6 @@ export function HighlightModeBar() {
   const handleCancel = () => {
     setEditingHighlight(null);
     setPreviewMode(false);
-    updateOptions({ selectedHighlight: null });
   };
 
   const togglePreview = () => {
@@ -74,12 +65,18 @@ export function HighlightModeBar() {
               <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
-                  <span>{duration}s</span>
+                  <span>{formattedDuration}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Users className="h-3 w-3" />
-                  <span>{utteranceCount} segments</span>
+                  <span>{statistics?.utteranceCount || 0} segments</span>
                 </div>
+                {statistics && statistics.speakerCount > 1 && (
+                  <div className="flex items-center space-x-1">
+                    <Users className="h-3 w-3" />
+                    <span>{statistics.speakerCount} speakers</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

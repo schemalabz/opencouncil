@@ -24,7 +24,7 @@ const UtteranceC: React.FC<{
 }> = React.memo(({ utterance, onUpdate }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
-    const { options, updateOptions } = useTranscriptOptions();
+    const { options } = useTranscriptOptions();
     const { editingHighlight, setEditingHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
     const [isEditing, setIsEditing] = useState(false);
@@ -59,8 +59,7 @@ const UtteranceC: React.FC<{
     }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
 
     // Check if this utterance is highlighted in the current editing highlight
-    const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id) || 
-                         (!editingHighlight && options.selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id));
+    const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id) || false;
 
     const isTaskModified = localUtterance.lastModifiedBy === 'task' && options.editable && !editingHighlight;
     const isUserModified = localUtterance.lastModifiedBy && localUtterance.lastModifiedBy !== 'task' && options.editable && !editingHighlight;
@@ -87,7 +86,6 @@ const UtteranceC: React.FC<{
                     highlightedUtterances: editingHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== localUtterance.id)
                 };
                 setEditingHighlight(updatedHighlight);
-                updateOptions({ selectedHighlight: updatedHighlight });
             } else {
                 // Add to highlight
                 const updatedHighlight = {
@@ -95,23 +93,6 @@ const UtteranceC: React.FC<{
                     highlightedUtterances: [...editingHighlight.highlightedUtterances, { utteranceId: localUtterance.id }]
                 };
                 setEditingHighlight(updatedHighlight as HighlightWithUtterances);
-                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
-            }
-        } else if (options.selectedHighlight && !editingHighlight) {
-            // Legacy behavior for non-editing mode
-            if (isHighlighted) {
-                const updatedHighlight = {
-                    ...options.selectedHighlight,
-                    highlightedUtterances: options.selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== localUtterance.id)
-                };
-                updateOptions({ selectedHighlight: updatedHighlight });
-            } else {
-                // Add to highlight
-                const updatedHighlight = {
-                    ...options.selectedHighlight,
-                    highlightedUtterances: [...options.selectedHighlight.highlightedUtterances, { utteranceId: localUtterance.id }]
-                };
-                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
             }
         } else if (options.editable) {
             setIsEditing(true);
