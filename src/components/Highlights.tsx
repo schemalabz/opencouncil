@@ -1,9 +1,9 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Download, Trash, Users, Star } from "lucide-react";
+import { Clock, Download, Trash, Users, Star, Edit } from "lucide-react";
 import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
-import { useTranscriptOptions } from "./meetings/options/OptionsContext";
+import { useHighlight } from "./meetings/HighlightContext";
 import { addHighlightToSubject, deleteHighlight, getHighlightsForMeeting, HighlightWithUtterances, removeHighlightFromSubject, toggleHighlightShowcase, upsertHighlight } from "@/lib/db/highlights";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -17,29 +17,62 @@ import { getPartyFromRoles } from "@/lib/utils";
 
 const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: { highlight: HighlightWithUtterances, requestUpdate: () => void, showSaveButton: boolean, canEdit: boolean }) => {
     const { transcript, getSpeakerTag, subjects, getPerson, getParty } = useCouncilMeetingData();
-    const { options, updateOptions } = useTranscriptOptions();
+    const { setEditingHighlight, editingHighlight, statistics, highlightUtterances } = useHighlight();
 
-    const utterances = highlight.highlightedUtterances.map(hu =>
-        transcript.map((ss) => ss.utterances.find(u => u.id === hu.utteranceId)).find(u => u !== undefined)
-    ).filter((u): u is NonNullable<typeof u> => u !== undefined);
+    // Use statistics from context if this is the editing highlight, otherwise calculate locally
+    const isEditingThisHighlight = editingHighlight?.id === highlight.id;
+    
+    // Use pre-calculated utterances if available, otherwise calculate locally
+    const utterances = isEditingThisHighlight && highlightUtterances
+        ? highlightUtterances
+        : highlight.highlightedUtterances.map(hu =>
+            transcript.map((ss) => ss.utterances.find(u => u.id === hu.utteranceId)).find(u => u !== undefined)
+        ).filter((u): u is NonNullable<typeof u> => u !== undefined);
 
-    const duration = utterances.reduce((sum, u) => sum + (u.endTimestamp - u.startTimestamp), 0);
-    const speakerCount = new Set(utterances.map(u => u.speakerSegmentId)).size;
+    const duration = isEditingThisHighlight && statistics 
+        ? statistics.duration
+        : utterances.reduce((sum, u) => sum + (u.endTimestamp - u.startTimestamp), 0);
+    
+    const speakerCount = isEditingThisHighlight && statistics
+        ? statistics.speakerCount
+        : new Set(utterances.map(u => u.speakerSegmentId)).size;
 
     const handleClick = () => {
-        updateOptions({ selectedHighlight: options.selectedHighlight?.id === highlight.id ? null : highlight });
+        // If we're in editing mode, don't allow switching highlights
+        if (editingHighlight) return;
+        
     };
 
-    const isSelected = options.selectedHighlight?.id === highlight.id;
-
-    const removeUtterance = (utteranceId: string) => {
-        if (!canEdit) return;
-        const updatedHighlight = {
-            ...highlight,
-            highlightedUtterances: highlight.highlightedUtterances.filter(hu => hu.utteranceId !== utteranceId)
-        };
-        updateOptions({ selectedHighlight: updatedHighlight });
+    const handleEdit = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingHighlight(highlight);
     };
+
+    const handleDelete = async () => {
+        // If we're deleting the highlight that's currently being edited, clear the editing state
+        if (editingHighlight?.id === highlight.id) {
+            setEditingHighlight(null);
+        }
+        
+        try {
+            await deleteHighlight(highlight.id);
+            requestUpdate();
+            toast({
+                title: "Success",
+                description: "Highlight deleted successfully.",
+                variant: "default",
+            });
+        } catch (error) {
+            console.error('Failed to delete highlight:', error);
+            toast({
+                title: "Error",
+                description: "Failed to delete highlight. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const isBeingEdited = editingHighlight?.id === highlight.id;
 
     const handleSave = async () => {
         if (!canEdit) return;
@@ -156,7 +189,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
 
     return (
         <Card
-            className={`mb-2 cursor-pointer ${isSelected ? 'border-primary' : ''}`}
+            className={`mb-2 cursor-pointer ${isBeingEdited ? 'bg-primary/5 border-primary border-2' : ''}`}
             onClick={handleClick}
         >
             <CardContent className="p-2">
@@ -165,6 +198,12 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         <Badge variant="outline" className="text-xs font-normal">
                             {highlight.name}
                         </Badge>
+                        {isBeingEdited && (
+                            <Badge variant="default" className="text-xs font-normal flex items-center">
+                                <Edit className="w-3 h-3 mr-1" />
+                                Editing
+                            </Badge>
+                        )}
                         {highlight.isShowcased && (
                             <Badge variant="secondary" className="text-xs font-normal flex items-center">
                                 <Star className="w-3 h-3 mr-1" />
@@ -183,6 +222,15 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         </div>
                         {canEdit && (
                             <div className="flex items-center space-x-1">
+                                <Button
+                                    size="icon"
+                                    variant={isBeingEdited ? "default" : "outline"}
+                                    onClick={handleEdit}
+                                    disabled={!!editingHighlight && !isBeingEdited}
+                                    title="Edit highlight"
+                                >
+                                    <Edit className="h-3 w-3" />
+                                </Button>
                                 {highlight.muxPlaybackId && (
                                     <Button
                                         size="icon"
@@ -195,8 +243,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                                 )}
                                 <Button size="icon" variant="ghost" onClick={(e) => {
                                     e.stopPropagation();
-                                    deleteHighlight(highlight.id);
-                                    requestUpdate();
+                                    handleDelete();
                                 }}>
                                     <Trash className="h-3 w-3 text-muted-foreground" />
                                 </Button>
@@ -204,7 +251,7 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                         )}
                     </div>
                 </div>
-                {isSelected && (
+                {isBeingEdited && (
                     <div className="mt-2 space-y-2">
                         <div className="flex flex-wrap gap-2">
                             {highlight.subjectId && (
@@ -259,19 +306,6 @@ const SingleHighlight = ({ highlight, requestUpdate, showSaveButton, canEdit }: 
                                         className="ml-2"
                                     />}
                                     <p className="text-sm">{utterance.text} [{formatTimestamp(utterance.startTimestamp)}]</p>
-                                    {canEdit && (
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-4 w-4 p-0"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeUtterance(utterance.id);
-                                            }}
-                                        >
-                                            <span className="text-xs">×</span>
-                                        </Button>
-                                    )}
                                 </div>
                             );
                         })}
@@ -329,7 +363,6 @@ const AddHighlightButton = ({ onHighlightAdded }: { onHighlightAdded: () => void
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [newHighlightName, setNewHighlightName] = React.useState('');
     const { meeting } = useCouncilMeetingData();
-    const { updateOptions } = useTranscriptOptions();
 
     const handleAddHighlight = async () => {
         try {
@@ -339,7 +372,6 @@ const AddHighlightButton = ({ onHighlightAdded }: { onHighlightAdded: () => void
                 cityId: meeting.cityId,
                 utteranceIds: []
             });
-            updateOptions({ selectedHighlight: newHighlight });
             setIsPopoverOpen(false);
             setNewHighlightName('');
             onHighlightAdded(); // Notify parent component to reload highlights
@@ -375,7 +407,6 @@ const AddHighlightButton = ({ onHighlightAdded }: { onHighlightAdded: () => void
 };
 
 export default function Highlights({ highlights: initialHighlights }: { highlights: HighlightWithUtterances[] }) {
-    const { options } = useTranscriptOptions();
     const { meeting } = useCouncilMeetingData();
     const [highlights, setHighlights] = React.useState(initialHighlights);
     const [canEdit, setCanEdit] = React.useState(false);
@@ -412,9 +443,9 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
                     {showcasedHighlights.map(highlight => (
                         <SingleHighlight
                             key={highlight.id}
-                            highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
+                            highlight={highlight}
                             requestUpdate={reloadHighlights}
-                            showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
+                            showSaveButton={false}
                             canEdit={canEdit}
                         />
                     ))}
@@ -426,9 +457,9 @@ export default function Highlights({ highlights: initialHighlights }: { highligh
                     {regularHighlights.map(highlight => (
                         <SingleHighlight
                             key={highlight.id}
-                            highlight={options.selectedHighlight?.id === highlight.id ? options.selectedHighlight : highlight}
+                            highlight={highlight}
                             requestUpdate={reloadHighlights}
-                            showSaveButton={canEdit && options.selectedHighlight?.id === highlight.id}
+                            showSaveButton={false}
                             canEdit={canEdit}
                         />
                     ))}

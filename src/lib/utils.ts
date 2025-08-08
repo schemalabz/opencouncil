@@ -483,3 +483,18 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
     return DEFAULT_RETURN;
   }
 }
+
+/**
+ * Formats time in seconds to a human-readable string
+ * @param time - Time in seconds
+ * @returns Formatted string like "5:30" or "1:23:45"
+ */
+export function formatTime(time: number): string {
+  const hours = Math.floor(time / 3600);
+  const minutes = Math.floor((time % 3600) / 60);
+  const seconds = Math.floor(time % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
