@@ -4,14 +4,25 @@ import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Users, Eye, EyeOff, Save, X } from 'lucide-react';
+import { Clock, Users, Eye, EyeOff, Save, X, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { upsertHighlight } from '@/lib/db/highlights';
 import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
 
 export function HighlightModeBar() {
-  const { editingHighlight, previewMode, setEditingHighlight, setPreviewMode, statistics } = useHighlight();
+  const { 
+    editingHighlight, 
+    previewMode, 
+    setEditingHighlight, 
+    setPreviewMode, 
+    statistics,
+    currentHighlightIndex,
+    totalHighlights,
+    goToPreviousHighlight,
+    goToNextHighlight,
+    togglePreviewMode
+  } = useHighlight();
 
   if (!editingHighlight) {
     return null;
@@ -47,10 +58,6 @@ export function HighlightModeBar() {
     setPreviewMode(false);
   };
 
-  const togglePreview = () => {
-    setPreviewMode(!previewMode);
-  };
-
   return (
     <Card className="mb-4 bg-primary/5 border-primary/20">
       <CardContent className="p-4">
@@ -61,6 +68,12 @@ export function HighlightModeBar() {
               <Badge variant="default" className="font-semibold">
                 Editing Highlight
               </Badge>
+              {previewMode && (
+                <Badge variant="secondary" className="text-xs flex items-center space-x-1">
+                  <Play className="h-3 w-3" />
+                  <span>Preview Mode</span>
+                </Badge>
+              )}
               <div className="flex items-center space-x-2">
                 <span className="font-medium text-sm">{editingHighlight.name}</span>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground">
@@ -80,14 +93,46 @@ export function HighlightModeBar() {
             </div>
             
             <div className="flex items-center space-x-2">
+              {/* Navigation Controls - Only show when there are highlights */}
+              {totalHighlights > 0 && (
+                <div className="flex items-center space-x-1 mr-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToPreviousHighlight}
+                    disabled={!previewMode && currentHighlightIndex === 0}
+                    className="h-8 w-8 p-0"
+                    title="Previous highlight"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  
+                  <span className="text-xs text-muted-foreground px-1">
+                    {currentHighlightIndex + 1}/{totalHighlights}
+                  </span>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={goToNextHighlight}
+                    disabled={!previewMode && currentHighlightIndex === totalHighlights - 1}
+                    className="h-8 w-8 p-0"
+                    title="Next highlight"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
               <Button
-                variant="outline"
+                variant={previewMode ? "default" : "outline"}
                 size="sm"
-                onClick={togglePreview}
+                onClick={togglePreviewMode}
                 className="flex items-center space-x-1"
+                disabled={totalHighlights === 0}
               >
                 {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                <span>{previewMode ? 'Hide Preview' : 'Preview'}</span>
+                <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
               </Button>
               
               <Button
@@ -111,6 +156,15 @@ export function HighlightModeBar() {
               </Button>
             </div>
           </div>
+
+          {/* Minimal Preview Mode Indicator */}
+          {previewMode && totalHighlights > 0 && (
+            <div className="text-center">
+              <span className="text-xs text-muted-foreground bg-primary/10 px-2 py-1 rounded">
+                🎬 Playing highlights only • Auto-advancing • Loop enabled
+              </span>
+            </div>
+          )}
 
           {/* Integrated preview */}
           {previewMode && (
