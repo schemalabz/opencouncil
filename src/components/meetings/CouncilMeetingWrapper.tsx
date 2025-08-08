@@ -87,12 +87,12 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable}>
-                    <HighlightProvider>
-                        <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                    <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                        <HighlightProvider>
                             <KeyboardShortcuts />
                             {children}
-                        </VideoProvider>
-                    </HighlightProvider>
+                        </HighlightProvider>
+                    </VideoProvider>
                 </TranscriptOptionsProvider>
             </CouncilMeetingDataProvider>
         </LayoutContext.Provider>

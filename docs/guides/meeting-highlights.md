@@ -2,7 +2,7 @@
 
 **Concept**
 
-Automatically generate short, shareable video clips of key moments from council meetings.
+Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities.
 
 **Architectural Overview**
 
@@ -33,16 +33,27 @@ sequenceDiagram
 
 **User Interaction Flow**
 
-The current utterance addition mechanism follows a multi-step process that requires understanding the transcript interaction pattern:
+The current highlight editing system provides an intuitive interface for creating and modifying highlights:
 
-1. **Highlight Selection**: User clicks on a highlight card in the Highlights section to select it (visual feedback: border becomes primary color)
-2. **Transcript Navigation**: User navigates to the Transcript section/tab to view all meeting utterances
-3. **Utterance Interaction**: When a highlight is selected, clicking on any utterance in the transcript will:
+1. **Highlight Creation**: User clicks "Add Highlight" button to create a new highlight with a custom name
+2. **Edit Mode Activation**: User clicks the edit button on any highlight card to enter editing mode
+3. **Highlight Mode Bar**: A dedicated editing interface appears with:
+   - Real-time statistics (duration, speaker count, utterance count)
+   - Preview mode toggle for testing highlight composition
+   - Navigation controls for browsing through selected utterances
+   - Save/Cancel buttons for persisting changes
+4. **Utterance Selection**: In edit mode, clicking on any utterance in the transcript will:
    - **Add** the utterance to the highlight if it's not already included
    - **Remove** the utterance from the highlight if it's already included
-4. **Visual Feedback**: Utterances that are part of the selected highlight are displayed with **bold and underlined** text
-5. **State Management**: Changes are stored in the `TranscriptOptions` context as a `selectedHighlight` object
-6. **Persistence**: User clicks "Save Changes" button to persist modifications via `upsertHighlight`
+5. **Visual Feedback**: 
+   - Utterances that are part of the editing highlight are displayed with **bold and underlined** text
+   - The editing highlight card shows a special "Editing" badge
+   - The timeline shows highlighted segments with amber coloring
+6. **Preview Mode**: Users can toggle preview mode to:
+   - See a text preview of all selected utterances grouped by speaker
+   - Auto-advance through highlights with looping
+7. **State Management**: Changes are stored in the `HighlightContext` as an `editingHighlight` object
+8. **Persistence**: User clicks "Save Changes" button to persist modifications via `upsertHighlight`
 
 **Key Component Pointers**
 
@@ -53,8 +64,10 @@ The current utterance addition mechanism follows a multi-step process that requi
     *   `CouncilMeeting`: `src/components/meetings/CouncilMeeting.tsx`
     *   `Highlights`: `src/components/Highlights.tsx`
     *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx`
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx`
+    *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx`
 *   **State Management**:
-    *   `TranscriptOptions`: `src/components/meetings/options/OptionsContext.tsx`
+    *   `HighlightContext`: `src/components/meetings/HighlightContext.tsx`
 *   **Backend Logic**:
     *   `upsertHighlight`: `src/lib/db/highlights.ts`
     *   `deleteHighlight`: `src/lib/db/highlights.ts`
@@ -68,5 +81,7 @@ The current utterance addition mechanism follows a multi-step process that requi
 *   A highlight must be associated with at least one utterance.
 *   The external task server must have access to the database to retrieve the necessary information.
 *   The application must expose a webhook endpoint for the task server to report the results of the video processing.
-*   Utterance selection requires a highlight to be in "selected" state via the `TranscriptOptions` context.
-*   Changes to highlight composition are not persisted until the user explicitly saves via the "Save Changes" button. 
+*   Only one highlight can be in editing mode at a time via the `HighlightContext`.
+*   Changes to highlight composition are not persisted until the user explicitly saves via the "Save Changes" button.
+*   Preview mode automatically advances through highlights and loops back to the beginning.
+*   The editing interface provides real-time statistics and visual feedback for better user experience. 
