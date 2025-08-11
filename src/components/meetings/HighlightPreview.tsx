@@ -1,11 +1,15 @@
 "use client";
 import React, { useMemo } from 'react';
-import { useHighlight } from './HighlightContext';
 import { Badge } from '@/components/ui/badge';
 import { Quote } from 'lucide-react';
+import { HighlightUtterance } from './HighlightContext';
+import { useHighlight } from './HighlightContext';
 
 interface HighlightPreviewProps {
   className?: string;
+  highlightUtterances?: HighlightUtterance[];
+  title?: string;
+  maxHeight?: string;
 }
 
 interface SpeakerBlock {
@@ -14,12 +18,19 @@ interface SpeakerBlock {
   texts: React.ReactNode[];
 }
 
-export function HighlightPreview({ className }: HighlightPreviewProps) {
-  const { editingHighlight, highlightUtterances } = useHighlight();
+export function HighlightPreview({ 
+  className, 
+  highlightUtterances: externalHighlightUtterances,
+  title = "Preview",
+  maxHeight = "max-h-32"
+}: HighlightPreviewProps) {
+  // Use external utterances if provided, otherwise fall back to context
+  const { editingHighlight, highlightUtterances: contextHighlightUtterances } = useHighlight();
+  const utterances = externalHighlightUtterances || contextHighlightUtterances;
 
   // Memoize the speaker blocks to prevent unnecessary re-renders
   const speakerBlocks = useMemo(() => {
-    if (!highlightUtterances || highlightUtterances.length === 0) return [];
+    if (!utterances || utterances.length === 0) return [];
 
     const blocks: SpeakerBlock[] = [];
     let currentSpeaker = '';
@@ -27,8 +38,8 @@ export function HighlightPreview({ className }: HighlightPreviewProps) {
     let currentUtteranceCount = 0;
 
     // Iterate through utterances in chronological order
-    for (let i = 0; i < highlightUtterances.length; i++) {
-      const utterance = highlightUtterances[i];
+    for (let i = 0; i < utterances.length; i++) {
+      const utterance = utterances[i];
       
       // If this is a new speaker, save the previous speaker's block and start a new one
       if (utterance.speakerName !== currentSpeaker) {
@@ -48,7 +59,7 @@ export function HighlightPreview({ className }: HighlightPreviewProps) {
       } else {
         // Same speaker - check if there's a gap between this utterance and the previous one
         if (i > 0) {
-          const previousUtterance = highlightUtterances[i - 1];
+          const previousUtterance = utterances[i - 1];
           const gap = utterance.startTimestamp - previousUtterance.endTimestamp;
           
           // If there's a significant gap (>2 seconds), add gap indicator
@@ -81,9 +92,23 @@ export function HighlightPreview({ className }: HighlightPreviewProps) {
     }
 
     return blocks;
-  }, [highlightUtterances]);
+  }, [utterances]);
 
-  if (!editingHighlight || !highlightUtterances) {
+  // If using external utterances, don't require editingHighlight
+  if (!utterances || utterances.length === 0) {
+    return (
+      <div className={`bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4 ${className}`}>
+        <div className="text-center py-4 text-muted-foreground">
+          <Quote className="h-6 w-6 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No utterances selected</p>
+          <p className="text-xs mt-1">This highlight is empty</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If using context and no editing highlight, return null
+  if (!externalHighlightUtterances && !editingHighlight) {
     return null;
   }
 
@@ -91,10 +116,10 @@ export function HighlightPreview({ className }: HighlightPreviewProps) {
     <div className={`bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-4 ${className}`}>
       <div className="flex items-center space-x-2 mb-3">
         <Quote className="h-4 w-4 text-primary" />
-        <span className="font-semibold text-sm">Preview</span>
+        <span className="font-semibold text-sm">{title}</span>
       </div>
       
-      <div className="space-y-2 max-h-32 overflow-y-auto">
+      <div className={`space-y-2 ${maxHeight} overflow-y-auto`}>
         {speakerBlocks.map((block, index) => (
           <div key={`${block.speakerName}-${index}`} className="space-y-1">
             <div className="flex items-center space-x-2">
@@ -114,7 +139,7 @@ export function HighlightPreview({ className }: HighlightPreviewProps) {
         ))}
       </div>
 
-      {highlightUtterances.length === 0 && (
+      {utterances.length === 0 && (
         <div className="text-center py-4 text-muted-foreground">
           <Quote className="h-6 w-6 mx-auto mb-2 opacity-50" />
           <p className="text-sm">No utterances selected</p>

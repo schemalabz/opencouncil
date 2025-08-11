@@ -1,10 +1,10 @@
 "use client";
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
 
-interface HighlightUtterance {
+export interface HighlightUtterance {
   id: string;
   text: string;
   startTimestamp: number;
@@ -13,10 +13,15 @@ interface HighlightUtterance {
   speakerName: string;
 }
 
-interface HighlightStatistics {
+export interface HighlightStatistics {
   duration: number;
   utteranceCount: number;
   speakerCount: number;
+}
+
+export interface HighlightCalculationResult {
+  statistics: HighlightStatistics;
+  highlightUtterances: HighlightUtterance[];
 }
 
 interface HighlightContextType {
@@ -26,12 +31,14 @@ interface HighlightContextType {
   highlightUtterances: HighlightUtterance[] | null;
   currentHighlightIndex: number;
   totalHighlights: number;
+  utteranceMap: Map<string, any>; // Pre-built utterance map for performance
   setEditingHighlight: (highlight: HighlightWithUtterances | null) => void;
   setPreviewMode: (mode: boolean) => void;
   goToPreviousHighlight: () => void;
   goToNextHighlight: () => void;
   goToHighlightIndex: (index: number) => void;
   togglePreviewMode: () => void;
+  calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
 }
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
@@ -42,71 +49,79 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getPerson, getSpeakerTag } = useCouncilMeetingData();
+  const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
 
-  // Calculate statistics and extract utterance data when editing highlight changes
-  const { statistics, highlightUtterances } = useMemo(() => {
-    if (!editingHighlight || !transcript) {
-      return { statistics: null, highlightUtterances: null };
-    }
-
-    // Build utterance map for this calculation
-    const utteranceMap = new Map();
+  // Build utterance map once and memoize it - this eliminates the need to rebuild it in useHighlightCalculations
+  const utteranceMap = useMemo(() => {
+    const map = new Map();
     transcript.forEach(segment => {
       segment.utterances.forEach(utterance => {
-        utteranceMap.set(utterance.id, utterance);
+        map.set(utterance.id, utterance);
       });
     });
+    return map;
+  }, [transcript]);
 
-    // Extract highlight utterances with timestamps and speaker information
-    const utterances: HighlightUtterance[] = [];
-    editingHighlight.highlightedUtterances.forEach(hu => {
-      const utterance = utteranceMap.get(hu.utteranceId);
-      if (utterance) {
-        const segment = transcript.find(s => s.id === utterance.speakerSegmentId);
-        const speakerTag = segment ? getSpeakerTag(segment.speakerTagId) : null;
-        const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-        const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
-        
-        utterances.push({
-          id: utterance.id,
-          text: utterance.text,
-          startTimestamp: utterance.startTimestamp,
-          endTimestamp: utterance.endTimestamp,
-          speakerSegmentId: utterance.speakerSegmentId,
-          speakerName
-        });
+  const calculateHighlightData = useCallback((highlight: HighlightWithUtterances | null): HighlightCalculationResult | null => {
+      if (!highlight || !transcript) {
+        return null;
       }
-    });
 
-    // Sort utterances chronologically
-    utterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
+      // Extract highlight utterances with timestamps and speaker information
+      const utterances: HighlightUtterance[] = [];
+      highlight.highlightedUtterances.forEach(hu => {
+        const utterance = utteranceMap.get(hu.utteranceId);
+        if (utterance) {
+          const segment = transcript.find(s => s.id === utterance.speakerSegmentId);
+          const speakerTag = segment ? getSpeakerTag(segment.speakerTagId) : null;
+          const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+          const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
+          
+          utterances.push({
+            id: utterance.id,
+            text: utterance.text,
+            startTimestamp: utterance.startTimestamp,
+            endTimestamp: utterance.endTimestamp,
+            speakerSegmentId: utterance.speakerSegmentId,
+            speakerName
+          });
+        }
+      });
 
-    // Calculate statistics
-    const utteranceCount = utterances.length;
-    
-    const duration = utterances.reduce((total, utterance) => {
-      return total + (utterance.endTimestamp - utterance.startTimestamp);
-    }, 0);
-    
-    // Calculate speaker count
-    const speakerNames = new Set<string>();
-    utterances.forEach(utterance => {
-      speakerNames.add(utterance.speakerName);
-    });
-    const speakerCount = speakerNames.size;
+      // Sort utterances chronologically
+      utterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
 
-    const statistics = {
-      duration,
-      utteranceCount,
-      speakerCount
-    };
+      // Calculate statistics
+      const utteranceCount = utterances.length;
+      
+      const duration = utterances.reduce((total, utterance: HighlightUtterance) => {
+        return total + (utterance.endTimestamp - utterance.startTimestamp);
+      }, 0);
+      
+      // Calculate speaker count
+      const speakerNames = new Set<string>();
+      utterances.forEach(utterance => {
+        speakerNames.add(utterance.speakerName);
+      });
+      const speakerCount = speakerNames.size;
 
-    return { statistics, highlightUtterances: utterances };
-    // We only need to re-calculate when the editingHighlight changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingHighlight?.id, editingHighlight?.highlightedUtterances.length]);
+      const statistics = {
+        duration,
+        utteranceCount,
+        speakerCount
+      };
+
+      return { statistics, highlightUtterances: utterances };
+    }, [transcript, utteranceMap, getSpeakerTag, getPerson]);
+
+  // Calculate data for the currently editing highlight
+  const editingHighlightData = useMemo(() => {
+    return calculateHighlightData(editingHighlight);
+  }, [calculateHighlightData, editingHighlight]);
+
+  const statistics = editingHighlightData?.statistics || null;
+  const highlightUtterances = editingHighlightData?.highlightUtterances || null;
 
   // Calculate total highlights
   const totalHighlights = highlightUtterances?.length || 0;
@@ -224,12 +239,14 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     highlightUtterances,
     currentHighlightIndex,
     totalHighlights,
+    utteranceMap,
     setEditingHighlight,
     setPreviewMode,
     goToPreviousHighlight,
     goToNextHighlight,
     goToHighlightIndex,
     togglePreviewMode,
+    calculateHighlightData,
   };
 
   return (
