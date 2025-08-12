@@ -378,6 +378,7 @@ const HighlightPreviewPanel = ({
             id={highlight.id}
             title={highlight.name}
             playbackId={highlight.muxPlaybackId}
+            videoUrl={highlight.videoUrl || undefined}
           />
         </div>
       )}
