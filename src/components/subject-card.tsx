@@ -111,6 +111,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                                 id={highlight.id}
                                 title={highlight.name}
                                 playbackId={highlight.muxPlaybackId}
+                                videoUrl={highlight.videoUrl || undefined}
                             />
                         </div>
                     )}

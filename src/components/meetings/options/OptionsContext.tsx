@@ -1,7 +1,6 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Highlight, SpeakerTag } from '@prisma/client';
-import { HighlightWithUtterances } from '@/lib/db/highlights';
+import React, { createContext, useContext, useState } from 'react';
+import { SpeakerTag } from '@prisma/client';
 
 export interface TranscriptOptions {
     editable: boolean;
@@ -9,7 +8,6 @@ export interface TranscriptOptions {
     selectedSpeakerTag: SpeakerTag["id"] | null;
     highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
-    selectedHighlight: HighlightWithUtterances | null;
     playbackSpeed: number;
 }
 
@@ -25,7 +23,6 @@ const defaultOptions: TranscriptOptions = {
     editable: false,
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
-    selectedHighlight: null,
     maxUtteranceDrift: 500,
     playbackSpeed: 1
 };
