@@ -2,11 +2,18 @@
 
 **Concept**
 
-Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities. The feature provides an intuitive two-panel interface for browsing, previewing, and managing highlights with advanced content editing and subject association capabilities.
+Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities. The feature provides an intuitive multi-page interface for browsing, previewing, and managing highlights with advanced content editing and subject association capabilities.
 
 **Architectural Overview**
 
-The Meeting Highlights feature allows authorized users to select segments of a meeting's transcript and combine them into a single video file. The process begins on the frontend, where a user selects utterances and initiates the creation process. The request is sent to the backend, which first creates a `Highlight` record in the database, associating it with the selected `Utterance` records. It then dispatches a task to an external media processing server. This server retrieves the source video and the timestamp information from the database, creates the highlight video, and upon completion, updates the `Highlight` record with the URL to the new video.
+The Meeting Highlights feature allows authorized users to select segments of a meeting's transcript and combine them into a single video file. 
+
+The architecture follows a page-based approach:
+- `/highlights` - Lists all highlights with categorization
+- `/highlights/[highlightId]` - Individual highlight detail view
+- `/transcript?highlight=[id]` - Transcript page with editing mode activated
+
+The process begins on the frontend, where a user selects utterances and initiates the creation process. The request is sent to the backend, which first creates a `Highlight` record in the database, associating it with the selected `Utterance` records. It then dispatches a task to an external media processing server. This server retrieves the source video and the timestamp information from the database, creates the highlight video, and upon completion, updates the `Highlight` record with the URL to the new video.
 
 **Sequence Diagram**
 
@@ -18,50 +25,80 @@ sequenceDiagram
     participant Database
     participant Task Server
 
-    User->>Frontend: Selects utterances and clicks "Create Highlight"
+    User->>Frontend: Clicks "Add Highlight" on /highlights page
     Frontend->>Backend: `upsertHighlight` request with utterance IDs
     Backend->>Database: Creates `Highlight` and `HighlightedUtterance` records
     Database-->>Backend: Returns new highlight ID
     Backend-->>Frontend: Returns new highlight ID
+    Frontend->>Frontend: Redirects to /transcript?highlight=[id] in editing mode
+    User->>Frontend: Selects utterances in transcript view
     Frontend->>Backend: `requestSplitMediaFileForHighlight` with highlight ID
     Backend->>Task Server: Dispatches "splitMediaFile" task
     Task Server->>Database: Reads `Highlight` and `Utterance` data for timestamps
     Task Server-->>Task Server: Processes video file
     Task Server->>Backend: Webhook with video URL and Mux ID
     Backend->>Database: Updates `Highlight` with `videoUrl` and `muxPlaybackId`
+    User->>Frontend: Navigates to /highlights/[highlightId] to view results
 ```
 
 **User Interaction Flow**
 
-The enhanced highlight system provides an intuitive two-panel interface for creating and managing highlights with advanced editing capabilities:
+The enhanced highlight system provides an intuitive multi-page interface for creating and managing highlights with advanced editing capabilities:
 
 ### **Main Interface Layout**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Meeting Highlights                      │
 │  Create and manage video highlights from this meeting...  │
-├─────────────────────┬─────────────────────────────────────┤
-│   Preview Panel     │         Highlight List              │
-│   (Top on mobile)   │    (Bottom on mobile, left on XL)  │
-│                     │                                     │
-│ • Content Preview   │  • Highlight 1                     │
-│ • Video Player      │  • Highlight 2                     │
-│ • Actions           │  • Highlight 3                     │
-│                     │                                     │
-│                     │  [+ Add Highlight]                  │
-└─────────────────────┴─────────────────────────────────────┘
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [Showcased Highlights]                                    │
+│  ┌─────────────┐ ┌─────────────┐                          │
+│  │ Highlight 1 │ │ Highlight 2 │                          │
+│  └─────────────┘ └─────────────┘                          │
+│                                                             │
+│  [Video Highlights]                                         │
+│  ┌─────────────┐ ┌─────────────┐                          │
+│  │ Highlight 3 │ │ Highlight 4 │                          │
+│  └─────────────┘ └─────────────┘                          │
+│                                                             │
+│  [Draft Highlights]                                         │
+│  ┌─────────────┐ ┌─────────────┐                          │
+│  │ Highlight 5 │ │ Highlight 6 │                          │
+│  └─────────────┘ └─────────────┘                          │
+│                                                             │
+│                    [+ Add Highlight]                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **Individual Highlight View**
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Highlight Details                        │
+│  [← Back to Highlights] [Edit Content] [★] [Download] [🗑️] │
+├─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  [Content & Video]                                          │
+│  ┌─────────────────┬─────────────────┐                     │
+│  │ 📝 Content      │ 🎬 Video        │                     │
+│  │ Preview         │ Player          │                     │
+│  │                 │                 │                     │
+│  └─────────────────┴─────────────────┘                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### **Workflow Steps**
 
 1. **Highlight Creation**: 
-   - User clicks prominent "Add Highlight" button
+   - User clicks prominent "Add Highlight" button on `/highlights` page
    - Opens dialog with name input and subject selection
    - Uses `Combobox` component for intuitive subject search
-   - Creates empty highlight ready for content editing
+   - Creates empty highlight and **immediately redirects to transcript page in editing mode**
+   - No need to manually navigate to individual highlight page and click edit
 
 2. **Content Editing**: 
-   - User clicks "Edit Content" button to enter editing mode
+   - User is automatically in editing mode on transcript page
    - `HighlightModeBar` appears with real-time statistics and controls
    - Click utterances in transcript to add/remove from highlight
    - Visual feedback shows selected utterances in bold/underlined
@@ -76,14 +113,16 @@ The enhanced highlight system provides an intuitive two-panel interface for crea
    - Navigation controls for manual segment navigation
 
 4. **Details Management**:
-   - User clicks edit icon next to highlight name/subject to modify details
+   - User navigates to `/highlights/[highlightId]` to view full details
+   - Edit icons next to highlight name/subject for quick modifications
    - Same dialog used for both create and edit modes
    - Subject connection with searchable dropdown
    - Clear visual feedback for connected subjects
 
 5. **Preview & Actions**:
-   - Real-time content preview with speaker grouping
-   - Video generation and download options
+   - Integrated content and video display (side-by-side on desktop, stacked on mobile)
+   - All action buttons consolidated in main action bar
+   - Video generation and download options prominently displayed
    - Showcase toggle (only when video exists)
    - Subject badge display in preview header
 
@@ -112,6 +151,17 @@ The system provides multiple visual representations of highlight composition:
 - **Preview Integration**: Embedded content preview when in preview mode
 - **Navigation Controls**: Previous/next highlight navigation
 - **Mode Toggle**: Switch between edit and preview modes
+- **Done Editing**: Button to return to highlight detail page
+
+### **Categorization System**
+
+Highlights are automatically categorized into three distinct sections:
+
+1. **Showcased Highlights** (⭐): Featured highlights marked for special attention
+2. **Video Highlights** (▶️): Non-showcased highlights that have generated videos
+3. **Draft Highlights** (⏰): Highlights without videos, ready for content editing
+
+This categorization provides better organization and helps users understand the status of each highlight.
 
 **Key Component Pointers**
 
@@ -120,7 +170,8 @@ The system provides multiple visual representations of highlight composition:
     *   `HighlightedUtterance`: `prisma/schema.prisma`
 *   **Frontend Components**:
     *   `CouncilMeeting`: `src/components/meetings/CouncilMeeting.tsx`
-    *   `Highlights`: `src/components/Highlights.tsx` (main interface)
+    *   `HighlightsList`: `src/components/meetings/HighlightsList.tsx` (main list interface)
+    *   `HighlightView`: `src/components/meetings/HighlightView.tsx` (individual highlight view)
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
     *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics and controls)
@@ -128,6 +179,7 @@ The system provides multiple visual representations of highlight composition:
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization)
 *   **State Management**:
     *   `HighlightContext`: `src/components/meetings/HighlightContext.tsx` (centralized highlight state and calculations)
+    *   `CouncilMeetingDataContext`: `src/components/meetings/CouncilMeetingDataContext.tsx` (meeting data and highlights)
 *   **Utilities**:
     *   `calculateHighlightData`: Integrated in `HighlightContext.tsx` (reusable calculations)
 *   **Backend Logic**:
@@ -152,4 +204,9 @@ The system provides multiple visual representations of highlight composition:
 *   Highlight editing mode provides real-time statistics and visual feedback for better user experience.
 *   Navigation between highlight segments is available in both edit and preview modes.
 *   The timeline visualization shows both speaker segments and highlight composition simultaneously.
-*   Visual feedback includes color coding for speakers, highlight selection states, and interactive tooltips. 
+*   Visual feedback includes color coding for speakers, highlight selection states, and interactive tooltips.
+*   After creating a highlight, users are automatically redirected to editing mode on the transcript page.
+*   Highlights are categorized into Showcased, Video, and Draft sections for better organization.
+*   The interface uses Next.js App Router with dynamic routes for improved navigation and SEO.
+*   Content preview and video player are integrated in a responsive grid layout for better mobile experience.
+*   All action buttons are consolidated in the main action bar for consistency and ease of use. 

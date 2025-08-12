@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
 
 export function HighlightModeBar() {
+  const router = useRouter();
   const { 
     editingHighlight, 
     previewMode, 
@@ -54,8 +56,16 @@ export function HighlightModeBar() {
   };
 
   const handleCancel = () => {
+    // Store values before clearing state
+    const cityId = editingHighlight.cityId;
+    const meetingId = editingHighlight.meetingId;
+    
+    // Clear local state first
     setEditingHighlight(null);
     setPreviewMode(false);
+    
+    // Redirect to highlights page
+    router.push(`/${cityId}/${meetingId}/highlights`);
   };
 
   return (

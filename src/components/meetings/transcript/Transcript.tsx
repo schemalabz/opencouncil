@@ -1,22 +1,22 @@
 "use client";
-import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useVideo } from "../VideoProvider";
-import { Utterance } from "@prisma/client";
-import { Transcript as TranscriptType } from "@/lib/db/transcript";
-import { useInView } from 'react-intersection-observer';
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { BarChart2, FileIcon, ScrollText } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { useSearchParams } from "next/navigation";
+import { useHighlight } from "../HighlightContext";
 
 export default function Transcript() {
-    const { transcript: speakerSegments } = useCouncilMeetingData();
+    const { transcript: speakerSegments, highlights } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
+    const { setEditingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
+    const searchParams = useSearchParams();
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
@@ -52,6 +52,17 @@ export default function Transcript() {
             }
         }
     }, [displayedSegments, setCurrentScrollInterval]);
+
+    // Handle highlight editing initialization from URL
+    useEffect(() => {
+        const highlightId = searchParams.get('highlight');
+        if (highlightId && highlights) {
+            const highlight = highlights.find(h => h.id === highlightId);
+            if (highlight) {
+                setEditingHighlight(highlight);
+            }
+        }
+    }, [searchParams, highlights, setEditingHighlight]);
 
     const debouncedSetCurrentScrollInterval = useMemo(
         () => debounce(setCurrentScrollInterval, 500),
