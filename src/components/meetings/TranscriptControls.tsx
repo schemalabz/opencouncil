@@ -1,12 +1,10 @@
 "use client"
-import { Play, Pause, Loader, Maximize2, ChevronLeft, ChevronRight, SlidersHorizontal, Youtube } from "lucide-react"
+import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
-import { SpeakerTag } from "@prisma/client";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
-import { Transcript as TranscriptType } from "@/lib/db/transcript"
 import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 
@@ -14,7 +12,7 @@ export default function TranscriptControls({ className }: { className?: string }
     const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
-    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex } = useHighlight();
+    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight } = useHighlight();
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -224,6 +222,33 @@ export default function TranscriptControls({ className }: { className?: string }
                     {isPlaying ?
                         (isSeeking ? <Loader className="w-5 h-5 animate-spin" /> : <Pause className="w-5 h-5" />) : <Play className="w-5 h-5" />}
                 </button>
+
+                {/* Clip navigation inline */}
+                {isHighlightMode && highlightUtterances && highlightUtterances.length > 0 && (
+                  <div className={cn("flex items-center gap-1", isWide ? "mr-2" : "mb-2")}
+                      aria-live="polite"
+                  >
+                    <button
+                      onClick={goToPreviousHighlight}
+                      className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
+                      aria-label="Previous clip"
+                      title="Previous clip"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="px-2 py-1 text-xs bg-amber-100 text-amber-900 border border-amber-200 rounded">
+                      Clip {currentHighlightIndex + 1}/{highlightUtterances.length}
+                    </div>
+                    <button
+                      onClick={goToNextHighlight}
+                      className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
+                      aria-label="Next clip"
+                      title="Next clip"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
                 <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
 

@@ -1,8 +1,11 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
+import { Utterance } from '@prisma/client';
+import { upsertHighlight } from '@/lib/db/highlights';
 
 export interface HighlightUtterance {
   id: string;
@@ -31,14 +34,20 @@ interface HighlightContextType {
   highlightUtterances: HighlightUtterance[] | null;
   currentHighlightIndex: number;
   totalHighlights: number;
-  utteranceMap: Map<string, any>; // Pre-built utterance map for performance
-  setEditingHighlight: (highlight: HighlightWithUtterances | null) => void;
-  setPreviewMode: (mode: boolean) => void;
+  utteranceMap: Map<string, Utterance>; // Pre-built utterance map for performance
+  hasUnsavedChanges: boolean;
+  isSaving: boolean;
+  isEditingDisabled: boolean;
+  enterEditMode: (highlight: HighlightWithUtterances) => void;
+  updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove') => void;
+  resetToOriginal: () => void;
+  exitEditMode: () => void;
   goToPreviousHighlight: () => void;
   goToNextHighlight: () => void;
   goToHighlightIndex: (index: number) => void;
   togglePreviewMode: () => void;
   calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
+  saveHighlight: () => Promise<{ success: boolean; error?: any }>;
 }
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
@@ -47,14 +56,18 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [editingHighlight, setEditingHighlight] = useState<HighlightWithUtterances | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
+  const [originalHighlight, setOriginalHighlight] = useState<HighlightWithUtterances | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
   const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
+  const router = useRouter();
 
   // Build utterance map once and memoize it - this eliminates the need to rebuild it in useHighlightCalculations
   const utteranceMap = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, Utterance>();
     transcript.forEach(segment => {
       segment.utterances.forEach(utterance => {
         map.set(utterance.id, utterance);
@@ -225,12 +238,147 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     const newPreviewMode = !previewMode;
     setPreviewMode(newPreviewMode);
     
-    // When entering preview mode, jump to first highlight if available
+    // When entering preview mode, jump to the first highlight and auto-play if available
     if (newPreviewMode && highlightUtterances && highlightUtterances.length > 0) {
       setCurrentHighlightIndex(0);
-      seekTo(highlightUtterances[0].startTimestamp);
+      seekToAndPlay(highlightUtterances[0].startTimestamp);
+    }
+
+    // When exiting preview mode, pause playback
+    if (!newPreviewMode) {
+      setIsPlaying(false);
     }
   };
+
+  // Enter edit mode - called when switching to edit mode (from URL parameter)
+  const enterEditMode = useCallback((highlight: HighlightWithUtterances) => {
+    setEditingHighlight(highlight);
+    // Store the original highlight for reset functionality
+    setOriginalHighlight(highlight);
+    setIsDirty(false); // Start with clean state
+  }, [setEditingHighlight, setOriginalHighlight, setIsDirty]);
+
+  // Check if editing should be disabled (e.g., during save operations)
+  // This prevents users from making changes while operations like saving are in progress
+  const isEditingDisabled = isSaving;
+
+  // Update highlight utterances during editing - called when adding/removing utterances
+  const updateHighlightUtterances = useCallback((utteranceId: string, action: 'add' | 'remove') => {
+    if (!editingHighlight || isEditingDisabled) return;
+        
+    let updatedHighlight: HighlightWithUtterances;
+    
+    if (action === 'add') {
+      // Check if utterance is already in the highlight
+      const alreadyExists = editingHighlight.highlightedUtterances.some(
+        hu => hu.utteranceId === utteranceId
+      );
+      
+      if (alreadyExists) {
+        console.log('Utterance already exists, skipping');
+        return; // No change needed
+      }
+      
+      // Find the utterance in the transcript to get the full data
+      const utterance = utteranceMap.get(utteranceId);
+      if (!utterance) {
+        console.log('Utterance not found in map, skipping');
+        return; // Utterance not found
+      }
+      
+      // Create a temporary HighlightedUtterance for editing purposes
+      // We'll use temporary IDs since this is just for the UI state
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const now = new Date();
+      
+      const newHighlightedUtterance = {
+        id: tempId,
+        utteranceId,
+        highlightId: editingHighlight.id,
+        createdAt: now,
+        updatedAt: now,
+        utterance: utterance
+      };
+      
+      updatedHighlight = {
+        ...editingHighlight,
+        highlightedUtterances: [
+          ...editingHighlight.highlightedUtterances,
+          newHighlightedUtterance
+        ]
+      };
+      
+    } else {
+      // Remove utterance from highlight
+      updatedHighlight = {
+        ...editingHighlight,
+        highlightedUtterances: editingHighlight.highlightedUtterances.filter(
+          hu => hu.utteranceId !== utteranceId
+        )
+      };
+    }
+    
+    setEditingHighlight(updatedHighlight);
+    setIsDirty(true); // Mark as dirty since we made changes
+  }, [editingHighlight, utteranceMap, isEditingDisabled, setEditingHighlight, setIsDirty]);
+
+  // Reset to original state - discard all changes
+  const resetToOriginal = () => {
+    if (originalHighlight) {
+      setEditingHighlight(originalHighlight);
+      setIsDirty(false);
+    }
+  };
+
+  // Exit edit mode - called when leaving edit mode
+  const exitEditMode = useCallback(() => {
+    if (!editingHighlight) return;
+    const cityId = editingHighlight.cityId;
+    const meetingId = editingHighlight.meetingId;
+
+    setEditingHighlight(null);
+    setOriginalHighlight(null);
+    setIsDirty(false);
+    setPreviewMode(false);
+    router.push(`/${cityId}/${meetingId}/highlights`);
+  }, [editingHighlight]);
+
+  // Reset change tracking (called after successful save)
+  const resetChangeTracking = () => {
+    if (editingHighlight) {
+      // Update the original highlight to match the newly saved state
+      setOriginalHighlight(editingHighlight);
+      setIsDirty(false);
+    }
+  };
+
+  // Save highlight functionality
+  const saveHighlight = useCallback(async () => {
+    if (!editingHighlight || !isDirty) {
+      return { success: false, error: 'No changes to save' };
+    }
+
+    try {
+      setIsSaving(true);
+      await upsertHighlight({
+        id: editingHighlight.id,
+        name: editingHighlight.name,
+        meetingId: editingHighlight.meetingId,
+        cityId: editingHighlight.cityId,
+        utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
+      });
+      
+      // Reset change tracking after successful save
+      resetChangeTracking();
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save highlight:', error);
+      return { success: false, error };
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editingHighlight, isDirty, resetChangeTracking]);
 
   const value = {
     editingHighlight,
@@ -240,13 +388,19 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     currentHighlightIndex,
     totalHighlights,
     utteranceMap,
-    setEditingHighlight,
-    setPreviewMode,
+    hasUnsavedChanges: isDirty,
+    isSaving,
+    isEditingDisabled,
+    enterEditMode,
+    updateHighlightUtterances,
+    resetToOriginal,
+    exitEditMode,
     goToPreviousHighlight,
     goToNextHighlight,
     goToHighlightIndex,
     togglePreviewMode,
     calculateHighlightData,
+    saveHighlight,
   };
 
   return (

@@ -25,7 +25,7 @@ const UtteranceC: React.FC<{
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
-    const { editingHighlight, setEditingHighlight } = useHighlight();
+    const { editingHighlight, updateHighlightUtterances } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -79,21 +79,7 @@ const UtteranceC: React.FC<{
     const handleClick = () => {
         // If we're in highlight editing mode, handle highlight toggling
         if (editingHighlight) {
-            if (isHighlighted) {
-                // Remove from highlight
-                const updatedHighlight = {
-                    ...editingHighlight,
-                    highlightedUtterances: editingHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== localUtterance.id)
-                };
-                setEditingHighlight(updatedHighlight);
-            } else {
-                // Add to highlight
-                const updatedHighlight = {
-                    ...editingHighlight,
-                    highlightedUtterances: [...editingHighlight.highlightedUtterances, { utteranceId: localUtterance.id }]
-                };
-                setEditingHighlight(updatedHighlight as HighlightWithUtterances);
-            }
+            updateHighlightUtterances(localUtterance.id, isHighlighted ? 'remove' : 'add');
         } else if (options.editable) {
             setIsEditing(true);
             seekTo(localUtterance.startTimestamp);
