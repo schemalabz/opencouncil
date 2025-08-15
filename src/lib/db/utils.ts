@@ -10,7 +10,7 @@ import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } fro
 import prisma from "./prisma";
 import { getSubjectsForMeeting } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
-import { getPartyFromRoles } from "../utils";
+import { getPartyFromRoles, getSingleCityRole } from "../utils";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
@@ -33,7 +33,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
             return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
-                speakerRole: person?.role || null,
+                speakerRole: getSingleCityRole(person?.roles || [], councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined)?.name || null,
                 speakerSegmentId: segment.id,
                 text: segment.utterances.map(u => u.text).join(' '),
                 utterances: segment.utterances.map(u => ({
@@ -51,10 +51,13 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
             people: people.filter(person => {
                 const party = getPartyFromRoles(person.roles, councilMeeting.dateTime);
                 return party?.id === p.id;
-            }).map(person => ({
-                name: person.name,
-                role: person.role || ''
-            }))
+            }).map((person) => {
+                const cityRole = getSingleCityRole(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined);
+                return {
+                    name: person.name,
+                    role: cityRole?.name || ''
+                }
+            })
         })),
         date: councilMeeting.dateTime.toISOString().split('T')[0]
     };

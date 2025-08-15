@@ -1,7 +1,6 @@
 "use client";
 import ReactPDF from '@react-pdf/renderer';
 import { pdf } from '@react-pdf/renderer';
-import { CouncilMeetingDocument } from './pdf/CouncilMeetingDocument';
 import { renderDocx } from './docx/CouncilMeetingDocx';
 import { useVideo } from './VideoProvider';
 import { useState, useEffect } from 'react';
@@ -46,21 +45,6 @@ export default function ShareC() {
     };
 
     const { meeting, transcript, people, parties, speakerTags, city } = useCouncilMeetingData();
-
-    const handleExportToPDF = async () => {
-        setIsExporting(true);
-        const pdfDocument = <CouncilMeetingDocument city={city} meeting={meeting} transcript={transcript} people={people} parties={parties} speakerTags={speakerTags} />;
-        const pdfBlob = await pdf(pdfDocument).toBlob();
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = 'council_meeting.pdf';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-        setIsExporting(false);
-    };
 
     const handleExportToDocx = async () => {
         setIsExportingDocx(true);
@@ -142,15 +126,6 @@ export default function ShareC() {
                         </p>
 
                         <div className="space-y-2 sm:space-y-0 sm:space-x-2">
-                            <Button onClick={handleExportToPDF} className="w-full sm:w-auto" disabled={isExporting}>
-                                {isExporting ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <FileDown className="w-4 h-4 mr-2" />
-                                )}
-                                <span>Εξαγωγή σε PDF</span>
-                            </Button>
-
                             <Button onClick={handleExportToDocx} className="w-full sm:w-auto" disabled={isExportingDocx}>
                                 {isExportingDocx ? (
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
