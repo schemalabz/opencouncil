@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import EditSwitch from '@/components/meetings/edit-switch';
+import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 import { getMeetingState } from '@/lib/utils';
@@ -139,6 +140,7 @@ export default async function CouncilMeetingPage({
                         noContainer={true}
                         className="relative z-10 bg-white dark:bg-gray-950"
                     >
+                        <ShareDropdown meetingId={meetingId} cityId={cityId} />
                         <EditSwitch />
                     </Header>
                     <HighlightModeBar />

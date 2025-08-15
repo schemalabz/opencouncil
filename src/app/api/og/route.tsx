@@ -6,9 +6,10 @@ import { getConsultationDataForOG } from '@/lib/db/consultations';
 import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
-import { getPeopleForCity } from '@/lib/db/people';
+import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, OgHeader } from '@/components/og/shared-components';
+import { getSubjectDataForOG } from '@/lib/db/subject';
 
 // Meeting OG Image
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
@@ -429,18 +430,675 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
     );
 };
 
+// Person OG Image
+const PersonOGImage = async (cityId: string, personId: string) => {
+    const [person, city, parties] = await Promise.all([
+        getPerson(personId),
+        getCity(cityId),
+        getPartiesForCity(cityId)
+    ]);
+
+    if (!person || !city) return null;
+
+    // Find the person's current party
+    const currentRole = person.roles.find(role => {
+        const now = new Date();
+        return (!role.startDate || role.startDate <= now) &&
+            (!role.endDate || role.endDate > now);
+    });
+
+    const currentParty = currentRole?.party;
+
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '48px',
+            }}>
+                {/* Person Avatar or Initials */}
+                <div style={{
+                    width: '160px',
+                    height: '160px',
+                    borderRadius: '80px',
+                    backgroundColor: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '64px',
+                    fontWeight: 'bold',
+                    color: '#6b7280',
+                    border: '4px solid #e5e7eb',
+                }}>
+                    {person.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={person.image}
+                            alt={person.name}
+                            width="160"
+                            height="160"
+                            style={{ borderRadius: '80px', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        person.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                    )}
+                </div>
+
+                {/* Person Info */}
+                <div style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                }}>
+                    <div style={{
+                        fontSize: '48px',
+                        fontWeight: 'bold',
+                        color: '#1f2937',
+                        lineHeight: 1.2,
+                    }}>
+                        {person.name}
+                    </div>
+
+                    {currentParty && (
+                        <div style={{
+                            fontSize: '24px',
+                            color: '#6b7280',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                        }}>
+                            <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '4px',
+                                backgroundColor: currentParty.colorHex || '#6b7280',
+                            }} />
+                            {currentParty.name}
+                        </div>
+                    )}
+
+                    <div style={{
+                        fontSize: '20px',
+                        color: '#9ca3af',
+                    }}>
+                        {city.name} • Δημοτικό Συμβούλιο
+                    </div>
+                </div>
+            </div>
+        </Container>
+    );
+};
+
+// People List OG Image  
+const PeopleOGImage = async (cityId: string) => {
+    const [city, people, parties] = await Promise.all([
+        getCity(cityId),
+        getPeopleForCity(cityId),
+        getPartiesForCity(cityId)
+    ]);
+
+    if (!city) return null;
+
+    // Get first 6 people for display
+    const displayPeople = people.slice(0, 6);
+
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px',
+            }}>
+                {/* Header */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '24px',
+                }}>
+                    {city.logoImage && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={city.logoImage}
+                            alt={city.name}
+                            width="80"
+                            height="80"
+                            style={{ objectFit: 'contain' }}
+                        />
+                    )}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                    }}>
+                        <div style={{
+                            fontSize: '36px',
+                            fontWeight: 'bold',
+                            color: '#1f2937',
+                        }}>
+                            Δημοτικοί Σύμβουλοι
+                        </div>
+                        <div style={{
+                            fontSize: '24px',
+                            color: '#6b7280',
+                        }}>
+                            {city.name} • {people.length} σύμβουλοι
+                        </div>
+                    </div>
+                </div>
+
+                {/* People Grid */}
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '16px',
+                }}>
+                    {displayPeople.map((person, index) => (
+                        <div key={person.id} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 16px',
+                            backgroundColor: '#f9fafb',
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                        }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '20px',
+                                backgroundColor: '#e5e7eb',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                color: '#6b7280',
+                            }}>
+                                {person.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={person.image}
+                                        alt={person.name}
+                                        width="40"
+                                        height="40"
+                                        style={{ borderRadius: '20px', objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    person.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                                )}
+                            </div>
+                            <div style={{
+                                fontSize: '18px',
+                                color: '#1f2937',
+                                fontWeight: '500',
+                            }}>
+                                {person.name.length > 20 ? person.name.substring(0, 20) + '...' : person.name}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {people.length > 6 && (
+                    <div style={{
+                        fontSize: '16px',
+                        color: '#9ca3af',
+                        textAlign: 'center',
+                    }}>
+                        και {people.length - 6} ακόμα...
+                    </div>
+                )}
+            </div>
+        </Container>
+    );
+};
+
+// About Page OG Image
+const AboutOGImage = () => {
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '32px',
+                textAlign: 'center',
+            }}>
+                <div style={{
+                    fontSize: '64px',
+                    fontWeight: 'bold',
+                    color: '#1f2937',
+                }}>
+                    OpenCouncil
+                </div>
+
+                <div style={{
+                    fontSize: '32px',
+                    color: '#6b7280',
+                    maxWidth: '800px',
+                    lineHeight: 1.4,
+                }}>
+                    Χρησιμοποιούμε τεχνητή νοημοσύνη για να παρακολουθούμε τα δημοτικά συμβούλια και να τα κάνουμε απλά και κατανοητά
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    gap: '24px',
+                    alignItems: 'center',
+                    fontSize: '18px',
+                    color: '#9ca3af',
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🎯 Διαφάνεια
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🤖 Τεχνητή Νοημοσύνη
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🏛️ Δημοκρατία
+                    </div>
+                </div>
+            </div>
+        </Container>
+    );
+};
+
+// Search Page OG Image
+const SearchOGImage = () => {
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '32px',
+                textAlign: 'center',
+            }}>
+                <div style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '60px',
+                    backgroundColor: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '48px',
+                }}>
+                    🔍
+                </div>
+
+                <div style={{
+                    fontSize: '48px',
+                    fontWeight: 'bold',
+                    color: '#1f2937',
+                }}>
+                    Αναζήτηση
+                </div>
+
+                <div style={{
+                    fontSize: '24px',
+                    color: '#6b7280',
+                    maxWidth: '600px',
+                    lineHeight: 1.4,
+                }}>
+                    Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων και στατιστικά από όλα τα δημοτικά συμβούλια
+                </div>
+
+                <div style={{
+                    fontSize: '18px',
+                    color: '#9ca3af',
+                }}>
+                    OpenCouncil • Έξυπνη Αναζήτηση
+                </div>
+            </div>
+        </Container>
+    );
+};
+
+// Chat Page OG Image
+const ChatOGImage = () => {
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '32px',
+                textAlign: 'center',
+            }}>
+                <div style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '60px',
+                    backgroundColor: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '48px',
+                }}>
+                    🤖
+                </div>
+
+                <div style={{
+                    fontSize: '48px',
+                    fontWeight: 'bold',
+                    color: '#1f2937',
+                }}>
+                    OpenCouncil AI
+                </div>
+
+                <div style={{
+                    fontSize: '24px',
+                    color: '#6b7280',
+                    maxWidth: '600px',
+                    lineHeight: 1.4,
+                }}>
+                    Συνομιλήστε με την τεχνητή νοημοσύνη για να μάθετε για δημοτικά συμβούλια και θέματα πολιτικής
+                </div>
+
+                <div style={{
+                    fontSize: '18px',
+                    color: '#9ca3af',
+                }}>
+                    OpenCouncil • Powered by AI
+                </div>
+            </div>
+        </Container>
+    );
+};
+
+// Subject OG Image
+const SubjectOGImage = async (cityId: string, meetingId: string, subjectId: string) => {
+    const data = await getSubjectDataForOG(cityId, meetingId, subjectId);
+
+    if (!data) return null;
+
+    // Use the same calculation as the subject page - from statistics
+    const totalMinutes = Math.round(data.statistics?.speakingSeconds ? data.statistics.speakingSeconds / 60 : 0);
+
+    // Get top speaker IDs from statistics
+    const topSpeakersIds =
+        data.statistics?.people?.sort((a, b) => b.speakingSeconds - a.speakingSeconds).map(p => p.item.id) || [];
+
+    // Add the introducer at the start if they exist and aren't already in top speakers
+    const introducedByPerson = data.subject.introducedBy;
+    if (introducedByPerson && !topSpeakersIds.includes(introducedByPerson.id)) {
+        topSpeakersIds.unshift(introducedByPerson.id);
+    }
+
+    // Filter and sort to get top speakers (limit to first 4 for space)
+    const topSpeakers = topSpeakersIds
+        .map(id => data.people.find(p => p.id === id))
+        .filter((p): p is any => p !== undefined)
+        .slice(0, 4);
+
+    return (
+        <Container>
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px',
+            }}>
+                {/* Header with city and meeting info */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '24px',
+                }}>
+                    {data.city.logoImage && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={data.city.logoImage}
+                            alt={data.city.name}
+                            width="80"
+                            height="80"
+                            style={{ objectFit: 'contain' }}
+                        />
+                    )}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                    }}>
+                        <div style={{
+                            fontSize: '24px',
+                            color: '#6b7280',
+                            display: 'flex',
+                        }}>
+                            {data.city.name}
+                        </div>
+                        <div style={{
+                            fontSize: '20px',
+                            color: '#9ca3af',
+                            display: 'flex',
+                        }}>
+                            {data.meeting.name}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Subject title */}
+                <div style={{
+                    fontSize: '48px',
+                    fontWeight: 'bold',
+                    color: '#1f2937',
+                    lineHeight: 1.2,
+                    paddingRight: '120px', // Make room for statistics
+                    display: 'flex',
+                }}>
+                    {data.subject.name}
+                </div>
+
+                {/* Topic and location badges */}
+                <div style={{
+                    display: 'flex',
+                    gap: '16px',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                }}>
+                    {/* Topic badge */}
+                    {data.subject.topic && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: data.subject.topic.colorHex || '#e5e7eb',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            color: '#ffffff',
+                            fontSize: '18px',
+                            fontWeight: '600',
+                        }}>
+                            <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                            }} />
+                            <span style={{ display: 'flex' }}>{data.subject.topic.name}</span>
+                        </div>
+                    )}
+
+                    {/* Location badge */}
+                    {data.subject.location && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            backgroundColor: '#f3f4f6',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            color: '#4b5563',
+                            fontSize: '18px',
+                            fontWeight: '500',
+                        }}>
+                            <span style={{ display: 'flex' }}>📍</span>
+                            <span style={{ display: 'flex' }}>{data.subject.location.text}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Speaking time and speakers */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '32px',
+                }}>
+                    {/* Speaking time */}
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}>
+                        <div style={{
+                            fontSize: '36px',
+                            fontWeight: 'bold',
+                            color: '#1f2937',
+                            display: 'flex',
+                        }}>
+                            {totalMinutes}
+                        </div>
+                        <div style={{
+                            fontSize: '16px',
+                            color: '#6b7280',
+                            display: 'flex',
+                        }}>
+                            λεπτά συζήτησης
+                        </div>
+                    </div>
+
+                    {/* Top speakers */}
+                    {topSpeakers.length > 0 && (
+                        <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'center',
+                        }}>
+                            {topSpeakers.map((person, index) => {
+                                // Find party from roles
+                                const currentRole = person.roles?.find((role: any) => {
+                                    const now = new Date();
+                                    return (!role.startDate || role.startDate <= now) &&
+                                        (!role.endDate || role.endDate > now);
+                                });
+                                const partyColor = currentRole?.party?.colorHex || '#e5e7eb';
+
+                                // Get initials
+                                const nameParts = person.name.split(' ');
+                                const initials = nameParts.length > 1
+                                    ? `${nameParts[0].charAt(0)}${nameParts[nameParts.length - 1].charAt(0)}`
+                                    : person.name.substring(0, 2).toUpperCase();
+
+                                const isIntroducer = introducedByPerson && person.id === introducedByPerson.id;
+
+                                return (
+                                    <div key={person.id} style={{
+                                        position: 'relative',
+                                        display: 'flex',
+                                    }}>
+                                        <div style={{
+                                            width: '60px',
+                                            height: '60px',
+                                            borderRadius: '30px',
+                                            backgroundColor: '#ffffff',
+                                            border: `3px solid ${partyColor}`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '20px',
+                                            fontWeight: 'bold',
+                                            color: partyColor,
+                                        }}>
+                                            {person.image ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={person.image}
+                                                    alt={person.name}
+                                                    width="60"
+                                                    height="60"
+                                                    style={{ borderRadius: '30px', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                <span style={{ display: 'flex' }}>{initials}</span>
+                                            )}
+                                        </div>
+                                        {isIntroducer && (
+                                            <div style={{
+                                                position: 'absolute',
+                                                top: '-6px',
+                                                right: '-6px',
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '12px',
+                                                backgroundColor: '#ffffff',
+                                                border: '2px solid #ffffff',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontSize: '12px',
+                                            }}>
+                                                ✏️
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {topSpeakersIds.length > 4 && (
+                                <div style={{
+                                    fontSize: '16px',
+                                    color: '#6b7280',
+                                    display: 'flex',
+                                }}>
+                                    +{topSpeakersIds.length - 4} ακόμα
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Container>
+    );
+};
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cityId = searchParams.get('cityId');
     const meetingId = searchParams.get('meetingId');
     const consultationId = searchParams.get('consultationId');
+    const personId = searchParams.get('personId');
+    const subjectId = searchParams.get('subjectId');
+    const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
 
     try {
         let element;
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId);
+        } else if (subjectId && meetingId && cityId) {
+            // Subject-specific OG image
+            element = await SubjectOGImage(cityId, meetingId, subjectId);
         } else if (meetingId && cityId) {
             element = await MeetingOGImage(cityId, meetingId);
+        } else if (personId && cityId) {
+            element = await PersonOGImage(cityId, personId);
+        } else if (pageType === 'people' && cityId) {
+            element = await PeopleOGImage(cityId);
+        } else if (pageType === 'about') {
+            element = AboutOGImage();
+        } else if (pageType === 'search') {
+            element = SearchOGImage();
+        } else if (pageType === 'chat') {
+            element = ChatOGImage();
         } else if (cityId) {
             element = await CityOGImage(cityId);
         } else {
