@@ -42,6 +42,7 @@ interface HighlightContextType {
   updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove') => void;
   resetToOriginal: () => void;
   exitEditMode: () => void;
+  exitEditModeAndRedirectToHighlight: () => void;
   goToPreviousHighlight: () => void;
   goToNextHighlight: () => void;
   goToHighlightIndex: (index: number) => void;
@@ -341,16 +342,21 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(false);
     setPreviewMode(false);
     router.push(`/${cityId}/${meetingId}/highlights`);
-  }, [editingHighlight]);
+  }, [editingHighlight, router]);
 
-  // Reset change tracking (called after successful save)
-  const resetChangeTracking = () => {
-    if (editingHighlight) {
-      // Update the original highlight to match the newly saved state
-      setOriginalHighlight(editingHighlight);
-      setIsDirty(false);
-    }
-  };
+  // Exit edit mode and redirect to individual highlight page
+  const exitEditModeAndRedirectToHighlight = useCallback(() => {
+    if (!editingHighlight) return;
+    const cityId = editingHighlight.cityId;
+    const meetingId = editingHighlight.meetingId;
+    const highlightId = editingHighlight.id;
+
+    setEditingHighlight(null);
+    setOriginalHighlight(null);
+    setIsDirty(false);
+    setPreviewMode(false);
+    router.push(`/${cityId}/${meetingId}/highlights/${highlightId}`);
+  }, [editingHighlight, router]);
 
   // Save highlight functionality
   const saveHighlight = useCallback(async () => {
@@ -366,10 +372,11 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
         meetingId: editingHighlight.meetingId,
         cityId: editingHighlight.cityId,
         utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
-      });
+      }); 
       
       // Reset change tracking after successful save
-      resetChangeTracking();
+      setOriginalHighlight(editingHighlight);
+      setIsDirty(false);
       
       return { success: true };
     } catch (error) {
@@ -378,7 +385,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSaving(false);
     }
-  }, [editingHighlight, isDirty, resetChangeTracking]);
+  }, [editingHighlight, isDirty]);
 
   const value = {
     editingHighlight,
@@ -395,6 +402,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     updateHighlightUtterances,
     resetToOriginal,
     exitEditMode,
+    exitEditModeAndRedirectToHighlight,
     goToPreviousHighlight,
     goToNextHighlight,
     goToHighlightIndex,

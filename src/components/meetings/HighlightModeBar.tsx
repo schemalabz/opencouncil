@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Pencil } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { requestSplitMediaFileForHighlight } from '@/lib/tasks/splitMediaFile';
+import { requestGenerateHighlight } from '@/lib/tasks/generateHighlight';
 import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -27,6 +27,7 @@ export function HighlightModeBar() {
     isEditingDisabled,
     resetToOriginal,
     exitEditMode,
+    exitEditModeAndRedirectToHighlight,
     togglePreviewMode,
     saveHighlight
   } = useHighlight();
@@ -85,12 +86,17 @@ export function HighlightModeBar() {
 
   const handleGenerateHighlight = async () => {
     try {
-      await requestSplitMediaFileForHighlight(editingHighlight.id);
+      await requestGenerateHighlight(editingHighlight.id, {
+        includeCaptions,
+        includeSpeakerOverlay: overlaySpeakerNames,
+      });
       toast({
-        title: "Generating",
-        description: "Video generation started. This may take a few minutes.",
+        title: "Generation Started",
+        description: "Redirecting you to the highlight page where you can track progress and see the video when ready.",
         variant: "default",
       });
+      // Redirect to the individual highlight page where they can see progress
+      exitEditModeAndRedirectToHighlight();
     } catch (error) {
       console.error('Failed to generate video:', error);
       toast({

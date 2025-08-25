@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Users, Star, Edit, Trash, Download, Plus, ArrowLeft, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { requestSplitMediaFileForHighlight } from "@/lib/tasks/splitMediaFile";
+import { requestGenerateHighlight } from "@/lib/tasks/generateHighlight";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
 import { HighlightDialog } from "./HighlightDialog";
 import { useHighlight } from "./HighlightContext";
+import { getGenerateHighlightTasksForHighlight } from '@/lib/db/tasks';
 
 interface HighlightViewProps {
   highlight: HighlightWithUtterances;
@@ -26,6 +27,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const { calculateHighlightData } = useHighlight();
   const [canEdit, setCanEdit] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
 
   const highlightData = calculateHighlightData(highlight);
 
@@ -36,6 +38,42 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     };
     checkAuth();
   }, [meeting.cityId]);
+
+  const fetchTaskStatuses = React.useCallback(async () => {
+    try {
+      const t = await getGenerateHighlightTasksForHighlight(meeting.cityId, meeting.id, highlight.id);
+      if (t.length > 0) {
+        const latest = t[0];
+        if (latest.status === 'pending') {
+          setLatestPendingTask(latest.id);
+        } else if (latest.status === 'succeeded' && !highlight.muxPlaybackId) {
+          const justCompleted = Date.now() - new Date(latest.updatedAt).getTime() < 6000; // ~2 polling intervals
+          if (justCompleted) {
+            // Clear the pending task state so the banner disappears
+            setLatestPendingTask(null);
+            router.refresh();
+          }
+        } else if (latest.status === 'succeeded' || latest.status === 'failed') {
+          // Clear pending state for any completed task (success or failure)
+          setLatestPendingTask(null);
+        }
+      } else {
+        setLatestPendingTask(null);
+      }
+    } catch (error) {
+      console.error('Error fetching task statuses:', error);
+    }
+  }, [meeting.cityId, meeting.id, highlight.id, highlight.muxPlaybackId, router]);
+
+  React.useEffect(() => {
+    fetchTaskStatuses();
+  }, [fetchTaskStatuses]);
+
+  React.useEffect(() => {
+    if (!latestPendingTask) return;
+    const id = setInterval(fetchTaskStatuses, 3000);
+    return () => clearInterval(id);
+  }, [latestPendingTask, fetchTaskStatuses]);
 
   const handleEditContent = () => {
     // Navigate to transcript page with highlight editing mode
@@ -101,14 +139,14 @@ export function HighlightView({ highlight }: HighlightViewProps) {
 
   const handleGenerateVideo = async () => {
     try {
-      await requestSplitMediaFileForHighlight(highlight.id);
+      const task = await requestGenerateHighlight(highlight.id);
       toast({
         title: "Success",
         description: "Video generation started. This may take a few minutes.",
         variant: "default",
       });
-      // Refresh the page to show updated status
-      router.refresh();
+      // Optimistically show the new task and start polling
+      setLatestPendingTask(task.id);
     } catch (error) {
       console.error('Failed to generate video:', error);
       toast({
@@ -247,8 +285,16 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                     variant="outline"
                     size="sm"
                     onClick={handleGenerateVideo}
+                    disabled={!!latestPendingTask}
                   >
-                    Generate Video
+                    {latestPendingTask ? (
+                      <>
+                        <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Video'
+                    )}
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={handleDelete}>
@@ -258,21 +304,31 @@ export function HighlightView({ highlight }: HighlightViewProps) {
             )}
           </div>
 
+          {/* Generation Status */}
+          {latestPendingTask && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2 text-sm text-blue-700">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                <span>Generating highlight video... This may take a few minutes.</span>
+              </div>
+            </div>
+          )}
+
           {/* Statistics */}
           {highlightData && (
             <div className="flex items-center space-x-6 mb-6 p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{formatTime(highlightData.statistics.duration)}</span>
+                <span className="font-medium">{formatTime(highlightData?.statistics.duration ?? 0)}</span>
                 <span className="text-sm text-muted-foreground">duration</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">{highlightData.statistics.speakerCount}</span>
+                <span className="font-medium">{highlightData?.statistics.speakerCount ?? 0}</span>
                 <span className="text-sm text-muted-foreground">speakers</span>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="font-medium">{highlightData.statistics.utteranceCount}</span>
+                <span className="font-medium">{highlightData?.statistics.utteranceCount ?? 0}</span>
                 <span className="text-sm text-muted-foreground">utterances</span>
               </div>
             </div>
@@ -312,7 +368,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                     <HighlightVideo
                       id={highlight.id}
                       title={highlight.name}
-                      playbackId={highlight.muxPlaybackId}
+                      playbackId={highlight.muxPlaybackId!}
                       videoUrl={highlight.videoUrl || undefined}
                     />
                   </div>
