@@ -18,19 +18,20 @@ import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
-import { isUserAuthorizedToEdit } from "@/lib/auth"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { sortSubjectsByImportance } from "@/lib/utils"
+import { useTranscriptOptions } from "./options/OptionsContext"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
-    const [canEdit, setCanEdit] = useState(false)
     const { isMobile, setOpenMobile } = useSidebar()
     const pathname = usePathname()
     // State to track both actual path and anticipated path during navigation
     const [activeItem, setActiveItem] = useState(pathname)
+    const { options } = useTranscriptOptions()
+    const canEdit = options.editsAllowed
 
     // Sort subjects by appearance (chronological) for the sidebar
     const chronologicalSubjects = useMemo(() => {
@@ -57,14 +58,6 @@ export default function MeetingSidebar() {
             document.removeEventListener('navigationstart', handleNavStart)
         }
     }, [])
-
-    useEffect(() => {
-        const checkAuth = async () => {
-            const authorized = await isUserAuthorizedToEdit({ cityId: meeting.cityId })
-            setCanEdit(authorized)
-        }
-        checkAuth()
-    }, [meeting.cityId])
 
     const handleMenuItemClick = () => {
         // Only close sidebar on mobile

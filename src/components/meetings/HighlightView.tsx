@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
-import { HighlightWithUtterances, deleteHighlight, upsertHighlight, toggleHighlightShowcase } from "@/lib/db/highlights";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import type { HighlightWithUtterances } from "@/lib/db/highlights";
+import { deleteHighlight, upsertHighlight, toggleHighlightShowcase } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { HighlightPreview } from "./HighlightPreview";
 import { HighlightDialog } from "./HighlightDialog";
 import { useHighlight } from "./HighlightContext";
 import { getGenerateHighlightTasksForHighlight } from '@/lib/db/tasks';
+import { useTranscriptOptions } from "./options/OptionsContext";
 
 interface HighlightViewProps {
   highlight: HighlightWithUtterances;
@@ -25,19 +26,12 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const router = useRouter();
   const { meeting, subjects } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
-  const [canEdit, setCanEdit] = useState(false);
+  const { options } = useTranscriptOptions();
+  const canEdit = options.editsAllowed;
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
 
   const highlightData = calculateHighlightData(highlight);
-
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      const authorized = await isUserAuthorizedToEdit({ cityId: meeting.cityId });
-      setCanEdit(authorized);
-    };
-    checkAuth();
-  }, [meeting.cityId]);
 
   const fetchTaskStatuses = React.useCallback(async () => {
     try {

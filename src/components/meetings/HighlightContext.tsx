@@ -341,8 +341,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setOriginalHighlight(null);
     setIsDirty(false);
     setPreviewMode(false);
+    setIsPlaying(false); // Stop video playback
     router.push(`/${cityId}/${meetingId}/highlights`);
-  }, [editingHighlight, router]);
+  }, [editingHighlight, router, setIsPlaying]);
 
   // Exit edit mode and redirect to individual highlight page
   const exitEditModeAndRedirectToHighlight = useCallback(() => {
@@ -355,8 +356,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setOriginalHighlight(null);
     setIsDirty(false);
     setPreviewMode(false);
+    setIsPlaying(false); // Stop video playback
     router.push(`/${cityId}/${meetingId}/highlights/${highlightId}`);
-  }, [editingHighlight, router]);
+  }, [editingHighlight, router, setIsPlaying]);
 
   // Save highlight functionality
   const saveHighlight = useCallback(async () => {

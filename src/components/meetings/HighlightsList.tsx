@@ -1,8 +1,9 @@
+"use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
-import { getHighlightsForMeeting, HighlightWithUtterances, upsertHighlight } from "@/lib/db/highlights";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import type { HighlightWithUtterances } from "@/lib/db/highlights";
+import { upsertHighlight } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
 import { HighlightDialog } from "./HighlightDialog";
+import { useTranscriptOptions } from "./options/OptionsContext";
 
 interface HighlightCardProps {
   highlight: HighlightWithUtterances;
@@ -82,7 +84,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   );
 };
 
-const AddHighlightButton = ({ onAdd }: { onAdd: (newHighlight?: HighlightWithUtterances) => void }) => {
+const AddHighlightButton = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { meeting } = useCouncilMeetingData();
   const router = useRouter();
@@ -97,17 +99,9 @@ const AddHighlightButton = ({ onAdd }: { onAdd: (newHighlight?: HighlightWithUtt
         subjectId
       });
       
-      toast({
-        title: "Success",
-        description: "Highlight created successfully. Redirecting to edit mode...",
-        variant: "default",
-      });
-      
+      // The dialog will handle showing success feedback
       // Navigate directly to transcript page with editing mode for the new highlight
       router.push(`/${meeting.cityId}/${meeting.id}/transcript?highlight=${newHighlight.id}`);
-      
-      // Still call onAdd to update the list (though we're navigating away)
-      onAdd(newHighlight);
     } catch (error) {
       console.error('Failed to create highlight:', error);
       toast({
@@ -135,31 +129,10 @@ const AddHighlightButton = ({ onAdd }: { onAdd: (newHighlight?: HighlightWithUtt
   );
 };
 
-export default function HighlightsList({ highlights: initialHighlights }: { highlights: HighlightWithUtterances[] }) {
-  const { meeting } = useCouncilMeetingData();
-  const [highlights, setHighlights] = useState(initialHighlights);
-  const [canEdit, setCanEdit] = useState(false);
-
-  React.useEffect(() => {
-    const checkAuth = async () => {
-      const authorized = await isUserAuthorizedToEdit({ cityId: meeting.cityId });
-      setCanEdit(authorized);
-    };
-    checkAuth();
-  }, [meeting.cityId]);
-
-  const reloadHighlights = React.useCallback(async (newHighlightToSelect?: HighlightWithUtterances) => {
-    try {
-      const updatedHighlights = await getHighlightsForMeeting(meeting.cityId, meeting.id);
-      setHighlights(updatedHighlights);
-    } catch (error) {
-      console.error('Failed to reload highlights', error);
-    }
-  }, [meeting.cityId, meeting.id]);
-
-  const handleAddHighlight = React.useCallback((newHighlight?: HighlightWithUtterances) => {
-    reloadHighlights(newHighlight);
-  }, [reloadHighlights]);
+export default function HighlightsList() {
+  const { meeting, highlights } = useCouncilMeetingData();
+  const { options } = useTranscriptOptions();
+  const canEdit = options.editsAllowed;
 
   const showcasedHighlights = highlights.filter(h => h.isShowcased);
   const highlightsWithVideo = highlights.filter(h => h.videoUrl && !h.isShowcased);
@@ -179,7 +152,7 @@ export default function HighlightsList({ highlights: initialHighlights }: { high
       {/* Create New Highlight Button */}
       {canEdit && (
         <div className="flex justify-center">
-          <AddHighlightButton onAdd={handleAddHighlight} />
+          <AddHighlightButton />
         </div>
       )}
 
@@ -225,7 +198,7 @@ export default function HighlightsList({ highlights: initialHighlights }: { high
         {draftHighlights.length > 0 && (
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-blue-500" />
+              <Clock className="h-5 w-5 mr-2 text-blue-500" />
               Draft Highlights
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -249,7 +222,7 @@ export default function HighlightsList({ highlights: initialHighlights }: { high
                 Create your first highlight to start organizing meeting moments
               </p>
               {canEdit && (
-                <AddHighlightButton onAdd={handleAddHighlight} />
+                <AddHighlightButton />
               )}
             </div>
           </div>

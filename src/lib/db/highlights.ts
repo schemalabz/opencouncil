@@ -64,13 +64,9 @@ export async function upsertHighlight(
         subjectId?: Subject["id"] | null;
     }
 ): Promise<HighlightWithUtterances> {
-    let { id, name, meetingId, cityId, utteranceIds, subjectId } = highlightData;
+    const { id, name, meetingId, cityId, utteranceIds, subjectId } = highlightData;
 
     await withUserAuthorizedToEdit({ cityId });
-
-    if (!id) {
-        id = await getNewHighlightId();
-    }
 
     // Common data for both operations
     const commonData = {
@@ -97,7 +93,7 @@ export async function upsertHighlight(
 
     try {
         const highlight = await prisma.highlight.upsert({
-            where: { id },
+            where: { id: id || 'new' }, // Use 'new' as placeholder for new records
             update: {
                 ...updateData,
                 highlightedUtterances: {
@@ -107,7 +103,6 @@ export async function upsertHighlight(
             },
             create: {
                 ...createData,
-                id,
                 meeting: { connect: { cityId_id: { id: meetingId, cityId } } }
             },
             include: highlightWithUtterancesInclude
@@ -119,32 +114,6 @@ export async function upsertHighlight(
         throw new Error('Failed to upsert highlight');
     }
 }
-
-async function getNewHighlightId(): Promise<Highlight["id"]> {
-    const generateRandomId = (length: number) => {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return result;
-    };
-
-    let id: Highlight["id"];
-    let length = 3;
-    do {
-        id = generateRandomId(length);
-        const existingHighlight = await prisma.highlight.findUnique({ where: { id } });
-        if (!existingHighlight) {
-            return id;
-        } else {
-            length++;
-        }
-    } while (length < 10);
-
-    throw new Error('Failed to generate a unique highlight id');
-}
-
 
 export async function deleteHighlight(id: Highlight["id"]) {
     try {
