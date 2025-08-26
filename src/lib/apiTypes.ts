@@ -301,6 +301,48 @@ export interface SplitMediaFileResult {
     }[];
 }
 
+/*
+ * Generate Highlight
+ */
+export interface GenerateHighlightRequest extends TaskRequest {
+    media: {
+        type: 'video';
+        videoUrl: string;
+    };
+    parts: Array<{
+        id: string; // highlightId
+        utterances: Array<{
+            utteranceId: string;
+            startTimestamp: number;
+            endTimestamp: number;
+            text: string;
+            speaker?: {
+                id?: string;
+                name?: string;
+                partyColorHex?: string;
+                partyLabel?: string;
+                roleLabel?: string;
+            };
+        }>;
+    }>;
+    render: {
+        includeCaptions?: boolean;
+        includeSpeakerOverlay?: boolean;
+        aspectRatio?: 'default' | 'social-9x16';
+    };
+}
+
+export interface GenerateHighlightResult {
+    parts: Array<{
+        id: string; // highlightId
+        url: string;
+        muxPlaybackId?: string;
+        duration: number;
+        startTimestamp: number;
+        endTimestamp: number;
+    }>;
+}
+
 /**
  * Generate Voiceprint Task Types
  */

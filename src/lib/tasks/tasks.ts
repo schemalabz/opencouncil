@@ -12,6 +12,7 @@ import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
+import { handleGenerateHighlightResult } from './generateHighlight';
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task
@@ -152,6 +153,8 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
         await handleGenerateVoiceprintResult(taskId, JSON.parse(task.responseBody!));
     } else if (taskType === 'syncElasticsearch') {
         await handleSyncElasticsearchResult(taskId, JSON.parse(task.responseBody!));
+    } else if (taskType === 'generateHighlight') {
+        await handleGenerateHighlightResult(taskId, JSON.parse(task.responseBody!));
     } else {
         throw new Error(`Unsupported task type: ${taskType}`);
     }

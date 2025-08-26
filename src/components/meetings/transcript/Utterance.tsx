@@ -1,9 +1,9 @@
 "use client";
-import { SpeakerTag, Utterance } from "@prisma/client";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import React, { useEffect, useState, useMemo } from "react";
+import { Utterance } from "@prisma/client";
+import React, { useEffect, useState } from "react";
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { useHighlight } from "../HighlightContext";
 import { editUtterance } from "@/lib/db/utterance";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
@@ -16,6 +16,7 @@ import {
     ContextMenuItem,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { cn } from "@/lib/utils";
 
 const UtteranceC: React.FC<{
     utterance: Utterance,
@@ -23,7 +24,8 @@ const UtteranceC: React.FC<{
 }> = React.memo(({ utterance, onUpdate }) => {
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
-    const { options, updateOptions } = useTranscriptOptions();
+    const { options } = useTranscriptOptions();
+    const { editingHighlight, updateHighlightUtterances } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -56,37 +58,28 @@ const UtteranceC: React.FC<{
         }
     }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
 
-    const isHighlighted = options.selectedHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id);
+    // Check if this utterance is highlighted in the current editing highlight
+    const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id) || false;
 
-    let className = `cursor-pointer hover:bg-accent utterance transcript-text ${isActive ? 'bg-accent' : ''} ${isHighlighted ? 'font-bold underline' : ''}`;
-    if (localUtterance.lastModifiedBy && options.editable && !options.selectedHighlight) {
-        if (localUtterance.lastModifiedBy === 'task') {
-            className += ' text-blue-500 font-bold underline';
-        } else {
-            className += ' text-green-500 font-bold underline';
+    const isTaskModified = localUtterance.lastModifiedBy === 'task' && options.editable && !editingHighlight;
+    const isUserModified = localUtterance.lastModifiedBy && localUtterance.lastModifiedBy !== 'task' && options.editable && !editingHighlight;
+    const isUncertain = localUtterance.uncertain && options.editable && !editingHighlight;
+
+    const className = cn(
+        "cursor-pointer hover:bg-accent utterance transcript-text",
+        {
+            "bg-accent": isActive,
+            "font-bold underline": isHighlighted,
+            "text-blue-500 font-bold underline": isTaskModified,
+            "text-green-500 font-bold underline": isUserModified,
+            "text-red-500 font-bold": isUncertain,
         }
-    }
-    if (localUtterance.uncertain && options.editable && !options.selectedHighlight) {
-        className += ' text-red-500 font-bold';
-    }
+    );
 
     const handleClick = () => {
-        if (options.selectedHighlight) {
-            if (isHighlighted) {
-                // Remove from highlight
-                const updatedHighlight = {
-                    ...options.selectedHighlight,
-                    highlightedUtterances: options.selectedHighlight.highlightedUtterances.filter(hu => hu.utteranceId !== localUtterance.id)
-                };
-                updateOptions({ selectedHighlight: updatedHighlight });
-            } else {
-                // Add to highlight
-                const updatedHighlight = {
-                    ...options.selectedHighlight,
-                    highlightedUtterances: [...options.selectedHighlight.highlightedUtterances, { utteranceId: localUtterance.id }]
-                };
-                updateOptions({ selectedHighlight: updatedHighlight as HighlightWithUtterances });
-            }
+        // If we're in highlight editing mode, handle highlight toggling
+        if (editingHighlight) {
+            updateHighlightUtterances(localUtterance.id, isHighlighted ? 'remove' : 'add');
         } else if (options.editable) {
             setIsEditing(true);
             seekTo(localUtterance.startTimestamp);

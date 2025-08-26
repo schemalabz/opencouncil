@@ -10,6 +10,8 @@ import { handleFixTranscriptResult } from '@/lib/tasks/fixTranscript';
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda';
 import { handleGenerateVoiceprintResult } from '@/lib/tasks/generateVoiceprint';
 import { handleSyncElasticsearchResult } from '@/lib/tasks/syncElasticsearch';
+import { handleGenerateHighlightResult } from '@/lib/tasks/generateHighlight';
+import { GenerateHighlightResult } from '@/lib/apiTypes';
 
 export async function GET(
     request: NextRequest,
@@ -83,6 +85,8 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<GenerateVoiceprintResult>, handleGenerateVoiceprintResult);
         } else if (taskStatus.type === 'syncElasticsearch') {
             await handleTaskUpdate(taskStatusId, update as TaskUpdate<SyncElasticsearchResult>, handleSyncElasticsearchResult);
+        } else if (taskStatus.type === 'generateHighlight') {
+            await handleTaskUpdate(taskStatusId, update as TaskUpdate<GenerateHighlightResult>, handleGenerateHighlightResult);
         } else {
             // Handle other task types here if needed
             throw new Error(`Unsupported task type: ${taskStatus.type}`);
