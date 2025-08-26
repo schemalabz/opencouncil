@@ -3,11 +3,10 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
-import { upsertHighlight } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Plus, Play } from "lucide-react";
+import { Clock, Users, Star, Plus, Play, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 import { formatTime } from "@/lib/utils";
@@ -23,6 +22,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const router = useRouter();
   const { calculateHighlightData } = useHighlight();
   const { subjects } = useCouncilMeetingData();
+  const [isLoading, setIsLoading] = useState(false);
   
   const highlightData = calculateHighlightData(highlight);
   
@@ -32,12 +32,22 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const utteranceCount = highlightData?.statistics.utteranceCount || 0;
 
   const handleCardClick = () => {
-    router.push(`/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`);
+    if (isLoading) return; // Prevent multiple clicks
+    
+    setIsLoading(true);
+    try {
+      router.push(`/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      setIsLoading(false);
+    }
   };
 
   return (
     <Card 
-      className="hover:shadow-md transition-shadow cursor-pointer" 
+      className={`hover:shadow-md transition-all cursor-pointer ${
+        isLoading ? 'opacity-75 pointer-events-none' : ''
+      }`}
       onClick={handleCardClick}
     >
       <CardContent className="p-4">
@@ -49,6 +59,9 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                 <h3 className="font-semibold text-lg truncate">{highlight.name}</h3>
                 {highlight.isShowcased && (
                   <Star className="h-4 w-4 text-yellow-500" />
+                )}
+                {isLoading && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
               
@@ -91,13 +104,22 @@ const AddHighlightButton = () => {
 
   const handleCreateHighlight = async (name: string, subjectId?: string) => {
     try {
-      const newHighlight = await upsertHighlight({
-        name,
-        meetingId: meeting.id,
-        cityId: meeting.cityId,
-        utteranceIds: [],
-        subjectId
+      const res = await fetch(`/api/highlights`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          meetingId: meeting.id,
+          cityId: meeting.cityId,
+          utteranceIds: [],
+          subjectId
+        })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to create');
+      }
+      const newHighlight: HighlightWithUtterances = await res.json();
       
       // The dialog will handle showing success feedback
       // Navigate directly to transcript page with editing mode for the new highlight

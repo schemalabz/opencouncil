@@ -8,7 +8,7 @@ import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
-import { getHighlight } from "@/lib/db/highlights";
+import type { HighlightWithUtterances } from "@/lib/db/highlights";
 
 export default function Transcript() {
     const { transcript: speakerSegments, highlights } = useCouncilMeetingData();
@@ -61,11 +61,13 @@ export default function Transcript() {
             // First try to find the highlight in the context
             let highlight = highlights?.find(h => h.id === highlightId);
             
-            // If not found in context, fetch it directly from the database
+            // If not found in context, fetch it from the API
             if (!highlight) {
                 const fetchHighlight = async () => {
                     try {
-                        const fetchedHighlight = await getHighlight(highlightId);
+                        const res = await fetch(`/api/highlights/${highlightId}`);
+                        if (!res.ok) throw new Error('Failed to fetch highlight');
+                        const fetchedHighlight: HighlightWithUtterances = await res.json();
                         if (fetchedHighlight) {
                             enterEditMode(fetchedHighlight);
                         }

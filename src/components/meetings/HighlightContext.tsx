@@ -1,11 +1,10 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { HighlightWithUtterances } from '@/lib/db/highlights';
+import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
 import { Utterance } from '@prisma/client';
-import { upsertHighlight } from '@/lib/db/highlights';
 
 export interface HighlightUtterance {
   id: string;
@@ -368,13 +367,20 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
 
     try {
       setIsSaving(true);
-      await upsertHighlight({
-        id: editingHighlight.id,
-        name: editingHighlight.name,
-        meetingId: editingHighlight.meetingId,
-        cityId: editingHighlight.cityId,
-        utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
-      }); 
+      const res = await fetch(`/api/highlights/${editingHighlight.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingHighlight.name,
+          meetingId: editingHighlight.meetingId,
+          cityId: editingHighlight.cityId,
+          utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to save');
+      }
       
       // Reset change tracking after successful save
       setOriginalHighlight(editingHighlight);

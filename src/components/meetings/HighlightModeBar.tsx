@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Pencil } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { requestGenerateHighlight } from '@/lib/tasks/generateHighlight';
 import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -86,10 +85,19 @@ export function HighlightModeBar() {
 
   const handleGenerateHighlight = async () => {
     try {
-      await requestGenerateHighlight(editingHighlight.id, {
-        includeCaptions,
-        includeSpeakerOverlay: overlaySpeakerNames,
+      const res = await fetch(`/api/tasks/generate-highlight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          highlightId: editingHighlight.id,
+          options: {
+            includeCaptions,
+            includeSpeakerOverlay: overlaySpeakerNames,
+          }
+        })
       });
+      if (!res.ok) throw new Error('Failed to start generation');
+      
       toast({
         title: "Generation Started",
         description: "Redirecting you to the highlight page where you can track progress and see the video when ready.",
@@ -193,11 +201,11 @@ export function HighlightModeBar() {
                     <span className="font-medium text-sm">{editingHighlight.name}</span>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
-                        <Clock className="h-3 w-3" />
+                        <Clock className="h-4 w-4" />
                         <span>{statistics ? formatTime(statistics.duration) : '0:00'}</span>
                       </div>
                       <div className="flex items-center space-x-1">
-                        <Users className="h-3 w-3" />
+                        <Users className="h-4 w-4" />
                         <span>{statistics?.speakerCount || 0} speakers</span>
                       </div>
                       <div className="flex items-center space-x-1">

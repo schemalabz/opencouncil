@@ -3,19 +3,16 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
-import { deleteHighlight, upsertHighlight, toggleHighlightShowcase } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Users, Star, Edit, Trash, Download, Plus, ArrowLeft, Play } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { requestGenerateHighlight } from "@/lib/tasks/generateHighlight";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
 import { HighlightDialog } from "./HighlightDialog";
 import { useHighlight } from "./HighlightContext";
-import { getGenerateHighlightTasksForHighlight } from '@/lib/db/tasks';
 import { useTranscriptOptions } from "./options/OptionsContext";
 
 interface HighlightViewProps {
@@ -35,20 +32,20 @@ export function HighlightView({ highlight }: HighlightViewProps) {
 
   const fetchTaskStatuses = React.useCallback(async () => {
     try {
-      const t = await getGenerateHighlightTasksForHighlight(meeting.cityId, meeting.id, highlight.id);
+      const res = await fetch(`/api/tasks/generate-highlight?cityId=${meeting.cityId}&meetingId=${meeting.id}&highlightId=${highlight.id}`);
+      if (!res.ok) throw new Error('Failed to fetch tasks');
+      const t: { id: string; status: string; updatedAt: string }[] = await res.json();
       if (t.length > 0) {
         const latest = t[0];
         if (latest.status === 'pending') {
           setLatestPendingTask(latest.id);
         } else if (latest.status === 'succeeded' && !highlight.muxPlaybackId) {
-          const justCompleted = Date.now() - new Date(latest.updatedAt).getTime() < 6000; // ~2 polling intervals
+          const justCompleted = Date.now() - new Date(latest.updatedAt).getTime() < 6000;
           if (justCompleted) {
-            // Clear the pending task state so the banner disappears
             setLatestPendingTask(null);
             router.refresh();
           }
         } else if (latest.status === 'succeeded' || latest.status === 'failed') {
-          // Clear pending state for any completed task (success or failure)
           setLatestPendingTask(null);
         }
       } else {
@@ -70,7 +67,6 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   }, [latestPendingTask, fetchTaskStatuses]);
 
   const handleEditContent = () => {
-    // Navigate to transcript page with highlight editing mode
     router.push(`/${meeting.cityId}/${meeting.id}/transcript?highlight=${highlight.id}`);
   };
 
@@ -80,22 +76,24 @@ export function HighlightView({ highlight }: HighlightViewProps) {
 
   const handleSaveEdit = async (name: string, subjectId?: string) => {
     try {
-      await upsertHighlight({
-        id: highlight.id,
-        name,
-        meetingId: highlight.meetingId,
-        cityId: highlight.cityId,
-        utteranceIds: highlight.highlightedUtterances.map(hu => hu.utteranceId),
-        subjectId: subjectId || null
+      const res = await fetch(`/api/highlights/${highlight.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          meetingId: highlight.meetingId,
+          cityId: highlight.cityId,
+          utteranceIds: highlight.highlightedUtterances.map(hu => hu.utteranceId),
+          subjectId: subjectId || null
+        })
       });
+      if (!res.ok) throw new Error('Failed to update');
       
       toast({
         title: "Success",
         description: "Highlight updated successfully.",
         variant: "default",
       });
-      
-      // Refresh the page to show updated data
       router.refresh();
     } catch (error) {
       console.error('Failed to update highlight:', error);
@@ -113,13 +111,13 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     }
 
     try {
-      await deleteHighlight(highlight.id);
+      const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
       toast({
         title: "Success",
         description: "Highlight deleted successfully.",
         variant: "default",
       });
-      // Navigate back to highlights list
       router.push(`/${meeting.cityId}/${meeting.id}/highlights`);
     } catch (error) {
       console.error('Failed to delete highlight:', error);
@@ -133,13 +131,18 @@ export function HighlightView({ highlight }: HighlightViewProps) {
 
   const handleGenerateVideo = async () => {
     try {
-      const task = await requestGenerateHighlight(highlight.id);
+      const res = await fetch(`/api/tasks/generate-highlight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ highlightId: highlight.id })
+      });
+      if (!res.ok) throw new Error('Failed to start generation');
+      const task = await res.json();
       toast({
         title: "Success",
         description: "Video generation started. This may take a few minutes.",
         variant: "default",
       });
-      // Optimistically show the new task and start polling
       setLatestPendingTask(task.id);
     } catch (error) {
       console.error('Failed to generate video:', error);
@@ -153,13 +156,13 @@ export function HighlightView({ highlight }: HighlightViewProps) {
 
   const handleToggleShowcase = async () => {
     try {
-      await toggleHighlightShowcase(highlight.id);
+      const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'PATCH' });
+      if (!res.ok) throw new Error('Failed to toggle showcase');
       toast({
         title: "Success",
         description: highlight.isShowcased ? "Highlight removed from showcase." : "Highlight added to showcase.",
         variant: "default",
       });
-      // Refresh the page to show updated status
       router.refresh();
     } catch (error) {
       console.error('Failed to toggle showcase:', error);
