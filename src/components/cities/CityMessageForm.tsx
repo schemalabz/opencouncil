@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CityMessage } from '@prisma/client'
 import { MessageSquare, ExternalLink, Info, ChevronDown, ChevronUp } from "lucide-react"
 import * as LucideIcons from "lucide-react"
@@ -77,16 +77,14 @@ export default function CityMessageForm({ existingMessage, onMessageChange }: Ci
         } : DEFAULT_MESSAGE_STATE;
         
         setMessageState(newState);
-        // Always inform parent of current state
-        onMessageChange?.(newState);
     }, [existingMessage]);
 
-    // Helper function to update message state
-    const updateMessageState = (updates: Partial<MessageFormState>) => {
+    // Helper function to update message state and notify parent
+    const updateMessageState = useCallback((updates: Partial<MessageFormState>) => {
         const newState = { ...messageState, ...updates };
         setMessageState(newState);
         onMessageChange?.(newState);
-    };
+    }, [messageState, onMessageChange]);
 
     // Get the current icon to display (either selected or custom)
     const getCurrentIcon = () => {

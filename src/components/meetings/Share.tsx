@@ -1,22 +1,18 @@
 "use client";
-import ReactPDF from '@react-pdf/renderer';
-import { pdf } from '@react-pdf/renderer';
-import { renderDocx } from './docx/CouncilMeetingDocx';
 import { useVideo } from './VideoProvider';
 import { useState, useEffect } from 'react';
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, FileDown, LinkIcon, Loader2 } from "lucide-react";
+import { CheckCircle, CopyIcon, FileDown, LinkIcon } from "lucide-react";
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useTranscriptOptions } from './options/OptionsContext';
+import { MeetingExportButtons } from './MeetingExportButtons';
 export default function ShareC() {
     const { currentTime } = useVideo();
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [isExportingDocx, setIsExportingDocx] = useState(false);
     const { options } = useTranscriptOptions();
 
     useEffect(() => {
@@ -44,27 +40,14 @@ export default function ShareC() {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
-    const { meeting, transcript, people, parties, speakerTags, city } = useCouncilMeetingData();
+    const { meeting, transcript, people, city } = useCouncilMeetingData();
 
-    const handleExportToDocx = async () => {
-        setIsExportingDocx(true);
-        try {
-            const doc = await renderDocx({ city, meeting, transcript, people, parties, speakerTags });
-            const blob = await doc.save();
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = 'council_meeting.docx';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        } catch (error) {
-            console.error('Error exporting to DOCX:', error);
-        } finally {
-            setIsExportingDocx(false);
-        }
-    };
+    const getMeetingData = () => ({
+        city,
+        meeting,
+        transcript,
+        people
+    });
 
     return (
         <div className="flex flex-col w-full p-6">
@@ -125,16 +108,11 @@ export default function ShareC() {
                             Κατεβάστε την απομαγνητοφώνηση της συνεδρίασης
                         </p>
 
-                        <div className="space-y-2 sm:space-y-0 sm:space-x-2">
-                            <Button onClick={handleExportToDocx} className="w-full sm:w-auto" disabled={isExportingDocx}>
-                                {isExportingDocx ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <FileDown className="w-4 h-4 mr-2" />
-                                )}
-                                <span>Εξαγωγή σε DOCX</span>
-                            </Button>
-                        </div>
+                        <MeetingExportButtons
+                            getMeetingData={getMeetingData}
+                            cityId={city.id}
+                            meetingId={meeting.id}
+                        />
                     </div>
                 )}
             </section>

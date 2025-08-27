@@ -80,6 +80,7 @@ const Map = memo(function Map({
     const initialCenterCoords = useMemo(() => {
         if (center) return center;
         return guessCenterFromFeatures(features);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array - only calculate once
 
     const rotateCamera = useCallback((timestamp: number) => {
@@ -398,6 +399,7 @@ const Map = memo(function Map({
             map.current = null;
             isInitialized.current = false;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array - initialize only once
 
     // Handle feature updates without resetting zoom/center
@@ -881,7 +883,7 @@ const Map = memo(function Map({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry, isInitialized.current]);
+    }, [zoomToGeometry]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />

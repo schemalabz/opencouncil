@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ConsultationHeader from "./ConsultationHeader";
 import ConsultationMap from "./ConsultationMap";
@@ -113,7 +113,7 @@ export default function ConsultationViewer({
     };
 
     // Find which chapter contains an article
-    const findChapterForArticle = (articleId: string): string | null => {
+    const findChapterForArticle = useCallback((articleId: string): string | null => {
         if (!regulationData) return null;
 
         for (const chapter of regulationData.regulation) {
@@ -126,7 +126,7 @@ export default function ConsultationViewer({
             }
         }
         return null;
-    };
+    }, [regulationData]);
 
     // Handle initial hash on page load and actual hash changes
     useEffect(() => {
@@ -194,6 +194,7 @@ export default function ConsultationViewer({
         // Listen for actual hash changes
         window.addEventListener('hashchange', handleHashChange);
         return () => window.removeEventListener('hashchange', handleHashChange);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Remove dependencies to prevent running on every state change
 
     // Separate effect to handle hash when view changes to document
@@ -218,7 +219,7 @@ export default function ConsultationViewer({
                 }
             }
         }
-    }, [currentView, regulationData]); // Only run when view changes or regulation data loads
+    }, [currentView, regulationData, findChapterForArticle]); // Only run when view changes or regulation data loads
 
     const toggleView = () => {
         const newView = currentView === 'map' ? 'document' : 'map';

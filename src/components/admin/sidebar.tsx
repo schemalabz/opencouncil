@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -43,6 +43,11 @@ const menuItems = [
         title: "Tasks",
         icon: List,
         url: "/admin/tasks"
+    },
+    {
+        title: "Elasticsearch",
+        icon: Search,
+        url: "/admin/elasticsearch",
     },
     {
         title: "Cache",

@@ -5,7 +5,6 @@ import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
-import { HighlightWithUtterances } from '@/lib/db/highlights';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
 
@@ -17,8 +16,6 @@ export interface CouncilMeetingDataContext extends MeetingData {
     getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
-    selectedHighlight: HighlightWithUtterances | null;
-    setSelectedHighlight: (highlight: HighlightWithUtterances | null) => void;
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
@@ -36,7 +33,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const partiesMap = useMemo(() => new Map(data.parties.map(party => [party.id, party])), [data.parties]);
     const [speakerTags, setSpeakerTags] = useState(data.speakerTags);
     const [transcript, setTranscript] = useState(data.transcript);
-    const [selectedHighlight, setSelectedHighlight] = useState<HighlightWithUtterances | null>(null);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
 
@@ -54,8 +50,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
         ...data,
         transcript,
         speakerTags,
-        selectedHighlight,
-        setSelectedHighlight,
         getPerson: (id: string) => peopleMap.get(id),
         getParty: (id: string) => partiesMap.get(id),
         getSpeakerTag: (id: string) => speakerTagsMap.get(id),
@@ -170,7 +164,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 setSpeakerTags(prev => prev.filter(t => t.id !== segment.speakerTagId));
             }
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, selectedHighlight, transcript, speakerTagSegmentCounts]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>

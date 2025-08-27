@@ -1,22 +1,23 @@
 "use client";
-import { SpeakerSegment as SpeakerSegmentType } from "@prisma/client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useVideo } from "../VideoProvider";
-import { Utterance } from "@prisma/client";
-import { Transcript as TranscriptType } from "@/lib/db/transcript";
-import { useInView } from 'react-intersection-observer';
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { BarChart2, FileIcon, ScrollText } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { useSearchParams } from "next/navigation";
+import { useHighlight } from "../HighlightContext";
+import type { HighlightWithUtterances } from "@/lib/db/highlights";
 
 export default function Transcript() {
-    const { transcript: speakerSegments } = useCouncilMeetingData();
+    const { transcript: speakerSegments, highlights } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
+    const { enterEditMode } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
+    const searchParams = useSearchParams();
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
@@ -52,6 +53,34 @@ export default function Transcript() {
             }
         }
     }, [displayedSegments, setCurrentScrollInterval]);
+
+    // Handle highlight editing initialization from URL
+    useEffect(() => {
+        const highlightId = searchParams.get('highlight');
+        if (highlightId) {
+            // First try to find the highlight in the context
+            let highlight = highlights?.find(h => h.id === highlightId);
+            
+            // If not found in context, fetch it from the API
+            if (!highlight) {
+                const fetchHighlight = async () => {
+                    try {
+                        const res = await fetch(`/api/highlights/${highlightId}`);
+                        if (!res.ok) throw new Error('Failed to fetch highlight');
+                        const fetchedHighlight: HighlightWithUtterances = await res.json();
+                        if (fetchedHighlight) {
+                            enterEditMode(fetchedHighlight);
+                        }
+                    } catch (error) {
+                        console.error('Failed to fetch highlight:', error);
+                    }
+                };
+                fetchHighlight();
+            } else {
+                enterEditMode(highlight);
+            }
+        }
+    }, [searchParams, highlights, enterEditMode]);
 
     const debouncedSetCurrentScrollInterval = useMemo(
         () => debounce(setCurrentScrollInterval, 500),

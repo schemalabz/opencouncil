@@ -5,6 +5,9 @@ import { getCities } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 
+// This prevents Next.js from trying to statically pre-render this route
+export const dynamic = 'force-dynamic';
+
 const client = new Client({
     node: env.ELASTICSEARCH_URL,
     auth: {

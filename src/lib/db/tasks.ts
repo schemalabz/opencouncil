@@ -48,6 +48,35 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
 }
 
 /**
+ * Get generateHighlight tasks for a specific highlight within a meeting
+ */
+export async function getGenerateHighlightTasksForHighlight(cityId: string, meetingId: string, highlightId: string): Promise<TaskStatus[]> {
+    await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
+    try {
+        const tasks = await prisma.taskStatus.findMany({
+            where: {
+                type: 'generateHighlight',
+                cityId,
+                councilMeetingId: meetingId,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        // Filter tasks that contain this highlightId in their requestBody.parts[0].id
+        return tasks.filter(task => {
+            try {
+                const body = JSON.parse(task.requestBody) as { parts?: Array<{ id?: string }> };
+                return body.parts && body.parts.length > 0 && body.parts[0].id === highlightId;
+            } catch {
+                return false;
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching generateHighlight tasks:', error);
+        throw new Error('Failed to fetch tasks for highlight');
+    }
+}
+
+/**
  * Get voiceprint generation tasks for a specific person
  */
 export async function getVoiceprintTasksForPerson(personId: string): Promise<TaskStatus[]> {

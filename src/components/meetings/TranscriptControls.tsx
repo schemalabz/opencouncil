@@ -1,11 +1,10 @@
 "use client"
-import { Play, Pause, Loader, Maximize2, ChevronLeft, ChevronRight, SlidersHorizontal, Youtube } from "lucide-react"
+import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-react"
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
-import { SpeakerTag } from "@prisma/client";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
-import { Transcript as TranscriptType } from "@/lib/db/transcript"
+import { useHighlight } from "./HighlightContext";
 import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 
@@ -13,6 +12,7 @@ export default function TranscriptControls({ className }: { className?: string }
     const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
+    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight } = useHighlight();
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -184,6 +184,9 @@ export default function TranscriptControls({ className }: { className?: string }
 
     const tooltipStyle = getTooltipPosition();
 
+    // Check if we're in highlight editing mode
+    const isHighlightMode = editingHighlight !== null;
+
     return (
         <>
             {!isWide && (
@@ -220,6 +223,33 @@ export default function TranscriptControls({ className }: { className?: string }
                         (isSeeking ? <Loader className="w-5 h-5 animate-spin" /> : <Pause className="w-5 h-5" />) : <Play className="w-5 h-5" />}
                 </button>
 
+                {/* Clip navigation inline */}
+                {isHighlightMode && highlightUtterances && highlightUtterances.length > 0 && (
+                  <div className={cn("flex items-center gap-1", isWide ? "mr-2" : "mb-2")}
+                      aria-live="polite"
+                  >
+                    <button
+                      onClick={goToPreviousHighlight}
+                      className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
+                      aria-label="Previous clip"
+                      title="Previous clip"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <div className="px-2 py-1 text-xs bg-amber-100 text-amber-900 border border-amber-200 rounded">
+                      Clip {currentHighlightIndex + 1}/{highlightUtterances.length}
+                    </div>
+                    <button
+                      onClick={goToNextHighlight}
+                      className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
+                      aria-label="Next clip"
+                      title="Next clip"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
 
                 {/* Slider Container */}
@@ -242,6 +272,8 @@ export default function TranscriptControls({ className }: { className?: string }
                             }}
                         />
                     )}
+                    
+                    {/* Speaker Segments - Base Layer */}
                     {speakerSegments.map((segment, index) => {
                         const speakerTag = getSpeakerTag(segment.speakerTagId);
                         const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
@@ -257,6 +289,7 @@ export default function TranscriptControls({ className }: { className?: string }
                                     className={`absolute ${isWide ? 'h-3/4' : 'w-3/4'} ${isSelected ? 'animate-bounce' : ''}`}
                                     style={{
                                         backgroundColor: speakerColor,
+                                        opacity: isHighlightMode ? 0.3 : 1, // Dim when in highlight mode
                                         [isWide ? 'left' : 'top']: `${(segment.startTimestamp / duration) * 100}%`,
                                         [isWide ? 'width' : 'height']: `${((segment.endTimestamp - segment.startTimestamp) / duration) * 100}%`,
                                         [isWide ? 'top' : 'left']: isSelected ? '10%' : '10%',
@@ -266,6 +299,36 @@ export default function TranscriptControls({ className }: { className?: string }
                             </div>
                         )
                     })}
+
+                    {/* Highlight Layer - Only show when editing a highlight */}
+                    {isHighlightMode && highlightUtterances && highlightUtterances.map((utterance, index) => {
+                        const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === utterance.id);
+                        const isCurrentHighlight = index === currentHighlightIndex;
+                        
+                        if (!isHighlighted) return null;
+
+                        return (
+                            <div key={`highlight-${utterance.id}`}>
+                                <div
+                                    className={cn(
+                                        `absolute ${isWide ? 'h-full' : 'w-full'} cursor-pointer hover:bg-amber-500 transition-colors`,
+                                        previewMode && isCurrentHighlight ? 'bg-amber-600' : 'bg-amber-400'
+                                    )}
+                                    style={{
+                                        [isWide ? 'left' : 'top']: `${(utterance.startTimestamp / duration) * 100}%`,
+                                        [isWide ? 'width' : 'height']: `${((utterance.endTimestamp - utterance.startTimestamp) / duration) * 100}%`,
+                                        zIndex: 10, // Above speaker segments
+                                    }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        seekTo(utterance.startTimestamp);
+                                    }}
+                                    title={`${utterance.speakerName}: ${utterance.text.substring(0, 50)}...`}
+                                />
+                            </div>
+                        );
+                    })}
+
                     <div
                         className={`absolute bg-slate-600 ${isWide ? 'w-1 h-full' : 'h-1 w-full'}`}
                         style={{

@@ -1,8 +1,29 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback } from 'react';
-import { CouncilMeeting, Utterance, Word } from "@prisma/client";
-import { Video } from './Video';
+import { CouncilMeeting, Utterance } from "@prisma/client";
 import { useTranscriptOptions } from './options/OptionsContext';
+
+/**
+ * VIDEO PLAYBACK ARCHITECTURE OVERVIEW:
+ * 
+ * The video playback system works as follows:
+ * 
+ * 1. VIDEO ELEMENT (MuxVideo in Video.tsx):
+ *    - The actual HTML5 video element that plays the media
+ *    - Fires native HTML5 video events: onTimeUpdate, onSeeked, onSeeking
+ *    - Playback is controlled via native methods: play(), pause(), setting currentTime
+ * 
+ * 2. VIDEO PROVIDER (this component):
+ *    - Manages video state (isPlaying, currentTime, duration)
+ *    - Provides playback controls (play, pause, seek)
+ *    - Handles time synchronization with transcript
+ * 
+ * 3. PLAYBACK FLOW:
+ *    - User clicks play → togglePlayPause() → playVideo() → video.play()
+ *    - Video plays continuously → onTimeUpdate fires ~60fps → handleTimeUpdate() → throttledSetCurrentTime()
+ *    - This updates currentTime state which triggers UI updates
+ * 
+ */
 
 interface VideoContextType {
     isPlaying: boolean;
@@ -56,14 +77,16 @@ const throttle = (func: Function, limit: number) => {
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const { options } = useTranscriptOptions();
-    const [isPlaying, setIsPlaying] = useState(false);
-    const currentTimeRef = useRef(0);
-    const [duration, setDuration] = useState(0);
+    
+    // === CORE VIDEO STATE ===
+    const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
+    const currentTimeRef = useRef(0); // Ref for immediate access without re-renders
+    const [duration, setDuration] = useState(0); // Total video duration
     const [playbackSpeed, setPlaybackSpeed] = useState(options.playbackSpeed.toString());
-    const [isSeeking, setIsSeeking] = useState(false);
-    const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-    const playerRef = useRef<HTMLVideoElement | null>(null);
-    const [currentTime, setCurrentTime] = useState(0);
+    const [isSeeking, setIsSeeking] = useState(false); // True when user is dragging timeline
+    const [hasStartedPlaying, setHasStartedPlaying] = useState(false); // First play flag
+    const playerRef = useRef<HTMLVideoElement | null>(null); // Direct reference to video element
+    const [currentTime, setCurrentTime] = useState(0); // React state for UI (throttled updates)
 
     // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = useCallback((time: number) => {
@@ -81,6 +104,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }, [utterances]);
 
+    // === VIDEO METADATA SETUP ===
     useEffect(() => {
         const player = playerRef.current;
         const updateDuration = () => {
@@ -89,6 +113,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             }
         };
 
+        // Listen for when video metadata is loaded to get duration
         player?.addEventListener('loadedmetadata', updateDuration);
         updateDuration();
 
@@ -97,14 +122,17 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         };
     }, [utterances]);
 
+    // === URL PARAMETER HANDLING ===
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const timeParam = urlParams.get('t');
 
+        // Set initial time to first utterance if no other time set
         if (currentTimeRef.current === 0 && utterances.length > 0) {
             currentTimeRef.current = utterances[0].startTimestamp;
         }
 
+        // Handle ?t=123 URL parameter for deep linking
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
@@ -133,12 +161,21 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }, [utterances]);
 
+    // === PLAYBACK SPEED SYNC ===
     useEffect(() => {
         if (playerRef.current) {
             playerRef.current.playbackRate = options.playbackSpeed;
         }
     }, [options.playbackSpeed]);
 
+    // === CORE PLAYBACK CONTROLS ===
+    
+    /**
+     * PLAY FUNCTION:
+     * - Calls native video.play() method
+     * - Sets initial time position on first play
+     * - Updates isPlaying state for UI
+     */
     const playVideo = async () => {
         if (playerRef.current) {
             await playerRef.current.play();
@@ -151,6 +188,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    /**
+     * PAUSE FUNCTION:
+     * - Calls native video.pause() method
+     * - Updates isPlaying state for UI
+     */
     const pauseVideo = async () => {
         if (playerRef.current) {
             await playerRef.current.pause();
@@ -158,6 +200,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    /**
+     * TOGGLE PLAY/PAUSE:
+     * - Main control function called by UI buttons
+     * - Switches between play and pause states
+     */
     const togglePlayPause = async () => {
         try {
             if (isPlaying) {
@@ -171,6 +218,14 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
+    // === SEEKING CONTROL ===
+    
+    /**
+     * SEEKING EVENT HANDLERS:
+     * - onSeeking: Fired when user starts dragging timeline
+     * - onSeeked: Fired when user finishes dragging timeline
+     * - These prevent time updates during user interaction
+     */
     const handleSeeking = async () => {
         setIsSeeking(true);
     }
@@ -181,6 +236,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             currentTimeRef.current = playerRef.current.currentTime;
         }
     }
+    
     const handleSpeedChange = (value: string) => {
         setPlaybackSpeed(value);
         if (playerRef.current) {
@@ -195,7 +251,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    // Update seekTo to include scrolling
+    /**
+     * SEEK TO TIME:
+     * - Sets video currentTime to specific timestamp
+     * - Updates internal time reference
+     * - Scrolls transcript to corresponding utterance
+     */
     const seekTo = (time: number) => {
         if (playerRef.current) {
             if (hasStartedPlaying) {
@@ -209,7 +270,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     };
 
-    // Throttle the time update to reduce rerenders
+    /**
+     * TIME UPDATE HANDLER:
+     * - Called ~60fps while video is playing (native HTML5 event)
+     * - Updates currentTimeRef for immediate access
+     * - Throttles UI state updates to reduce re-renders
+     */
     const handleTimeUpdate = useCallback(() => {
         if (playerRef.current && !isSeeking) {
             if (isPlaying) {
@@ -219,9 +285,16 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 throttledSetCurrentTime(newTime);
             }
         }
+        // throttledSetCurrentTime is intentionally excluded from dependencies because:
+        // 1. It's created with useRef, making it stable across renders
+        // 2. Adding it to dependencies would be redundant since it never changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSeeking, isPlaying]);
 
-    // Create a throttled version of setCurrentTime
+    /**
+     * THROTTLED TIME UPDATE:
+     * - Reduces UI re-renders by limiting setCurrentTime calls
+     */
     const throttledSetCurrentTime = useRef(
         throttle((time: number) => {
             setCurrentTime(time);
@@ -235,6 +308,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
+    /**
+     * SEEK WITHOUT SCROLL:
+     * - Seeks to time without triggering transcript scroll
+     * - Used for programmatic seeking
+     */
     const seekToWithoutScroll = (time: number) => {
         if (playerRef.current) {
             if (hasStartedPlaying) {

@@ -1,21 +1,35 @@
 "use server";
-import { City, CouncilMeeting, Highlight, HighlightedUtterance, Subject, Utterance } from '@prisma/client';
+import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 
-export type HighlightWithUtterances = Highlight & { highlightedUtterances: HighlightedUtterance[] }
+// Define the include structure for highlights with utterances
+// This includes the highlightedUtterances relation with nested utterance data
+// and orders them by startTimestamp for consistent display
+const highlightWithUtterancesInclude = {
+    highlightedUtterances: {
+        include: {
+            utterance: true
+        },
+        orderBy: {
+            utterance: {
+                startTimestamp: 'asc'
+            }
+        }
+    }
+} satisfies Prisma.HighlightInclude;
 
-export async function getHighlight(id: CouncilMeeting["id"]): Promise<Highlight & { highlightedUtterances: HighlightedUtterance[] } | null> {
+// Define the type using the include structure
+// This ensures type safety and makes the query structure explicit
+export type HighlightWithUtterances = Prisma.HighlightGetPayload<{ 
+    include: typeof highlightWithUtterancesInclude 
+}>;
+
+export async function getHighlight(id: Highlight["id"]): Promise<HighlightWithUtterances | null> {
     try {
         const highlight = await prisma.highlight.findUnique({
             where: { id },
-            include: {
-                highlightedUtterances: {
-                    include: {
-                        utterance: true
-                    }
-                }
-            }
+            include: highlightWithUtterancesInclude
         });
         return highlight;
     } catch (error) {
@@ -31,19 +45,7 @@ export async function getHighlightsForMeeting(cityId: City["id"], meetingId: Cou
                 cityId,
                 meetingId
             },
-            include: {
-                highlightedUtterances: {
-                    include: {
-                        utterance: true
-                    },
-                    orderBy: {
-                        utterance: {
-                            startTimestamp: 'asc'
-                        }
-                    }
-
-                }
-            }
+            include: highlightWithUtterancesInclude
         });
         return highlights;
     } catch (error) {
@@ -59,45 +61,51 @@ export async function upsertHighlight(
         meetingId: CouncilMeeting["id"];
         cityId: City["id"];
         utteranceIds: Utterance["id"][];
+        subjectId?: Subject["id"] | null;
     }
-): Promise<Highlight & { highlightedUtterances: HighlightedUtterance[] }> {
-    let { id, name, meetingId, cityId, utteranceIds } = highlightData;
+): Promise<HighlightWithUtterances> {
+    const { id, name, meetingId, cityId, utteranceIds, subjectId } = highlightData;
 
     await withUserAuthorizedToEdit({ cityId });
 
-    if (!id) {
-        id = await getNewHighlightId();
+    // Common data for both operations
+    const commonData = {
+        name,
+        highlightedUtterances: {
+            create: utteranceIds.map(utteranceId => ({
+                utterance: { connect: { id: utteranceId } }
+            }))
+        }
+    };
+
+    // Prepare update data with subject handling
+    const updateData = { ...commonData };
+    if (subjectId !== undefined) {
+        (updateData as any).subject = subjectId ? { connect: { id: subjectId } } : { disconnect: true };
     }
+
+    // Prepare create data with subject handling
+    const createData = { ...commonData };
+    if (subjectId !== undefined && subjectId !== null) {
+        (createData as any).subject = { connect: { id: subjectId } };
+    }
+    // Note: If subjectId is null, we don't set the subject field in create (it will be null by default)
 
     try {
         const highlight = await prisma.highlight.upsert({
-            where: { id },
+            where: { id: id || 'new' }, // Use 'new' as placeholder for new records
             update: {
-                name,
+                ...updateData,
                 highlightedUtterances: {
-                    deleteMany: {},
-                    create: utteranceIds.map(utteranceId => ({
-                        utterance: { connect: { id: utteranceId } }
-                    }))
+                    deleteMany: {}, // Only for updates - delete existing records
+                    ...updateData.highlightedUtterances
                 }
             },
             create: {
-                id,
-                name,
-                meeting: { connect: { cityId_id: { id: meetingId, cityId } } },
-                highlightedUtterances: {
-                    create: utteranceIds.map(utteranceId => ({
-                        utterance: { connect: { id: utteranceId } }
-                    }))
-                }
+                ...createData,
+                meeting: { connect: { cityId_id: { id: meetingId, cityId } } }
             },
-            include: {
-                highlightedUtterances: {
-                    include: {
-                        utterance: true
-                    }
-                }
-            }
+            include: highlightWithUtterancesInclude
         });
 
         return highlight;
@@ -106,32 +114,6 @@ export async function upsertHighlight(
         throw new Error('Failed to upsert highlight');
     }
 }
-
-async function getNewHighlightId(): Promise<Highlight["id"]> {
-    const generateRandomId = (length: number) => {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        return result;
-    };
-
-    let id: Highlight["id"];
-    let length = 3;
-    do {
-        id = generateRandomId(length);
-        const existingHighlight = await prisma.highlight.findUnique({ where: { id } });
-        if (!existingHighlight) {
-            return id;
-        } else {
-            length++;
-        }
-    } while (length < 10);
-
-    throw new Error('Failed to generate a unique highlight id');
-}
-
 
 export async function deleteHighlight(id: Highlight["id"]) {
     try {
@@ -142,28 +124,6 @@ export async function deleteHighlight(id: Highlight["id"]) {
     }
 }
 
-export async function addHighlightToSubject({ subjectId, highlightId }: { subjectId: Subject["id"], highlightId: Highlight["id"] }) {
-    try {
-        const updatedHighlight = await prisma.highlight.update({
-            where: { id: highlightId },
-            data: { subjectId: subjectId },
-        });
-
-        return updatedHighlight;
-    } catch (error) {
-        console.error('Error adding highlight to subject:', error);
-        throw new Error('Failed to add highlight to subject');
-    }
-}
-
-export async function removeHighlightFromSubject({ subjectId, highlightId }: { subjectId: Subject["id"], highlightId: Highlight["id"] }) {
-    try {
-        await prisma.highlight.update({ where: { id: highlightId }, data: { subjectId: null } });
-    } catch (error) {
-        console.error('Error removing highlight from subject:', error);
-        throw new Error('Failed to remove highlight from subject');
-    }
-}
 
 export async function toggleHighlightShowcase(id: Highlight["id"]) {
     try {
