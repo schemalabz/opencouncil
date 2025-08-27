@@ -64,7 +64,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Convert filter labels to values
     const selectedFilters = selectedFilterLabels.length > 0
-        ? selectedFilterLabels.map(label => 
+        ? selectedFilterLabels.map(label =>
             filterAvailableValues.find(f => f.label === label)?.value
         ).filter((value): value is F => value !== undefined)
         : filterAvailableValues.map(f => f.value);
@@ -83,8 +83,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     const gridClasses = cn(
         layout === 'carousel' ? "flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent snap-x snap-mandatory" :
-        layout === 'list' ? "flex flex-col gap-4" :
-        "grid gap-4 sm:gap-6",
+            layout === 'list' ? "flex flex-col gap-4" :
+                "grid gap-4 sm:gap-6",
         layout === 'grid' && (
             cn(
                 smColumns === 1 ? "grid-cols-1" : `grid-cols-${smColumns}`,
@@ -145,7 +145,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     const handleFilterChange = (selectedValues: F[]) => {
         const params = new URLSearchParams(searchParams.toString());
-        
+
         // If all filters are selected or no filters are selected, remove the filter parameter
         if (selectedValues.length === filterAvailableValues.length || selectedValues.length === 0) {
             params.delete('filters');
@@ -156,7 +156,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 .filter((label): label is string => label !== undefined);
             params.set('filters', selectedLabels.join(','));
         }
-        
+
         router.replace(`?${params.toString()}`);
     };
 
@@ -223,8 +223,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     )}
                     <div ref={carouselRef} className={gridClasses}>
                         {filteredItems.map((item) => (
-                            <div 
-                                key={item.id} 
+                            <div
+                                key={item.id}
                                 className={carouselItemClasses}
                                 style={layout === 'carousel' ? { width: carouselItemWidth, minWidth: carouselItemWidth } : undefined}
                             >

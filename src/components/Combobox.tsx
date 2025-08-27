@@ -193,7 +193,10 @@ export default function Combobox<T>({
     );
 
     const trigger = (
-        <div onClick={() => !disabled && !loading && setOpen(true)}>
+        <div 
+            onClick={() => !disabled && !loading && setOpen(true)}
+            className={disabled ? "pointer-events-none" : undefined}
+        >
             {TriggerComponent ? (
                 <TriggerComponent
                     item={value}

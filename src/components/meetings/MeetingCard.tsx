@@ -128,19 +128,20 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
     return (
         <motion.div
+            className="h-full"
             whileHover={{ scale: 1.01 }}
             onHoverStart={() => setIsHovered(true)}
             onHoverEnd={() => setIsHovered(false)}
         >
             <Card
                 className={cn(
-                    "relative h-full overflow-hidden transition-all duration-300 group",
+                    "relative h-full overflow-hidden transition-all duration-300 group flex flex-col",
                     "hover:shadow-lg hover:shadow-[#a4c0e1]/20 cursor-pointer",
                     mostRecent ? "border-0" : "border-0"
                 )}
                 onClick={handleClick}
             >
-                <CardContent className="p-0">
+                <CardContent className="p-0 flex flex-col h-full">
                     {/* Loading overlay */}
                     {isLoading && (
                         <motion.div
@@ -157,7 +158,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                         </motion.div>
                     )}
 
-                    <div className="px-5">
+                    <div className="px-5 flex flex-col h-full">
                         {/* Card header - Status badges */}
                         <div className="pt-4 pb-1 flex flex-wrap items-center gap-2">
                             {mostRecent && (
@@ -222,14 +223,53 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                         </div>
 
                         {/* Subjects list - more compact */}
-                        {hasSubjects && (
-                            <div className="mt-2 pb-3">
-                                <div className="pt-2 border-t">
-                                    <div className="flex flex-col">
-                                        {sortedSubjects.slice(0, 3).map((subject) => (
+                        <div className="mt-2 pb-3 flex-1">
+                            <div className="pt-2 border-t flex flex-col h-full">
+                                {hasSubjects ? (
+                                    <>
+                                        <div className="flex flex-col">
+                                            {sortedSubjects.slice(0, 3).map((subject) => (
+                                                <div
+                                                    key={subject.id}
+                                                    className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"
+                                                    style={{
+                                                        transform: 'none',
+                                                        transition: 'none',
+                                                        animation: 'none',
+                                                        willChange: 'auto'
+                                                    }}
+                                                >
+                                                    {/* Extremely aggressive approach to preventing animations */}
+                                                    <div
+                                                        style={{
+                                                            transform: 'none',
+                                                            transition: 'none',
+                                                            animation: 'none',
+                                                            userSelect: 'none',
+                                                            pointerEvents: 'none',
+                                                            willChange: 'auto'
+                                                        }}
+                                                        className="w-full"
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                transform: 'none',
+                                                                transition: 'none',
+                                                                animation: 'none',
+                                                                pointerEvents: 'auto',
+                                                                willChange: 'auto'
+                                                            }}
+                                                        >
+                                                            <SubjectBadge subject={subject} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {remainingSubjectsCount > 0 && (
                                             <div
-                                                key={subject.id}
-                                                className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"
+                                                className="flex items-center justify-between py-1.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/10 cursor-pointer"
                                                 style={{
                                                     transform: 'none',
                                                     transition: 'none',
@@ -237,51 +277,22 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                                     willChange: 'auto'
                                                 }}
                                             >
-                                                {/* Extremely aggressive approach to preventing animations */}
-                                                <div
-                                                    style={{
-                                                        transform: 'none',
-                                                        transition: 'none',
-                                                        animation: 'none',
-                                                        userSelect: 'none',
-                                                        pointerEvents: 'none',
-                                                        willChange: 'auto'
-                                                    }}
-                                                    className="w-full"
-                                                >
-                                                    <div
-                                                        style={{
-                                                            transform: 'none',
-                                                            transition: 'none',
-                                                            animation: 'none',
-                                                            pointerEvents: 'auto',
-                                                            willChange: 'auto'
-                                                        }}
-                                                    >
-                                                        <SubjectBadge subject={subject} />
-                                                    </div>
-                                                </div>
+                                                <span>{t('moreSubjects', { count: remainingSubjectsCount })}</span>
+                                                <ChevronRight className="w-3.5 h-3.5" style={{ transform: 'none' }} />
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    {remainingSubjectsCount > 0 && (
-                                        <div
-                                            className="flex items-center justify-between py-1.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/10 cursor-pointer"
-                                            style={{
-                                                transform: 'none',
-                                                transition: 'none',
-                                                animation: 'none',
-                                                willChange: 'auto'
-                                            }}
-                                        >
-                                            <span>{t('moreSubjects', { count: remainingSubjectsCount })}</span>
-                                            <ChevronRight className="w-3.5 h-3.5" style={{ transform: 'none' }} />
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex items-center justify-center">
+                                        <div className="flex items-center gap-3 w-full">
+                                            <div className="h-px bg-border flex-1"></div>
+                                            <span className="text-xs text-muted-foreground px-2">Χωρίς θέματα</span>
+                                            <div className="h-px bg-border flex-1"></div>
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </CardContent>
             </Card>

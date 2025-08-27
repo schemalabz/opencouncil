@@ -2,6 +2,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/types/chat';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+// Temporary flag to disable chat functionality
+const CHAT_TEMPORARILY_DISABLED = false;
+
 export function useChat() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -27,6 +30,9 @@ export function useChat() {
 
     // Update URL when city changes
     const updateCitySelection = useCallback((cityId: string) => {
+        // Skip city selection changes if temporarily disabled
+        if (CHAT_TEMPORARILY_DISABLED) return;
+        
         const params = new URLSearchParams(searchParams.toString());
         if (cityId) {
             params.set('cityId', cityId);
@@ -37,11 +43,18 @@ export function useChat() {
     }, [router, searchParams]);
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        // Skip input changes if temporarily disabled
+        if (CHAT_TEMPORARILY_DISABLED) return;
+        
         setInput(e.target.value);
     }, []);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Skip submission if temporarily disabled
+        if (CHAT_TEMPORARILY_DISABLED) return;
+        
         if (!input.trim() || isLoading) return;
 
         const userMessage: ChatMessage = {
@@ -192,5 +205,6 @@ export function useChat() {
         setError,
         useMockData,
         setUseMockData,
+        isTemporarilyDisabled: CHAT_TEMPORARILY_DISABLED,
     };
 } 

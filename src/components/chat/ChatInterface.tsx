@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { SendIcon, Database } from "lucide-react";
+import { SendIcon, Database, AlertTriangle } from "lucide-react";
 import { useChat } from "@/hooks/useChat";
 import { MessageList } from "./MessageList";
 import { getCities, getCity } from "@/lib/db/cities";
@@ -33,6 +33,7 @@ export function ChatInterface() {
         setError,
         useMockData,
         setUseMockData,
+        isTemporarilyDisabled,
     } = useChat();
 
     const [cities, setCities] = useState<City[]>([]);
@@ -109,6 +110,24 @@ export function ChatInterface() {
 
     return (
         <div className="h-[calc(100vh-4rem)] flex flex-col">
+            {/* Temporary maintenance message */}
+            {isTemporarilyDisabled && (
+                <div className="max-w-7xl mx-auto w-full px-4 mt-4">
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                            <div>
+                                <h3 className="font-medium text-amber-800">Προσωρινή Διακοπή Λειτουργίας</h3>
+                                <p className="text-sm text-amber-700 mt-1">
+                                    Η λειτουργία συνομιλίας είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. 
+                                    Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Main Chat Area */}
             <main className="flex-1 overflow-y-auto">
                 <MessageList
@@ -119,8 +138,10 @@ export function ChatInterface() {
                     subjectScrollRef={subjectScrollRef}
                     chatContainerRef={chatContainerRef}
                     onSuggestedPromptClick={(text) => {
+                    if (!isTemporarilyDisabled) {
                         setInput(text);
                         setShouldSubmit(true);
+                    }
                     }}
                 />
             </main>
@@ -135,10 +156,10 @@ export function ChatInterface() {
                                 ref={inputRef as any}
                                 value={input}
                                 onChange={handleInputChange}
-                                placeholder="Συνομιλήστε με το OpenCouncil..."
+                                placeholder={isTemporarilyDisabled ? "Η συνομιλία είναι προσωρινά απενεργοποιημένη..." : "Συνομιλήστε με το OpenCouncil..."}
                                 rows={1}
                                 className="flex-1 resize-none bg-transparent border-none outline-none text-base md:text-base placeholder:text-muted-foreground text-foreground px-0 py-2 max-h-40 overflow-auto"
-                                disabled={isLoading}
+                                disabled={isLoading || isTemporarilyDisabled}
                                 onInput={e => {
                                     const target = e.target as HTMLTextAreaElement;
                                     target.style.height = 'auto';
@@ -164,6 +185,7 @@ export function ChatInterface() {
                                     variant="minimal"
                                     getItemLabel={(city) => city.name}
                                     getItemValue={(city) => city.name}
+                                    disabled={isTemporarilyDisabled}
                                 />
                                 {IS_DEV && (
                                     <div className="flex items-center gap-2">
@@ -173,6 +195,7 @@ export function ChatInterface() {
                                                 id="seed-data"
                                                 checked={useMockData}
                                                 onCheckedChange={setUseMockData}
+                                                disabled={isTemporarilyDisabled}
                                             />
                                             <Label htmlFor="seed-data" className="text-sm text-muted-foreground">
                                                 mock data
@@ -184,7 +207,7 @@ export function ChatInterface() {
                             <Button
                                 ref={submitButtonRef}
                                 type="submit"
-                                disabled={isLoading || !input.trim()}
+                                disabled={isLoading || !input.trim() || isTemporarilyDisabled}
                                 size="icon"
                                 className="rounded-full h-8 w-8 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--accent))] text-white transition-colors duration-200"
                             >
