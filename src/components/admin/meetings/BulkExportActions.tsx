@@ -3,16 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
-import { FileDown, Loader2, ChevronDown } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 import { 
-    exportMeetingToPDF, 
     exportMeetingToDocx, 
     generateMeetingFileName, 
     downloadFile
@@ -51,7 +44,7 @@ export function BulkExportActions({
         return data;
     };
 
-    const handleBulkExport = async (format: 'pdf' | 'docx') => {
+    const handleBulkExport = async () => {
         if (selectedMeetings.length === 0) return;
 
         setIsExporting(true);
@@ -66,11 +59,9 @@ export function BulkExportActions({
                     // Fetch complete meeting data via API
                     const meetingData = await fetchCompleteMeetingData(meeting.id);
 
-                    const blob = format === 'pdf' 
-                        ? await exportMeetingToPDF(meetingData)
-                        : await exportMeetingToDocx(meetingData);
+                    const blob = await exportMeetingToDocx(meetingData);
                     
-                    const fileName = generateMeetingFileName(selectedCityId, meeting.id, format);
+                    const fileName = generateMeetingFileName(selectedCityId, meeting.id, 'docx');
                     downloadFile(blob, fileName);
 
                     // Small delay between downloads to prevent browser throttling
@@ -119,50 +110,30 @@ export function BulkExportActions({
                 </span>
             </div>
 
-            {/* Bulk Export Dropdown */}
+            {/* Bulk Export Button */}
             {hasSelectedMeetings && (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button 
-                            variant="outline" 
-                            size="sm"
-                            disabled={isExporting}
-                        >
-                            {isExporting ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    {currentExport && (
-                                        <span className="hidden sm:inline">
-                                            Exporting {currentExport.current}/{currentExport.total}
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    <FileDown className="w-4 h-4 mr-2" />
-                                    <span className="hidden sm:inline">Bulk Export</span>
-                                    <ChevronDown className="w-4 h-4 ml-1" />
-                                </>
+                <Button 
+                    variant="outline" 
+                    size="sm"
+                    disabled={isExporting}
+                    onClick={handleBulkExport}
+                >
+                    {isExporting ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {currentExport && (
+                                <span className="hidden sm:inline">
+                                    Exporting {currentExport.current}/{currentExport.total}
+                                </span>
                             )}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem 
-                            onClick={() => handleBulkExport('pdf')}
-                            disabled={isExporting}
-                        >
+                        </>
+                    ) : (
+                        <>
                             <FileDown className="w-4 h-4 mr-2" />
-                            Export all as PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                            onClick={() => handleBulkExport('docx')}
-                            disabled={isExporting}
-                        >
-                            <FileDown className="w-4 h-4 mr-2" />
-                            Export all as DOCX
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                            <span className="hidden sm:inline">Export all as DOCX</span>
+                        </>
+                    )}
+                </Button>
             )}
         </div>
     );
