@@ -1,4 +1,5 @@
 "use client";
+import { pdf } from '@react-pdf/renderer';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { MeetingData } from '@/lib/getMeetingData';
 
