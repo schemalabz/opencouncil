@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileDown, Loader2 } from "lucide-react";
-import { exportMeetingToPDF, exportMeetingToDocx, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
+import { exportMeetingToDocx, downloadFile, generateMeetingFileName } from '@/lib/export/meetings';
 import { MeetingDataForExport } from "@/lib/export/meetings";
 
 interface MeetingExportButtonsProps {
@@ -23,22 +23,7 @@ export function MeetingExportButtons({
   meetingId,
   disabled = false
 }: MeetingExportButtonsProps) {
-  const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
-
-  const handleExportPDF = async () => {
-    setIsExportingPDF(true);
-    try {
-      const meetingData = await getMeetingData();
-      const blob = await exportMeetingToPDF(meetingData);
-      const fileName = generateMeetingFileName(cityId, meetingId, 'pdf');
-      downloadFile(blob, fileName);
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-    } finally {
-      setIsExportingPDF(false);
-    }
-  };
 
   const handleExportDocx = async () => {
     setIsExportingDocx(true);
@@ -54,25 +39,12 @@ export function MeetingExportButtons({
     }
   };
 
-  const isDisabled = disabled || isExportingPDF || isExportingDocx;
+  const isDisabled = disabled || isExportingDocx;
 
   return (
     <div className="space-y-2 sm:space-y-0 sm:space-x-2 sm:flex">
-      <Button 
-        onClick={handleExportPDF} 
-        className="w-full sm:w-auto"
-        disabled={isDisabled}
-      >
-        {isExportingPDF ? (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-          <FileDown className="w-4 h-4 mr-2" />
-        )}
-        <span>Εξαγωγή σε PDF</span>
-      </Button>
-      
-      <Button 
-        onClick={handleExportDocx} 
+      <Button
+        onClick={handleExportDocx}
         className="w-full sm:w-auto"
         disabled={isDisabled}
       >

@@ -1,7 +1,7 @@
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
-import { getPartyFromRoles } from '@/lib/utils';
+import { getPartyFromRoles, getSingleCityRole } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
 
 const formatTimestamp = (timestamp: number) => {
@@ -11,7 +11,7 @@ const formatTimestamp = (timestamp: number) => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const createTitlePage = ({meeting, city}: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
+const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
     return [
         new Paragraph({ spacing: { before: 2880 } }),
 
@@ -90,7 +90,7 @@ const createTitlePage = ({meeting, city}: Pick<MeetingDataForExport, 'meeting' |
     ];
 };
 
-const createTranscriptSection = ({transcript, people, meeting}: Pick<MeetingDataForExport, 'transcript' | 'people' | 'meeting'>) => {
+const createTranscriptSection = ({ transcript, people, meeting }: Pick<MeetingDataForExport, 'transcript' | 'people' | 'meeting'>) => {
     const paragraphs = [
         new Paragraph({
             heading: HeadingLevel.HEADING_1,
@@ -106,6 +106,7 @@ const createTranscriptSection = ({transcript, people, meeting}: Pick<MeetingData
         const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
         const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
         const party = speaker ? getPartyFromRoles(speaker.roles || [], new Date(meeting.dateTime)) : null;
+        const role = speaker ? getSingleCityRole(speaker.roles || [], new Date(meeting.dateTime)) : null;
 
         const children = [
             new TextRun({
@@ -115,9 +116,9 @@ const createTranscriptSection = ({transcript, people, meeting}: Pick<MeetingData
             }),
         ];
 
-        if (speaker?.role) {
+        if (role) {
             children.push(new TextRun({
-                text: `${speaker.role} `,
+                text: `${role.name} `,
                 size: 20, // 10pt
                 color: '666666'
             }));
@@ -156,8 +157,8 @@ export const renderDocx = async ({ meeting, transcript, people, city }: MeetingD
         sections: [{
             properties: {},
             children: [
-                ...createTitlePage({meeting, city}),
-                ...createTranscriptSection({transcript, people, meeting}),
+                ...createTitlePage({ meeting, city }),
+                ...createTranscriptSection({ transcript, people, meeting }),
             ],
         }],
     });

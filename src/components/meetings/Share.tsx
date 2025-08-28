@@ -43,9 +43,9 @@ export default function ShareC() {
     const { meeting, transcript, people, city } = useCouncilMeetingData();
 
     const getMeetingData = () => ({
-        city, 
-        meeting, 
-        transcript, 
+        city,
+        meeting,
+        transcript,
         people
     });
 

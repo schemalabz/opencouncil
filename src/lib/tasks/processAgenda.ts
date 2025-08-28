@@ -6,7 +6,7 @@ import prisma from "../db/prisma";
 import { createSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getAllTopics } from "../db/topics";
-import { getPartyFromRoles } from "../utils";
+import { getPartyFromRoles, getSingleCityRole } from "../utils";
 
 export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: string, cityId: string, {
     force = false
@@ -72,7 +72,7 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
         people: councilMeeting.city.persons.map(p => ({
             id: p.id,
             name: p.name_short,
-            role: p.role || '',
+            role: getSingleCityRole(p.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined)?.name || '',
             party: getPartyFromRoles(p.roles)?.name || ''
         })),
         topicLabels: topicLabels.map(t => t.name),

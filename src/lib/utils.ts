@@ -323,6 +323,22 @@ export function getPartyFromRoles(
   return activePartyRole?.party || null;
 }
 
+export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], date?: Date, administrativeBodyId?: string): Role[] {
+  const checkDate = date || new Date();
+  let filteredRoles = roles.filter(role => !role.partyId).filter(role => isRoleActiveAt(role, checkDate));
+  if (administrativeBodyId) {
+    filteredRoles = filteredRoles.filter(role => role.administrativeBodyId && role.administrativeBodyId === administrativeBodyId);
+  }
+  return filteredRoles;
+}
+
+export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
+  const checkDate = date || new Date();
+  const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
+  const cityRoles = filteredRoles.filter(role => role.cityId);
+  return cityRoles.length > 0 ? cityRoles[0] : null;
+}
+
 export function normalizeText(text: string): string {
   if (!text) return '';
 

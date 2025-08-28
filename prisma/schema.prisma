@@ -113,10 +113,6 @@ model Person {
   name_short_en String
   image     String?
   
-  // TODO: remove the textual roles -- deprecated
-  role      String?
-  role_en   String?
-
   roles Role[]
 
   activeFrom DateTime?
