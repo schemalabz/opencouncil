@@ -140,8 +140,8 @@ export default async function CouncilMeetingPage({
                         noContainer={true}
                         className="relative z-10 bg-white dark:bg-gray-950"
                     >
-                        <ShareDropdown meetingId={meetingId} cityId={cityId} />
                         <EditSwitch />
+                        <ShareDropdown meetingId={meetingId} cityId={cityId} />
                     </Header>
                     <HighlightModeBar />
                     <div className="flex-1 flex min-h-0">
