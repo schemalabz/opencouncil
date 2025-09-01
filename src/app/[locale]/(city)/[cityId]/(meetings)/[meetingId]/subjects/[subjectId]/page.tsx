@@ -28,7 +28,7 @@ export async function generateMetadata({
         // Create a meaningful description
         const description =
             subject.description ||
-            `Θέμα που συζητήθηκε στο δημοτικό συμβούλιο ${meetingData.city.name} στις ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
+            `Θέμα που συζητήθηκε | ${meetingData.city.name} | ${new Date(meetingData.meeting.dateTime).toLocaleDateString("el-GR")}`;
 
         return {
             title,

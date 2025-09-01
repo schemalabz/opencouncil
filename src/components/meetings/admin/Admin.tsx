@@ -21,12 +21,13 @@ import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
+import { MeetingExportButtons } from '../MeetingExportButtons';
 
 export default function AdminActions({
 }: {
     }) {
     const { toast } = useToast();
-    const { meeting } = useCouncilMeetingData();
+    const { meeting, transcript, people, city } = useCouncilMeetingData();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
@@ -90,6 +91,14 @@ export default function AdminActions({
             setIsTranscribing(false);
         }
     };
+
+    const getMeetingData = () => ({
+        city,
+        meeting,
+        transcript,
+        people
+    });
+
 
     const handleSummarize = async () => {
         setIsSummarizing(true);
@@ -431,7 +440,23 @@ export default function AdminActions({
                 </Button>
             </div>
         </div>
-        <PodcastSpecs />
+
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Podcast Specs</h3>
+            <PodcastSpecs />
+        </div>
+
+        <div className="mt-6">
+
+            <h3 className="text-lg font-semibold mb-4">Export</h3>
+
+            <MeetingExportButtons
+                getMeetingData={getMeetingData}
+                cityId={city.id}
+                meetingId={meeting.id}
+            />
+
+        </div>
     </div>
     );
 };

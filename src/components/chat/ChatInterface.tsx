@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { SendIcon, Database, AlertTriangle } from "lucide-react";
@@ -119,7 +120,7 @@ export function ChatInterface() {
                             <div>
                                 <h3 className="font-medium text-amber-800">Προσωρινή Διακοπή Λειτουργίας</h3>
                                 <p className="text-sm text-amber-700 mt-1">
-                                    Η λειτουργία συνομιλίας είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. 
+                                    Η λειτουργία συνομιλίας είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος.
                                     Παρακαλούμε δοκιμάστε ξανά αργότερα.
                                 </p>
                             </div>
@@ -138,10 +139,10 @@ export function ChatInterface() {
                     subjectScrollRef={subjectScrollRef}
                     chatContainerRef={chatContainerRef}
                     onSuggestedPromptClick={(text) => {
-                    if (!isTemporarilyDisabled) {
-                        setInput(text);
-                        setShouldSubmit(true);
-                    }
+                        if (!isTemporarilyDisabled) {
+                            setInput(text);
+                            setShouldSubmit(true);
+                        }
                     }}
                 />
             </main>

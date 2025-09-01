@@ -10,10 +10,12 @@ import Header from '@/components/layout/Header';
 import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import EditSwitch from '@/components/meetings/edit-switch';
+import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 import { getMeetingState } from '@/lib/utils';
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
+import { ShareProvider } from '@/contexts/ShareContext';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -117,44 +119,47 @@ export default async function CouncilMeetingPage({
     ].filter(Boolean).join(' · ');
 
     return (
-        <CouncilMeetingWrapper meetingData={data} editable={editable}>
-            <SidebarProvider>
-                <NavigationEvents />
-                <div className="h-screen w-full flex flex-col overflow-hidden">
-                    <Header
-                        path={[
-                            {
-                                name: data.city.name,
-                                link: `/${cityId}`,
-                                city: data.city
-                            },
-                            {
-                                name: data.meeting.name,
-                                link: `/${cityId}/${meetingId}`,
-                                description: meetingDescription
-                            }
-                        ]}
-                        showSidebarTrigger={true}
-                        currentEntity={{ cityId: data.city.id }}
-                        noContainer={true}
-                        className="relative z-10 bg-white dark:bg-gray-950"
-                    >
-                        <EditSwitch />
-                    </Header>
-                    <HighlightModeBar />
-                    <div className="flex-1 flex min-h-0">
-                        <MeetingSidebar />
-                        <div className="flex-1 overflow-auto">
-                            <div className='pb-20'>
-                                <Suspense>
-                                    {children}
-                                </Suspense>
+        <ShareProvider>
+            <CouncilMeetingWrapper meetingData={data} editable={editable}>
+                <SidebarProvider>
+                    <NavigationEvents />
+                    <div className="h-screen w-full flex flex-col overflow-hidden">
+                        <Header
+                            path={[
+                                {
+                                    name: data.city.name,
+                                    link: `/${cityId}`,
+                                    city: data.city
+                                },
+                                {
+                                    name: data.meeting.name,
+                                    link: `/${cityId}/${meetingId}`,
+                                    description: meetingDescription
+                                }
+                            ]}
+                            showSidebarTrigger={true}
+                            currentEntity={{ cityId: data.city.id }}
+                            noContainer={true}
+                            className="relative z-10 bg-white dark:bg-gray-950"
+                        >
+                            <EditSwitch />
+                            <ShareDropdown meetingId={meetingId} cityId={cityId} />
+                        </Header>
+                        <HighlightModeBar />
+                        <div className="flex-1 flex min-h-0">
+                            <MeetingSidebar />
+                            <div className="flex-1 overflow-auto">
+                                <div className='pb-20'>
+                                    <Suspense>
+                                        {children}
+                                    </Suspense>
+                                </div>
+                                {data.meeting.muxPlaybackId && <TranscriptControls />}
                             </div>
-                            {data.meeting.muxPlaybackId && <TranscriptControls />}
                         </div>
                     </div>
-                </div>
-            </SidebarProvider>
-        </CouncilMeetingWrapper>
+                </SidebarProvider>
+            </CouncilMeetingWrapper>
+        </ShareProvider>
     );
 }
