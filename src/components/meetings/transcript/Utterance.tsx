@@ -8,7 +8,7 @@ import { editUtterance } from "@/lib/db/utterance";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Share } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -17,6 +17,7 @@ import {
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
+import { useShare } from "@/contexts/ShareContext";
 
 const UtteranceC: React.FC<{
     utterance: Utterance,
@@ -31,6 +32,7 @@ const UtteranceC: React.FC<{
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const { toast } = useToast();
+    const { openShareDropdown } = useShare();
 
     // Update local state when prop changes
     useEffect(() => {
@@ -145,6 +147,11 @@ const UtteranceC: React.FC<{
         });
     };
 
+    const handleShareFromHere = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        openShareDropdown(localUtterance.startTimestamp);
+    };
+
     if (localUtterance.drift > options.maxUtteranceDrift) {
         return <span id={localUtterance.id} className="hover:bg-accent utterance transcript-text" />;
     }
@@ -188,18 +195,24 @@ const UtteranceC: React.FC<{
                     {localUtterance.text + ' '}
                 </span>
             </ContextMenuTrigger>
-            {options.editable && (
-                <ContextMenuContent>
-                    <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
-                        <ArrowLeftToLine className="h-4 w-4 mr-2" />
-                        Move to previous segment
-                    </ContextMenuItem>
-                    <ContextMenuItem onClick={handleMoveUtterancesToNext}>
-                        <ArrowRightToLine className="h-4 w-4 mr-2" />
-                        Move to next segment
-                    </ContextMenuItem>
-                </ContextMenuContent>
-            )}
+            <ContextMenuContent>
+                {options.editable && (
+                    <>
+                        <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
+                            <ArrowLeftToLine className="h-4 w-4 mr-2" />
+                            Move to previous segment
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={handleMoveUtterancesToNext}>
+                            <ArrowRightToLine className="h-4 w-4 mr-2" />
+                            Move to next segment
+                        </ContextMenuItem>
+                    </>
+                )}
+                <ContextMenuItem onClick={handleShareFromHere}>
+                    <Share className="h-4 w-4 mr-2" />
+                    Κοινοποιήστε από εδώ
+                </ContextMenuItem>
+            </ContextMenuContent>
         </ContextMenu>
     );
 });

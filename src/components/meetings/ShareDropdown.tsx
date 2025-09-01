@@ -16,6 +16,7 @@ import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Lo
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useShare } from '@/contexts/ShareContext';
 
 interface ShareDropdownProps {
     meetingId: string;
@@ -31,6 +32,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     const { currentTime } = useVideo();
+    const { isOpen, targetTimestamp, closeShareDropdown } = useShare();
     const pathname = usePathname();
     const t = useTranslations();
 
@@ -56,6 +58,13 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         setOgImageUrl(ogUrl);
     }, [pathname, cityId, meetingId]);
 
+    // Handle opening with a specific timestamp from context
+    useEffect(() => {
+        if (isOpen && targetTimestamp !== null) {
+            setIncludeTimestamp(true);
+        }
+    }, [isOpen, targetTimestamp]);
+
     const handleImageLoad = () => {
         setImageLoading(false);
         setImageError(false);
@@ -67,8 +76,9 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     };
 
     const getShareableUrl = () => {
-        if (includeTimestamp && currentTime > 0) {
-            const timeParam = `t=${Math.floor(currentTime)}`;
+        const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
+        if (includeTimestamp && effectiveTime > 0) {
+            const timeParam = `t=${Math.floor(effectiveTime)}`;
             return url.includes('?') ? `${url}&${timeParam}` : `${url}?${timeParam}`;
         }
         return url;
@@ -113,7 +123,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const shareContext = getShareContext();
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={isOpen} onOpenChange={(open) => !open && closeShareDropdown()}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
@@ -170,7 +180,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     </div>
 
                     {/* Timestamp Checkbox */}
-                    {currentTime > 0 && (
+                    {(currentTime > 0 || targetTimestamp !== null) && (
                         <div className="flex items-center space-x-2 p-2 rounded-md">
                             <Checkbox
                                 id="timestamp"
@@ -181,7 +191,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                 htmlFor="timestamp"
                                 className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
                             >
-                                <span>Ξεκίνημα από το {formatTimestamp(currentTime)}</span>
+                                <span>Ξεκίνημα από το {formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime)}</span>
                             </label>
                         </div>
                     )}
