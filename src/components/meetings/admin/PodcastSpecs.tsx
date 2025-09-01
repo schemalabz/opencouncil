@@ -60,7 +60,6 @@ export default function PodcastSpecs() {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Podcast Specs</h2>
             {podcastSpecs.map(spec => (
                 <Card key={spec.id}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

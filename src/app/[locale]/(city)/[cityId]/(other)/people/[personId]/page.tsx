@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: { params: { locale: string, p
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Προφίλ του δημοτικού συμβούλου ${person.name} στον Δήμο ${city.name}`,
+                    alt: `${person.name} (${city.name})`,
                 }
             ],
             locale: 'el_GR',
@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: { params: { locale: string, p
             'person:name': person.name,
             'person:city': city.name,
             'person:party': currentParty?.name || '',
-            'person:hasImage': person.imageUrl ? 'true' : 'false',
+            'person:hasImage': person.image ? 'true' : 'false',
         }
     };
 }

@@ -1,4 +1,3 @@
-"use client"
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { Suspense } from "react";
 import { Metadata } from "next";
