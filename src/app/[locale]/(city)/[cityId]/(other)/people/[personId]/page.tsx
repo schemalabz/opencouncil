@@ -17,8 +17,8 @@ export async function generateMetadata({ params }: { params: { locale: string, p
 
     if (!person || !city) {
         return {
-            title: "Δημοτικός Σύμβουλος δεν βρέθηκε | OpenCouncil",
-            description: "Ο δημοτικός σύμβουλος που ζητάτε δεν βρέθηκε ή δεν είναι διαθέσιμος.",
+            title: "Το πρόσωπο δεν βρέθηκε | OpenCouncil",
+            description: "Το πρόσωπο που ζητάτε δεν βρέθηκε ή δεν είναι διαθέσιμος.",
         };
     }
 
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: { params: { locale: string, p
     const roleDescription = currentParty ? ` (${currentParty.name})` : '';
 
     // Generate rich description
-    const description = `Προφίλ του δημοτικού συμβούλου ${person.name}${roleDescription} στον Δήμο ${city.name}. Δείτε στατιστικά συμμετοχής, τοποθετήσεις και δραστηριότητα στο δημοτικό συμβούλιο.`;
+    const description = `Προφίλ του προσώπου ${person.name} ${roleDescription} | ${city.name} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
     const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&personId=${params.personId}`;

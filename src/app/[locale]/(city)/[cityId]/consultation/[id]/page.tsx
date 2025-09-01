@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (!consultation || !city) {
         return {
-            title: "Διαβούλευση δεν βρέθηκε | OpenCouncil",
+            title: "Η διαβούλευση δεν βρέθηκε | OpenCouncil",
             description: "Η διαβούλευση που ζητάτε δεν βρέθηκε ή δεν είναι διαθέσιμη.",
         };
     }

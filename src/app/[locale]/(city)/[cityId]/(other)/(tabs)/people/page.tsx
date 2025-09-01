@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: { params: { cityId: string } 
     const partiesCount = parties?.length || 0;
 
     // Generate rich description
-    const description = `Λίστα όλων των δημοτικών συμβούλων του Δήμου ${city.name}. Δείτε ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
+    const description = `Λίστα όλων των δημοτικών συμβούλων και αντιδημάρχων | ${city.name}. ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
     const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&pageType=people`;
@@ -35,6 +35,7 @@ export async function generateMetadata({ params }: { params: { cityId: string } 
             'δημοτικοί σύμβουλοι',
             'δημοτικό συμβούλιο',
             'τοπική αυτοδιοίκηση',
+            'αντιδημαρχοι',
             'κόμματα',
             'παρατάξεις',
             city.name,

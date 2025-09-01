@@ -64,7 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: `Δημόσιες διαβουλεύσεις στον Δήμο ${city.name}`,
+                    alt: `Δημόσιες διαβουλεύσεις | ${city.name}`,
                 }
             ],
             locale: 'el_GR',
