@@ -8,7 +8,7 @@ import { editUtterance } from "@/lib/db/utterance";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Share } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -32,7 +32,7 @@ const UtteranceC: React.FC<{
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const { toast } = useToast();
-    const { openShareDropdown } = useShare();
+    const { openShareDropdownAndCopy } = useShare();
 
     // Update local state when prop changes
     useEffect(() => {
@@ -149,7 +149,7 @@ const UtteranceC: React.FC<{
 
     const handleShareFromHere = (e: React.MouseEvent) => {
         e.stopPropagation();
-        openShareDropdown(localUtterance.startTimestamp);
+        openShareDropdownAndCopy(localUtterance.startTimestamp);
     };
 
     if (localUtterance.drift > options.maxUtteranceDrift) {
@@ -209,7 +209,7 @@ const UtteranceC: React.FC<{
                     </>
                 )}
                 <ContextMenuItem onClick={handleShareFromHere}>
-                    <Share className="h-4 w-4 mr-2" />
+                    <Copy className="h-4 w-4 mr-2" />
                     Κοινοποιήστε από εδώ
                 </ContextMenuItem>
             </ContextMenuContent>
