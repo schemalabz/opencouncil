@@ -426,8 +426,7 @@ async function seedPersons(persons: any[]) {
     activeFrom: person.activeFrom,
     activeTo: person.activeTo,
     profileUrl: person.profileUrl,
-    cityId: person.cityId,
-    partyId: person.partyId,
+    cityId: person.cityId
   }))
 
   // Create all persons at once
@@ -445,7 +444,6 @@ async function seedPersons(persons: any[]) {
         id: role.id,
         personId: person.id,
         cityId: role.cityId,
-        partyId: role.partyId,
         administrativeBodyId: role.administrativeBodyId,
         isHead: role.isHead || false,
         name: role.name,
