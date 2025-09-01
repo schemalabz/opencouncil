@@ -32,9 +32,10 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
     const { currentTime } = useVideo();
-    const { isOpen, targetTimestamp, closeShareDropdown } = useShare();
+    const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
     const t = useTranslations();
+    const [internalOpen, setInternalOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -65,6 +66,26 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         }
     }, [isOpen, targetTimestamp]);
 
+    // Handle automatic copy trigger
+    useEffect(() => {
+        if (shouldTriggerCopy && isOpen) {
+            // Automatically copy to clipboard
+            const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
+            if (effectiveTime > 0) {
+                const urlObj = new URL(url);
+                urlObj.searchParams.delete('t');
+                urlObj.searchParams.set('t', Math.floor(effectiveTime).toString());
+                const shareableUrl = urlObj.toString();
+
+                navigator.clipboard.writeText(shareableUrl).then(() => {
+                    setCopySuccess(true);
+                    setTimeout(() => setCopySuccess(false), 3000);
+                }).catch(console.error);
+            }
+            resetCopyTrigger();
+        }
+    }, [shouldTriggerCopy, isOpen, targetTimestamp, currentTime, url, resetCopyTrigger]);
+
     const handleImageLoad = () => {
         setImageLoading(false);
         setImageError(false);
@@ -78,8 +99,11 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const getShareableUrl = () => {
         const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
         if (includeTimestamp && effectiveTime > 0) {
-            const timeParam = `t=${Math.floor(effectiveTime)}`;
-            return url.includes('?') ? `${url}&${timeParam}` : `${url}?${timeParam}`;
+            // Parse the current URL and remove any existing timestamp parameters
+            const urlObj = new URL(url);
+            urlObj.searchParams.delete('t'); // Remove existing timestamp parameter
+            urlObj.searchParams.set('t', Math.floor(effectiveTime).toString()); // Add new timestamp
+            return urlObj.toString();
         }
         return url;
     };
@@ -122,8 +146,26 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
     const shareContext = getShareContext();
 
+    // Determine if dropdown should be open (controlled by context or internal state)
+    const dropdownOpen = isOpen || internalOpen;
+
+    const handleOpenChange = (open: boolean) => {
+        if (!open) {
+            // Closing - close both context and internal state
+            if (isOpen) {
+                closeShareDropdown();
+            }
+            setInternalOpen(false);
+        } else {
+            // Opening - use internal state if not controlled by context
+            if (!isOpen) {
+                setInternalOpen(true);
+            }
+        }
+    };
+
     return (
-        <DropdownMenu open={isOpen} onOpenChange={(open) => !open && closeShareDropdown()}>
+        <DropdownMenu open={dropdownOpen} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
