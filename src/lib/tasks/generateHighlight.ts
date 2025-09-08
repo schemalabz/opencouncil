@@ -8,7 +8,9 @@ import { getPartyFromRoles, isRoleActiveAt } from '@/lib/utils';
 
 export async function requestGenerateHighlight(
     highlightId: string,
-    options?: { includeCaptions?: boolean; includeSpeakerOverlay?: boolean; aspectRatio?: 'default' | 'social-9x16'; force?: boolean }
+    options?: Pick<GenerateHighlightRequest['render'], 'includeCaptions' | 'includeSpeakerOverlay' | 'aspectRatio' | 'socialOptions'> & { 
+        force?: boolean;
+    }
 ) {
     const highlight = await prisma.highlight.findUnique({
         where: { id: highlightId },
@@ -108,6 +110,9 @@ export async function requestGenerateHighlight(
             includeCaptions: options?.includeCaptions,
             includeSpeakerOverlay: options?.includeSpeakerOverlay,
             aspectRatio: options?.aspectRatio || 'default',
+            ...(options?.aspectRatio === 'social-9x16' && options?.socialOptions && {
+                socialOptions: options.socialOptions
+            }),
         },
     };
 

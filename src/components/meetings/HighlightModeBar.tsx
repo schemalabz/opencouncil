@@ -31,9 +31,10 @@ export function HighlightModeBar() {
     saveHighlight
   } = useHighlight();
 
-  // Simple render settings stub (persist only in this component for now)
-  const [includeCaptions, setIncludeCaptions] = useState(false);
-  const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(false);
+  // Render settings
+  const [includeCaptions, setIncludeCaptions] = useState(true);
+  const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(true);
+  const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
 
   const hasExistingVideo = useMemo(() => {
     if (!editingHighlight) return false;
@@ -93,6 +94,12 @@ export function HighlightModeBar() {
           options: {
             includeCaptions,
             includeSpeakerOverlay: overlaySpeakerNames,
+            aspectRatio,
+            ...(aspectRatio === 'social-9x16' && {
+              socialOptions: {
+                marginType: 'blur'
+              }
+            })
           }
         })
       });
@@ -302,7 +309,14 @@ export function HighlightModeBar() {
                                 <Label htmlFor="overlayNames">Overlay speaker names</Label>
                                 <Switch id="overlayNames" checked={overlaySpeakerNames} onCheckedChange={setOverlaySpeakerNames} />
                               </div>
-                              <p className="text-xs text-muted-foreground">TODO: These options are UI-only for now; backend will ignore them until implemented.</p>
+                              <div className="flex items-center justify-between">
+                                <Label htmlFor="aspectRatio">Social media format (9:16)</Label>
+                                <Switch 
+                                  id="aspectRatio" 
+                                  checked={aspectRatio === 'social-9x16'} 
+                                  onCheckedChange={(checked) => setAspectRatio(checked ? 'social-9x16' : 'default')} 
+                                />
+                              </div>
                             </div>
                           </PopoverContent>
                         </Popover>
