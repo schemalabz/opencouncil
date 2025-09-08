@@ -2,18 +2,41 @@
 
 **Concept**
 
-Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities. The feature provides an intuitive multi-page interface for browsing, previewing, and managing highlights with advanced content editing and subject association capabilities.
+Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities. The feature provides an intuitive multi-page interface for browsing, previewing, and managing highlights with advanced content editing, subject association capabilities, and flexible video generation options including social media formats.
 
 **Architectural Overview**
 
-The Meeting Highlights feature allows authorized users to select segments of a meeting's transcript and combine them into a single video file. 
+The Meeting Highlights feature allows authorized users to select segments of a meeting's transcript and combine them into a single video file with customizable rendering options.
 
 The architecture follows a page-based approach:
 - `/highlights` - Lists all highlights with categorization
-- `/highlights/[highlightId]` - Individual highlight detail view
+- `/highlights/[highlightId]` - Individual highlight detail view with responsive video player
 - `/transcript?highlight=[id]` - Transcript page with editing mode activated
 
-The process begins on the frontend, where a user selects utterances and initiates the creation process. The request is sent to the backend, which first creates a `Highlight` record in the database, associating it with the selected `Utterance` records. It then dispatches a task to an external media processing server. This server retrieves the source video and the timestamp information from the database, creates the highlight video, and upon completion, updates the `Highlight` record with the URL to the new video.
+The process begins on the frontend, where a user selects utterances and configures video generation options. The request is sent to the backend, which first creates a `Highlight` record in the database, associating it with the selected `Utterance` records. It then dispatches a task to an external media processing server with link to the source video, utterances and timestamp information and rendering specifications. This server creates the highlight video with the specified format and options.
+
+**Video Generation Features**
+
+The system supports multiple video formats and rendering options:
+
+### **Aspect Ratios**
+- **Default (16:9)**: Traditional landscape format suitable for desktop viewing and standard video platforms
+- **Social Media (9:16)**: Portrait format optimized for mobile-first social platforms like TikTok, Instagram Stories, and YouTube Shorts
+
+### **Rendering Options**
+- **Captions**: Overlaid text transcription of spoken content
+- **Speaker Overlays**: Visual identification of speakers during their segments
+- **Social Media Enhancements**: When using 9:16 format, additional options include:
+  - Margin types: Blur or solid color backgrounds
+  - Background color customization
+  - Zoom factor adjustment for optimal video framing
+
+### **Responsive Video Player**
+The video player automatically adapts to different aspect ratios:
+- **Dynamic Sizing**: Container adjusts based on video dimensions
+- **Portrait Video Handling**: 9:16 videos are properly sized and centered
+- **Responsive Layout**: Side-by-side content and video on desktop, stacked on mobile
+- **Automatic Detection**: Video dimensions are detected on load for optimal display
 
 **Sequence Diagram**
 
@@ -34,10 +57,11 @@ sequenceDiagram
     User->>Frontend: Selects utterances in transcript view (edit mode)
     Frontend->>Backend: upsertHighlight on save or before generate (auto-save)
     User->>Frontend: Toggles preview and loops playback
-    Frontend->>Backend: requestSplitMediaFileForHighlight (Generate/Re-generate)
-    Backend->>Task Server: Dispatches splitMediaFile task
+    User->>Frontend: Configures video generation options (aspect ratio, captions, overlays)
+    Frontend->>Backend: requestGenerateHighlight with rendering options
+    Backend->>Task Server: Dispatches generateHighlight task with format specifications
     Task Server->>Database: Reads Highlight and Utterance data for timestamps
-    Task Server-->>Task Server: Processes video file
+    Task Server-->>Task Server: Processes video file with specified format and options
     Task Server->>Backend: Webhook with video URL and Mux ID
     Backend->>Database: Updates Highlight with videoUrl and muxPlaybackId
     User->>Frontend: Navigates to /[cityId]/[meetingId]/highlights/[highlightId] to view results
@@ -73,18 +97,18 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### **Individual Highlight View**
+### **Individual Highlight View with Responsive Video**
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Highlight Details                        │
 │  [← Back to Highlights] [Edit Content] [★] [Download] [🗑️] │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  [Content & Video]                                          │
-│  ┌─────────────────┬─────────────────┐                     │
+│  [Content & Video] - Responsive Layout                     │
+│  ┌─────────────────┬─────────────────┐ (Desktop)           │
 │  │ 📝 Content      │ 🎬 Video        │                     │
 │  │ Preview         │ Player          │                     │
-│  │                 │                 │                     │
+│  │                 │ (Auto-sizing)   │                     │
 │  └─────────────────┴─────────────────┘                     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -116,17 +140,32 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
    - Exiting preview pauses playback
    - Embedded content preview is shown inside the mode bar
 
-4. **Details Management**:
+4. **Video Generation Configuration**:
+   - Access generation options via the settings menu in `HighlightModeBar`
+   - **Format Selection**: Choose between default (16:9) and social media (9:16) aspect ratios
+   - **Content Options**: Toggle captions and speaker overlay features
+   - **Social Media Enhancements**: When 9:16 format is selected:
+     - Margin type selection (blur effect or solid color)
+     - Background color customization for solid margins
+     - Zoom factor adjustment for optimal framing
+   - Settings persist during the editing session for consistent generation
+
+5. **Details Management**:
    - Navigate to `/[cityId]/[meetingId]/highlights/[highlightId]` to view full details
    - Edit icons next to highlight name/subject open the same dialog used for create/edit
    - Subject connection with searchable dropdown; clear visual feedback for connected subjects
+   - **Responsive Video Display**: Video player automatically adapts to aspect ratio
+     - Portrait videos (9:16) are properly sized and centered
+     - Landscape videos (16:9) use full container width
+     - Responsive grid layout adapts to screen size
 
-5. **Preview & Actions**:
-   - Integrated content and video display (side-by-side on desktop, stacked on mobile)
+6. **Preview & Actions**:
+   - Integrated content and video display with responsive layout
    - Action buttons consolidated in the main action bar
-   - Generate Video available; if a video already exists, the action is Re-generate
+   - Generate Video available with configured options; if a video already exists, the action is Re-generate
    - Generate/Re-generate auto-saves if there are unsaved changes before dispatching the task
    - Showcase toggle is available only when a video exists (`muxPlaybackId` set)
+   - Video downloads respect the generated format and aspect ratio
 
 ### **Visual Representation & Timeline**
 
@@ -152,18 +191,19 @@ The system provides multiple visual representations of highlight composition:
 #### **Mode Bar Integration (`HighlightModeBar.tsx`)**
 - **Statistics Display**: Real-time duration, speaker count, and utterance count
 - **Preview Integration**: Embedded content preview when in preview mode
+- **Generation Options**: Accessible video generation settings with format selection
 - **Navigation Controls**: Previous/next highlight navigation
 - **Mode Toggle**: Switch between edit and preview modes
 - **Save/Reset/Exit**: Save now, reset to original, and exit editing (with unsaved-changes prompt)
-- **Generate**: Generate/Re-generate video in preview mode; auto-saves when needed
+- **Generate**: Generate/Re-generate video with configured options; auto-saves when needed
 
 ### **Categorization System**
 
 Highlights are automatically categorized into three distinct sections:
 
 1. **Showcased Highlights** (⭐): Featured highlights marked for special attention
-2. **Video Highlights** (▶️): Non-showcased highlights that have generated videos
-3. **Draft Highlights** (⏰): Highlights without videos, ready for content editing
+2. **Video Highlights** (▶️): Non-showcased highlights that have generated videos (supports both 16:9 and 9:16 formats)
+3. **Draft Highlights** (⏰): Highlights without videos, ready for content editing and generation
 
 This categorization provides better organization and helps users understand the status of each highlight.
 
@@ -175,10 +215,11 @@ This categorization provides better organization and helps users understand the 
 *   **Frontend Components**:
     *   `CouncilMeeting`: `src/components/meetings/CouncilMeeting.tsx`
     *   `HighlightsList`: `src/components/meetings/HighlightsList.tsx` (main list interface)
-    *   `HighlightView`: `src/components/meetings/HighlightView.tsx` (individual highlight view)
+    *   `HighlightView`: `src/components/meetings/HighlightView.tsx` (individual highlight view with responsive video)
+    *   `HighlightVideo`: `src/components/meetings/HighlightVideo.tsx` (adaptive video player with aspect ratio detection)
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
-    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics, save/reset/exit, preview, and generate)
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics, generation options, save/reset/exit, preview, and generate)
     *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:
@@ -189,8 +230,10 @@ This categorization provides better organization and helps users understand the 
 *   **Backend Logic**:
     *   `upsertHighlight`: `src/lib/db/highlights.ts`
     *   `deleteHighlight`: `src/lib/db/highlights.ts`
-    *   `requestSplitMediaFileForHighlight`: `src/lib/tasks/splitMediaFile.ts`
-    *   `handleSplitMediaFileResult`: `src/lib/tasks/splitMediaFile.ts`
+    *   `requestGenerateHighlight`: `src/lib/tasks/generateHighlight.ts` (enhanced with rendering options)
+    *   `handleGenerateHighlightResult`: `src/lib/tasks/generateHighlight.ts`
+*   **API Types**:
+    *   `GenerateHighlightRequest`: `src/lib/apiTypes.ts` (includes aspect ratio and social media options)
 
 **HighlightContext API (summary)**
 
@@ -223,5 +266,5 @@ This categorization provides better organization and helps users understand the 
 *   After creating a highlight, users are automatically redirected to editing mode on the transcript page.
 *   Highlights are categorized into Showcased, Video, and Draft sections for better organization.
 *   The interface uses Next.js App Router with dynamic routes for improved navigation and SEO.
-*   Content preview and video player are integrated in a responsive grid layout for better mobile experience.
+*   **Video generation supports multiple aspect ratios and rendering options for different use cases.**
 *   All action buttons are consolidated in the main action bar for consistency and ease of use. 

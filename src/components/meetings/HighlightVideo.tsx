@@ -16,7 +16,7 @@ const LocalVideoPlayer: React.FC<HighlightVideoProps> = ({ id, title, videoUrl, 
 
     return (
         <div 
-            className={cn("relative w-full aspect-video bg-black rounded-lg overflow-hidden", className)}
+            className={cn("relative w-full bg-black rounded-lg overflow-hidden", className)}
             onClick={(e) => e.stopPropagation()}
         >
             <video
@@ -44,7 +44,7 @@ const MuxVideoPlayer: React.FC<HighlightVideoProps> = ({ id, title, playbackId, 
 
     return (
         <div 
-            className={cn("relative w-full aspect-video bg-black rounded-lg overflow-hidden", className)}
+            className={cn("relative w-full bg-black rounded-lg overflow-hidden", className)}
             onClick={(e) => e.stopPropagation()}
         >
             <MuxVideo

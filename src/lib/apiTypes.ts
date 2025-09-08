@@ -329,6 +329,13 @@ export interface GenerateHighlightRequest extends TaskRequest {
         includeCaptions?: boolean;
         includeSpeakerOverlay?: boolean;
         aspectRatio?: 'default' | 'social-9x16';
+        
+        // Social media formatting options (only used when aspectRatio is 'social-9x16')
+        socialOptions?: {
+            marginType?: 'blur' | 'solid';
+            backgroundColor?: string;
+            zoomFactor?: number;
+        };
     };
 }
 

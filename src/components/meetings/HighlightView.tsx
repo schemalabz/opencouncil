@@ -361,7 +361,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                       Video
                     </h4>
                   </div>
-                  <div className="aspect-video rounded-lg overflow-hidden">
+                  <div className="rounded-lg overflow-hidden">
                     <HighlightVideo
                       id={highlight.id}
                       title={highlight.name}
