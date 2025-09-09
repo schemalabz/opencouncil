@@ -4,7 +4,7 @@ import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { startTask } from './tasks';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';
-import { getPartyFromRoles, isRoleActiveAt } from '@/lib/utils';
+import { getPartyFromRoles, isRoleActiveAt, getSingleCityRole } from '@/lib/utils';
 
 export async function requestGenerateHighlight(
     highlightId: string,
@@ -29,14 +29,13 @@ export async function requestGenerateHighlight(
                                 include: {
                                     speakerTag: {
                                         include: {
-                                            person: {
-                                                include: {
-                                                    roles: {
-                                                        where: { cityId: { not: null } },
-                                                        include: { party: true },
-                                                    },
-                                                },
+                                                                                person: {
+                                        include: {
+                                            roles: {
+                                                include: { party: true },
                                             },
+                                        },
+                                    },
                                         },
                                     },
                                 },
@@ -75,9 +74,15 @@ export async function requestGenerateHighlight(
                 partyLabel = party.name_short || party.name;
             }
             
-            // Find the active role at the meeting date
-            const activeRole = person.roles.find(role => isRoleActiveAt(role, highlight.meeting.dateTime));
-            roleLabel = activeRole?.name || undefined;
+            // For role label, prioritize city/administrative roles for non-party speakers
+            const cityRole = getSingleCityRole(person.roles, highlight.meeting.dateTime, highlight.meeting.administrativeBodyId || undefined);
+            if (cityRole) {
+                roleLabel = cityRole.name || undefined;
+            } else {
+                // Fallback to any active role if no city role found
+                const activeRole = person.roles.find(role => isRoleActiveAt(role, highlight.meeting.dateTime));
+                roleLabel = activeRole?.name || undefined;
+            }
         }
         
         return {
@@ -87,7 +92,7 @@ export async function requestGenerateHighlight(
             text: u.text,
             speaker: {
                 id: person?.id,
-                name: person?.name,
+                name: person?.name || speakerTag.label || undefined,
                 partyColorHex,
                 partyLabel,
                 roleLabel,
