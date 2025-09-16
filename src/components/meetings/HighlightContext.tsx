@@ -48,7 +48,12 @@ interface HighlightContextType {
   goToHighlightIndex: (index: number) => void;
   togglePreviewMode: () => void;
   calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
-  saveHighlight: () => Promise<{ success: boolean; error?: any }>;
+  saveHighlight: (options?: {
+    name?: string;
+    subjectId?: string | null;
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }) => Promise<{ success: boolean; error?: any }>;
   createHighlight: (options: {
     preSelectedUtteranceId?: string;
     onSuccess?: (highlight: HighlightWithUtterances) => void;
@@ -263,7 +268,23 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     // Store the original highlight for reset functionality
     setOriginalHighlight(highlight);
     setIsDirty(false); // Start with clean state
-  }, [setEditingHighlight, setOriginalHighlight, setIsDirty]);
+    
+    // Auto-navigate to transcript page with highlight parameter if not already there
+    const currentPath = window.location.pathname;
+    const expectedPath = `/${highlight.cityId}/${highlight.meetingId}/transcript`;
+    const expectedUrl = `${expectedPath}?highlight=${highlight.id}`;
+    
+    // Check if we're already on the transcript page
+    if (currentPath === expectedPath) {
+      // We're on transcript page, just add/update the highlight parameter
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('highlight', highlight.id);
+      router.replace(currentUrl.pathname + currentUrl.search);
+    } else if (!currentPath.includes('/transcript')) {
+      // We're not on transcript page, navigate to it with highlight parameter
+      router.push(expectedUrl);
+    }
+  }, [setEditingHighlight, setOriginalHighlight, setIsDirty, router]);
 
   // Check if editing should be disabled (e.g., during save operations)
   // This prevents users from making changes while operations like saving are in progress
@@ -367,35 +388,63 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   }, [editingHighlight, router, setIsPlaying]);
 
   // Save highlight functionality
-  const saveHighlight = useCallback(async () => {
-    if (!editingHighlight || !isDirty) {
+  const saveHighlight = useCallback(async (options?: {
+    name?: string;
+    subjectId?: string | null;
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }) => {
+    if (!editingHighlight) {
+      return { success: false, error: 'No highlight to save' };
+    }
+
+    // Check if we have changes to save (either dirty state or explicit updates)
+    const hasChanges = isDirty || (options?.name !== undefined) || (options?.subjectId !== undefined);
+    
+    if (!hasChanges) {
       return { success: false, error: 'No changes to save' };
     }
 
     try {
       setIsSaving(true);
+      
+      // Prepare the update data
+      const updateData = {
+        name: options?.name ?? editingHighlight.name,
+        meetingId: editingHighlight.meetingId,
+        cityId: editingHighlight.cityId,
+        utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId),
+        ...(options?.subjectId !== undefined && { subjectId: options.subjectId })
+      };
+
       const res = await fetch(`/api/highlights/${editingHighlight.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editingHighlight.name,
-          meetingId: editingHighlight.meetingId,
-          cityId: editingHighlight.cityId,
-          utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
-        })
+        body: JSON.stringify(updateData)
       });
+      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || 'Failed to save');
       }
       
-      // Reset change tracking after successful save
-      setOriginalHighlight(editingHighlight);
+      // Update the editing highlight with new data if name or subject changed
+      if (options?.name !== undefined || options?.subjectId !== undefined) {
+        const updatedHighlight = await res.json();
+        setEditingHighlight(updatedHighlight);
+        setOriginalHighlight(updatedHighlight);
+      } else {
+        // Just reset change tracking for utterance changes
+        setOriginalHighlight(editingHighlight);
+      }
+      
       setIsDirty(false);
+      options?.onSuccess?.();
       
       return { success: true };
     } catch (error) {
       console.error('Failed to save highlight:', error);
+      options?.onError?.(error as Error);
       return { success: false, error };
     } finally {
       setIsSaving(false);

@@ -4,7 +4,7 @@ import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Pencil } from 'lucide-react';
+import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Pencil, Edit, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { HighlightDialog } from './HighlightDialog';
 
 export function HighlightModeBar() {
   const { 
@@ -35,6 +36,7 @@ export function HighlightModeBar() {
   const [includeCaptions, setIncludeCaptions] = useState(true);
   const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const hasExistingVideo = useMemo(() => {
     if (!editingHighlight) return false;
@@ -167,10 +169,38 @@ export function HighlightModeBar() {
     exitEditMode();
   };
 
+  const handleEditDetails = () => {
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (name: string, subjectId?: string) => {
+    if (!editingHighlight) return;
+
+    await saveHighlight({
+      name,
+      subjectId: subjectId || null,
+      onSuccess: () => {
+        toast({
+          title: "Success",
+          description: "Highlight updated successfully.",
+          variant: "default",
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: "Failed to update highlight. Please try again.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
   // Single CTA will auto-save if needed; label adapts based on existing video
   const generateCtaLabel = hasExistingVideo ? 'Re-generate Video' : 'Generate Video';
 
   return (
+    <>
     <AnimatePresence initial={false}>
       <motion.div
         layout
@@ -205,7 +235,17 @@ export function HighlightModeBar() {
                     </Badge>
                   )}
                   <div className="flex items-center space-x-2">
-                    <span className="font-medium text-sm">{editingHighlight.name}</span>
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium text-sm">{editingHighlight.name}</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0 hover:bg-muted"
+                        onClick={handleEditDetails}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                       <div className="flex items-center space-x-1">
                         <Clock className="h-4 w-4" />
@@ -380,5 +420,17 @@ export function HighlightModeBar() {
         </Card>
       </motion.div>
     </AnimatePresence>
+
+    {/* Edit Dialog */}
+    {editingHighlight && (
+      <HighlightDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        highlight={editingHighlight}
+        onSave={handleSaveEdit}
+        mode="edit"
+      />
+    )}
+    </>
   );
 } 

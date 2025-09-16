@@ -134,6 +134,7 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
    - Real-time statistics update (duration, speaker count, utterance count)
    - Navigation controls: Previous/Next clip within the timeline controls (shows "Clip X/Y")
    - Unsaved changes are tracked; an "Unsaved Changes" badge appears
+   - **Name and Subject Editing**: Click edit icon next to highlight name in mode bar
    - Save/Reset available via the overflow menu in `HighlightModeBar`
    - Exit Editing prompts if there are unsaved changes and returns to `/[cityId]/[meetingId]/highlights`
 
@@ -156,8 +157,8 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 
 5. **Details Management**:
    - Navigate to `/[cityId]/[meetingId]/highlights/[highlightId]` to view full details
-   - Edit icons next to highlight name/subject open the same dialog used for create/edit
-   - Subject connection with searchable dropdown; clear visual feedback for connected subjects
+   - **Read-only display** with clear field labels (Name, Connected Subject, Showcased status)
+   - **Single editing path**: All editing must be done through "Edit Highlight" button → transcript page
    - **Responsive Video Display**: Video player automatically adapts to aspect ratio
      - Portrait videos (9:16) are properly sized and centered
      - Landscape videos (16:9) use full container width
@@ -198,6 +199,7 @@ The system provides multiple visual representations of highlight composition:
 - **Generation Options**: Accessible video generation settings with format selection
 - **Navigation Controls**: Previous/next highlight navigation
 - **Mode Toggle**: Switch between edit and preview modes
+- **Name/Subject Editing**: Edit icon next to highlight name opens dialog for name and subject updates
 - **Save/Reset/Exit**: Save now, reset to original, and exit editing (with unsaved-changes prompt)
 - **Generate**: Generate/Re-generate video with configured options; auto-saves when needed
 
@@ -246,7 +248,7 @@ This categorization provides better organization and helps users understand the 
 - `updateHighlightUtterances(utteranceId, 'add' | 'remove')` — modify composition in-memory and mark dirty
 - `togglePreviewMode()` — preview selection; entering seeks and auto-plays first clip; exiting pauses
 - `goToPreviousHighlight()` / `goToNextHighlight()` / `goToHighlightIndex(i)` — navigation; loops in preview, clamps in edit
-- `saveHighlight()` — persists current composition; used explicitly or implicitly before generate
+- `saveHighlight(options?)` — persists current composition with optional name/subjectId updates; used explicitly or implicitly before generate
 - `resetToOriginal()` — discard unsaved changes
 - `exitEditMode()` — return to highlights list; prompts if unsaved changes
 - `createHighlight(options)` — create new highlight with optional pre-selected utterance and callbacks
@@ -276,4 +278,6 @@ This categorization provides better organization and helps users understand the 
 *   All action buttons are consolidated in the main action bar for consistency and ease of use.
 *   **Highlight creation is streamlined with multiple entry points**: header button, context menu, and list button.
 *   **Auto-generated names** ("Unnamed Highlight") simplify the creation process and can be edited later.
-*   **Context menu integration** allows users to start highlights directly from any utterance in the transcript. 
+*   **Context menu integration** allows users to start highlights directly from any utterance in the transcript.
+*   **Centralized editing workflow**: All highlight editing (content, name, subject) happens in transcript edit mode.
+*   **Unified save functionality**: Single saveHighlight method handles both content and metadata updates with callbacks.
