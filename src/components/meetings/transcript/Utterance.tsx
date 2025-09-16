@@ -5,10 +5,9 @@ import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
 import { editUtterance } from "@/lib/db/utterance";
-import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -26,13 +25,17 @@ const UtteranceC: React.FC<{
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
-    const { editingHighlight, updateHighlightUtterances } = useHighlight();
+    const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
+    const canEdit = options.editsAllowed;
+
+    // Check if there are any context menu options available
+    const hasContextMenuOptions = !editingHighlight && (canEdit || options.editable);
 
     // Update local state when prop changes
     useEffect(() => {
@@ -152,6 +155,28 @@ const UtteranceC: React.FC<{
         openShareDropdownAndCopy(localUtterance.startTimestamp);
     };
 
+    const handleStartHighlightHere = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        await createHighlight({
+            preSelectedUtteranceId: localUtterance.id,
+            onSuccess: (highlight) => {
+                toast({
+                    title: "Highlight Created",
+                    description: "Highlight started with this utterance. Add more utterances to build your highlight.",
+                    variant: "default",
+                });
+            },
+            onError: (error) => {
+                toast({
+                    title: "Error",
+                    description: "Failed to create highlight. Please try again.",
+                    variant: "destructive",
+                });
+            }
+        });
+    };
+
     if (localUtterance.drift > options.maxUtteranceDrift) {
         return <span id={localUtterance.id} className="hover:bg-accent utterance transcript-text" />;
     }
@@ -188,6 +213,14 @@ const UtteranceC: React.FC<{
         );
     }
 
+    if (!hasContextMenuOptions) {
+        return (
+            <span className={className} id={localUtterance.id} onClick={handleClick}>
+                {localUtterance.text + ' '}
+            </span>
+        );
+    }
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -196,6 +229,12 @@ const UtteranceC: React.FC<{
                 </span>
             </ContextMenuTrigger>
             <ContextMenuContent>
+                {canEdit && !editingHighlight && (
+                    <ContextMenuItem onClick={handleStartHighlightHere}>
+                        <Star className="h-4 w-4 mr-2" />
+                        Ξεκινήστε Highlight από εδώ
+                    </ContextMenuItem>
+                )}
                 {options.editable && (
                     <>
                         <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
@@ -208,10 +247,12 @@ const UtteranceC: React.FC<{
                         </ContextMenuItem>
                     </>
                 )}
-                <ContextMenuItem onClick={handleShareFromHere}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Κοινοποιήστε από εδώ
-                </ContextMenuItem>
+                {!editingHighlight && (
+                    <ContextMenuItem onClick={handleShareFromHere}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Κοινοποιήστε από εδώ
+                    </ContextMenuItem>
+                )}
             </ContextMenuContent>
         </ContextMenu>
     );

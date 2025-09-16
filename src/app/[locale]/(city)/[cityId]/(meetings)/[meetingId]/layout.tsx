@@ -16,6 +16,8 @@ import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 import { getMeetingState } from '@/lib/utils';
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
+import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
+import { HighlightProvider } from '@/components/meetings/HighlightContext';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -121,44 +123,49 @@ export default async function CouncilMeetingPage({
     return (
         <ShareProvider>
             <CouncilMeetingWrapper meetingData={data} editable={editable}>
-                <SidebarProvider>
-                    <NavigationEvents />
-                    <div className="h-screen w-full flex flex-col overflow-hidden">
-                        <Header
-                            path={[
-                                {
-                                    name: data.city.name,
-                                    link: `/${cityId}`,
-                                    city: data.city
-                                },
-                                {
-                                    name: data.meeting.name,
-                                    link: `/${cityId}/${meetingId}`,
-                                    description: meetingDescription
-                                }
-                            ]}
-                            showSidebarTrigger={true}
-                            currentEntity={{ cityId: data.city.id }}
-                            noContainer={true}
-                            className="relative z-10 bg-white dark:bg-gray-950"
-                        >
-                            <EditSwitch />
-                            <ShareDropdown meetingId={meetingId} cityId={cityId} />
-                        </Header>
-                        <HighlightModeBar />
-                        <div className="flex-1 flex min-h-0">
-                            <MeetingSidebar />
-                            <div className="flex-1 overflow-auto">
-                                <div className='pb-20'>
-                                    <Suspense>
-                                        {children}
-                                    </Suspense>
+                <HighlightProvider>
+                    <SidebarProvider>
+                        <NavigationEvents />
+                        <div className="h-screen w-full flex flex-col overflow-hidden">
+                            <Header
+                                path={[
+                                    {
+                                        name: data.city.name,
+                                        link: `/${cityId}`,
+                                        city: data.city
+                                    },
+                                    {
+                                        name: data.meeting.name,
+                                        link: `/${cityId}/${meetingId}`,
+                                        description: meetingDescription
+                                    }
+                                ]}
+                                showSidebarTrigger={true}
+                                currentEntity={{ cityId: data.city.id }}
+                                noContainer={true}
+                                className="relative z-10 bg-white dark:bg-gray-950"
+                            >
+                                <EditSwitch />
+                                <div className="flex items-center space-x-2">
+                                    <CreateHighlightButton />
+                                    <ShareDropdown meetingId={meetingId} cityId={cityId} />
                                 </div>
-                                {data.meeting.muxPlaybackId && <TranscriptControls />}
+                            </Header>
+                            <HighlightModeBar />
+                            <div className="flex-1 flex min-h-0">
+                                <MeetingSidebar />
+                                <div className="flex-1 overflow-auto">
+                                    <div className='pb-20'>
+                                        <Suspense>
+                                            {children}
+                                        </Suspense>
+                                    </div>
+                                    {data.meeting.muxPlaybackId && <TranscriptControls />}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </SidebarProvider>
+                    </SidebarProvider>
+                </HighlightProvider>
             </CouncilMeetingWrapper>
         </ShareProvider>
     );

@@ -5,13 +5,11 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Plus, Play, Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Clock, Users, Star, Play, Loader2 } from "lucide-react";
 
 import { formatTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
-import { HighlightDialog } from "./HighlightDialog";
+import { CreateHighlightButton } from "./CreateHighlightButton";
 import { useTranscriptOptions } from "./options/OptionsContext";
 
 interface HighlightCardProps {
@@ -98,54 +96,11 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
 };
 
 const AddHighlightButton = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { meeting } = useCouncilMeetingData();
-  const router = useRouter();
-
-  const handleCreateHighlight = async (name: string, subjectId?: string) => {
-    try {
-      const res = await fetch(`/api/highlights`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          meetingId: meeting.id,
-          cityId: meeting.cityId,
-          utteranceIds: [],
-          subjectId
-        })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || 'Failed to create');
-      }
-      const newHighlight: HighlightWithUtterances = await res.json();
-      
-      // The dialog will handle showing success feedback
-      // Navigate directly to transcript page with editing mode for the new highlight
-      router.push(`/${meeting.cityId}/${meeting.id}/transcript?highlight=${newHighlight.id}`);
-    } catch (error) {
-      console.error('Failed to create highlight:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create highlight. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="p-4 border-b">
-      <Button className="w-full" size="lg" onClick={() => setIsDialogOpen(true)}>
-        <Plus className="h-5 w-5 mr-2" />
-        Create New Highlight
-      </Button>
-      
-      <HighlightDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSave={handleCreateHighlight}
-        mode="create"
+      <CreateHighlightButton 
+        variant="full" 
+        size="lg"
       />
     </div>
   );

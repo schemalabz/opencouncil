@@ -36,6 +36,7 @@ interface HighlightContextType {
   utteranceMap: Map<string, Utterance>; // Pre-built utterance map for performance
   hasUnsavedChanges: boolean;
   isSaving: boolean;
+  isCreating: boolean;
   isEditingDisabled: boolean;
   enterEditMode: (highlight: HighlightWithUtterances) => void;
   updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove') => void;
@@ -48,6 +49,11 @@ interface HighlightContextType {
   togglePreviewMode: () => void;
   calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
   saveHighlight: () => Promise<{ success: boolean; error?: any }>;
+  createHighlight: (options: {
+    preSelectedUtteranceId?: string;
+    onSuccess?: (highlight: HighlightWithUtterances) => void;
+    onError?: (error: Error) => void;
+  }) => Promise<{ success: boolean; error?: any }>;
 }
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
@@ -59,9 +65,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [originalHighlight, setOriginalHighlight] = useState<HighlightWithUtterances | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
+  const { transcript, getSpeakerTag, getPerson, meeting } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
 
@@ -395,6 +402,51 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     }
   }, [editingHighlight, isDirty]);
 
+  // Create highlight functionality
+  const createHighlight = useCallback(async (options: {
+    preSelectedUtteranceId?: string;
+    onSuccess?: (highlight: HighlightWithUtterances) => void;
+    onError?: (error: Error) => void;
+  }) => {
+    const { preSelectedUtteranceId, onSuccess, onError } = options;
+    
+    try {
+      setIsCreating(true);
+      
+      const utteranceIds = preSelectedUtteranceId ? [preSelectedUtteranceId] : [];
+      
+      const res = await fetch('/api/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId: meeting.id,
+          cityId: meeting.cityId,
+          utteranceIds
+        })
+      });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to create highlight');
+      }
+      
+      const highlight = await res.json();
+      
+      // Immediately enter editing mode
+      enterEditMode(highlight);
+      
+      onSuccess?.(highlight);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to create highlight:', error);
+      onError?.(error as Error);
+      return { success: false, error };
+    } finally {
+      setIsCreating(false);
+    }
+  }, [meeting, enterEditMode]);
+
   const value = {
     editingHighlight,
     previewMode,
@@ -405,6 +457,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     utteranceMap,
     hasUnsavedChanges: isDirty,
     isSaving,
+    isCreating,
     isEditingDisabled,
     enterEditMode,
     updateHighlightUtterances,
@@ -417,6 +470,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     togglePreviewMode,
     calculateHighlightData,
     saveHighlight,
+    createHighlight,
   };
 
   return (

@@ -48,12 +48,12 @@ sequenceDiagram
     participant Database
     participant Task Server
 
-    User->>Frontend: Clicks "Create New Highlight" on highlights page
-    Frontend->>Backend: upsertHighlight request with utterance IDs (initially empty)
-    Backend->>Database: Creates `Highlight` and `HighlightedUtterance` records
+    User->>Frontend: Clicks "Create Highlight" button or right-clicks utterance
+    Frontend->>Backend: upsertHighlight request with utterance IDs (empty or pre-selected)
+    Backend->>Database: Creates `Highlight` and `HighlightedUtterance` records with auto-generated name
     Database-->>Backend: Returns new highlight ID
     Backend-->>Frontend: Returns new highlight ID
-    Frontend->>Frontend: Redirects to /[cityId]/[meetingId]/transcript?highlight=[id]
+    Frontend->>Frontend: Enters editing mode on transcript page with highlight context
     User->>Frontend: Selects utterances in transcript view (edit mode)
     Frontend->>Backend: upsertHighlight on save or before generate (auto-save)
     User->>Frontend: Toggles preview and loops playback
@@ -76,6 +76,8 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 ┌─────────────────────────────────────────────────────────────┐
 │                    Meeting Highlights                      │
 │  Create and manage video highlights from this meeting...  │
+├─────────────────────────────────────────────────────────────┤
+│  [⭐ Create Highlight] [Share]                              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  [Showcased Highlights]                                    │
@@ -117,10 +119,12 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 ### **Workflow Steps**
 
 1. **Highlight Creation**: 
-   - User clicks prominent "Create New Highlight" button on highlights page
-   - Opens dialog with name input and subject selection
-   - Uses `Combobox` component for intuitive subject search
-   - Creates empty highlight and immediately redirects to the transcript page in editing mode
+   - **Primary Method**: User clicks the "Create Highlight" button (⭐) in the header bar
+   - **Context Menu Method**: User right-clicks on any utterance and selects "Ξεκινήστε Highlight από εδώ" (Start Highlight from here)
+   - **List Method**: User clicks the "+ Add Highlight" button in the highlights list
+   - Creates highlight with auto-generated name ("Unnamed Highlight") and immediately enters editing mode
+   - If started from utterance, that utterance is pre-selected in the highlight
+   - No dialog required - streamlined creation process
    - Routing example: `/[cityId]/[meetingId]/transcript?highlight=[id]`
 
 2. **Content Editing**: 
@@ -217,10 +221,11 @@ This categorization provides better organization and helps users understand the 
     *   `HighlightsList`: `src/components/meetings/HighlightsList.tsx` (main list interface)
     *   `HighlightView`: `src/components/meetings/HighlightView.tsx` (individual highlight view with responsive video)
     *   `HighlightVideo`: `src/components/meetings/HighlightVideo.tsx` (adaptive video player with aspect ratio detection)
+    *   `CreateHighlightButton`: `src/components/meetings/CreateHighlightButton.tsx` (streamlined highlight creation)
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
     *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics, generation options, save/reset/exit, preview, and generate)
-    *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection)
+    *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection and context menu creation)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:
     *   `HighlightContext`: `src/components/meetings/HighlightContext.tsx` (centralized highlight state, calculations, edit/preview lifecycle, save/reset/exit)
@@ -244,13 +249,14 @@ This categorization provides better organization and helps users understand the 
 - `saveHighlight()` — persists current composition; used explicitly or implicitly before generate
 - `resetToOriginal()` — discard unsaved changes
 - `exitEditMode()` — return to highlights list; prompts if unsaved changes
-- `hasUnsavedChanges`, `isSaving`, `isEditingDisabled`, `statistics`, `highlightUtterances`
+- `createHighlight(options)` — create new highlight with optional pre-selected utterance and callbacks
+- `hasUnsavedChanges`, `isSaving`, `isCreating`, `isEditingDisabled`, `statistics`, `highlightUtterances`
 
 **Business Rules & Assumptions**
 
 *   Only authorized users can create, edit, or delete highlights.
 *   Highlights can only be created for meetings that have a video file.
-*   A highlight must be associated with at least one utterance.
+*   A highlight can be created with zero utterances initially, but must have at least one utterance before video generation.
 *   The external task server must have access to the database to retrieve the necessary information.
 *   The application must expose a webhook endpoint for the task server to report the results of the video processing.
 *   Only one highlight can be in editing mode at a time via the `HighlightContext`.
@@ -267,4 +273,7 @@ This categorization provides better organization and helps users understand the 
 *   Highlights are categorized into Showcased, Video, and Draft sections for better organization.
 *   The interface uses Next.js App Router with dynamic routes for improved navigation and SEO.
 *   **Video generation supports multiple aspect ratios and rendering options for different use cases.**
-*   All action buttons are consolidated in the main action bar for consistency and ease of use. 
+*   All action buttons are consolidated in the main action bar for consistency and ease of use.
+*   **Highlight creation is streamlined with multiple entry points**: header button, context menu, and list button.
+*   **Auto-generated names** ("Unnamed Highlight") simplify the creation process and can be edited later.
+*   **Context menu integration** allows users to start highlights directly from any utterance in the transcript. 

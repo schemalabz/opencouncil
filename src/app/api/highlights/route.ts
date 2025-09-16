@@ -6,12 +6,12 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { name, meetingId, cityId, utteranceIds, subjectId } = body || {};
 
-        if (!name || !meetingId || !cityId || !Array.isArray(utteranceIds)) {
+        if (!meetingId || !cityId || !Array.isArray(utteranceIds)) {
             return NextResponse.json({ error: "Invalid request" }, { status: 400 });
         }
 
         const highlight = await upsertHighlight({
-            name,
+            name, // Will be auto-generated if not provided
             meetingId,
             cityId,
             utteranceIds,
