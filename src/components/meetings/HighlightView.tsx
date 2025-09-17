@@ -1,15 +1,16 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft } from "lucide-react";
+import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
-import { formatTime } from "@/lib/utils";
+import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
 import { useHighlight } from "./HighlightContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
@@ -20,6 +21,7 @@ interface HighlightViewProps {
 
 export function HighlightView({ highlight }: HighlightViewProps) {
   const router = useRouter();
+  const locale = useLocale();
   const { meeting, subjects, removeHighlight, updateHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
@@ -192,6 +194,10 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                     </Badge>
                   </div>
                 )}
+                <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Last updated {formatRelativeTime(highlight.updatedAt, locale)}</span>
+                </div>
               </div>
             </div>
             

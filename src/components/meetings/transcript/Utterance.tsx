@@ -82,9 +82,11 @@ const UtteranceC: React.FC<{
     );
 
     const handleClick = () => {
-        // If we're in highlight editing mode, handle highlight toggling
+        // If we're in highlight editing mode, handle highlight toggling and seek to utterance
         if (editingHighlight) {
             updateHighlightUtterances(localUtterance.id, isHighlighted ? 'remove' : 'add');
+            // Seek to the utterance timestamp so user can easily play and listen to what they highlighted
+            seekTo(localUtterance.startTimestamp);
         } else if (options.editable) {
             setIsEditing(true);
             seekTo(localUtterance.startTimestamp);

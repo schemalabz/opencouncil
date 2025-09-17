@@ -45,7 +45,10 @@ export async function getHighlightsForMeeting(cityId: City["id"], meetingId: Cou
                 cityId,
                 meetingId
             },
-            include: highlightWithUtterancesInclude
+            include: highlightWithUtterancesInclude,
+            orderBy: {
+                updatedAt: 'desc'
+            }
         });
         return highlights;
     } catch (error) {

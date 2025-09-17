@@ -4,7 +4,7 @@ import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Pencil, Edit, Plus } from 'lucide-react';
+import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Edit, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatTime } from '@/lib/utils';
 import { HighlightPreview } from './HighlightPreview';
@@ -209,54 +209,49 @@ export function HighlightModeBar() {
         exit={{ opacity: 0, y: -8 }}
         transition={{ type: 'tween', duration: 0.16 }}
       >
-        <Card className="mb-4 bg-amber-50 border-amber-200 motion-safe:transition-colors motion-safe:duration-150">
-          <CardContent className="p-4">
+        <Card className="mb-4 bg-amber-50 motion-safe:transition-colors motion-safe:duration-150" disableHover>
+          <div className="w-full h-full rounded-lg p-[1.5px] bg-amber-400">
+            <div className="w-full h-full bg-amber-50 rounded-lg" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+              <CardContent className="p-4">
             <div className="space-y-3">
               {/* Header with controls and stats */}
               <motion.div layout className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <Badge
-                    variant="default"
-                    className="font-semibold bg-amber-100 text-amber-900 border border-amber-200 flex items-center gap-1.5"
-                    title="You are editing a highlight"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Editing Highlight
-                  </Badge>
-                  {previewMode && (
-                    <Badge variant="secondary" className="text-xs flex items-center space-x-1">
-                      <Play className="h-3 w-3" />
-                      <span>Preview Mode</span>
-                    </Badge>
-                  )}
-                  {hasUnsavedChanges && (
-                    <Badge variant="destructive" className="text-xs flex items-center space-x-1">
-                      <span>Unsaved Changes</span>
-                    </Badge>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium text-sm">{editingHighlight.name}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-5 w-5 p-0 hover:bg-muted"
-                        onClick={handleEditDetails}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="h-4 w-4" />
-                        <span>{statistics ? formatTime(statistics.duration) : '0:00'}</span>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex flex-col space-y-1">
+                      <div className="text-sm font-semibold text-amber-700 uppercase tracking-wide">
+                        {previewMode ? 'Currently Previewing' : 'Currently Editing'}
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="h-4 w-4" />
-                        <span>{statistics?.speakerCount || 0} speakers</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <span>{statistics?.utteranceCount || 0} utterances</span>
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <span className="font-medium text-sm">{editingHighlight.name}</span>
+                          {hasUnsavedChanges && (
+                            <div className="h-1.5 w-1.5 bg-red-500 rounded-full shadow-sm" title="Unsaved changes" />
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 w-5 p-0 hover:bg-muted"
+                            onClick={handleEditDetails}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="flex items-center space-x-2 sm:space-x-4 text-sm text-muted-foreground">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="h-4 w-4" />
+                            <span>{statistics ? formatTime(statistics.duration) : '0:00'}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Users className="h-4 w-4" />
+                            <span className="hidden sm:inline">{statistics?.speakerCount || 0} speakers</span>
+                            <span className="sm:hidden">{statistics?.speakerCount || 0}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="hidden sm:inline">{statistics?.utteranceCount || 0} utterances</span>
+                            <span className="sm:hidden">{statistics?.utteranceCount || 0}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -416,7 +411,9 @@ export function HighlightModeBar() {
                 )}
               </AnimatePresence>
             </div>
-          </CardContent>
+              </CardContent>
+            </div>
+          </div>
         </Card>
       </motion.div>
     </AnimatePresence>

@@ -1,13 +1,14 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Users, Star, Play, Loader2 } from "lucide-react";
+import { Clock, Users, Star, Play, Loader2, Calendar, Tag } from "lucide-react";
 
-import { formatTime } from "@/lib/utils";
+import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
 import { CreateHighlightButton } from "./CreateHighlightButton";
 import { useTranscriptOptions } from "./options/OptionsContext";
@@ -18,6 +19,7 @@ interface HighlightCardProps {
 
 const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const router = useRouter();
+  const locale = useLocale();
   const { calculateHighlightData } = useHighlight();
   const { subjects } = useCouncilMeetingData();
   const [isLoading, setIsLoading] = useState(false);
@@ -50,41 +52,55 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
     >
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Header */}
+          {/* Header with title and status */}
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex items-center space-x-2 mb-3">
                 <h3 className="font-semibold text-lg truncate">{highlight.name}</h3>
                 {highlight.isShowcased && (
-                  <Star className="h-4 w-4 text-yellow-500" />
+                  <Star className="h-4 w-4 text-yellow-500 flex-shrink-0" />
                 )}
                 {isLoading && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
                 )}
               </div>
               
-              {/* Subject and Stats */}
-              <div className="flex items-center space-x-3 mb-3">
-                {highlight.subjectId ? (
-                  <Badge variant="outline" className="text-xs">
-                    {subjects.find(s => s.id === highlight.subjectId)?.name || 'Subject connected'}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    No subject
-                  </Badge>
-                )}
-                
-                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
+              {/* Subject badge - prominent but not overwhelming */}
+              <div className="mb-3">
+                <div className="flex items-center space-x-2">
+                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  {highlight.subjectId ? (
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {subjects.find(s => s.id === highlight.subjectId)?.name || 'Subject connected'}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      No connected subject
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              {/* Stats row - compact and organized */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-md">
                     <Clock className="h-3 w-3" />
-                    <span>{formatTime(duration)}</span>
+                    <span className="font-medium">{formatTime(duration)}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3" />
-                    <span>{speakerCount} speakers</span>
+                    <span>{speakerCount}</span>
                   </div>
-                  <span>{utteranceCount} utterances</span>
+                  <span className="text-xs">
+                    {utteranceCount} <span className="hidden sm:inline">utterances</span>
+                  </span>
+                </div>
+                
+                {/* Updated timestamp - subtle but visible */}
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground/70">
+                  <Calendar className="h-3 w-3" />
+                  <span>{formatRelativeTime(highlight.updatedAt, locale)}</span>
                 </div>
               </div>
             </div>
@@ -96,8 +112,22 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
 };
 
 const AddHighlightButton = () => {
+  const { editingHighlight } = useHighlight();
+  
   return (
     <div className="p-4 border-b">
+      {editingHighlight && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center space-x-2 text-sm text-amber-800">
+            <Clock className="h-4 w-4 flex-shrink-0" />
+            <span className="font-medium">Currently editing highlight:</span>
+            <span className="font-semibold truncate">{editingHighlight.name}</span>
+          </div>
+          <p className="text-xs text-amber-700 mt-1 ml-6">
+            Finish editing this highlight before creating a new one.
+          </p>
+        </div>
+      )}
       <CreateHighlightButton 
         variant="full" 
         size="lg"
