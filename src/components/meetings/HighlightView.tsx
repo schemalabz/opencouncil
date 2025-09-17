@@ -20,7 +20,7 @@ interface HighlightViewProps {
 
 export function HighlightView({ highlight }: HighlightViewProps) {
   const router = useRouter();
-  const { meeting, subjects } = useCouncilMeetingData();
+  const { meeting, subjects, removeHighlight, updateHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
   const canEdit = options.editsAllowed;
@@ -77,6 +77,10 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     try {
       const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
+      
+      // Update the context to remove the highlight
+      removeHighlight(highlight.id);
+      
       toast({
         title: "Success",
         description: "Highlight deleted successfully.",
@@ -122,12 +126,17 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     try {
       const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'PATCH' });
       if (!res.ok) throw new Error('Failed to toggle showcase');
+      
+      const updatedHighlight = await res.json();
+      
+      // Update the context with the new showcase status
+      updateHighlight(highlight.id, { isShowcased: updatedHighlight.isShowcased });
+      
       toast({
         title: "Success",
         description: highlight.isShowcased ? "Highlight removed from showcase." : "Highlight added to showcase.",
         variant: "default",
       });
-      router.refresh();
     } catch (error) {
       console.error('Failed to toggle showcase:', error);
       toast({

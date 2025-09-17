@@ -231,7 +231,7 @@ This categorization provides better organization and helps users understand the 
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:
     *   `HighlightContext`: `src/components/meetings/HighlightContext.tsx` (centralized highlight state, calculations, edit/preview lifecycle, save/reset/exit)
-    *   `CouncilMeetingDataContext`: `src/components/meetings/CouncilMeetingDataContext.tsx` (meeting data and highlights)
+    *   `CouncilMeetingDataContext`: `src/components/meetings/CouncilMeetingDataContext.tsx` (centralized meeting data and highlight management with add/update/remove methods)
 *   **Utilities**:
     *   `calculateHighlightData`: Integrated in `HighlightContext.tsx` (reusable calculations)
 *   **Backend Logic**:
