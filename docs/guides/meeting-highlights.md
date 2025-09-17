@@ -139,21 +139,22 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
    - Exit Editing prompts if there are unsaved changes and returns to `/[cityId]/[meetingId]/highlights`
 
 3. **Preview Mode**:
-   - Toggle between edit and preview modes from `HighlightModeBar`
+   - Click "Preview" button in `HighlightModeBar` to open the dedicated preview dialog
+   - Dialog displays both video and text previews side-by-side with unified layout
    - Entering preview seeks to the first highlighted utterance and auto-plays
    - Auto-advancing playback through highlight segments; loops back to start
-   - Exiting preview pauses playback
-   - Embedded content preview is shown inside the mode bar
+   - Video hover controls: large play/pause button appears on hover, click to toggle
+   - Clip navigation controls positioned directly below the video player
+   - Exiting preview pauses playback and closes the dialog
 
 4. **Video Generation Configuration**:
-   - Access generation options via the settings menu in `HighlightModeBar`
+   - Access generation options within the preview dialog
    - **Format Selection**: Choose between default (16:9) and social media (9:16) aspect ratios
-   - **Content Options**: Toggle captions and speaker overlay features
-   - **Social Media Enhancements**: When 9:16 format is selected:
-     - Margin type selection (blur effect or solid color)
-     - Background color customization for solid margins
-     - Zoom factor adjustment for optimal framing
-   - Settings persist during the editing session for consistent generation
+   - **Content Options**: Toggle captions and speaker overlay features with text labels
+   - **Social Media Enhancements**: When 9:16 format is selected, hardcoded options include:
+     - Margin type: Blur effect (automatically applied)
+     - Zoom factor: 1.0 (optimized for social media framing)
+   - Settings are session-scoped and reset when dialog is closed
 
 5. **Details Management**:
    - Navigate to `/[cityId]/[meetingId]/highlights/[highlightId]` to view full details
@@ -165,9 +166,12 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
      - Responsive grid layout adapts to screen size
 
 6. **Preview & Actions**:
-   - Integrated content and video display with responsive layout
-   - Action buttons consolidated in the main action bar
-   - Generate Video available with configured options; if a video already exists, the action is Re-generate
+   - **Dedicated Preview Dialog**: Unified interface for video and text preview with generation options
+   - **Single Dialog Flow**: After clicking "Generate", dialog switches to status view with navigation options
+   - **Generation Status**: Shows "Generation Started" message with multiple navigation choices:
+     - Track Progress: Navigate to individual highlight page
+     - View All Highlights: Navigate to highlights list
+     - Return to Transcript: Continue editing
    - Generate/Re-generate auto-saves if there are unsaved changes before dispatching the task
    - Showcase toggle is available only when a video exists (`muxPlaybackId` set)
    - Video downloads respect the generated format and aspect ratio
@@ -195,13 +199,10 @@ The system provides multiple visual representations of highlight composition:
 
 #### **Mode Bar Integration (`HighlightModeBar.tsx`)**
 - **Statistics Display**: Real-time duration, speaker count, and utterance count
-- **Preview Integration**: Embedded content preview when in preview mode
-- **Generation Options**: Accessible video generation settings with format selection
+- **Preview Button**: Opens dedicated preview dialog for video and text review
 - **Navigation Controls**: Previous/next highlight navigation
-- **Mode Toggle**: Switch between edit and preview modes
 - **Name/Subject Editing**: Edit icon next to highlight name opens dialog for name and subject updates
 - **Save/Reset/Exit**: Save now, reset to original, and exit editing (with unsaved-changes prompt)
-- **Generate**: Generate/Re-generate video with configured options; auto-saves when needed
 
 ### **Categorization System**
 
@@ -226,7 +227,8 @@ This categorization provides better organization and helps users understand the 
     *   `CreateHighlightButton`: `src/components/meetings/CreateHighlightButton.tsx` (streamlined highlight creation)
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
-    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics, generation options, save/reset/exit, preview, and generate)
+    *   `HighlightPreviewDialog`: `src/components/meetings/HighlightPreviewDialog.tsx` (dedicated preview dialog with video/text preview and generation options)
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, and preview button)
     *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection and context menu creation)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:
@@ -246,13 +248,15 @@ This categorization provides better organization and helps users understand the 
 
 - `enterEditMode(highlight)` — start editing lifecycle for a specific highlight
 - `updateHighlightUtterances(utteranceId, 'add' | 'remove')` — modify composition in-memory and mark dirty
-- `togglePreviewMode()` — preview selection; entering seeks and auto-plays first clip; exiting pauses
+- `openPreviewDialog()` — open dedicated preview dialog; seeks and auto-plays first clip
+- `closePreviewDialog()` — close preview dialog and pause playback
+- `togglePreviewMode()` — toggle preview mode (now controls dialog state)
 - `goToPreviousHighlight()` / `goToNextHighlight()` / `goToHighlightIndex(i)` — navigation; loops in preview, clamps in edit
 - `saveHighlight(options?)` — persists current composition with optional name/subjectId updates; used explicitly or implicitly before generate
 - `resetToOriginal()` — discard unsaved changes
 - `exitEditMode()` — return to highlights list; prompts if unsaved changes
 - `createHighlight(options)` — create new highlight with optional pre-selected utterance and callbacks
-- `hasUnsavedChanges`, `isSaving`, `isCreating`, `isEditingDisabled`, `statistics`, `highlightUtterances`
+- `hasUnsavedChanges`, `isSaving`, `isCreating`, `isEditingDisabled`, `statistics`, `highlightUtterances`, `isPreviewDialogOpen`
 
 **Business Rules & Assumptions**
 
@@ -275,7 +279,8 @@ This categorization provides better organization and helps users understand the 
 *   Highlights are categorized into Showcased, Video, and Draft sections for better organization.
 *   The interface uses Next.js App Router with dynamic routes for improved navigation and SEO.
 *   **Video generation supports multiple aspect ratios and rendering options for different use cases.**
-*   All action buttons are consolidated in the main action bar for consistency and ease of use.
+*   **Preview dialog provides unified interface** for video and text preview with generation options.
+*   **Single dialog flow** switches from preview to status view after generation with navigation options.
 *   **Highlight creation is streamlined with multiple entry points**: header button, context menu, and list button.
 *   **Auto-generated names** ("Unnamed Highlight") simplify the creation process and can be edited later.
 *   **Context menu integration** allows users to start highlights directly from any utterance in the transcript.

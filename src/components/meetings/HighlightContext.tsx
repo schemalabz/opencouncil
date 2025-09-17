@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
@@ -29,6 +29,7 @@ export interface HighlightCalculationResult {
 interface HighlightContextType {
   editingHighlight: HighlightWithUtterances | null;
   previewMode: boolean;
+  isPreviewDialogOpen: boolean;
   statistics: HighlightStatistics | null;
   highlightUtterances: HighlightUtterance[] | null;
   currentHighlightIndex: number;
@@ -47,6 +48,8 @@ interface HighlightContextType {
   goToNextHighlight: () => void;
   goToHighlightIndex: (index: number) => void;
   togglePreviewMode: () => void;
+  openPreviewDialog: () => void;
+  closePreviewDialog: () => void;
   calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
   saveHighlight: (options?: {
     name?: string;
@@ -66,6 +69,7 @@ const HighlightContext = createContext<HighlightContextType | undefined>(undefin
 export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [editingHighlight, setEditingHighlight] = useState<HighlightWithUtterances | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [originalHighlight, setOriginalHighlight] = useState<HighlightWithUtterances | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -152,6 +156,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   // Calculate total highlights
   const totalHighlights = highlightUtterances?.length || 0;
 
+  // Guard to prevent repeated auto-advance loops during wrap-around seeks
+  const isAutoAdvancingRef = useRef(false);
+
   // Auto-update current highlight index based on video time
   useEffect(() => {
     if (!highlightUtterances || highlightUtterances.length === 0) {
@@ -186,15 +193,23 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     if (!previewMode || !highlightUtterances || !isPlaying || highlightUtterances.length === 0) {
       return;
     }
+
+    // Prevent rapid re-entrancy while a programmatic seek is in flight
+    if (isAutoAdvancingRef.current) {
+      return;
+    }
     
     const currentUtterance = highlightUtterances[currentHighlightIndex];
     if (!currentUtterance) return;
     
     if (currentTime >= currentUtterance.endTimestamp) {
-      // Auto-advance to next highlight
+      // Auto-advance to next highlight (wrap to start at the end)
       const nextIndex = (currentHighlightIndex + 1) % totalHighlights;
+      isAutoAdvancingRef.current = true;
       setCurrentHighlightIndex(nextIndex);
       seekTo(highlightUtterances[nextIndex].startTimestamp);
+      // Allow time for the seek/currentTime to propagate before re-evaluating
+      setTimeout(() => { isAutoAdvancingRef.current = false; }, 150);
     }
   }, [currentTime, previewMode, highlightUtterances, currentHighlightIndex, isPlaying, totalHighlights, seekTo]);
 
@@ -248,19 +263,40 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
 
   // Enhanced preview mode toggle
   const togglePreviewMode = () => {
-    const newPreviewMode = !previewMode;
-    setPreviewMode(newPreviewMode);
-    
-    // When entering preview mode, jump to the first highlight and auto-play if available
-    if (newPreviewMode && highlightUtterances && highlightUtterances.length > 0) {
-      setCurrentHighlightIndex(0);
-      seekToAndPlay(highlightUtterances[0].startTimestamp);
-    }
-
-    // When exiting preview mode, pause playback
-    if (!newPreviewMode) {
+    if (isPreviewDialogOpen) {
+      // Close dialog and exit preview
+      setIsPreviewDialogOpen(false);
+      setPreviewMode(false);
       setIsPlaying(false);
+    } else {
+      // Open dialog and enter preview
+      setIsPreviewDialogOpen(true);
+      setPreviewMode(true);
+      if (highlightUtterances && highlightUtterances.length > 0) {
+        setCurrentHighlightIndex(0);
+        seekToAndPlay(highlightUtterances[0].startTimestamp);
+      }
     }
+  };
+
+  const openPreviewDialog = () => {
+    if (isPreviewDialogOpen) return;
+    setIsPreviewDialogOpen(true);
+    setPreviewMode(true);
+    if (highlightUtterances && highlightUtterances.length > 0) {
+      setCurrentHighlightIndex(0);
+      // Small delay to ensure video element is ready before starting playback
+      setTimeout(() => {
+        seekToAndPlay(highlightUtterances[0].startTimestamp);
+      }, 100);
+    }
+  };
+
+  const closePreviewDialog = () => {
+    if (!isPreviewDialogOpen) return;
+    setIsPreviewDialogOpen(false);
+    setPreviewMode(false);
+    setIsPlaying(false);
   };
 
   // Enter edit mode - called when switching to edit mode (from URL parameter)
@@ -501,6 +537,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const value = {
     editingHighlight,
     previewMode,
+    isPreviewDialogOpen,
     statistics,
     highlightUtterances,
     currentHighlightIndex,
@@ -519,6 +556,8 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     goToNextHighlight,
     goToHighlightIndex,
     togglePreviewMode,
+    openPreviewDialog,
+    closePreviewDialog,
     calculateHighlightData,
     saveHighlight,
     createHighlight,

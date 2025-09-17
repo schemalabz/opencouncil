@@ -12,7 +12,7 @@ export default function TranscriptControls({ className }: { className?: string }
     const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
-    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight } = useHighlight();
+    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight, isPreviewDialogOpen } = useHighlight();
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -250,7 +250,10 @@ export default function TranscriptControls({ className }: { className?: string }
                   </div>
                 )}
 
-                <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
+                {/* Hide inline video while preview dialog is open to avoid double-mount */}
+                {!isPreviewDialogOpen && (
+                    <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
+                )}
 
                 {/* Slider Container */}
                 <div

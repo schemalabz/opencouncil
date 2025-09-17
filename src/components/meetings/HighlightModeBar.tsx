@@ -1,20 +1,15 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Users, Eye, EyeOff, X, Play, Video, Settings, Edit, Plus } from 'lucide-react';
+import { Clock, Users, Eye, X, Edit, Save } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatTime } from '@/lib/utils';
-import { HighlightPreview } from './HighlightPreview';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
+import { HighlightPreviewDialog } from './HighlightPreviewDialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { HighlightDialog } from './HighlightDialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export function HighlightModeBar() {
   const { 
@@ -24,36 +19,13 @@ export function HighlightModeBar() {
     totalHighlights,
     hasUnsavedChanges,
     isSaving,
-    isEditingDisabled,
     resetToOriginal,
     exitEditMode,
-    exitEditModeAndRedirectToHighlight,
-    togglePreviewMode,
+    openPreviewDialog,
     saveHighlight
   } = useHighlight();
 
-  // Render settings
-  const [includeCaptions, setIncludeCaptions] = useState(true);
-  const [overlaySpeakerNames, setOverlaySpeakerNames] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-
-  const hasExistingVideo = useMemo(() => {
-    if (!editingHighlight) return false;
-    return Boolean(editingHighlight.videoUrl || editingHighlight.muxPlaybackId);
-  }, [editingHighlight]);
-
-  const helperText = useMemo(() => {
-    if (!previewMode) {
-      let base = 'Click utterances to add or remove them from the highlight.';
-      if (totalHighlights === 0) return base;
-      if (hasUnsavedChanges) return `${base} You've made changes. Preview to check or generate when ready.`;
-      return `${base} You can preview your selection or generate a video when ready.`;
-    }
-    // preview mode
-    if (hasExistingVideo) return 'Previewing your selection. Re-generate to update the video.';
-    return 'Previewing your selection. Generate a video when ready.';
-  }, [previewMode, totalHighlights, hasUnsavedChanges, hasExistingVideo]);
 
   if (!editingHighlight) {
     return null;
@@ -81,66 +53,6 @@ export function HighlightModeBar() {
       toast({
         title: "Error",
         description: "Failed to save highlight. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleGenerateHighlight = async () => {
-    try {
-      const res = await fetch(`/api/tasks/generate-highlight`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          highlightId: editingHighlight.id,
-          options: {
-            includeCaptions,
-            includeSpeakerOverlay: overlaySpeakerNames,
-            aspectRatio,
-            ...(aspectRatio === 'social-9x16' && {
-              socialOptions: {
-                marginType: 'blur'
-              }
-            })
-          }
-        })
-      });
-      if (!res.ok) throw new Error('Failed to start generation');
-      
-      toast({
-        title: "Generation Started",
-        description: "Redirecting you to the highlight page where you can track progress and see the video when ready.",
-        variant: "default",
-      });
-      // Redirect to the individual highlight page where they can see progress
-      exitEditModeAndRedirectToHighlight();
-    } catch (error) {
-      console.error('Failed to generate video:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate video. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSaveAndGenerate = async () => {
-    try {
-      const result = await saveHighlight();
-      if (!result.success) {
-        toast({
-          title: "Save failed",
-          description: "Please resolve issues and try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-      await handleGenerateHighlight();
-    } catch (error) {
-      console.error('Save & Generate failed:', error);
-      toast({
-        title: "Error",
-        description: "Could not save and generate video.",
         variant: "destructive",
       });
     }
@@ -195,9 +107,6 @@ export function HighlightModeBar() {
       }
     });
   };
-
-  // Single CTA will auto-save if needed; label adapts based on existing video
-  const generateCtaLabel = hasExistingVideo ? 'Re-generate Video' : 'Generate Video';
 
   return (
     <>
@@ -258,18 +167,58 @@ export function HighlightModeBar() {
                 </div>
                 
                 <motion.div layout className="flex items-center space-x-2">
+                  {/* Save dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 w-8 p-0" 
+                        aria-label="Save actions"
+                        disabled={!hasUnsavedChanges && !isSaving}
+                      >
+                        {isSaving ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={handleSave}
+                        disabled={!hasUnsavedChanges || isSaving}
+                      >
+                        {isSaving ? (
+                          <>
+                            <div className="h-3 w-3 mr-2 animate-spin rounded-full border border-current border-t-transparent" />
+                            Saving…
+                          </>
+                        ) : (
+                          'Save now'
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleResetChanges}
+                        disabled={!hasUnsavedChanges || isSaving}
+                      >
+                        Reset changes
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   {/* Preview toggle: outline even when active for non-primary feel */}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={togglePreviewMode}
+                    onClick={openPreviewDialog}
                     className="flex items-center space-x-1"
                     disabled={totalHighlights === 0}
-                    title={previewMode ? 'Exit preview' : 'Enter preview'}
-                    aria-label={previewMode ? 'Exit preview' : 'Enter preview'}
+                    title={'Open preview'}
+                    aria-label={'Open preview'}
                   >
-                    {previewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
+                    <Eye className="h-4 w-4" />
+                    <span>Preview</span>
                   </Button>
                   
                   {/* Cancel only when not in preview */}
@@ -286,130 +235,10 @@ export function HighlightModeBar() {
                       <span className="ml-1">Exit Editing</span>
                     </Button>
                   )}
-
-                  {/* Preview mode actions: Generate, Settings, Overflow */}
-                  <AnimatePresence>
-                    {previewMode && (
-                      <motion.div
-                        key="preview-actions"
-                        layout
-                        initial={{ opacity: 0, x: 6 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 6 }}
-                        transition={{ duration: 0.14 }}
-                        className="flex items-center gap-2"
-                      >
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={hasUnsavedChanges ? handleSaveAndGenerate : handleGenerateHighlight}
-                          disabled={isSaving || totalHighlights === 0}
-                          className="flex items-center space-x-1"
-                        >
-                          <motion.span
-                            key={isSaving ? 'saving' : 'ready'}
-                            initial={{ opacity: 0, y: 2 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -2 }}
-                            transition={{ duration: 0.12 }}
-                            className="inline-flex items-center gap-1"
-                          >
-                            {isSaving ? (
-                              <>
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                <span>Saving…</span>
-                              </>
-                            ) : (
-                              <>
-                                <Video className="h-4 w-4" />
-                                <span>{generateCtaLabel}</span>
-                              </>
-                            )}
-                          </motion.span>
-                        </Button>
-
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 px-2" aria-label="Render settings">
-                              <Settings className="h-4 w-4" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent align="end" className="w-80">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="captions">Show captions on video</Label>
-                                <Switch id="captions" checked={includeCaptions} onCheckedChange={setIncludeCaptions} />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="overlayNames">Overlay speaker names</Label>
-                                <Switch id="overlayNames" checked={overlaySpeakerNames} onCheckedChange={setOverlaySpeakerNames} />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <Label htmlFor="aspectRatio">Social media format (9:16)</Label>
-                                <Switch 
-                                  id="aspectRatio" 
-                                  checked={aspectRatio === 'social-9x16'} 
-                                  onCheckedChange={(checked) => setAspectRatio(checked ? 'social-9x16' : 'default')} 
-                                />
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 w-8 p-0" aria-label="More actions">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={handleSave}
-                              disabled={!hasUnsavedChanges || isSaving}
-                            >
-                              {isSaving ? (
-                                <>
-                                  <div className="h-3 w-3 mr-2 animate-spin rounded-full border border-current border-t-transparent" />
-                                  Saving…
-                                </>
-                              ) : (
-                                'Save now'
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={handleResetChanges}
-                              disabled={!hasUnsavedChanges || isSaving}
-                            >
-                              Reset changes
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </motion.div>
               </motion.div>
 
-              {/* Persistent helper row under title (no animation) */}
-              <div className="text-xs text-muted-foreground">
-                {helperText}
-              </div>
-
-              {/* Integrated preview remains */}
-              <AnimatePresence>
-                {previewMode && (
-                  <motion.div
-                    key="preview"
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.12 }}
-                    className="pt-3"
-                  >
-                    <HighlightPreview />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <HighlightPreviewDialog />
             </div>
               </CardContent>
             </div>
