@@ -9,7 +9,7 @@ import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { toast } from '@/hooks/use-toast';
 import Combobox from '@/components/Combobox';
-import { Loader2 } from 'lucide-react';
+import { useHighlight } from './HighlightContext';
 
 interface HighlightDialogProps {
   open: boolean;
@@ -27,9 +27,9 @@ export function HighlightDialog({
   mode 
 }: HighlightDialogProps) {
   const { subjects } = useCouncilMeetingData();
+  const { isSaving } = useHighlight();
   const [name, setName] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<{ id: string; name: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('highlights');
 
   // Reset form when dialog opens/closes or highlight changes
@@ -43,8 +43,6 @@ export function HighlightDialog({
         setName('');
         setSelectedSubject(null);
       }
-      // Reset loading state
-      setIsLoading(false);
     }
   }, [open, mode, highlight, subjects]);
 
@@ -58,47 +56,15 @@ export function HighlightDialog({
       return;
     }
 
-    setIsLoading(true);
     try {
       await onSave(name, selectedSubject?.id);
-      // Dialog will close automatically after redirect
+      // Close the dialog after successful save
+      onOpenChange(false);
     } catch (error) {
       console.error('Failed to save highlight:', error);
-      setIsLoading(false);
     }
   };
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {mode === 'create' ? 'Creating Highlight...' : 'Saving Changes...'}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center justify-center py-8 space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-            <div className="text-center space-y-2">
-              <p className="text-muted-foreground">
-                {mode === 'create' 
-                  ? 'Creating your highlight...' 
-                  : 'Saving your changes...'
-                }
-              </p>
-              {mode === 'create' && (
-                <p className="text-sm text-muted-foreground">
-                  You&apos;ll be redirected to the transcript page to select utterances for your highlight.
-                </p>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -146,7 +112,7 @@ export function HighlightDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('dialog.cancel')}
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button onClick={handleSave} disabled={isSaving}>
             {mode === 'create' ? t('dialog.create') : t('dialog.save')}
           </Button>
         </DialogFooter>
