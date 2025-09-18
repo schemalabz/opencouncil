@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Star, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useHighlight } from './HighlightContext';
 import { useTranscriptOptions } from './options/OptionsContext';
 import { toast } from '@/hooks/use-toast';
@@ -24,6 +25,7 @@ export function CreateHighlightButton({
     const { createHighlight, isCreating, editingHighlight } = useHighlight();
     const { options } = useTranscriptOptions();
     const canEdit = options.editsAllowed;
+    const t = useTranslations('highlights');
 
     if (!canEdit) {
         return null;
@@ -44,15 +46,15 @@ export function CreateHighlightButton({
             preSelectedUtteranceId,
             onSuccess: (highlight) => {
                 toast({
-                    title: "Highlight Created",
-                    description: "Start selecting utterances to build your highlight.",
+                    title: t('toasts.highlightCreated'),
+                    description: t('toasts.highlightCreatedDescription'),
                     variant: "default",
                 });
             },
             onError: (error) => {
                 toast({
-                    title: "Error",
-                    description: "Failed to create highlight. Please try again.",
+                    title: t('common.error'),
+                    description: t('toasts.generationError'),
                     variant: "destructive",
                 });
             }
@@ -66,12 +68,12 @@ export function CreateHighlightButton({
     };
 
     const getButtonText = () => {
-        if (isCreating) return "Creating highlight...";
-        if (isEditing) return "Currently editing a highlight";
+        if (isCreating) return t('buttons.creating');
+        if (isEditing) return t('buttons.currentlyEditing');
         return children || (
             <>
                 <Star className="h-5 w-5 mr-2" />
-                Δημιουργήστε ένα νέο Highlight
+                {t('buttons.createHighlight')}
             </>
         );
     };

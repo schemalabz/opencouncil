@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +27,7 @@ export function HighlightModeBar() {
   } = useHighlight();
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const t = useTranslations('highlights');
 
   if (!editingHighlight) {
     return null;
@@ -37,22 +39,22 @@ export function HighlightModeBar() {
       
       if (result.success) {
         toast({
-          title: "Saved",
-          description: "Highlight changes saved.",
+          title: t('common.success'),
+          description: t('toasts.highlightUpdated'),
           variant: "default",
         });
       } else {
         toast({
-          title: "Error",
-          description: "Failed to save highlight. Please try again.",
+          title: t('common.error'),
+          description: t('toasts.saveFailedDescription'),
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Save failed:', error);
       toast({
-        title: "Error",
-        description: "Failed to save highlight. Please try again.",
+        title: t('common.error'),
+        description: t('toasts.saveFailedDescription'),
         variant: "destructive",
       });
     }
@@ -60,23 +62,23 @@ export function HighlightModeBar() {
 
   const handleResetChanges = () => {
     if (hasUnsavedChanges) {
-      const confirmed = confirm('Are you sure you want to reset all changes? This cannot be undone.');
+      const confirmed = confirm(t('reset.confirmReset'));
       if (confirmed) {
         resetToOriginal();
-        toast({ title: 'Changes reset', description: 'All unsaved changes were discarded.' });
+        toast({ title: t('reset.changesReset'), description: t('reset.changesResetDescription') });
       }
     }
   };
 
   const handleCancel = () => {
     if (hasUnsavedChanges) {
-      const confirmed = confirm('You have unsaved changes. Are you sure you want to cancel?');
+      const confirmed = confirm(t('exit.confirmExit'));
       if (!confirmed) {
         return;
       }
-      toast({ title: 'Exited edit mode', description: 'No changes were saved.' });
+      toast({ title: t('exit.exitedEditMode'), description: t('exit.noChangesSaved') });
     } else {
-      toast({ title: 'Exited edit mode', description: 'Returning to highlights.' });
+      toast({ title: t('exit.exitedEditMode'), description: t('exit.returningToHighlights') });
     }
     exitEditMode();
   };
@@ -93,15 +95,15 @@ export function HighlightModeBar() {
       subjectId: subjectId || null,
       onSuccess: () => {
         toast({
-          title: "Success",
-          description: "Highlight updated successfully.",
+          title: t('common.success'),
+          description: t('toasts.highlightUpdated'),
           variant: "default",
         });
       },
       onError: (error) => {
         toast({
-          title: "Error",
-          description: "Failed to update highlight. Please try again.",
+          title: t('common.error'),
+          description: t('toasts.saveFailedDescription'),
           variant: "destructive",
         });
       }
@@ -129,13 +131,13 @@ export function HighlightModeBar() {
                   <div className="flex items-center space-x-4">
                     <div className="flex flex-col space-y-1">
                       <div className="text-sm font-semibold text-amber-700 uppercase tracking-wide">
-                        {previewMode ? 'Currently Previewing' : 'Currently Editing'}
+                        {previewMode ? t('modeBar.currentlyPreviewing') : t('modeBar.currentlyEditingMode')}
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                         <div className="flex items-center space-x-1">
                           <span className="font-medium text-sm">{editingHighlight.name}</span>
                           {hasUnsavedChanges && (
-                            <div className="h-1.5 w-1.5 bg-red-500 rounded-full shadow-sm" title="Unsaved changes" />
+                            <div className="h-1.5 w-1.5 bg-red-500 rounded-full shadow-sm" title={t('modeBar.unsavedChanges')} />
                           )}
                           <Button
                             size="sm"
@@ -153,11 +155,11 @@ export function HighlightModeBar() {
                           </div>
                           <div className="flex items-center space-x-1">
                             <Users className="h-4 w-4" />
-                            <span className="hidden sm:inline">{statistics?.speakerCount || 0} speakers</span>
+                            <span className="hidden sm:inline">{statistics?.speakerCount || 0} {t('modeBar.speakers')}</span>
                             <span className="sm:hidden">{statistics?.speakerCount || 0}</span>
                           </div>
                           <div className="flex items-center space-x-1">
-                            <span className="hidden sm:inline">{statistics?.utteranceCount || 0} utterances</span>
+                            <span className="hidden sm:inline">{statistics?.utteranceCount || 0} {t('modeBar.utterances')}</span>
                             <span className="sm:hidden">{statistics?.utteranceCount || 0}</span>
                           </div>
                         </div>
@@ -192,17 +194,17 @@ export function HighlightModeBar() {
                         {isSaving ? (
                           <>
                             <div className="h-3 w-3 mr-2 animate-spin rounded-full border border-current border-t-transparent" />
-                            Saving…
+                            {t('modeBar.saving')}
                           </>
                         ) : (
-                          'Save now'
+                          t('modeBar.saveNow')
                         )}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={handleResetChanges}
                         disabled={!hasUnsavedChanges || isSaving}
                       >
-                        Reset changes
+                        {t('modeBar.resetChanges')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -214,11 +216,11 @@ export function HighlightModeBar() {
                     onClick={openPreviewDialog}
                     className="flex items-center space-x-1"
                     disabled={totalHighlights === 0}
-                    title={'Open preview'}
-                    aria-label={'Open preview'}
+                    title={t('modeBar.openPreview')}
+                    aria-label={t('modeBar.openPreview')}
                   >
                     <Eye className="h-4 w-4" />
-                    <span>Preview</span>
+                    <span>{t('modeBar.preview')}</span>
                   </Button>
                   
                   {/* Cancel only when not in preview */}
@@ -228,11 +230,11 @@ export function HighlightModeBar() {
                       size="sm"
                       onClick={handleCancel}
                       className="flex items-center space-x-1"
-                      title="Exit editing mode"
-                      aria-label="Exit editing mode"
+                      title={t('modeBar.exitEditingMode')}
+                      aria-label={t('modeBar.exitEditingMode')}
                     >
                       <X className="h-4 w-4" />
-                      <span className="ml-1">Exit Editing</span>
+                      <span className="ml-1">{t('modeBar.exit')}</span>
                     </Button>
                   )}
                 </motion.div>

@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ export function HighlightDialog({
   const [name, setName] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<{ id: string; name: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const t = useTranslations('highlights');
 
   // Reset form when dialog opens/closes or highlight changes
   useEffect(() => {
@@ -49,8 +51,8 @@ export function HighlightDialog({
   const handleSave = async () => {
     if (!name.trim()) {
       toast({
-        title: "Error",
-        description: "Please enter a highlight name.",
+        title: t('common.error'),
+        description: t('dialog.nameRequired'),
         variant: "destructive",
       });
       return;
@@ -103,19 +105,19 @@ export function HighlightDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Create New Highlight' : 'Edit Highlight'}
+            {mode === 'create' ? t('dialog.createTitle') : t('dialog.editTitle')}
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
           {/* Name Input */}
           <div className="space-y-2">
-            <Label htmlFor="highlight-name">Highlight Name</Label>
+            <Label htmlFor="highlight-name">{t('dialog.highlightName')}</Label>
             <Input
               id="highlight-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter highlight name"
+              placeholder={t('dialog.namePlaceholder')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave();
               }}
@@ -124,28 +126,28 @@ export function HighlightDialog({
 
           {/* Subject Selection */}
           <div className="space-y-2">
-            <Label>Connected Subject</Label>
+            <Label>{t('common.connectedSubject')}</Label>
             
             <Combobox
               items={subjects}
               value={selectedSubject}
               onChange={setSelectedSubject}
-              placeholder="Select a subject (optional)"
-              searchPlaceholder="Search subjects..."
+              placeholder={t('dialog.subjectPlaceholder')}
+              searchPlaceholder={t('dialog.subjectSearchPlaceholder')}
               getItemLabel={(subject) => subject.name}
               getItemValue={(subject) => subject.id}
               clearable={true}
-              emptyMessage="No subjects found"
+              emptyMessage={t('dialog.noSubjectsFound')}
             />
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('dialog.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={isLoading}>
-            {mode === 'create' ? 'Create Highlight' : 'Save Changes'}
+            {mode === 'create' ? t('dialog.create') : t('dialog.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

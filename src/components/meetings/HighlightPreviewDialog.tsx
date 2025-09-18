@@ -1,5 +1,6 @@
 "use client";
 import React, { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Video as VideoIcon, Play, Pause, Monitor, Smartphone, CheckCircle, Clock, List, FileText } from 'lucide-react';
@@ -32,6 +33,7 @@ export function HighlightPreviewDialog() {
   const [view, setView] = useState<'preview' | 'status'>('preview');
   const [isGenerating, setIsGenerating] = useState(false);
   const router = useRouter();
+  const t = useTranslations('highlights');
 
   // Render settings (session-scoped only)
   const [includeCaptions, setIncludeCaptions] = useState(true);
@@ -39,7 +41,7 @@ export function HighlightPreviewDialog() {
   const [aspectRatio, setAspectRatio] = useState<'default' | 'social-9x16'>('default');
 
   const hasExistingVideo = useMemo(() => Boolean(editingHighlight?.videoUrl || editingHighlight?.muxPlaybackId), [editingHighlight]);
-  const generateCtaLabel = hasExistingVideo ? 'Re-generate Video' : 'Generate Video';
+  const generateCtaLabel = hasExistingVideo ? t('previewDialog.regenerateVideo') : t('previewDialog.generateVideo');
 
   if (!editingHighlight) return null;
 
@@ -50,7 +52,7 @@ export function HighlightPreviewDialog() {
       if (hasUnsavedChanges) {
         const result = await saveHighlight();
         if (!result.success) {
-          toast({ title: 'Save failed', description: 'Please resolve issues and try again.', variant: 'destructive' });
+          toast({ title: t('toasts.saveFailed'), description: t('toasts.saveFailedDescription'), variant: 'destructive' });
           return;
         }
       }
@@ -71,14 +73,14 @@ export function HighlightPreviewDialog() {
       if (!res.ok) throw new Error('Failed to start generation');
 
       toast({
-        title: 'Generation Started',
-        description: 'Your highlight video is being generated.',
+        title: t('previewDialog.generationStarted'),
+        description: t('toasts.generationStarted'),
         variant: 'default',
       });
       setView('status');
     } catch (error) {
       console.error('Failed to generate video:', error);
-      toast({ title: 'Error', description: 'Failed to generate video. Please try again.', variant: 'destructive' });
+      toast({ title: t('common.error'), description: t('toasts.generationError'), variant: 'destructive' });
     } finally {
       setIsGenerating(false);
     }
@@ -106,9 +108,9 @@ export function HighlightPreviewDialog() {
   const renderPreviewContent = () => (
     <>
       <DialogHeader>
-        <DialogTitle>Preview highlight</DialogTitle>
+        <DialogTitle>{t('previewDialog.title')}</DialogTitle>
         <DialogDescription>
-          Review the selected clips. Use the controls to navigate clips. When ready, configure settings and generate.
+          {t('previewDialog.description')}
         </DialogDescription>
       </DialogHeader>
 
@@ -153,13 +155,13 @@ export function HighlightPreviewDialog() {
             {/* Clip navigation below video */}
             {totalHighlights > 0 && (
               <div className="mt-3 flex items-center justify-center gap-2">
-                <Button variant="outline" size="sm" onClick={goToPreviousHighlight} aria-label="Previous clip">
+                <Button variant="outline" size="sm" onClick={goToPreviousHighlight} aria-label={t('common.previousClip')}>
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
                 <div className="px-3 py-1 text-sm bg-amber-100 text-amber-900 border border-amber-200 rounded">
-                  Clip {currentHighlightIndex + 1} of {totalHighlights}
+                  {t('previewDialog.clip', { current: currentHighlightIndex + 1, total: totalHighlights })}
                 </div>
-                <Button variant="outline" size="sm" onClick={goToNextHighlight} aria-label="Next clip">
+                <Button variant="outline" size="sm" onClick={goToNextHighlight} aria-label={t('common.nextClip')}>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -172,7 +174,7 @@ export function HighlightPreviewDialog() {
           <div className="border rounded-lg p-3 bg-muted/30">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Format:</span>
+                <span className="text-xs text-muted-foreground">{t('previewDialog.format')}</span>
                 <Button
                   variant={aspectRatio === 'default' ? 'secondary' : 'outline'}
                   size="sm"
@@ -200,7 +202,7 @@ export function HighlightPreviewDialog() {
                   onClick={() => setIncludeCaptions(!includeCaptions)}
                   className="h-7 px-2 text-xs"
                 >
-                  Captions
+                  {t('previewDialog.captions')}
                 </Button>
                 <Button
                   variant={overlaySpeakerNames ? 'secondary' : 'outline'}
@@ -208,7 +210,7 @@ export function HighlightPreviewDialog() {
                   onClick={() => setOverlaySpeakerNames(!overlaySpeakerNames)}
                   className="h-7 px-2 text-xs"
                 >
-                  Speakers
+                  {t('previewDialog.speakerOverlays')}
                 </Button>
               </div>
             </div>
@@ -219,10 +221,10 @@ export function HighlightPreviewDialog() {
             <div className="text-xs text-muted-foreground">
               {statistics ? (
                 <span>
-                  Duration {Math.round(statistics.duration)}s • {statistics.speakerCount} speakers • {statistics.utteranceCount} utterances
+                  {t('common.duration')} {Math.round(statistics.duration)}s • {statistics.speakerCount} {t('common.speakers')} • {statistics.utteranceCount} {t('common.utterances')}
                 </span>
               ) : (
-                <span>No utterances selected</span>
+                <span>{t('previewDialog.noUtterancesSelected')}</span>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -234,9 +236,9 @@ export function HighlightPreviewDialog() {
                 className="flex items-center space-x-1"
               >
                 <VideoIcon className="h-4 w-4" />
-                <span>{isGenerating ? 'Generating...' : generateCtaLabel}</span>
+                <span>{isGenerating ? t('details.generating') : generateCtaLabel}</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={closePreviewDialog}>Close</Button>
+              <Button variant="outline" size="sm" onClick={closePreviewDialog}>{t('common.close')}</Button>
             </div>
           </div>
         </div>
@@ -246,33 +248,66 @@ export function HighlightPreviewDialog() {
   const renderStatusContent = () => (
     <>
       <DialogHeader>
-        <DialogTitle>Generation Started</DialogTitle>
+        <DialogTitle>{t('previewDialog.generationStarted')}</DialogTitle>
         <DialogDescription className="text-sm text-muted-foreground flex items-center space-x-2">
           <CheckCircle className="h-5 w-5 text-green-600" />
-          <span>Your highlight video is being generated. This may take a few minutes.</span>
+          <span>{t('toasts.generationStarted')}</span>
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">What would you like to do next?</h4>
-          <div className="space-y-2">
-            <Button onClick={handleTrackProgress} className="w-full justify-start" variant="outline">
-              <Clock className="h-4 w-4 mr-2" />
-              Track Progress
-              <span className="ml-auto text-xs text-muted-foreground">View this highlight</span>
-            </Button>
-            <Button onClick={handleViewAllHighlights} className="w-full justify-start" variant="outline">
-              <List className="h-4 w-4 mr-2" />
-              View All Highlights
-              <span className="ml-auto text-xs text-muted-foreground">Browse highlights</span>
-            </Button>
-            <Button onClick={handleReturnToTranscript} className="w-full justify-start" variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Return to Transcript
-              <span className="ml-auto text-xs text-muted-foreground">Continue editing</span>
-            </Button>
-          </div>
+        <div className="text-center">
+          <h4 className="text-sm font-medium mb-1">{t('previewDialog.whatNext')}</h4>
+        </div>
+        
+        <div className="grid gap-3">
+          <Button 
+            onClick={handleTrackProgress} 
+            className="h-12 justify-start text-left p-4 hover:bg-primary/5 transition-colors" 
+            variant="outline"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-blue-100 text-blue-600">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-medium">{t('previewDialog.trackProgress')}</div>
+                <div className="text-xs text-muted-foreground">{t('previewDialog.trackProgressDescription')}</div>
+              </div>
+            </div>
+          </Button>
+          
+          <Button 
+            onClick={handleViewAllHighlights} 
+            className="h-12 justify-start text-left p-4 hover:bg-primary/5 transition-colors" 
+            variant="outline"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-green-100 text-green-600">
+                <List className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-medium">{t('previewDialog.viewAllHighlights')}</div>
+                <div className="text-xs text-muted-foreground">{t('previewDialog.viewAllHighlightsDescription')}</div>
+              </div>
+            </div>
+          </Button>
+          
+          <Button 
+            onClick={handleReturnToTranscript} 
+            className="h-12 justify-start text-left p-4 hover:bg-primary/5 transition-colors" 
+            variant="outline"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-purple-100 text-purple-600">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-medium">{t('previewDialog.returnToTranscript')}</div>
+                <div className="text-xs text-muted-foreground">{t('previewDialog.returnToTranscriptDescription')}</div>
+              </div>
+            </div>
+          </Button>
         </div>
       </div>
     </>
