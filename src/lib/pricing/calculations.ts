@@ -188,4 +188,27 @@ export function getCurrentCorrectnessGuaranteePrice(): { price: number; unit: st
         unit: pricing.unit,
         description: pricing.description
     };
+}
+
+/**
+ * Get combined session processing and correctness guarantee price per hour
+ * This represents the default offering which includes human transcription correction
+ */
+export function getCombinedProcessingPrice(): {
+    pricePerHour: number;
+    sessionPrice: number;
+    correctnessPrice: number;
+    label: string;
+    description: string;
+} {
+    const sessionPrice = SESSION_PROCESSING.pricePerHour;
+    const correctnessPrice = getCorrectnessPricing(CURRENT_OFFER_VERSION).pricePerUnit;
+
+    return {
+        pricePerHour: sessionPrice + correctnessPrice,
+        sessionPrice,
+        correctnessPrice,
+        label: "Εισαγωγή συνεδρίασης",
+        description: "Συμπεριλαμβάνει ψηφιοποίηση και διόρθωση απομαγνητοφώνησης από άνθρωπο"
+    };
 } 
