@@ -1,0 +1,29 @@
+{
+  "utterance": {
+    "contextMenu": {
+      "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
+      "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
+      "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
+      "shareFromHere": "Κοινοποίηση από εδώ"
+    },
+    "toasts": {
+      "moveUtterances": "Μετακίνηση φράσεων;",
+      "moveToPreviousDescription": "Μετακίνηση αυτής και των προηγούμενων φράσεων στο προηγούμενο τμήμα;",
+      "moveToNextDescription": "Μετακίνηση αυτής και των επόμενων φράσεων στο επόμενο τμήμα;",
+      "confirm": "Επιβεβαίωση",
+      "utterancesMovedSuccessfully": "Οι φράσεις μετακινήθηκαν επιτυχώς",
+      "highlightCreated": "Το στιγμιότυπο δημιουργήθηκε",
+      "highlightCreatedDescription": "Το στιγμιότυπο ξεκίνησε με αυτή τη φράση. Προσθέστε περισσότερες φράσεις για να δημιουργήσετε το στιγμιότυπό σας.",
+      "error": "Σφάλμα",
+      "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά."
+    }
+  },
+  "controls": {
+    "hideControls": "Απόκρυψη στοιχείων ελέγχου",
+    "showControls": "Εμφάνιση στοιχείων ελέγχου",
+    "pause": "Παύση",
+    "play": "Αναπαραγωγή",
+    "previousClip": "Προηγούμενο κλιπ",
+    "nextClip": "Επόμενο κλιπ"
+  }
+}

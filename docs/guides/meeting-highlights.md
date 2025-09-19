@@ -48,12 +48,12 @@ sequenceDiagram
     participant Database
     participant Task Server
 
-    User->>Frontend: Clicks "Create New Highlight" on highlights page
-    Frontend->>Backend: upsertHighlight request with utterance IDs (initially empty)
-    Backend->>Database: Creates `Highlight` and `HighlightedUtterance` records
+    User->>Frontend: Clicks "Create Highlight" button or right-clicks utterance
+    Frontend->>Backend: upsertHighlight request with utterance IDs (empty or pre-selected)
+    Backend->>Database: Creates `Highlight` and `HighlightedUtterance` records with auto-generated name
     Database-->>Backend: Returns new highlight ID
     Backend-->>Frontend: Returns new highlight ID
-    Frontend->>Frontend: Redirects to /[cityId]/[meetingId]/transcript?highlight=[id]
+    Frontend->>Frontend: Enters editing mode on transcript page with highlight context
     User->>Frontend: Selects utterances in transcript view (edit mode)
     Frontend->>Backend: upsertHighlight on save or before generate (auto-save)
     User->>Frontend: Toggles preview and loops playback
@@ -76,6 +76,8 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 ┌─────────────────────────────────────────────────────────────┐
 │                    Meeting Highlights                      │
 │  Create and manage video highlights from this meeting...  │
+├─────────────────────────────────────────────────────────────┤
+│  [⭐ Create Highlight] [Share]                              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  [Showcased Highlights]                                    │
@@ -117,10 +119,12 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 ### **Workflow Steps**
 
 1. **Highlight Creation**: 
-   - User clicks prominent "Create New Highlight" button on highlights page
-   - Opens dialog with name input and subject selection
-   - Uses `Combobox` component for intuitive subject search
-   - Creates empty highlight and immediately redirects to the transcript page in editing mode
+   - **Primary Method**: User clicks the "Create Highlight" button (⭐) in the header bar
+   - **Context Menu Method**: User right-clicks on any utterance and selects "Ξεκινήστε Highlight από εδώ" (Start Highlight from here)
+   - **List Method**: User clicks the "+ Add Highlight" button in the highlights list
+   - Creates highlight with auto-generated name ("Unnamed Highlight") and immediately enters editing mode
+   - If started from utterance, that utterance is pre-selected in the highlight
+   - No dialog required - streamlined creation process
    - Routing example: `/[cityId]/[meetingId]/transcript?highlight=[id]`
 
 2. **Content Editing**: 
@@ -130,39 +134,44 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
    - Real-time statistics update (duration, speaker count, utterance count)
    - Navigation controls: Previous/Next clip within the timeline controls (shows "Clip X/Y")
    - Unsaved changes are tracked; an "Unsaved Changes" badge appears
+   - **Name and Subject Editing**: Click edit icon next to highlight name in mode bar
    - Save/Reset available via the overflow menu in `HighlightModeBar`
    - Exit Editing prompts if there are unsaved changes and returns to `/[cityId]/[meetingId]/highlights`
 
 3. **Preview Mode**:
-   - Toggle between edit and preview modes from `HighlightModeBar`
+   - Click "Preview" button in `HighlightModeBar` to open the dedicated preview dialog
+   - Dialog displays both video and text previews side-by-side with unified layout
    - Entering preview seeks to the first highlighted utterance and auto-plays
    - Auto-advancing playback through highlight segments; loops back to start
-   - Exiting preview pauses playback
-   - Embedded content preview is shown inside the mode bar
+   - Video hover controls: large play/pause button appears on hover, click to toggle
+   - Clip navigation controls positioned directly below the video player
+   - Exiting preview pauses playback and closes the dialog
 
 4. **Video Generation Configuration**:
-   - Access generation options via the settings menu in `HighlightModeBar`
+   - Access generation options within the preview dialog
    - **Format Selection**: Choose between default (16:9) and social media (9:16) aspect ratios
-   - **Content Options**: Toggle captions and speaker overlay features
-   - **Social Media Enhancements**: When 9:16 format is selected:
-     - Margin type selection (blur effect or solid color)
-     - Background color customization for solid margins
-     - Zoom factor adjustment for optimal framing
-   - Settings persist during the editing session for consistent generation
+   - **Content Options**: Toggle captions and speaker overlay features with text labels
+   - **Social Media Enhancements**: When 9:16 format is selected, hardcoded options include:
+     - Margin type: Blur effect (automatically applied)
+     - Zoom factor: 1.0 (optimized for social media framing)
+   - Settings are session-scoped and reset when dialog is closed
 
 5. **Details Management**:
    - Navigate to `/[cityId]/[meetingId]/highlights/[highlightId]` to view full details
-   - Edit icons next to highlight name/subject open the same dialog used for create/edit
-   - Subject connection with searchable dropdown; clear visual feedback for connected subjects
+   - **Read-only display** with clear field labels (Name, Connected Subject, Showcased status)
+   - **Single editing path**: All editing must be done through "Edit Highlight" button → transcript page
    - **Responsive Video Display**: Video player automatically adapts to aspect ratio
      - Portrait videos (9:16) are properly sized and centered
      - Landscape videos (16:9) use full container width
      - Responsive grid layout adapts to screen size
 
 6. **Preview & Actions**:
-   - Integrated content and video display with responsive layout
-   - Action buttons consolidated in the main action bar
-   - Generate Video available with configured options; if a video already exists, the action is Re-generate
+   - **Dedicated Preview Dialog**: Unified interface for video and text preview with generation options
+   - **Single Dialog Flow**: After clicking "Generate", dialog switches to status view with navigation options
+   - **Generation Status**: Shows "Generation Started" message with multiple navigation choices:
+     - Track Progress: Navigate to individual highlight page
+     - View All Highlights: Navigate to highlights list
+     - Return to Transcript: Continue editing
    - Generate/Re-generate auto-saves if there are unsaved changes before dispatching the task
    - Showcase toggle is available only when a video exists (`muxPlaybackId` set)
    - Video downloads respect the generated format and aspect ratio
@@ -190,12 +199,10 @@ The system provides multiple visual representations of highlight composition:
 
 #### **Mode Bar Integration (`HighlightModeBar.tsx`)**
 - **Statistics Display**: Real-time duration, speaker count, and utterance count
-- **Preview Integration**: Embedded content preview when in preview mode
-- **Generation Options**: Accessible video generation settings with format selection
+- **Preview Button**: Opens dedicated preview dialog for video and text review
 - **Navigation Controls**: Previous/next highlight navigation
-- **Mode Toggle**: Switch between edit and preview modes
+- **Name/Subject Editing**: Edit icon next to highlight name opens dialog for name and subject updates
 - **Save/Reset/Exit**: Save now, reset to original, and exit editing (with unsaved-changes prompt)
-- **Generate**: Generate/Re-generate video with configured options; auto-saves when needed
 
 ### **Categorization System**
 
@@ -217,14 +224,16 @@ This categorization provides better organization and helps users understand the 
     *   `HighlightsList`: `src/components/meetings/HighlightsList.tsx` (main list interface)
     *   `HighlightView`: `src/components/meetings/HighlightView.tsx` (individual highlight view with responsive video)
     *   `HighlightVideo`: `src/components/meetings/HighlightVideo.tsx` (adaptive video player with aspect ratio detection)
+    *   `CreateHighlightButton`: `src/components/meetings/CreateHighlightButton.tsx` (streamlined highlight creation)
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
-    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (editing interface with statistics, generation options, save/reset/exit, preview, and generate)
-    *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection)
+    *   `HighlightPreviewDialog`: `src/components/meetings/HighlightPreviewDialog.tsx` (dedicated preview dialog with video/text preview and generation options)
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, and preview button)
+    *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection and context menu creation)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:
     *   `HighlightContext`: `src/components/meetings/HighlightContext.tsx` (centralized highlight state, calculations, edit/preview lifecycle, save/reset/exit)
-    *   `CouncilMeetingDataContext`: `src/components/meetings/CouncilMeetingDataContext.tsx` (meeting data and highlights)
+    *   `CouncilMeetingDataContext`: `src/components/meetings/CouncilMeetingDataContext.tsx` (centralized meeting data and highlight management with add/update/remove methods)
 *   **Utilities**:
     *   `calculateHighlightData`: Integrated in `HighlightContext.tsx` (reusable calculations)
 *   **Backend Logic**:
@@ -239,18 +248,21 @@ This categorization provides better organization and helps users understand the 
 
 - `enterEditMode(highlight)` — start editing lifecycle for a specific highlight
 - `updateHighlightUtterances(utteranceId, 'add' | 'remove')` — modify composition in-memory and mark dirty
-- `togglePreviewMode()` — preview selection; entering seeks and auto-plays first clip; exiting pauses
+- `openPreviewDialog()` — open dedicated preview dialog; seeks and auto-plays first clip
+- `closePreviewDialog()` — close preview dialog and pause playback
+- `togglePreviewMode()` — toggle preview mode (now controls dialog state)
 - `goToPreviousHighlight()` / `goToNextHighlight()` / `goToHighlightIndex(i)` — navigation; loops in preview, clamps in edit
-- `saveHighlight()` — persists current composition; used explicitly or implicitly before generate
+- `saveHighlight(options?)` — persists current composition with optional name/subjectId updates; used explicitly or implicitly before generate
 - `resetToOriginal()` — discard unsaved changes
 - `exitEditMode()` — return to highlights list; prompts if unsaved changes
-- `hasUnsavedChanges`, `isSaving`, `isEditingDisabled`, `statistics`, `highlightUtterances`
+- `createHighlight(options)` — create new highlight with optional pre-selected utterance and callbacks
+- `hasUnsavedChanges`, `isSaving`, `isCreating`, `isEditingDisabled`, `statistics`, `highlightUtterances`, `isPreviewDialogOpen`
 
 **Business Rules & Assumptions**
 
 *   Only authorized users can create, edit, or delete highlights.
 *   Highlights can only be created for meetings that have a video file.
-*   A highlight must be associated with at least one utterance.
+*   A highlight can be created with zero utterances initially, but must have at least one utterance before video generation.
 *   The external task server must have access to the database to retrieve the necessary information.
 *   The application must expose a webhook endpoint for the task server to report the results of the video processing.
 *   Only one highlight can be in editing mode at a time via the `HighlightContext`.
@@ -267,4 +279,10 @@ This categorization provides better organization and helps users understand the 
 *   Highlights are categorized into Showcased, Video, and Draft sections for better organization.
 *   The interface uses Next.js App Router with dynamic routes for improved navigation and SEO.
 *   **Video generation supports multiple aspect ratios and rendering options for different use cases.**
-*   All action buttons are consolidated in the main action bar for consistency and ease of use. 
+*   **Preview dialog provides unified interface** for video and text preview with generation options.
+*   **Single dialog flow** switches from preview to status view after generation with navigation options.
+*   **Highlight creation is streamlined with multiple entry points**: header button, context menu, and list button.
+*   **Auto-generated names** ("Unnamed Highlight") simplify the creation process and can be edited later.
+*   **Context menu integration** allows users to start highlights directly from any utterance in the transcript.
+*   **Centralized editing workflow**: All highlight editing (content, name, subject) happens in transcript edit mode.
+*   **Unified save functionality**: Single saveHighlight method handles both content and metadata updates with callbacks.

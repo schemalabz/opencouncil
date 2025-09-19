@@ -6,6 +6,8 @@ import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
+import { formatDistanceToNow } from 'date-fns';
+import { el } from 'date-fns/locale';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -513,4 +515,20 @@ export function formatTime(time: number): string {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Formats a date to a relative time string (e.g., "2 hours ago", "3 days ago")
+ * @param date - The date to format
+ * @param locale - The locale to use for formatting (defaults to 'el')
+ * @returns Formatted relative time string in the specified locale
+ */
+export function formatRelativeTime(date: Date, locale: string = 'el'): string {
+  // Map locale to date-fns locale
+  const dateFnsLocale = locale === 'en' ? undefined : el;
+  
+  return formatDistanceToNow(date, {
+    addSuffix: true,
+    locale: dateFnsLocale
+  });
 }

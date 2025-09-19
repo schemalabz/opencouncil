@@ -1,17 +1,16 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Plus, Play, Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Clock, Users, Star, Play, Loader2, Calendar, Tag } from "lucide-react";
 
-import { formatTime } from "@/lib/utils";
+import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
-import { HighlightDialog } from "./HighlightDialog";
+import { CreateHighlightButton } from "./CreateHighlightButton";
 import { useTranscriptOptions } from "./options/OptionsContext";
 
 interface HighlightCardProps {
@@ -20,9 +19,11 @@ interface HighlightCardProps {
 
 const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const router = useRouter();
+  const locale = useLocale();
   const { calculateHighlightData } = useHighlight();
   const { subjects } = useCouncilMeetingData();
   const [isLoading, setIsLoading] = useState(false);
+  const t = useTranslations('highlights');
   
   const highlightData = calculateHighlightData(highlight);
   
@@ -52,41 +53,55 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
     >
       <CardContent className="p-4">
         <div className="space-y-3">
-          {/* Header */}
+          {/* Header with title and status */}
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-2">
+              <div className="flex items-center space-x-2 mb-3">
                 <h3 className="font-semibold text-lg truncate">{highlight.name}</h3>
                 {highlight.isShowcased && (
-                  <Star className="h-4 w-4 text-yellow-500" />
+                  <Star className="h-4 w-4 text-yellow-500 flex-shrink-0" />
                 )}
                 {isLoading && (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
                 )}
               </div>
               
-              {/* Subject and Stats */}
-              <div className="flex items-center space-x-3 mb-3">
-                {highlight.subjectId ? (
-                  <Badge variant="outline" className="text-xs">
-                    {subjects.find(s => s.id === highlight.subjectId)?.name || 'Subject connected'}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                    No subject
-                  </Badge>
-                )}
-                
-                <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-1">
+              {/* Subject badge - prominent but not overwhelming */}
+              <div className="mb-3">
+                <div className="flex items-center space-x-2">
+                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  {highlight.subjectId ? (
+                    <Badge variant="secondary" className="text-xs font-medium">
+                      {subjects.find(s => s.id === highlight.subjectId)?.name || t('common.connectedSubject')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      {t('common.noConnectedSubject')}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              {/* Stats row - compact and organized */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <div className="flex items-center space-x-1 bg-muted/30 px-2 py-1 rounded-md">
                     <Clock className="h-3 w-3" />
-                    <span>{formatTime(duration)}</span>
+                    <span className="font-medium">{formatTime(duration)}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3" />
-                    <span>{speakerCount} speakers</span>
+                    <span>{speakerCount}</span>
                   </div>
-                  <span>{utteranceCount} utterances</span>
+                  <span className="text-xs">
+                    {utteranceCount} <span className="hidden sm:inline">{t('common.utterances')}</span>
+                  </span>
+                </div>
+                
+                {/* Updated timestamp - subtle but visible */}
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground/70">
+                  <Calendar className="h-3 w-3" />
+                  <span>{formatRelativeTime(highlight.updatedAt, locale)}</span>
                 </div>
               </div>
             </div>
@@ -98,54 +113,26 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
 };
 
 const AddHighlightButton = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { meeting } = useCouncilMeetingData();
-  const router = useRouter();
-
-  const handleCreateHighlight = async (name: string, subjectId?: string) => {
-    try {
-      const res = await fetch(`/api/highlights`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          meetingId: meeting.id,
-          cityId: meeting.cityId,
-          utteranceIds: [],
-          subjectId
-        })
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || 'Failed to create');
-      }
-      const newHighlight: HighlightWithUtterances = await res.json();
-      
-      // The dialog will handle showing success feedback
-      // Navigate directly to transcript page with editing mode for the new highlight
-      router.push(`/${meeting.cityId}/${meeting.id}/transcript?highlight=${newHighlight.id}`);
-    } catch (error) {
-      console.error('Failed to create highlight:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create highlight. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
+  const { editingHighlight } = useHighlight();
+  const t = useTranslations('highlights');
+  
   return (
     <div className="p-4 border-b">
-      <Button className="w-full" size="lg" onClick={() => setIsDialogOpen(true)}>
-        <Plus className="h-5 w-5 mr-2" />
-        Create New Highlight
-      </Button>
-      
-      <HighlightDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSave={handleCreateHighlight}
-        mode="create"
+      {editingHighlight && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center space-x-2 text-sm text-amber-800">
+            <Clock className="h-4 w-4 flex-shrink-0" />
+            <span className="font-medium">{t('highlightCard.currentlyEditing')}</span>
+            <span className="font-semibold truncate">{editingHighlight.name}</span>
+          </div>
+          <p className="text-xs text-amber-700 mt-1 ml-6">
+            {t('highlightCard.finishEditingDescription')}
+          </p>
+        </div>
+      )}
+      <CreateHighlightButton 
+        variant="full" 
+        size="lg"
       />
     </div>
   );
@@ -155,6 +142,7 @@ export default function HighlightsList() {
   const { meeting, highlights } = useCouncilMeetingData();
   const { options } = useTranscriptOptions();
   const canEdit = options.editsAllowed;
+  const t = useTranslations('highlights');
 
   const showcasedHighlights = highlights.filter(h => h.isShowcased);
   const highlightsWithVideo = highlights.filter(h => h.videoUrl && !h.isShowcased);
@@ -164,10 +152,9 @@ export default function HighlightsList() {
     <div className="space-y-6">
       {/* Instructions */}
       <div className="bg-muted/50 rounded-lg p-4">
-        <h2 className="text-lg font-semibold mb-2">Meeting Highlights</h2>
+        <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
         <p className="text-sm text-muted-foreground mb-3 text-center">
-          Create and manage video highlights from this meeting. Click on a highlight to view its details, 
-          or create a new one to get started.
+          {t('description')}
         </p>
       </div>
 
@@ -185,7 +172,7 @@ export default function HighlightsList() {
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <Star className="w-5 h-5 mr-2 text-yellow-500" />
-              Showcased Highlights
+              {t('sections.showcased')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showcasedHighlights.map(highlight => (
@@ -203,7 +190,7 @@ export default function HighlightsList() {
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <Play className="w-5 h-5 mr-2 text-green-500" />
-              Video Highlights
+              {t('sections.video')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {highlightsWithVideo.map(highlight => (
@@ -221,7 +208,7 @@ export default function HighlightsList() {
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center">
               <Clock className="h-5 w-5 mr-2 text-blue-500" />
-              Draft Highlights
+              {t('sections.draft')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {draftHighlights.map(highlight => (
@@ -239,9 +226,9 @@ export default function HighlightsList() {
           <div className="text-center py-12">
             <div className="text-muted-foreground">
               <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">No highlights yet</h3>
+              <h3 className="text-lg font-semibold mb-2">{t('emptyState.title')}</h3>
               <p className="text-sm mb-4">
-                Create your first highlight to start organizing meeting moments
+                {t('emptyState.description')}
               </p>
               {canEdit && (
                 <AddHighlightButton />
@@ -256,7 +243,7 @@ export default function HighlightsList() {
             <div className="text-muted-foreground">
               <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">
-                All highlights have been processed into videos
+                {t('highlightCard.allHighlightsProcessed')}
               </p>
             </div>
           </div>

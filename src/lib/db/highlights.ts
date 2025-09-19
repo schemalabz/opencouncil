@@ -45,7 +45,10 @@ export async function getHighlightsForMeeting(cityId: City["id"], meetingId: Cou
                 cityId,
                 meetingId
             },
-            include: highlightWithUtterancesInclude
+            include: highlightWithUtterancesInclude,
+            orderBy: {
+                updatedAt: 'desc'
+            }
         });
         return highlights;
     } catch (error) {
@@ -57,7 +60,7 @@ export async function getHighlightsForMeeting(cityId: City["id"], meetingId: Cou
 export async function upsertHighlight(
     highlightData: {
         id?: Highlight["id"];
-        name: string;
+        name?: string;
         meetingId: CouncilMeeting["id"];
         cityId: City["id"];
         utteranceIds: Utterance["id"][];
@@ -68,9 +71,12 @@ export async function upsertHighlight(
 
     await withUserAuthorizedToEdit({ cityId });
 
+    // Generate auto name if no name provided
+    const finalName = name || "Unnamed Highlight";
+
     // Common data for both operations
     const commonData = {
-        name,
+        name: finalName,
         highlightedUtterances: {
             create: utteranceIds.map(utteranceId => ({
                 utterance: { connect: { id: utteranceId } }

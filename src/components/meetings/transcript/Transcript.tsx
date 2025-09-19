@@ -8,10 +8,9 @@ import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
-import type { HighlightWithUtterances } from "@/lib/db/highlights";
 
 export default function Transcript() {
-    const { transcript: speakerSegments, highlights } = useCouncilMeetingData();
+    const { transcript: speakerSegments, getHighlight } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const { enterEditMode } = useHighlight();
@@ -58,29 +57,12 @@ export default function Transcript() {
     useEffect(() => {
         const highlightId = searchParams.get('highlight');
         if (highlightId) {
-            // First try to find the highlight in the context
-            let highlight = highlights?.find(h => h.id === highlightId);
-            
-            // If not found in context, fetch it from the API
-            if (!highlight) {
-                const fetchHighlight = async () => {
-                    try {
-                        const res = await fetch(`/api/highlights/${highlightId}`);
-                        if (!res.ok) throw new Error('Failed to fetch highlight');
-                        const fetchedHighlight: HighlightWithUtterances = await res.json();
-                        if (fetchedHighlight) {
-                            enterEditMode(fetchedHighlight);
-                        }
-                    } catch (error) {
-                        console.error('Failed to fetch highlight:', error);
-                    }
-                };
-                fetchHighlight();
-            } else {
+            const highlight = getHighlight(highlightId);
+            if (highlight) {
                 enterEditMode(highlight);
             }
         }
-    }, [searchParams, highlights, enterEditMode]);
+    }, [searchParams, getHighlight, enterEditMode]);
 
     const debouncedSetCurrentScrollInterval = useMemo(
         () => debounce(setCurrentScrollInterval, 500),

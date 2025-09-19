@@ -1,0 +1,29 @@
+{
+  "utterance": {
+    "contextMenu": {
+      "startHighlightFromHere": "Start Highlight from here",
+      "moveToPreviousSegment": "Move to previous segment",
+      "moveToNextSegment": "Move to next segment",
+      "shareFromHere": "Share from here"
+    },
+    "toasts": {
+      "moveUtterances": "Move utterances?",
+      "moveToPreviousDescription": "Move this and previous utterances to the previous segment?",
+      "moveToNextDescription": "Move this and following utterances to the next segment?",
+      "confirm": "Confirm",
+      "utterancesMovedSuccessfully": "Utterances moved successfully",
+      "highlightCreated": "Highlight Created",
+      "highlightCreatedDescription": "Highlight started with this utterance. Add more utterances to build your highlight.",
+      "error": "Error",
+      "createHighlightError": "Failed to create highlight. Please try again."
+    }
+  },
+  "controls": {
+    "hideControls": "Hide controls",
+    "showControls": "Show controls",
+    "pause": "Pause",
+    "play": "Play",
+    "previousClip": "Previous clip",
+    "nextClip": "Next clip"
+  }
+}

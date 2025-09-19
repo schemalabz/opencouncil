@@ -1,0 +1,183 @@
+{
+  "common": {
+    "utterances": "utterances",
+    "speakers": "speakers", 
+    "duration": "duration",
+    "close": "Close",
+    "cancel": "Cancel",
+    "error": "Error",
+    "success": "Success",
+    "previousClip": "Previous clip",
+    "nextClip": "Next clip",
+    "connectedSubject": "Connected Subject",
+    "noConnectedSubject": "No connected subject"
+  },
+  "title": "Meeting Highlights",
+  "description": "Create and manage video highlights from this meeting. Click on a highlight to view its details, or create a new one to get started.",
+  "sections": {
+    "showcased": "Showcased Highlights",
+    "video": "Video Highlights", 
+    "draft": "Draft Highlights"
+  },
+  "emptyState": {
+    "title": "No highlights yet",
+    "description": "Create your first highlight to get started. You can select specific parts of the meeting transcript and generate video clips.",
+    "action": "Create Highlight"
+  },
+  "editing": {
+    "currentlyEditing": "Currently editing highlight:",
+    "description": "Click utterances in the transcript to add or remove them from this highlight. Use the controls below to navigate between clips.",
+    "noUtterances": "No utterances selected",
+    "emptyHighlight": "This highlight is empty"
+  },
+  "preview": {
+    "title": "Preview",
+    "contentPreview": "Content Preview",
+    "videoPreview": "Video Preview",
+    "utterance": "utterance",
+    "clip": "Clip {current} of {total}"
+  },
+  "generation": {
+    "format": "Format:",
+    "default": "Default (16:9)",
+    "social": "Social Media (9:16)",
+    "captions": "Captions",
+    "speakerOverlay": "Speakers",
+    "generate": "Generate Video",
+    "regenerate": "Re-generate Video",
+    "started": "Generation Started",
+    "startedDescription": "Your highlight video is being generated.",
+    "failed": "Failed to generate video. Please try again.",
+    "whatNext": "What would you like to do next?",
+    "trackProgress": "Track Progress",
+    "trackProgressDescription": "View this highlight",
+    "viewAll": "View All Highlights", 
+    "viewAllDescription": "Browse highlights",
+    "returnToTranscript": "Return to Transcript"
+  },
+  "details": {
+    "name": "Name",
+    "showcased": "Showcased",
+    "created": "Created",
+    "contentVideo": "Content & Video",
+    "content": "Content",
+    "video": "Video",
+    "editContent": "Edit Content",
+    "toggleShowcase": "Toggle Showcase",
+    "download": "Download",
+    "delete": "Delete",
+    "backToHighlights": "Back to Highlights",
+    "generating": "Generating video...",
+    "generatingDescription": "Your highlight video is being processed. This may take a few minutes."
+  },
+  "dialog": {
+    "createTitle": "Create New Highlight",
+    "editTitle": "Edit Highlight",
+    "highlightName": "Highlight Name",
+    "namePlaceholder": "Enter highlight name",
+    "subjectPlaceholder": "Select a subject (optional)",
+    "subjectSearchPlaceholder": "Search subjects...",
+    "noSubjectsFound": "No subjects found",
+    "cancel": "Cancel",
+    "create": "Create Highlight",
+    "save": "Save Changes",
+    "nameRequired": "Please enter a highlight name."
+  },
+  "buttons": {
+    "createHighlight": "Create Highlight",
+    "createNewHighlight": "Create New Highlight",
+    "creating": "Creating highlight...",
+    "currentlyEditing": "Currently editing a highlight",
+    "addHighlight": "Add Highlight"
+  },
+  "toasts": {
+    "highlightCreated": "Highlight Created",
+    "highlightCreatedDescription": "Start selecting utterances to build your highlight.",
+    "highlightUpdated": "Highlight updated successfully.",
+    "highlightDeleted": "Highlight deleted successfully.",
+    "deleteError": "Failed to delete highlight. Please try again.",
+    "generationStarted": "Video generation started. This may take a few minutes.",
+    "generationError": "Failed to generate video. Please try again.",
+    "showcaseAdded": "Highlight added to showcase.",
+    "showcaseRemoved": "Highlight removed from showcase.",
+    "showcaseError": "Failed to toggle showcase status. Please try again.",
+    "saveFailed": "Save failed",
+    "saveFailedDescription": "Please resolve issues and try again."
+  },
+  "confirmations": {
+    "deleteHighlight": "Are you sure you want to delete this highlight?"
+  },
+  "modeBar": {
+    "currentlyEditing": "Currently editing highlight:",
+    "currentlyPreviewing": "Currently Previewing",
+    "currentlyEditingMode": "Currently Editing",
+    "editingDescription": "Click utterances in the transcript to add or remove them from this highlight. Use the controls below to navigate between clips.",
+    "unsavedChanges": "Unsaved Changes",
+    "preview": "Preview",
+    "save": "Save",
+    "reset": "Reset",
+    "exit": "Exit Editing",
+    "duration": "Duration",
+    "speakers": "Speakers",
+    "utterances": "Utterances",
+    "clip": "Clip {current} of {total}",
+    "previousClip": "Previous",
+    "nextClip": "Next",
+    "saving": "Saving…",
+    "saveNow": "Save now",
+    "resetChanges": "Reset changes",
+    "openPreview": "Open preview",
+    "exitEditingMode": "Exit editing mode"
+  },
+  "reset": {
+    "confirmReset": "Are you sure you want to reset all changes? This cannot be undone.",
+    "changesReset": "Changes reset",
+    "changesResetDescription": "All unsaved changes were discarded."
+  },
+  "exit": {
+    "confirmExit": "You have unsaved changes. Are you sure you want to cancel?",
+    "exitedEditMode": "Exited edit mode",
+    "noChangesSaved": "No changes were saved.",
+    "returningToHighlights": "Returning to highlights."
+  },
+  "previewDialog": {
+    "title": "Preview highlight",
+    "description": "Review the selected clips. Use the controls to navigate clips. When ready, configure settings and generate.",
+    "contentPreview": "Content Preview",
+    "videoPreview": "Video Preview",
+    "noUtterancesSelected": "No utterances selected",
+    "highlightEmpty": "This highlight is empty",
+    "format": "Format:",
+    "defaultAspectRatio": "Default (16:9)",
+    "socialAspectRatio": "Social Media (9:16)",
+    "contentOptions": "Content Options:",
+    "captions": "Captions",
+    "speakerOverlays": "Speakers",
+    "generateVideo": "Generate Video",
+    "regenerateVideo": "Re-generate Video",
+    "generationStarted": "Generation Started",
+    "whatNext": "What would you like to do next?",
+    "trackProgress": "Track Progress",
+    "trackProgressDescription": "View your highlight's page",
+    "viewAllHighlights": "View All Highlights",
+    "viewAllHighlightsDescription": "Browse highlights",
+    "returnToTranscript": "Return to Transcript",
+    "returnToTranscriptDescription": "Continue your journey",
+    "clip": "Clip {current} of {total}"
+  },
+  "highlightCard": {
+    "subjectConnected": "Subject connected",
+    "allHighlightsProcessed": "All highlights have been processed into videos",
+    "currentlyEditing": "Currently editing highlight:",
+    "finishEditingDescription": "Finish editing this highlight before creating a new one."
+  },
+  "highlightView": {
+    "lastUpdated": "Last updated {relativeTime}",
+    "generating": "Generating...",
+    "generateVideo": "Generate Video",
+    "generatingVideo": "Generating highlight video... This may take a few minutes.",
+    "contentAndVideo": "Content & Video",
+    "contentPreview": "Content Preview",
+    "video": "Video"
+  }
+}

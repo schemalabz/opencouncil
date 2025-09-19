@@ -1,17 +1,17 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, Download, Plus, ArrowLeft, Play } from "lucide-react";
+import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
-import { formatTime } from "@/lib/utils";
+import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
-import { HighlightDialog } from "./HighlightDialog";
 import { useHighlight } from "./HighlightContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 
@@ -21,12 +21,13 @@ interface HighlightViewProps {
 
 export function HighlightView({ highlight }: HighlightViewProps) {
   const router = useRouter();
-  const { meeting, subjects } = useCouncilMeetingData();
+  const locale = useLocale();
+  const { meeting, subjects, removeHighlight, updateHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
   const canEdit = options.editsAllowed;
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
+  const t = useTranslations('highlights');
 
   const highlightData = calculateHighlightData(highlight);
 
@@ -70,60 +71,30 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     router.push(`/${meeting.cityId}/${meeting.id}/transcript?highlight=${highlight.id}`);
   };
 
-  const handleEditDetails = () => {
-    setIsEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = async (name: string, subjectId?: string) => {
-    try {
-      const res = await fetch(`/api/highlights/${highlight.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          meetingId: highlight.meetingId,
-          cityId: highlight.cityId,
-          utteranceIds: highlight.highlightedUtterances.map(hu => hu.utteranceId),
-          subjectId: subjectId || null
-        })
-      });
-      if (!res.ok) throw new Error('Failed to update');
-      
-      toast({
-        title: "Success",
-        description: "Highlight updated successfully.",
-        variant: "default",
-      });
-      router.refresh();
-    } catch (error) {
-      console.error('Failed to update highlight:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update highlight. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this highlight?')) {
+    if (!confirm(t('confirmations.deleteHighlight'))) {
       return;
     }
 
     try {
       const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
+      
+      // Update the context to remove the highlight
+      removeHighlight(highlight.id);
+      
       toast({
-        title: "Success",
-        description: "Highlight deleted successfully.",
+        title: t('common.success'),
+        description: t('toasts.highlightDeleted'),
         variant: "default",
       });
       router.push(`/${meeting.cityId}/${meeting.id}/highlights`);
     } catch (error) {
       console.error('Failed to delete highlight:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete highlight. Please try again.",
+        title: t('common.error'),
+        description: t('toasts.deleteError'),
         variant: "destructive",
       });
     }
@@ -139,16 +110,16 @@ export function HighlightView({ highlight }: HighlightViewProps) {
       if (!res.ok) throw new Error('Failed to start generation');
       const task = await res.json();
       toast({
-        title: "Success",
-        description: "Video generation started. This may take a few minutes.",
+        title: t('common.success'),
+        description: t('toasts.generationStarted'),
         variant: "default",
       });
       setLatestPendingTask(task.id);
     } catch (error) {
       console.error('Failed to generate video:', error);
       toast({
-        title: "Error",
-        description: "Failed to generate video. Please try again.",
+        title: t('common.error'),
+        description: t('toasts.generationError'),
         variant: "destructive",
       });
     }
@@ -158,17 +129,22 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     try {
       const res = await fetch(`/api/highlights/${highlight.id}`, { method: 'PATCH' });
       if (!res.ok) throw new Error('Failed to toggle showcase');
+      
+      const updatedHighlight = await res.json();
+      
+      // Update the context with the new showcase status
+      updateHighlight(highlight.id, { isShowcased: updatedHighlight.isShowcased });
+      
       toast({
-        title: "Success",
-        description: highlight.isShowcased ? "Highlight removed from showcase." : "Highlight added to showcase.",
+        title: t('common.success'),
+        description: highlight.isShowcased ? t('toasts.showcaseRemoved') : t('toasts.showcaseAdded'),
         variant: "default",
       });
-      router.refresh();
     } catch (error) {
       console.error('Failed to toggle showcase:', error);
       toast({
-        title: "Error",
-        description: "Failed to toggle showcase status. Please try again.",
+        title: t('common.error'),
+        description: t('toasts.showcaseError'),
         variant: "destructive",
       });
     }
@@ -184,7 +160,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
           onClick={() => router.push(`/${meeting.cityId}/${meeting.id}/highlights`)}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Highlights
+          {t('details.backToHighlights')}
         </Button>
       </div>
 
@@ -194,59 +170,35 @@ export function HighlightView({ highlight }: HighlightViewProps) {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-2xl font-bold">{highlight.name}</h1>
-                {canEdit && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 w-6 p-0 hover:bg-muted"
-                    onClick={handleEditDetails}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-              <div className="flex items-center space-x-2 mt-2">
-                {highlight.isShowcased && (
-                  <Badge variant="secondary" className="text-xs">
-                    <Star className="h-3 w-3 mr-1" />
-                    Showcased
-                  </Badge>
-                )}
-                {highlight.subjectId ? (
-                  <div className="flex items-center space-x-1">
+              <div className="space-y-2">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">{t('details.name')}</label>
+                  <h1 className="text-2xl font-bold mt-1">{highlight.name}</h1>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-muted-foreground">{t('common.connectedSubject')}</label>
+                  {highlight.subjectId ? (
                     <Badge variant="outline" className="text-xs">
                       {subjects.find(s => s.id === highlight.subjectId)?.name}
                     </Badge>
-                    {canEdit && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-5 w-5 p-0 hover:bg-muted"
-                        onClick={handleEditDetails}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1">
+                  ) : (
                     <Badge variant="outline" className="text-xs text-muted-foreground">
-                      No subject
+                      {t('common.noConnectedSubject')}
                     </Badge>
-                    {canEdit && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-5 w-5 p-0 hover:bg-muted"
-                        onClick={handleEditDetails}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    )}
+                  )}
+                </div>
+                {highlight.isShowcased && (
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="text-xs">
+                      <Star className="h-3 w-3 mr-1" />
+                      {t('details.showcased')}
+                    </Badge>
                   </div>
                 )}
+                <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>{t('highlightView.lastUpdated', { relativeTime: formatRelativeTime(highlight.updatedAt, locale) })}</span>
+                </div>
               </div>
             </div>
             
@@ -254,7 +206,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
               <div className="flex items-center space-x-2">
                 <Button size="sm" onClick={handleEditContent}>
                   <Edit className="h-4 w-4 mr-2" />
-                  Edit Content
+                  {t('details.editContent')}
                 </Button>
                 {highlight.muxPlaybackId && (
                   <Button
@@ -274,7 +226,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   >
                     <Button variant="outline" size="sm">
                       <Download className="h-4 w-4 mr-2" />
-                      Download
+                      {t('details.download')}
                     </Button>
                   </a>
                 ) : (
@@ -287,10 +239,10 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                     {latestPendingTask ? (
                       <>
                         <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        Generating...
+                        {t('highlightView.generating')}
                       </>
                     ) : (
-                      'Generate Video'
+                      t('highlightView.generateVideo')
                     )}
                   </Button>
                 )}
@@ -306,7 +258,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center space-x-2 text-sm text-blue-700">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                <span>Generating highlight video... This may take a few minutes.</span>
+                <span>{t('highlightView.generatingVideo')}</span>
               </div>
             </div>
           )}
@@ -317,23 +269,23 @@ export function HighlightView({ highlight }: HighlightViewProps) {
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{formatTime(highlightData?.statistics.duration ?? 0)}</span>
-                <span className="text-sm text-muted-foreground">duration</span>
+                <span className="text-sm text-muted-foreground">{t('common.duration')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="font-medium">{highlightData?.statistics.speakerCount ?? 0}</span>
-                <span className="text-sm text-muted-foreground">speakers</span>
+                <span className="text-sm text-muted-foreground">{t('common.speakers')}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <span className="font-medium">{highlightData?.statistics.utteranceCount ?? 0}</span>
-                <span className="text-sm text-muted-foreground">utterances</span>
+                <span className="text-sm text-muted-foreground">{t('common.utterances')}</span>
               </div>
             </div>
           )}
 
           {/* Integrated Content & Video Section */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Content & Video</h3>
+            <h3 className="text-lg font-semibold mb-3">{t('highlightView.contentAndVideo')}</h3>
             
             {highlight.muxPlaybackId ? (
               /* Desktop: Side-by-side, Mobile: Stacked */
@@ -343,7 +295,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   <div className="mb-3">
                     <h4 className="font-medium text-sm text-muted-foreground flex items-center">
                       <span className="mr-2">📝</span>
-                      Content Preview
+                      {t('highlightView.contentPreview')}
                     </h4>
                   </div>
                   <HighlightPreview 
@@ -358,7 +310,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   <div className="mb-3">
                     <h4 className="font-medium text-sm text-muted-foreground flex items-center">
                       <span className="mr-2">🎬</span>
-                      Video
+                      {t('highlightView.video')}
                     </h4>
                   </div>
                   <div className="rounded-lg overflow-hidden">
@@ -377,7 +329,7 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                 <div className="mb-3">
                   <h4 className="font-medium text-sm text-muted-foreground flex items-center">
                     <span className="mr-2">📝</span>
-                    Content Preview
+                    {t('highlightView.contentPreview')}
                   </h4>
                 </div>
                 <HighlightPreview 
@@ -391,14 +343,6 @@ export function HighlightView({ highlight }: HighlightViewProps) {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
-      <HighlightDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        highlight={highlight}
-        onSave={handleSaveEdit}
-        mode="edit"
-      />
     </div>
   );
 } 

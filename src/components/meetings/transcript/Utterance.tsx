@@ -1,14 +1,14 @@
 "use client";
 import { Utterance } from "@prisma/client";
 import React, { useEffect, useState } from "react";
+import { useTranslations } from 'next-intl';
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
 import { editUtterance } from "@/lib/db/utterance";
-import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -26,13 +26,18 @@ const UtteranceC: React.FC<{
     const { currentTime, seekTo } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
-    const { editingHighlight, updateHighlightUtterances } = useHighlight();
+    const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
+    const canEdit = options.editsAllowed;
+    const t = useTranslations('transcript.utterance');
+
+    // Check if there are any context menu options available
+    const hasContextMenuOptions = !editingHighlight && (canEdit || options.editable);
 
     // Update local state when prop changes
     useEffect(() => {
@@ -79,9 +84,11 @@ const UtteranceC: React.FC<{
     );
 
     const handleClick = () => {
-        // If we're in highlight editing mode, handle highlight toggling
+        // If we're in highlight editing mode, handle highlight toggling and seek to utterance
         if (editingHighlight) {
             updateHighlightUtterances(localUtterance.id, isHighlighted ? 'remove' : 'add');
+            // Seek to the utterance timestamp so user can easily play and listen to what they highlighted
+            seekTo(localUtterance.startTimestamp);
         } else if (options.editable) {
             setIsEditing(true);
             seekTo(localUtterance.startTimestamp);
@@ -106,8 +113,8 @@ const UtteranceC: React.FC<{
     const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
         e.stopPropagation();
         toast({
-            title: "Move utterances?",
-            description: "Move this and previous utterances to the previous segment?",
+            title: t('toasts.moveUtterances'),
+            description: t('toasts.moveToPreviousDescription'),
             action: (
                 <Button
                     variant="default"
@@ -115,11 +122,11 @@ const UtteranceC: React.FC<{
                     onClick={() => {
                         moveUtterancesToPrevious(localUtterance.id, localUtterance.speakerSegmentId);
                         toast({
-                            description: "Utterances moved successfully",
+                            description: t('toasts.utterancesMovedSuccessfully'),
                         });
                     }}
                 >
-                    Confirm
+                    {t('toasts.confirm')}
                 </Button>
             ),
         });
@@ -128,8 +135,8 @@ const UtteranceC: React.FC<{
     const handleMoveUtterancesToNext = (e: React.MouseEvent) => {
         e.stopPropagation();
         toast({
-            title: "Move utterances?",
-            description: "Move this and following utterances to the next segment?",
+            title: t('toasts.moveUtterances'),
+            description: t('toasts.moveToNextDescription'),
             action: (
                 <Button
                     variant="default"
@@ -137,11 +144,11 @@ const UtteranceC: React.FC<{
                     onClick={() => {
                         moveUtterancesToNext(localUtterance.id, localUtterance.speakerSegmentId);
                         toast({
-                            description: "Utterances moved successfully",
+                            description: t('toasts.utterancesMovedSuccessfully'),
                         });
                     }}
                 >
-                    Confirm
+                    {t('toasts.confirm')}
                 </Button>
             ),
         });
@@ -150,6 +157,28 @@ const UtteranceC: React.FC<{
     const handleShareFromHere = (e: React.MouseEvent) => {
         e.stopPropagation();
         openShareDropdownAndCopy(localUtterance.startTimestamp);
+    };
+
+    const handleStartHighlightHere = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        await createHighlight({
+            preSelectedUtteranceId: localUtterance.id,
+            onSuccess: (highlight) => {
+                toast({
+                    title: t('toasts.highlightCreated'),
+                    description: t('toasts.highlightCreatedDescription'),
+                    variant: "default",
+                });
+            },
+            onError: (error) => {
+                toast({
+                    title: t('common.error'),
+                    description: t('toasts.createHighlightError'),
+                    variant: "destructive",
+                });
+            }
+        });
     };
 
     if (localUtterance.drift > options.maxUtteranceDrift) {
@@ -188,6 +217,14 @@ const UtteranceC: React.FC<{
         );
     }
 
+    if (!hasContextMenuOptions) {
+        return (
+            <span className={className} id={localUtterance.id} onClick={handleClick}>
+                {localUtterance.text + ' '}
+            </span>
+        );
+    }
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
@@ -196,22 +233,30 @@ const UtteranceC: React.FC<{
                 </span>
             </ContextMenuTrigger>
             <ContextMenuContent>
+                {canEdit && !editingHighlight && (
+                    <ContextMenuItem onClick={handleStartHighlightHere}>
+                        <Star className="h-4 w-4 mr-2" />
+                        {t('contextMenu.startHighlightFromHere')}
+                    </ContextMenuItem>
+                )}
                 {options.editable && (
                     <>
                         <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
                             <ArrowLeftToLine className="h-4 w-4 mr-2" />
-                            Move to previous segment
+                            {t('contextMenu.moveToPreviousSegment')}
                         </ContextMenuItem>
                         <ContextMenuItem onClick={handleMoveUtterancesToNext}>
                             <ArrowRightToLine className="h-4 w-4 mr-2" />
-                            Move to next segment
+                            {t('contextMenu.moveToNextSegment')}
                         </ContextMenuItem>
                     </>
                 )}
-                <ContextMenuItem onClick={handleShareFromHere}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Κοινοποιήστε από εδώ
-                </ContextMenuItem>
+                {!editingHighlight && (
+                    <ContextMenuItem onClick={handleShareFromHere}>
+                        <Copy className="h-4 w-4 mr-2" />
+                        {t('contextMenu.shareFromHere')}
+                    </ContextMenuItem>
+                )}
             </ContextMenuContent>
         </ContextMenu>
     );

@@ -1,6 +1,6 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
@@ -29,6 +29,7 @@ export interface HighlightCalculationResult {
 interface HighlightContextType {
   editingHighlight: HighlightWithUtterances | null;
   previewMode: boolean;
+  isPreviewDialogOpen: boolean;
   statistics: HighlightStatistics | null;
   highlightUtterances: HighlightUtterance[] | null;
   currentHighlightIndex: number;
@@ -36,6 +37,7 @@ interface HighlightContextType {
   utteranceMap: Map<string, Utterance>; // Pre-built utterance map for performance
   hasUnsavedChanges: boolean;
   isSaving: boolean;
+  isCreating: boolean;
   isEditingDisabled: boolean;
   enterEditMode: (highlight: HighlightWithUtterances) => void;
   updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove') => void;
@@ -46,8 +48,20 @@ interface HighlightContextType {
   goToNextHighlight: () => void;
   goToHighlightIndex: (index: number) => void;
   togglePreviewMode: () => void;
+  openPreviewDialog: () => void;
+  closePreviewDialog: () => void;
   calculateHighlightData: (highlight: HighlightWithUtterances | null) => HighlightCalculationResult | null;
-  saveHighlight: () => Promise<{ success: boolean; error?: any }>;
+  saveHighlight: (options?: {
+    name?: string;
+    subjectId?: string | null;
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }) => Promise<{ success: boolean; error?: any }>;
+  createHighlight: (options: {
+    preSelectedUtteranceId?: string;
+    onSuccess?: (highlight: HighlightWithUtterances) => void;
+    onError?: (error: Error) => void;
+  }) => Promise<{ success: boolean; error?: any }>;
 }
 
 const HighlightContext = createContext<HighlightContextType | undefined>(undefined);
@@ -55,15 +69,18 @@ const HighlightContext = createContext<HighlightContextType | undefined>(undefin
 export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [editingHighlight, setEditingHighlight] = useState<HighlightWithUtterances | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [originalHighlight, setOriginalHighlight] = useState<HighlightWithUtterances | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getSpeakerTag, getPerson } = useCouncilMeetingData();
+  const { transcript, getSpeakerTag, getPerson, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Build utterance map once and memoize it - this eliminates the need to rebuild it in useHighlightCalculations
   const utteranceMap = useMemo(() => {
@@ -139,6 +156,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   // Calculate total highlights
   const totalHighlights = highlightUtterances?.length || 0;
 
+  // Guard to prevent repeated auto-advance loops during wrap-around seeks
+  const isAutoAdvancingRef = useRef(false);
+
   // Auto-update current highlight index based on video time
   useEffect(() => {
     if (!highlightUtterances || highlightUtterances.length === 0) {
@@ -173,15 +193,23 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     if (!previewMode || !highlightUtterances || !isPlaying || highlightUtterances.length === 0) {
       return;
     }
+
+    // Prevent rapid re-entrancy while a programmatic seek is in flight
+    if (isAutoAdvancingRef.current) {
+      return;
+    }
     
     const currentUtterance = highlightUtterances[currentHighlightIndex];
     if (!currentUtterance) return;
     
     if (currentTime >= currentUtterance.endTimestamp) {
-      // Auto-advance to next highlight
+      // Auto-advance to next highlight (wrap to start at the end)
       const nextIndex = (currentHighlightIndex + 1) % totalHighlights;
+      isAutoAdvancingRef.current = true;
       setCurrentHighlightIndex(nextIndex);
       seekTo(highlightUtterances[nextIndex].startTimestamp);
+      // Allow time for the seek/currentTime to propagate before re-evaluating
+      setTimeout(() => { isAutoAdvancingRef.current = false; }, 150);
     }
   }, [currentTime, previewMode, highlightUtterances, currentHighlightIndex, isPlaying, totalHighlights, seekTo]);
 
@@ -235,19 +263,40 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
 
   // Enhanced preview mode toggle
   const togglePreviewMode = () => {
-    const newPreviewMode = !previewMode;
-    setPreviewMode(newPreviewMode);
-    
-    // When entering preview mode, jump to the first highlight and auto-play if available
-    if (newPreviewMode && highlightUtterances && highlightUtterances.length > 0) {
-      setCurrentHighlightIndex(0);
-      seekToAndPlay(highlightUtterances[0].startTimestamp);
-    }
-
-    // When exiting preview mode, pause playback
-    if (!newPreviewMode) {
+    if (isPreviewDialogOpen) {
+      // Close dialog and exit preview
+      setIsPreviewDialogOpen(false);
+      setPreviewMode(false);
       setIsPlaying(false);
+    } else {
+      // Open dialog and enter preview
+      setIsPreviewDialogOpen(true);
+      setPreviewMode(true);
+      if (highlightUtterances && highlightUtterances.length > 0) {
+        setCurrentHighlightIndex(0);
+        seekToAndPlay(highlightUtterances[0].startTimestamp);
+      }
     }
+  };
+
+  const openPreviewDialog = () => {
+    if (isPreviewDialogOpen) return;
+    setIsPreviewDialogOpen(true);
+    setPreviewMode(true);
+    if (highlightUtterances && highlightUtterances.length > 0) {
+      setCurrentHighlightIndex(0);
+      // Small delay to ensure video element is ready before starting playback
+      setTimeout(() => {
+        seekToAndPlay(highlightUtterances[0].startTimestamp);
+      }, 100);
+    }
+  };
+
+  const closePreviewDialog = () => {
+    if (!isPreviewDialogOpen) return;
+    setIsPreviewDialogOpen(false);
+    setPreviewMode(false);
+    setIsPlaying(false);
   };
 
   // Enter edit mode - called when switching to edit mode (from URL parameter)
@@ -256,7 +305,20 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     // Store the original highlight for reset functionality
     setOriginalHighlight(highlight);
     setIsDirty(false); // Start with clean state
-  }, [setEditingHighlight, setOriginalHighlight, setIsDirty]);
+    
+    // Auto-navigate to transcript page with highlight parameter if not already there
+    const expectedPath = `/${highlight.cityId}/${highlight.meetingId}/transcript`;
+    const expectedUrl = `${expectedPath}?highlight=${highlight.id}`;
+    
+    // Check if we're already on the transcript page
+    if (pathname === expectedPath) {
+      // We're on transcript page, just add/update the highlight parameter
+      router.replace(`${expectedPath}?highlight=${highlight.id}`);
+    } else if (!pathname.includes('/transcript')) {
+      // We're not on transcript page, navigate to it with highlight parameter
+      router.push(expectedUrl);
+    }
+  }, [setEditingHighlight, setOriginalHighlight, setIsDirty, router, pathname]);
 
   // Check if editing should be disabled (e.g., during save operations)
   // This prevents users from making changes while operations like saving are in progress
@@ -360,44 +422,122 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   }, [editingHighlight, router, setIsPlaying]);
 
   // Save highlight functionality
-  const saveHighlight = useCallback(async () => {
-    if (!editingHighlight || !isDirty) {
+  const saveHighlight = useCallback(async (options?: {
+    name?: string;
+    subjectId?: string | null;
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }) => {
+    if (!editingHighlight) {
+      return { success: false, error: 'No highlight to save' };
+    }
+
+    // Check if we have changes to save (either dirty state or explicit updates)
+    const hasChanges = isDirty || (options?.name !== undefined) || (options?.subjectId !== undefined);
+    
+    if (!hasChanges) {
       return { success: false, error: 'No changes to save' };
     }
 
     try {
       setIsSaving(true);
+      
+      // Prepare the update data
+      const updateData = {
+        name: options?.name ?? editingHighlight.name,
+        meetingId: editingHighlight.meetingId,
+        cityId: editingHighlight.cityId,
+        utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId),
+        ...(options?.subjectId !== undefined && { subjectId: options.subjectId })
+      };
+
       const res = await fetch(`/api/highlights/${editingHighlight.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editingHighlight.name,
-          meetingId: editingHighlight.meetingId,
-          cityId: editingHighlight.cityId,
-          utteranceIds: editingHighlight.highlightedUtterances.map(hu => hu.utteranceId)
-        })
+        body: JSON.stringify(updateData)
       });
+      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error || 'Failed to save');
       }
       
-      // Reset change tracking after successful save
-      setOriginalHighlight(editingHighlight);
+      // Always get the full updated highlight from the API response
+      const updatedHighlight = await res.json();
+      
+      // Update the editing highlight with the full data from the server
+      setEditingHighlight(updatedHighlight);
+      setOriginalHighlight(updatedHighlight);
+      
+      // Update the highlight in the meeting data context with the full server data
+      updateHighlight(editingHighlight.id, updatedHighlight);
+      
       setIsDirty(false);
+      options?.onSuccess?.();
       
       return { success: true };
     } catch (error) {
       console.error('Failed to save highlight:', error);
+      options?.onError?.(error as Error);
       return { success: false, error };
     } finally {
       setIsSaving(false);
     }
-  }, [editingHighlight, isDirty]);
+  }, [editingHighlight, isDirty, updateHighlight]);
+
+  // Create highlight functionality
+  const createHighlight = useCallback(async (options: {
+    preSelectedUtteranceId?: string;
+    onSuccess?: (highlight: HighlightWithUtterances) => void;
+    onError?: (error: Error) => void;
+  }) => {
+    const { preSelectedUtteranceId, onSuccess, onError } = options;
+    
+    try {
+      setIsCreating(true);
+      
+      const utteranceIds = preSelectedUtteranceId ? [preSelectedUtteranceId] : [];
+      
+      const res = await fetch('/api/highlights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId: meeting.id,
+          cityId: meeting.cityId,
+          utteranceIds
+        })
+      });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to create highlight');
+      }
+      
+      // Get the full highlight data from the API response
+      const highlight = await res.json();
+      
+      // Update the meeting data context with the complete highlight data from the server
+      addHighlight(highlight);
+      
+      // Immediately enter editing mode with the full server data
+      enterEditMode(highlight);
+      
+      onSuccess?.(highlight);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to create highlight:', error);
+      onError?.(error as Error);
+      return { success: false, error };
+    } finally {
+      setIsCreating(false);
+    }
+  }, [meeting, addHighlight, enterEditMode]);
 
   const value = {
     editingHighlight,
     previewMode,
+    isPreviewDialogOpen,
     statistics,
     highlightUtterances,
     currentHighlightIndex,
@@ -405,6 +545,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     utteranceMap,
     hasUnsavedChanges: isDirty,
     isSaving,
+    isCreating,
     isEditingDisabled,
     enterEditMode,
     updateHighlightUtterances,
@@ -415,8 +556,11 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     goToNextHighlight,
     goToHighlightIndex,
     togglePreviewMode,
+    openPreviewDialog,
+    closePreviewDialog,
     calculateHighlightData,
     saveHighlight,
+    createHighlight,
   };
 
   return (

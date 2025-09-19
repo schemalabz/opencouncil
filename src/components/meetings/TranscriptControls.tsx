@@ -1,5 +1,6 @@
 "use client"
 import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-react"
+import { useTranslations } from 'next-intl';
 import { useVideo } from "./VideoProvider"
 import { cn } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
@@ -12,7 +13,8 @@ export default function TranscriptControls({ className }: { className?: string }
     const { transcript: speakerSegments } = useCouncilMeetingData();
     const { isPlaying, togglePlayPause, currentTime, duration, seekTo, isSeeking, currentScrollInterval } = useVideo();
     const { options } = useTranscriptOptions();
-    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight } = useHighlight();
+    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex, goToPreviousHighlight, goToNextHighlight, isPreviewDialogOpen } = useHighlight();
+    const t = useTranslations('transcript.controls');
     const [isSliderHovered, setIsSliderHovered] = useState(false);
     const [isTouchActive, setIsTouchActive] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
@@ -195,7 +197,7 @@ export default function TranscriptControls({ className }: { className?: string }
                     className={`fixed bottom-4 ${isControlsVisible ? 'right-[4.5rem]' : 'right-2'} 
                     z-50 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.85)] text-white border-2 shadow-lg transition-all duration-200
                     p-2 rounded-lg flex items-center gap-1.5`}
-                    aria-label={isControlsVisible ? "Hide controls" : "Show controls"}
+                    aria-label={isControlsVisible ? t('hideControls') : t('showControls')}
                 >
                     <Youtube className="w-4 h-4" />
                     {isControlsVisible ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
@@ -217,7 +219,7 @@ export default function TranscriptControls({ className }: { className?: string }
                 <button
                     onClick={togglePlayPause}
                     className="p-2 bg-white border-2 h-12 w-12 flex items-center justify-center hover:bg-gray-100 mx-1 my-1"
-                    aria-label={isPlaying ? "Pause" : "Play"}
+                    aria-label={isPlaying ? t('pause') : t('play')}
                 >
                     {isPlaying ?
                         (isSeeking ? <Loader className="w-5 h-5 animate-spin" /> : <Pause className="w-5 h-5" />) : <Play className="w-5 h-5" />}
@@ -231,8 +233,8 @@ export default function TranscriptControls({ className }: { className?: string }
                     <button
                       onClick={goToPreviousHighlight}
                       className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
-                      aria-label="Previous clip"
-                      title="Previous clip"
+                      aria-label={t('previousClip')}
+                      title={t('previousClip')}
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -242,15 +244,18 @@ export default function TranscriptControls({ className }: { className?: string }
                     <button
                       onClick={goToNextHighlight}
                       className="h-6 w-6 flex items-center justify-center bg-white border hover:bg-gray-100"
-                      aria-label="Next clip"
-                      title="Next clip"
+                      aria-label={t('nextClip')}
+                      title={t('nextClip')}
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 )}
 
-                <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
+                {/* Hide inline video while preview dialog is open to avoid double-mount */}
+                {!isPreviewDialogOpen && (
+                    <Video className={`object-contain w-12 h-12 bg-white border-2 flex items-center justify-center group mx-1 my-1 ${isExpanded ? 'hidden' : ''}`} expandable={true} onExpandChange={setIsExpanded} />
+                )}
 
                 {/* Slider Container */}
                 <div
