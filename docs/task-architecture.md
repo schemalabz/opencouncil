@@ -10,7 +10,7 @@ The task workflow is designed to offload long-running processes, such as media t
 The architecture consists of three main components:
 
 1.  **Next.js Application (opencouncil):** The user-facing web application that initiates tasks and receives status updates.
-2.  **Backend Task Server (opencouncil-tasks):** A Node.js server responsible for executing the tasks.
+2.  **Backend Task Server ([opencouncil-tasks](https://github.com/schemalabz/opencouncil-tasks)):** A Node.js server responsible for executing the tasks.
 3.  **PostgreSQL Database:** Stores task-related information, including status, request payloads, and results.
 
 ### Architecture Diagram

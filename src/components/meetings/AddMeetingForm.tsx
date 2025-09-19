@@ -20,13 +20,13 @@ import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { useTranslations } from 'next-intl'
 import { Calendar } from "../ui/calendar"
-import { fetchVideos, Video } from "@/lib/fetchVideos"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { format, parse, setHours, setMinutes } from "date-fns"
 import InputWithDerivatives from "../InputWithDerivatives"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { CouncilMeeting } from '@prisma/client'
+import { useToast } from "@/hooks/use-toast"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 const formSchema = z.object({
@@ -51,9 +51,7 @@ const formSchema = z.object({
     meetingId: z.string().min(1, {
         message: "Meeting ID is required.",
     }),
-    administrativeBodyId: z.string({
-        required_error: "Administrative body is required.",
-    }),
+    administrativeBodyId: z.string().optional(),
 })
 
 interface AddMeetingFormProps {
@@ -64,12 +62,18 @@ interface AddMeetingFormProps {
 
 export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetingFormProps) {
     const router = useRouter()
+    const { toast } = useToast()
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
-    const [videos, setVideos] = useState<Video[]>([])
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string }>>([])
     const t = useTranslations('AddMeetingForm')
+
+    // Helper function to format date as meeting ID
+    const formatDateAsMeetingId = (date: Date) => {
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            .toLowerCase().replace(/\s/g, '').replace(',', '_');
+    }
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -80,15 +84,10 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
-            meetingId: meeting?.id || "",
+            meetingId: meeting?.id || formatDateAsMeetingId(meeting ? new Date(meeting.dateTime) : new Date()),
             administrativeBodyId: meeting?.administrativeBodyId || "none",
         },
     })
-
-    useEffect(() => {
-        console.log("fetching videos");
-        fetchVideos().then(setVideos);
-    }, [])
 
     useEffect(() => {
         // Fetch administrative bodies for the city
@@ -101,9 +100,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     useEffect(() => {
         const subscription = form.watch((value, { name }) => {
             if (name === 'date' && value.date) {
-                const formattedDate = value.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                    .toLowerCase().replace(/\s/g, '').replace(',', '_');
-                form.setValue('meetingId', formattedDate);
+                form.setValue('meetingId', formatDateAsMeetingId(value.date));
             }
         });
         return () => subscription.unsubscribe();
@@ -139,6 +136,10 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             })
 
             if (response.ok) {
+                toast({
+                    title: t('success'),
+                    description: meeting ? t('meetingUpdated') : t('meetingCreated'),
+                })
                 if (onSuccess) {
                     onSuccess()
                 }
@@ -149,7 +150,13 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             }
         } catch (error) {
             console.error(meeting ? t('failedToUpdateMeeting') : t('failedToAddMeeting'), error)
-            setFormError(error instanceof Error ? error.message : t('unexpectedError'))
+            const errorMessage = error instanceof Error ? error.message : t('unexpectedError')
+            toast({
+                title: t('error'),
+                description: errorMessage,
+                variant: "destructive",
+            })
+            setFormError(errorMessage)
         } finally {
             setIsSubmitting(false)
         }
@@ -158,6 +165,25 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 h-full">
+                {formError && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-sm font-medium text-red-800">
+                                    {t('error')}
+                                </h3>
+                                <div className="mt-2 text-sm text-red-700">
+                                    {formError}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div className="space-y-8">
                     <InputWithDerivatives
                         baseName="name"
@@ -318,7 +344,6 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                         </CollapsibleContent>
                     </Collapsible>
                 </div>
-                {formError && <p className="text-red-500">{formError}</p>}
                 <div className="flex justify-between sticky bottom-0 py-4 bg-background border-t">
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (

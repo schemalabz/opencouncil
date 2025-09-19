@@ -168,7 +168,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
                     )}
                     {editable && (
-                        <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" />
+                        <FormSheet FormComponent={FormComponent} formProps={formProps} title={t('addItem', { title: t('item') })} type="add" closeOnSuccess={true} />
                     )}
                 </div>
             )}
