@@ -484,5 +484,16 @@
         },
         "submitting": "Υποβολή...",
         "continue": "Υποβολή"
+    },
+    "MeetingStatus": {
+        "scheduled": "Προγραμματισμένη",
+        "agendaProcessed": "Ημερήσια Διάταξη Επεξεργασμένη",
+        "transcribed": "Απομαγνητοφωνημένη",
+        "transcriptFixed": "Αυτόματη Διόρθωση",
+        "humanReviewed": "Αξιολογημένη από τον άνθρωπο",
+        "summarized": "Summarized",
+        "ready": "Ολοκληρωμένη",
+        "notReady": "Μη Ολοκληρωμένη",
+        "requiredForCompletion": "Απαιτείται για ολοκλήρωση"
     }
 }
