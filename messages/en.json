@@ -335,5 +335,16 @@
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more"
+    },
+    "MeetingStatus": {
+        "scheduled": "Scheduled",
+        "agendaProcessed": "Agenda processed",
+        "transcribed": "Transcribed",
+        "transcriptFixed": "Automatic correction",
+        "humanReviewed": "Human reviewed",
+        "summarized": "Summarized",
+        "ready": "Ready",
+        "notReady": "Not Ready",
+        "requiredForCompletion": "Required for completion"
     }
 }
