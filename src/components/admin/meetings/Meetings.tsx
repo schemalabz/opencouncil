@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -165,6 +166,21 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
                                     <TableHead className="w-12"></TableHead>
                                     <TableHead>Meeting</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead className="w-16 text-center">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="cursor-help">👨‍💻</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="max-w-xs">
+                                                        Human Review Status - Shows whether the meeting transcript has been manually reviewed and corrected by a human. 
+                                                        Green checkmark indicates human review is complete.
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableHead>
                                     <TableHead>Subjects</TableHead>
                                 </TableRow>
                             </TableHeader>

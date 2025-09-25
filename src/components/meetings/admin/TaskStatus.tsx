@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import TimeAgo from "react-timeago";
 import { motion, AnimatePresence } from "framer-motion";
 import { processTaskResponse } from "@/lib/tasks/tasks";
+import { MeetingTaskType } from "@/lib/tasks/types";
 
 const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
@@ -132,7 +133,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                             className="h-5 w-5 p-0"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                processTaskResponse(task.type, task.id);
+                                                processTaskResponse(task.type as MeetingTaskType, task.id);
                                             }}
                                         >
                                             <RefreshCw className="h-3 w-3" />
@@ -162,7 +163,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                         className="h-5 w-5 p-0"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            processTaskResponse(task.type, task.id);
+                                            processTaskResponse(task.type as MeetingTaskType, task.id);
                                         }}
                                     >
                                         <RefreshCw className="h-3 w-3" />

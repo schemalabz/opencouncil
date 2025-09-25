@@ -12,9 +12,10 @@ The meeting lifecycle system operates across multiple layers:
 2. **API Layer**: Next.js API routes with authentication and authorization checks
 3. **Database Layer**: Prisma ORM with PostgreSQL, using composite keys for meetings
 4. **Task Processing Layer**: Asynchronous background tasks for AI processing workflows
-5. **Authentication Layer**: Role-based access control with city-level permissions
-6. **Search Layer**: Elasticsearch integration for content discovery and search
-7. **Media Processing Layer**: Video/audio processing for highlights and podcasts
+5. **Status Tracking Layer**: Real-time meeting processing status with stage derivation and UI indicators
+6. **Authentication Layer**: Role-based access control with city-level permissions
+7. **Search Layer**: Elasticsearch integration for content discovery and search
+8. **Media Processing Layer**: Video/audio processing for highlights and podcasts
 
 ## Meeting Processing Pipeline Overview
 
@@ -44,6 +45,24 @@ flowchart TD
     style K fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     style F fill:#ffebee,stroke:#c62828,stroke-width:2px
 ```
+
+## Meeting Status Tracking System
+
+The system includes comprehensive status tracking that provides real-time visibility into meeting processing progress through multiple stages and task completion states.
+
+### Meeting Stages
+
+Meetings progress through defined stages based on completed tasks. The stages are dynamically derived from the centralized task configuration:
+
+1. **Scheduled** - Initial state when meeting is created
+2. **Process Agenda** - Agenda PDF has been processed and subjects extracted (optional)
+3. **Transcribe** - Audio/video has been transcribed to text (required)
+4. **Fix Transcript** - Automatic transcript correction has been applied (required)
+5. **Human Review** - Manual review and correction completed by human (required)
+6. **Summarize** - AI summarization and topic extraction completed (required)
+7. **Ready** - All required pipeline tasks completed, meeting fully processed
+
+The stage derivation logic automatically determines the current stage by checking completed tasks in reverse order, ensuring accurate status representation.
 
 ## Sequence Diagram
 
@@ -152,25 +171,29 @@ sequenceDiagram
 *   **API Endpoints**:
     *   `src/app/api/cities/[cityId]/meetings/route.ts` (POST: create, GET: list meetings)
     *   `src/app/api/cities/[cityId]/meetings/[meetingId]/route.ts` (GET: fetch, PUT: update meeting)
+    *   `src/app/api/cities/[cityId]/meetings/[meetingId]/status/route.ts` (GET: meeting processing status and stage)
     *   `src/app/api/cities/[cityId]/meetings/[meetingId]/taskStatuses/[taskStatusId]/route.ts` (POST: task callbacks)
     *   `src/app/api/cities/[cityId]/administrative-bodies/route.ts` (GET: list administrative bodies)
 *   **Database Functions**:
     *   `src/lib/db/meetings.ts` (createCouncilMeeting, editCouncilMeeting, getCouncilMeetingsForCity, toggleMeetingRelease)
+    *   `src/lib/db/tasks.ts` (getMeetingTaskStatus, MeetingTaskStatus type, task completion tracking)
 *   **Frontend Components**:
     *   `src/components/meetings/AddMeetingForm.tsx` (dual-purpose create/edit with Zod validation)
     *   `src/components/cities/CityMeetings.tsx` (meetings list with filtering and editing integration)
     *   `src/components/meetings/admin/Admin.tsx` (task management, release controls, cache tools)
     *   `src/components/meetings/CouncilMeetingWrapper.tsx` (meeting data context provider)
+    *   `src/components/meetings/MeetingStatusBadge.tsx` (visual status indicator with stage-based styling)
+    *   `src/components/meetings/MeetingTimeline.tsx` (detailed processing timeline with task completion status)
+    *   `src/components/admin/meetings/ExpandableMeetingRow.tsx` (enhanced meeting row with status display and timeline)
 *   **Authentication**:
     *   `src/lib/auth.ts` (withUserAuthorizedToEdit, isUserAuthorizedToEdit, hierarchical permissions)
 *   **Task Processing Pipeline**:
-    *   **Core Pipeline**: Agenda Processing → Transcription → Transcript Correction → Manual Review → Summarization → Search Sync → Manual Send Final Transcript
-    *   **On-Demand**: Highlight Generation, Podcast Generation, Voiceprint Generation, Media File Splitting
-    *   See [`docs/task-architecture.md`](/docs/task-architecture.md) for detailed task architecture
+    *   **Core Pipeline**: Process Agenda (optional) → Transcribe → Fix Transcript → Human Review → Summarize
+    *   **Post-Processing**: Search Sync, Highlight Generation, Podcast Generation, Voiceprint Generation, Media File Splitting
 *   **Cache Management**:
     *   `src/lib/cache/queries.ts` (cache invalidation via Next.js API routes)
     *   `src/lib/cache/index.ts` (createCache utility with performance logging)
-    *   Cached queries: `getMeetingDataCached()`, `getCouncilMeetingsForCityCached()`, `getCityCached()`
+    *   Cached queries: `getMeetingDataCached()`, `getCouncilMeetingsForCityCached()`, `getCityCached()`, `getMeetingStatusCached()`
 *   **Context Providers**:
     *   `src/components/meetings/CouncilMeetingDataContext.tsx` (central data provider with speaker management)
     *   `src/components/meetings/VideoProvider.tsx` (video playback state and seeking operations)
@@ -190,12 +213,21 @@ sequenceDiagram
 4. Administrative body selection is optional but validated if provided
 5. Date/time combination must be valid and not in the distant past
 
+### Status Tracking Rules
+1. Meeting stage is dynamically derived from completed tasks
+2. A meeting is considered "ready" only when all required pipeline tasks are completed
+3. Stage derivation checks tasks in reverse order to find the latest completed stage
+4. Status updates are cached and automatically invalidated when tasks complete
+5. See [`docs/task-architecture.md`](/docs/task-architecture.md) for detailed task configuration and management
+
 ### Workflow Assumptions
 1. Meetings are created in "unreleased" state by default
 2. Meeting ID follows pattern: `month_day_year` (e.g., `jan_15_2024`)
 3. Administrative bodies must exist in the same city as the meeting
 4. Form supports both creation and editing modes through props
 5. Cache invalidation happens automatically after successful operations
+6. Status tracking provides real-time visibility into meeting processing progress
+7. Human review can be manually marked as complete via admin interface
 
 
 
