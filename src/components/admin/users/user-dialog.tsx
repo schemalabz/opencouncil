@@ -11,12 +11,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { Check, ChevronsUpDown, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { X } from "lucide-react"
 import { UserWithRelations } from "@/lib/db/users"
+import Combobox from "@/components/Combobox"
 
 interface UserDialogProps {
     open: boolean
@@ -77,8 +75,6 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
     const [loading, setLoading] = useState(false)
     const [entities, setEntities] = useState<EntityOption[]>([])
     const [selectedEntities, setSelectedEntities] = useState<EntityOption[]>([])
-    const [comboboxOpen, setComboboxOpen] = useState(false)
-    const [searchValue, setSearchValue] = useState("")
     const [loadingEntities, setLoadingEntities] = useState(false)
     const isEditing = !!user
 
@@ -92,10 +88,6 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
     useEffect(() => {
         if (open) {
             fetchEntities()
-        } else {
-            // Reset states when dialog closes
-            setSearchValue("")
-            setComboboxOpen(false)
         }
     }, [open])
 
@@ -157,8 +149,6 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
         const entity = entities.find(e => e.id === entityId)
         if (entity && !selectedEntities.some(e => e.id === entity.id)) {
             setSelectedEntities([...selectedEntities, entity])
-            setSearchValue("")
-            setComboboxOpen(false)
         }
     }
 
@@ -166,16 +156,14 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
         setSelectedEntities(selectedEntities.filter(e => e.id !== entityId))
     }
 
-    const filteredEntities = entities.filter(entity =>
-        !selectedEntities.some(selected => selected.id === entity.id) &&
-        (entity.displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
-            entity.type.toLowerCase().includes(searchValue.toLowerCase()))
+    const availableEntities = entities.filter(entity =>
+        !selectedEntities.some(selected => selected.id === entity.id)
     )
 
     const groupedEntities = {
-        cities: filteredEntities.filter(e => e.type === 'city'),
-        parties: filteredEntities.filter(e => e.type === 'party'),
-        people: filteredEntities.filter(e => e.type === 'person')
+        cities: availableEntities.filter(e => e.type === 'city'),
+        parties: availableEntities.filter(e => e.type === 'party'),
+        people: availableEntities.filter(e => e.type === 'person')
     }
 
     return (
@@ -219,85 +207,24 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                         </div>
                         <div className="grid gap-2">
                             <Label>Administers</Label>
-                            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={comboboxOpen}
-                                        className="justify-between"
-                                        disabled={loadingEntities}
-                                    >
-                                        {loadingEntities ? "Loading..." : "Add entity to administer..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0" align="start">
-                                    <Command>
-                                        <CommandInput
-                                            placeholder="Search entities..."
-                                            value={searchValue}
-                                            onValueChange={setSearchValue}
-                                        />
-                                        <CommandList>
-                                            <CommandEmpty>No entities found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {groupedEntities.cities.map((entity) => (
-                                                    <CommandItem
-                                                        key={entity.id}
-                                                        value={`${entity.displayName} city`}
-                                                        onSelect={() => addEntity(entity.id)}
-                                                    >
-                                                        <div className="flex items-center">
-                                                            <span>🏛️ {entity.displayName}</span>
-                                                        </div>
-                                                        <Check
-                                                            className={cn(
-                                                                "ml-auto h-4 w-4",
-                                                                selectedEntities.some(e => e.id === entity.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                    </CommandItem>
-                                                ))}
-                                                {groupedEntities.parties.map((entity) => (
-                                                    <CommandItem
-                                                        key={entity.id}
-                                                        value={`${entity.displayName} party`}
-                                                        onSelect={() => addEntity(entity.id)}
-                                                    >
-                                                        <div className="flex items-center">
-                                                            <span>👥 {entity.displayName}</span>
-                                                        </div>
-                                                        <Check
-                                                            className={cn(
-                                                                "ml-auto h-4 w-4",
-                                                                selectedEntities.some(e => e.id === entity.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                    </CommandItem>
-                                                ))}
-                                                {groupedEntities.people.map((entity) => (
-                                                    <CommandItem
-                                                        key={entity.id}
-                                                        value={`${entity.displayName} person`}
-                                                        onSelect={() => addEntity(entity.id)}
-                                                    >
-                                                        <div className="flex items-center">
-                                                            <span>👤 {entity.displayName}</span>
-                                                        </div>
-                                                        <Check
-                                                            className={cn(
-                                                                "ml-auto h-4 w-4",
-                                                                selectedEntities.some(e => e.id === entity.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                            <Combobox
+                                items={availableEntities}
+                                value={null}
+                                onChange={(entity) => {
+                                    if (entity) addEntity((entity as EntityOption).id)
+                                }}
+                                placeholder={loadingEntities ? "Loading..." : "Add entity to administer..."}
+                                searchPlaceholder="Search entities..."
+                                getItemLabel={(entity) => (entity as EntityOption).displayName}
+                                getItemValue={(entity) => `${(entity as EntityOption).displayName} ${(entity as EntityOption).type}`}
+                                groups={[
+                                    { key: 'cities', label: 'Cities', items: groupedEntities.cities },
+                                    { key: 'parties', label: 'Parties', items: groupedEntities.parties },
+                                    { key: 'people', label: 'People', items: groupedEntities.people },
+                                ]}
+                                disabled={loadingEntities}
+                                className="w-full"
+                            />
                             <div className="flex flex-wrap gap-2 mt-2">
                                 {selectedEntities.map(entity => (
                                     <Badge key={entity.id} variant="secondary">
