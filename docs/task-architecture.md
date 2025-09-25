@@ -61,6 +61,7 @@ graph TD;
 -   **Role:** Initiates tasks and handles updates.
 -   **Key Files:**
     -   `src/lib/tasks/tasks.ts`: Contains the core logic for starting tasks (`startTask`) and handling updates (`handleTaskUpdate`).
+    -   `src/lib/tasks/types.ts`: Centralized task configuration and type definitions with automatic derivation of pipeline tasks and stages.
     -   `src/app/api/cities/[cityId]/meetings/[meetingId]/taskStatuses/[taskStatusId]/route.ts`: The API endpoint that receives all callback requests from the task server.
     -   `src/lib/apiTypes.ts`: Defines the TypeScript interfaces for task requests and results.
     -   Task-specific handlers (e.g., `src/lib/tasks/transcribe.ts`): Contain the logic for processing the results of a specific task type.
@@ -125,7 +126,11 @@ This capability significantly speeds up development and debugging, as you can it
 
 To add a new task type to the system, follow these steps:
 
-1.  **Define Types:**
+1.  **Add to Task Configuration:**
+    -   In `src/lib/tasks/types.ts`, add your new task to the `TASK_CONFIG` object with appropriate `requiredForPipeline` setting.
+    -   The system will automatically derive the task type and include it in the appropriate categories.
+
+2.  **Define Types:**
     -   In `src/lib/apiTypes.ts`, create new interfaces for the task's request and result data. For example:
 
     ```typescript
@@ -138,7 +143,7 @@ To add a new task type to the system, follow these steps:
     }
     ```
 
-2.  **Create a Result Handler:**
+3.  **Create a Result Handler:**
     -   Create a new file in `src/lib/tasks/` for the new task (e.g., `myNewTask.ts`).
     -   In this file, create a handler function to process the task's result. This function will be called when the task completes successfully.
 
@@ -150,7 +155,7 @@ To add a new task type to the system, follow these steps:
     };
     ```
 
-3.  **Update the Callback Handler:**
+4.  **Update the Callback Handler:**
     -   In `src/app/api/cities/[cityId]/meetings/[meetingId]/taskStatuses/[taskStatusId]/route.ts`, add a new `else if` block to the `handleUpdateRequest` function to handle the new task type.
 
     ```typescript
@@ -165,14 +170,14 @@ To add a new task type to the system, follow these steps:
     // ...
     ```
 
-4.  **Update the `processTaskResponse` function:**
+5.  **Update the `processTaskResponse` function:**
     - In `src/lib/tasks/tasks.ts`, update `processTaskResponse` to include your new task. This is used for reprocessing tasks.
 
-5.  **Implement the Backend Task:**
+6.  **Implement the Backend Task:**
     -   On the `opencouncil-tasks` server, create a new endpoint (e.g., `/my-new-task`) that accepts the `MyNewTaskRequest` payload.
     -   Implement the task logic, ensuring that it sends status updates to the `callbackUrl`.
 
-6.  **Update the Frontend:**
+7.  **Update the Frontend:**
     -   In the frontend, create a new UI element that calls the `startTask` function with the new task type and request body.
     
 That's it! By following these steps, you can easily extend the platform with new asynchronous task capabilities. 

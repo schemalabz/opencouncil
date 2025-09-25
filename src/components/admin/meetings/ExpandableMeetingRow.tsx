@@ -1,7 +1,9 @@
 "use client";
 
 import { format } from "date-fns";
+import React from "react";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
+import { MeetingStage, MeetingStatus } from "@/lib/meetingStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,17 +12,17 @@ import {
     FileText, 
     Calendar,
     Building,
-    CheckCircle,
-    XCircle,
-    AlertCircle,
     FileDown,
-    ExternalLink
+    ExternalLink,
+    CheckCircle,
+    ListChecks
 } from "lucide-react";
-import { getMeetingState } from "@/lib/utils";
 import { MeetingExportButtons } from "@/components/meetings/MeetingExportButtons";
 import { MeetingData } from "@/lib/getMeetingData";
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row";
+import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
+import { MeetingTimeline } from "@/components/meetings/MeetingTimeline";
 
 interface ExpandableMeetingRowProps {
     meeting: CouncilMeetingWithAdminBodyAndSubjects;
@@ -35,23 +37,10 @@ export function ExpandableMeetingRow({
     isSelected,
     onSelect
 }: ExpandableMeetingRowProps) {
-    const meetingState = getMeetingState(meeting);
+    const [meetingStage, setMeetingStage] = React.useState<MeetingStage>('scheduled');
+    const [meetingStatus, setMeetingStatus] = React.useState<MeetingStatus | null>(null);
     const subjectCount = meeting.subjects.length;
     const meetingDate = format(new Date(meeting.dateTime), "MMM dd, yyyy");
-
-    const getMeetingStateIcon = () => {
-        switch (meetingState.icon) {
-            case 'video':
-                return <CheckCircle className="h-4 w-4 text-green-600" />;
-            case 'audio':
-                return <CheckCircle className="h-4 w-4 text-green-600" />;
-            case 'fileText':
-                return <AlertCircle className="h-4 w-4 text-yellow-600" />;
-            case 'ban':
-            default:
-                return <XCircle className="h-4 w-4 text-red-600" />;
-        }
-    };
 
     const fetchCompleteMeetingData = async (): Promise<MeetingData> => {
         const response = await fetch(`/api/cities/${selectedCityId}/meetings/${meeting.id}`);
@@ -64,7 +53,7 @@ export function ExpandableMeetingRow({
 
     // Expanded content
     const expandedContent = (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
             {/* Meeting Details */}
             <Card className="shadow-sm">
                 <CardHeader className="pb-2">
@@ -88,11 +77,7 @@ export function ExpandableMeetingRow({
                     <div>
                         <strong>Subjects:</strong> {subjectCount}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <strong>Meeting State:</strong> 
-                        {getMeetingStateIcon()}
-                        <span>{meetingState.label}</span>
-                    </div>
+                    {/* Meeting media state removed; we now rely on processing stage */}
                     <div className="pt-2">
                         <Button 
                             asChild 
@@ -127,12 +112,44 @@ export function ExpandableMeetingRow({
                         getMeetingData={fetchCompleteMeetingData}
                         cityId={selectedCityId}
                         meetingId={meeting.id}
-                        disabled={meetingState.icon === 'ban'}
+                        disabled={false}
                     />
                 </CardContent>
             </Card>
+
+            {/* Processing Timeline */}
+            {meetingStatus && (
+                <Card className="shadow-sm">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <ListChecks className="h-4 w-4" />
+                            Processing Status
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <MeetingTimeline meetingStatus={meetingStatus} />
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
+
+    React.useEffect(() => {
+        let mounted = true;
+        const fetchStatus = async () => {
+            try {
+                const res = await fetch(`/api/cities/${selectedCityId}/meetings/${meeting.id}/status`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (mounted && data?.stage) {
+                    setMeetingStage(data.stage);
+                    setMeetingStatus(data);
+                }
+            } catch {}
+        };
+        fetchStatus();
+        return () => { mounted = false; };
+    }, [selectedCityId, meeting.id]);
 
     return (
         <ExpandableTableRow
@@ -169,11 +186,19 @@ export function ExpandableMeetingRow({
             </TableCell>
 
             {/* Status */}
-            <TableCell className="w-32">
+            <TableCell className="w-40">
                 <div className="flex items-center gap-2">
-                    {getMeetingStateIcon()}
-                    <span className="text-sm whitespace-nowrap">
-                        {meetingState.label}
+                    <MeetingStatusBadge stage={meetingStage} />
+                </div>
+            </TableCell>
+
+            {/* Human Review Status */}
+            <TableCell className="w-16 text-center">
+                <div className="flex items-center justify-center">
+                    <span className="text-lg">
+                        {meetingStatus?.tasks.humanReview && (
+                            <CheckCircle className="h-3 w-3 text-green-600 ml-1" />
+                        )}
                     </span>
                 </div>
             </TableCell>
