@@ -1,7 +1,8 @@
 import { getHighestVersionsForTasks, getTaskVersionsGroupedByCity } from "@/lib/tasks/tasks";
 import TaskVersionsTable from "@/components/admin/tasks/TaskVersionsTable";
+import { MeetingTaskType } from "@/lib/tasks/types";
 
-const MEETING_TASKS = ['transcribe', 'processAgenda', 'summarize'];
+const MEETING_TASKS: MeetingTaskType[] = ['transcribe', 'processAgenda', 'summarize'];
 
 export default async function TasksPage() {
     // Fetch the highest versions for each task type
