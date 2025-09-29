@@ -2,6 +2,12 @@
 import { withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
+import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG } from "../tasks/types";
+
+// Derived type for meeting task completion status
+export type MeetingTaskStatus = {
+    [K in MeetingTaskType]: boolean;
+};
 
 export async function getTasksForMeeting(cityId: string, meetingId: string): Promise<TaskStatus[]> {
     await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId: cityId })
@@ -105,4 +111,39 @@ export async function getVoiceprintTasksForPerson(personId: string): Promise<Tas
         console.error('Error fetching voiceprint tasks:', error);
         throw new Error('Failed to fetch voiceprint tasks for person');
     }
+}
+
+/**
+ * Derive which meeting tasks have been completed for a specific meeting
+ */
+export async function getMeetingTaskStatus(cityId: string, meetingId: string): Promise<MeetingTaskStatus> {
+    // Single optimized query to get all succeeded tasks for this meeting
+    const succeededTasks = await prisma.taskStatus.findMany({
+        where: {
+            cityId,
+            councilMeetingId: meetingId,
+            type: { in: CORE_PROCESSING_TASKS },
+            status: 'succeeded'
+        },
+        select: {
+            type: true,
+            version: true
+        },
+        orderBy: [
+            { type: 'asc' },
+            { version: 'desc' }
+        ]
+    });
+
+    // Create a set of completed task types for O(1) lookup
+    const completedTaskTypes = new Set(succeededTasks.map(task => task.type));
+
+    // Initialize all task types as false, then set completed ones to true
+    const taskStatus: MeetingTaskStatus = {} as MeetingTaskStatus;
+    
+    for (const taskType of Object.keys(TASK_CONFIG) as MeetingTaskType[]) {
+        taskStatus[taskType] = completedTaskTypes.has(taskType);
+    }
+
+    return taskStatus;
 }
