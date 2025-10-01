@@ -37,7 +37,15 @@ const people = [
             twitter: "https://twitter.com/kouloumos",
             email: "mailto:andreas@schemalabs.gr"
         }
-    }
+    },
+    {
+        name: "Ελίζα Γκιμιτζούδη",
+        image: "/people/eliza.jpeg",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/egkimitzoudi/",
+            email: "mailto:eliza@schemalabs.gr"
+        }
+    },
 ]
 function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
     const heroRef = useRef(null)
