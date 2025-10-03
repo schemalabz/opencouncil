@@ -52,14 +52,21 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         <Card
             className={cn(
                 "group relative overflow-hidden transition-all duration-300 cursor-pointer h-full",
-                "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5",
-                "border-l-3 sm:border-l-4"
+                "hover:shadow-md hover:shadow-primary/5 hover:-translate-y-0.5"
             )}
-            style={{ borderLeftColor: party.colorHex }}
             onClick={handleClick}
         >
-            <CardContent className="p-4 sm:p-5 h-full flex flex-col">
-                <div className="flex-1 space-y-4">
+            <CardContent className="p-4 sm:p-5 h-full flex flex-col relative">
+                {/* Colored left bar */}
+                <div
+                    className="absolute left-0 top-0 bottom-0 w-[3px] sm:w-1"
+                    style={{
+                        backgroundColor: party.colorHex,
+                        borderTopLeftRadius: 'calc(0.5rem - 1.5px)',
+                        borderBottomLeftRadius: 'calc(0.5rem - 1.5px)'
+                    }}
+                />
+                <div className="flex-1 space-y-4 pl-3 sm:pl-4">
                     {/* Header with logo and title - properly aligned */}
                     <div className="flex items-center gap-3 sm:gap-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
@@ -92,9 +99,9 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                 </div>
 
                 {/* Footer with member count */}
-                <div className="pt-3 border-t border-border/50 mt-4">
+                <div className="pt-3 border-t border-border/50 mt-4 pl-3 sm:pl-4">
                     <div className="text-xs text-muted-foreground font-medium">
-                        {activePeople.length === 1 
+                        {activePeople.length === 1
                             ? `${activePeople.length} μέλος`
                             : `${activePeople.length} μέλη`
                         }
