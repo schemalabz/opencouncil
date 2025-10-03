@@ -3,18 +3,12 @@ import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { Home, Search, ArrowLeft, Phone, Mail } from 'lucide-react'
-import Aurora from '@/components/landing/aurora'
 
 export default function NotFound() {
     const t = useTranslations('NotFoundPage')
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
-            {/* Aurora Background */}
-            <div className="aurora-container">
-                <Aurora className="aurora-canvas" />
-            </div>
-
+        <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-background">
             {/* Content */}
             <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
                 {/* 404 Number with Gradient */}

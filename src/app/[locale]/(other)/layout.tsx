@@ -17,10 +17,10 @@ export default async function Layout({
 
   return (
     <>
-      <div className="relative overflow-hidden">
-        {/* Aurora at the very top of the page */}
-        <div className="absolute top-0 left-0 w-full h-[100vh] z-0 pointer-events-none">
-          <Aurora className="w-full h-full" quality="low" speed={0.15} intensity={1.2} />
+      <div className="relative overflow-hidden min-h-screen">
+        {/* Aurora at the very top of the page - absolute position to scroll with content */}
+        <div className="absolute top-0 left-0 w-full h-screen z-0" style={{ pointerEvents: 'auto' }}>
+          <Aurora className="w-full h-full" />
         </div>
 
         <Header path={[]} className="relative z-10" />

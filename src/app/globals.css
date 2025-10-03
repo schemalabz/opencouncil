@@ -135,21 +135,6 @@ blue: 164, 192, 225
   }
 }
 
-/* Aurora styles */
-.aurora-container {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  overflow: hidden;
-  background: white;
-}
-
-.aurora-canvas {
-  display: block;
-}
-
 .promo a, .support a, .link {
   @apply text-primary;
   &:hover {
@@ -252,6 +237,20 @@ a:hover.unstyled {
 .animate-gradientFlow {
   background-size: 200% 200%;
   animation: gradientFlow 3s ease infinite;
+}
+
+/* Aurora animation */
+@keyframes aurora {
+  from {
+    background-position: 50% 50%, 50% 50%;
+  }
+  to {
+    background-position: 350% 50%, 350% 50%;
+  }
+}
+
+.animate-aurora {
+  animation: aurora 60s linear infinite;
 }
 
 /* Custom scrollbar styling for horizontal scrolling */

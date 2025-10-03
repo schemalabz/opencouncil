@@ -161,6 +161,14 @@ const config = {
 					'50%': {
 						transform: 'translateY(5px)'
 					}
+				},
+				aurora: {
+					from: {
+						backgroundPosition: '50% 50%, 50% 50%'
+					},
+					to: {
+						backgroundPosition: '350% 50%, 350% 50%'
+					}
 				}
 			},
 			animation: {
@@ -171,7 +179,8 @@ const config = {
 				'marquee-vertical': 'marquee-vertical var(--duration) linear infinite',
 				'gradientFlow': 'gradientFlow 3s ease infinite',
 				'fade-in': 'fade-in 0.5s ease-out forwards',
-				'bounce': 'bounce 2s ease-in-out infinite'
+				'bounce': 'bounce 2s ease-in-out infinite',
+				'aurora': 'aurora 60s linear infinite'
 			},
 			fontFamily: {
 				sans: [
