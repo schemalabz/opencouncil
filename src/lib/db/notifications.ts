@@ -5,6 +5,7 @@ import { auth, signIn } from "@/auth";
 import { getCitiesWithGeometry } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
+import { notifyPetitionReceived, notifyUserOnboarded, notifyNotificationSignup } from "@/lib/discord";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -246,6 +247,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     const session = await getServerSession();
 
     let userId: string;
+    let isNewlyCreatedUser = false;
 
     console.log('Saving notification preferences for cityId:', cityId);
     console.log('Location IDs:', locationIds);
@@ -299,6 +301,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
 
                 userId = newUser.id;
+                isNewlyCreatedUser = true;
 
                 if (!seedUser) {
                     // seed users are created during development, so we don't need to send a magic link
@@ -421,6 +424,22 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                     interests: true
                 }
             });
+
+            // Send Discord notification for new notification signup
+            notifyNotificationSignup({
+                cityName: result.city.name_en,
+                locationCount: validLocationIds.length,
+                topicCount: validTopicIds.length,
+            }).catch(err => console.error('Failed to send Discord notification:', err));
+
+            // Send Discord notification for user onboarding (if we just created the user)
+            if (isNewlyCreatedUser) {
+                notifyUserOnboarded({
+                    cityName: result.city.name_en,
+                    onboardingSource: 'notification_preferences',
+                }).catch(err => console.error('Failed to send Discord notification:', err));
+            }
+
             return createSuccess(result);
         }
     } catch (error) {
@@ -440,6 +459,7 @@ export async function savePetition(data: OnboardingData & {
     const session = await getServerSession();
 
     let userId: string;
+    let isNewlyCreatedUser = false;
 
     try {
         // Get or create user
@@ -486,6 +506,7 @@ export async function savePetition(data: OnboardingData & {
                 });
 
                 userId = newUser.id;
+                isNewlyCreatedUser = true;
 
                 if (!seedUser) {
                     // seed users are created during development, so we don't need to send a magic link
@@ -532,6 +553,22 @@ export async function savePetition(data: OnboardingData & {
                     city: true
                 }
             });
+
+            // Send Discord notification for new petition
+            notifyPetitionReceived({
+                cityName: result.city.name_en,
+                isResident: isResident,
+                isCitizen: isCitizen,
+            }).catch(err => console.error('Failed to send Discord notification:', err));
+
+            // Send Discord notification for user onboarding (if we just created the user)
+            if (isNewlyCreatedUser) {
+                notifyUserOnboarded({
+                    cityName: result.city.name_en,
+                    onboardingSource: 'petition',
+                }).catch(err => console.error('Failed to send Discord notification:', err));
+            }
+
             return createSuccess(result);
         }
     } catch (error) {
