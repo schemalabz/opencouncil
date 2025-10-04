@@ -40,6 +40,9 @@ export const env = createEnv({
     ELASTICSEARCH_URL: z.string().url(),
     ELASTICSEARCH_API_KEY: z.string().min(1),
 
+    // Discord Notifications
+    DISCORD_WEBHOOK_URL: z.string().url().optional(),
+
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
     SEED_DATA_URL: z.string().url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
@@ -84,6 +87,7 @@ export const env = createEnv({
     TASK_API_KEY: process.env.TASK_API_KEY,
     ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
+    DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
     DEV_TEST_CITY_ID: process.env.DEV_TEST_CITY_ID,
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,
