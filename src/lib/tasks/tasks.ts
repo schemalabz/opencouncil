@@ -13,6 +13,21 @@ import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { handleGenerateHighlightResult } from './generateHighlight';
+import { notifyTaskStarted, notifyTaskCompleted, notifyTaskFailed } from '@/lib/discord';
+import { Prisma } from '@prisma/client';
+
+const taskStatusWithMeetingInclude = {
+    councilMeeting: {
+        select: {
+            name_en: true,
+            city: {
+                select: {
+                    name_en: true
+                }
+            }
+        }
+    }
+} satisfies Prisma.TaskStatusInclude;
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task
@@ -36,7 +51,8 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
             status: 'pending',
             requestBody: JSON.stringify(requestBody),
             councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } }
-        }
+        },
+        include: taskStatusWithMeetingInclude
     });
 
     // Prepare callback URL
@@ -85,7 +101,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
         } else if (error) {
             errorMessage = (error as Error).message;
         }
-        
+
         throw new Error(`Failed to start task: ${response?.statusText} (${errorMessage})`);
     }
 
@@ -95,32 +111,96 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
         data: { requestBody: JSON.stringify(fullRequestBody) }
     });
 
+    // Send Discord notification
+    notifyTaskStarted({
+        taskType: taskType,
+        cityName: newTask.councilMeeting.city.name_en,
+        meetingName: newTask.councilMeeting.name_en,
+        taskId: newTask.id,
+        cityId: cityId,
+        meetingId: councilMeetingId,
+    });
+
     return newTask;
 }
 
 export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>, processResult: (taskId: string, result: T) => Promise<void>) => {
+    // Get task details for Discord notifications
+    const task = await prisma.taskStatus.findUnique({
+        where: { id: taskId },
+        include: taskStatusWithMeetingInclude
+    });
+
+    if (!task) {
+        console.error(`Task ${taskId} not found`);
+        return;
+    }
+
     if (update.status === 'success') {
         await prisma.taskStatus.update({
             where: { id: taskId },
             data: { status: 'succeeded', responseBody: JSON.stringify(update.result), version: update.version }
         });
+
         if (update.result) {
             try {
                 await processResult(taskId, update.result);
+
+                // Send Discord notification for successful completion AFTER processing succeeds
+                notifyTaskCompleted({
+                    taskType: task.type,
+                    cityName: task.councilMeeting.city.name_en,
+                    meetingName: task.councilMeeting.name_en,
+                    taskId: task.id,
+                    cityId: task.cityId,
+                    meetingId: task.councilMeetingId,
+                });
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}: ${error}`);
                 await prisma.taskStatus.update({
                     where: { id: taskId },
                     data: { status: 'failed', version: update.version }
                 });
+
+                // Send Discord notification for processing failure
+                notifyTaskFailed({
+                    taskType: task.type,
+                    cityName: task.councilMeeting.city.name_en,
+                    meetingName: task.councilMeeting.name_en,
+                    taskId: task.id,
+                    cityId: task.cityId,
+                    meetingId: task.councilMeetingId,
+                    error: (error as Error).message,
+                });
             }
         } else {
             console.log(`No result for task ${taskId}`);
+
+            // Task succeeded but has no result to process - still send completion notification
+            notifyTaskCompleted({
+                taskType: task.type,
+                cityName: task.councilMeeting.city.name_en,
+                meetingName: task.councilMeeting.name_en,
+                taskId: task.id,
+                cityId: task.cityId,
+                meetingId: task.councilMeetingId,
+            });
         }
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
             where: { id: taskId },
             data: { status: 'failed', responseBody: update.error, version: update.version }
+        });
+
+        // Send Discord notification for task failure
+        notifyTaskFailed({
+            taskType: task.type,
+            cityName: task.councilMeeting.city.name_en,
+            meetingName: task.councilMeeting.name_en,
+            taskId: task.id,
+            cityId: task.cityId,
+            meetingId: task.councilMeetingId,
+            error: update.error,
         });
     } else if (update.status === 'processing') {
         await prisma.taskStatus.update({
