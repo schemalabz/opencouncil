@@ -430,14 +430,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 cityName: result.city.name_en,
                 locationCount: validLocationIds.length,
                 topicCount: validTopicIds.length,
-            }).catch(err => console.error('Failed to send Discord notification:', err));
+            });
 
             // Send Discord notification for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 notifyUserOnboarded({
                     cityName: result.city.name_en,
                     onboardingSource: 'notification_preferences',
-                }).catch(err => console.error('Failed to send Discord notification:', err));
+                });
             }
 
             return createSuccess(result);
@@ -559,14 +559,14 @@ export async function savePetition(data: OnboardingData & {
                 cityName: result.city.name_en,
                 isResident: isResident,
                 isCitizen: isCitizen,
-            }).catch(err => console.error('Failed to send Discord notification:', err));
+            });
 
             // Send Discord notification for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 notifyUserOnboarded({
                     cityName: result.city.name_en,
                     onboardingSource: 'petition',
-                }).catch(err => console.error('Failed to send Discord notification:', err));
+                });
             }
 
             return createSuccess(result);

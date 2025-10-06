@@ -14,6 +14,20 @@ import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { handleGenerateHighlightResult } from './generateHighlight';
 import { notifyTaskStarted, notifyTaskCompleted, notifyTaskFailed } from '@/lib/discord';
+import { Prisma } from '@prisma/client';
+
+const taskStatusWithMeetingInclude = {
+    councilMeeting: {
+        select: {
+            name_en: true,
+            city: {
+                select: {
+                    name_en: true
+                }
+            }
+        }
+    }
+} satisfies Prisma.TaskStatusInclude;
 
 export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task
@@ -38,18 +52,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
             requestBody: JSON.stringify(requestBody),
             councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } }
         },
-        include: {
-            councilMeeting: {
-                select: {
-                    name_en: true,
-                    city: {
-                        select: {
-                            name_en: true
-                        }
-                    }
-                }
-            }
-        }
+        include: taskStatusWithMeetingInclude
     });
 
     // Prepare callback URL
@@ -116,7 +119,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
         taskId: newTask.id,
         cityId: cityId,
         meetingId: councilMeetingId,
-    }).catch(err => console.error('Failed to send Discord notification:', err));
+    });
 
     return newTask;
 }
@@ -125,18 +128,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     // Get task details for Discord notifications
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
-        include: {
-            councilMeeting: {
-                select: {
-                    name_en: true,
-                    city: {
-                        select: {
-                            name_en: true
-                        }
-                    }
-                }
-            }
-        }
+        include: taskStatusWithMeetingInclude
     });
 
     if (!task) {
@@ -162,7 +154,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     taskId: task.id,
                     cityId: task.cityId,
                     meetingId: task.councilMeetingId,
-                }).catch(err => console.error('Failed to send Discord notification:', err));
+                });
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}: ${error}`);
                 await prisma.taskStatus.update({
@@ -179,7 +171,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     cityId: task.cityId,
                     meetingId: task.councilMeetingId,
                     error: (error as Error).message,
-                }).catch(err => console.error('Failed to send Discord notification:', err));
+                });
             }
         } else {
             console.log(`No result for task ${taskId}`);
@@ -192,7 +184,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 taskId: task.id,
                 cityId: task.cityId,
                 meetingId: task.councilMeetingId,
-            }).catch(err => console.error('Failed to send Discord notification:', err));
+            });
         }
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
@@ -209,7 +201,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             cityId: task.cityId,
             meetingId: task.councilMeetingId,
             error: update.error,
-        }).catch(err => console.error('Failed to send Discord notification:', err));
+        });
     } else if (update.status === 'processing') {
         await prisma.taskStatus.update({
             where: { id: taskId },

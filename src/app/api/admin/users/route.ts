@@ -78,7 +78,7 @@ export async function POST(request: Request) {
         notifyUserOnboarded({
             cityName: isSuperAdmin ? 'Super Admin' : 'Admin User',
             onboardingSource: 'admin_invite',
-        }).catch(err => console.error('Failed to send Discord notification:', err));
+        });
 
         return NextResponse.json(newUser)
     } catch (error) {

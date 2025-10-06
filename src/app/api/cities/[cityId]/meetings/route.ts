@@ -78,7 +78,7 @@ export async function POST(
                 meetingDate: date,
                 meetingId: meetingId,
                 cityId: cityId,
-            }).catch(err => console.error('Failed to send Discord notification:', err));
+            });
         }
 
         return NextResponse.json(meeting, { status: 201 });

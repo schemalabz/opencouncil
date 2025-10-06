@@ -26,7 +26,7 @@ export async function POST(request: Request) {
             notifyUserOnboarded({
                 cityName: 'General', // No specific city for magic link signups
                 onboardingSource: 'magic_link',
-            }).catch(err => console.error('Failed to send Discord notification:', err));
+            });
         }
 
         return NextResponse.json(updatedUser);
