@@ -280,42 +280,60 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                     <FormField
                         control={form.control}
                         name="youtubeUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('meetingVideo')}</FormLabel>
-                                <FormControl>
-                                    <LinkOrDrop
-                                        {...field}
-                                        placeholder="https://... (YouTube, Vimeo, etc.)"
-                                        onUrlChange={(url) => field.onChange(url)}
-                                    />
-                                </FormControl>
-                                <FormDescription>
-                                    {t('meetingVideoDescription')}
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+                        render={({ field }) => {
+                            const meetingId = form.watch('meetingId')
+                            
+                            return (
+                                <FormItem>
+                                    <FormLabel>{t('meetingVideo')}</FormLabel>
+                                    <FormControl>
+                                        <LinkOrDrop
+                                            {...field}
+                                            placeholder="https://... (YouTube, Vimeo, etc.)"
+                                            onUrlChange={(url) => field.onChange(url)}
+                                            config={meetingId ? {
+                                                cityId,
+                                                identifier: meetingId,
+                                                suffix: 'recording'
+                                            } : undefined}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingVideoDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )
+                        }}
                     />
                     <FormField
                         control={form.control}
                         name="agendaUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t('meetingAgenda')}</FormLabel>
-                                <FormControl>
-                                    <LinkOrDrop
-                                        {...field}
-                                        placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
-                                        onUrlChange={(url) => field.onChange(url)}
-                                    />
-                                </FormControl>
-                                <FormDescription>
-                                    {t('meetingAgendaDescription')}
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+                        render={({ field }) => {
+                            const meetingId = form.watch('meetingId')
+                            
+                            return (
+                                <FormItem>
+                                    <FormLabel>{t('meetingAgenda')}</FormLabel>
+                                    <FormControl>
+                                        <LinkOrDrop
+                                            {...field}
+                                            placeholder={t('meetingAgendaPlaceholder') || "https://... or drop a PDF file"}
+                                            onUrlChange={(url) => field.onChange(url)}
+                                            config={meetingId ? {
+                                                cityId,
+                                                identifier: meetingId,
+                                                suffix: 'agenda'
+                                            } : undefined}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('meetingAgendaDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )
+                        }}
                     />
                     <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                         <CollapsibleTrigger asChild>
