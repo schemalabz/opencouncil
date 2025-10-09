@@ -102,6 +102,8 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
 
                     xhr.open('PUT', presignedUrl)
                     xhr.setRequestHeader('Content-Type', file.type)
+                    // Set timeout to 60 seconds for large file uploads
+                    xhr.timeout = 60000
                     xhr.send(file)
                 })
 

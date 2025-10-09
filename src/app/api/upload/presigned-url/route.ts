@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { s3Client, fileExists, constructPublicUrl } from '@/lib/s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { UploadConfig } from '@/types/upload'
-
-const s3Client = new S3Client({
-    endpoint: env.DO_SPACES_ENDPOINT,
-    region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET,
-    }
-})
 
 /**
  * Generate a meaningful filename based on upload config
@@ -38,21 +30,8 @@ function generateBaseFilename(config: UploadConfig | undefined, extension: strin
 /**
  * Check if a file exists in S3
  */
-async function fileExists(key: string): Promise<boolean> {
-    try {
-        await s3Client.send(new HeadObjectCommand({
-            Bucket: env.DO_SPACES_BUCKET,
-            Key: key,
-        }))
-        return true
-    } catch (error: any) {
-        if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
-            return false
-        }
-        // If there's another error, log it but assume file doesn't exist
-        console.error('Error checking file existence:', error)
-        return false
-    }
+async function fileExistsInBucket(key: string): Promise<boolean> {
+    return await fileExists(env.DO_SPACES_BUCKET, key)
 }
 
 /**
@@ -63,7 +42,7 @@ async function findAvailableFilename(baseFilename: string, prefix: string = 'upl
     const key = `${prefix}/${baseFilename}`
     
     // Check if base filename is available
-    if (!await fileExists(key)) {
+    if (!await fileExistsInBucket(key)) {
         return baseFilename
     }
     
@@ -78,7 +57,7 @@ async function findAvailableFilename(baseFilename: string, prefix: string = 'upl
         const newFilename = `${nameWithoutExt}_${counter}${extension}`
         const newKey = `${prefix}/${newFilename}`
         
-        if (!await fileExists(newKey)) {
+        if (!await fileExistsInBucket(newKey)) {
             return newFilename
         }
         
@@ -152,7 +131,7 @@ export async function POST(request: NextRequest) {
         const presignedUrl = await getSignedUrl(s3Client as any, command as any, { expiresIn })
 
         // Construct the public URL that will be accessible after upload
-        const publicUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/uploads/${uniqueFilename}`
+        const publicUrl = constructPublicUrl(env.DO_SPACES_BUCKET, key)
 
         return NextResponse.json({
             url: presignedUrl,
