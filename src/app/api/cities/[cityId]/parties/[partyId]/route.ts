@@ -1,20 +1,8 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { v4 as uuidv4 } from 'uuid'
-import { S3 } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
+import { uploadFile } from '@/lib/s3'
 import { getParty, editParty, deleteParty } from '@/lib/db/parties'
-import { env } from '@/env.mjs'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
-
-const s3Client = new S3({
-    endpoint: env.DO_SPACES_ENDPOINT,
-    region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET
-    }
-})
 
 export async function GET(request: Request, { params }: { params: { cityId: string, partyId: string } }) {
     try {
@@ -44,23 +32,9 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         let logoUrl: string | undefined = undefined
 
         if (logo && logo instanceof File) {
-            const fileExtension = logo.name.split('.').pop()
-            const fileName = `${uuidv4()}.${fileExtension}`
-
-            const upload = new Upload({
-                client: s3Client,
-                params: {
-                    Bucket: env.DO_SPACES_BUCKET,
-                    Key: `party-logos/${fileName}`,
-                    Body: Buffer.from(await logo.arrayBuffer()),
-                    ACL: 'public-read',
-                    ContentType: logo.type,
-                },
-            })
-
             try {
-                await upload.done()
-                logoUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/party-logos/${fileName}`
+                const result = await uploadFile(logo, { prefix: 'party-logos' })
+                logoUrl = result.url
             } catch (error) {
                 console.error('Error uploading file:', error)
                 return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })

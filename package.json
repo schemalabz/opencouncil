@@ -37,6 +37,7 @@
     "@auth/prisma-adapter": "^2.7.4",
     "@aws-sdk/client-s3": "^3.637.0",
     "@aws-sdk/lib-storage": "^3.637.0",
+    "@aws-sdk/s3-request-presigner": "^3.637.0",
     "@elastic/elasticsearch": "^9.0.1",
     "@eslint/config-array": "^0.19.1",
     "@eslint/object-schema": "^2.1.5",
