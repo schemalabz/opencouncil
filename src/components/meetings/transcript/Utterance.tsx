@@ -36,8 +36,9 @@ const UtteranceC: React.FC<{
     const canEdit = options.editsAllowed;
     const t = useTranslations('transcript.utterance');
 
-    // Check if there are any context menu options available
-    const hasContextMenuOptions = !editingHighlight && (canEdit || options.editable);
+    const hasEditOptions = canEdit || options.editable;
+    const hasShareOption = !editingHighlight;
+    const hasContextMenuOptions = hasEditOptions || hasShareOption;
 
     // Update local state when prop changes
     useEffect(() => {
@@ -161,7 +162,7 @@ const UtteranceC: React.FC<{
 
     const handleStartHighlightHere = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        
+
         await createHighlight({
             preSelectedUtteranceId: localUtterance.id,
             onSuccess: (highlight) => {
