@@ -3,6 +3,8 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { notifyMeetingCreated } from '@/lib/discord';
+import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -63,6 +65,22 @@ export async function POST(
         revalidateTag(`city:${cityId}:meetings`);
         revalidatePath(`/${cityId}`, "layout");
 
+        // Send Discord notification
+        const city = await prisma.city.findUnique({
+            where: { id: cityId },
+            select: { name_en: true }
+        });
+
+        if (city) {
+            notifyMeetingCreated({
+                cityName: city.name_en,
+                meetingName: name_en,
+                meetingDate: date,
+                meetingId: meetingId,
+                cityId: cityId,
+            });
+        }
+
         return NextResponse.json(meeting, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -84,12 +102,12 @@ export async function GET(
     try {
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
-        
+
         const { limit } = getMeetingsQuerySchema.parse(queryParams);
 
-        const meetings = await getCouncilMeetingsForCity(params.cityId, { 
+        const meetings = await getCouncilMeetingsForCity(params.cityId, {
             includeUnreleased: false,
-            limit 
+            limit
         });
 
         return NextResponse.json(meetings);
