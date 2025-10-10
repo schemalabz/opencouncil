@@ -31,6 +31,7 @@ const UtteranceC: React.FC<{
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
+    const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
     const canEdit = options.editsAllowed;
@@ -157,7 +158,8 @@ const UtteranceC: React.FC<{
 
     const handleShareFromHere = (e: React.MouseEvent) => {
         e.stopPropagation();
-        openShareDropdownAndCopy(localUtterance.startTimestamp);
+        // Set pending action - will be executed when context menu closes
+        setPendingShareAction(localUtterance.startTimestamp);
     };
 
     const handleStartHighlightHere = async (e: React.MouseEvent) => {
@@ -227,7 +229,16 @@ const UtteranceC: React.FC<{
     }
 
     return (
-        <ContextMenu>
+        <ContextMenu onOpenChange={(open) => {
+            if (!open && pendingShareAction) {
+                // Context menu closed - execute pending share action
+                openShareDropdownAndCopy(pendingShareAction);
+                setPendingShareAction(null);
+            } else if (open && pendingShareAction) {
+                // Context menu opened again - clear any stale pending action
+                setPendingShareAction(null);
+            }
+        }}>
             <ContextMenuTrigger>
                 <span className={className} id={localUtterance.id} onClick={handleClick}>
                     {localUtterance.text + ' '}

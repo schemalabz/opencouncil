@@ -68,23 +68,22 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
     // Handle automatic copy trigger
     useEffect(() => {
-        if (shouldTriggerCopy && isOpen) {
-            // Automatically copy to clipboard
-            const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
-            if (effectiveTime > 0) {
-                const urlObj = new URL(url);
-                urlObj.searchParams.delete('t');
-                urlObj.searchParams.set('t', Math.floor(effectiveTime).toString());
-                const shareableUrl = urlObj.toString();
+        if (shouldTriggerCopy && isOpen && targetTimestamp !== null) {
+            // When auto-copying, targetTimestamp is always provided by context
+            const currentUrl = window.location.href;
+            const urlObj = new URL(currentUrl);
+            urlObj.searchParams.delete('t');
+            urlObj.searchParams.set('t', Math.floor(targetTimestamp).toString());
+            const shareableUrl = urlObj.toString();
 
-                navigator.clipboard.writeText(shareableUrl).then(() => {
-                    setCopySuccess(true);
-                    setTimeout(() => setCopySuccess(false), 3000);
-                }).catch(console.error);
-            }
+            navigator.clipboard.writeText(shareableUrl).then(() => {
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 3000);
+            }).catch(console.error);
+
             resetCopyTrigger();
         }
-    }, [shouldTriggerCopy, isOpen, targetTimestamp, currentTime, url, resetCopyTrigger]);
+    }, [shouldTriggerCopy, isOpen, targetTimestamp, resetCopyTrigger]);
 
     const handleImageLoad = () => {
         setImageLoading(false);
@@ -146,20 +145,21 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
     const shareContext = getShareContext();
 
-    // Determine if dropdown should be open (controlled by context or internal state)
+    // Use a single controlled state - prioritize context state when active
     const dropdownOpen = isOpen || internalOpen;
 
     const handleOpenChange = (open: boolean) => {
-        if (!open) {
-            // Closing - close both context and internal state
-            if (isOpen) {
-                closeShareDropdown();
-            }
-            setInternalOpen(false);
-        } else {
-            // Opening - use internal state if not controlled by context
+        if (open) {
+            // Opening - only allow internal state if not controlled by context
             if (!isOpen) {
                 setInternalOpen(true);
+            }
+        } else {
+            // Closing - close whichever state is active
+            if (isOpen) {
+                closeShareDropdown();
+            } else {
+                setInternalOpen(false);
             }
         }
     };
