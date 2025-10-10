@@ -68,8 +68,15 @@ export async function notifyMeetingCreated(data: {
 
     await sendDiscordMessage({
         embeds: [{
-            title: '🆕 New Meeting Added',
-            description: `A new council meeting has been added to the system.`,
+            title: `🆕 ${data.cityId}: ${data.meetingId}`,
+            description: `Scheduled for ${data.meetingDate.toLocaleDateString('el-GR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long',
+                hour: '2-digit',
+                minute: '2-digit'
+            })}`,
             color: 0x00ff00, // Green
             fields: [
                 {
@@ -117,8 +124,8 @@ export async function notifyTaskStarted(data: {
 
     await sendDiscordMessage({
         embeds: [{
-            title: '▶️ Task Started',
-            description: `A new task has been initiated.`,
+            title: `▶️ ${data.taskType} - ${data.cityId}`,
+            description: `Processing: ${data.meetingId}`,
             color: 0x0099ff, // Blue
             fields: [
                 {
@@ -167,8 +174,8 @@ export async function notifyTaskCompleted(data: {
 
     await sendDiscordMessage({
         embeds: [{
-            title: '✅ Task Completed',
-            description: `A task has completed successfully.`,
+            title: `✅ ${data.taskType} - ${data.cityId}`,
+            description: `Completed: ${data.meetingId}`,
             color: 0x00ff00, // Green
             fields: [
                 {
@@ -218,8 +225,8 @@ export async function notifyTaskFailed(data: {
 
     await sendDiscordMessage({
         embeds: [{
-            title: '❌ Task Failed',
-            description: `A task has failed.`,
+            title: `❌ ${data.taskType} - ${data.cityId}`,
+            description: `Failed: ${data.meetingId}`,
             color: 0xff0000, // Red
             fields: [
                 {

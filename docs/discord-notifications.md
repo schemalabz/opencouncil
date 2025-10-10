@@ -41,14 +41,16 @@ All notifications include timestamps, color coding (green/red/blue), and clickab
 
 **New Meeting:**
 ```
-🆕 New Meeting Added
+🆕 athens: jan15_2025
+Scheduled for Monday, January 15, 2025, 14:30
 Municipality: Athens | Meeting: City Council - January 2025
 Date: January 15, 2025 | [View Meeting](https://...)
 ```
 
 **Task Updates:**
 ```
-▶️ Task Started | ✅ Task Completed | ❌ Task Failed
+▶️|✅|❌ transcribe - athens
+Processing|Completed|Failed: jan15_2025
 Task Type: transcribe | Municipality: Athens
 Meeting: City Council - January 2025
 [Open Admin Panel](https://...)
