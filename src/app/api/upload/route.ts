@@ -1,22 +1,9 @@
 import { NextResponse } from 'next/server'
-import { S3 } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
-import { v4 as uuidv4 } from 'uuid'
-import { env } from '@/env.mjs'
+import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
-
-const s3Client = new S3({
-    endpoint: env.DO_SPACES_ENDPOINT,
-    region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET,
-    }
-})
 
 export async function POST(request: Request) {
     try {
-        // TODO: more flexible logic for uploads
         const authorizedToEdit = await isUserAuthorizedToEdit({})
         if (!authorizedToEdit) {
             return new NextResponse("Unauthorized", { status: 401 });
@@ -29,24 +16,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 })
         }
 
-        const fileExtension = file.name.split('.').pop()
-        const fileName = `${uuidv4()}.${fileExtension}`
-
-        const upload = new Upload({
-            client: s3Client,
-            params: {
-                Bucket: env.DO_SPACES_BUCKET,
-                Key: `uploads/${fileName}`,
-                Body: Buffer.from(await file.arrayBuffer()),
-                ACL: 'public-read',
-                ContentType: file.type,
-            },
-        })
-
-        await upload.done()
-        const url = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/uploads/${fileName}`
-
-        return NextResponse.json({ url })
+        const result = await uploadFile(file)
+        return NextResponse.json({ url: result.url })
     } catch (error) {
         console.error('Error uploading file:', error)
         return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })

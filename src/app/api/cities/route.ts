@@ -1,21 +1,9 @@
 "use server"
 import { NextResponse, NextRequest } from 'next/server'
-import { S3 } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
-import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
-import { env } from '@/env.mjs'
+import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
-
-const s3Client = new S3({
-    endpoint: env.DO_SPACES_ENDPOINT,
-    region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET
-    }
-})
 
 const getCitiesQuerySchema = z.object({
     includeUnlisted: z.string()
@@ -73,24 +61,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const fileExtension = logoImage.name.split('.').pop()
-    const fileName = `${uuidv4()}.${fileExtension}`
-
-    const upload = new Upload({
-        client: s3Client,
-        params: {
-            Bucket: env.DO_SPACES_BUCKET,
-            Key: `city-logos/${fileName}`,
-            Body: Buffer.from(await logoImage.arrayBuffer()),
-            ACL: 'public-read',
-            ContentType: logoImage.type,
-        },
-    })
-
     try {
-        await upload.done()
-
-        const logoImageUrl = `${env.CDN_URL}/city-logos/${fileName}`
+        const result = await uploadFile(logoImage, { 
+            prefix: 'city-logos',
+            useCdn: true 
+        })
+        const logoImageUrl = result.url
 
         const city = await createCity({
             id,
