@@ -7,9 +7,9 @@ const petitionSchema = z.object({
     cityId: z.string(),
     isResident: z.boolean().optional(),
     isCitizen: z.boolean().optional(),
-    email: z.string().email().optional(),
-    name: z.string().optional(),
-    phone: z.string().optional(),
+    email: z.string().email().min(1, "Email is required"),
+    name: z.string().min(1, "Name is required"),
+    phone: z.string().optional().nullable(),
 });
 
 // Initialize PrismaClient
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         if (error instanceof z.ZodError) {
             return new NextResponse(JSON.stringify(error.issues), { status: 422 });
         }
-        
+
         console.error('Error submitting petition:', error);
 
         return NextResponse.json(
