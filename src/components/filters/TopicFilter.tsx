@@ -152,8 +152,8 @@ export function TopicFilter({
                                 style={{
                                     borderColor: `${topic.colorHex}${isSelected ? 'FF' : '80'}`,
                                     backgroundColor: `${topic.colorHex}${isSelected ? '20' : '10'}`,
-                                    ringColor: topic.colorHex
-                                }}
+                                    '--tw-ring-color': topic.colorHex
+                                } as React.CSSProperties}
                                 onClick={() => handleTopicClick(topic)}
                             >
                                 <div
