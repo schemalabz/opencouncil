@@ -207,22 +207,26 @@ a:hover.unstyled {
 }
 
 /* Map popup styles */
-.subject-popup {
+.subject-popup,
+.municipality-popup {
     z-index: 1000;
 }
 
-.subject-popup .mapboxgl-popup-content {
+.subject-popup .mapboxgl-popup-content,
+.municipality-popup .mapboxgl-popup-content {
     padding: 0;
     background: transparent;
     box-shadow: none;
     pointer-events: auto;
 }
 
-.subject-popup .mapboxgl-popup-tip {
+.subject-popup .mapboxgl-popup-tip,
+.municipality-popup .mapboxgl-popup-tip {
     display: none;
 }
 
-.subject-popup .mapboxgl-popup-content > div {
+.subject-popup .mapboxgl-popup-content > div,
+.municipality-popup .mapboxgl-popup-content > div {
     pointer-events: auto;
 }
 
