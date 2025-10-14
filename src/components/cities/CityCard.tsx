@@ -5,7 +5,8 @@ import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';
-import { BadgeCheck, BadgeX, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 
 interface CityCardProps {
     city: City & { councilMeetings: CouncilMeeting[] };
@@ -51,17 +52,11 @@ export function CityCard({ city }: CityCardProps) {
                                 </span>
                             </div>
                             <div className="absolute bottom-2 right-2">
-                                {city.officialSupport ? (
-                                    <div className="flex items-center bg-green-100 text-green-800 text-xs font-medium px-2.5 py-1.5 rounded-full">
-                                        <BadgeCheck className="w-4 h-4 mr-1.5" />
-                                        Με υποστήριξη δήμου
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center bg-gray-100 text-gray-600 text-xs font-medium px-2.5 py-1.5 rounded-full">
-                                        <BadgeX className="w-4 h-4 mr-1.5" />
-                                        Χωρίς επίσημη υποστήριξη
-                                    </div>
-                                )}
+                                <OfficialSupportBadge
+                                    officialSupport={city.officialSupport}
+                                    authorityType={city.authorityType}
+                                    size="sm"
+                                />
                             </div>
                         </CardContent>
                     </>

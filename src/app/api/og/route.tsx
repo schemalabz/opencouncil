@@ -274,14 +274,17 @@ const CityOGImage = async (cityId: string) => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px',
-                        backgroundColor: city.officialSupport ? '#dcfce7' : '#f3f4f6',
-                        color: city.officialSupport ? '#166534' : '#6b7280',
+                        background: city.officialSupport
+                            ? 'linear-gradient(to right, #fc550a, #a4c0e1)'
+                            : '#f3f4f6',
+                        color: city.officialSupport ? '#ffffff' : '#6b7280',
                         padding: '8px 16px',
                         borderRadius: '9999px',
                         fontSize: 16,
                         fontWeight: 500,
                         marginTop: '8px',
-                        alignSelf: 'flex-start'
+                        alignSelf: 'flex-start',
+                        border: city.officialSupport ? 'none' : '1px solid #e5e7eb'
                     }}>
                         <span style={{
                             display: 'flex'
