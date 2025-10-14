@@ -1,7 +1,7 @@
 /**
- * Discord Webhook Integration
+ * Discord Admin Alerts Integration
  * 
- * This module provides utilities to send notifications to a Discord channel
+ * This module provides utilities to send admin alerts to a Discord channel
  * via webhook for important system events.
  */
 
@@ -33,7 +33,7 @@ interface DiscordWebhookPayload {
 async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void> {
     // Skip if webhook URL is not configured
     if (!env.DISCORD_WEBHOOK_URL) {
-        console.log('Discord webhook URL not configured, skipping notification');
+        console.log('Discord webhook URL not configured, skipping admin alert');
         return;
     }
 
@@ -47,17 +47,17 @@ async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void>
         });
 
         if (!response.ok) {
-            console.error('Failed to send Discord notification:', response.statusText);
+            console.error('Failed to send Discord admin alert:', response.statusText);
         }
     } catch (error) {
-        console.error('Error sending Discord notification:', error);
+        console.error('Error sending Discord admin alert:', error);
     }
 }
 
 /**
- * Notify when a new council meeting is added
+ * Send admin alert when a new council meeting is added
  */
-export async function notifyMeetingCreated(data: {
+export async function sendMeetingCreatedAdminAlert(data: {
     cityName: string;
     meetingName: string;
     meetingDate: Date;
@@ -110,9 +110,9 @@ export async function notifyMeetingCreated(data: {
 }
 
 /**
- * Notify when a task starts
+ * Send admin alert when a task starts
  */
-export async function notifyTaskStarted(data: {
+export async function sendTaskStartedAdminAlert(data: {
     taskType: string;
     cityName: string;
     meetingName: string;
@@ -160,9 +160,9 @@ export async function notifyTaskStarted(data: {
 }
 
 /**
- * Notify when a task completes successfully
+ * Send admin alert when a task completes successfully
  */
-export async function notifyTaskCompleted(data: {
+export async function sendTaskCompletedAdminAlert(data: {
     taskType: string;
     cityName: string;
     meetingName: string;
@@ -210,9 +210,9 @@ export async function notifyTaskCompleted(data: {
 }
 
 /**
- * Notify when a task fails
+ * Send admin alert when a task fails
  */
-export async function notifyTaskFailed(data: {
+export async function sendTaskFailedAdminAlert(data: {
     taskType: string;
     cityName: string;
     meetingName: string;
@@ -266,9 +266,9 @@ export async function notifyTaskFailed(data: {
 }
 
 /**
- * Notify when a user completes onboarding
+ * Send admin alert when a user completes onboarding
  */
-export async function notifyUserOnboarded(data: {
+export async function sendUserOnboardedAdminAlert(data: {
     cityName: string;
     onboardingSource: 'notification_preferences' | 'petition' | 'admin_invite' | 'magic_link';
 }): Promise<void> {
@@ -305,9 +305,9 @@ export async function notifyUserOnboarded(data: {
 }
 
 /**
- * Notify when a petition is received
+ * Send admin alert when a petition is received
  */
-export async function notifyPetitionReceived(data: {
+export async function sendPetitionReceivedAdminAlert(data: {
     cityName: string;
     isResident: boolean;
     isCitizen: boolean;
@@ -343,9 +343,9 @@ export async function notifyPetitionReceived(data: {
 }
 
 /**
- * Notify when someone signs up for notifications
+ * Send admin alert when someone signs up for notifications
  */
-export async function notifyNotificationSignup(data: {
+export async function sendNotificationSignupAdminAlert(data: {
     cityName: string;
     locationCount: number;
     topicCount: number;
