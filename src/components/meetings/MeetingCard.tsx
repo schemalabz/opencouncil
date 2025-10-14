@@ -174,19 +174,17 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     </span>
                                 </motion.div>
                             )}
-                            {isUpcoming && (
+                            {(isUpcoming || (isTodayWithoutVideo && !isUpcoming)) && (
                                 <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 relative overflow-hidden">
                                     <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-50"></span>
                                     <span className="relative z-10 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5" />
-                                        {t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}
+                                        {isUpcoming ? (
+                                            <>{t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}</>
+                                        ) : (
+                                            t('today')
+                                        )}
                                     </span>
-                                </Badge>
-                            )}
-                            {isTodayWithoutVideo && !isUpcoming && (
-                                <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 bg-orange-500/90 text-white font-medium shadow-sm hover:bg-orange-500">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    {t('today')}
                                 </Badge>
                             )}
                             {!meeting.released && (
