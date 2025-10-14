@@ -13,7 +13,7 @@ import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { handleGenerateHighlightResult } from './generateHighlight';
-import { notifyTaskStarted, notifyTaskCompleted, notifyTaskFailed } from '@/lib/discord';
+import { sendTaskStartedAdminAlert, sendTaskCompletedAdminAlert, sendTaskFailedAdminAlert } from '@/lib/discord';
 import { Prisma } from '@prisma/client';
 
 const taskStatusWithMeetingInclude = {
@@ -111,8 +111,8 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
         data: { requestBody: JSON.stringify(fullRequestBody) }
     });
 
-    // Send Discord notification
-    notifyTaskStarted({
+    // Send Discord admin alert
+    sendTaskStartedAdminAlert({
         taskType: taskType,
         cityName: newTask.councilMeeting.city.name_en,
         meetingName: newTask.councilMeeting.name_en,
@@ -125,7 +125,7 @@ export const startTask = async (taskType: string, requestBody: any, councilMeeti
 }
 
 export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>, processResult: (taskId: string, result: T) => Promise<void>) => {
-    // Get task details for Discord notifications
+    // Get task details for Discord admin alerts
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
         include: taskStatusWithMeetingInclude
@@ -146,8 +146,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             try {
                 await processResult(taskId, update.result);
 
-                // Send Discord notification for successful completion AFTER processing succeeds
-                notifyTaskCompleted({
+                // Send Discord admin alert for successful completion AFTER processing succeeds
+                sendTaskCompletedAdminAlert({
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
                     meetingName: task.councilMeeting.name_en,
@@ -162,8 +162,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     data: { status: 'failed', version: update.version }
                 });
 
-                // Send Discord notification for processing failure
-                notifyTaskFailed({
+                // Send Discord admin alert for processing failure
+                sendTaskFailedAdminAlert({
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
                     meetingName: task.councilMeeting.name_en,
@@ -176,8 +176,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         } else {
             console.log(`No result for task ${taskId}`);
 
-            // Task succeeded but has no result to process - still send completion notification
-            notifyTaskCompleted({
+            // Task succeeded but has no result to process - still send completion admin alert
+            sendTaskCompletedAdminAlert({
                 taskType: task.type,
                 cityName: task.councilMeeting.city.name_en,
                 meetingName: task.councilMeeting.name_en,
@@ -192,8 +192,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             data: { status: 'failed', responseBody: update.error, version: update.version }
         });
 
-        // Send Discord notification for task failure
-        notifyTaskFailed({
+        // Send Discord admin alert for task failure
+        sendTaskFailedAdminAlert({
             taskType: task.type,
             cityName: task.councilMeeting.city.name_en,
             meetingName: task.councilMeeting.name_en,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { updateUserProfile } from "@/lib/db/users";
-import { notifyUserOnboarded } from "@/lib/discord";
+import { sendUserOnboardedAdminAlert } from "@/lib/discord";
 
 export async function POST(request: Request) {
     try {
@@ -20,10 +20,10 @@ export async function POST(request: Request) {
 
         const updatedUser = await updateUserProfile(user.id, updateData);
 
-        // Send Discord notification if user just completed onboarding
+        // Send Discord admin alert if user just completed onboarding
         if (isCompletingOnboarding) {
-            console.log('Sending Discord notification for user onboarding');
-            notifyUserOnboarded({
+            console.log('Sending Discord admin alert for user onboarding');
+            sendUserOnboardedAdminAlert({
                 cityName: 'General', // No specific city for magic link signups
                 onboardingSource: 'magic_link',
             });

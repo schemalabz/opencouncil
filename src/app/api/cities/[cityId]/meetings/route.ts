@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { notifyMeetingCreated } from '@/lib/discord';
+import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
@@ -65,14 +65,14 @@ export async function POST(
         revalidateTag(`city:${cityId}:meetings`);
         revalidatePath(`/${cityId}`, "layout");
 
-        // Send Discord notification
+        // Send Discord admin alert
         const city = await prisma.city.findUnique({
             where: { id: cityId },
             select: { name_en: true }
         });
 
         if (city) {
-            notifyMeetingCreated({
+            sendMeetingCreatedAdminAlert({
                 cityName: city.name_en,
                 meetingName: name_en,
                 meetingDate: date,

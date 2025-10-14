@@ -31,7 +31,7 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 - 🌐 **Open Data**: All data available through a public API
 - 🔐 **Role-Based Access**: Granular permissions for different user types
 - 🤖 **AI Chat Assistant**: Ask questions about council meetings
-- 💬 **Discord Integration**: Real-time notifications for system events
+- 💬 **Discord Integration**: Real-time admin alerts for system events
 - 🌍 **Multilingual Support**: (Coming Soon) Support for multicultural cities
 
 ## Technical Architecture
