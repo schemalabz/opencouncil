@@ -12,6 +12,7 @@ import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
+import { RoleDisplay } from './RoleDisplay';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;
@@ -98,22 +99,16 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                         )}
                     </div>
 
-                    {/* Improved roles layout */}
-                    <div className={cn("flex flex-wrap gap-y-1 mt-1.5", roleTextSize)}>
-                        {activeRoles.filter(role => role.city || role.administrativeBody).map((role, index) => (
-                            <div key={role.id} className="flex items-center">
-                                {index > 0 ? (
-                                    <span className="text-muted-foreground mx-1.5 opacity-70">•</span>
-                                ) : null}
-                                <span className="text-muted-foreground break-words whitespace-normal">
-                                    {role.city ? (
-                                        `${role.name || "Μέλος"}`
-                                    ) : role.administrativeBody ? (
-                                        `${role.administrativeBody.name} (${role.name || "Μέλος"})`
-                                    ) : <></>}
-                                </span>
-                            </div>
-                        ))}
+                    {/* Display roles using RoleDisplay component */}
+                    <div className="mt-1.5">
+                        <RoleDisplay
+                            roles={activeRoles}
+                            size={size === 'sm' ? 'sm' : 'md'}
+                            layout="inline"
+                            showIcons={true}
+                            borderless={true}
+                            className={roleTextSize}
+                        />
                     </div>
                 </div>
             )}
