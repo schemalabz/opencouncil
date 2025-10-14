@@ -1,23 +1,11 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { v4 as uuidv4 } from 'uuid'
-import { S3 } from '@aws-sdk/client-s3'
-import { Upload } from '@aws-sdk/lib-storage'
+import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { Role } from '@prisma/client'
-import { env } from '@/env.mjs'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
-
-const s3Client = new S3({
-    endpoint: env.DO_SPACES_ENDPOINT,
-    region: 'fra-1',
-    credentials: {
-        accessKeyId: env.DO_SPACES_KEY,
-        secretAccessKey: env.DO_SPACES_SECRET
-    }
-})
 
 export async function GET(request: Request, { params }: { params: { cityId: string, personId: string } }) {
     const person = await getPerson(params.personId)
@@ -126,23 +114,9 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     let imageUrl: string | undefined = undefined
 
     if (image && image instanceof File) {
-        const fileExtension = image.name.split('.').pop()
-        const fileName = `${uuidv4()}.${fileExtension}`
-
-        const upload = new Upload({
-            client: s3Client,
-            params: {
-                Bucket: env.DO_SPACES_BUCKET,
-                Key: `person-images/${fileName}`,
-                Body: Buffer.from(await image.arrayBuffer()),
-                ACL: 'public-read',
-                ContentType: image.type,
-            },
-        })
-
         try {
-            await upload.done()
-            imageUrl = `https://${env.DO_SPACES_BUCKET}.${env.DO_SPACES_ENDPOINT?.replace('https://', '')}/person-images/${fileName}`
+            const result = await uploadFile(image, { prefix: 'person-images' })
+            imageUrl = result.url
         } catch (error) {
             console.error('Error uploading file:', error)
             return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
