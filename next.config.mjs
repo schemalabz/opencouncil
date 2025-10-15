@@ -7,7 +7,6 @@ const withNextIntl = createNextIntlPlugin();
 const nextConfig = {
     reactStrictMode: false,
     images: {
-        unoptimized: true,
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@'],
