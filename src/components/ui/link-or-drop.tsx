@@ -42,7 +42,8 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
         const handleFileUpload = React.useCallback(async (file: File) => {
             setIsUploading(true)
             setUploadProgress(0)
-            setUploadError(null) // Clear any previous errors
+            setUploadError(null)
+            setShowCheck(false) // Clear any previous errors
             
             try {
                 // Step 1: Get pre-signed URL from our API
@@ -70,7 +71,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                     }
                 }
 
-                const { url: presignedUrl, publicUrl } = await presignedResponse.json()
+                const { url: presignedUrl, publicUrl, key } = await presignedResponse.json()
 
                 // Step 2: Upload directly to S3 with progress tracking
                 await new Promise<void>((resolve, reject) => {
@@ -102,12 +103,25 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
 
                     xhr.open('PUT', presignedUrl)
                     xhr.setRequestHeader('Content-Type', file.type)
-                    // Set timeout to 60 seconds for large file uploads
-                    xhr.timeout = 60000
+                    // Set timeout to 25 minutes for large file uploads
+                    xhr.timeout = 1500000
                     xhr.send(file)
                 })
 
-                // Step 3: Update with public URL
+                // Step 3: Set ACL to make file public
+                const aclResponse = await fetch('/api/upload/set-acl', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ key }),
+                })
+
+                if (!aclResponse.ok) {
+                    throw new Error('Failed to set file permissions')
+                }
+
+                // Step 4: Update with public URL
                 if (combinedRef.current) {
                     combinedRef.current.value = publicUrl
                 }
@@ -120,9 +134,6 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                 // Set error message for UI display
                 const errorMessage = error instanceof Error ? error.message : 'Failed to upload file'
                 setUploadError(errorMessage)
-                
-                // Auto-hide error after 5 seconds
-                setTimeout(() => setUploadError(null), 5000)
                 
                 // Reset progress on error
                 setUploadProgress(0)
@@ -152,6 +163,22 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                 handleFileUpload(file)
             }
         }, [handleFileUpload])
+
+        const clearError = React.useCallback(() => {
+            setUploadError(null)
+        }, [])
+
+        const retryUpload = React.useCallback(() => {
+            // Clear any previous error state
+            setUploadError(null)
+            setShowCheck(false)
+            
+            // Reset file input to allow selecting the same file again
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+                fileInputRef.current.click()
+            }
+        }, [])
 
         return (
             <>
@@ -244,7 +271,25 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                         className="mt-2 flex items-start gap-2 text-sm text-destructive"
                     >
                         <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                        <p>{uploadError}</p>
+                        <div className="flex-1">
+                            <p>{uploadError}</p>
+                            <div className="mt-2 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={retryUpload}
+                                    className="text-xs px-2 py-1 bg-destructive/10 hover:bg-destructive/20 rounded transition-colors"
+                                >
+                                    Retry Upload
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={clearError}
+                                    className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded transition-colors"
+                                >
+                                    Clear Error
+                                </button>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </>
