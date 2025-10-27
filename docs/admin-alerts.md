@@ -7,6 +7,8 @@ OpenCouncil sends real-time admin alerts to Discord for key events:
 - ✨ **User onboarded** - Via notification preferences, petition, magic link, or admin invite
 - 📝 **New petition** - When submitted for a municipality
 - 🔔 **Citizen notification signup** - When users sign up for citizen notifications
+- 📬 **Notifications created** - Summary when notifications are created for a meeting
+- 📤 **Notifications sent** - Summary of delivery results (emails, messages, failures)
 
 *No PII (emails, phone numbers, names) is transmitted in these admin alerts.*
 
@@ -61,6 +63,25 @@ Meeting: City Council - January 2025
 ✨ User Onboarded
 Municipality: Athens | Source: Notification Preferences
 (PII not transmitted)
+```
+
+**Notifications Created:**
+```
+📬 Notifications Created - athens
+25 beforeMeeting notifications created for jan15_2025
+Municipality: Athens | Type: Before Meeting
+Meeting: City Council - January 2025
+Users Notified: 25 | Total Subjects: 47
+Status: ⏸️ Pending Approval (or ✅ Sent Immediately)
+[View Meeting](https://...) | [Manage Notifications](https://...)
+```
+
+**Notifications Sent:**
+```
+📤 Notifications Sent
+Delivery batch completed for 25 notifications
+📧 Emails Sent: 25 | 💬 Messages Sent: 18 | ❌ Failed: 0
+[View All Notifications](https://...)
 ```
 
 ## Troubleshooting

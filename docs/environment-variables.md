@@ -57,7 +57,26 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 | `RESEND_API_KEY` | API key for Resend email service. | Yes | - |
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
-| `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+| `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+
+### Notifications
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `BIRD_API_KEY` | API key for Bird messaging service (WhatsApp/SMS). | No | - |
+| `BIRD_WORKSPACE_ID` | Bird workspace identifier for API calls. | No | - |
+| `BIRD_WHATSAPP_CHANNEL_ID` | Bird channel ID for WhatsApp messages. | No | - |
+| `BIRD_SMS_CHANNEL_ID` | Bird channel ID for SMS messages (fallback). | No | - |
+| `BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING` | Template project ID (UUID) from Bird Studio for before meeting notifications. | No | - |
+| `BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING` | Template project ID (UUID) from Bird Studio for after meeting notifications. | No | - |
+| `BIRD_WHATSAPP_TEMPLATE_WELCOME` | Template project ID (UUID) from Bird Studio for welcome messages when users sign up. | No | - |
+
+**Note**: Bird API variables are optional. If not configured, message notifications (WhatsApp/SMS) will be skipped, but email notifications will still work. You need separate channel IDs because WhatsApp and SMS typically use different phone numbers/senders in Bird.
+
+**Getting Template Project IDs**: In Bird Studio, go to your approved WhatsApp templates and copy the project ID (UUID format like `ce6a2fd6-b2fa-4f5a-a2cd-f3bd15883318`).
+
+**Required template parameters:**
+- Before/After Meeting templates: `date`, `cityName`, `subjectsSummary`, `adminBody`, `notificationId`
+- Welcome template: `userName`, `cityName`
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:

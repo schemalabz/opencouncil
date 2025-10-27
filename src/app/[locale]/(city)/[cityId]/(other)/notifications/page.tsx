@@ -17,7 +17,7 @@ interface PageProps {
 export default async function NotificationSignupPage({ params }: PageProps) {
     // Fetch city data with geometry at the server level
     const city = await getCity(params.cityId);
-    
+
     if (!city) {
         // Handle city not found
         return <div>City not found</div>;
@@ -40,8 +40,8 @@ export default async function NotificationSignupPage({ params }: PageProps) {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         }>
-            <OnboardingPageContent 
-                initialStage={OnboardingStage.NOTIFICATION_INFO} 
+            <OnboardingPageContent
+                initialStage={OnboardingStage.NOTIFICATION_INFO}
                 cityId={params.cityId}
                 city={cityWithGeometry}
             />

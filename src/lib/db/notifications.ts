@@ -440,6 +440,11 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
 
+            // Send welcome messages to new signups (non-blocking)
+            sendWelcomeMessages(userId, result.city, phone).catch(err =>
+                console.error('Error sending welcome messages:', err)
+            );
+
             return createSuccess(result);
         }
     } catch (error) {
@@ -575,4 +580,491 @@ export async function savePetition(data: OnboardingData & {
         console.error('Error saving petition:', error);
         return createError('An unexpected error occurred.');
     }
-} 
+}
+
+/**
+ * Calculate if any user locations are within specified distance of subject location
+ */
+export async function calculateProximityMatches(
+    userLocationIds: string[],
+    subjectLocationId: string,
+    distanceMeters: number
+): Promise<boolean> {
+    if (!userLocationIds.length || !subjectLocationId) {
+        return false;
+    }
+
+    try {
+        // Use PostGIS to check if any user location is within distance of subject location
+        const result = await prisma.$queryRaw<{ count: bigint }[]>`
+            SELECT COUNT(*) as count
+            FROM "Location" ul
+            CROSS JOIN "Location" sl
+            WHERE ul.id = ANY(${userLocationIds})
+            AND sl.id = ${subjectLocationId}
+            AND ST_DWithin(
+                ul.coordinates::geography,
+                sl.coordinates::geography,
+                ${distanceMeters}
+            )
+        `;
+
+        return result[0] && Number(result[0].count) > 0;
+    } catch (error) {
+        console.error('Error calculating proximity matches:', error);
+        return false;
+    }
+}
+
+/**
+ * Core notification creation function
+ * Creates notifications for a meeting based on subject importance and user preferences
+ */
+export async function createNotificationsForMeeting(
+    cityId: string,
+    meetingId: string,
+    type: 'beforeMeeting' | 'afterMeeting',
+    subjectImportanceOverrides?: Record<string, {
+        topicImportance: 'doNotNotify' | 'normal' | 'high';
+        proximityImportance: 'none' | 'near' | 'wide';
+    }>
+): Promise<{ notificationsCreated: number; subjectsTotal: number; notificationIds: string[] }> {
+    try {
+        console.log(`Creating ${type} notifications for meeting ${meetingId} in city ${cityId}`);
+
+        // Fetch meeting with subjects and administrative body
+        const meeting = await prisma.councilMeeting.findUnique({
+            where: { cityId_id: { cityId, id: meetingId } },
+            include: {
+                subjects: {
+                    include: {
+                        topic: true,
+                        location: true
+                    }
+                },
+                city: true,
+                administrativeBody: true
+            }
+        });
+
+        if (!meeting) {
+            throw new Error(`Meeting ${meetingId} not found`);
+        }
+
+        // Get all users with notification preferences for this city
+        const usersWithPreferences = await prisma.notificationPreference.findMany({
+            where: { cityId },
+            include: {
+                user: true,
+                locations: true,
+                interests: true
+            }
+        });
+
+        if (usersWithPreferences.length === 0) {
+            console.log('No users with notification preferences for this city');
+            return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
+        }
+
+        console.log(`Found ${usersWithPreferences.length} users with preferences`);
+
+        // Map to track which subjects match which users
+        const userSubjectMatches = new Map<string, Set<{ subjectId: string; reason: 'proximity' | 'topic' | 'generalInterest' }>>();
+
+        // Process each subject
+        for (const subject of meeting.subjects) {
+            // Determine importance levels
+            // TODO: Pull topicImportance and proximityImportance from Subject fields once added to schema
+            // Currently defaulting to: topicImportance='doNotNotify', proximityImportance='none'
+            const topicImportance = subjectImportanceOverrides?.[subject.id]?.topicImportance || 'doNotNotify';
+            const proximityImportance = subjectImportanceOverrides?.[subject.id]?.proximityImportance || 'none';
+
+            // Skip if both are disabled
+            if (topicImportance === 'doNotNotify' && proximityImportance === 'none') {
+                continue;
+            }
+
+            // Check each user against this subject
+            for (const userPref of usersWithPreferences) {
+                const userId = userPref.userId;
+
+                // Initialize set for this user if not exists
+                if (!userSubjectMatches.has(userId)) {
+                    userSubjectMatches.set(userId, new Set());
+                }
+
+                const matches = userSubjectMatches.get(userId)!;
+
+                // Rule 1: High importance - notify everyone
+                if (topicImportance === 'high') {
+                    matches.add({ subjectId: subject.id, reason: 'generalInterest' });
+                    continue;
+                }
+
+                // Rule 2: Normal topic importance + user is interested in the topic
+                if (topicImportance === 'normal' && subject.topicId) {
+                    const isInterestedInTopic = userPref.interests.some(t => t.id === subject.topicId);
+                    if (isInterestedInTopic) {
+                        matches.add({ subjectId: subject.id, reason: 'topic' });
+                        continue;
+                    }
+                }
+
+                // Rule 3 & 4: Proximity-based matching
+                if (proximityImportance !== 'none' && subject.locationId && userPref.locations.length > 0) {
+                    const distanceMeters = proximityImportance === 'near' ? 250 : 1000; // near=250m, wide=1000m
+                    const userLocationIds = userPref.locations.map(l => l.id);
+
+                    const isNearby = await calculateProximityMatches(
+                        userLocationIds,
+                        subject.locationId,
+                        distanceMeters
+                    );
+
+                    if (isNearby) {
+                        matches.add({ subjectId: subject.id, reason: 'proximity' });
+                    }
+                }
+            }
+        }
+
+        // Filter out users with no matching subjects
+        const usersToNotify = Array.from(userSubjectMatches.entries())
+            .filter(([_, subjects]) => subjects.size > 0);
+
+        if (usersToNotify.length === 0) {
+            console.log('No users matched any subjects');
+            return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
+        }
+
+        console.log(`Creating notifications for ${usersToNotify.length} users`);
+
+        // Create notifications and deliveries
+        const notificationIds: string[] = [];
+        let totalSubjects = 0;
+
+        for (const [userId, subjectMatches] of usersToNotify) {
+            const userPref = usersWithPreferences.find(up => up.userId === userId)!;
+            const user = userPref.user;
+
+            // Create the notification
+            const notification = await prisma.notification.create({
+                data: {
+                    userId,
+                    cityId,
+                    meetingId,
+                    type,
+                    subjects: {
+                        create: Array.from(subjectMatches).map(match => ({
+                            subjectId: match.subjectId,
+                            reason: match.reason
+                        }))
+                    }
+                },
+                include: {
+                    subjects: {
+                        include: {
+                            subject: {
+                                include: {
+                                    topic: true,
+                                    location: true
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            notificationIds.push(notification.id);
+            totalSubjects += notification.subjects.length;
+
+            // Generate email content
+            const emailTitle = `OpenCouncil ${meeting.city.name_municipality}: ${meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meeting.dateTime.toLocaleDateString('el-GR')}`;
+            const emailBody = await generateEmailBodyHtml(notification, meeting);
+            const smsBody = await generateSmsBody(notification, meeting);
+
+            // Create email delivery (always)
+            await prisma.notificationDelivery.create({
+                data: {
+                    notificationId: notification.id,
+                    medium: 'email',
+                    status: 'pending',
+                    email: user.email,
+                    title: emailTitle,
+                    body: emailBody
+                }
+            });
+
+            // Create message delivery if user has phone
+            if (user.phone) {
+                await prisma.notificationDelivery.create({
+                    data: {
+                        notificationId: notification.id,
+                        medium: 'message',
+                        status: 'pending',
+                        phone: user.phone,
+                        body: smsBody
+                    }
+                });
+            }
+        }
+
+        console.log(`Created ${notificationIds.length} notifications with ${totalSubjects} total subject matches`);
+
+        return {
+            notificationsCreated: notificationIds.length,
+            subjectsTotal: totalSubjects,
+            notificationIds
+        };
+
+    } catch (error) {
+        console.error('Error creating notifications for meeting:', error);
+        throw error;
+    }
+}
+
+/**
+ * Generate HTML email body for notification
+ */
+async function generateEmailBodyHtml(
+    notification: any,
+    meeting: any
+): Promise<string> {
+    // Simple HTML template for now - will be replaced with React Email component
+    const subjects = notification.subjects.map((ns: any) => {
+        const subject = ns.subject;
+        return `
+            <div style="margin: 16px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <h3 style="margin: 0 0 8px 0;">${subject.name}</h3>
+                <p style="margin: 0; color: #6b7280;">${subject.description}</p>
+                ${subject.topic ? `<span style="display: inline-block; margin-top: 8px; padding: 4px 8px; background: ${subject.topic.colorHex}; color: white; border-radius: 4px; font-size: 12px;">${subject.topic.name}</span>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #111827;">Νέα Ενημέρωση από OpenCouncil</h1>
+            <p style="color: #6b7280;">
+                ${meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meeting.dateTime.toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+            <div style="margin: 24px 0;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}" 
+                   style="display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+                    Δείτε την πλήρη ενημέρωση
+                </a>
+            </div>
+            <h2 style="color: #111827; font-size: 18px;">Θέματα που σας αφορούν:</h2>
+            ${subjects}
+            <div style="margin: 24px 0;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}" 
+                   style="display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
+                    Δείτε την πλήρη ενημέρωση
+                </a>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Generate SMS body for notification
+ */
+async function generateSmsBody(
+    notification: any,
+    meeting: any
+): Promise<string> {
+    const subjectCount = notification.subjects.length;
+    return `OpenCouncil: ${subjectCount} νέα θέματα από ${meeting.administrativeBody?.name || 'συνεδρίαση'} στις ${meeting.dateTime.toLocaleDateString('el-GR')}. Δείτε περισσότερα: ${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}`;
+}
+
+/**
+ * Update delivery status after send attempt
+ */
+export async function updateDeliveryStatus(
+    deliveryId: string,
+    status: 'sent' | 'failed',
+    messageSentVia?: 'whatsapp' | 'sms'
+) {
+    await prisma.notificationDelivery.update({
+        where: { id: deliveryId },
+        data: {
+            status,
+            sentAt: status === 'sent' ? new Date() : undefined,
+            messageSentVia: messageSentVia || undefined
+        }
+    });
+}
+
+/**
+ * Get pending deliveries for notifications
+ */
+export async function getPendingDeliveries(notificationIds: string[]) {
+    return await prisma.notificationDelivery.findMany({
+        where: {
+            notificationId: { in: notificationIds },
+            status: 'pending'
+        },
+        include: {
+            notification: {
+                include: {
+                    user: true,
+                    city: true,
+                    meeting: {
+                        include: {
+                            administrativeBody: true
+                        }
+                    },
+                    subjects: {
+                        include: {
+                            subject: {
+                                include: {
+                                    topic: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * Get notifications for admin dashboard with filters
+ */
+export async function getNotificationsForAdmin(filters: {
+    cityId?: string;
+    status?: 'pending' | 'sent' | 'failed';
+    type?: 'beforeMeeting' | 'afterMeeting';
+    limit?: number;
+    offset?: number;
+}) {
+    const { cityId, status, type, limit = 50, offset = 0 } = filters;
+
+    const whereClause: any = {};
+
+    if (cityId) {
+        whereClause.cityId = cityId;
+    }
+
+    if (type) {
+        whereClause.type = type;
+    }
+
+    // If status filter is provided, filter by delivery status
+    const notifications = await prisma.notification.findMany({
+        where: whereClause,
+        include: {
+            city: true,
+            meeting: {
+                include: {
+                    administrativeBody: true
+                }
+            },
+            deliveries: true,
+            subjects: {
+                include: {
+                    subject: true
+                }
+            },
+            user: {
+                select: {
+                    id: true,
+                    email: true,
+                    name: true
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: limit,
+        skip: offset
+    });
+
+    // Filter by delivery status if specified
+    if (status) {
+        return notifications.filter(n =>
+            n.deliveries.some(d => d.status === status)
+        );
+    }
+
+    return notifications;
+}
+
+/**
+ * Send welcome messages (email + WhatsApp/SMS) when user signs up for notifications
+ */
+async function sendWelcomeMessages(userId: string, city: City, phone?: string) {
+    try {
+        // Get user details
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user) {
+            console.error('User not found for welcome message');
+            return;
+        }
+
+        const { klitiki } = await import('@/lib/utils');
+        const userName = user.name ? klitiki(user.name) : 'φίλε μας';
+
+        // Send welcome email
+        const { sendEmail } = await import('@/lib/email/resend');
+        const welcomeEmailHtml = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #111827;">Καλώς ήρθατε στο OpenCouncil!</h1>
+                <p style="color: #333; font-size: 16px; line-height: 24px;">
+                    Γεια σας ${userName},
+                </p>
+                <p style="color: #333; font-size: 16px; line-height: 24px;">
+                    Εγγραφήκατε επιτυχώς για ειδοποιήσεις από το OpenCouncil για <strong>${city.name_municipality}</strong>.
+                </p>
+                <p style="color: #333; font-size: 16px; line-height: 24px;">
+                    Θα λαμβάνετε ενημερώσεις για θέματα που σας αφορούν με βάση τις τοποθεσίες και τα θέματα ενδιαφέροντος που επιλέξατε.
+                </p>
+                <div style="margin: 32px 0; padding: 16px; background: #f3f4f6; border-radius: 8px;">
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                        💡 Μπορείτε να ενημερώσετε τις προτιμήσεις σας ανά πάσα στιγμή από το προφίλ σας.
+                    </p>
+                </div>
+                <p style="color: #333; font-size: 16px; line-height: 24px;">
+                    Ευχαριστούμε που είστε μαζί μας!
+                </p>
+                <p style="color: #6b7280; font-size: 14px;">
+                    Η ομάδα του OpenCouncil
+                </p>
+            </div>
+        `;
+
+        sendEmail({
+            from: 'OpenCouncil <notifications@opencouncil.gr>',
+            to: user.email,
+            subject: `Καλώς ήρθατε στο OpenCouncil - ${city.name}`,
+            html: welcomeEmailHtml
+        }).catch(err => console.error('Error sending welcome email:', err));
+
+        // Send welcome WhatsApp/SMS if phone provided
+        if (phone) {
+            const { sendWelcomeWhatsAppMessage, sendWelcomeSMS } = await import('@/lib/notifications/bird');
+
+            // Try WhatsApp first
+            const whatsappResult = await sendWelcomeWhatsAppMessage(
+                phone,
+                userName,
+                city.name
+            );
+
+            // Fallback to SMS if WhatsApp fails
+            if (!whatsappResult.success) {
+                console.log('WhatsApp welcome failed, falling back to SMS');
+                await sendWelcomeSMS(phone, userName, city.name);
+            }
+        }
+
+    } catch (error) {
+        console.error('Error sending welcome messages:', error);
+        // Don't throw - welcome messages are nice-to-have, not critical
+    }
+}

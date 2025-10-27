@@ -380,3 +380,114 @@ export async function sendNotificationSignupAdminAlert(data: {
     });
 }
 
+/**
+ * Send admin alert when notifications are created for a meeting
+ */
+export async function sendNotificationsCreatedAdminAlert(data: {
+    cityName: string;
+    meetingName: string;
+    notificationType: string;
+    notificationsCreated: number;
+    subjectsTotal: number;
+    cityId: string;
+    meetingId: string;
+    autoSend: boolean;
+}): Promise<void> {
+    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+    const adminNotificationsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/notifications`;
+
+    await sendDiscordMessage({
+        embeds: [{
+            title: `📬 Notifications Created - ${data.cityId}`,
+            description: `${data.notificationsCreated} ${data.notificationType} notifications created for ${data.meetingId}`,
+            color: 0x9b59b6, // Purple
+            fields: [
+                {
+                    name: 'Municipality',
+                    value: data.cityName,
+                    inline: true,
+                },
+                {
+                    name: 'Type',
+                    value: data.notificationType === 'beforeMeeting' ? 'Before Meeting' : 'After Meeting',
+                    inline: true,
+                },
+                {
+                    name: 'Meeting',
+                    value: data.meetingName,
+                    inline: false,
+                },
+                {
+                    name: 'Users Notified',
+                    value: data.notificationsCreated.toString(),
+                    inline: true,
+                },
+                {
+                    name: 'Total Subjects',
+                    value: data.subjectsTotal.toString(),
+                    inline: true,
+                },
+                {
+                    name: 'Status',
+                    value: data.autoSend ? '✅ Sent Immediately' : '⏸️ Pending Approval',
+                    inline: false,
+                },
+                {
+                    name: 'Links',
+                    value: `[View Meeting](${meetingUrl}) | [Manage Notifications](${adminNotificationsUrl})`,
+                    inline: false,
+                },
+            ],
+            timestamp: new Date().toISOString(),
+        }],
+    });
+}
+
+/**
+ * Send admin alert when notifications are sent/released
+ */
+export async function sendNotificationsSentAdminAlert(data: {
+    notificationCount: number;
+    emailsSent: number;
+    messagesSent: number;
+    failed: number;
+}): Promise<void> {
+    // Only send if we actually sent some notifications
+    if (data.emailsSent === 0 && data.messagesSent === 0 && data.failed === 0) {
+        return;
+    }
+
+    const adminNotificationsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/notifications`;
+    const color = data.failed > 0 ? 0xe74c3c : 0x2ecc71; // Red if failures, green if all success
+
+    await sendDiscordMessage({
+        embeds: [{
+            title: `📤 Notifications Sent`,
+            description: `Delivery batch completed for ${data.notificationCount} notifications`,
+            color,
+            fields: [
+                {
+                    name: '📧 Emails Sent',
+                    value: data.emailsSent.toString(),
+                    inline: true,
+                },
+                {
+                    name: '💬 Messages Sent',
+                    value: data.messagesSent.toString(),
+                    inline: true,
+                },
+                {
+                    name: '❌ Failed',
+                    value: data.failed.toString(),
+                    inline: true,
+                },
+                {
+                    name: 'Manage',
+                    value: `[View All Notifications](${adminNotificationsUrl})`,
+                    inline: false,
+                },
+            ],
+            timestamp: new Date().toISOString(),
+        }],
+    });
+}
