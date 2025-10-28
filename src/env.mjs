@@ -43,6 +43,15 @@ export const env = createEnv({
     // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
+    // Bird API for WhatsApp/SMS notifications
+    BIRD_API_KEY: z.string().min(1).optional(),
+    BIRD_WORKSPACE_ID: z.string().optional(),
+    BIRD_WHATSAPP_CHANNEL_ID: z.string().optional(),
+    BIRD_SMS_CHANNEL_ID: z.string().optional(),
+    BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: z.string().optional(), // Template project ID from Bird Studio
+    BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: z.string().optional(),  // Template project ID from Bird Studio
+    BIRD_WHATSAPP_TEMPLATE_WELCOME: z.string().optional(),  // Welcome template when user signs up
+
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
     SEED_DATA_URL: z.string().url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
@@ -88,6 +97,13 @@ export const env = createEnv({
     ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
     DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
+    BIRD_API_KEY: process.env.BIRD_API_KEY,
+    BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
+    BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
+    BIRD_SMS_CHANNEL_ID: process.env.BIRD_SMS_CHANNEL_ID,
+    BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING,
+    BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING,
+    BIRD_WHATSAPP_TEMPLATE_WELCOME: process.env.BIRD_WHATSAPP_TEMPLATE_WELCOME,
     DEV_TEST_CITY_ID: process.env.DEV_TEST_CITY_ID,
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,

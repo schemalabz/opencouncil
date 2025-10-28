@@ -19,7 +19,7 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
     }
 }
 
-export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdministrativeBody> {
+export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'notificationBehavior'>): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
         const newBody = await prisma.administrativeBody.create({
@@ -70,5 +70,37 @@ export async function deleteAdministrativeBody(id: string): Promise<void> {
     } catch (error) {
         console.error('Error deleting administrative body:', error);
         throw new Error('Failed to delete administrative body');
+    }
+}
+
+export async function updateNotificationBehavior(
+    id: string,
+    notificationBehavior: 'NOTIFICATIONS_DISABLED' | 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_APPROVAL'
+): Promise<AdministrativeBody & { city: { id: string; name: string; name_en: string } }> {
+    const existingBody = await prisma.administrativeBody.findUnique({
+        where: { id },
+        select: { cityId: true },
+    });
+    if (!existingBody) throw new Error('Administrative body not found');
+
+    await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
+    try {
+        const updatedBody = await prisma.administrativeBody.update({
+            where: { id },
+            data: { notificationBehavior },
+            include: {
+                city: {
+                    select: {
+                        id: true,
+                        name: true,
+                        name_en: true
+                    }
+                }
+            }
+        });
+        return updatedBody;
+    } catch (error) {
+        console.error('Error updating notification behavior:', error);
+        throw new Error('Failed to update notification behavior');
     }
 } 
