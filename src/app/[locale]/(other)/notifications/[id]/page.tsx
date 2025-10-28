@@ -3,106 +3,15 @@ import Link from 'next/link';
 import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
-import prisma from '@/lib/db/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ReasonBadge } from '@/components/notifications/ReasonBadge';
 import Icon from '@/components/icon';
-import { getStatisticsFor } from '@/lib/statistics';
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
-
-async function getNotification(id: string) {
-    try {
-        const notification = await prisma.notification.findUnique({
-            where: { id },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true
-                    }
-                },
-                city: true,
-                meeting: {
-                    include: {
-                        administrativeBody: true
-                    }
-                },
-                subjects: {
-                    include: {
-                        subject: {
-                            include: {
-                                topic: true,
-                                location: true
-                            }
-                        }
-                    },
-                    orderBy: {
-                        createdAt: 'asc'
-                    }
-                },
-                deliveries: {
-                    orderBy: {
-                        sentAt: 'desc'
-                    }
-                }
-            }
-        });
-
-        if (!notification) {
-            return null;
-        }
-
-        // Get location coordinates if subjects have locations
-        const locationIds = notification.subjects
-            .map(ns => ns.subject.locationId)
-            .filter((id): id is string => id !== null);
-
-        let locationCoordinates: Record<string, [number, number]> = {};
-
-        if (locationIds.length > 0) {
-            const coords = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
-                SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
-                FROM "Location"
-                WHERE id = ANY(${locationIds})
-                AND type = 'point'
-            `;
-
-            locationCoordinates = coords.reduce((acc, loc) => {
-                acc[loc.id] = [loc.x, loc.y];
-                return acc;
-            }, {} as Record<string, [number, number]>);
-        }
-
-        // Fetch statistics for each subject
-        const subjectStatsPromises = notification.subjects.map(ns =>
-            getStatisticsFor({ subjectId: ns.subject.id }, ['party']).catch(() => null)
-        );
-        const subjectStats = await Promise.all(subjectStatsPromises);
-
-        // Add coordinates and statistics to the response
-        return {
-            ...notification,
-            subjects: notification.subjects.map((ns, idx) => ({
-                ...ns,
-                subject: {
-                    ...ns.subject,
-                    location: ns.subject.location ? {
-                        ...ns.subject.location,
-                        coordinates: ns.subject.locationId ? locationCoordinates[ns.subject.locationId] : null
-                    } : null,
-                    statistics: subjectStats[idx]
-                }
-            }))
-        };
-    } catch (error) {
-        console.error('Error fetching notification:', error);
-        return null;
-    }
-}
+import { getNotificationForView } from '@/lib/db/notifications';
 
 export default async function NotificationPage({ params }: { params: { id: string; locale: string } }) {
-    const notification = await getNotification(params.id);
+    const notification = await getNotificationForView(params.id);
 
     if (!notification) {
         notFound();

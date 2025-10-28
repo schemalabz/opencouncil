@@ -1,3 +1,4 @@
+// Not yet used - will be used to unsubscribe from notifications
 "use server";
 
 import { createHmac } from 'crypto';

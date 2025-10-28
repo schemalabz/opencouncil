@@ -316,9 +316,7 @@ Add basic notification management to existing `src/app/[locale]/(other)/profile/
 #### Unsubscribe Implementation
 
 **Email Unsubscribe Links**: 
-- Generate signed tokens containing `userId` + `cityId`
-- Route: `GET /api/notifications/unsubscribe?token={signedToken}`
-- Confirmation page with option to re-subscribe
+- TODO
 
 **Profile Unsubscribe**:
 - Delete button per city removes `NotificationPreference` record
@@ -330,7 +328,6 @@ Add basic notification management to existing `src/app/[locale]/(other)/profile/
 ```typescript
 // Public endpoints
 GET /api/notifications/[id] - Get notification for public view
-POST /api/notifications/unsubscribe - Handle unsubscribe requests
 
 // Admin endpoints  
 POST /api/cities/[cityId]/meetings/[meetingId]/notifications - Create notifications manually

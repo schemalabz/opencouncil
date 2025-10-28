@@ -36,16 +36,16 @@ async function checkUserAuthorization({
     const definedParams = [partyId, personId].filter(Boolean);
     const hasCityId = Boolean(cityId);
     const hasCouncilMeetingId = Boolean(councilMeetingId);
-    
+
     // Validate parameter combinations
     if (definedParams.length > 1) {
         throw new Error("Only one of partyId or personId should be defined");
     }
-    
+
     if (definedParams.length > 0 && (hasCityId || hasCouncilMeetingId)) {
         throw new Error("cityId/councilMeetingId cannot be combined with partyId or personId");
     }
-    
+
     if (hasCouncilMeetingId && !hasCityId) {
         throw new Error("cityId is required when councilMeetingId is provided");
     }
@@ -62,16 +62,16 @@ async function checkUserAuthorization({
 
     // If both cityId and councilMeetingId are provided, validate they match
     if (cityId && councilMeetingId) {
-        const councilMeeting = await prisma.councilMeeting.findUnique({ 
-            where: { 
-                cityId_id: { 
-                    cityId: cityId, 
-                    id: councilMeetingId 
-                } 
-            }, 
-            select: { cityId: true } 
+        const councilMeeting = await prisma.councilMeeting.findUnique({
+            where: {
+                cityId_id: {
+                    cityId: cityId,
+                    id: councilMeetingId
+                }
+            },
+            select: { cityId: true }
         });
-        
+
         if (!councilMeeting) {
             throw new Error("Council meeting not found or does not belong to the specified city");
         }

@@ -428,7 +428,7 @@ export default function AdminActions({
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Notifications</h3>
             <p className="text-sm text-gray-600 mb-4">
-                Create notifications for users interested in this meeting's subjects.
+                Create notifications for users interested in this meeting&apos;s subjects.
             </p>
             <div className="flex gap-2">
                 <Button

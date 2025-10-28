@@ -71,39 +71,6 @@ export default function AdminNotificationsPage() {
         }
     };
 
-    const resendDelivery = async (deliveryId: string, deliveryMedium: string) => {
-        if (!confirm(`Are you sure you want to resend this ${deliveryMedium} delivery? It will be sent again to the user.`)) {
-            return;
-        }
-
-        setResendingDeliveries(prev => new Set(prev).add(deliveryId));
-        try {
-            const res = await fetch('/api/admin/notifications/resend-delivery', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deliveryId })
-            });
-
-            if (!res.ok) {
-                throw new Error('Failed to resend delivery');
-            }
-
-            const result = await res.json();
-
-            alert(`Successfully resent ${deliveryMedium} delivery!`);
-            fetchNotifications();
-        } catch (error) {
-            console.error('Error resending delivery:', error);
-            alert(`Error resending ${deliveryMedium} delivery`);
-        } finally {
-            setResendingDeliveries(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(deliveryId);
-                return newSet;
-            });
-        }
-    };
-
     const toggleNotification = (notificationId: string) => {
         setExpandedNotifications(prev => {
             const newSet = new Set(prev);
@@ -365,25 +332,6 @@ export default function AdminNotificationsPage() {
                                                                                     </div>
                                                                                 )}
                                                                             </div>
-                                                                            <Button
-                                                                                onClick={() => resendDelivery(delivery.id, delivery.medium)}
-                                                                                disabled={isResending}
-                                                                                variant="outline"
-                                                                                size="sm"
-                                                                                className="gap-1 shrink-0"
-                                                                            >
-                                                                                {isResending ? (
-                                                                                    <>
-                                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                                        Sending...
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        <RefreshCw className="h-3 w-3" />
-                                                                                        Resend
-                                                                                    </>
-                                                                                )}
-                                                                            </Button>
                                                                         </div>
                                                                     );
                                                                 })}
