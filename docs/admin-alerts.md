@@ -1,14 +1,14 @@
-# Discord Notifications Setup
+# Discord Admin Alerts Setup
 
-OpenCouncil sends real-time notifications to Discord for key events:
+OpenCouncil sends real-time admin alerts to Discord for key events:
 
 - 🆕 **New meeting added** - With link to view meeting
 - ▶️ **Task started/completed/failed** - With links to admin panel
 - ✨ **User onboarded** - Via notification preferences, petition, magic link, or admin invite
 - 📝 **New petition** - When submitted for a municipality
-- 🔔 **Notification signup** - When users sign up
+- 🔔 **Citizen notification signup** - When users sign up for citizen notifications
 
-*No PII (emails, phone numbers, names) is transmitted.*
+*No PII (emails, phone numbers, names) is transmitted in these admin alerts.*
 
 ## Quick Setup
 
@@ -16,7 +16,7 @@ OpenCouncil sends real-time notifications to Discord for key events:
 
 1. Open your Discord server → Right-click channel → **Edit Channel**
 2. Go to **Integrations** → **Webhooks** → **New Webhook**
-3. Name it (e.g., "OpenCouncil Bot")
+3. Name it (e.g., "OpenCouncil Admin Alerts")
 4. **Copy Webhook URL**
 
 The URL looks like: `https://discord.com/api/webhooks/123.../AbCd...`
@@ -33,11 +33,11 @@ DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHO
 
 ### 3. Test It
 
-Create a meeting or start a task - you should see notifications in Discord
+Create a meeting or start a task - you should see admin alerts in Discord
 
-## Notification Examples
+## Admin Alert Examples
 
-All notifications include timestamps, color coding (green/red/blue), and clickable links.
+All admin alerts include timestamps, color coding (green/red/blue), and clickable links.
 
 **New Meeting:**
 ```
@@ -65,13 +65,13 @@ Municipality: Athens | Source: Notification Preferences
 
 ## Troubleshooting
 
-**Notifications not appearing?**
+**Admin alerts not appearing?**
 1. Verify webhook URL in `.env` file
 2. Check webhook exists in Discord (Channel Settings > Integrations > Webhooks)
 3. Check application logs for errors
-4. Test manually: `curl -X POST "YOUR_WEBHOOK_URL" -H "Content-Type: application/json" -d '{"content": "Test"}'`
+4. Test manually: `curl -X POST "YOUR_WEBHOOK_URL" -H "Content-Type: application/json" -d '{"content": "Admin Alert Test"}'`
 
-**Rate limits:** 30 requests/minute per webhook. OpenCouncil stays well within this.
+**Rate limits:** 30 requests/minute per webhook. OpenCouncil admin alerts stay well within this.
 
 ## Security Notes
 
@@ -83,4 +83,4 @@ Municipality: Athens | Source: Notification Preferences
 
 To disable: Remove `DISCORD_WEBHOOK_URL` from `.env`
 
-To customize: Edit `/src/lib/discord.ts` - all notification functions are non-blocking.
+To customize: Edit `/src/lib/discord.ts` - all admin alert functions are non-blocking.

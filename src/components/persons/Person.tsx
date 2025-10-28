@@ -22,6 +22,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
 import { StatisticsOfPerson } from "@/lib/statistics";
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
+import { RoleDisplay } from './RoleDisplay';
 
 type RoleWithRelations = Role & {
     party?: Party | null;
@@ -53,34 +54,17 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         ),
         [administrativeBodies, person.roles]);
 
-    // Group roles by type and active status
-    const roles = useMemo(() => {
-        const allRoles = person.roles as RoleWithRelations[];
-        const activeRoles = filterActiveRoles(allRoles);
-        const inactiveRoles = filterInactiveRoles(allRoles);
-
-        return {
-            active: {
-                cityRoles: activeRoles.filter(role => role.cityId),
-                partyRoles: activeRoles.filter(role => role.partyId),
-                adminBodyRoles: activeRoles.filter(role => role.administrativeBodyId)
-            },
-            inactive: {
-                cityRoles: inactiveRoles.filter(role => role.cityId),
-                partyRoles: inactiveRoles.filter(role => role.partyId),
-                adminBodyRoles: inactiveRoles.filter(role => role.administrativeBodyId)
-            }
-        };
-    }, [person.roles]);
-
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
-        if (roles.active.partyRoles.length > 0) return false;
+        const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
+        const partyRoles = activeRoles.filter(role => role.partyId);
 
-        return roles.active.adminBodyRoles.some(role =>
-            role.administrativeBody?.type === 'council'
+        if (partyRoles.length > 0) return false;
+
+        return activeRoles.some(role =>
+            role.administrativeBodyId && role.administrativeBody?.type === 'council'
         );
-    }, [roles.active.partyRoles, roles.active.adminBodyRoles]);
+    }, [person.roles]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -216,13 +200,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
                         >
-                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 flex-shrink-0">
-                                <ImageOrInitials
-                                    imageUrl={person.image}
-                                    name={person.name}
-                                    width={128}
-                                    height={128}
-                                />
+                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-40 lg:h-40 xl:w-48 xl:h-48 flex-shrink-0 overflow-hidden rounded-full">
+                                <div className="w-full h-full [&>div]:!border-0 [&>div]:!w-full [&>div]:!h-full">
+                                    <ImageOrInitials
+                                        imageUrl={person.image}
+                                        name={person.name}
+                                        width={96}
+                                        height={96}
+                                    />
+                                </div>
                             </div>
                             <div className="flex-1 space-y-3 sm:space-y-4 text-center sm:text-left min-w-0">
                                 <motion.h1
@@ -234,81 +220,29 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     {person.name}
                                 </motion.h1>
 
-                                {/* Active Roles */}
-                                <div className="flex flex-col gap-2">
-                                    {/* Active Party Roles */}
-                                    {roles.active.partyRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.3 }}
-                                            className="flex items-center gap-2"
-                                        >
-                                            {role.party && (
-                                                <Link
-                                                    href={`/${city.id}/parties/${role.party.id}`}
-                                                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                                                >
-                                                    <div className="relative w-4 h-4 sm:w-5 sm:h-5">
-                                                        <ImageOrInitials
-                                                            imageUrl={role.party.logo}
-                                                            name={role.party.name_short}
-                                                            color={role.party.colorHex}
-                                                            width={20}
-                                                            height={20}
-                                                        />
-                                                    </div>
-                                                    <span className="text-sm sm:text-base text-muted-foreground">
-                                                        {role.party.name}
-                                                        {role.name && ` - ${role.name}`}
-                                                        {role.isHead && ' (Επικεφαλής)'}
-                                                    </span>
-                                                </Link>
-                                            )}
-                                        </motion.div>
-                                    ))}
-
-                                    {/* Active City Roles */}
-                                    {roles.active.cityRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.4 }}
-                                            className="text-sm sm:text-base text-muted-foreground"
-                                        >
-                                            {role.isHead ? t('mayor') : role.name}
-                                        </motion.div>
-                                    ))}
-
-                                    {/* Active Administrative Body Roles */}
-                                    {roles.active.adminBodyRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.4 }}
-                                            className="text-sm sm:text-base text-muted-foreground"
-                                        >
-                                            {role.administrativeBody?.name}
-                                            {role.name && ` - ${role.name}`}
-                                            {role.isHead && ' (Πρόεδρος)'}
-                                        </motion.div>
-                                    ))}
+                                {/* Active Roles - Enhanced Display */}
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: 0.3 }}
+                                    className="space-y-3"
+                                >
+                                    <RoleDisplay
+                                        roles={filterActiveRoles(person.roles)}
+                                        size="lg"
+                                        layout="inline"
+                                        showIcons
+                                        borderless={true}
+                                        className="items-start"
+                                    />
 
                                     {/* Independent Council Member */}
                                     {isIndependentCouncilMember && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            transition={{ delay: 0.4 }}
-                                            className="text-sm sm:text-base text-muted-foreground italic"
-                                        >
+                                        <div className="text-sm sm:text-base text-muted-foreground italic">
                                             Ανεξάρτητος Δημοτικός Σύμβουλος
-                                        </motion.div>
+                                        </div>
                                     )}
-                                </div>
+                                </motion.div>
 
                                 {person.profileUrl && (
                                     <motion.a
@@ -402,110 +336,47 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     </motion.div>
 
                     {/* History Section - only show if there are inactive roles */}
-                    {(roles.inactive.cityRoles.length > 0 ||
-                        roles.inactive.partyRoles.length > 0 ||
-                        roles.inactive.adminBodyRoles.length > 0) && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.7 }}
-                            >
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Clock className="h-5 w-5 text-primary" />
-                                    <h2 className="text-lg sm:text-xl font-semibold">{t('history')}</h2>
-                                </div>
-                                <div className="space-y-3">
-                                    {/* Past Party Roles */}
-                                    {roles.inactive.partyRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                        >
-                                            {role.party && (
-                                                <div className="flex items-center justify-between gap-4">
-                                                    <Link
-                                                        href={`/${city.id}/parties/${role.party.id}`}
-                                                        className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-1 min-w-0"
-                                                    >
-                                                        <div className="relative w-4 h-4 flex-shrink-0">
-                                                            <ImageOrInitials
-                                                                imageUrl={role.party.logo}
-                                                                name={role.party.name_short}
-                                                                color={role.party.colorHex}
-                                                                width={16}
-                                                                height={16}
-                                                            />
-                                                        </div>
-                                                        <span className="text-muted-foreground text-sm sm:text-base truncate">
-                                                            {role.party.name}
-                                                            {role.isHead && ` (${t('partyLeader')})`}
-                                                            {role.name && ` - ${role.name}`}
-                                                        </span>
-                                                    </Link>
-                                                    <span className="text-xs text-muted-foreground flex-shrink-0">
-                                                        {formatDateRange(
-                                                            role.startDate ? new Date(role.startDate) : null,
-                                                            role.endDate ? new Date(role.endDate) : null,
-                                                            t
-                                                        )}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </motion.div>
-                                    ))}
+                    {filterInactiveRoles(person.roles).length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.7 }}
+                        >
+                            <div className="flex items-center gap-2 mb-6">
+                                <Clock className="h-5 w-5 text-primary" />
+                                <h2 className="text-lg sm:text-xl font-semibold">{t('history')}</h2>
+                            </div>
 
-                                    {/* Past City Roles */}
-                                    {roles.inactive.cityRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                        >
-                                            <div className="flex items-center justify-between gap-4">
-                                                <span className="text-muted-foreground text-sm sm:text-base">
-                                                    {role.isHead ? t('mayor') : role.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDateRange(
-                                                        role.startDate ? new Date(role.startDate) : null,
-                                                        role.endDate ? new Date(role.endDate) : null,
-                                                        t
-                                                    )}
-                                                </span>
+                            <div className="grid gap-4">
+                                {filterInactiveRoles(person.roles).map((role) => (
+                                    <motion.div
+                                        key={role.id}
+                                        className="p-4 border rounded-lg bg-card/50"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                    >
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <RoleDisplay
+                                                    roles={[role]}
+                                                    size="md"
+                                                    layout="inline"
+                                                    showIcons
+                                                />
                                             </div>
-                                        </motion.div>
-                                    ))}
-
-                                    {/* Past Administrative Body Roles */}
-                                    {roles.inactive.adminBodyRoles.map((role) => (
-                                        <motion.div
-                                            key={role.id}
-                                            className="p-3 sm:p-4 border rounded-lg bg-card/50"
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                        >
-                                            <div className="flex items-center justify-between gap-4">
-                                                <span className="text-muted-foreground text-sm sm:text-base">
-                                                    {role.administrativeBody?.name}
-                                                    {role.isHead && ` (${t('president')})`}
-                                                    {role.name && ` - ${role.name}`}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDateRange(
-                                                        role.startDate ? new Date(role.startDate) : null,
-                                                        role.endDate ? new Date(role.endDate) : null,
-                                                        t
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
+                                            <span className="text-xs text-muted-foreground flex-shrink-0 font-medium">
+                                                {formatDateRange(
+                                                    role.startDate ? new Date(role.startDate) : null,
+                                                    role.endDate ? new Date(role.endDate) : null,
+                                                    t
+                                                )}
+                                            </span>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
 
                     {/* Recent Segments Section */}
                     <motion.div

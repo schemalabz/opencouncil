@@ -117,12 +117,11 @@ export async function POST(request: NextRequest) {
         const uniqueFilename = await findAvailableFilename(baseFilename, 'uploads')
         const key = `uploads/${uniqueFilename}`
 
-        // Create S3 PutObject command
+        // Create S3 PutObject command (without ACL for now)
         const command = new PutObjectCommand({
             Bucket: env.DO_SPACES_BUCKET,
             Key: key,
             ContentType: contentType,
-            ACL: 'public-read',
         })
 
         // Generate pre-signed URL with 5 minute expiration

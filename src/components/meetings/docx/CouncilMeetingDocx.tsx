@@ -54,15 +54,6 @@ const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting'
                 size: 24 // 12pt
             })],
         }),
-        new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 480 },
-            children: [new TextRun({
-                text: 'Το παρόν δημιουργήθηκε αυτοματοποιημένα από το OpenCouncil.gr, και ενδέχεται να περιέχει λάθη',
-                color: '666666',
-                size: 20 // 10pt
-            })],
-        }),
 
         new Paragraph({
             alignment: AlignmentType.CENTER,
@@ -96,7 +87,7 @@ const createTranscriptSection = ({ transcript, people, meeting }: Pick<MeetingDa
             heading: HeadingLevel.HEADING_1,
             spacing: { before: 480, after: 240 },
             children: [new TextRun({
-                text: 'Αυτόματη απομαγνητοφώνηση',
+                text: 'Απομαγνητοφώνηση',
                 size: 28 // 14pt
             })],
         }),

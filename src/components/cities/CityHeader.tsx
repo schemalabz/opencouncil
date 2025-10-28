@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect } from 'react';
 import FormSheet from '@/components/FormSheet';
 import CityForm from '@/components/cities/CityForm';
-import { BadgeCheck, BadgeX, Building2, Bell, Database } from 'lucide-react';
+import { Building2, Bell, Database, BadgeCheck } from 'lucide-react';
 import { Search } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -18,6 +18,7 @@ import { getUserPreferences } from '@/lib/db/notifications';
 import { CityMessage as CityMessageComponent } from '@/components/cities/CityMessage';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import CityCreator from '@/components/cities/CityCreator';
+import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 import { IS_DEV } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -171,17 +172,12 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.4 }}
                         >
-                            {city.officialSupport ? (
-                                <Badge variant="secondary" className="mt-2 gap-2 bg-green-100/80 text-green-800 hover:bg-green-100">
-                                    <BadgeCheck className="w-4 h-4" />
-                                    <span>Με την υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="mt-2 gap-2 text-muted-foreground">
-                                    <BadgeX className="w-4 h-4" />
-                                    <span>Χωρίς επίσημη υποστήριξη {city.authorityType == "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
-                                </Badge>
-                            )}
+                            <OfficialSupportBadge
+                                officialSupport={city.officialSupport}
+                                authorityType={city.authorityType}
+                                className="mt-2"
+                                size="md"
+                            />
                         </motion.div>
                     </div>
                 </motion.div>

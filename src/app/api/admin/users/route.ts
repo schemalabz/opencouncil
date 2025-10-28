@@ -7,7 +7,7 @@ import { NextResponse } from "next/server"
 import { createHash } from "crypto"
 import { env } from "@/env.mjs"
 import { createUser, getUsers, updateUser } from "@/lib/db/users"
-import { notifyUserOnboarded } from "@/lib/discord"
+import { sendUserOnboardedAdminAlert } from "@/lib/discord"
 
 async function generateSignInLink(email: string) {
     // Create a token that expires in 24 hours
@@ -74,8 +74,8 @@ export async function POST(request: Request) {
         // Send invitation email
         await sendInviteEmail(email, name)
 
-        // Send Discord notification for admin invite
-        notifyUserOnboarded({
+        // Send Discord admin alert for admin invite
+        sendUserOnboardedAdminAlert({
             cityName: isSuperAdmin ? 'Super Admin' : 'Admin User',
             onboardingSource: 'admin_invite',
         });

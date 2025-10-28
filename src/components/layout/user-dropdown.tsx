@@ -53,7 +53,7 @@ export default function UserDropdown({ currentEntity }: { currentEntity?: { city
         )
     }
     const firstName = session.user.name?.split(" ")[0]
-    const greeting = firstName ? `👋 Γειά σου ${klitiki(firstName)}!` : "👋 Γειά σου!"
+    const greeting = firstName ? `👋 Γεια σου ${klitiki(firstName)}!` : "👋 Γεια σου!"
 
     return (
         <DropdownMenu>

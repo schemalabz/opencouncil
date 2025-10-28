@@ -40,7 +40,7 @@ export const env = createEnv({
     ELASTICSEARCH_URL: z.string().url(),
     ELASTICSEARCH_API_KEY: z.string().min(1),
 
-    // Discord Notifications
+    // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
     // Development

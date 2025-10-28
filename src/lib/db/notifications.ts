@@ -5,7 +5,7 @@ import { auth, signIn } from "@/auth";
 import { getCitiesWithGeometry } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
-import { notifyPetitionReceived, notifyUserOnboarded, notifyNotificationSignup } from "@/lib/discord";
+import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -425,16 +425,16 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 }
             });
 
-            // Send Discord notification for new notification signup
-            notifyNotificationSignup({
+            // Send Discord admin alert for new citizen notification signup
+            sendNotificationSignupAdminAlert({
                 cityName: result.city.name_en,
                 locationCount: validLocationIds.length,
                 topicCount: validTopicIds.length,
             });
 
-            // Send Discord notification for user onboarding (if we just created the user)
+            // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
-                notifyUserOnboarded({
+                sendUserOnboardedAdminAlert({
                     cityName: result.city.name_en,
                     onboardingSource: 'notification_preferences',
                 });
@@ -554,16 +554,16 @@ export async function savePetition(data: OnboardingData & {
                 }
             });
 
-            // Send Discord notification for new petition
-            notifyPetitionReceived({
+            // Send Discord admin alert for new petition
+            sendPetitionReceivedAdminAlert({
                 cityName: result.city.name_en,
                 isResident: isResident,
                 isCitizen: isCitizen,
             });
 
-            // Send Discord notification for user onboarding (if we just created the user)
+            // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
-                notifyUserOnboarded({
+                sendUserOnboardedAdminAlert({
                     cityName: result.city.name_en,
                     onboardingSource: 'petition',
                 });
