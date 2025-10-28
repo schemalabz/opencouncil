@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
         // Redirect to a confirmation page with the token
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr';
-        return NextResponse.redirect(`${baseUrl}/unsubscribe?token=${token}`);
+        return NextResponse.redirect(`${baseUrl}/el/unsubscribe?token=${token}`);
 
     } catch (error) {
         console.error('Error processing unsubscribe:', error);

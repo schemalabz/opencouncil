@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users, Ban, Star, AlertCircle } from 'lucide-react';
+import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { TripleToggle } from '@/components/ui/triple-toggle';
 
 interface Subject {
     id: string;
@@ -48,6 +49,7 @@ export function CreateNotificationModal({
     notificationType,
     onCreateNotifications
 }: CreateNotificationModalProps) {
+    const { meeting, city } = useCouncilMeetingData();
     const [sendImmediately, setSendImmediately] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [subjectImportances, setSubjectImportances] = useState<Record<string, SubjectImportance>>(() => {
@@ -61,6 +63,8 @@ export function CreateNotificationModal({
         });
         return initial;
     });
+    const [impactPreview, setImpactPreview] = useState<{ totalUsers: number; subjectImpact: Record<string, number> } | null>(null);
+    const [isLoadingImpact, setIsLoadingImpact] = useState(false);
 
     const updateSubjectImportance = (
         subjectId: string,
@@ -75,6 +79,35 @@ export function CreateNotificationModal({
             }
         }));
     };
+
+    // Calculate impact preview when subject importances change
+    useEffect(() => {
+        const calculateImpact = async () => {
+            setIsLoadingImpact(true);
+            try {
+                const response = await fetch(`/api/cities/${city.id}/meetings/${meeting.id}/notifications/preview`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ subjectImportances })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setImpactPreview(data);
+                }
+            } catch (error) {
+                console.error('Error calculating impact:', error);
+            } finally {
+                setIsLoadingImpact(false);
+            }
+        };
+
+        // Debounce the calculation
+        const timeoutId = setTimeout(calculateImpact, 500);
+        return () => clearTimeout(timeoutId);
+    }, [subjectImportances, city.id, meeting.id]);
 
     const handleCreate = async () => {
         setIsCreating(true);
@@ -128,11 +161,31 @@ export function CreateNotificationModal({
                         </div>
                     </div>
 
-                    {/* Preview */}
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                        <p className="text-sm font-medium text-blue-900">
-                            {activeSubjects.length} of {subjects.length} subjects will be included in notifications
-                        </p>
+                    {/* Impact Preview */}
+                    <div className="p-4 bg-blue-50 rounded-lg h-20 flex flex-col justify-center">
+                        <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-blue-700" />
+                            <span className="text-sm font-medium text-blue-900">
+                                Notification Impact
+                            </span>
+                            {isLoadingImpact && (
+                                <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+                            )}
+                        </div>
+                        {impactPreview && !isLoadingImpact ? (
+                            <div className="space-y-1">
+                                <p className="text-lg font-semibold text-blue-900">
+                                    {impactPreview.totalUsers} users will receive notifications
+                                </p>
+                                <p className="text-xs text-blue-700">
+                                    Across {activeSubjects.length} subjects
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-blue-700">
+                                Calculating...
+                            </p>
+                        )}
                     </div>
 
                     {/* Subjects List */}
@@ -176,48 +229,55 @@ export function CreateNotificationModal({
 
                                     {/* Importance Selectors */}
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-xs text-gray-600">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-gray-600 block">
                                                 Topic Importance
                                             </Label>
-                                            <Select
+                                            <TripleToggle
                                                 value={subjectImportances[subject.id]?.topicImportance || 'doNotNotify'}
-                                                onValueChange={(value) =>
+                                                onChange={(value) =>
                                                     updateSubjectImportance(subject.id, 'topicImportance', value)
                                                 }
-                                            >
-                                                <SelectTrigger className="h-9">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="doNotNotify">Do Not Notify</SelectItem>
-                                                    <SelectItem value="normal">Normal</SelectItem>
-                                                    <SelectItem value="high">High (All Users)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                                options={[
+                                                    { value: 'doNotNotify', label: 'Do Not Notify', icon: <Ban className="h-3 w-3" /> },
+                                                    { value: 'normal', label: 'Normal', icon: <AlertCircle className="h-3 w-3" /> },
+                                                    { value: 'high', label: 'High', icon: <Star className="h-3 w-3" /> }
+                                                ]}
+                                            />
                                         </div>
 
-                                        <div className="space-y-1.5">
-                                            <Label className="text-xs text-gray-600">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs text-gray-600 block">
                                                 Proximity Importance
                                             </Label>
-                                            <Select
+                                            <TripleToggle
                                                 value={subjectImportances[subject.id]?.proximityImportance || 'none'}
-                                                onValueChange={(value) =>
+                                                onChange={(value) =>
                                                     updateSubjectImportance(subject.id, 'proximityImportance', value)
                                                 }
-                                            >
-                                                <SelectTrigger className="h-9">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">None</SelectItem>
-                                                    <SelectItem value="near">Near (250m)</SelectItem>
-                                                    <SelectItem value="wide">Wide (1000m)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                                options={[
+                                                    { value: 'none', label: 'None', icon: <Ban className="h-3 w-3" /> },
+                                                    { value: 'near', label: 'Near', icon: <AlertCircle className="h-3 w-3" /> },
+                                                    { value: 'wide', label: 'Wide', icon: <Star className="h-3 w-3" /> }
+                                                ]}
+                                            />
                                         </div>
                                     </div>
+
+                                    {/* Subject-level impact */}
+                                    {isLoadingImpact ? (
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <span>Calculating impact...</span>
+                                        </div>
+                                    ) : impactPreview && impactPreview.subjectImpact[subject.id] !== undefined ? (
+                                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                                            <Users className="h-3 w-3" />
+                                            <span>
+                                                {impactPreview.subjectImpact[subject.id]} users will be notified about this subject
+                                            </span>
+                                        </div>
+                                    ) : null}
                                 </div>
                             ))
                         )}

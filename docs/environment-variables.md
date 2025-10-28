@@ -72,7 +72,7 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 
 **Note**: Bird API variables are optional. If not configured, message notifications (WhatsApp/SMS) will be skipped, but email notifications will still work. You need separate channel IDs because WhatsApp and SMS typically use different phone numbers/senders in Bird.
 
-**Getting Template Project IDs**: In Bird Studio, go to your approved WhatsApp templates and copy the project ID (UUID format like `ce6a2fd6-b2fa-4f5a-a2cd-f3bd15883318`).
+**Getting Template Project IDs**: In Bird Studio, go to your approved WhatsApp templates and copy the project ID (UUID format like `ce6a2fd6-b2fa-4f5a-a2cd-f3bd15883318`). We use the latest version of each template project.
 
 **Required template parameters:**
 - Before/After Meeting templates: `date`, `cityName`, `subjectsSummary`, `adminBody`, `notificationId`

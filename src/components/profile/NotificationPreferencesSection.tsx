@@ -307,7 +307,7 @@ export function NotificationPreferencesSection() {
                                                     return (
                                                         <Link
                                                             key={notification.id}
-                                                            href={`/notifications/${notification.id}`}
+                                                            href={`/el/notifications/${notification.id}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="block"

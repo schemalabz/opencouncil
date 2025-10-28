@@ -302,7 +302,7 @@ export default function AdminNotificationsPage() {
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Link
-                                                                        href={`/notifications/${notification.id}`}
+                                                                        href={`/el/notifications/${notification.id}`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         onClick={(e) => e.stopPropagation()}

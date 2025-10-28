@@ -37,8 +37,8 @@ export async function sendWhatsAppMessage(
         // Format phone number (ensure it starts with +)
         const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
-        // Construct notification URL
-        const notificationUrl = `${env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${params.notificationId}`;
+        // Construct notification URL (using Greek locale by default)
+        const notificationUrl = `${env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${params.notificationId}`;
 
         // Construct the request payload according to Bird API format
         // See: https://docs.bird.com/api/channels-api/supported-channels/programmable-whatsapp/sending-whatsapp-messages

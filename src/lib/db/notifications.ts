@@ -747,65 +747,75 @@ export async function createNotificationsForMeeting(
             const userPref = usersWithPreferences.find(up => up.userId === userId)!;
             const user = userPref.user;
 
-            // Create the notification
-            const notification = await prisma.notification.create({
-                data: {
-                    userId,
-                    cityId,
-                    meetingId,
-                    type,
-                    subjects: {
-                        create: Array.from(subjectMatches).map(match => ({
-                            subjectId: match.subjectId,
-                            reason: match.reason
-                        }))
-                    }
-                },
-                include: {
-                    subjects: {
-                        include: {
-                            subject: {
-                                include: {
-                                    topic: true,
-                                    location: true
+            try {
+                // Create the notification
+                const notification = await prisma.notification.create({
+                    data: {
+                        userId,
+                        cityId,
+                        meetingId,
+                        type,
+                        subjects: {
+                            create: Array.from(subjectMatches).map(match => ({
+                                subjectId: match.subjectId,
+                                reason: match.reason
+                            }))
+                        }
+                    },
+                    include: {
+                        subjects: {
+                            include: {
+                                subject: {
+                                    include: {
+                                        topic: true,
+                                        location: true
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
 
-            notificationIds.push(notification.id);
-            totalSubjects += notification.subjects.length;
+                notificationIds.push(notification.id);
+                totalSubjects += notification.subjects.length;
 
-            // Generate email content
-            const emailTitle = `OpenCouncil ${meeting.city.name_municipality}: ${meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meeting.dateTime.toLocaleDateString('el-GR')}`;
-            const emailBody = await generateEmailBodyHtml(notification, meeting);
-            const smsBody = await generateSmsBody(notification, meeting);
+                // Generate email content
+                const emailTitle = `OpenCouncil ${meeting.city.name_municipality}: ${meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meeting.dateTime.toLocaleDateString('el-GR')}`;
+                const emailBody = await generateEmailBodyHtml(notification, meeting);
+                const smsBody = await generateSmsBody(notification, meeting);
 
-            // Create email delivery (always)
-            await prisma.notificationDelivery.create({
-                data: {
-                    notificationId: notification.id,
-                    medium: 'email',
-                    status: 'pending',
-                    email: user.email,
-                    title: emailTitle,
-                    body: emailBody
-                }
-            });
-
-            // Create message delivery if user has phone
-            if (user.phone) {
+                // Create email delivery (always)
                 await prisma.notificationDelivery.create({
                     data: {
                         notificationId: notification.id,
-                        medium: 'message',
+                        medium: 'email',
                         status: 'pending',
-                        phone: user.phone,
-                        body: smsBody
+                        email: user.email,
+                        title: emailTitle,
+                        body: emailBody
                     }
                 });
+
+                // Create message delivery if user has phone
+                if (user.phone) {
+                    await prisma.notificationDelivery.create({
+                        data: {
+                            notificationId: notification.id,
+                            medium: 'message',
+                            status: 'pending',
+                            phone: user.phone,
+                            body: smsBody
+                        }
+                    });
+                }
+            } catch (error: any) {
+                // Handle unique constraint error - notification already exists
+                if (error?.code === 'P2002' && error?.meta?.target?.includes('userId') && error?.meta?.target?.includes('cityId') && error?.meta?.target?.includes('meetingId') && error?.meta?.target?.includes('type')) {
+                    console.log(`Notification already exists for user ${userId}, city ${cityId}, meeting ${meetingId}, type ${type} - skipping`);
+                    continue;
+                }
+                // Re-throw other errors
+                throw error;
             }
         }
 
@@ -849,7 +859,7 @@ async function generateEmailBodyHtml(
                 ${meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meeting.dateTime.toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
             <div style="margin: 24px 0;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}" 
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}" 
                    style="display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
                     Δείτε την πλήρη ενημέρωση
                 </a>
@@ -857,7 +867,7 @@ async function generateEmailBodyHtml(
             <h2 style="color: #111827; font-size: 18px;">Θέματα που σας αφορούν:</h2>
             ${subjects}
             <div style="margin: 24px 0;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}" 
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}" 
                    style="display: inline-block; padding: 12px 24px; background: #000; color: #fff; text-decoration: none; border-radius: 6px;">
                     Δείτε την πλήρη ενημέρωση
                 </a>
@@ -874,7 +884,7 @@ async function generateSmsBody(
     meeting: any
 ): Promise<string> {
     const subjectCount = notification.subjects.length;
-    return `OpenCouncil: ${subjectCount} νέα θέματα από ${meeting.administrativeBody?.name || 'συνεδρίαση'} στις ${meeting.dateTime.toLocaleDateString('el-GR')}. Δείτε περισσότερα: ${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/notifications/${notification.id}`;
+    return `OpenCouncil: ${subjectCount} νέα θέματα από ${meeting.administrativeBody?.name || 'συνεδρίαση'} στις ${meeting.dateTime.toLocaleDateString('el-GR')}. Δείτε περισσότερα: ${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`;
 }
 
 /**
