@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -33,6 +33,11 @@ const menuItems = [
         title: "Meetings",
         icon: FileText,
         url: "/admin/meetings",
+    },
+    {
+        title: "Notifications",
+        icon: Bell,
+        url: "/admin/notifications",
     },
     {
         title: "Offers",

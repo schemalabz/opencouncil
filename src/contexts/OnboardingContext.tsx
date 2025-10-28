@@ -16,10 +16,10 @@ interface OnboardingProviderProps {
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
-export function OnboardingProvider({ 
-    children, 
-    city, 
-    initialStage 
+export function OnboardingProvider({
+    children,
+    city,
+    initialStage
 }: OnboardingProviderProps) {
     const { data: session } = useSession();
     const t = useTranslations('Onboarding');
@@ -94,27 +94,47 @@ export function OnboardingProvider({
                     petitions
                 });
 
-                // Check for existing preferences for this city
-                const existingNotification = notifications.find(pref => pref.cityId === city.id);
-                const existingPetition = petitions.find(pref => pref.cityId === city.id);
+                // Only initialize stage and data on first load (when isLoading is true)
+                // After that, let the user navigate through the flow without resetting
+                if (isLoading) {
+                    // Check for existing preferences for this city
+                    const existingNotification = notifications.find(pref => pref.cityId === city.id);
+                    const existingPetition = petitions.find(pref => pref.cityId === city.id);
 
-                if (existingPetition) {
-                    setPetitionData({
-                        name: existingPetition.name,
-                        isResident: existingPetition.isResident,
-                        isCitizen: existingPetition.isCitizen
-                    });
-                    setStage(OnboardingStage.PETITION_INFO);
-                } else if (existingNotification) {
-                    if (existingNotification.locations) {
-                        setSelectedLocations(existingNotification.locations);
+                    // If city supports notifications, only check for notification preferences
+                    if (city.supportsNotifications) {
+                        if (existingNotification) {
+                            if (existingNotification.locations) {
+                                setSelectedLocations(existingNotification.locations);
+                            }
+                            if (existingNotification.topics) {
+                                setSelectedTopics(existingNotification.topics);
+                            }
+                            setStage(OnboardingStage.NOTIFICATION_INFO);
+                        } else {
+                            setStage(initialStage);
+                        }
+                    } else {
+                        // For unsupported cities, check for petition first
+                        if (existingPetition) {
+                            setPetitionData({
+                                name: existingPetition.name,
+                                isResident: existingPetition.isResident,
+                                isCitizen: existingPetition.isCitizen
+                            });
+                            setStage(OnboardingStage.PETITION_INFO);
+                        } else if (existingNotification) {
+                            if (existingNotification.locations) {
+                                setSelectedLocations(existingNotification.locations);
+                            }
+                            if (existingNotification.topics) {
+                                setSelectedTopics(existingNotification.topics);
+                            }
+                            setStage(OnboardingStage.NOTIFICATION_INFO);
+                        } else {
+                            setStage(initialStage);
+                        }
                     }
-                    if (existingNotification.topics) {
-                        setSelectedTopics(existingNotification.topics);
-                    }
-                    setStage(OnboardingStage.NOTIFICATION_INFO);
-                } else {
-                    setStage(initialStage);
                 }
             } catch (error) {
                 console.error('Error fetching user preferences:', error);

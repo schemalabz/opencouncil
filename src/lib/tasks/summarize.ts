@@ -27,7 +27,12 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
             id: taskId
         },
         include: {
-            councilMeeting: true
+            councilMeeting: {
+                include: {
+                    administrativeBody: true,
+                    city: true
+                }
+            }
         }
     });
 
@@ -96,4 +101,56 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     );
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
+
+    // Create notifications if administrative body allows it
+    const adminBody = councilMeeting.administrativeBody;
+    if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
+        const { createNotificationsForMeeting } = await import('../db/notifications');
+        const { releaseNotifications } = await import('../notifications/deliver');
+        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
+
+        try {
+            const stats = await createNotificationsForMeeting(
+                councilMeeting.cityId,
+                councilMeeting.id,
+                'afterMeeting'
+            );
+
+            console.log(`Created ${stats.notificationsCreated} afterMeeting notifications for ${stats.subjectsTotal} subjects`);
+
+            const autoSend = adminBody.notificationBehavior === 'NOTIFICATIONS_AUTO';
+
+            // Send Discord admin alert about notification creation
+            if (stats.notificationsCreated > 0) {
+                sendNotificationsCreatedAdminAlert({
+                    cityName: councilMeeting.city.name_en,
+                    meetingName: councilMeeting.name,
+                    notificationType: 'afterMeeting',
+                    notificationsCreated: stats.notificationsCreated,
+                    subjectsTotal: stats.subjectsTotal,
+                    cityId: councilMeeting.cityId,
+                    meetingId: councilMeeting.id,
+                    autoSend
+                });
+            }
+
+            // If auto-send is enabled, release notifications immediately
+            if (autoSend) {
+                console.log('Auto-sending notifications...');
+                const releaseResult = await releaseNotifications(stats.notificationIds);
+                console.log(`Released notifications: ${releaseResult.emailsSent} emails, ${releaseResult.messagesSent} messages sent`);
+
+                // Send Discord admin alert about sending
+                sendNotificationsSentAdminAlert({
+                    notificationCount: stats.notificationsCreated,
+                    emailsSent: releaseResult.emailsSent,
+                    messagesSent: releaseResult.messagesSent,
+                    failed: releaseResult.failed
+                });
+            }
+        } catch (error) {
+            console.error('Error creating notifications after summarize:', error);
+            // Don't throw - we don't want to fail the entire task if notifications fail
+        }
+    }
 }
