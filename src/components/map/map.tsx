@@ -19,6 +19,7 @@ export interface MapFeature {
         fillOpacity?: number
         strokeColor?: string
         strokeWidth?: number
+        strokeOpacity?: number
         label?: string
     }
 }
@@ -69,6 +70,8 @@ const Map = memo(function Map({
     const featuresRef = useRef(features)
     const isInitialized = useRef(false)
     const draw = useRef<MapboxDraw | null>(null)
+    const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
+    const currentHoveredFeature = useRef<string | null>(null)
 
     // Store user-controlled states in refs to preserve them during rerenders
     const isUserInteracted = useRef(false)
@@ -93,50 +96,133 @@ const Map = memo(function Map({
     const handleFeatureHover = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
         if (!map.current || !e.features || e.features.length === 0) return;
 
-        const feature = e.features[0];
+        // Prioritize point features (subjects) over polygon features (cities)
+        // This prevents flickering when hovering over a point that sits on top of a polygon
+        const feature = e.features.find(f => f.geometry.type === 'Point') || e.features[0];
         if (!feature.properties) return;
 
+        const featureId = feature.properties.uniqueFeatureId;
+        const isSupported = feature.properties.officialSupport;
+
+        // If we're hovering the same feature, don't do anything to prevent flickering
+        if (currentHoveredFeature.current === featureId) {
+            // Just update popup position if it exists, don't recreate
+            if (popup.current && popup.current.isOpen() && renderPopup) {
+                popup.current.setLngLat(e.lngLat);
+            }
+            return;
+        }
+
+        // ANTI-FLICKERING: If we're currently on a subject (point) and now detect a city (polygon),
+        // ignore the city to prevent flickering when the cursor is near the edge of a point
+        const currentFeatureIsSubject = currentHoveredFeature.current?.startsWith('subject-');
+        const newFeatureIsCity = feature.geometry.type !== 'Point';
+        if (currentFeatureIsSubject && newFeatureIsCity) {
+            return;
+        }
+
+        currentHoveredFeature.current = featureId;
+
         map.current.getCanvas().style.cursor = 'pointer';
-        const baseOpacity = feature.properties.fillOpacity || 0.4;
 
         // Use unique feature ID property for precise highlighting
-        const featureFilter = ['==', ['get', 'uniqueFeatureId'], feature.properties.uniqueFeatureId];
+        const featureFilter = ['==', ['get', 'uniqueFeatureId'], featureId];
 
         if (feature.geometry.type === 'Point') {
+            // Handle point features - slightly enlarge on hover
+            map.current.setPaintProperty('feature-points', 'circle-radius', [
+                'case',
+                featureFilter,
+                ['*', ['get', 'strokeWidth'], 1.3],
+                ['get', 'strokeWidth']
+            ]);
+
             map.current.setPaintProperty('feature-points', 'circle-opacity', [
                 'case',
                 featureFilter,
-                Math.min(baseOpacity + 0.05, 1),
+                1,
                 ['get', 'fillOpacity']
             ]);
         } else {
-            map.current.setPaintProperty('feature-fills', 'fill-opacity', [
-                'case',
-                featureFilter,
-                Math.min(baseOpacity + 0.05, 1),
-                ['get', 'fillOpacity']
-            ]);
+            // For supported cities: borders already visible, just make slightly thicker
+            // For unsupported cities: show blue overlay AND border after 1 second
+
+            if (isSupported) {
+                // Supported city: ONLY BORDER (orange), NO OVERLAY
+                // Make border slightly thicker on hover
+                map.current.setPaintProperty('feature-borders', 'line-width', [
+                    'case',
+                    featureFilter,
+                    2.5,
+                    ['get', 'strokeWidth']
+                ]);
+
+                map.current.setPaintProperty('feature-borders', 'line-opacity', [
+                    'case',
+                    featureFilter,
+                    0.9,
+                    0.6
+                ]);
+
+                // Ensure NO FILL for supported cities
+                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
+                    'case',
+                    featureFilter,
+                    0,
+                    ['get', 'fillOpacity']
+                ]);
+            } else {
+                // Unsupported city: show BOTH blue overlay AND border IMMEDIATELY
+                // No timeout - instant feedback
+
+                // Show blue OVERLAY (fill) - only for the hovered feature
+                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
+                    'case',
+                    featureFilter,
+                    0.2,
+                    ['get', 'fillOpacity']
+                ]);
+
+                // Show blue BORDER - only for the hovered feature
+                map.current.setPaintProperty('feature-borders', 'line-width', [
+                    'case',
+                    featureFilter,
+                    2,
+                    ['get', 'strokeWidth']
+                ]);
+
+                map.current.setPaintProperty('feature-borders', 'line-opacity', [
+                    'case',
+                    featureFilter,
+                    0.8,
+                    ['get', 'strokeOpacity']
+                ]);
+            }
         }
 
-        if (renderPopup && feature.properties?.subjectId) {
+        if (renderPopup) {
             const coordinates = e.lngLat;
 
-            if (!popup.current) {
-                popup.current = new mapboxgl.Popup({
-                    closeButton: false,
-                    closeOnClick: false,
-                    maxWidth: '400px',
-                    className: 'subject-popup',
-                    offset: [0, -15]
-                });
+            // Always clean up existing popup first
+            if (popup.current) {
+                popup.current.remove();
             }
+            if (popupRoot.current) {
+                popupRoot.current.unmount();
+                popupRoot.current = null;
+            }
+
+            // Create new popup for the current feature
+            popup.current = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                maxWidth: '400px',
+                className: feature.properties?.featureType === 'city' ? 'municipality-popup' : 'subject-popup',
+                offset: feature.geometry.type === 'Point' ? [0, -10] : [0, -15]
+            });
 
             const popupContent = renderPopup(feature);
             const container = document.createElement('div');
-
-            if (popupRoot.current) {
-                popupRoot.current.unmount();
-            }
 
             popupRoot.current = createRoot(container);
             popupRoot.current.render(popupContent);
@@ -150,9 +236,22 @@ const Map = memo(function Map({
 
     const handleFeatureLeave = useCallback(() => {
         if (!map.current) return;
+
+        // Clear hover timeout for unsupported cities
+        if (hoverTimeout.current) {
+            clearTimeout(hoverTimeout.current);
+            hoverTimeout.current = null;
+        }
+
+        // Reset current hovered feature
+        currentHoveredFeature.current = null;
+
         map.current.getCanvas().style.cursor = '';
         map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
         map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
+        map.current.setPaintProperty('feature-points', 'circle-radius', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-width', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-opacity', ['get', 'strokeOpacity']);
 
         if (popupRoot.current) {
             popupRoot.current.unmount();
@@ -232,10 +331,10 @@ const Map = memo(function Map({
             if (featureToEdit && featureToEdit.geometry) {
                 // Clear any existing drawings
                 draw.current.deleteAll();
-                
+
                 // Add the selected geometry to the map for editing
                 const featureId = draw.current.add(featureToEdit.geometry)[0];
-                
+
                 // Choose appropriate editing mode based on geometry type
                 if (featureToEdit.geometry.type === 'Point') {
                     // For point features, use simple_select mode to allow dragging/moving
@@ -308,20 +407,22 @@ const Map = memo(function Map({
                             subjectId: feature.id,
                             ...feature.properties,
                             fillColor: feature.style?.fillColor || '#627BBC',
-                            fillOpacity: feature.style?.fillOpacity || 0.4,
+                            fillOpacity: feature.style?.fillOpacity ?? 0.4,
                             strokeColor: feature.style?.strokeColor || '#627BBC',
-                            strokeWidth: feature.style?.strokeWidth || 2,
+                            strokeWidth: feature.style?.strokeWidth ?? 2,
+                            strokeOpacity: feature.style?.strokeOpacity ?? 0.8,
                             label: feature.style?.label || ''
                         }
                     }))
                 }
             });
 
-            // Add layers
+            // Add layers - ORDER MATTERS: fills first, then borders, then points on top
             map.current?.addLayer({
                 'id': 'feature-fills',
                 'type': 'fill',
                 'source': 'features',
+                'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from fills
                 'paint': {
                     'fill-color': ['get', 'fillColor'],
                     'fill-opacity': ['get', 'fillOpacity']
@@ -332,9 +433,11 @@ const Map = memo(function Map({
                 'id': 'feature-borders',
                 'type': 'line',
                 'source': 'features',
+                'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from borders
                 'paint': {
                     'line-color': ['get', 'strokeColor'],
-                    'line-width': ['get', 'strokeWidth']
+                    'line-width': ['get', 'strokeWidth'],
+                    'line-opacity': ['get', 'strokeOpacity']
                 }
             });
 
@@ -342,6 +445,7 @@ const Map = memo(function Map({
                 'id': 'feature-labels',
                 'type': 'symbol',
                 'source': 'features',
+                'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from labels
                 'layout': {
                     'text-field': ['get', 'label'],
                     'text-size': 12,
@@ -358,6 +462,7 @@ const Map = memo(function Map({
                 }
             });
 
+            // Points layer - render LAST so it's on top
             map.current?.addLayer({
                 'id': 'feature-points',
                 'type': 'circle',
@@ -368,7 +473,8 @@ const Map = memo(function Map({
                     'circle-opacity': ['get', 'fillOpacity'],
                     'circle-radius': ['get', 'strokeWidth'],
                     'circle-stroke-width': 2,
-                    'circle-stroke-color': ['get', 'strokeColor']
+                    'circle-stroke-color': ['get', 'strokeColor'],
+                    'circle-stroke-opacity': ['get', 'strokeOpacity']
                 }
             });
 
@@ -406,22 +512,6 @@ const Map = memo(function Map({
     useEffect(() => {
         if (!map.current || !isInitialized.current || !map.current.getSource('features')) return;
 
-        console.log('Updating map features:', features);
-
-        // Additional debug for point features
-        features.forEach(feature => {
-            if (feature.geometry?.type === 'Point') {
-                console.log('Point geometry details:', {
-                    id: feature.id,
-                    coordinates: feature.geometry.coordinates,
-                    valid: Array.isArray(feature.geometry.coordinates) &&
-                        feature.geometry.coordinates.length === 2 &&
-                        typeof feature.geometry.coordinates[0] === 'number' &&
-                        typeof feature.geometry.coordinates[1] === 'number'
-                });
-            }
-        });
-
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',
@@ -435,9 +525,10 @@ const Map = memo(function Map({
                     subjectId: feature.id,
                     ...feature.properties,
                     fillColor: feature.style?.fillColor || '#627BBC',
-                    fillOpacity: feature.style?.fillOpacity || 0.4,
+                    fillOpacity: feature.style?.fillOpacity ?? 0.4,
                     strokeColor: feature.style?.strokeColor || '#627BBC',
-                    strokeWidth: feature.style?.strokeWidth || 2,
+                    strokeWidth: feature.style?.strokeWidth ?? 2,
+                    strokeOpacity: feature.style?.strokeOpacity ?? 0.8,
                     label: feature.style?.label || ''
                 }
             }))
@@ -702,18 +793,18 @@ const Map = memo(function Map({
             // Remove all street and place layers when exiting editing mode
             const layersToRemove = [
                 'major-street-labels',
-                'street-labels', 
+                'street-labels',
                 'minor-road-labels',
                 'place-labels',
                 'poi-labels'
             ];
-            
+
             layersToRemove.forEach(layerId => {
                 if (map.current?.getLayer(layerId)) {
                     map.current.removeLayer(layerId);
                 }
             });
-            
+
             // Remove the source too
             if (map.current?.getSource('mapbox-streets')) {
                 map.current.removeSource('mapbox-streets');
