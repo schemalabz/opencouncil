@@ -4,6 +4,7 @@ import { TaskUpdate } from '../apiTypes';
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
 import prisma from '@/lib/db/prisma';
+import { MeetingTaskType } from '@/lib/tasks/types';
 import { handleGeneratePodcastSpecResult } from './generatePodcastSpec';
 import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
@@ -15,6 +16,7 @@ import { env } from '@/env.mjs';
 import { handleGenerateHighlightResult } from './generateHighlight';
 import { sendTaskStartedAdminAlert, sendTaskCompletedAdminAlert, sendTaskFailedAdminAlert } from '@/lib/discord';
 import { Prisma } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 
 const taskStatusWithMeetingInclude = {
     councilMeeting: {
@@ -29,7 +31,7 @@ const taskStatusWithMeetingInclude = {
     }
 } satisfies Prisma.TaskStatusInclude;
 
-export const startTask = async (taskType: string, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
+export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     // Check for existing running task
     const existingTask = await prisma.taskStatus.findFirst({
         where: {
@@ -137,7 +139,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     }
 
     if (update.status === 'success') {
-        await prisma.taskStatus.update({
+        const updatedTask = await prisma.taskStatus.update({
             where: { id: taskId },
             data: { status: 'succeeded', responseBody: JSON.stringify(update.result), version: update.version }
         });
@@ -155,6 +157,15 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     cityId: task.cityId,
                     meetingId: task.councilMeetingId,
                 });
+                
+                // Revalidate cache only for successful tasks that affect meeting data
+                if (updatedTask.cityId && shouldRevalidateForTaskType(updatedTask.type as MeetingTaskType)) {
+                    try {
+                        revalidateTag(`city:${updatedTask.cityId}:meetings`);
+                    } catch (revalidateError) {
+                        console.error(`Error revalidating cache for task ${taskId}:`, revalidateError);
+                    }
+                }
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}: ${error}`);
                 await prisma.taskStatus.update({
@@ -210,7 +221,17 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     }
 }
 
-export const processTaskResponse = async (taskType: string, taskId: string) => {
+// Helper function to determine which task types should trigger cache revalidation
+function shouldRevalidateForTaskType(taskType: MeetingTaskType): boolean {
+    // Only revalidate for tasks that affect meeting data that would be displayed in lists
+    const revalidationTaskTypes = [
+        'summarize', 
+        'processAgenda',
+    ];
+    return revalidationTaskTypes.includes(taskType);
+}
+
+export const processTaskResponse = async (taskType: MeetingTaskType, taskId: string) => {
     console.log(`Processing task response for task ${taskId} of type ${taskType}`);
     const task = await prisma.taskStatus.findUnique({ where: { id: taskId } });
     if (!task) {
@@ -240,7 +261,7 @@ export const processTaskResponse = async (taskType: string, taskId: string) => {
     }
 }
 
-export const getHighestVersionsForTasks = async (taskTypes: string[]): Promise<Record<string, number | null>> => {
+export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): Promise<Record<string, number | null>> => {
     await withUserAuthorizedToEdit({});
     const tasks = await prisma.taskStatus.findMany({
         select: {
@@ -268,7 +289,7 @@ export const getHighestVersionsForTasks = async (taskTypes: string[]): Promise<R
     return highestVersions;
 }
 
-export const getTaskVersionsForMeetings = async (taskTypes: string[]): Promise<Record<string, any>[]> => {
+export const getTaskVersionsForMeetings = async (taskTypes: MeetingTaskType[]): Promise<Record<string, any>[]> => {
     await withUserAuthorizedToEdit({});
     // Get all meetings
     const meetings = await prisma.councilMeeting.findMany({
@@ -315,7 +336,7 @@ export const getTaskVersionsForMeetings = async (taskTypes: string[]): Promise<R
     });
 };
 
-export const getTaskVersionsGroupedByCity = async (taskTypes: string[]): Promise<Record<string, any>> => {
+export const getTaskVersionsGroupedByCity = async (taskTypes: MeetingTaskType[]): Promise<Record<string, any>> => {
     await withUserAuthorizedToEdit({});
 
     // Get all meetings with their task versions

@@ -1,6 +1,6 @@
 "use client"
-import React, { useEffect } from 'react';
-import { CouncilMeeting, TaskStatus } from '@prisma/client';
+import React from 'react';
+import { TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,11 +18,12 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Loader2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { Pencil, Bell } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
+import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
 
 export default function AdminActions({
 }: {
@@ -136,6 +137,23 @@ export default function AdminActions({
         } catch (error) {
             toast({
                 title: "Error requesting transcript fix",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        }
+    };
+
+    const handleMarkReviewComplete = async () => {
+        try {
+            await markHumanReviewComplete(meeting.cityId, meeting.id);
+            toast({
+                title: "Human review marked complete",
+                description: "The meeting has been marked as human reviewed.",
+            });
+            fetchTaskStatuses();
+        } catch (error) {
+            toast({
+                title: "Error marking review complete",
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -407,6 +425,9 @@ export default function AdminActions({
                 </Popover>
                 <Button onClick={handleFixTranscript}>
                     Fix Transcript
+                </Button>
+                <Button variant="outline" onClick={handleMarkReviewComplete}>
+                    Mark Human Review Complete
                 </Button>
                 <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
                     {isSyncingElasticsearch ? 'Syncing...' : 'Sync Elasticsearch'}
