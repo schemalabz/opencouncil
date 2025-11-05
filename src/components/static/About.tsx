@@ -17,7 +17,8 @@ import AnimatedGradientText from '../magicui/animated-gradient-text'
 import ContactFormPopup from './ContactFormPopup'
 import { Link } from '@/i18n/routing'
 import Image from 'next/image'
-import { FloatingPathsBackground } from '@/components/ui/floating-paths';
+import { FloatingPathsBackground } from '@/components/ui/floating-paths'
+import Marquee from '@/components/ui/marquee'
 
 const people = [
     {
@@ -164,7 +165,11 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
     )
 }
 
-export default function AboutPage() {
+interface AboutPageProps {
+    citiesWithLogos?: Array<{ id: string; logoImage: string; name_municipality: string }>
+}
+
+export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
     const t = useTranslations('AboutPage')
     const { scrollYProgress } = useScroll()
     const scaleX = useSpring(scrollYProgress, {
@@ -190,6 +195,52 @@ export default function AboutPage() {
             <div className="container mx-auto px-2 sm:px-4">
                 {/* Hero Section */}
                 <Hero setIsContactFormOpen={setIsContactFormOpen} />
+
+                {/* Supported Municipalities Scroller */}
+                {citiesWithLogos && citiesWithLogos.length > 0 && (
+                    <motion.section
+                        className="py-6 sm:py-8"
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        viewport={{ once: true }}
+                    >
+                        <div className="px-4">
+                            <div
+                                className="text-center mb-4 uppercase tracking-wide font-mono text-xs sm:text-sm"
+                                style={{ fontFamily: "'Roboto Mono', monospace" }}
+                            >
+                                ΣΥΝΕΡΓΑΖΟΜΕΝΟΙ ΔΗΜΟΙ
+                            </div>
+                            <div className="relative w-full overflow-hidden">
+                                {/* Fade gradients */}
+                                <div className="absolute left-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-r from-background via-background/90 to-transparent pointer-events-none" />
+                                <div className="absolute right-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-l from-background via-background/90 to-transparent pointer-events-none" />
+
+                                <Marquee
+                                    className="[--duration:30s] [--gap:2.5rem] sm:[--gap:3rem] md:[--gap:4rem] p-0 justify-center"
+                                    reverse={false}
+                                    pauseOnHover={false}
+                                    repeat={5}
+                                >
+                                    {citiesWithLogos.map((city) => (
+                                        <div
+                                            key={city.id}
+                                            className="flex-shrink-0 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 transition-opacity hover:opacity-80"
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={city.logoImage}
+                                                alt={city.name_municipality}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                    ))}
+                                </Marquee>
+                            </div>
+                        </div>
+                    </motion.section>
+                )}
 
                 {/* Why OpenCouncil Section */}
                 <motion.section
