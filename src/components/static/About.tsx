@@ -199,7 +199,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                 {/* Supported Municipalities Scroller */}
                 {citiesWithLogos && citiesWithLogos.length > 0 && (
                     <motion.section
-                        className="py-6 sm:py-8"
+                        className="py-4 sm:py-5"
                         initial={{ opacity: 0, y: 50 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
@@ -207,18 +207,22 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                     >
                         <div className="px-4">
                             <div
-                                className="text-center mb-4 uppercase tracking-wide font-mono text-xs sm:text-sm"
+                                className="text-center mb-3 uppercase tracking-wide font-mono text-xs"
                                 style={{ fontFamily: "'Roboto Mono', monospace" }}
                             >
                                 ΣΥΝΕΡΓΑΖΟΜΕΝΟΙ ΔΗΜΟΙ
                             </div>
-                            <div className="relative w-full overflow-hidden">
-                                {/* Fade gradients */}
-                                <div className="absolute left-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-r from-background via-background/90 to-transparent pointer-events-none" />
-                                <div className="absolute right-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-l from-background via-background/90 to-transparent pointer-events-none" />
+                            <div
+                                className="relative w-full overflow-hidden"
+                                style={{
+                                    maskImage: 'linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)',
+                                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)',
+                                }}
+                            >
+                                {/* Fade using mask-image for true transparency over any background */}
 
                                 <Marquee
-                                    className="[--duration:30s] [--gap:2.5rem] sm:[--gap:3rem] md:[--gap:4rem] p-0 justify-center"
+                                    className="[--duration:30s] [--gap:2rem] sm:[--gap:2.5rem] md:[--gap:3rem] p-0 justify-center"
                                     reverse={false}
                                     pauseOnHover={false}
                                     repeat={5}
@@ -226,7 +230,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                                     {citiesWithLogos.map((city) => (
                                         <div
                                             key={city.id}
-                                            className="flex-shrink-0 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 transition-opacity hover:opacity-80"
+                                            className="flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 transition-opacity hover:opacity-80"
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
