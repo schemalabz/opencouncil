@@ -43,8 +43,12 @@ export default function Marquee({
   label,
   ...props
 }: MarqueeProps) {
+  // Ensure we have enough copies for seamless infinite scroll
+  // With 4+ copies, when one moves out, another identical copy is ready
+  const copyCount = Math.max(repeat, 4);
+
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <div
         {...props}
         className={cn(
@@ -56,17 +60,22 @@ export default function Marquee({
           className,
         )}
       >
-        {Array(repeat)
+        {Array(copyCount)
           .fill(0)
           .map((_, i) => (
             <div
               key={i}
-              className={cn("flex shrink-0 justify-around [gap:var(--gap)]", {
-                "animate-marquee flex-row": !vertical,
-                "animate-marquee-vertical flex-col": vertical,
+              className={cn("flex shrink-0 [gap:var(--gap)]", {
+                "animate-marquee flex-row items-center": !vertical,
+                "animate-marquee-vertical flex-col items-center": vertical,
                 "group-hover:[animation-play-state:paused]": pauseOnHover,
                 "[animation-direction:reverse]": reverse,
               })}
+              style={{
+                // Ensure each copy starts in the correct position for seamless looping
+                // The animation will move each copy by its own width, creating infinite scroll
+                willChange: 'transform',
+              }}
             >
               {children}
             </div>

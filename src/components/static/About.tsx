@@ -17,7 +17,8 @@ import AnimatedGradientText from '../magicui/animated-gradient-text'
 import ContactFormPopup from './ContactFormPopup'
 import { Link } from '@/i18n/routing'
 import Image from 'next/image'
-import { FloatingPathsBackground } from '@/components/ui/floating-paths';
+import { FloatingPathsBackground } from '@/components/ui/floating-paths'
+import Marquee from '@/components/ui/marquee'
 
 const people = [
     {
@@ -76,6 +77,15 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
             transition={{ duration: 0.8 }}
         >
             <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
+                <motion.p
+                    className="text-xs sm:text-sm md:text-base uppercase tracking-wide text-center px-4 text-muted-foreground"
+                    style={{ fontFamily: "'Roboto Mono', monospace" }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                >
+                    φερτε το opencouncil στον δημο σας
+                </motion.p>
                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-light tracking-tight text-center px-4">
                     Κάνουμε τους δημότες
                     <motion.div
@@ -95,7 +105,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
                             να νοιάζονται
                         </motion.span>
                     </motion.div>
-                    για το δήμο τους
+                    για την αυτοδιοίκηση
                 </h1>
                 <motion.p
                     className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-3xl text-center leading-relaxed px-4"
@@ -155,7 +165,11 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
     )
 }
 
-export default function AboutPage() {
+interface AboutPageProps {
+    citiesWithLogos?: Array<{ id: string; logoImage: string; name_municipality: string }>
+}
+
+export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
     const t = useTranslations('AboutPage')
     const { scrollYProgress } = useScroll()
     const scaleX = useSpring(scrollYProgress, {
@@ -182,6 +196,52 @@ export default function AboutPage() {
                 {/* Hero Section */}
                 <Hero setIsContactFormOpen={setIsContactFormOpen} />
 
+                {/* Supported Municipalities Scroller */}
+                {citiesWithLogos && citiesWithLogos.length > 0 && (
+                    <motion.section
+                        className="py-6 sm:py-8"
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.8 }}
+                        viewport={{ once: true }}
+                    >
+                        <div className="px-4">
+                            <div
+                                className="text-center mb-4 uppercase tracking-wide font-mono text-xs sm:text-sm"
+                                style={{ fontFamily: "'Roboto Mono', monospace" }}
+                            >
+                                ΣΥΝΕΡΓΑΖΟΜΕΝΟΙ ΔΗΜΟΙ
+                            </div>
+                            <div className="relative w-full overflow-hidden">
+                                {/* Fade gradients */}
+                                <div className="absolute left-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-r from-background via-background/90 to-transparent pointer-events-none" />
+                                <div className="absolute right-0 top-0 bottom-0 w-20 sm:w-28 md:w-40 z-10 bg-gradient-to-l from-background via-background/90 to-transparent pointer-events-none" />
+
+                                <Marquee
+                                    className="[--duration:30s] [--gap:2.5rem] sm:[--gap:3rem] md:[--gap:4rem] p-0 justify-center"
+                                    reverse={false}
+                                    pauseOnHover={false}
+                                    repeat={5}
+                                >
+                                    {citiesWithLogos.map((city) => (
+                                        <div
+                                            key={city.id}
+                                            className="flex-shrink-0 flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 transition-opacity hover:opacity-80"
+                                        >
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={city.logoImage}
+                                                alt={city.name_municipality}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                    ))}
+                                </Marquee>
+                            </div>
+                        </div>
+                    </motion.section>
+                )}
+
                 {/* Why OpenCouncil Section */}
                 <motion.section
                     className="py-12 sm:py-16 md:py-24"
@@ -195,7 +255,7 @@ export default function AboutPage() {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
-                            { icon: Scroll, title: 'Γρήγορα, αναζητήσιμα πρακτικά', description: 'Ακριβή, ψηφιακά πρακτικά των συλλογικών οργάνων του δήμου (Δημοτικά Συμβούλια, Επιτροπές, Κοινότητες) διαθέσιμα σε όλους σε ώρες, όχι σε μέρες και εβδομάδες.' },
+                            { icon: Scroll, title: 'Γρήγορα, αναζητήσιμες απομαγνητοφωνήσεις', description: 'Ακριβείς, ψηφιακές απομαγνητοφωνήσεις των συλλογικών οργάνων του δήμου (Δημοτικά Συμβούλια, Επιτροπές, Κοινότητες) διαθέσιμες σε όλους σε ώρες, όχι σε μέρες και εβδομάδες.' },
                             { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
                             { icon: Megaphone, title: 'Συμμετοχικότητα στο σήμερα', description: 'Φέρτε τα δημοτικά συμβούλια του δήμου σας εκεί που οι πολίτες ήδη περνάνε το χρόνο τους: στο WhatsApp και στα Social Media. Επιτρέψτε τους να ενημερωθούν για τα θέματα της γειτονιάς τους άμεσα και απλά.' },
                         ].map((feature, index) => (
@@ -270,11 +330,11 @@ export default function AboutPage() {
                             { icon: BotMessageSquare, title: 'Βοηθός συνομιλίας AI', description: 'Κάντε ερωτήσεις σχετικά με τις συνεδριάσεις του συμβουλίου και λάβετε απαντήσεις από τον βοηθό συνομιλίας AI.', demo: { text: "Δοκιμάστε το", link: "/chat" } },
                             { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', demo: { text: "Διαβάστε περισσότερα", link: "https://schemalabs.substack.com/p/opensource" } },
                             { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', demo: { text: "Δείτε τo API", link: "/docs" } },
-                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Σεπτέμβριος 2025' },
+                            { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Άνοιξη 2025' },
                             { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
                             { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Σύνδεση των θεμάτων που συζητούνται στις συνεδριάσεις με την ημερήσια διάταξη', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025/subjects/" } },
-                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber', releaseDate: 'Ιούλιος 2025' },
-                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Σεπτέμβριος 2025' }
+                            { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber' },
+                            { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Άνοιξη 2025' }
                         ].map((feature, index) => (
                             <motion.div
                                 key={feature.title}

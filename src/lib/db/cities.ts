@@ -315,3 +315,34 @@ export async function canUseCityCreator(cityId: string): Promise<boolean> {
     // City is eligible for city creator
     return true;
 }
+
+/**
+ * Fetches cities with logos for display purposes (e.g., infinite scroller).
+ * Returns only listed cities that have logos.
+ */
+export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string; logoImage: string; name_municipality: string }>> {
+    try {
+        const cities = await prisma.city.findMany({
+            where: {
+                officialSupport: true,
+                logoImage: {
+                    not: null
+                }
+            },
+            select: {
+                id: true,
+                logoImage: true,
+                name_municipality: true
+            },
+            orderBy: [
+                { officialSupport: 'desc' },
+                { name: 'asc' }
+            ]
+        });
+
+        return cities.filter(city => city.logoImage !== null) as Array<{ id: string; logoImage: string; name_municipality: string }>;
+    } catch (error) {
+        console.error('Error fetching cities with logos:', error);
+        throw new Error('Failed to fetch cities with logos');
+    }
+}
