@@ -484,5 +484,39 @@
         },
         "submitting": "Υποβολή...",
         "continue": "Υποβολή"
+    },
+    "AdministrativeBodiesList": {
+        "addNew": "Προσθήκη Νέου",
+        "editBody": "Επεξεργασία Όργανου",
+        "addBody": "Προσθήκη Όργανου",
+        "namePlaceholder": "Όνομα Όργανου",
+        "nameDescription": "Εισάγετε το όνομα του διοικητικού οργάνου.",
+        "nameEnPlaceholder": "Όνομα Όργανου (Αγγλικά)",
+        "nameEnDescription": "Εισάγετε το όνομα του διοικητικού οργάνου στα Αγγλικά.",
+        "type": "Τύπος",
+        "selectType": "Επιλέξτε τύπο",
+        "typeDescription": "Επιλέξτε τον τύπο του διοικητικού οργάνου.",
+        "types": {
+            "council": "Δημοτικό Συμβούλιο",
+            "committee": "Δημοτική Επιτροπή",
+            "community": "Δημοτική Κοινότητα"
+        },
+        "youtubeChannelUrl": "URL Κανάλι YouTube",
+        "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
+        "youtubeChannelUrlDescription": "Εισάγετε το URL του καναλιού YouTube για αυτό το διοικητικό όργανο.",
+        "notificationBehavior": "Συμπεριφορά Ειδοποιήσεων",
+        "notificationBehaviorDescription": "Επιλέξτε τη συμπεριφορά των ειδοποιήσεων για συνεδριάσεις αυτού του οργάνου.",
+        "notificationBehaviorOptions": {
+            "disabled": "Απενεργοποιημένες",
+            "auto": "Αυτόματες",
+            "approval": "Με Έγκριση"
+        },
+        "submitting": "Αποθήκευση...",
+        "update": "Ενημέρωση",
+        "create": "Δημιουργία",
+        "failedToSave": "Αποτυχία αποθήκευσης",
+        "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
+        "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
+        "failedToDelete": "Αποτυχία διαγραφής"
     }
 }

@@ -75,6 +75,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         name: string;
         name_en: string;
         type: AdministrativeBodyType;
+        youtubeChannelUrl?: string | null;
+        notificationBehavior?: string | null;
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
 
