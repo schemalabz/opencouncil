@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  extensions = [postgis(version: "3.3.5")]
+  extensions = [postgis]
 }
 
 model City {
@@ -77,6 +77,7 @@ model AdministrativeBody {
   name_en   String   // e.g. "5th Municipal Community"
   type      AdministrativeBodyType
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
+  youtubeChannelUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

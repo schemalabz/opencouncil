@@ -16,8 +16,9 @@ import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Loader2, Pencil, Trash2 } from "lucide-react"
-import { AdministrativeBodyType } from '@prisma/client'
+import { Loader2, Pencil, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
+import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
+import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 // @ts-ignore
@@ -31,7 +32,14 @@ const formSchema = z.object({
     name_en: z.string().min(2, {
         message: "Name (English) must be at least 2 characters.",
     }),
-    type: z.enum(['council', 'committee', 'community'])
+    type: z.enum(['council', 'committee', 'community']),
+    youtubeChannelUrl: z.union([
+        z.string().url({
+            message: "Must be a valid URL.",
+        }),
+        z.literal('')
+    ]).optional().transform(val => val === '' ? undefined : val),
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'])
 })
 
 interface AdministrativeBody {
@@ -39,6 +47,8 @@ interface AdministrativeBody {
     name: string;
     name_en: string;
     type: AdministrativeBodyType;
+    youtubeChannelUrl?: string | null;
+    notificationBehavior?: NotificationBehavior;
 }
 
 interface AdministrativeBodiesListProps {
@@ -59,7 +69,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         defaultValues: {
             name: editingBody?.name || "",
             name_en: editingBody?.name_en || "",
-            type: editingBody?.type || "council"
+            type: editingBody?.type || "council",
+            youtubeChannelUrl: editingBody?.youtubeChannelUrl || "",
+            notificationBehavior: editingBody?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
         },
     })
 
@@ -84,7 +96,13 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             if (response.ok) {
                 onUpdate()
                 setEditingBody(null)
-                form.reset()
+                form.reset({
+                    name: "",
+                    name_en: "",
+                    type: "council",
+                    youtubeChannelUrl: "",
+                    notificationBehavior: "NOTIFICATIONS_APPROVAL"
+                })
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
@@ -128,7 +146,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                         form.reset({
                             name: "",
                             name_en: "",
-                            type: "council"
+                            type: "council",
+                            youtubeChannelUrl: "",
+                            notificationBehavior: "NOTIFICATIONS_APPROVAL"
                         })
                         setIsDialogOpen(true)
                     }}>
@@ -185,6 +205,62 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
+                            <FormField
+                                control={form.control}
+                                name="youtubeChannelUrl"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('youtubeChannelUrl')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('youtubeChannelUrlPlaceholder')}
+                                                type="url"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('youtubeChannelUrlDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="notificationBehavior"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('notificationBehavior')}</FormLabel>
+                                        <FormControl>
+                                            <TripleToggle
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                options={[
+                                                    {
+                                                        value: 'NOTIFICATIONS_DISABLED',
+                                                        label: t('notificationBehaviorOptions.disabled'),
+                                                        icon: <XCircle className="h-3 w-3" />
+                                                    },
+                                                    {
+                                                        value: 'NOTIFICATIONS_AUTO',
+                                                        label: t('notificationBehaviorOptions.auto'),
+                                                        icon: <Send className="h-3 w-3" />
+                                                    },
+                                                    {
+                                                        value: 'NOTIFICATIONS_APPROVAL',
+                                                        label: t('notificationBehaviorOptions.approval'),
+                                                        icon: <CheckCircle className="h-3 w-3" />
+                                                    }
+                                                ]}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('notificationBehaviorDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? (
                                     <>
@@ -217,7 +293,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         form.reset({
                                             name: body.name,
                                             name_en: body.name_en,
-                                            type: body.type
+                                            type: body.type,
+                                            youtubeChannelUrl: body.youtubeChannelUrl || "",
+                                            notificationBehavior: body.notificationBehavior || "NOTIFICATIONS_APPROVAL"
                                         })
                                         setIsDialogOpen(true)
                                     }}

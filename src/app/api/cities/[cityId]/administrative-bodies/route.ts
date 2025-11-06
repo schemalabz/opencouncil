@@ -12,7 +12,14 @@ const bodySchema = z.object({
     name_en: z.string().min(2, {
         message: "Name (English) must be at least 2 characters.",
     }),
-    type: z.enum(['council', 'committee', 'community'])
+    type: z.enum(['council', 'committee', 'community']),
+    youtubeChannelUrl: z.union([
+        z.string().url({
+            message: "Must be a valid URL.",
+        }),
+        z.literal('')
+    ]).optional().transform(val => val === '' ? undefined : val),
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional()
 });
 
 export async function GET(
@@ -49,13 +56,16 @@ export async function POST(
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const cityId = params.cityId;
         const body = await request.json();
-        const { name, name_en, type } = bodySchema.parse(body);
+        const parsed = bodySchema.parse(body);
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
             name_en,
             type,
             cityId,
+            youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
+            notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
         });
 
         revalidateTag(`city:${cityId}:administrativeBodies`);

@@ -586,7 +586,16 @@ export async function savePetition(data: OnboardingData & {
 }
 
 /**
+ * Check if coordinates are outside Greece bounds
+ * Greece approximate bounds: lat 34.5-41.5, lng 19.5-28.5
+ */
+function isOutsideGreece(lng: number, lat: number): boolean {
+    return lng < 19.5 || lng > 28.5 || lat < 34.5 || lat > 41.5;
+}
+
+/**
  * Calculate if any user locations are within specified distance of subject location
+ * Handles inverted lat/lng for subject locations that appear outside Greece
  */
 export async function calculateProximityMatches(
     userLocationIds: string[],
@@ -598,19 +607,55 @@ export async function calculateProximityMatches(
     }
 
     try {
-        // Use PostGIS to check if any user location is within distance of subject location
-        const result = await prisma.$queryRaw<{ count: bigint }[]>`
-            SELECT COUNT(*) as count
-            FROM "Location" ul
-            CROSS JOIN "Location" sl
-            WHERE ul.id = ANY(${userLocationIds})
-            AND sl.id = ${subjectLocationId}
-            AND ST_DWithin(
-                ul.coordinates::geography,
-                sl.coordinates::geography,
-                ${distanceMeters}
-            )
+        // Get subject location coordinates to check if they're inverted
+        const subjectCoords = await prisma.$queryRaw<Array<{ x: number; y: number }>>`
+            SELECT ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
+            FROM "Location"
+            WHERE id = ${subjectLocationId}
+            AND type = 'point'
         `;
+
+        if (!subjectCoords || subjectCoords.length === 0) {
+            return false;
+        }
+
+        const subjectLng = subjectCoords[0].x;
+        const subjectLat = subjectCoords[0].y;
+
+        // Check if subject location appears to be outside Greece (indicating inverted coordinates)
+        const needsSwap = isOutsideGreece(subjectLng, subjectLat);
+
+        // Use PostGIS to check if any user location is within distance of subject location
+        // If coordinates are inverted, swap them in the query
+        let result: Array<{ count: bigint }>;
+
+        if (needsSwap) {
+            // Swap lat/lng: use lat as lng and lng as lat
+            result = await prisma.$queryRaw<Array<{ count: bigint }>>`
+                SELECT COUNT(*) as count
+                FROM "Location" ul
+                WHERE ul.id = ANY(${userLocationIds})
+                AND ST_DWithin(
+                    ul.coordinates::geography,
+                    ST_SetSRID(ST_MakePoint(${subjectLat}, ${subjectLng}), 4326)::geography,
+                    ${distanceMeters}
+                )
+            `;
+        } else {
+            // Use coordinates as-is
+            result = await prisma.$queryRaw<Array<{ count: bigint }>>`
+                SELECT COUNT(*) as count
+                FROM "Location" ul
+                CROSS JOIN "Location" sl
+                WHERE ul.id = ANY(${userLocationIds})
+                AND sl.id = ${subjectLocationId}
+                AND ST_DWithin(
+                    ul.coordinates::geography,
+                    sl.coordinates::geography,
+                    ${distanceMeters}
+                )
+            `;
+        }
 
         return result[0] && Number(result[0].count) > 0;
     } catch (error) {
@@ -655,7 +700,7 @@ export async function createNotificationsForMeeting(
         }
 
         // Get all users with notification preferences for this city
-        const usersWithPreferences = await prisma.notificationPreference.findMany({
+        const notificationPreferences = await prisma.notificationPreference.findMany({
             where: { cityId },
             include: {
                 user: true,
@@ -664,16 +709,56 @@ export async function createNotificationsForMeeting(
             }
         });
 
-        if (usersWithPreferences.length === 0) {
+        if (notificationPreferences.length === 0) {
             console.log('No users with notification preferences for this city');
             return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
         }
 
+        // Transform notification preferences to the format expected by matching function
+        // Group by userId to ensure we only have one entry per user (even though unique constraint should prevent duplicates)
+        const usersWithPreferencesMap = new Map<string, {
+            userId: string;
+            locations: { id: string }[];
+            interests: { id: string }[];
+        }>();
+        const userPrefMap = new Map<string, typeof notificationPreferences[0]>();
+
+        for (const pref of notificationPreferences) {
+            if (!usersWithPreferencesMap.has(pref.userId)) {
+                usersWithPreferencesMap.set(pref.userId, {
+                    userId: pref.userId,
+                    locations: pref.locations.map(loc => ({ id: loc.id })),
+                    interests: pref.interests.map(interest => ({ id: interest.id }))
+                });
+                userPrefMap.set(pref.userId, pref);
+            } else {
+                // If user already exists, merge locations and interests (shouldn't happen due to unique constraint, but be safe)
+                const existing = usersWithPreferencesMap.get(pref.userId)!;
+                const locationIds = new Set([...existing.locations.map(l => l.id), ...pref.locations.map(l => l.id)]);
+                const interestIds = new Set([...existing.interests.map(i => i.id), ...pref.interests.map(i => i.id)]);
+                usersWithPreferencesMap.set(pref.userId, {
+                    userId: pref.userId,
+                    locations: Array.from(locationIds).map(id => ({ id })),
+                    interests: Array.from(interestIds).map(id => ({ id }))
+                });
+                // Keep the first preference for user data access
+            }
+        }
+
+        const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
+
         console.log(`Found ${usersWithPreferences.length} users with preferences`);
+
+        // Transform subjects to the format expected by matching function
+        const subjectsForMatching = meeting.subjects.map(subject => ({
+            id: subject.id,
+            topicId: subject.topicId,
+            locationId: subject.locationId
+        }));
 
         // Use shared matching logic to determine which users should be notified
         const userSubjectMatches = await matchUsersToSubjects(
-            meeting.subjects,
+            subjectsForMatching,
             usersWithPreferences,
             subjectImportanceOverrides
         );
@@ -694,7 +779,7 @@ export async function createNotificationsForMeeting(
         let totalSubjects = 0;
 
         for (const [userId, subjectMatches] of usersToNotify) {
-            const userPref = usersWithPreferences.find(up => up.userId === userId)!;
+            const userPref = userPrefMap.get(userId)!;
             const user = userPref.user;
 
             try {
@@ -1141,4 +1226,251 @@ export async function getNotificationForView(id: string) {
         console.error('Error fetching notification:', error);
         return null;
     }
+}
+
+/**
+ * Delete a notification by ID (admin only)
+ * Cascade deletes will handle related NotificationSubject and NotificationDelivery records
+ */
+export async function deleteNotification(id: string): Promise<void> {
+    await prisma.notification.delete({
+        where: { id }
+    });
+}
+
+/**
+ * Get notification impact preview data for a meeting
+ * Returns transformed subjects and users with preferences for matching calculation
+ */
+export async function getNotificationImpactPreviewData(
+    meetingId: string,
+    cityId: string
+): Promise<{
+    subjects: Array<{
+        id: string;
+        topicId: string | null;
+        locationId: string | null;
+    }>;
+    usersWithPreferences: Array<{
+        userId: string;
+        locations: { id: string }[];
+        interests: { id: string }[];
+    }>;
+}> {
+    // Fetch meeting with subjects
+    const meeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        include: {
+            subjects: {
+                include: {
+                    topic: true,
+                    location: true
+                }
+            }
+        }
+    });
+
+    if (!meeting) {
+        throw new Error('Meeting not found');
+    }
+
+    // Get all users with notification preferences for this city
+    const notificationPreferences = await prisma.notificationPreference.findMany({
+        where: { cityId },
+        include: {
+            user: true,
+            locations: true,
+            interests: true
+        }
+    });
+
+    // Transform notification preferences to the format expected by matching function
+    // Group by userId to ensure we only have one entry per user (even though unique constraint should prevent duplicates)
+    const usersWithPreferencesMap = new Map<string, {
+        userId: string;
+        locations: { id: string }[];
+        interests: { id: string }[];
+    }>();
+
+    for (const pref of notificationPreferences) {
+        const userId = String(pref.userId).trim();
+        if (!usersWithPreferencesMap.has(userId)) {
+            usersWithPreferencesMap.set(userId, {
+                userId: userId,
+                locations: pref.locations.map(loc => ({ id: String(loc.id).trim() })),
+                interests: pref.interests.map(interest => ({ id: String(interest.id).trim() }))
+            });
+        } else {
+            // If user already exists, merge locations and interests (shouldn't happen due to unique constraint, but be safe)
+            const existing = usersWithPreferencesMap.get(userId)!;
+            const locationIds = new Set([
+                ...existing.locations.map(l => String(l.id).trim()),
+                ...pref.locations.map(l => String(l.id).trim())
+            ]);
+            const interestIds = new Set([
+                ...existing.interests.map(i => String(i.id).trim()),
+                ...pref.interests.map(i => String(i.id).trim())
+            ]);
+            usersWithPreferencesMap.set(userId, {
+                userId: userId,
+                locations: Array.from(locationIds).map(id => ({ id })),
+                interests: Array.from(interestIds).map(id => ({ id }))
+            });
+        }
+    }
+
+    const usersWithPreferences = Array.from(usersWithPreferencesMap.values());
+
+    // Transform subjects to the format expected by matching function
+    const subjects = meeting.subjects.map(subject => ({
+        id: subject.id,
+        topicId: subject.topicId,
+        locationId: subject.locationId
+    }));
+
+    return {
+        subjects,
+        usersWithPreferences
+    };
+}
+
+/**
+ * Get map data for notifications (subjects and user preference locations)
+ * Returns subject locations and user preference locations with coordinates
+ */
+export async function getNotificationMapData(meetingId: string, cityId: string): Promise<{
+    subjectLocations: Array<{
+        id: string;
+        name: string;
+        locationId: string;
+        coordinates: [number, number];
+    }>;
+    userPreferenceLocations: Array<{
+        id: string;
+        text: string;
+        coordinates: [number, number];
+    }>;
+}> {
+    // Get ALL subjects for this meeting (not just matched ones)
+    const allSubjects = await prisma.subject.findMany({
+        where: {
+            cityId,
+            councilMeetingId: meetingId,
+        },
+        include: {
+            location: true,
+        },
+    });
+
+    // Collect subject location IDs from ALL subjects
+    const subjectLocationIds = allSubjects
+        .filter(s => s.locationId)
+        .map(s => s.locationId!);
+
+    // Get all notifications for this meeting to find users for preference locations
+    const notifications = await prisma.notification.findMany({
+        where: {
+            cityId,
+            meetingId,
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                },
+            },
+        },
+    });
+
+    // Collect unique user IDs
+    const userIds = [...new Set(notifications.map(n => n.userId))];
+
+    // Get user notification preference locations
+    const userPreferences = await prisma.notificationPreference.findMany({
+        where: {
+            userId: { in: userIds },
+            cityId,
+        },
+        include: {
+            locations: true,
+        },
+    });
+
+    const userLocationIds = userPreferences.flatMap(pref =>
+        pref.locations.map(loc => loc.id)
+    );
+
+    // Fetch all location coordinates
+    const allLocationIds = [...new Set([...subjectLocationIds, ...userLocationIds])];
+
+    let locationCoordinates: Record<string, { x: number; y: number }> = {};
+
+    if (allLocationIds.length > 0) {
+        const coords = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
+            SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
+            FROM "Location"
+            WHERE id = ANY(${allLocationIds}::text[])
+            AND type = 'point'
+        `;
+
+        locationCoordinates = coords.reduce((acc, loc) => {
+            acc[loc.id] = { x: loc.x, y: loc.y };
+            return acc;
+        }, {} as Record<string, { x: number; y: number }>);
+    }
+
+    // Build subject locations with coordinates from ALL subjects
+    const subjectLocations: Array<{
+        id: string;
+        name: string;
+        locationId: string;
+        coordinates: [number, number];
+    }> = [];
+
+    allSubjects.forEach(subject => {
+        if (subject.locationId && locationCoordinates[subject.locationId]) {
+            const coords = locationCoordinates[subject.locationId];
+            let lng = coords.x;
+            let lat = coords.y;
+
+            // Check if subject location appears to be outside Greece (indicating inverted coordinates)
+            // If so, swap lat/lng for display
+            if (isOutsideGreece(lng, lat)) {
+                // Swap coordinates: lat becomes lng, lng becomes lat
+                [lng, lat] = [lat, lng];
+            }
+
+            subjectLocations.push({
+                id: subject.id,
+                name: subject.name,
+                locationId: subject.locationId,
+                coordinates: [lng, lat],
+            });
+        }
+    });
+
+    // Build user preference locations with coordinates
+    const userPreferenceLocations: Array<{
+        id: string;
+        text: string;
+        coordinates: [number, number];
+    }> = [];
+
+    userPreferences.forEach(pref => {
+        pref.locations.forEach(loc => {
+            if (locationCoordinates[loc.id]) {
+                const coords = locationCoordinates[loc.id];
+                userPreferenceLocations.push({
+                    id: loc.id,
+                    text: loc.text,
+                    coordinates: [coords.x, coords.y],
+                });
+            }
+        });
+    });
+
+    return {
+        subjectLocations,
+        userPreferenceLocations,
+    };
 }

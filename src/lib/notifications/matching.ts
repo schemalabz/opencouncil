@@ -48,7 +48,7 @@ export async function matchUsersToSubjects(
 
         // Check each user against this subject
         for (const userPref of usersWithPreferences) {
-            const userId = userPref.userId;
+            const userId = String(userPref.userId).trim();
 
             // Initialize set for this user if not exists
             if (!userSubjectMatches.has(userId)) {
@@ -65,7 +65,7 @@ export async function matchUsersToSubjects(
 
             // Rule 2: Normal topic importance + user is interested in the topic
             if (topicImportance === 'normal' && subject.topicId) {
-                const isInterestedInTopic = userPref.interests.some(t => t.id === subject.topicId);
+                const isInterestedInTopic = userPref.interests.some(t => String(t.id).trim() === String(subject.topicId).trim());
                 if (isInterestedInTopic) {
                     matches.add({ subjectId: subject.id, reason: 'topic' });
                     continue;
@@ -74,12 +74,12 @@ export async function matchUsersToSubjects(
 
             // Rule 3 & 4: Proximity-based matching
             if (proximityImportance !== 'none' && subject.locationId && userPref.locations.length > 0) {
-                const distanceMeters = proximityImportance === 'near' ? 250 : 1000; // near=250m, wide=1000m
-                const userLocationIds = userPref.locations.map(l => l.id);
+                const distanceMeters = proximityImportance === 'near' ? 400 : 1500;
+                const userLocationIds = userPref.locations.map(l => String(l.id).trim());
 
                 const isNearby = await calculateProximityMatches(
                     userLocationIds,
-                    subject.locationId,
+                    String(subject.locationId).trim(),
                     distanceMeters
                 );
 
@@ -105,18 +105,36 @@ export async function calculateNotificationImpact(
     totalUsers: number;
     subjectImpact: Record<string, number>;
 }> {
-    const userSubjectMatches = await matchUsersToSubjects(subjects, usersWithPreferences, subjectImportanceOverrides);
+    // Ensure no duplicate users in input
+    const uniqueUsersMap = new Map<string, UserPreference>();
+    for (const userPref of usersWithPreferences) {
+        const userId = String(userPref.userId).trim();
+        if (!uniqueUsersMap.has(userId)) {
+            uniqueUsersMap.set(userId, {
+                ...userPref,
+                userId: userId
+            });
+        }
+    }
+    const deduplicatedUsers = Array.from(uniqueUsersMap.values());
+
+    const userSubjectMatches = await matchUsersToSubjects(subjects, deduplicatedUsers, subjectImportanceOverrides);
 
     // Track user counts for each subject
     const subjectImpact = new Map<string, number>();
     const totalUniqueUsers = new Set<string>();
 
     // Count matches per subject
+    // Only count users who actually have matches (non-empty Sets)
     for (const [userId, matches] of userSubjectMatches.entries()) {
-        totalUniqueUsers.add(userId);
-        for (const match of matches) {
-            const currentCount = subjectImpact.get(match.subjectId) || 0;
-            subjectImpact.set(match.subjectId, currentCount + 1);
+        // Only add to totalUniqueUsers if the user has at least one match
+        if (matches.size > 0) {
+            const normalizedUserId = String(userId).trim();
+            totalUniqueUsers.add(normalizedUserId);
+            for (const match of matches) {
+                const currentCount = subjectImpact.get(match.subjectId) || 0;
+                subjectImpact.set(match.subjectId, currentCount + 1);
+            }
         }
     }
 
