@@ -1,5 +1,5 @@
 -- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "vector";
+-- Removed pgvector extension. No-op.
 
 -- AlterTable
-ALTER TABLE "SpeakerSegment" ADD COLUMN     "embedding" vector;
+-- Removed pgvector column on SpeakerSegment. No-op.

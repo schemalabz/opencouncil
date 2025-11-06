@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  extensions = [postgis(version: "3.3.5")]
+  extensions = [postgis]
 }
 
 model City {
