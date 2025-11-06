@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Send, Filter, Loader2, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Mail, MessageSquare, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Bell, Send, Filter, Loader2, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Mail, MessageSquare, Clock, CheckCircle2, XCircle, MapPin, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import Link from 'next/link';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { NotificationMapDialog } from '@/components/admin/NotificationMapDialog';
 
 export default function AdminNotificationsPage() {
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -17,6 +18,9 @@ export default function AdminNotificationsPage() {
     const [releasing, setReleasing] = useState<string[]>([]);
     const [resendingDeliveries, setResendingDeliveries] = useState<Set<string>>(new Set());
     const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
+    const [deletingNotifications, setDeletingNotifications] = useState<Set<string>>(new Set());
+    const [mapDialogOpen, setMapDialogOpen] = useState(false);
+    const [selectedMeeting, setSelectedMeeting] = useState<{ id: string; cityId: string; name: string } | null>(null);
     const [filters, setFilters] = useState({
         cityId: 'all',
         status: 'all',
@@ -122,6 +126,43 @@ export default function AdminNotificationsPage() {
             .map(n => n.id);
     };
 
+    const openMapDialog = (meeting: any, city: any) => {
+        setSelectedMeeting({
+            id: meeting.id,
+            cityId: city.id,
+            name: meeting.name,
+        });
+        setMapDialogOpen(true);
+    };
+
+    const deleteNotification = async (notificationId: string) => {
+        if (!confirm('Are you sure you want to delete this notification? This action cannot be undone.')) {
+            return;
+        }
+
+        setDeletingNotifications(prev => new Set(prev).add(notificationId));
+        try {
+            const res = await fetch(`/api/admin/notifications/${notificationId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                fetchNotifications();
+            } else {
+                alert('Failed to delete notification');
+            }
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            alert('Error deleting notification');
+        } finally {
+            setDeletingNotifications(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(notificationId);
+                return newSet;
+            });
+        }
+    };
+
     return (
         <div className="flex-1 space-y-6 p-8 pt-6">
             <div className="flex items-center justify-between">
@@ -211,25 +252,35 @@ export default function AdminNotificationsPage() {
                                                 {' '}{format(new Date(group.meeting.dateTime), 'PPP', { locale: el })}
                                             </CardDescription>
                                         </div>
-                                        {pendingCount > 0 && (
+                                        <div className="flex gap-2">
                                             <Button
-                                                onClick={() => releaseNotifications(pendingIds)}
-                                                disabled={releasing.length > 0}
+                                                onClick={() => openMapDialog(group.meeting, group.city)}
+                                                variant="outline"
                                                 size="sm"
                                             >
-                                                {releasing.some(id => pendingIds.includes(id)) ? (
-                                                    <>
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                        Releasing...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Send className="mr-2 h-4 w-4" />
-                                                        Release {pendingCount} Pending
-                                                    </>
-                                                )}
+                                                <MapPin className="mr-2 h-4 w-4" />
+                                                View Map
                                             </Button>
-                                        )}
+                                            {pendingCount > 0 && (
+                                                <Button
+                                                    onClick={() => releaseNotifications(pendingIds)}
+                                                    disabled={releasing.length > 0}
+                                                    size="sm"
+                                                >
+                                                    {releasing.some(id => pendingIds.includes(id)) ? (
+                                                        <>
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                            Releasing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Send className="mr-2 h-4 w-4" />
+                                                            Release {pendingCount} Pending
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
@@ -283,6 +334,22 @@ export default function AdminNotificationsPage() {
                                                                             View
                                                                         </Button>
                                                                     </Link>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            deleteNotification(notification.id);
+                                                                        }}
+                                                                        disabled={deletingNotifications.has(notification.id)}
+                                                                    >
+                                                                        {deletingNotifications.has(notification.id) ? (
+                                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                                        ) : (
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        )}
+                                                                    </Button>
                                                                     {isExpanded ? (
                                                                         <ChevronUp className="h-4 w-4 text-gray-500" />
                                                                     ) : (
@@ -347,6 +414,16 @@ export default function AdminNotificationsPage() {
                         );
                     })}
                 </div>
+            )}
+
+            {selectedMeeting && (
+                <NotificationMapDialog
+                    open={mapDialogOpen}
+                    onOpenChange={setMapDialogOpen}
+                    meetingId={selectedMeeting.id}
+                    cityId={selectedMeeting.cityId}
+                    meetingName={selectedMeeting.name}
+                />
             )}
         </div>
     );
