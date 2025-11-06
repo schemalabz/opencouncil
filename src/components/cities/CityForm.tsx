@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
-import { City, AdministrativeBodyType, CityMessage } from '@prisma/client'
+import { City, AdministrativeBodyType, CityMessage, NotificationBehavior } from '@prisma/client'
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -76,7 +76,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         name_en: string;
         type: AdministrativeBodyType;
         youtubeChannelUrl?: string | null;
-        notificationBehavior?: string | null;
+        notificationBehavior?: NotificationBehavior | null;
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
 

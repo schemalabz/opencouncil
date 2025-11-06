@@ -48,7 +48,7 @@ interface AdministrativeBody {
     name_en: string;
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
-    notificationBehavior?: NotificationBehavior;
+    notificationBehavior?: NotificationBehavior | null;
 }
 
 interface AdministrativeBodiesListProps {

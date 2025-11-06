@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock } from 'lucide-react';
+import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock, Youtube } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -206,6 +206,31 @@ export default async function NotificationPage({ params }: { params: { id: strin
 
                 {/* Footer CTA */}
                 <div className="pt-3 sm:pt-4 space-y-2 sm:space-y-3 px-2">
+                    {notification.type === 'beforeMeeting' && (
+                        <Card className="bg-muted/30">
+                            <CardContent className="pt-4 pb-4">
+                                <p className="text-center text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                                    Αυτή η συνεδρίαση είναι προγραμματισμένη για τις {format(meetingDate, 'PPP', { locale: el })}.
+                                    {meeting.administrativeBody?.youtubeChannelUrl ? (
+                                        <> Μπορείτε να τη δείτε{' '}
+                                            <a 
+                                                href={meeting.administrativeBody.youtubeChannelUrl} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-baseline gap-1 text-primary hover:text-primary/80 underline"
+                                            >
+                                                <Youtube className="w-3.5 h-3.5 shrink-0 relative top-0.5" />
+                                                <span>στο κανάλι του Δήμου στο YouTube</span>
+                                            </a>
+                                            , ή μερικές ώρες αργότερα στο OpenCouncil.
+                                        </>
+                                    ) : (
+                                        <> Μπορείτε να τη δείτε μερικές ώρες αργότερα στο OpenCouncil.</>
+                                    )}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
                     <Link
                         href={`/${city.id}/${meeting.id}`}
                         className="flex items-center justify-center w-full px-4 py-2.5 sm:px-5 sm:py-3 text-xs sm:text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-md transition-colors"
