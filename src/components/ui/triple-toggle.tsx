@@ -14,15 +14,20 @@ interface TripleToggleProps<T extends string> {
     onChange: (value: T) => void;
     options: [TripleToggleOption<T>, TripleToggleOption<T>, TripleToggleOption<T>];
     className?: string;
+    disabled?: boolean;
 }
 
 export function TripleToggle<T extends string>({
     value,
     onChange,
     options,
-    className
+    className,
+    disabled = false
 }: TripleToggleProps<T>) {
     const getColorClasses = (index: number, isActive: boolean) => {
+        if (disabled) {
+            return "text-gray-400 cursor-not-allowed";
+        }
         if (!isActive) {
             return "text-gray-600 hover:text-gray-900 hover:bg-gray-50";
         }
@@ -40,14 +45,15 @@ export function TripleToggle<T extends string>({
     };
 
     return (
-        <div className={cn("inline-flex rounded-md border border-gray-200 bg-white p-1", className)}>
+        <div className={cn("inline-flex rounded-md border border-gray-200 bg-white p-1", disabled && "opacity-50", className)}>
             {options.map((option, index) => (
                 <Button
                     key={option.value}
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => onChange(option.value)}
+                    onClick={() => !disabled && onChange(option.value)}
+                    disabled={disabled}
                     className={cn(
                         "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all",
                         getColorClasses(index, value === option.value)

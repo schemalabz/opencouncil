@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, Ban, Star, AlertCircle } from 'lucide-react';
+import { Loader2, Users, Ban, Star, AlertCircle, Download } from 'lucide-react';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
 
@@ -118,6 +118,80 @@ export function CreateNotificationModal({
         }
     };
 
+    const handleExportCSV = () => {
+        const getTopicImportanceLabel = (value: string) => {
+            switch (value) {
+                case 'doNotNotify':
+                    return 'Do Not Notify';
+                case 'normal':
+                    return 'Normal';
+                case 'high':
+                    return 'High';
+                default:
+                    return value;
+            }
+        };
+
+        const getProximityImportanceLabel = (value: string, hasLocation: boolean) => {
+            if (!hasLocation) {
+                return 'χωρίς τοποθεσία';
+            }
+            switch (value) {
+                case 'none':
+                    return 'None';
+                case 'near':
+                    return 'Near';
+                case 'wide':
+                    return 'Wide';
+                default:
+                    return value;
+            }
+        };
+
+        const csvRows = [
+            ['Subject', 'Topic', 'Topic Importance', 'Location Importance', 'Impact'].join(',')
+        ];
+
+        subjects.forEach(subject => {
+            const importance = subjectImportances[subject.id];
+            const topicName = subject.topic?.name || '';
+            const topicImportance = getTopicImportanceLabel(importance?.topicImportance || 'doNotNotify');
+            const proximityImportance = getProximityImportanceLabel(
+                importance?.proximityImportance || 'none',
+                subject.location !== null
+            );
+            const impact = impactPreview?.subjectImpact[subject.id] || 0;
+
+            // Escape commas and quotes in CSV values
+            const escapeCSV = (value: string | number) => {
+                const str = String(value);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+            };
+
+            csvRows.push([
+                escapeCSV(subject.name),
+                escapeCSV(topicName),
+                escapeCSV(topicImportance),
+                escapeCSV(proximityImportance),
+                escapeCSV(impact)
+            ].join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `notification-config-${notificationType}-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     // Count how many subjects will be included (not doNotNotify or have proximity)
     const activeSubjects = subjects.filter(subject => {
         const importance = subjectImportances[subject.id];
@@ -135,6 +209,18 @@ export function CreateNotificationModal({
                         Configure which subjects to include and their importance levels. Users will be notified based on their topic interests and location preferences.
                     </DialogDescription>
                 </DialogHeader>
+
+                <div className="flex justify-end">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportCSV}
+                        disabled={subjects.length === 0}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        Export to CSV
+                    </Button>
+                </div>
 
                 <div className="space-y-6 py-4">
                     {/* Send Immediately Switch */}
@@ -255,6 +341,7 @@ export function CreateNotificationModal({
                                                 onChange={(value) =>
                                                     updateSubjectImportance(subject.id, 'proximityImportance', value)
                                                 }
+                                                disabled={subject.location === null}
                                                 options={[
                                                     { value: 'none', label: 'None', icon: <Ban className="h-3 w-3" /> },
                                                     { value: 'near', label: 'Near', icon: <AlertCircle className="h-3 w-3" /> },
