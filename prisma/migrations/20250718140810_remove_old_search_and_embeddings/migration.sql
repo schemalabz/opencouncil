@@ -5,4 +5,5 @@
 
 */
 -- AlterTable
-ALTER TABLE "SpeakerSegment" DROP COLUMN "embedding";
+-- Drop column only if it exists (PostgreSQL 9.2+ supports IF EXISTS)
+ALTER TABLE "SpeakerSegment" DROP COLUMN IF EXISTS "embedding";

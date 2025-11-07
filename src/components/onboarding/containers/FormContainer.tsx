@@ -16,11 +16,11 @@ import { PetitionFormStep } from '../steps/petition/PetitionFormStep';
 import { NotificationInfoStep } from '../steps/notification/NotificationInfoStep';
 
 export function FormContainer() {
-    const { 
-        stage, 
-        isLoading, 
-        setStage, 
-        petitionData, 
+    const {
+        stage,
+        isLoading,
+        setStage,
+        petitionData,
         city,
         isFormVisible,
         setPetitionData,

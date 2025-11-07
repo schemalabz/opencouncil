@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
+    "test:integration": "jest --config jest.integration.config.js",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -169,6 +170,8 @@
     "proj4": "^2.19.5",
     "tailwindcss": "^3.4.1",
     "ts-jest": "^29.2.5",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@testcontainers/postgresql": "^10.10.3",
+    "testcontainers": "^10.10.3"
   }
 }

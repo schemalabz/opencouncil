@@ -18,16 +18,17 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pencil, Loader2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 import { MeetingExportButtons } from '../MeetingExportButtons';
+import { CreateNotificationModal } from './CreateNotificationModal';
 
 export default function AdminActions({
 }: {
     }) {
     const { toast } = useToast();
-    const { meeting, transcript, people, city } = useCouncilMeetingData();
+    const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
@@ -44,6 +45,8 @@ export default function AdminActions({
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isReleased, setIsReleased] = React.useState(meeting.released);
     const [forceAgenda, setForceAgenda] = React.useState(false);
+    const [isNotificationModalOpen, setIsNotificationModalOpen] = React.useState(false);
+    const [notificationType, setNotificationType] = React.useState<'beforeMeeting' | 'afterMeeting'>('beforeMeeting');
     React.useEffect(() => {
         setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
@@ -235,6 +238,45 @@ export default function AdminActions({
         }
     };
 
+    const handleCreateNotifications = async (
+        type: 'beforeMeeting' | 'afterMeeting',
+        subjectImportances: Record<string, { topicImportance: string; proximityImportance: string }>,
+        sendImmediately: boolean
+    ) => {
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/notifications`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type,
+                    sendImmediately,
+                    subjectImportances
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create notifications');
+            }
+
+            const result = await response.json();
+
+            toast({
+                title: "Notifications created",
+                description: `Created ${result.notificationsCreated} notifications for ${result.subjectsTotal} subjects. ${sendImmediately ? 'Sent immediately.' : 'Pending admin approval.'}`,
+            });
+
+            setIsNotificationModalOpen(false);
+        } catch (error) {
+            toast({
+                title: "Error creating notifications",
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        }
+    };
+
     return (<div>
         <div className="mt-6">
             <div className="flex justify-between items-center mb-4">
@@ -382,6 +424,43 @@ export default function AdminActions({
                 <Label htmlFor="release-toggle">Released</Label>
             </div>
         </div>
+
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">Notifications</h3>
+            <p className="text-sm text-gray-600 mb-4">
+                Create notifications for users interested in this meeting&apos;s subjects.
+            </p>
+            <div className="flex gap-2">
+                <Button
+                    onClick={() => {
+                        setNotificationType('beforeMeeting');
+                        setIsNotificationModalOpen(true);
+                    }}
+                >
+                    <Bell className="mr-2 h-4 w-4" />
+                    Before Meeting
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={() => {
+                        setNotificationType('afterMeeting');
+                        setIsNotificationModalOpen(true);
+                    }}
+                >
+                    <Bell className="mr-2 h-4 w-4" />
+                    After Meeting
+                </Button>
+            </div>
+
+            <CreateNotificationModal
+                open={isNotificationModalOpen}
+                onOpenChange={setIsNotificationModalOpen}
+                subjects={subjects}
+                notificationType={notificationType}
+                onCreateNotifications={handleCreateNotifications}
+            />
+        </div>
+
         <div className="mt-6">
             <h3 className="text-lg font-semibold mb-4">Cache Management</h3>
             <div className="flex space-x-3">

@@ -10,7 +10,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  extensions = [postgis(version: "3.3.5")]
+  extensions = [postgis]
 }
 
 model City {
@@ -38,9 +38,9 @@ model City {
   administrators Administers[]
   administrativeBodies AdministrativeBody[]
   
-  // Added relations for notification system
   petitions Petition[]
   notificationPreferences NotificationPreference[]
+  notifications Notification[]
 
   roles Role[]
 
@@ -65,11 +65,19 @@ enum AdministrativeBodyType {
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
 }
 
+enum NotificationBehavior {
+  NOTIFICATIONS_DISABLED
+  NOTIFICATIONS_AUTO
+  NOTIFICATIONS_APPROVAL
+}
+
 model AdministrativeBody {
   id        String   @id @default(cuid())
   name      String   // e.g. "5η Δημοτική Κοινότητα"
   name_en   String   // e.g. "5th Municipal Community"
   type      AdministrativeBodyType
+  notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
+  youtubeChannelUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -158,6 +166,8 @@ model CouncilMeeting {
   highlights Highlight[]
   subjects Subject[]
   podcastSpecs PodcastSpec[]
+
+  notifications Notification[]
 
   @@id([cityId, id])
   @@unique([cityId, id])
@@ -371,6 +381,8 @@ model Subject {
   context String?
   contextCitationUrls String[]
 
+  notifications NotificationSubject[]
+
   @@index([cityId, councilMeetingId])
 }
 
@@ -540,9 +552,9 @@ model User {
   Authenticator Authenticator[]
   administers   Administers[]
   
-  // Add these relations for notification system
   petitions Petition[]
   notificationPreferences NotificationPreference[]
+  notifications Notification[]
   
   // Add these relations for consultation comments
   consultationComments ConsultationComment[]
@@ -801,4 +813,99 @@ model ConsultationCommentUpvote {
   @@unique([userId, commentId])
   @@index([commentId])
   @@index([userId])
+}
+
+// Connects a user to a meeting (via a cityId and meetingId). Has a medium (email or message) and a type (beforeMeeting or afterMeeting).
+// Has many NotificationSubjects, which are the subjects that the notification is about.
+// Has many NotificationDeliveries, which are the planned (pending) and attempted (sent or failed) deliveries of the notification.
+model Notification {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+
+  city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId    String
+
+  meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
+  meetingId String
+
+  type NotificationType
+
+  deliveries NotificationDelivery[]
+  subjects NotificationSubject[]
+
+  @@unique([userId, cityId, meetingId, type])
+  @@index([userId])
+  @@index([cityId, meetingId, type])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  beforeMeeting
+  afterMeeting
+}
+
+model NotificationSubject {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reason NotificationSubjectReason
+  
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId String
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+
+  @@unique([notificationId, subjectId])
+}
+
+enum NotificationSubjectReason {
+  proximity
+  topic
+  generalInterest
+}
+
+model NotificationDelivery {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId String
+
+  // Set at creation time:
+  medium NotificationMedium
+  email String?
+  phone String?
+  status NotificationDeliveryStatus
+  title String?
+  body String?
+  
+  // Set at sending time:
+  messageSentVia NotificationMessageType? // only filled in if status is sent
+  sentAt DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@unique([notificationId, medium])
+}
+
+enum NotificationMedium {
+  email
+  message
+}
+
+enum NotificationMessageType {
+  whatsapp
+  sms
+}
+
+enum NotificationDeliveryStatus {
+  pending
+  sent
+  failed
 }
