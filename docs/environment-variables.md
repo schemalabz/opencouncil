@@ -117,6 +117,17 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | `TASK_API_URL` | URL for the background task processing API. | Yes | - |
 | `TASK_API_KEY` | API key for task processing API. | Yes | - |
 
+### Google Calendar Integration
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `GOOGLE_CALENDAR_CLIENT_ID` | OAuth 2.0 client ID from Google Cloud Console. | No | - |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | OAuth 2.0 client secret from Google Cloud Console. | No | - |
+| `GOOGLE_CALENDAR_REFRESH_TOKEN` | OAuth 2.0 refresh token for accessing the calendar. | No | - |
+| `GOOGLE_CALENDAR_ID` | Calendar ID where events will be created (typically your email address or a unique calendar ID). | No | - |
+| `GOOGLE_CALENDAR_ENABLED` | Enable or disable calendar integration. Set to `true` to enable. | No | - |
+
+The Google Calendar integration uses OAuth 2.0 authentication with a Google account to create calendar events when meetings are added. For detailed setup instructions, see [Google Calendar Setup Guide](./google-calendar-setup.md).
+
 ### Contact Information
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
