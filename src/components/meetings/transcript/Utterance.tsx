@@ -80,7 +80,7 @@ const UtteranceC: React.FC<{
             "bg-accent": isActive,
             "font-bold underline": isHighlighted,
             "text-blue-500 font-bold underline": isTaskModified,
-            "text-green-500 font-bold underline": isUserModified,
+            "decoration-green-500 underline decoration-2": isUserModified,
             "text-red-500 font-bold": isUncertain,
         }
     );
