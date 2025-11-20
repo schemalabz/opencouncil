@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn, filterActiveRoles, getPartyFromRoles } from "@/lib/utils";
@@ -143,6 +143,19 @@ function PersonBadge({
     const [searchQuery, setSearchQuery] = useState('');
     const [editMode, setEditMode] = useState(false);
     const router = useRouter();
+    const listRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (listRef.current) {
+            listRef.current.scrollTop = 0;
+        }
+    }, [searchQuery, isOpen]);
+
+    const handleSetLabel = (label: string) => {
+        onPersonChange?.(null);
+        onLabelChange?.(label);
+        setIsOpen(false);
+    };
 
     const handlePersonClick = () => {
         if (editable) {
@@ -205,12 +218,24 @@ function PersonBadge({
                 <PopoverContent className="p-0" align="start">
                     <Command>
                         <CommandInput
+                            autoFocus
                             placeholder="Search people..."
                             value={searchQuery}
                             onValueChange={setSearchQuery}
                         />
-                        <CommandList>
+                        <CommandList ref={listRef}>
                             <CommandEmpty>No results found</CommandEmpty>
+                            <CommandGroup>
+                                <CommandItem
+                                    onSelect={() => handleSetLabel("Άγνωστος Ομιλητής")}
+                                    className="flex items-center gap-2"
+                                >
+                                    <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
+                                        <span className="text-xs font-medium">?</span>
+                                    </div>
+                                    <span className="font-medium">Άγνωστος Ομιλητής</span>
+                                </CommandItem>
+                            </CommandGroup>
                             <CommandGroup>
                                 {availablePeople.map((p) => (
                                     <CommandItem
@@ -237,11 +262,7 @@ function PersonBadge({
                             {searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
-                                        onSelect={() => {
-                                            onPersonChange?.(null);
-                                            onLabelChange?.(searchQuery);
-                                            setIsOpen(false);
-                                        }}
+                                        onSelect={() => handleSetLabel(searchQuery)}
                                     >
                                         <Edit2 className="mr-2 h-4 w-4" />
                                         Set label to &quot;{searchQuery}&quot;
