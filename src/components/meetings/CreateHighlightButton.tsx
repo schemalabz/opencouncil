@@ -27,6 +27,11 @@ export function CreateHighlightButton({
     const canEdit = options.editsAllowed;
     const t = useTranslations('highlights');
 
+    // Do not render if overall editing (structural) is active
+    if (options.editable) {
+        return null;
+    }
+
     if (!canEdit) {
         return null;
     }

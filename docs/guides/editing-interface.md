@@ -6,30 +6,38 @@ The Editing Interface allows authorized users to correct transcript text and reo
 
 **Architectural Overview**
 
-The system divides editing into three distinct categories: **Text Content Editing**, **Structural Editing**, and **Segment Management**.
+The system divides editing into distinct categories and modes:
 
-1.  **Text Content Editing**:
+1.  **Editing Mode Lifecycle**:
+    *   **Activation**: Users enter "Editing Mode" via the `EditButton` in the global header. This activates `options.editable` in the `TranscriptOptionsContext`.
+    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls (Playback Speed, Next Unknown Speaker, Exit).
+    *   **Exclusivity**: Editing Mode is mutually exclusive with **Highlight Mode**. Users cannot create highlights while editing the transcript, and vice versa.
+
+2.  **Text Content Editing** (in Editing Mode):
     *   Handled by the `Utterance` component in the transcript view.
-    *   Users edit text directly inline.
+    *   Users edit text directly inline. Browser-native spellcheck is enabled.
+    *   **Visual Feedback**: User-edited utterances are distinguished by a **green underline** (`decoration-green-500`), making human verification immediately visible without compromising readability.
     *   Updates are sent to the backend via the `editUtterance` server action.
-    *   **History Tracking**: Critical for auditability, every text change is logged in the `UtteranceEdit` table, preserving the `beforeText`, `afterText`, and the user who made the change. The `Utterance` model itself tracks the `lastModifiedBy` (user or task).
+    *   **History Tracking**: Critical for auditability, every text change is logged in the `UtteranceEdit` table.
 
-2.  **Structural Editing**:
-    *   Handled via context menus or actions on the `Utterance` component.
-    *   Includes operations like "Move to Previous Segment" or "Move to Next Segment".
+3.  **Structural Editing**:
+    *   **Speaker Assignment**: The `PersonBadge` component handles speaker identification. It includes an explicit "Unknown Speaker" (`Άγνωστος`) option and improved autocomplete to quickly assign speakers.
+    *   **Segment Operations**: Handled via context menus (e.g., "Move to Previous Segment").
     *   Processed by `moveUtterancesToSegment` in the backend.
-    *   These operations modify the `speakerSegmentId` of the utterance and recalculate the timestamps of the affected `SpeakerSegments`.
 
-3.  **Segment Management**:
-    *   **Creation**: Users can create new empty speaker segments either after an existing segment or before the very first segment (useful for missed introductions).
-    *   **Metadata Inspection**: Super Admins can view detailed metadata (IDs, exact timestamps, word counts) via the `SpeakerSegmentMetadataDialog`.
-    *   **Advanced Editing**: The system supports complex segment updates via `updateSpeakerSegmentData`, accessible through the metadata dialog. This allows:
+4.  **Segment Management**:
+    *   **Creation**: Users can create new empty speaker segments either after an existing segment or before the very first segment.
+    *   **Metadata Inspection**: Super Admins can view detailed metadata via the `SpeakerSegmentMetadataDialog`.
+    *   **Advanced Editing**: The system supports complex segment updates via 
+    `updateSpeakerSegmentData`, accessible through the metadata dialog. This allows:
         *   Batch updates of utterances (text, timestamps).
-        *   **Adding Utterances**: Users can click "Add Empty Utterance" to append a new placeholder utterance to the segment's JSON data. The backend recognizes these via temporary IDs (`temp_...`) and creates actual records.
+        *   **Adding Utterances**: Users can click "Add Empty Utterance" to append a new 
+        placeholder utterance to the segment's JSON data. The backend recognizes these via 
+        temporary IDs (`temp_...`) and creates actual records.
         *   Deleting utterances (by removing them from the JSON array).
         *   Automatic recalculation of segment boundaries.
 
-4.  **Automated Corrections**:
+5.  **Automated Corrections**:
     *   Background tasks (like `fixTranscript`) can also modify utterances.
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
@@ -41,6 +49,11 @@ sequenceDiagram
     participant Frontend
     participant Backend
     participant Database
+
+    %% Mode Activation
+    User->>Frontend: Clicks "Enable Editing" (EditButton)
+    Frontend->>Frontend: Sets options.editable = true
+    Frontend->>Frontend: Shows EditingModeBar (Speed, Unknown Speaker controls)
 
     %% Text Editing Flow
     User->>Frontend: Clicks "Edit" on Utterance
@@ -81,11 +94,14 @@ sequenceDiagram
     *   `SpeakerSegment`: [`prisma/schema.prisma`](../../prisma/schema.prisma)
 
 *   **Frontend Components**:
-    *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx)
-    *   `SpeakerSegment`: [`src/components/meetings/transcript/SpeakerSegment.tsx`](../../src/components/meetings/transcript/SpeakerSegment.tsx) (Manages segment display and add/edit actions)
-    *   `SpeakerSegmentMetadataDialog`: [`src/components/meetings/transcript/SpeakerSegmentMetadataDialog.tsx`](../../src/components/meetings/transcript/SpeakerSegmentMetadataDialog.tsx) (SuperAdmin tool for inspecting segment data)
-    *   `useSpeakerSegmentEditor`: [`src/hooks/useSpeakerSegmentEditor.ts`](../../src/hooks/useSpeakerSegmentEditor.ts) (Hook handling JSON manipulation, including adding temporary utterances)
-    *   `TranscriptOptionsContext`: [`src/contexts/TranscriptOptionsContext.tsx`](../../src/contexts/TranscriptOptionsContext.tsx)
+    *   `EditingModeBar`: [`src/components/meetings/EditingModeBar.tsx`](../../src/components/meetings/EditingModeBar.tsx) (Contextual bar with playback speed, unknown speaker navigation, and exit)
+    *   `EditButton`: [`src/components/meetings/EditButton.tsx`](../../src/components/meetings/EditButton.tsx) (Entry point in global header)
+    *   `TranscriptControls`: [`src/components/meetings/TranscriptControls.tsx`](../../src/components/meetings/TranscriptControls.tsx) (Video player and clip navigation)
+    *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx) (Inline editing, visual state)
+    *   `PersonBadge`: [`src/components/persons/PersonBadge.tsx`](../../src/components/persons/PersonBadge.tsx) (Speaker autocomplete and assignment)
+
+*   **State & Context**:
+    *   `TranscriptOptionsContext`: [`src/components/meetings/options/OptionsContext.tsx`](../../src/components/meetings/options/OptionsContext.tsx) (Manages `editable` state)
     *   `CouncilMeetingDataContext`: [`src/components/meetings/CouncilMeetingDataContext.tsx`](../../src/components/meetings/CouncilMeetingDataContext.tsx)
 
 *   **Backend Logic**:
