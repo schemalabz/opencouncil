@@ -15,7 +15,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-        required: false  # Makes this dependency optional
+        # required: false  # Makes this dependency optional
     profiles: ["prod"]
 
   app-dev:
@@ -37,7 +37,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-        required: false  # Makes this dependency optional
+        # required: false  # Makes this dependency optional
     profiles: ["dev"]
 
   # Local database service

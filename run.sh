@@ -14,7 +14,7 @@ LAST_CONFIG_FILE=".last_docker_config"
 
 # Function to safely clean Docker resources specific to our app
 function clean_resources() {
-    local project_name=$(docker compose ps --format json 2>/dev/null | jq -r '.[0].Project' 2>/dev/null)
+    local project_name=$(docker-compose ps --format json 2>/dev/null | jq -r '.[0].Project' 2>/dev/null)
     
     if [ -z "$project_name" ]; then
         # If no project is running, use the directory name as fallback
@@ -22,7 +22,7 @@ function clean_resources() {
     fi
     
     echo "🧹 Cleaning up OpenCouncil Docker resources..."
-    docker compose -p "$project_name" down -v
+    docker-compose -p "$project_name" down -v
 
     # Remove the configuration tracking file
     rm -f "$LAST_CONFIG_FILE"
@@ -185,4 +185,4 @@ if [ "$MODE" = "dev" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.dev.yml"
 fi
 
-docker compose --env-file $ENV_FILE $COMPOSE_FILES $PROFILES up $DETACHED $EXTRA_OPTIONS
+docker-compose --env-file $ENV_FILE $COMPOSE_FILES $PROFILES up $DETACHED $EXTRA_OPTIONS
