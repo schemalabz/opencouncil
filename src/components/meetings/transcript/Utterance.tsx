@@ -79,7 +79,7 @@ const UtteranceC: React.FC<{
         {
             "bg-accent": isActive,
             "font-bold underline": isHighlighted,
-            "text-blue-500 font-bold underline": isTaskModified,
+            "underline decoration-blue-500 decoration-2": isTaskModified,
             "decoration-green-500 underline decoration-2": isUserModified,
             "text-red-500 font-bold": isUncertain,
         }
@@ -192,6 +192,8 @@ const UtteranceC: React.FC<{
         return (
             <form onSubmit={handleEdit} className="w-full py-1">
                 <textarea
+                    spellCheck={true}
+                    lang="el"
                     value={editedText}
                     onChange={(e) => setEditedText(e.target.value)}
                     onKeyDown={(e) => {
