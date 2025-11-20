@@ -14,7 +14,7 @@ A Mermaid.js diagram illustrating the end-to-end flow, from user action to final
 
 A curated list of references to the most important parts of the codebase. This is a "map" to the code, not a copy of it.
 
-**Format**: Use concise bullet points with brief descriptions in parentheses. Group by category (Data Models, API Endpoints, Frontend Components, etc.).
+**Format**: Use concise bullet points with the component/function name followed by a clickable relative link to the full file path (e.g., `Component`: [`src/components/Component.tsx`](../../src/components/Component.tsx)) and brief descriptions in parentheses. Group by category (Data Models, API Endpoints, Frontend Components, etc.).
 
 **Business Rules & Assumptions**
 
