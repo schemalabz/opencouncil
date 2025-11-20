@@ -1,0 +1,20 @@
+{
+  "status": {
+    "title": "TRANSCRIPT EDITING",
+    "description": "You are currently editing the transcript.",
+    "enabled": "Editing Mode Enabled",
+    "enabledDescription": "You can now edit the transcript structure and text."
+  },
+  "actions": {
+    "unknownSpeaker": "Unknown Speaker",
+    "nextUnknown": "Next Unknown",
+    "speed": "Speed",
+    "exit": "Exit",
+    "enableEdit": "Enable Editing Mode"
+  },
+  "toasts": {
+    "exited": "Exited Editing Mode",
+    "exitedDescription": "Returned to read-only mode.",
+    "noMoreUnknown": "No more unknown speakers found"
+  }
+}
