@@ -15,6 +15,13 @@
   "toasts": {
     "exited": "Exited Editing Mode",
     "exitedDescription": "Returned to read-only mode.",
-    "noMoreUnknown": "No more unknown speakers found"
+    "noMoreUnknown": "No more unknown speakers found",
+    "extractionSuccess": "Segment extracted successfully",
+    "extractionError": "Failed to extract segment",
+    "selectionErrorTitle": "Selection Error",
+    "selectionErrorDiffSegments": "Cannot extract utterances from different segments at once.",
+    "invalidOperationTitle": "Invalid Operation",
+    "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
+    "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle."
   }
 }

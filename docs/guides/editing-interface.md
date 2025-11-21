@@ -23,7 +23,10 @@ The system divides editing into distinct categories and modes:
 3.  **Structural Editing**:
     *   **Speaker Assignment**: The `PersonBadge` component handles speaker identification. It includes an explicit "Unknown Speaker" (`Άγνωστος`) option and improved autocomplete to quickly assign speakers.
     *   **Segment Operations**: Handled via context menus (e.g., "Move to Previous Segment").
-    *   Processed by `moveUtterancesToSegment` in the backend.
+    *   **Extract Segment**: Users can select a range of utterances (Shift+Click) within a segment and extract them into a new independent segment (useful for A-B-A speaker patterns).
+        *   **Selection**: Visualized with bold text.
+        *   **Validation**: Prevents extracting all utterances (leaving nothing behind) or extracting from the absolute start/end (which would be a simple split/move).
+    *   Processed by `moveUtterancesToSegment` and `extractSpeakerSegment` in the backend.
 
 4.  **Segment Management**:
     *   **Creation**: Users can create new empty speaker segments either after an existing segment or before the very first segment.
@@ -40,6 +43,12 @@ The system divides editing into distinct categories and modes:
 5.  **Automated Corrections**:
     *   Background tasks (like `fixTranscript`) can also modify utterances.
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
+
+6.  **Interaction Enhancements**:
+    *   **Keyboard Shortcuts**: Managed via `KeyboardShortcutsContext`.
+        *   `e`: Extract selected segment.
+        *   `Escape`: Clear selection.
+    *   **Selection Mode**: Managed via `EditingContext`, supports Shift+Click for ranges and Ctrl+Click for toggling.
 
 **Sequence Diagram**
 
@@ -75,6 +84,13 @@ sequenceDiagram
     Backend->>Database: CREATE SpeakerTag & SpeakerSegment
     Backend-->>Frontend: Return new Segment
 
+    %% Extraction Flow
+    User->>Frontend: Selects utterances (Shift+Click)
+    User->>Frontend: Presses 'e' or clicks "Extract Segment"
+    Frontend->>Backend: extractSpeakerSegment(segmentId, startId, endId)
+    Backend->>Database: Split segments & reassign utterances
+    Backend-->>Frontend: Return updated segments list
+
     %% Advanced Segment Editing
     User->>Frontend: Opens Metadata Dialog & Clicks "Add Empty Utterance"
     Frontend->>Frontend: Appends new utterance w/ temp ID to JSON editor
@@ -103,10 +119,13 @@ sequenceDiagram
 *   **State & Context**:
     *   `TranscriptOptionsContext`: [`src/components/meetings/options/OptionsContext.tsx`](../../src/components/meetings/options/OptionsContext.tsx) (Manages `editable` state)
     *   `CouncilMeetingDataContext`: [`src/components/meetings/CouncilMeetingDataContext.tsx`](../../src/components/meetings/CouncilMeetingDataContext.tsx)
+    *   `EditingContext`: [`src/components/meetings/EditingContext.tsx`](../../src/components/meetings/EditingContext.tsx) (Manages utterance selection state and extraction logic)
+    *   `KeyboardShortcutsContext`: [`src/contexts/KeyboardShortcutsContext.tsx`](../../src/contexts/KeyboardShortcutsContext.tsx) (Centralized keyboard shortcut management)
 
 *   **Backend Logic**:
     *   `editUtterance`: [`src/lib/db/utterance.ts`](../../src/lib/db/utterance.ts)
     *   `moveUtterancesToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts)
+    *   `extractSpeakerSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles extracting utterance ranges into new segments)
     *   `createEmptySpeakerSegmentBefore/After`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles creating new segments with "New speaker segment" tag)
     *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion, and timestamp recalculation)
 

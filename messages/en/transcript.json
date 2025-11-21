@@ -4,7 +4,8 @@
       "startHighlightFromHere": "Start Highlight from here",
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
-      "shareFromHere": "Share from here"
+      "shareFromHere": "Share from here",
+      "extractSegment": "Extract segment"
     },
     "toasts": {
       "moveUtterances": "Move utterances?",
