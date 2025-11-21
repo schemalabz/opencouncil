@@ -45,10 +45,22 @@ The system divides editing into distinct categories and modes:
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
 6.  **Interaction Enhancements**:
-    *   **Keyboard Shortcuts**: Managed via `KeyboardShortcutsContext`.
-        *   `e`: Extract selected segment.
-        *   `Escape`: Clear selection.
+    *   **Keyboard Shortcuts**: Managed via `KeyboardShortcutsContext` and `EditingContext`.
     *   **Selection Mode**: Managed via `EditingContext`, supports Shift+Click for ranges and Ctrl+Click for toggling.
+
+**Shortcuts Reference**
+
+| Category | Key(s) | Action |
+| :--- | :--- | :--- |
+| **Playback** | `Space` | Play / Pause |
+| | `ArrowLeft` | Seek to previous utterance |
+| | `ArrowRight` | Seek to next utterance |
+| | `ArrowUp` | Increase Playback Speed |
+| | `ArrowDown` | Decrease Playback Speed |
+| **Navigation** | `Enter` | Edit active utterance / Save & Close |
+| **Editing** | `e` | Extract selected utterances to new segment |
+| | `Escape` | Clear selection / Cancel text edit |
+| **Global** | `Ctrl + b` | Toggle Sidebar |
 
 **Sequence Diagram**
 

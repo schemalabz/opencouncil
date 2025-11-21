@@ -23,12 +23,42 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
     EXTRACT_SEGMENT: {
         id: 'EXTRACT_SEGMENT',
         description: 'Extract selected utterances to new segment',
-        keys: ['e'] // Simple 'e' when items are selected? Or Ctrl+E? Let's go with 'e' for now as it's context-specific
+        keys: ['e']
     },
     CLEAR_SELECTION: {
         id: 'CLEAR_SELECTION',
         description: 'Clear current selection',
         keys: ['Escape']
+    },
+    PLAY_PAUSE: {
+        id: 'PLAY_PAUSE',
+        description: 'Play/Pause video',
+        keys: [' ']
+    },
+    EDIT_NEXT_UTTERANCE: {
+        id: 'EDIT_NEXT_UTTERANCE',
+        description: 'Save current utterance and edit next',
+        keys: ['Enter']
+    },
+    SEEK_PREVIOUS: {
+        id: 'SEEK_PREVIOUS',
+        description: 'Seek to previous utterance or 5s back',
+        keys: ['ArrowLeft']
+    },
+    SEEK_NEXT: {
+        id: 'SEEK_NEXT',
+        description: 'Seek to next utterance or 5s forward',
+        keys: ['ArrowRight']
+    },
+    SPEED_UP: {
+        id: 'SPEED_UP',
+        description: 'Increase playback speed',
+        keys: ['ArrowUp']
+    },
+    SPEED_DOWN: {
+        id: 'SPEED_DOWN',
+        description: 'Decrease playback speed',
+        keys: ['ArrowDown']
     }
 };
 
@@ -115,5 +145,3 @@ export function useKeyboardShortcut(actionId: string, handler: KeyboardActionHan
 }
 
 export const ACTIONS = ACTION_DEFINITIONS;
-
-
