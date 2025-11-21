@@ -734,3 +734,130 @@ export async function updateSpeakerSegmentData(
         return updatedSegment;
     });
 }
+
+export async function extractSpeakerSegment(
+    cityId: string,
+    meetingId: string,
+    segmentId: string,
+    startUtteranceId: string,
+    endUtteranceId: string
+): Promise<SpeakerSegmentWithRelations[]> {
+    // 1. Verify segment exists
+    const originalSegment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: { utterances: { orderBy: { startTimestamp: 'asc' } } }
+    });
+
+    if (!originalSegment) throw new Error('Segment not found');
+    if (originalSegment.cityId !== cityId) throw new Error('City mismatch');
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    // 2. Find utterance indices
+    const utterances = originalSegment.utterances;
+    const startIndex = utterances.findIndex(u => u.id === startUtteranceId);
+    const endIndex = utterances.findIndex(u => u.id === endUtteranceId);
+
+    if (startIndex === -1 || endIndex === -1) throw new Error('Utterances not found in segment');
+    if (startIndex > endIndex) throw new Error('Invalid utterance range');
+
+    // 3. Split utterances into three groups: before, middle (to extract), and after
+    const beforeUtterances = utterances.slice(0, startIndex);
+    const middleUtterances = utterances.slice(startIndex, endIndex + 1);
+    const afterUtterances = utterances.slice(endIndex + 1);
+
+    return await prisma.$transaction(async (tx) => {
+        const createdSegments: SpeakerSegmentWithRelations[] = [];
+
+        // Create the new middle segment with extracted utterances
+        const middleStart = middleUtterances[0].startTimestamp;
+        const middleEnd = middleUtterances[middleUtterances.length - 1].endTimestamp;
+
+        const middleTag = await tx.speakerTag.create({
+            data: { label: 'New speaker segment', personId: null }
+        });
+
+        const middleSegment = await tx.speakerSegment.create({
+            data: {
+                cityId,
+                meetingId,
+                speakerTagId: middleTag.id,
+                startTimestamp: middleStart,
+                endTimestamp: middleEnd,
+            },
+            include: speakerSegmentWithRelationsInclude
+        });
+
+        // Move middle utterances
+        await tx.utterance.updateMany({
+            where: { id: { in: middleUtterances.map(u => u.id) } },
+            data: { speakerSegmentId: middleSegment.id }
+        });
+
+        // Update or delete the original segment based on remaining utterances
+        if (beforeUtterances.length > 0) {
+            const beforeStart = beforeUtterances[0].startTimestamp;
+            const beforeEnd = beforeUtterances[beforeUtterances.length - 1].endTimestamp;
+            
+            await tx.speakerSegment.update({
+                where: { id: segmentId },
+                data: { startTimestamp: beforeStart, endTimestamp: beforeEnd }
+            });
+        } else {
+            await tx.speakerSegment.delete({ where: { id: segmentId } });
+        }
+
+        // Create after segment if there are remaining utterances
+        if (afterUtterances.length > 0) {
+            const afterStart = afterUtterances[0].startTimestamp;
+            const afterEnd = afterUtterances[afterUtterances.length - 1].endTimestamp;
+            
+            const afterSegment = await tx.speakerSegment.create({
+                data: {
+                    cityId,
+                    meetingId,
+                    speakerTagId: originalSegment.speakerTagId, // Same speaker as original
+                    startTimestamp: afterStart,
+                    endTimestamp: afterEnd
+                },
+                 include: speakerSegmentWithRelationsInclude
+            });
+            
+            await tx.utterance.updateMany({
+                where: { id: { in: afterUtterances.map(u => u.id) } },
+                data: { speakerSegmentId: afterSegment.id }
+            });
+             createdSegments.push(afterSegment);
+        }
+
+        // Return all segments in chronological order
+        const finalSegments = [];
+        
+        // Re-fetch original if not deleted
+        if (beforeUtterances.length > 0) {
+             const updatedOriginal = await tx.speakerSegment.findUnique({
+                where: { id: segmentId },
+                include: speakerSegmentWithRelationsInclude
+            });
+            if (updatedOriginal) finalSegments.push(updatedOriginal);
+        }
+
+        // Re-fetch middle to ensure relations
+        const finalMiddle = await tx.speakerSegment.findUnique({
+            where: { id: middleSegment.id },
+            include: speakerSegmentWithRelationsInclude
+        });
+        if (finalMiddle) finalSegments.push(finalMiddle);
+        
+        if (afterUtterances.length > 0) {
+              const finalAfter = await tx.speakerSegment.findUnique({
+                // @ts-ignore - we know we created it if length > 0
+                where: { id: createdSegments[0].id }, 
+                include: speakerSegmentWithRelationsInclude
+            });
+             if (finalAfter) finalSegments.push(finalAfter);
+        }
+        
+        return finalSegments;
+    });
+}

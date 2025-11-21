@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -28,6 +28,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     addHighlight: (highlight: HighlightWithUtterances) => void;
     updateHighlight: (highlightId: string, updates: Partial<HighlightWithUtterances>) => void;
     removeHighlight: (highlightId: string) => void;
+    extractSpeakerSegment: (segmentId: string, startUtteranceId: string, endUtteranceId: string) => Promise<void>;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -233,6 +234,28 @@ export function CouncilMeetingDataProvider({ children, data }: {
             setTranscript(prev => prev.map(segment =>
                 segment.id === segmentId ? updatedSegment : segment
             ));
+        },
+        extractSpeakerSegment: async (segmentId: string, startUtteranceId: string, endUtteranceId: string) => {
+            const newSegments = await extractSpeakerSegment(data.meeting.cityId, data.meeting.id, segmentId, startUtteranceId, endUtteranceId);
+            
+            // Replace the original segment with the new segments (Before, Middle, After)
+            setTranscript(prev => {
+                const originalIndex = prev.findIndex(s => s.id === segmentId);
+                if (originalIndex === -1) return prev;
+
+                const updatedTranscript = [...prev];
+                updatedTranscript.splice(originalIndex, 1, ...newSegments);
+                
+                return updatedTranscript;
+            });
+            
+            // Add any new speaker tags that were created
+            const newTags = newSegments.map(s => s.speakerTag);
+            setSpeakerTags(prev => {
+                 const prevIds = new Set(prev.map(t => t.id));
+                 const tagsToAdd = newTags.filter(t => !prevIds.has(t.id));
+                 return [...prev, ...tagsToAdd];
+            });
         }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight]);
 
