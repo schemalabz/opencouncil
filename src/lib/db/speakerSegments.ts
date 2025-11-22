@@ -3,7 +3,7 @@ import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
 import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary } from '@prisma/client';
 import { PersonWithRelations } from './people';
-import { isRoleActive, isRoleActiveAt } from '../utils';
+import { isRoleActiveAt } from '../utils';
 
 export type SegmentWithRelations = {
     id: string;
@@ -102,16 +102,6 @@ export async function createEmptySpeakerSegmentAfter(
     });
 
     console.log(`Created a new speaker segment starting at ${startTimestamp} and ending at ${endTimestamp}. Previous segment ended at ${currentSegment.endTimestamp}, next segment starts at ${nextSegment?.startTimestamp}`);
-
-    /*
-    // If there's a next segment, we need to ensure its start time is after our new segment
-    if (nextSegment && nextSegment.startTimestamp <= endTimestamp) {
-        await prisma.speakerSegment.update({
-            where: { id: nextSegment.id },
-            data: { startTimestamp: endTimestamp + 1 }
-        });
-    }
-    */
 
     return newSegment;
 }
@@ -333,27 +323,38 @@ export async function getLatestSegmentsForSpeaker(
     personId: string,
     page: number = 1,
     pageSize: number = 5,
-    administrativeBodyId?: string | null
+    administrativeBodyId?: string | null,
+    topicId?: string | null
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
+    const whereClause: any = {
+        speakerTag: {
+            personId: personId
+        },
+        utterances: {
+            some: {
+                text: {
+                    gt: ''
+                }
+            }
+        },
+        meeting: administrativeBodyId ? {
+            administrativeBodyId: administrativeBodyId
+        } : undefined
+    };
+
+    if (topicId) {
+        whereClause.topicLabels = {
+            some: {
+                topicId: topicId
+            }
+        };
+    }
+
     const [segments, totalCount] = await Promise.all([
         prisma.speakerSegment.findMany({
-            where: {
-                speakerTag: {
-                    personId: personId
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            },
+            where: whereClause,
             include: {
                 meeting: {
                     include: {
@@ -392,21 +393,7 @@ export async function getLatestSegmentsForSpeaker(
             skip
         }),
         prisma.speakerSegment.count({
-            where: {
-                speakerTag: {
-                    personId: personId
-                },
-                utterances: {
-                    some: {
-                        text: {
-                            gt: ''
-                        }
-                    }
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
-            }
+            where: whereClause
         })
     ]);
 
