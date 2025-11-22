@@ -8,6 +8,7 @@ import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
 import { Metadata } from "next";
 import { env } from '@/env.mjs';
+import { getAllTopics } from "@/lib/db/topics";
 
 export async function generateMetadata({ params }: { params: { locale: string, personId: string, cityId: string } }): Promise<Metadata> {
     const [person, city] = await Promise.all([
@@ -87,12 +88,13 @@ export async function generateMetadata({ params }: { params: { locale: string, p
 }
 
 export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
-    const [person, city, parties, administrativeBodies, statistics] = await Promise.all([
+    const [person, city, parties, administrativeBodies, statistics, topics] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic', 'person', 'party'])
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic', 'person', 'party']),
+        getAllTopics()
     ]);
 
     if (!person || !city) {
@@ -105,5 +107,6 @@ export default async function PersonPage({ params }: { params: { locale: string,
         parties={parties}
         administrativeBodies={administrativeBodies}
         statistics={statistics}
+        topics={topics}
     />;
 }
