@@ -1,5 +1,9 @@
 {
   "taskStatus": {
+    "pending": "Pending",
+    "succeeded": "Succeeded",
+    "failed": "Failed",
+    "unknownError": "Unknown error",
     "reprocessDialog": {
       "title": "Reprocess from Database: {taskType}",
       "explanation": "When a task runs, we always save its result to the database, so you can process it again later, without having to re-run the task on the task server.",
@@ -23,6 +27,145 @@
       "feedback": {
         "success": "Task reprocessed successfully!",
         "error": "Failed to reprocess task"
+      }
+    }
+  },
+  "taskList": {
+    "noTasks": "No tasks running"
+  },
+  "adminActions": {
+    "sections": {
+      "meetingDetails": "Meeting Management Details",
+      "meetingDetailsSubtitle": "Edit basic information about this meeting.",
+      "taskStatuses": "Task Statuses",
+      "taskStatusesSubtitle": "Monitor tasks running on the backend.",
+      "requestNewTasks": "Request New Tasks",
+      "requestNewTasksSubtitle": "Start new backend processing tasks.",
+      "meetingRelease": "Meeting Release",
+      "meetingReleaseSubtitle": "Control whether this meeting is publicly visible.",
+      "notifications": "Notifications",
+      "notificationsSubtitle": "Create notifications for users interested in this meeting's subjects.",
+      "cacheManagement": "Cache Management",
+      "cacheManagementSubtitle": "Force refresh of cached data to see latest changes immediately.",
+      "podcastSpecs": "Podcast Specs",
+      "podcastSpecsSubtitle": "Manage podcast generation specifications for this meeting.",
+      "export": "Export",
+      "exportSubtitle": "Download meeting data in various formats."
+    },
+    "buttons": {
+      "editMeeting": "Edit Meeting",
+      "transcribe": "transcribe",
+      "processAgenda": "processAgenda",
+      "summarize": "summarize",
+      "fixTranscript": "fixTranscript",
+      "markHumanReviewComplete": "markHumanReviewComplete",
+      "syncElasticsearch": "syncElasticsearch",
+      "beforeMeeting": "beforeMeeting",
+      "afterMeeting": "afterMeeting",
+      "refreshMeetingCache": "Refresh Meeting Cache",
+      "refreshCityCache": "Refresh City Cache",
+      "addTopic": "Add Topic",
+      "starting": "Starting...",
+      "syncing": "Syncing...",
+      "process": "Process"
+    },
+    "forms": {
+      "enterMediaUrl": "Enter Media URL",
+      "enterAgendaUrl": "Enter Agenda URL",
+      "enterTopics": "Enter Topics",
+      "additionalInstructions": "Additional Instructions",
+      "mediaUrlPlaceholder": "https://... (YouTube, mp4, mp3)",
+      "agendaUrlPlaceholder": "https://...",
+      "topicPlaceholder": "Topic {number}",
+      "force": "Force",
+      "released": "Released"
+    },
+    "toasts": {
+      "transcriptionRequested": {
+        "title": "Transcription requested",
+        "description": "The transcription process has started."
+      },
+      "errorRequestingTranscription": {
+        "title": "Error requesting transcription"
+      },
+      "summarizationRequested": {
+        "title": "Summarization requested",
+        "description": "The summarization process has started."
+      },
+      "errorRequestingSummarization": {
+        "title": "Error requesting summarization"
+      },
+      "fixTranscriptRequested": {
+        "title": "Fix transcript requested",
+        "description": "The transcript fixing process has started."
+      },
+      "errorRequestingTranscriptFix": {
+        "title": "Error requesting transcript fix"
+      },
+      "humanReviewComplete": {
+        "title": "Human review marked complete",
+        "description": "The meeting has been marked as human reviewed."
+      },
+      "errorMarkingReviewComplete": {
+        "title": "Error marking review complete"
+      },
+      "taskDeleted": {
+        "title": "Task deleted",
+        "description": "Task {taskId} has been successfully deleted."
+      },
+      "errorDeletingTask": {
+        "title": "Error deleting task"
+      },
+      "meetingReleased": {
+        "title": "Meeting Released",
+        "description": "The meeting has been released."
+      },
+      "meetingUnreleased": {
+        "title": "Meeting Unreleased",
+        "description": "The meeting has been unreleased."
+      },
+      "errorTogglingRelease": {
+        "title": "Error toggling meeting release"
+      },
+      "agendaProcessingRequested": {
+        "title": "Agenda processing requested",
+        "description": "The agenda processing has started."
+      },
+      "errorProcessingAgenda": {
+        "title": "Error processing agenda"
+      },
+      "elasticsearchSyncRequested": {
+        "title": "Elasticsearch sync requested",
+        "description": "The full sync process has started."
+      },
+      "errorRequestingElasticsearchSync": {
+        "title": "Error requesting Elasticsearch sync"
+      },
+      "notificationsCreated": {
+        "title": "Notifications created",
+        "description": "Created {count} notifications for {total} subjects. {immediate}"
+      },
+      "sentImmediately": "Sent immediately.",
+      "pendingApproval": "Pending admin approval.",
+      "errorCreatingNotifications": {
+        "title": "Error creating notifications"
+      },
+      "errorFetchingTaskStatuses": {
+        "title": "Error fetching task statuses"
+      },
+      "unknownError": "An unknown error occurred",
+      "meetingCacheInvalidated": {
+        "title": "Meeting Cache Invalidated",
+        "description": "The meeting data will be refreshed on the next request."
+      },
+      "cityCacheInvalidated": {
+        "title": "City Cache Invalidated",
+        "description": "The city data will be refreshed on the next request."
+      },
+      "error": {
+        "title": "Error",
+        "failedToInvalidateMeetingCache": "Failed to invalidate meeting cache",
+        "failedToInvalidateCityCache": "Failed to invalidate city cache"
       }
     }
   }
