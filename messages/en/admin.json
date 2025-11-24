@@ -1,0 +1,30 @@
+{
+  "taskStatus": {
+    "reprocessDialog": {
+      "title": "Reprocess from Database: {taskType}",
+      "explanation": "When a task runs, we always save its result to the database, so you can process it again later, without having to re-run the task on the task server.",
+      "transcribe": {
+        "description": "Do you want to delete existing data before reprocessing?",
+        "warning": "For transcribe tasks, we recommend deleting first to avoid creating duplicate content."
+      },
+      "default": {
+        "description": "This will process the saved result again from the database.",
+        "info": "Any existing data will be updated automatically."
+      },
+      "buttons": {
+        "cancel": "Cancel",
+        "reprocessOnly": "Reprocess Only",
+        "deleteAndReprocess": "Delete & Reprocess",
+        "reprocess": "Reprocess from Database",
+        "reprocessing": "Processing...",
+        "processing": "Processing...",
+        "done": "Done"
+      },
+      "feedback": {
+        "success": "Task reprocessed successfully!",
+        "error": "Failed to reprocess task"
+      }
+    }
+  }
+}
+
