@@ -27,6 +27,7 @@ interface TaskStatusComponentProps {
 
 export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps) {
     const t = useTranslations('admin.taskStatus.reprocessDialog');
+    const tStatus = useTranslations('admin.taskStatus');
     const [isStale, setIsStale] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [showReprocessDialog, setShowReprocessDialog] = useState(false);
@@ -104,7 +105,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                         <Badge variant="outline" className="text-xs font-normal">
                             {task.type}
                         </Badge>
-                        <span className="text-xs font-medium">{task.status}</span>
+                        <span className="text-xs font-medium">{tStatus(task.status)}</span>
                     </div>
                     <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-1">
@@ -153,7 +154,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                             {task.status === 'failed' && task.responseBody && (
                                 <div className="flex items-center justify-between">
                                     <code className="font-mono truncate block max-w-[300px]">
-                                        {task.responseBody || 'Unknown error'}
+                                        {task.responseBody || tStatus('unknownError')}
                                     </code>
                                     <div className="flex space-x-1">
                                         <Button
