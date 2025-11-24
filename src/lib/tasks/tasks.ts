@@ -1,22 +1,14 @@
 "use server";
 
 import { TaskUpdate } from '../apiTypes';
-import { handleTranscribeResult } from './transcribe';
-import { handleSummarizeResult } from './summarize';
 import prisma from '@/lib/db/prisma';
 import { MeetingTaskType } from '@/lib/tasks/types';
-import { handleGeneratePodcastSpecResult } from './generatePodcastSpec';
-import { handleSplitMediaFileResult } from './splitMediaFile';
-import { handleFixTranscriptResult } from './fixTranscript';
-import { handleProcessAgendaResult } from './processAgenda';
-import { handleGenerateVoiceprintResult } from './generateVoiceprint';
-import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
-import { handleGenerateHighlightResult } from './generateHighlight';
 import { sendTaskStartedAdminAlert, sendTaskCompletedAdminAlert, sendTaskFailedAdminAlert } from '@/lib/discord';
 import { Prisma } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
+import { taskHandlers } from './registry';
 
 const taskStatusWithMeetingInclude = {
     councilMeeting: {
@@ -126,7 +118,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     return newTask;
 }
 
-export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>, processResult: (taskId: string, result: T) => Promise<void>) => {
+export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>, processResult: (taskId: string, result: T, options?: { force?: boolean }) => Promise<void>, options?: { force?: boolean }) => {
     // Get task details for Discord admin alerts
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -146,7 +138,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
         if (update.result) {
             try {
-                await processResult(taskId, update.result);
+                await processResult(taskId, update.result, options);
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 sendTaskCompletedAdminAlert({
@@ -231,34 +223,19 @@ function shouldRevalidateForTaskType(taskType: MeetingTaskType): boolean {
     return revalidationTaskTypes.includes(taskType);
 }
 
-export const processTaskResponse = async (taskType: MeetingTaskType, taskId: string) => {
-    console.log(`Processing task response for task ${taskId} of type ${taskType}`);
+export const processTaskResponse = async (taskType: string, taskId: string, options?: { force?: boolean }) => {
+    console.log(`Processing task response for task ${taskId} of type ${taskType}${options?.force ? ' (force mode)' : ''}`);
     const task = await prisma.taskStatus.findUnique({ where: { id: taskId } });
     if (!task) {
-        console.error(`Task ${taskId} not found`);
-        return;
+        throw new Error(`Task ${taskId} not found`);
     }
-    if (taskType === 'transcribe') {
-        await handleTranscribeResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'summarize') {
-        await handleSummarizeResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'generatePodcastSpec') {
-        await handleGeneratePodcastSpecResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'splitMediaFile') {
-        await handleSplitMediaFileResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'fixTranscript') {
-        await handleFixTranscriptResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'processAgenda') {
-        await handleProcessAgendaResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'generateVoiceprint') {
-        await handleGenerateVoiceprintResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'syncElasticsearch') {
-        await handleSyncElasticsearchResult(taskId, JSON.parse(task.responseBody!));
-    } else if (taskType === 'generateHighlight') {
-        await handleGenerateHighlightResult(taskId, JSON.parse(task.responseBody!));
-    } else {
+
+    const handler = taskHandlers[taskType];
+    if (!handler) {
         throw new Error(`Unsupported task type: ${taskType}`);
     }
+
+    await handler(taskId, JSON.parse(task.responseBody!), options);
 }
 
 export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): Promise<Record<string, number | null>> => {

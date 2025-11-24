@@ -9,7 +9,14 @@ import { Progress } from "@/components/ui/progress";
 import TimeAgo from "react-timeago";
 import { motion, AnimatePresence } from "framer-motion";
 import { processTaskResponse } from "@/lib/tasks/tasks";
-import { MeetingTaskType } from "@/lib/tasks/types";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 const staleTimeMs = 10 * 60 * 1000; // 10 minutes
 interface TaskStatusComponentProps {
@@ -20,6 +27,7 @@ interface TaskStatusComponentProps {
 export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps) {
     const [isStale, setIsStale] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showForceDialog, setShowForceDialog] = useState(false);
 
     useEffect(() => {
         setIsStale(Date.now() - task.createdAt.getTime() > staleTimeMs);
@@ -28,6 +36,22 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
         }, 60000); // Check every minute
         return () => clearInterval(timer);
     }, [task.createdAt]);
+
+    const handleReprocess = async (force: boolean) => {
+        await processTaskResponse(task.type, task.id, { force });
+        setShowForceDialog(false);
+    };
+
+    const onReprocessClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        // Only show dialog for transcribe tasks, which support force mode
+        if (task.type === 'transcribe') {
+            setShowForceDialog(true);
+        } else {
+            // For other tasks, just reprocess directly (they use upsert)
+            processTaskResponse(task.type, task.id);
+        }
+    };
 
     const getStatusColor = (status: TaskStatus['status']) => {
         switch (status) {
@@ -131,10 +155,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                             variant="ghost"
                                             size="sm"
                                             className="h-5 w-5 p-0"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                processTaskResponse(task.type as MeetingTaskType, task.id);
-                                            }}
+                                            onClick={onReprocessClick}
                                         >
                                             <RefreshCw className="h-3 w-3" />
                                         </Button>
@@ -146,34 +167,54 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                     <code className="font-mono truncate block max-w-[300px]">
                                         {task.responseBody}
                                     </code>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 w-5 p-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            copyToClipboard(task.responseBody || '');
-                                        }}
-                                    >
-                                        <Copy className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-5 w-5 p-0"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            processTaskResponse(task.type as MeetingTaskType, task.id);
-                                        }}
-                                    >
-                                        <RefreshCw className="h-3 w-3" />
-                                    </Button>
+                                    <div className="flex space-x-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(task.responseBody || '');
+                                            }}
+                                        >
+                                            <Copy className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0"
+                                            onClick={onReprocessClick}
+                                        >
+                                            <RefreshCw className="h-3 w-3" />
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
                     )}
                 </AnimatePresence>
             </CardContent>
+            <Dialog open={showForceDialog} onOpenChange={setShowForceDialog}>
+                <DialogContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                    <DialogHeader>
+                        <DialogTitle>Reprocess Task</DialogTitle>
+                        <DialogDescription>
+                            Do you want to delete existing data before reprocessing? This is recommended for transcribe tasks to avoid duplicates.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2">
+                        <Button variant="outline" onClick={() => setShowForceDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="secondary" onClick={() => handleReprocess(false)}>
+                            Reprocess Only
+                        </Button>
+                        <Button variant="destructive" onClick={() => handleReprocess(true)}>
+                            Delete & Reprocess
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Card>
     )
 }

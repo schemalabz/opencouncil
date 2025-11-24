@@ -7,6 +7,33 @@ import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForCity } from "@/lib/db/people";
 
+async function deleteExistingSpeakerData(meetingId: string, cityId: string) {
+    console.log(`Deleting existing speaker data for meeting ${meetingId}`);
+    
+    // Get all unique speakerTagIds used by this meeting's segments
+    const speakerSegments = await prisma.speakerSegment.findMany({
+        where: {
+            meetingId,
+            cityId
+        },
+        select: {
+            speakerTagId: true
+        }
+    });
+    
+    const speakerTagIds = [...new Set(speakerSegments.map(s => s.speakerTagId))];
+    
+    // Delete the SpeakerTags, which will cascade delete the SpeakerSegments
+    if (speakerTagIds.length > 0) {
+        await prisma.speakerTag.deleteMany({
+            where: {
+                id: { in: speakerTagIds }
+            }
+        });
+        console.log(`Deleted ${speakerTagIds.length} speaker tags and their associated segments`);
+    }
+}
+
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, {
     force = false
 }: {
@@ -44,13 +71,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
 
     if (councilMeeting.speakerSegments.length > 0) {
         if (force) {
-            console.log(`Deleting speaker segments for meeting ${councilMeetingId}`);
-            await prisma.speakerSegment.deleteMany({
-                where: {
-                    meetingId: councilMeetingId,
-                    cityId
-                }
-            });
+            await deleteExistingSpeakerData(councilMeetingId, cityId);
         } else {
             console.log(`Meeting already has speaker segments`);
             throw new Error('Meeting already has speaker segments');
@@ -96,7 +117,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
     return startTask('transcribe', body, councilMeetingId, cityId, { force });
 }
 
-export async function handleTranscribeResult(taskId: string, response: TranscribeResult) {
+export async function handleTranscribeResult(taskId: string, response: TranscribeResult, options?: { force?: boolean }) {
     const videoUrl = response.videoUrl;
     const audioUrl = response.audioUrl;
     const muxPlaybackId = response.muxPlaybackId;
@@ -121,6 +142,18 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
 
     if (!task) {
         throw new Error('Task not found');
+    }
+
+    // Delete existing data only when force=true. When force=false we keep existing
+    // segments (allowing duplicates) to match the "Reprocess Only" flow.
+    // Note: We delete SpeakerTags (not SpeakerSegments) because the cascade relationship
+    // goes from SpeakerTag -> SpeakerSegment, so deleting SpeakerTags will automatically
+    // delete their associated SpeakerSegments via onDelete: Cascade
+    const existingSegmentsCount = task.councilMeeting.speakerSegments.length;
+    if (options?.force) {
+        await deleteExistingSpeakerData(task.councilMeetingId, task.cityId);
+    } else if (existingSegmentsCount > 0) {
+        console.log(`Preserving ${existingSegmentsCount} existing speaker segments (force=false); duplicates may be created`);
     }
 
     await updateMeetingVideo(task.councilMeeting, videoUrl, audioUrl, muxPlaybackId);
