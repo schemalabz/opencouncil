@@ -43,6 +43,11 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
                         failed++;
                     }
                 }
+
+                // Add a small delay to avoid rate limiting
+                // 500ms delay allows for ~2 requests per second, which is a safe limit for most services
+                await new Promise(resolve => setTimeout(resolve, 500));
+
             } catch (error) {
                 console.error(`Error sending delivery ${delivery.id}:`, error);
                 await updateDeliveryStatus(delivery.id, 'failed');

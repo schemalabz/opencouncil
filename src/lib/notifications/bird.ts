@@ -53,6 +53,17 @@ async function makeBirdRequest(
 
         const result = await response.json();
         console.log(`${logPrefix} sent via Bird:`, result);
+
+        // Check for immediate failure in response body even if status is 2xx
+        // Bird returns 202 Accepted, which means it's queued.
+        // We consider this a success for now, but we should eventually use webhooks for real delivery status.
+        if (result.status === 'failed' || result.status === 'rejected') {
+            return {
+                success: false,
+                error: result.detail || result.title || `Bird status: ${result.status}`
+            };
+        }
+
         return { success: true };
     } catch (error) {
         console.error(`Error ${logPrefix.toLowerCase()}:`, error);
