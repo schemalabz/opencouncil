@@ -8,7 +8,7 @@ import { useHighlight } from "../HighlightContext";
 import { editUtterance } from "@/lib/db/utterance";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2 } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -17,6 +17,11 @@ import {
     ContextMenuTrigger,
     ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useShare } from "@/contexts/ShareContext";
 import { useEditing } from "../EditingContext";
@@ -123,17 +128,35 @@ const UtteranceC: React.FC<{
         }
     };
 
-    const handleEdit = async (e: React.FormEvent) => {
+    const handleEdit = async (e: React.FormEvent | React.MouseEvent) => {
         e.preventDefault();
+        const originalText = localUtterance.text;
+        
+        // Optimistic update - immediate
+        setLocalUtterance({ ...localUtterance, text: editedText });
+        setIsEditing(false);
+        
+        // Background save
         try {
             const updatedUtterance = await editUtterance(localUtterance.id, editedText);
             setLocalUtterance(updatedUtterance);
             onUpdate?.(updatedUtterance);
-            setIsEditing(false);
         } catch (error) {
             console.error('Failed to edit utterance:', error);
-            // Optionally show an error message to the user
+            // Silent revert
+            setLocalUtterance({ ...localUtterance, text: originalText });
+            setEditedText(originalText);
+            toast({
+                title: t('common.error'),
+                description: t('toasts.editError'),
+                variant: 'destructive'
+            });
         }
+    };
+
+    const handleCancel = () => {
+        setIsEditing(false);
+        setEditedText(localUtterance.text);
     };
 
     const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
@@ -221,35 +244,70 @@ const UtteranceC: React.FC<{
 
     if (isEditing) {
         return (
-            <form onSubmit={handleEdit} className="w-full py-1">
-                <textarea
-                    spellCheck={true}
-                    lang="el"
-                    value={editedText}
-                    onChange={(e) => setEditedText(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleEdit(e);
-                        } else if (e.key === 'Escape') {
-                            setIsEditing(false);
-                            setEditedText(localUtterance.text);
-                        }
-                    }}
-                    className="w-full resize-none border border-gray-300 rounded px-2 py-1 text-sm min-h-[2.5em] transcript-text"
-                    autoFocus
-                    rows={Math.max(1, editedText.split('\n').length)}
-                    style={{
-                        height: 'auto',
-                        overflow: 'hidden'
-                    }}
-                    onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = target.scrollHeight + 'px';
-                    }}
-                />
-            </form>
+            <div className="relative w-full py-1">
+                <form onSubmit={handleEdit}>
+                    <textarea
+                        spellCheck={true}
+                        lang="el"
+                        value={editedText}
+                        onChange={(e) => setEditedText(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleEdit(e);
+                            } else if (e.key === 'Escape') {
+                                handleCancel();
+                            }
+                        }}
+                        className="w-full resize-none border border-gray-300 rounded px-2 py-1 pr-16 text-sm min-h-[2.5em] transcript-text"
+                        autoFocus
+                        rows={Math.max(1, editedText.split('\n').length)}
+                        style={{
+                            height: 'auto',
+                            overflow: 'hidden'
+                        }}
+                        onInput={(e) => {
+                            const target = e.target as HTMLTextAreaElement;
+                            target.style.height = 'auto';
+                            target.style.height = target.scrollHeight + 'px';
+                        }}
+                    />
+                </form>
+                <div className="absolute top-2 right-2 flex gap-1">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-green-100"
+                                onClick={handleEdit}
+                            >
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{t('editing.saveShortcut')}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-red-100"
+                                onClick={handleCancel}
+                            >
+                                <X className="h-3.5 w-3.5 text-red-600" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{t('editing.cancelShortcut')}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            </div>
         );
     }
 
