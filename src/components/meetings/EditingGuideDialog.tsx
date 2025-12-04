@@ -17,13 +17,14 @@ import { BookOpen } from 'lucide-react';
 
 interface EditingGuideDialogProps {
     children: React.ReactNode;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function EditingGuideDialog({ children }: EditingGuideDialogProps) {
+export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialogProps) {
     const t = useTranslations('editing.guide');
 
     return (
-        <Dialog>
+        <Dialog onOpenChange={onOpenChange}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>

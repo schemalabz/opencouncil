@@ -16,6 +16,10 @@
   "guide": {
     "title": "Editing Guide",
     "description": "Learn how to edit transcripts efficiently with keyboard shortcuts and best practices",
+    "hint": {
+      "title": "New to editing?",
+      "description": "Click here for a quick guide on shortcuts and workflows"
+    },
     "tabs": {
       "quickStart": "Quick Start",
       "shortcuts": "Shortcuts",

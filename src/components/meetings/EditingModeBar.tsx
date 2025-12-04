@@ -20,6 +20,19 @@ export function EditingModeBar() {
     const { transcript: speakerSegments, getSpeakerTag } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
     const t = useTranslations('editing');
+    const [showGuideHint, setShowGuideHint] = useState(false);
+
+    // Check localStorage on mount to see if user has seen the guide
+    useEffect(() => {
+        const hasSeenGuide = localStorage.getItem('editing-guide-seen');
+        if (!hasSeenGuide) {
+            // Show hint after a short delay for better UX
+            const timer = setTimeout(() => {
+                setShowGuideHint(true);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     // If not editable OR if we are currently editing a highlight, do not show this bar
     if (!options.editable || editingHighlight) {
@@ -29,6 +42,17 @@ export function EditingModeBar() {
     const handleExit = () => {
         updateOptions({ editable: false });
         toast({ title: t('toasts.exited'), description: t('toasts.exitedDescription') });
+    };
+
+    const dismissGuideHint = () => {
+        setShowGuideHint(false);
+        localStorage.setItem('editing-guide-seen', 'true');
+    };
+
+    const handleGuideOpen = () => {
+        if (showGuideHint) {
+            dismissGuideHint();
+        }
     };
 
     const goToNextUnknown = () => {
@@ -122,16 +146,28 @@ export function EditingModeBar() {
                                         </Button>
 
                                         {/* Editing Guide */}
-                                        <EditingGuideDialog>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="flex items-center space-x-1"
-                                            >
-                                                <BookOpen className="h-4 w-4 mr-1" />
-                                                <span className="hidden sm:inline">{t('actions.guide')}</span>
-                                            </Button>
-                                        </EditingGuideDialog>
+                                        <Tooltip open={showGuideHint}>
+                                            <EditingGuideDialog onOpenChange={(open) => open && handleGuideOpen()}>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className={`flex items-center space-x-1 ${
+                                                            showGuideHint 
+                                                                ? 'ring-2 ring-blue-500 ring-offset-2 bg-blue-50 animate-pulse' 
+                                                                : ''
+                                                        }`}
+                                                    >
+                                                        <BookOpen className="h-4 w-4 mr-1" />
+                                                        <span className="hidden sm:inline">{t('actions.guide')}</span>
+                                                    </Button>
+                                                </TooltipTrigger>
+                                            </EditingGuideDialog>
+                                            <TooltipContent side="bottom" className="max-w-xs">
+                                                <p className="font-semibold">{t('guide.hint.title')}</p>
+                                                <p className="text-xs text-muted-foreground mt-1">{t('guide.hint.description')}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
 
                                         {/* Exit Button */}
                                         <Button
