@@ -1,5 +1,9 @@
 {
   "utterance": {
+    "editing": {
+      "saveShortcut": "Αποθήκευση (Enter)",
+      "cancelShortcut": "Ακύρωση (Escape)"
+    },
     "contextMenu": {
       "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
@@ -16,7 +20,11 @@
       "highlightCreated": "Το στιγμιότυπο δημιουργήθηκε",
       "highlightCreatedDescription": "Το στιγμιότυπο ξεκίνησε με αυτή τη φράση. Προσθέστε περισσότερες φράσεις για να δημιουργήσετε το στιγμιότυπό σας.",
       "error": "Σφάλμα",
-      "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά."
+      "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά.",
+      "editError": "Αποτυχία αποθήκευσης αλλαγών. Παρακαλώ δοκιμάστε ξανά."
+    },
+    "common": {
+      "error": "Σφάλμα"
     }
   },
   "controls": {
