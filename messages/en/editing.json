@@ -10,7 +10,100 @@
     "nextUnknown": "Next Unknown",
     "speed": "Speed",
     "exit": "Exit",
-    "enableEdit": "Enable Editing Mode"
+    "enableEdit": "Enable Editing Mode",
+    "guide": "Guide"
+  },
+  "guide": {
+    "title": "Editing Guide",
+    "description": "Learn how to edit transcripts efficiently with keyboard shortcuts and best practices",
+    "tabs": {
+      "quickStart": "Quick Start",
+      "shortcuts": "Shortcuts",
+      "commonTasks": "Common Tasks",
+      "visualGuide": "Visual Guide"
+    },
+    "quickStart": {
+      "whatIsIt": {
+        "title": "What is Editing Mode?",
+        "description": "Editing Mode allows you to correct transcript text, assign speakers, and reorganize the structure of the transcript. All changes are tracked with full history for auditability."
+      },
+      "workflow": {
+        "title": "Basic Workflow",
+        "step1": "Click on any utterance to edit its text inline",
+        "step2": "Press Enter to save or Escape to cancel",
+        "step3": "Use context menu (right-click) for advanced operations like moving utterances or extracting segments"
+      },
+      "legend": {
+        "title": "Visual Legend",
+        "userEdited": "Green underline - Text edited by a user",
+        "aiCorrected": "Blue underline - Text auto-corrected by AI"
+      }
+    },
+    "shortcuts": {
+      "playback": {
+        "title": "Playback Controls",
+        "playPause": "Play / Pause",
+        "previous": "Seek to previous utterance",
+        "next": "Seek to next utterance",
+        "speedUp": "Increase playback speed",
+        "speedDown": "Decrease playback speed"
+      },
+      "editing": {
+        "title": "Text Editing",
+        "saveAndNext": "Save and edit next",
+        "cancel": "Cancel editing"
+      },
+      "selection": {
+        "title": "Selection & Structure",
+        "selectRange": "Select range of utterances",
+        "toggleSelect": "Toggle utterance selection",
+        "extract": "Extract selected segment",
+        "clear": "Clear selection"
+      }
+    },
+    "tasks": {
+      "fixText": {
+        "question": "How do I fix incorrect text?",
+        "answer": "Click the utterance, edit the text inline, then press Enter to save your changes."
+      },
+      "assignSpeaker": {
+        "question": "How do I assign speakers?",
+        "answer": "Click the speaker badge on the segment, then search for a speaker or select 'Unknown Speaker'."
+      },
+      "splitSegment": {
+        "question": "How do I split a segment (A-B-A pattern)?",
+        "answer": "When Speaker B's utterances are incorrectly included in Speaker A's segment, select the utterances to extract using Shift+Click for ranges, then press 'e' or right-click and select 'Extract Segment'."
+      },
+      "moveUtterances": {
+        "question": "How do I move utterances between segments?",
+        "answer": "Right-click on an utterance and select 'Move to previous segment' or 'Move to next segment'."
+      },
+      "createSegment": {
+        "question": "How do I create a new empty segment?",
+        "answer": "Click the '+' button on any segment card to create a new segment before or after it."
+      },
+      "findUnknown": {
+        "question": "How do I find unknown speakers quickly?",
+        "answer": "Use the 'Unknown Speaker' button in the editing bar to jump to the next segment with an unidentified speaker."
+      }
+    },
+    "visual": {
+      "userEdited": {
+        "title": "User Edited",
+        "description": "Text that has been modified by a human editor. This indicates verified and corrected content.",
+        "example": "This text was edited by a user"
+      },
+      "aiCorrected": {
+        "title": "AI Corrected",
+        "description": "Text that was automatically corrected by AI tasks. These changes are suggested improvements but may need review.",
+        "example": "This text was corrected by AI"
+      },
+      "selected": {
+        "title": "Selected for Extraction",
+        "description": "Bold text indicates utterances selected for extraction into a new segment. Use this when Speaker B's utterances are incorrectly included in Speaker A's segment (A-B-A pattern).",
+        "example": "Selected utterances appear in bold"
+      }
+    }
   },
   "toasts": {
     "exited": "Exited Editing Mode",

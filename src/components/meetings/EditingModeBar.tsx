@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTranscriptOptions } from './options/OptionsContext';
 import { useVideo } from './VideoProvider';
@@ -7,10 +7,12 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X } from 'lucide-react';
+import { Edit, Gauge, UserRoundSearch, X, BookOpen } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { EditingGuideDialog } from './EditingGuideDialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function EditingModeBar() {
     const { options, updateOptions } = useTranscriptOptions();
@@ -118,6 +120,18 @@ export function EditingModeBar() {
                                             <UserRoundSearch className="h-4 w-4 mr-1" />
                                             <span className="hidden sm:inline">{t('actions.unknownSpeaker')}</span>
                                         </Button>
+
+                                        {/* Editing Guide */}
+                                        <EditingGuideDialog>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="flex items-center space-x-1"
+                                            >
+                                                <BookOpen className="h-4 w-4 mr-1" />
+                                                <span className="hidden sm:inline">{t('actions.guide')}</span>
+                                            </Button>
+                                        </EditingGuideDialog>
 
                                         {/* Exit Button */}
                                         <Button
