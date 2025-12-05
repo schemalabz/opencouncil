@@ -213,7 +213,8 @@
         "noDataAvailable": "No data available",
         "loading": "Loading...",
         "totalSpeakingTime": "Total Speaking Time",
-        "totalMinutes": "Total speaking minutes"
+        "totalMinutes": "Total speaking minutes",
+        "allTopics": "All Topics"
     },
     "OfferForm": {
         "respondToName": "Responsible Person Name",
