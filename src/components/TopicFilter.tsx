@@ -40,7 +40,7 @@ export function TopicFilter({
                     )}
                     onClick={() => onSelectTopic(null)}
                 >
-                    {t('allTopics', { fallback: 'Όλα τα θέματα' })}
+                    {t('allTopics')}
                 </Button>
                 {topics.map((topic) => (
                     <Button

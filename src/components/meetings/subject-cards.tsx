@@ -9,6 +9,7 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { MultiSelectDropdown, Option } from "@/components/ui/multi-select-dropdown";
 import { useState, useMemo } from "react";
 import { TopicFilter } from "@/components/TopicFilter";
+import { Topic } from "@prisma/client";
 
 type FilterType = "agenda" | "beforeAgenda" | "outOfAgenda";
 
@@ -25,13 +26,13 @@ export function SubjectCards({ subjects, totalSubjects, fullWidth }: { subjects:
 
     // Extract unique topics from the subjects list
     const availableTopics = useMemo(() => {
-        const topicsMap = new Map();
+        const topicsMap = new Map<string, Topic>();
         subjects.forEach(subject => {
             if (subject.topic) {
                 topicsMap.set(subject.topic.id, subject.topic);
             }
         });
-        return Array.from(topicsMap.values()).sort((a: any, b: any) => a.name.localeCompare(b.name));
+        return Array.from(topicsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [subjects]);
 
     // Filter and sort subjects based on selected filters and topic

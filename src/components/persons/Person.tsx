@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { City, Party, Person, Role, AdministrativeBody, Topic } from '@prisma/client';
+import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
@@ -30,13 +30,12 @@ type RoleWithRelations = Role & {
     administrativeBody?: AdministrativeBody | null;
 };
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics, topics }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
-    statistics: StatisticsType,
-    topics: Topic[]
+    statistics: StatisticsType
 }) {
     const t = useTranslations('Person');
     const router = useRouter();
@@ -59,9 +58,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     // Filter topics to only show ones relevant to this person based on statistics
     const relevantTopics = useMemo(() => {
         if (!statistics.topics) return [];
-        const relevantTopicIds = new Set(statistics.topics.map(t => t.item.id));
-        return topics.filter(topic => relevantTopicIds.has(topic.id));
-    }, [topics, statistics.topics]);
+        return statistics.topics.map(t => t.item).sort((a, b) => a.name.localeCompare(b.name));
+    }, [statistics.topics]);
 
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
