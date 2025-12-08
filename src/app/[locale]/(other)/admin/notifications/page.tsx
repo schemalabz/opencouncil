@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -27,12 +27,7 @@ export default function AdminNotificationsPage() {
         type: 'all'
     });
 
-    // Fetch notifications
-    useEffect(() => {
-        fetchNotifications();
-    }, [filters]);
-
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -48,7 +43,12 @@ export default function AdminNotificationsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters]);
+
+    // Fetch notifications
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications]);
 
     const releaseNotifications = async (notificationIds: string[]) => {
         setReleasing(notificationIds);
