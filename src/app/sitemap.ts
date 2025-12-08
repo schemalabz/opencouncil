@@ -1,142 +1,107 @@
 import { MetadataRoute } from 'next'
-import { getCities, getCitiesWithCouncilMeetings } from '@/lib/db/cities'
-import { getSubjectsForMeeting } from '@/lib/db/subject'
+import prisma from '@/lib/db/prisma'
 import { env } from '@/env.mjs'
 
 const baseUrl = env.NEXT_PUBLIC_BASE_URL
 
-// Static sitemap for non-dynamic routes
-export async function generateStaticSitemap(): Promise<MetadataRoute.Sitemap> {
-    return [
+type SitemapCity = {
+    id: string
+    councilMeetings: Array<{
+        id: string
+        subjects: Array<{ id: string }>
+    }>
+}
+
+function buildAlternates(path: string) {
+    return {
+        languages: {
+            el: `${baseUrl}${path}`,
+            en: `${baseUrl}/en${path}`
+        }
+    }
+}
+
+async function fetchSitemapData(): Promise<SitemapCity[]> {
+    return prisma.city.findMany({
+        where: {
+            isPending: false,
+            isListed: true
+        },
+        select: {
+            id: true,
+            councilMeetings: {
+                where: { released: true },
+                select: {
+                    id: true,
+                    subjects: {
+                        select: { id: true }
+                    }
+                }
+            }
+        }
+    })
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+    if (!baseUrl) {
+        return []
+    }
+
+    const cities = await fetchSitemapData()
+
+    const staticEntries: MetadataRoute.Sitemap = [
         {
             url: baseUrl,
             changeFrequency: 'daily',
             priority: 1,
-            alternates: {
-                languages: {
-                    el: baseUrl,
-                    en: `${baseUrl}/en`
-                }
-            }
+            alternates: buildAlternates('')
         },
         {
             url: `${baseUrl}/about`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: {
-                languages: {
-                    el: `${baseUrl}/about`,
-                    en: `${baseUrl}/en/about`
-                }
-            }
+            alternates: buildAlternates('/about')
         },
         {
             url: `${baseUrl}/explain`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: {
-                languages: {
-                    el: `${baseUrl}/explain`,
-                    en: `${baseUrl}/en/explain`
-                }
-            }
+            alternates: buildAlternates('/explain')
         },
         {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',
             priority: 0.8,
-            alternates: {
-                languages: {
-                    el: `${baseUrl}/corrections`,
-                    en: `${baseUrl}/en/corrections`
-                }
-            }
-        },
+            alternates: buildAlternates('/corrections')
+        }
     ]
-}
 
-// Cities sitemap
-export async function generateCitiesSitemap(): Promise<MetadataRoute.Sitemap> {
-    const cities = await getCities()
-    return cities.map(city => ({
+    const cityEntries: MetadataRoute.Sitemap = cities.map(city => ({
         url: `${baseUrl}/${city.id}`,
         changeFrequency: 'daily',
         priority: 0.9,
-        alternates: {
-            languages: {
-                el: `${baseUrl}/${city.id}`,
-                en: `${baseUrl}/en/${city.id}`
-            }
-        }
+        alternates: buildAlternates(`/${city.id}`)
     }))
-}
 
-// Meetings sitemap
-export async function generateMeetingsSitemap(): Promise<MetadataRoute.Sitemap> {
-    const cities = await getCitiesWithCouncilMeetings()
-    const routes: MetadataRoute.Sitemap = []
+    const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
+        city.councilMeetings.map(meeting => ({
+            url: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
+            changeFrequency: 'weekly',
+            priority: 0.7,
+            alternates: buildAlternates(`/${city.id}/meetings/${meeting.id}`)
+        }))
+    )
 
-    for (const city of cities) {
-        for (const meeting of city.councilMeetings) {
-            if (!meeting.released) continue
-            routes.push({
-                url: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
+    const subjectEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
+        city.councilMeetings.flatMap(meeting =>
+            meeting.subjects.map(subject => ({
+                url: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
                 changeFrequency: 'weekly',
-                priority: 0.7,
-                alternates: {
-                    languages: {
-                        el: `${baseUrl}/${city.id}/meetings/${meeting.id}`,
-                        en: `${baseUrl}/en/${city.id}/meetings/${meeting.id}`
-                    }
-                }
-            })
-        }
-    }
+                priority: 0.6,
+                alternates: buildAlternates(`/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`)
+            }))
+        )
+    )
 
-    return routes
+    return [...staticEntries, ...cityEntries, ...meetingEntries, ...subjectEntries]
 }
-
-// Subjects sitemap
-export async function generateSubjectsSitemap(): Promise<MetadataRoute.Sitemap> {
-    const cities = await getCitiesWithCouncilMeetings()
-    const routes: MetadataRoute.Sitemap = []
-
-    for (const city of cities) {
-        for (const meeting of city.councilMeetings) {
-            if (!meeting.released) continue
-            const subjects = await getSubjectsForMeeting(city.id, meeting.id)
-            for (const subject of subjects) {
-                routes.push({
-                    url: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
-                    changeFrequency: 'weekly',
-                    priority: 0.6,
-                    alternates: {
-                        languages: {
-                            el: `${baseUrl}/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`,
-                            en: `${baseUrl}/en/${city.id}/meetings/${meeting.id}/subjects/${subject.id}`
-                        }
-                    }
-                })
-            }
-        }
-    }
-
-    return routes
-}
-
-// Main sitemap index
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const [staticSitemap, citiesSitemap, meetingsSitemap, subjectsSitemap] = await Promise.all([
-        generateStaticSitemap(),
-        generateCitiesSitemap(),
-        generateMeetingsSitemap(),
-        generateSubjectsSitemap()
-    ])
-
-    return [
-        ...staticSitemap,
-        ...citiesSitemap,
-        ...meetingsSitemap,
-        ...subjectsSitemap
-    ]
-} 
