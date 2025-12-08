@@ -145,7 +145,7 @@ export function OnboardingProvider({
         }
 
         fetchUserPreferences();
-    }, [city.id, initialStage, session?.user]);
+    }, [city.id, city.supportsNotifications, initialStage, isLoading, session?.user]);
 
     // Reset error states when stage changes
     const handleStageChange = (newStage: OnboardingStage) => {
