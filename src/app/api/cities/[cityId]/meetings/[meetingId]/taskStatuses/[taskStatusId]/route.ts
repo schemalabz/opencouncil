@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
-import { handleTranscribeResult } from '@/lib/tasks/transcribe';
-import { FixTranscriptResult, GeneratePodcastSpecResult, GenerateVoiceprintResult, ProcessAgendaResult, SplitMediaFileResult, SummarizeResult, SyncElasticsearchResult, TaskUpdate, TranscribeResult } from '@/lib/apiTypes';
-import { handleSummarizeResult } from '@/lib/tasks/summarize';
+import { taskHandlers } from '@/lib/tasks/registry';
+import { TaskUpdate } from '@/lib/apiTypes';
 import { deleteTaskStatus, getTaskStatus } from '@/lib/db/tasks';
-import { handleGeneratePodcastSpecResult } from '@/lib/tasks/generatePodcastSpec';
-import { handleSplitMediaFileResult } from '@/lib/tasks/splitMediaFile';
-import { handleFixTranscriptResult } from '@/lib/tasks/fixTranscript';
-import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda';
-import { handleGenerateVoiceprintResult } from '@/lib/tasks/generateVoiceprint';
-import { handleSyncElasticsearchResult } from '@/lib/tasks/syncElasticsearch';
-import { handleGenerateHighlightResult } from '@/lib/tasks/generateHighlight';
-import { GenerateHighlightResult } from '@/lib/apiTypes';
 
 export async function GET(
     request: NextRequest,
@@ -69,28 +60,12 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
     const update: TaskUpdate<any> = await request.json();
 
     try {
-        if (taskStatus.type === 'transcribe') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<TranscribeResult>, handleTranscribeResult);
-        } else if (taskStatus.type === 'summarize') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<SummarizeResult>, handleSummarizeResult);
-        } else if (taskStatus.type === 'generatePodcastSpec') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<GeneratePodcastSpecResult>, handleGeneratePodcastSpecResult);
-        } else if (taskStatus.type === 'splitMediaFile') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<SplitMediaFileResult>, handleSplitMediaFileResult);
-        } else if (taskStatus.type === 'fixTranscript') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<FixTranscriptResult>, handleFixTranscriptResult);
-        } else if (taskStatus.type === 'processAgenda') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<ProcessAgendaResult>, handleProcessAgendaResult);
-        } else if (taskStatus.type === 'generateVoiceprint') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<GenerateVoiceprintResult>, handleGenerateVoiceprintResult);
-        } else if (taskStatus.type === 'syncElasticsearch') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<SyncElasticsearchResult>, handleSyncElasticsearchResult);
-        } else if (taskStatus.type === 'generateHighlight') {
-            await handleTaskUpdate(taskStatusId, update as TaskUpdate<GenerateHighlightResult>, handleGenerateHighlightResult);
-        } else {
-            // Handle other task types here if needed
+        const handler = taskHandlers[taskStatus.type];
+        if (!handler) {
             throw new Error(`Unsupported task type: ${taskStatus.type}`);
         }
+
+        await handleTaskUpdate(taskStatusId, update, handler);
 
         return NextResponse.json({ message: 'Task status updated successfully' });
     } catch (error) {
