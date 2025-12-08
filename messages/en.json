@@ -57,6 +57,13 @@
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
         "authorityTypeDescription": "Select the type of authority.",
+        "adminSettings": "Admin Settings",
+        "officialSupport": "Official Support",
+        "officialSupportDescription": "Cities with official support are prioritized in listings and appear on the landing page with meeting data. They also display a special badge.",
+        "isListed": "Listed",
+        "isListedDescription": "Listed cities are publicly visible and appear in public city selectors. Unlisted cities only appear to administrators.",
+        "isPending": "Pending",
+        "isPendingDescription": "Pending cities are not yet activated and route to the petition page. They are excluded from public listings until activated.",
         "CityMessageForm": {
             "sectionTitle": "City Message",
             "toggle": "Toggle city message",

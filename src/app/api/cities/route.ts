@@ -56,6 +56,9 @@ export async function POST(request: Request) {
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File
     const authorityType = formData.get('authorityType') as 'municipality' | 'region' || 'municipality'
+    const officialSupport = formData.get('officialSupport') === 'true'
+    const isListed = formData.get('isListed') === 'true'
+    const isPending = formData.get('isPending') === 'true'
 
     if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -76,9 +79,9 @@ export async function POST(request: Request) {
             name_municipality_en,
             timezone,
             logoImage: logoImageUrl,
-            officialSupport: false,
-            isListed: false,
-            isPending: true,
+            officialSupport,
+            isListed,
+            isPending,
             authorityType,
             wikipediaId: null,
             supportsNotifications: false,
