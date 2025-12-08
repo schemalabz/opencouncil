@@ -212,7 +212,7 @@ export async function POST(
             // 17. Finally, set the city back to pending
             await tx.city.update({
                 where: { id: params.cityId },
-                data: { isPending: true },
+                data: { status: 'pending' },
             });
         });
 

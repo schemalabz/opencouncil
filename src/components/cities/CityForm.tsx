@@ -54,8 +54,7 @@ const formSchema = z.object({
     }),
     authorityType: z.enum(['municipality', 'region']),
     officialSupport: z.boolean().default(false),
-    isListed: z.boolean().default(false),
-    isPending: z.boolean().default(false)
+    status: z.enum(['pending', 'unlisted', 'listed']).default('pending')
 })
 
 interface CityFormProps {
@@ -126,8 +125,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             id: city?.id || "",
             authorityType: city?.authorityType || "municipality",
             officialSupport: city?.officialSupport || false,
-            isListed: city?.isListed || false,
-            isPending: city?.isPending || false
+            status: city?.status || 'pending'
         },
     })
 
@@ -155,8 +153,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
         formData.append('officialSupport', values.officialSupport.toString())
-        formData.append('isListed', values.isListed.toString())
-        formData.append('isPending', values.isPending.toString())
+        formData.append('status', values.status)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -426,45 +423,26 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                             />
                             <FormField
                                 control={form.control}
-                                name="isListed"
+                                name="status"
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel>
-                                                {t('isListed')}
-                                            </FormLabel>
-                                            <FormDescription>
-                                                {t('isListedDescription')}
-                                            </FormDescription>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="isPending"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel>
-                                                {t('isPending')}
-                                            </FormLabel>
-                                            <FormDescription>
-                                                {t('isPendingDescription')}
-                                            </FormDescription>
-                                        </div>
+                                    <FormItem>
+                                        <FormLabel>{t('status')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectStatus')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="pending">{t('statusPending')}</SelectItem>
+                                                <SelectItem value="unlisted">{t('statusUnlisted')}</SelectItem>
+                                                <SelectItem value="listed">{t('statusListed')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('statusDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />

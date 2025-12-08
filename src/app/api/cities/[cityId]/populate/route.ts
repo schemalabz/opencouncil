@@ -198,10 +198,10 @@ export async function POST(
                 })
             );
 
-            // Set city as non-pending
+            // Set city as listed (no longer pending)
             await tx.city.update({
                 where: { id: params.cityId },
-                data: { isPending: false },
+                data: { status: 'listed' },
             });
 
             const totalRoles = validatedData.people.reduce((count, person) => count + (person.roles?.length || 0), 0);

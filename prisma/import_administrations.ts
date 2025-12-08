@@ -132,8 +132,7 @@ async function importData(inputFile: string) {
                     name_municipality: admin.name_municipality,
                     name_municipality_en: admin.name_municipality_en,
                     timezone: admin.timezone,
-                    isPending: true,
-                    isListed: false,
+                    status: 'pending',
                     officialSupport: false,
                 }
             });

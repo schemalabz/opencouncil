@@ -35,8 +35,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
     const officialSupport = formData.get('officialSupport') === 'true'
-    const isListed = formData.get('isListed') === 'true'
-    const isPending = formData.get('isPending') === 'true'
+    const status = (formData.get('status') as 'pending' | 'unlisted' | 'listed') || 'pending'
 
     // Message data
     const hasMessage = formData.get('hasMessage') === 'true'
@@ -73,8 +72,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
             officialSupport,
-            isListed,
-            isPending
+            status
         });
     } catch (error) {
         console.error('Error updating city:', error);

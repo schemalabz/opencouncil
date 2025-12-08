@@ -23,8 +23,7 @@ describe('getCities', () => {
             {
                 id: 'city1',
                 name: 'Public City',
-                isListed: true,
-                isPending: false,
+                status: 'listed',
                 officialSupport: true,
                 _count: { persons: 10, parties: 5, councilMeetings: 20 }
             }
@@ -37,15 +36,14 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isListed: true,
-                    isPending: false
+                    status: 'listed'
                 })
             })
         );
 
         expect(result).toHaveLength(1);
         expect(result[0].name).toBe('Public City');
-        expect(result[0].isListed).toBe(true);
+        expect(result[0].status).toBe('listed');
         expect(auth.getCurrentUser).not.toHaveBeenCalled();
     });
 
@@ -55,8 +53,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isListed: true,
-                    isPending: false
+                    status: 'listed'
                 })
             })
         );
@@ -87,8 +84,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isPending: false
-                    // No isListed filter for superadmins
+                    status: { in: ['listed', 'unlisted'] }
                 })
             })
         );
@@ -111,11 +107,10 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isPending: false,
                     OR: [
-                        { isListed: true },
+                        { status: 'listed' },
                         {
-                            isListed: false,
+                            status: { in: ['unlisted', 'pending'] },
                             id: { in: ['city2', 'city3'] }
                         }
                     ]
@@ -194,9 +189,7 @@ describe('getCities', () => {
 
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
-                where: expect.objectContaining({
-                    isPending: undefined // Should allow pending cities
-                })
+                where: {} // Should allow all cities (no status filter)
             })
         );
 
@@ -209,7 +202,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isPending: false
+                    status: 'listed'
                 })
             })
         );
@@ -222,8 +215,7 @@ describe('getCities', () => {
             id: 'city1',
             name: 'Test City',
             name_en: 'Test City EN',
-            isListed: true,
-            isPending: false,
+            status: 'listed',
             officialSupport: true,
             _count: { persons: 10, parties: 5, councilMeetings: 20 }
         };
@@ -237,8 +229,7 @@ describe('getCities', () => {
             id: 'city1',
             name: 'Test City',
             name_en: 'Test City EN',
-            isListed: true,
-            isPending: false,
+            status: 'listed',
             officialSupport: true,
             _count: { persons: 10, parties: 5, councilMeetings: 20 }
         });
