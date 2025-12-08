@@ -77,7 +77,7 @@ const UtteranceC: React.FC<{
     const className = cn(
         "cursor-pointer hover:bg-accent utterance transcript-text",
         {
-            "bg-accent": isActive,
+            "bg-yellow-200": isActive,
             "font-bold underline": isHighlighted,
             "text-blue-500 font-bold underline": isTaskModified,
             "text-green-500 font-bold underline": isUserModified,
