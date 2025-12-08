@@ -1,6 +1,6 @@
 "use client"
-import React, { useEffect } from 'react';
-import { CouncilMeeting, TaskStatus } from '@prisma/client';
+import React from 'react';
+import { TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +18,19 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Loader2, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { Pencil, Bell } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
+import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
+import { useTranslations } from 'next-intl';
 
 export default function AdminActions({
 }: {
     }) {
     const { toast } = useToast();
+    const t = useTranslations('admin.adminActions');
     const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
@@ -58,14 +61,14 @@ export default function AdminActions({
         } catch (error) {
             console.error('Error fetching task statuses:', error);
             toast({
-                title: "Error fetching task statuses",
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                title: t('toasts.errorFetchingTaskStatuses.title'),
+                description: error instanceof Error ? error.message : t('toasts.unknownError'),
                 variant: 'destructive'
             });
         } finally {
             setIsLoadingTasks(false);
         }
-    }, [meeting.cityId, meeting.id, toast]);
+    }, [meeting.cityId, meeting.id, toast, t]);
 
     React.useEffect(() => {
         fetchTaskStatuses();
@@ -78,15 +81,15 @@ export default function AdminActions({
         try {
             await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
             toast({
-                title: "Transcription requested",
-                description: "The transcription process has started.",
+                title: t('toasts.transcriptionRequested.title'),
+                description: t('toasts.transcriptionRequested.description'),
             });
             setIsPopoverOpen(false);
             setMediaUrl('');
         } catch (error) {
             console.log('toasting');
             toast({
-                title: "Error requesting transcription",
+                title: t('toasts.errorRequestingTranscription.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -108,8 +111,8 @@ export default function AdminActions({
         try {
             await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions);
             toast({
-                title: "Summarization requested",
-                description: "The summarization process has started.",
+                title: t('toasts.summarizationRequested.title'),
+                description: t('toasts.summarizationRequested.description'),
             });
             setIsSummarizePopoverOpen(false);
             setTopics(['']);
@@ -117,7 +120,7 @@ export default function AdminActions({
         } catch (error) {
             console.log('toasting');
             toast({
-                title: "Error requesting summarization",
+                title: t('toasts.errorRequestingSummarization.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -130,12 +133,29 @@ export default function AdminActions({
         try {
             await requestFixTranscript(meeting.id, meeting.cityId);
             toast({
-                title: "Fix transcript requested",
-                description: "The transcript fixing process has started.",
+                title: t('toasts.fixTranscriptRequested.title'),
+                description: t('toasts.fixTranscriptRequested.description'),
             });
         } catch (error) {
             toast({
-                title: "Error requesting transcript fix",
+                title: t('toasts.errorRequestingTranscriptFix.title'),
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        }
+    };
+
+    const handleMarkReviewComplete = async () => {
+        try {
+            await markHumanReviewComplete(meeting.cityId, meeting.id);
+            toast({
+                title: t('toasts.humanReviewComplete.title'),
+                description: t('toasts.humanReviewComplete.description'),
+            });
+            fetchTaskStatuses();
+        } catch (error) {
+            toast({
+                title: t('toasts.errorMarkingReviewComplete.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -154,8 +174,8 @@ export default function AdminActions({
             }
 
             toast({
-                title: "Task deleted",
-                description: `Task ${taskId} has been successfully deleted.`,
+                title: t('toasts.taskDeleted.title'),
+                description: t('toasts.taskDeleted.description', { taskId }),
             });
 
             // Refresh task statuses after deletion
@@ -163,8 +183,8 @@ export default function AdminActions({
         } catch (error) {
             console.error('Error deleting task:', error);
             toast({
-                title: "Error deleting task",
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                title: t('toasts.errorDeletingTask.title'),
+                description: error instanceof Error ? error.message : t('toasts.unknownError'),
                 variant: 'destructive'
             });
         }
@@ -185,14 +205,14 @@ export default function AdminActions({
             const updatedMeeting = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
             setIsReleased(updatedMeeting.released);
             toast({
-                title: updatedMeeting.released ? "Meeting Released" : "Meeting Unreleased",
-                description: `The meeting has been ${updatedMeeting.released ? 'released' : 'unreleased'}.`,
+                title: updatedMeeting.released ? t('toasts.meetingReleased.title') : t('toasts.meetingUnreleased.title'),
+                description: updatedMeeting.released ? t('toasts.meetingReleased.description') : t('toasts.meetingUnreleased.description'),
             });
         } catch (error) {
             console.error('Error toggling meeting release:', error);
             toast({
-                title: "Error toggling meeting release",
-                description: error instanceof Error ? error.message : 'An unknown error occurred',
+                title: t('toasts.errorTogglingRelease.title'),
+                description: error instanceof Error ? error.message : t('toasts.unknownError'),
                 variant: 'destructive'
             });
         }
@@ -203,13 +223,13 @@ export default function AdminActions({
         try {
             await requestProcessAgenda(agendaUrl, meeting.id, meeting.cityId, { force });
             toast({
-                title: "Agenda processing requested",
-                description: "The agenda processing has started.",
+                title: t('toasts.agendaProcessingRequested.title'),
+                description: t('toasts.agendaProcessingRequested.description'),
             });
             setIsAgendaPopoverOpen(false);
         } catch (error) {
             toast({
-                title: "Error processing agenda",
+                title: t('toasts.errorProcessingAgenda.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -224,12 +244,12 @@ export default function AdminActions({
             // PostgreSQL connector supports only full sync, so we use that
             await requestSyncElasticsearch(meeting.cityId, meeting.id, 'full');
             toast({
-                title: "Elasticsearch sync requested",
-                description: `The full sync process has started.`,
+                title: t('toasts.elasticsearchSyncRequested.title'),
+                description: t('toasts.elasticsearchSyncRequested.description'),
             });
         } catch (error) {
             toast({
-                title: "Error requesting Elasticsearch sync",
+                title: t('toasts.errorRequestingElasticsearchSync.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -262,15 +282,20 @@ export default function AdminActions({
 
             const result = await response.json();
 
+            const immediateText = sendImmediately ? t('toasts.sentImmediately') : t('toasts.pendingApproval');
             toast({
-                title: "Notifications created",
-                description: `Created ${result.notificationsCreated} notifications for ${result.subjectsTotal} subjects. ${sendImmediately ? 'Sent immediately.' : 'Pending admin approval.'}`,
+                title: t('toasts.notificationsCreated.title'),
+                description: t('toasts.notificationsCreated.description', { 
+                    count: result.notificationsCreated, 
+                    total: result.subjectsTotal,
+                    immediate: immediateText
+                }),
             });
 
             setIsNotificationModalOpen(false);
         } catch (error) {
             toast({
-                title: "Error creating notifications",
+                title: t('toasts.errorCreatingNotifications.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -280,17 +305,17 @@ export default function AdminActions({
     return (<div>
         <div className="mt-6">
             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Meeting Details</h3>
+                <h3 className="text-xl font-semibold">{t('sections.meetingDetails')}</h3>
                 <Sheet>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="sm">
                             <Pencil className="h-4 w-4 mr-2" />
-                            Edit Meeting
+                            {t('buttons.editMeeting')}
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="right" className="sm:max-w-2xl overflow-y-auto">
                         <SheetHeader>
-                            <SheetTitle>Edit Meeting</SheetTitle>
+                            <SheetTitle>{t('buttons.editMeeting')}</SheetTitle>
                         </SheetHeader>
                         <div className="mt-4 pb-8">
                             <AddMeetingForm
@@ -308,21 +333,23 @@ export default function AdminActions({
         </div>
 
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Task Statuses</h3>
+            <h3 className="text-lg font-semibold">{t('sections.taskStatuses')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.taskStatusesSubtitle')}</p>
             <TaskList tasks={taskStatuses} onDelete={handleDeleteTask} isLoading={isLoadingTasks} />
         </div>
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Request New Tasks</h3>
+            <h3 className="text-lg font-semibold">{t('sections.requestNewTasks')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.requestNewTasksSubtitle')}</p>
             <div className="space-x-4">
                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button>Transcribe</Button>
+                        <Button>{t('buttons.transcribe')}</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
-                            <h4 className="font-medium">Enter Media URL</h4>
+                            <h4 className="font-medium">{t('forms.enterMediaUrl')}</h4>
                             <LinkOrDrop
-                                placeholder="https://... (YouTube, mp4, mp3)"
+                                placeholder={t('forms.mediaUrlPlaceholder')}
                                 value={mediaUrl}
                                 onChange={(e) => setMediaUrl(e.target.value)}
                                 onUrlChange={(url) => setMediaUrl(url)}
@@ -334,10 +361,10 @@ export default function AdminActions({
                                         checked={forceTranscribe}
                                         onCheckedChange={setForceTranscribe}
                                     />
-                                    <Label htmlFor="force-transcribe">Force</Label>
+                                    <Label htmlFor="force-transcribe">{t('forms.force')}</Label>
                                 </div>
                                 <Button onClick={handleTranscribe} disabled={isTranscribing}>
-                                    {isTranscribing ? 'Starting...' : 'Transcribe'}
+                                    {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
                                 </Button>
                             </div>
                         </div>
@@ -345,13 +372,13 @@ export default function AdminActions({
                 </Popover>
                 <Popover open={isAgendaPopoverOpen} onOpenChange={setIsAgendaPopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button>Process Agenda</Button>
+                        <Button>{t('buttons.processAgenda')}</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
-                            <h4 className="font-medium">Enter Agenda URL</h4>
+                            <h4 className="font-medium">{t('forms.enterAgendaUrl')}</h4>
                             <LinkOrDrop
-                                placeholder="https://..."
+                                placeholder={t('forms.agendaUrlPlaceholder')}
                                 value={agendaUrl}
                                 onChange={(e) => setAgendaUrl(e.target.value)}
                                 onUrlChange={(url) => setAgendaUrl(url)}
@@ -363,10 +390,10 @@ export default function AdminActions({
                                         checked={forceAgenda}
                                         onCheckedChange={setForceAgenda}
                                     />
-                                    <Label htmlFor="force-agenda">Force</Label>
+                                    <Label htmlFor="force-agenda">{t('forms.force')}</Label>
                                 </div>
                                 <Button onClick={() => handleProcessAgenda(forceAgenda)} disabled={isProcessingAgenda}>
-                                    {isProcessingAgenda ? 'Starting...' : 'Process'}
+                                    {isProcessingAgenda ? t('buttons.starting') : t('buttons.process')}
                                 </Button>
                             </div>
                         </div>
@@ -374,61 +401,65 @@ export default function AdminActions({
                 </Popover>
                 <Popover open={isSummarizePopoverOpen} onOpenChange={setIsSummarizePopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button>Summarize</Button>
+                        <Button>{t('buttons.summarize')}</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">
-                            <h4 className="font-medium">Enter Topics</h4>
+                            <h4 className="font-medium">{t('forms.enterTopics')}</h4>
                             {topics.map((topic, index) => (
                                 <Input
                                     key={index}
                                     type="text"
-                                    placeholder={`Topic ${index + 1}`}
+                                    placeholder={t('forms.topicPlaceholder', { number: index + 1 })}
                                     value={topic}
                                     onChange={(e) => handleTopicChange(index, e.target.value)}
                                 />
                             ))}
                             <Input
                                 type="text"
-                                placeholder="Additional Instructions"
+                                placeholder={t('forms.additionalInstructions')}
                                 value={additionalInstructions}
                                 onChange={(e) => setAdditionalInstructions(e.target.value)}
                             />
                             <div className="flex items-center justify-between space-x-4 w-full">
                                 <Button onClick={addTopic}>
-                                    Add Topic
+                                    {t('buttons.addTopic')}
                                 </Button>
                                 <Button onClick={handleSummarize} disabled={isSummarizing}>
-                                    {isSummarizing ? 'Starting...' : 'Summarize'}
+                                    {isSummarizing ? t('buttons.starting') : t('buttons.summarize')}
                                 </Button>
                             </div>
                         </div>
                     </PopoverContent>
                 </Popover>
                 <Button onClick={handleFixTranscript}>
-                    Fix Transcript
+                    {t('buttons.fixTranscript')}
+                </Button>
+                <Button variant="outline" onClick={handleMarkReviewComplete}>
+                    {t('buttons.markHumanReviewComplete')}
                 </Button>
                 <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
-                    {isSyncingElasticsearch ? 'Syncing...' : 'Sync Elasticsearch'}
+                    {isSyncingElasticsearch ? t('buttons.syncing') : t('buttons.syncElasticsearch')}
                 </Button>
             </div>
         </div>
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Meeting Release</h3>
+            <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.meetingReleaseSubtitle')}</p>
             <div className="flex items-center space-x-2">
                 <Switch
                     id="release-toggle"
                     checked={isReleased}
                     onCheckedChange={handleReleaseToggle}
                 />
-                <Label htmlFor="release-toggle">Released</Label>
+                <Label htmlFor="release-toggle">{t('forms.released')}</Label>
             </div>
         </div>
 
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Notifications</h3>
-            <p className="text-sm text-gray-600 mb-4">
-                Create notifications for users interested in this meeting&apos;s subjects.
+            <h3 className="text-lg font-semibold">{t('sections.notifications')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+                {t('sections.notificationsSubtitle')}
             </p>
             <div className="flex gap-2">
                 <Button
@@ -438,7 +469,7 @@ export default function AdminActions({
                     }}
                 >
                     <Bell className="mr-2 h-4 w-4" />
-                    Before Meeting
+                    {t('buttons.beforeMeeting')}
                 </Button>
                 <Button
                     variant="outline"
@@ -448,7 +479,7 @@ export default function AdminActions({
                     }}
                 >
                     <Bell className="mr-2 h-4 w-4" />
-                    After Meeting
+                    {t('buttons.afterMeeting')}
                 </Button>
             </div>
 
@@ -462,7 +493,8 @@ export default function AdminActions({
         </div>
 
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Cache Management</h3>
+            <h3 className="text-lg font-semibold">{t('sections.cacheManagement')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.cacheManagementSubtitle')}</p>
             <div className="flex space-x-3">
                 <Button
                     onClick={async () => {
@@ -472,22 +504,22 @@ export default function AdminActions({
                             });
                             if (response.ok) {
                                 toast({
-                                    title: "Meeting Cache Invalidated",
-                                    description: "The meeting data will be refreshed on the next request.",
+                                    title: t('toasts.meetingCacheInvalidated.title'),
+                                    description: t('toasts.meetingCacheInvalidated.description'),
                                 });
                             } else {
-                                throw new Error('Failed to invalidate meeting cache');
+                                throw new Error(t('toasts.error.failedToInvalidateMeetingCache'));
                             }
                         } catch (error) {
                             toast({
-                                title: "Error",
-                                description: "Failed to invalidate meeting cache",
+                                title: t('toasts.error.title'),
+                                description: t('toasts.error.failedToInvalidateMeetingCache'),
                                 variant: "destructive"
                             });
                         }
                     }}
                 >
-                    Refresh Meeting Cache
+                    {t('buttons.refreshMeetingCache')}
                 </Button>
 
                 <Button
@@ -499,35 +531,36 @@ export default function AdminActions({
                             });
                             if (response.ok) {
                                 toast({
-                                    title: "City Cache Invalidated",
-                                    description: "The city data will be refreshed on the next request.",
+                                    title: t('toasts.cityCacheInvalidated.title'),
+                                    description: t('toasts.cityCacheInvalidated.description'),
                                 });
                             } else {
                                 const data = await response.json();
-                                throw new Error(data.error || 'Failed to invalidate city cache');
+                                throw new Error(data.error || t('toasts.error.failedToInvalidateCityCache'));
                             }
                         } catch (error) {
                             toast({
-                                title: "Error",
-                                description: error instanceof Error ? error.message : "Failed to invalidate city cache",
+                                title: t('toasts.error.title'),
+                                description: error instanceof Error ? error.message : t('toasts.error.failedToInvalidateCityCache'),
                                 variant: "destructive"
                             });
                         }
                     }}
                 >
-                    Refresh City Cache
+                    {t('buttons.refreshCityCache')}
                 </Button>
             </div>
         </div>
 
         <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">Podcast Specs</h3>
+            <h3 className="text-lg font-semibold">{t('sections.podcastSpecs')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.podcastSpecsSubtitle')}</p>
             <PodcastSpecs />
         </div>
 
         <div className="mt-6">
-
-            <h3 className="text-lg font-semibold mb-4">Export</h3>
+            <h3 className="text-lg font-semibold">{t('sections.export')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.exportSubtitle')}</p>
 
             <MeetingExportButtons
                 getMeetingData={getMeetingData}

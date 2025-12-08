@@ -49,6 +49,33 @@ docker compose up db
 docker compose up -d db
 ```
 
+## Running Commands in Docker
+
+To run any command inside the Docker container with the proper environment, use the universal `exec.sh` script:
+
+```bash
+# Prisma commands
+./exec.sh npx prisma generate
+./exec.sh npx prisma migrate dev
+./exec.sh npx prisma studio
+
+# TypeScript scripts
+./exec.sh npx tsx scripts/find_duplicate_subjects.ts --city chania
+./exec.sh tsx scripts/email_municipality.ts
+
+# NPM scripts
+./exec.sh npm run test
+./exec.sh npm run build
+
+# Interactive shell
+./exec.sh /bin/sh
+```
+
+The `exec.sh` script will:
+- Load your environment variables from `.env`
+- Start the container if it's not running
+- Execute your command with the proper environment
+
 ## Database Operations
 
 The system handles database operations differently depending on which mode you're using:
@@ -120,6 +147,33 @@ In our Prisma setup:
 - `DIRECT_URL`: Direct database connection that bypasses connection poolers. Required for migrations and managing extensions like postgis.
 
 For local development, both URLs typically point to the same database. In production, they may differ if using connection pooling.
+
+## Prisma Operations
+
+For Prisma-specific operations, you can use `exec.sh`:
+
+```bash
+# Generate Prisma client
+./exec.sh npx prisma generate
+
+# Run migrations
+./exec.sh npx prisma migrate dev
+
+# Deploy migrations
+./exec.sh npx prisma migrate deploy
+
+# Open Prisma Studio
+./exec.sh npx prisma studio
+
+# Push schema to database
+./exec.sh npx prisma db push
+
+# Seed database
+./exec.sh npm run db:deploy:seed
+
+# Reset database (WARNING: destructive!)
+./exec.sh npx prisma migrate reset
+```
 
 ## Managing Docker Resources
 

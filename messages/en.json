@@ -213,7 +213,8 @@
         "noDataAvailable": "No data available",
         "loading": "Loading...",
         "totalSpeakingTime": "Total Speaking Time",
-        "totalMinutes": "Total speaking minutes"
+        "totalMinutes": "Total speaking minutes",
+        "allTopics": "All Topics"
     },
     "OfferForm": {
         "respondToName": "Responsible Person Name",
@@ -335,5 +336,16 @@
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more"
+    },
+    "MeetingStatus": {
+        "scheduled": "Scheduled",
+        "ready": "Ready",
+        "notReady": "Not Ready",
+        "requiredForCompletion": "Required for completion",
+        "processAgenda": "Agenda processed",
+        "transcribe": "Transcribed",
+        "fixTranscript": "Automatic correction",
+        "humanReview": "Human reviewed",
+        "summarize": "Summarized"
     }
 }

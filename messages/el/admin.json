@@ -1,0 +1,180 @@
+{
+  "taskStatus": {
+    "pending": "Σε εκκρεμότητα",
+    "succeeded": "Ολοκληρώθηκε",
+    "failed": "Απέτυχε",
+    "unknownError": "Άγνωστο σφάλμα",
+      "deleteDialog": {
+        "title": "Διαγραφή εργασίας;",
+        "description": "Αυτή η ενέργεια θα αφαιρέσει οριστικά την εργασία και τις σχετικές πληροφορίες προόδου.",
+        "warning": "Η ενέργεια δεν μπορεί να αναιρεθεί.",
+        "cancel": "Ακύρωση",
+        "confirm": "Διαγραφή εργασίας"
+      },
+    "reprocessDialog": {
+      "title": "Επανεκτέλεση από Βάση Δεδομένων: {taskType}",
+      "explanation": "Όταν εκτελείται μια εργασία, αποθηκεύουμε πάντα το raw αποτέλεσμα στη βάση δεδομένων, ώστε να μπορείτε να το επεξεργαστείτε ξανά, χωρίς να χρειάζεται να επανεκτέλεσετε το task.",
+      "transcribe": {
+        "description": "Θέλετε να διαγράψετε τα υπάρχοντα δεδομένα πριν την επανεπεξεργασία;",
+        "warning": "Για το transcribe, συνιστάται η διαγραφή πρώτα για να αποφύγετε διπλότυπα."
+      },
+      "default": {
+        "description": "Τώρα η εργασία αυτή θα επανεκτελεστεί, χρησιμοποιώντας το raw αποτέλεσμα που αρχικά μας επέστρεψε ο task server.",
+        "info": "Τα υπάρχοντα δεδομένα θα ενημερωθούν αυτόματα."
+      },
+      "buttons": {
+        "cancel": "Ακύρωση",
+        "reprocessOnly": "Μόνο Επανεπεξεργασία",
+        "deleteAndReprocess": "Διαγραφή & Επανεπεξεργασία",
+        "reprocess": "Επανεκτέλεση από Βάση",
+        "reprocessing": "Επεξεργασία...",
+        "processing": "Επεξεργασία...",
+        "done": "Ολοκληρώθηκε"
+      },
+      "feedback": {
+        "success": "Η εργασία επανεπεξεργάστηκε επιτυχώς!",
+        "error": "Αποτυχία επανεπεξεργασίας εργασίας"
+      }
+    }
+  },
+  "taskList": {
+    "noTasks": "Δεν εκτελούνται εργασίες"
+  },
+  "adminActions": {
+    "sections": {
+      "meetingDetails": "Διαχείριση Συνεδρίας",
+      "meetingDetailsSubtitle": "",
+      "taskStatuses": "Κατάσταση Εργασιών",
+      "taskStatusesSubtitle": "Παρακολούθηση εργασιών που εκτελούνται στο backend.",
+      "requestNewTasks": "Αίτημα Νέων Εργασιών",
+      "requestNewTasksSubtitle": "Εκκίνηση εργασιών επεξεργασίας στο backend της πλατφόρμας.",
+      "meetingRelease": "Δημοσίευση Συνεδρίας",
+      "meetingReleaseSubtitle": "Έλεγχος της δημόσιας ορατότητας αυτής της συνεδρίας.",
+      "notifications": "Ειδοποιήσεις",
+      "notificationsSubtitle": "Δημιουργία ειδοποιήσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίας.",
+      "cacheManagement": "Διαχείριση Cache",
+      "cacheManagementSubtitle": "Εξαναγκασμός ανανέωσης των δεδομένων cache για άμεση προβολή αλλαγών.",
+      "podcastSpecs": "Podcast Specs",
+      "podcastSpecsSubtitle": "Διαχείριση προδιαγραφών δημιουργίας podcast για αυτή τη συνεδρία.",
+      "export": "Εξαγωγή",
+      "exportSubtitle": "Λήψη δεδομένων συνεδρίας σε διάφορες μορφές."
+    },
+    "buttons": {
+      "editMeeting": "Επεξεργασία Συνεδρίας",
+      "transcribe": "transcribe",
+      "processAgenda": "processAgenda",
+      "summarize": "summarize",
+      "fixTranscript": "fixTranscript",
+      "markHumanReviewComplete": "markHumanReviewComplete",
+      "syncElasticsearch": "syncElasticsearch",
+      "beforeMeeting": "beforeMeeting",
+      "afterMeeting": "afterMeeting",
+      "refreshMeetingCache": "Ανανέωση Cache Συνεδρίας",
+      "refreshCityCache": "Ανανέωση Cache Πόλης",
+      "addTopic": "Προσθήκη Θέματος",
+      "starting": "Ξεκινάει...",
+      "syncing": "Συγχρονισμός...",
+      "process": "Επεξεργασία"
+    },
+    "forms": {
+      "enterMediaUrl": "Εισάγετε URL Μέσου",
+      "enterAgendaUrl": "Εισάγετε URL Ατζέντας",
+      "enterTopics": "Εισάγετε Θέματα",
+      "additionalInstructions": "Πρόσθετες Οδηγίες",
+      "mediaUrlPlaceholder": "https://... (YouTube, mp4, mp3)",
+      "agendaUrlPlaceholder": "https://...",
+      "topicPlaceholder": "Θέμα {number}",
+      "force": "Force",
+      "released": "Δημοσιευμένη"
+    },
+    "toasts": {
+      "transcriptionRequested": {
+        "title": "Αίτημα μεταγραφής",
+        "description": "Η διαδικασία μεταγραφής ξεκίνησε."
+      },
+      "errorRequestingTranscription": {
+        "title": "Σφάλμα αιτήματος μεταγραφής"
+      },
+      "summarizationRequested": {
+        "title": "Αίτημα περίληψης",
+        "description": "Η διαδικασία περίληψης ξεκίνησε."
+      },
+      "errorRequestingSummarization": {
+        "title": "Σφάλμα αιτήματος περίληψης"
+      },
+      "fixTranscriptRequested": {
+        "title": "Αίτημα διόρθωσης μεταγραφής",
+        "description": "Η διαδικασία διόρθωσης μεταγραφής ξεκίνησε."
+      },
+      "errorRequestingTranscriptFix": {
+        "title": "Σφάλμα αιτήματος διόρθωσης μεταγραφής"
+      },
+      "humanReviewComplete": {
+        "title": "Ο ανθρώπινος έλεγχος ολοκληρώθηκε",
+        "description": "Η συνεδρία σημειώθηκε ως ελεγμένη από άνθρωπο."
+      },
+      "errorMarkingReviewComplete": {
+        "title": "Σφάλμα σημείωσης ολοκλήρωσης ελέγχου"
+      },
+      "taskDeleted": {
+        "title": "Η εργασία διαγράφηκε",
+        "description": "Η εργασία {taskId} διαγράφηκε επιτυχώς."
+      },
+      "errorDeletingTask": {
+        "title": "Σφάλμα διαγραφής εργασίας"
+      },
+      "meetingReleased": {
+        "title": "Η Συνεδρία Δημοσιεύτηκε",
+        "description": "Η συνεδρία δημοσιεύτηκε."
+      },
+      "meetingUnreleased": {
+        "title": "Η Συνεδρία Αποσύρθηκε",
+        "description": "Η συνεδρία αποσύρθηκε."
+      },
+      "errorTogglingRelease": {
+        "title": "Σφάλμα εναλλαγής δημοσίευσης συνεδρίας"
+      },
+      "agendaProcessingRequested": {
+        "title": "Αίτημα επεξεργασίας ατζέντας",
+        "description": "Η επεξεργασία της ατζέντας ξεκίνησε."
+      },
+      "errorProcessingAgenda": {
+        "title": "Σφάλμα επεξεργασίας ατζέντας"
+      },
+      "elasticsearchSyncRequested": {
+        "title": "Αίτημα συγχρονισμού Elasticsearch",
+        "description": "Η διαδικασία πλήρους συγχρονισμού ξεκίνησε."
+      },
+      "errorRequestingElasticsearchSync": {
+        "title": "Σφάλμα αιτήματος συγχρονισμού Elasticsearch"
+      },
+      "notificationsCreated": {
+        "title": "Οι ειδοποιήσεις δημιουργήθηκαν",
+        "description": "Δημιουργήθηκαν {count} ειδοποιήσεις για {total} θέματα. {immediate}"
+      },
+      "sentImmediately": "Στάλθηκαν αμέσως.",
+      "pendingApproval": "Εκκρεμεί έγκριση διαχειριστή.",
+      "errorCreatingNotifications": {
+        "title": "Σφάλμα δημιουργίας ειδοποιήσεων"
+      },
+      "errorFetchingTaskStatuses": {
+        "title": "Σφάλμα ανάκτησης καταστάσεων εργασιών"
+      },
+      "unknownError": "Προέκυψε άγνωστο σφάλμα",
+      "meetingCacheInvalidated": {
+        "title": "Το Cache της Συνεδρίας Ακυρώθηκε",
+        "description": "Τα δεδομένα της συνεδρίας θα ανανεωθούν στο επόμενο αίτημα."
+      },
+      "cityCacheInvalidated": {
+        "title": "Το Cache της Πόλης Ακυρώθηκε",
+        "description": "Τα δεδομένα της πόλης θα ανανεωθούν στο επόμενο αίτημα."
+      },
+      "error": {
+        "title": "Σφάλμα",
+        "failedToInvalidateMeetingCache": "Αποτυχία ακύρωσης cache συνεδρίας",
+        "failedToInvalidateCityCache": "Αποτυχία ακύρωσης cache πόλης"
+      }
+    }
+  }
+}
+

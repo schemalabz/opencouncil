@@ -20,9 +20,9 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
-import { StatisticsOfPerson } from "@/lib/statistics";
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { RoleDisplay } from './RoleDisplay';
+import { TopicFilter } from '@/components/TopicFilter';
 
 type RoleWithRelations = Role & {
     party?: Party | null;
@@ -45,6 +45,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
+    const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
     // Filter administrative bodies to only include those related to the person
@@ -53,6 +54,12 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             person.roles.some(role => role.administrativeBodyId === adminBody.id)
         ),
         [administrativeBodies, person.roles]);
+
+    // Filter topics to only show ones relevant to this person based on statistics
+    const relevantTopics = useMemo(() => {
+        if (!statistics.topics) return [];
+        return statistics.topics.map(t => t.item).sort((a, b) => a.name.localeCompare(b.name));
+    }, [statistics.topics]);
 
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
@@ -83,7 +90,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     1,
                     5,
-                    selectedAdminBodyId
+                    selectedAdminBodyId,
+                    selectedTopicId
                 );
                 setLatestSegments(results);
                 setTotalCount(totalCount);
@@ -95,7 +103,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         fetchLatestSegments();
-    }, [person.id, selectedAdminBodyId]);
+    }, [person.id, selectedAdminBodyId, selectedTopicId]);
 
     useEffect(() => {
         const loadMoreSegments = async () => {
@@ -106,7 +114,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     page,
                     5,
-                    selectedAdminBodyId
+                    selectedAdminBodyId,
+                    selectedTopicId
                 );
                 setLatestSegments(prevSegments => [...prevSegments, ...results]);
             } catch (error) {
@@ -116,7 +125,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         loadMoreSegments();
-    }, [person.id, page, selectedAdminBodyId]);
+    }, [person.id, page, selectedAdminBodyId, selectedTopicId]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -150,16 +159,14 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         }
     }
 
-    const formatActiveDates = (from: Date | null, to: Date | null) => {
-        if (!to && !from) return null;
-        if (to && !from) return `${t('activeUntil')} ${formatDateRange(null, to, t)}`;
-        if (from && to) return `${t('active')}: ${formatDateRange(from, to, t)}`;
-        return null;
-    };
-
     // Handler for administrative body selection
     const handleAdminBodySelect = (adminBodyId: string | null) => {
         setSelectedAdminBodyId(adminBodyId);
+    };
+
+    // Handler for topic selection
+    const handleTopicSelect = (topicId: string | null) => {
+        setSelectedTopicId(topicId);
     };
 
     return (
@@ -386,6 +393,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         className="relative"
                     >
                         <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentSegments', { fallback: 'Πρόσφατες τοποθετήσεις' })}</h2>
+
+                        {/* Topic Filter */}
+                        {relevantTopics.length > 0 && (
+                            <TopicFilter 
+                                topics={relevantTopics}
+                                selectedTopicId={selectedTopicId}
+                                onSelectTopic={handleTopicSelect}
+                            />
+                        )}
 
                         {isLoadingSegments && latestSegments.length === 0 ? (
                             <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">

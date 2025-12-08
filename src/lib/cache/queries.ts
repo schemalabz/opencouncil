@@ -7,6 +7,7 @@ import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getMeetingData, MeetingData } from "@/lib/getMeetingData";
+import { getMeetingStatus } from "@/lib/meetingStatus";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
 
@@ -64,6 +65,17 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit }:
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
     ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * Cached derived status per meeting
+ */
+export async function getMeetingStatusCached(cityId: string, meetingId: string) {
+    return createCache(
+        () => getMeetingStatus(cityId, meetingId),
+    ['city', cityId, 'meetings', 'derived', meetingId],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}:derived`] }
   )();
 }
 

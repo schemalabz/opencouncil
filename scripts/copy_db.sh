@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -50,6 +50,7 @@ TABLES=(
     "Person"
     "Role"
     "CouncilMeeting"
+    "TaskStatus"
     "SpeakerTag"
     "SpeakerSegment"
     "Utterance"

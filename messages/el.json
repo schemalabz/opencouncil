@@ -387,7 +387,8 @@
         "totalMinutes": "λεπτά ομιλίας",
         "topicsList": "Θέματα",
         "topSpeakers": "Κορυφαίοι Ομιλητές",
-        "minutes": "λεπτά"
+        "minutes": "λεπτά",
+        "allTopics": "Όλα τα θέματα"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
@@ -518,5 +519,16 @@
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
         "failedToDelete": "Αποτυχία διαγραφής"
+    },
+    "MeetingStatus": {
+        "scheduled": "Προγραμματισμένη",
+        "ready": "Ολοκληρωμένη",
+        "notReady": "Μη Ολοκληρωμένη",
+        "requiredForCompletion": "Απαιτείται για ολοκλήρωση",
+        "processAgenda": "Ημερήσια Διάταξη Επεξεργασμένη",
+        "transcribe": "Απομαγνητοφωνημένη",
+        "fixTranscript": "Αυτόματη Διόρθωση",
+        "humanReview": "Αξιολογημένη από άνθρωπο",
+        "summarize": "Summarized"
     }
 }

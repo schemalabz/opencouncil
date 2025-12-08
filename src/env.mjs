@@ -52,6 +52,13 @@ export const env = createEnv({
     BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: z.string().optional(),  // Template project ID from Bird Studio
     BIRD_WHATSAPP_TEMPLATE_WELCOME: z.string().optional(),  // Welcome template when user signs up
 
+    // Google Calendar Integration (OAuth 2.0)
+    GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
+    GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_CALENDAR_REFRESH_TOKEN: z.string().optional(),
+    GOOGLE_CALENDAR_ID: z.string().optional(),
+    GOOGLE_CALENDAR_ENABLED: z.string().optional(),
+
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
     SEED_DATA_URL: z.string().url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
@@ -104,6 +111,11 @@ export const env = createEnv({
     BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING,
     BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: process.env.BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING,
     BIRD_WHATSAPP_TEMPLATE_WELCOME: process.env.BIRD_WHATSAPP_TEMPLATE_WELCOME,
+    GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    GOOGLE_CALENDAR_REFRESH_TOKEN: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
+    GOOGLE_CALENDAR_ID: process.env.GOOGLE_CALENDAR_ID,
+    GOOGLE_CALENDAR_ENABLED: process.env.GOOGLE_CALENDAR_ENABLED,
     DEV_TEST_CITY_ID: process.env.DEV_TEST_CITY_ID,
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,

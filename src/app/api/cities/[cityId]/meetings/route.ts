@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
+import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
 import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
@@ -65,13 +66,17 @@ export async function POST(
         revalidateTag(`city:${cityId}:meetings`);
         revalidatePath(`/${cityId}`, "layout");
 
-        // Send Discord admin alert
+        // Fetch city data (should exist since meeting was created successfully)
         const city = await prisma.city.findUnique({
             where: { id: cityId },
-            select: { name_en: true }
+            select: { name_en: true, name: true, timezone: true }
         });
 
-        if (city) {
+        if (!city) {
+            console.error(`City ${cityId} not found after meeting creation - this should not happen`);
+            // Continue without city data - meeting was already created
+        } else {
+            // Send Discord admin alert
             sendMeetingCreatedAdminAlert({
                 cityName: city.name_en,
                 meetingName: name_en,
@@ -79,6 +84,41 @@ export async function POST(
                 meetingId: meetingId,
                 cityId: cityId,
             });
+
+            // Sync to Google Calendar
+            try {
+                // Build title in format: "city.name: administrative body.name" (using local names)
+                let calendarTitle = city.name;
+                
+                if (meeting.administrativeBody?.name) {
+                    calendarTitle += `: ${meeting.administrativeBody.name}`;
+                }
+
+                // Build description with agenda URL and meeting link
+                const meetingUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/${cityId}/${meetingId}`;
+                const descriptionParts: string[] = [];
+                
+                if (meeting.agendaUrl) {
+                    descriptionParts.push(`Ημερήσια Διάταξη: ${meeting.agendaUrl}`);
+                }
+                
+                descriptionParts.push(`${meetingUrl}`);
+
+                const endTime = calculateMeetingEndTime(date, 2); // Default 2 hour meetings
+                
+                await createMeetingCalendarEvent({
+                    title: calendarTitle,
+                    description: descriptionParts.join('\n\n'),
+                    startTime: date,
+                    endTime: endTime,
+                    timezone: city.timezone
+                });
+
+                console.log('Meeting synced to Google Calendar successfully');
+            } catch (error) {
+                // Don't fail the meeting creation if calendar sync fails
+                console.error('Failed to sync meeting to Google Calendar:', error);
+            }
         }
 
         return NextResponse.json(meeting, { status: 201 });
