@@ -4,6 +4,13 @@
     "succeeded": "Succeeded",
     "failed": "Failed",
     "unknownError": "Unknown error",
+      "deleteDialog": {
+        "title": "Delete task?",
+        "description": "This will permanently remove the task status and any related progress information.",
+        "warning": "This action cannot be undone.",
+        "cancel": "Cancel",
+        "confirm": "Delete task"
+      },
     "reprocessDialog": {
       "title": "Reprocess from Database: {taskType}",
       "explanation": "When a task runs, we always save its result to the database, so you can process it again later, without having to re-run the task on the task server.",

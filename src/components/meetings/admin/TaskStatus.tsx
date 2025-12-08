@@ -31,6 +31,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
     const [isStale, setIsStale] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [showReprocessDialog, setShowReprocessDialog] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [isReprocessing, setIsReprocessing] = useState(false);
     const [activeReprocessAction, setActiveReprocessAction] = useState<'reprocess' | 'delete' | null>(null);
     const [reprocessError, setReprocessError] = useState<string | null>(null);
@@ -118,7 +119,7 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                             className="h-5 w-5 p-0"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onDelete(task.id);
+                                setShowDeleteDialog(true);
                             }}
                         >
                             {isStale ? (
@@ -319,6 +320,38 @@ export function TaskStatusComponent({ task, onDelete }: TaskStatusComponentProps
                                 )}
                             </Button>
                         )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                    <DialogHeader>
+                        <DialogTitle>{tStatus('deleteDialog.title')}</DialogTitle>
+                        <DialogDescription className="space-y-2">
+                            <p>{tStatus('deleteDialog.description')}</p>
+                            <p className="text-muted-foreground">{tStatus('deleteDialog.warning')}</p>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex flex-wrap gap-2 sm:justify-end">
+                        <Button
+                            variant="outline"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteDialog(false);
+                            }}
+                        >
+                            {tStatus('deleteDialog.cancel')}
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(task.id);
+                                setShowDeleteDialog(false);
+                            }}
+                        >
+                            {tStatus('deleteDialog.confirm')}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
