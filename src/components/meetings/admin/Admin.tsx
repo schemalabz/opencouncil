@@ -20,7 +20,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Bell } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
-import { requestSyncElasticsearch } from '@/lib/tasks/syncElasticsearch';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
 import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
@@ -35,7 +34,6 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
-    const [isSyncingElasticsearch, setIsSyncingElasticsearch] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -238,26 +236,6 @@ export default function AdminActions({
         }
     };
 
-    const handleSyncElasticsearch = async () => {
-        setIsSyncingElasticsearch(true);
-        try {
-            // PostgreSQL connector supports only full sync, so we use that
-            await requestSyncElasticsearch(meeting.cityId, meeting.id, 'full');
-            toast({
-                title: t('toasts.elasticsearchSyncRequested.title'),
-                description: t('toasts.elasticsearchSyncRequested.description'),
-            });
-        } catch (error) {
-            toast({
-                title: t('toasts.errorRequestingElasticsearchSync.title'),
-                description: `${error}`,
-                variant: 'destructive'
-            });
-        } finally {
-            setIsSyncingElasticsearch(false);
-        }
-    };
-
     const handleCreateNotifications = async (
         type: 'beforeMeeting' | 'afterMeeting',
         subjectImportances: Record<string, { topicImportance: string; proximityImportance: string }>,
@@ -437,9 +415,6 @@ export default function AdminActions({
                 </Button>
                 <Button variant="outline" onClick={handleMarkReviewComplete}>
                     {t('buttons.markHumanReviewComplete')}
-                </Button>
-                <Button onClick={handleSyncElasticsearch} disabled={isSyncingElasticsearch}>
-                    {isSyncingElasticsearch ? t('buttons.syncing') : t('buttons.syncElasticsearch')}
                 </Button>
             </div>
         </div>
