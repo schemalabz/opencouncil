@@ -5,6 +5,7 @@ import prisma from "@/lib/db/prisma";
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters } from './filters';
+import { executeElasticsearchWithRetry } from './retry';
 import { getCities } from '@/lib/db/cities';
 import { env } from '@/env.mjs';
 
@@ -65,9 +66,17 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
             locations: processedFilters.locations || request.locations
         };
 
-        // Build and execute the search query
+        // Build and execute the search query with retry logic
         const searchQuery = buildSearchQuery(mergedRequest, extractedFilters);
-        const response = await client.search(searchQuery);
+        
+        logEssential('Executing search query', { 
+            hasSemanticSearch: request.config?.enableSemanticSearch 
+        });
+
+        const response = await executeElasticsearchWithRetry(
+            () => client.search(searchQuery),
+            'Search'
+        );
 
         // Get total hits
         const total = response.hits.total as { value: number; relation: string };
