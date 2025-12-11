@@ -23,7 +23,6 @@ interface CityStatus {
 
 interface ElasticsearchStatusData {
     lastSync: number;
-    database: string;
     cities: CityStatus[];
 }
 
@@ -114,8 +113,7 @@ export default function ElasticsearchStatus() {
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mb-4">
                     <div>
-                        <p><strong>Last Sync (via _timestamp):</strong> {status.lastSync ? format(new Date(status.lastSync), 'PPP p') : 'N/A'}</p>
-                        <p><strong>Source Database:</strong> {status.database || 'N/A'}</p>
+                        <p><strong>Last Updated:</strong> {status.lastSync ? format(new Date(status.lastSync), 'PPP p') : 'N/A'}</p>
                     </div>
                     <div className="flex items-center justify-end space-x-2">
                         <Switch

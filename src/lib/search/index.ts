@@ -86,7 +86,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
 
         // Process the results
         const subjectIds = (response.hits.hits as Array<any>)
-            .map(hit => hit._source?.public_subject_id)
+            .map(hit => hit._source?.id)
             .filter((id): id is string => id !== undefined);
 
         // Fetch all subjects in a single query
@@ -173,13 +173,13 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     throw new Error('Elasticsearch hit source is undefined');
                 }
 
-                const subject = subjectMap.get(hit._source.public_subject_id);
+                const subject = subjectMap.get(hit._source.id);
                 if (!subject) {
                     logEssential('[Search] Subject not found', {
-                        subjectId: hit._source.public_subject_id,
+                        subjectId: hit._source.id,
                         score: hit._score
                     });
-                    throw new Error(`Subject ${hit._source.public_subject_id} not found`);
+                    throw new Error(`Subject ${hit._source.id} not found`);
                 }
 
                 // Get location coordinates if available
@@ -195,7 +195,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                 }
 
                 // Process inner hits for speaker segments
-                const matchedSpeakerSegmentIds = hit.inner_hits?.['public_subject_speaker_segments']?.hits?.hits
+                const matchedSpeakerSegmentIds = hit.inner_hits?.['speaker_segments']?.hits?.hits
                     .map((innerHit: { _source?: { segment_id?: string } }) => innerHit._source?.segment_id)
                     .filter((id: string | undefined): id is string => id !== undefined);
 

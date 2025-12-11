@@ -5,7 +5,6 @@ import { handleSplitMediaFileResult } from './splitMediaFile';
 import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
-import { handleSyncElasticsearchResult } from './syncElasticsearch';
 import { handleGenerateHighlightResult } from './generateHighlight';
 
 // Task handler registry - maps task types to their result handlers
@@ -19,7 +18,6 @@ export const taskHandlers: Record<string, TaskResultHandler> = {
     fixTranscript: handleFixTranscriptResult,
     processAgenda: handleProcessAgendaResult,
     generateVoiceprint: handleGenerateVoiceprintResult,
-    syncElasticsearch: handleSyncElasticsearchResult,
     generateHighlight: handleGenerateHighlightResult,
 };
 
