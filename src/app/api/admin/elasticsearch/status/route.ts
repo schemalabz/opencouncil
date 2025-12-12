@@ -69,7 +69,29 @@ export async function GET() {
             };
         }
 
-        // 2. Fetch data from Elasticsearch (only released meetings to match PostgreSQL query)
+        // 2. Fetch recent indexed documents (all fields) to get true last sync time
+        const recentDocsResponse = await client.search({
+            index: 'subjects',
+            size: 20,
+            sort: [{ 'updated_at': { order: 'desc' } }]
+        });
+
+        const recentDocuments = (recentDocsResponse.hits.hits as any[]).map(hit => ({
+            id: hit._source.id,
+            name: hit._source.name,
+            cityId: hit._source.city_id,
+            cityName: hit._source.city_name,
+            meetingId: hit._source.councilMeeting_id,
+            meetingDate: hit._source.meeting_date,
+            meetingReleased: hit._source.meeting_released,
+            updatedAt: hit._source.updated_at,
+            fullDocument: hit._source
+        }));
+
+        // Get last sync from the most recently updated document (regardless of release status)
+        const lastSync = recentDocuments.length > 0 ? recentDocuments[0].updatedAt : null;
+
+        // 2b. Fetch city aggregations (only released meetings to match PostgreSQL query)
         const esResponse = await client.search({
             index: 'subjects',
             size: 0,
@@ -79,11 +101,6 @@ export async function GET() {
                 }
             },
             aggs: {
-                last_updated: {
-                    max: {
-                        field: 'updated_at'
-                    }
-                },
                 cities: {
                     terms: {
                         field: 'city_id',
@@ -107,7 +124,6 @@ export async function GET() {
             }
         });
 
-        const lastSync = (esResponse.aggregations?.last_updated as any)?.value;
         const esCityBuckets = (esResponse.aggregations?.cities as any)?.buckets || [];
 
         // 3. Merge data
@@ -128,6 +144,7 @@ export async function GET() {
         return NextResponse.json({
             lastSync,
             cities: mergedStatus.sort((a, b) => a.cityName.localeCompare(b.cityName)),
+            recentDocuments,
         });
 
     } catch (error) {
