@@ -66,7 +66,6 @@
       "summarize": "summarize",
       "fixTranscript": "fixTranscript",
       "markHumanReviewComplete": "markHumanReviewComplete",
-      "syncElasticsearch": "syncElasticsearch",
       "beforeMeeting": "beforeMeeting",
       "afterMeeting": "afterMeeting",
       "refreshMeetingCache": "Refresh Meeting Cache",
@@ -140,13 +139,6 @@
       },
       "errorProcessingAgenda": {
         "title": "Error processing agenda"
-      },
-      "elasticsearchSyncRequested": {
-        "title": "Elasticsearch sync requested",
-        "description": "The full sync process has started."
-      },
-      "errorRequestingElasticsearchSync": {
-        "title": "Error requesting Elasticsearch sync"
       },
       "notificationsCreated": {
         "title": "Notifications created",
