@@ -369,28 +369,3 @@ export interface GenerateVoiceprintResult {
     voiceprint: string; // Voiceprint embedding vector in base64
     duration: number; // Duration of the audio
 }
-
-
-/*
- * Sync Elasticsearch
- */
-
-export interface SyncElasticsearchRequest extends TaskRequest {
-    job_type?: 'full' | 'incremental' | 'access_control';
-    trigger_method?: 'on_demand' | 'scheduled';
-}
-
-export interface SyncElasticsearchResult {
-    id: string;
-    status: 'canceling' | 'canceled' | 'completed' | 'error' | 'in_progress' | 'pending' | 'suspended';
-    job_type: 'full' | 'incremental' | 'access_control';
-    trigger_method?: 'on_demand' | 'scheduled';
-    error?: string;
-    created_at: string | number;
-    started_at?: string | number;
-    last_seen?: string | number;
-    completed_at?: string | number;
-    total_document_count?: number;
-    indexed_document_count?: number;
-    deleted_document_count?: number;
-}
