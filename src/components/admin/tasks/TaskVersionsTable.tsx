@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { MeetingTaskType } from '@/lib/tasks/types';
 import {
     Table,
     TableBody,
@@ -37,7 +38,7 @@ interface City {
 interface TaskVersionsTableProps {
     highestVersions: Record<string, TaskVersion>;
     citiesData: Record<string, City>;
-    taskTypes: string[];
+    taskTypes: MeetingTaskType[];
 }
 
 export default function TaskVersionsTable({

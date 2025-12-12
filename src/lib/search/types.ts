@@ -71,8 +71,8 @@ export interface ExtractedFilters {
 
 // Elasticsearch document type
 export interface SubjectDocument {
-    public_subject_id: string;
-    public_subject_name: string;
-    public_subject_description: string;
-    public_subject_location_text: string;
+    id: string;
+    name: string;
+    description: string;
+    location_text: string;
 }

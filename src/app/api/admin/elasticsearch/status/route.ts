@@ -69,34 +69,54 @@ export async function GET() {
             };
         }
 
-        // 2. Fetch data from Elasticsearch
+        // 2. Fetch recent indexed documents (all fields) to get true last sync time
+        const recentDocsResponse = await client.search({
+            index: 'subjects',
+            size: 20,
+            sort: [{ 'updated_at': { order: 'desc' } }]
+        });
+
+        const recentDocuments = (recentDocsResponse.hits.hits as any[]).map(hit => ({
+            id: hit._source.id,
+            name: hit._source.name,
+            cityId: hit._source.city_id,
+            cityName: hit._source.city_name,
+            meetingId: hit._source.councilMeeting_id,
+            meetingDate: hit._source.meeting_date,
+            meetingReleased: hit._source.meeting_released,
+            updatedAt: hit._source.updated_at,
+            fullDocument: hit._source
+        }));
+
+        // Get last sync from the most recently updated document (regardless of release status)
+        const lastSync = recentDocuments.length > 0 ? recentDocuments[0].updatedAt : null;
+
+        // 2b. Fetch city aggregations (only released meetings to match PostgreSQL query)
         const esResponse = await client.search({
             index: 'subjects',
             size: 0,
+            query: {
+                term: {
+                    meeting_released: true
+                }
+            },
             aggs: {
-                last_sync_info: {
-                    top_hits: {
-                        size: 1,
-                        sort: [{ '_timestamp': { order: 'desc' } }],
-                        _source: ['_timestamp', 'database']
-                    }
-                },
                 cities: {
                     terms: {
-                        field: 'public_subject_city_id',
+                        field: 'city_id',
                         size: citiesFromDb.length || 100
                     },
                     aggs: {
                         latest_meeting: {
                             top_hits: {
                                 size: 1,
-                                sort: [{ 'public_subject_meeting_date': { order: 'desc' } }],
-                                _source: ['public_subject_councilmeeting_id']
+                                sort: [{ 'meeting_date': { order: 'desc' } }],
+                                _source: ['councilMeeting_id']
                             }
                         },
                         total_meetings: {
                             cardinality: {
-                                field: "public_subject_councilmeeting_id.keyword"
+                                field: "councilMeeting_id"
                             }
                         }
                     }
@@ -104,9 +124,6 @@ export async function GET() {
             }
         });
 
-        const lastSyncHit = (esResponse.aggregations?.last_sync_info as any)?.hits.hits[0];
-        const lastSync = lastSyncHit?._source?._timestamp;
-        const database = lastSyncHit?._source?.database;
         const esCityBuckets = (esResponse.aggregations?.cities as any)?.buckets || [];
 
         // 3. Merge data
@@ -117,7 +134,7 @@ export async function GET() {
             
             return {
                 ...pgCity,
-                latestMeetingIdElastic: source?.public_subject_councilmeeting_id || null,
+                latestMeetingIdElastic: source?.councilMeeting_id || null,
                 totalMeetingsElastic: esCity?.total_meetings.value || 0,
                 totalSubjectsElastic: esCity?.doc_count || 0,
                 isInElastic: !!esCity,
@@ -126,8 +143,8 @@ export async function GET() {
 
         return NextResponse.json({
             lastSync,
-            database,
             cities: mergedStatus.sort((a, b) => a.cityName.localeCompare(b.cityName)),
+            recentDocuments,
         });
 
     } catch (error) {

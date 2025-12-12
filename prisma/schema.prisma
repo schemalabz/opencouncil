@@ -909,3 +909,14 @@ enum NotificationDeliveryStatus {
   sent
   failed
 }
+
+// QR Campaigns for short redirects
+model QrCampaign {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  url       String
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

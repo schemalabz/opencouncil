@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, FileJson } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { JsonMetadataDialog } from '@/components/ui/json-metadata-dialog';
 
 interface CityStatus {
     cityId: string;
@@ -21,10 +23,22 @@ interface CityStatus {
     isListed: boolean;
 }
 
+interface RecentDocument {
+    id: string;
+    name: string;
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingDate: string;
+    meetingReleased: boolean;
+    updatedAt: string;
+    fullDocument: any;
+}
+
 interface ElasticsearchStatusData {
     lastSync: number;
-    database: string;
     cities: CityStatus[];
+    recentDocuments: RecentDocument[];
 }
 
 const StatusIndicator = ({ inSync }: { inSync: boolean }) => {
@@ -40,6 +54,7 @@ export default function ElasticsearchStatus() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showUnlisted, setShowUnlisted] = useState(false);
+    const [selectedDoc, setSelectedDoc] = useState<RecentDocument | null>(null);
 
     useEffect(() => {
         async function fetchStatus() {
@@ -107,72 +122,139 @@ export default function ElasticsearchStatus() {
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Elasticsearch Sync Status (Released Meetings)</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mb-4">
-                    <div>
-                        <p><strong>Last Sync (via _timestamp):</strong> {status.lastSync ? format(new Date(status.lastSync), 'PPP p') : 'N/A'}</p>
-                        <p><strong>Source Database:</strong> {status.database || 'N/A'}</p>
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Elasticsearch Sync Status (Released Meetings)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 mb-4">
+                        <div>
+                            <p><strong>Last Updated:</strong> {status.lastSync ? format(new Date(status.lastSync), 'PPP p') : 'N/A'}</p>
+                        </div>
+                        <div className="flex items-center justify-end space-x-2">
+                            <Switch
+                                id="show-unlisted"
+                                checked={showUnlisted}
+                                onCheckedChange={setShowUnlisted}
+                            />
+                            <Label htmlFor="show-unlisted">Show Unlisted Cities</Label>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-end space-x-2">
-                        <Switch
-                            id="show-unlisted"
-                            checked={showUnlisted}
-                            onCheckedChange={setShowUnlisted}
-                        />
-                        <Label htmlFor="show-unlisted">Show Unlisted Cities</Label>
-                    </div>
-                </div>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead rowSpan={2} className="align-bottom">City</TableHead>
-                            <TableHead colSpan={2} className="text-center">Latest Meeting ID</TableHead>
-                            <TableHead colSpan={2} className="text-center">Total Meetings</TableHead>
-                            <TableHead rowSpan={2} className="align-bottom text-center">Total Subjects (ES)</TableHead>
-                        </TableRow>
-                        <TableRow>
-                            <TableHead className="text-center">Postgres</TableHead>
-                            <TableHead className="text-center">Elasticsearch</TableHead>
-                            <TableHead className="text-center">Postgres</TableHead>
-                            <TableHead className="text-center">Elasticsearch</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredCities?.map((city) => {
-                            const isLatestMeetingInSync = city.latestMeetingIdPostgres === city.latestMeetingIdElastic;
-                            const areTotalMeetingsInSync = city.totalMeetingsPostgres === city.totalMeetingsElastic;
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead rowSpan={2} className="align-bottom">City</TableHead>
+                                <TableHead colSpan={2} className="text-center">Latest Meeting ID</TableHead>
+                                <TableHead colSpan={2} className="text-center">Total Meetings</TableHead>
+                                <TableHead rowSpan={2} className="align-bottom text-center">Total Subjects (ES)</TableHead>
+                            </TableRow>
+                            <TableRow>
+                                <TableHead className="text-center">Postgres</TableHead>
+                                <TableHead className="text-center">Elasticsearch</TableHead>
+                                <TableHead className="text-center">Postgres</TableHead>
+                                <TableHead className="text-center">Elasticsearch</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredCities?.map((city) => {
+                                const isLatestMeetingInSync = city.latestMeetingIdPostgres === city.latestMeetingIdElastic;
+                                const areTotalMeetingsInSync = city.totalMeetingsPostgres === city.totalMeetingsElastic;
 
-                            return (
-                                <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : !city.isListed ? 'bg-yellow-50' : ''}>
-                                    <TableCell>
-                                        {city.cityName}
-                                        {!city.isInElastic && <p className="text-xs text-red-600">Not in ES</p>}
-                                    </TableCell>
-                                    <TableCell className="text-center">{city.latestMeetingIdPostgres || 'N/A'}</TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {city.latestMeetingIdElastic || 'N/A'}
-                                            {city.isInElastic && <StatusIndicator inSync={isLatestMeetingInSync} />}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">{city.totalMeetingsPostgres}</TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {city.totalMeetingsElastic}
-                                            {city.isInElastic && <StatusIndicator inSync={areTotalMeetingsInSync} />}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-center">{city.totalSubjectsElastic}</TableCell>
+                                return (
+                                    <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : !city.isListed ? 'bg-yellow-50' : ''}>
+                                        <TableCell>
+                                            {city.cityName}
+                                            {!city.isInElastic && <p className="text-xs text-red-600">Not in ES</p>}
+                                        </TableCell>
+                                        <TableCell className="text-center">{city.latestMeetingIdPostgres || 'N/A'}</TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                {city.latestMeetingIdElastic || 'N/A'}
+                                                {city.isInElastic && <StatusIndicator inSync={isLatestMeetingInSync} />}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">{city.totalMeetingsPostgres}</TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                {city.totalMeetingsElastic}
+                                                {city.isInElastic && <StatusIndicator inSync={areTotalMeetingsInSync} />}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">{city.totalSubjectsElastic}</TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recently Indexed Documents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Showing the 20 most recently updated documents in Elasticsearch
+                    </p>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Subject</TableHead>
+                                    <TableHead>City</TableHead>
+                                    <TableHead>Meeting ID</TableHead>
+                                    <TableHead className="text-center">Released</TableHead>
+                                    <TableHead className="text-center">JSON</TableHead>
                                 </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {status.recentDocuments.map((doc) => (
+                                    <TableRow key={doc.id}>
+                                        <TableCell className="max-w-md truncate" title={doc.name}>
+                                            {doc.name}
+                                        </TableCell>
+                                        <TableCell>{doc.cityName}</TableCell>
+                                        <TableCell className="font-mono text-xs">{doc.meetingId}</TableCell>
+                                        <TableCell className="text-center">
+                                            {doc.meetingReleased ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500 inline" />
+                                            ) : (
+                                                <XCircle className="h-4 w-4 text-gray-400 inline" />
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setSelectedDoc(doc)}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <FileJson className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    
+                    {selectedDoc && (
+                        <JsonMetadataDialog
+                            open={!!selectedDoc}
+                            onOpenChange={(open) => !open && setSelectedDoc(null)}
+                            title="Document Metadata"
+                            data={selectedDoc.fullDocument}
+                            metadata={[
+                                { label: 'Subject', value: selectedDoc.name },
+                                { label: 'City', value: selectedDoc.cityName },
+                                { label: 'Meeting', value: selectedDoc.meetingId }
+                            ]}
+                        />
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     );
 } 
