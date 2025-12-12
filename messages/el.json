@@ -530,5 +530,16 @@
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
         "failedToDelete": "Αποτυχία διαγραφής"
+    },
+    "MeetingStatus": {
+        "scheduled": "Προγραμματισμένη",
+        "ready": "Ολοκληρωμένη",
+        "notReady": "Μη Ολοκληρωμένη",
+        "requiredForCompletion": "Απαιτείται για ολοκλήρωση",
+        "processAgenda": "Ημερήσια Διάταξη Επεξεργασμένη",
+        "transcribe": "Απομαγνητοφωνημένη",
+        "fixTranscript": "Αυτόματη Διόρθωση",
+        "humanReview": "Αξιολογημένη από άνθρωπο",
+        "summarize": "Summarized"
     }
 }
