@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -14,9 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Copy, Check, Clock, Hash, FileText, User, Tag, Edit, AlertTriangle, Plus } from "lucide-react";
+import { Clock, Hash, User, Tag, Edit, AlertTriangle, Plus } from "lucide-react";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
-import { toast } from "@/hooks/use-toast";
+import { JsonMetadataDialog } from '@/components/ui/json-metadata-dialog';
 import { useSpeakerSegmentEditor } from '@/hooks/useSpeakerSegmentEditor';
 
 interface SpeakerSegmentMetadataDialogProps {
@@ -30,18 +30,32 @@ export default function SpeakerSegmentMetadataDialog({
     open,
     onOpenChange
 }: SpeakerSegmentMetadataDialogProps) {
-    const [copied, setCopied] = useState(false);
     const editor = useSpeakerSegmentEditor(segment);
 
-    // Compute additional metadata for debugging
+    const formatTimestamp = (timestamp: number) => {
+        const hours = Math.floor(timestamp / 3600);
+        const minutes = Math.floor((timestamp % 3600) / 60);
+        const seconds = Math.floor(timestamp % 60);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    const formatTimestampWithMs = (timestamp: number) => {
+        const hours = Math.floor(timestamp / 3600);
+        const minutes = Math.floor((timestamp % 3600) / 60);
+        const seconds = Math.floor(timestamp % 60);
+        const ms = Math.floor((timestamp % 1) * 1000);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    };
+
+    // Compute additional metadata for debugging and display
     const computedMetadata = useMemo(() => {
         const duration = segment.endTimestamp - segment.startTimestamp;
         const utteranceCount = segment.utterances.length;
         const totalWordCount = segment.utterances.reduce((count, utterance) => {
             return count + (utterance.text?.split(/\s+/).filter(word => word.length > 0).length || 0);
         }, 0);
-        const averageUtteranceDuration = utteranceCount > 0 
-            ? segment.utterances.reduce((sum, u) => sum + (u.endTimestamp - u.startTimestamp), 0) / utteranceCount 
+        const averageUtteranceDuration = utteranceCount > 0
+            ? segment.utterances.reduce((sum, u) => sum + (u.endTimestamp - u.startTimestamp), 0) / utteranceCount
             : 0;
 
         return {
@@ -56,81 +70,111 @@ export default function SpeakerSegmentMetadataDialog({
         };
     }, [segment]);
 
-    // Format the metadata for display (read-only mode)
-    const formattedMetadata = useMemo(() => {
-        const formatTimestamp = (timestamp: number) => {
-            const hours = Math.floor(timestamp / 3600);
-            const minutes = Math.floor((timestamp % 3600) / 60);
-            const seconds = Math.floor(timestamp % 60);
-            const ms = Math.floor((timestamp % 1) * 1000);
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
-        };
+    // Prepare formatted metadata for the reusable dialog
+    const formattedMetadata = useMemo(() => ({
+        id: segment.id,
+        startTimestamp: segment.startTimestamp,
+        startTimestamp_formatted: formatTimestampWithMs(segment.startTimestamp),
+        endTimestamp: segment.endTimestamp,
+        endTimestamp_formatted: formatTimestampWithMs(segment.endTimestamp),
+        createdAt: segment.createdAt,
+        updatedAt: segment.updatedAt,
+        meetingId: segment.meetingId,
+        cityId: segment.cityId,
+        speakerTagId: segment.speakerTagId,
+        speakerTag: segment.speakerTag,
+        utterances: segment.utterances.map(utterance => ({
+            ...utterance,
+            duration: utterance.endTimestamp - utterance.startTimestamp,
+            wordCount: utterance.text?.split(/\s+/).filter(word => word.length > 0).length || 0
+        })),
+        topicLabels: segment.topicLabels,
+        summary: segment.summary,
+        _computed: computedMetadata
+    }), [segment, computedMetadata]);
 
-        return {
-            // Core segment data
-            id: segment.id,
-            startTimestamp: segment.startTimestamp,
-            startTimestamp_formatted: formatTimestamp(segment.startTimestamp),
-            endTimestamp: segment.endTimestamp,
-            endTimestamp_formatted: formatTimestamp(segment.endTimestamp),
-            createdAt: segment.createdAt,
-            updatedAt: segment.updatedAt,
-            meetingId: segment.meetingId,
-            cityId: segment.cityId,
-            speakerTagId: segment.speakerTagId,
-
-            // Related entities
-            speakerTag: segment.speakerTag,
-            utterances: segment.utterances.map(utterance => ({
-                ...utterance,
-                duration: utterance.endTimestamp - utterance.startTimestamp,
-                wordCount: utterance.text?.split(/\s+/).filter(word => word.length > 0).length || 0
-            })),
-            topicLabels: segment.topicLabels,
-            summary: segment.summary,
-
-            // Computed metadata for debugging
-            _computed: computedMetadata
-        };
-    }, [segment, computedMetadata]);
-
-    // JSON string for display and copying (read-only mode)
-    const jsonString = useMemo(() => {
-        return JSON.stringify(formattedMetadata, null, 2);
-    }, [formattedMetadata]);
-
-    const handleCopy = async () => {
-        try {
-            const contentToCopy = editor.isEditMode ? editor.editedData : jsonString;
-            await navigator.clipboard.writeText(contentToCopy);
-            setCopied(true);
-            toast({
-                description: "Metadata copied to clipboard",
-            });
-            setTimeout(() => setCopied(false), 2000);
-        } catch (error) {
-            console.error('Failed to copy to clipboard:', error);
-            toast({
-                variant: "destructive",
-                description: "Failed to copy to clipboard",
-            });
+    const metadataItems = useMemo(() => ([
+        {
+            label: 'Segment ID',
+            value: segment.id,
+            icon: <Hash className="h-3 w-3" />
+        },
+        {
+            label: 'Time',
+            value: `${formatTimestamp(segment.startTimestamp)} - ${formatTimestamp(segment.endTimestamp)}`,
+            icon: <Clock className="h-3 w-3" />
+        },
+        {
+            label: 'Speaker',
+            value: segment.speakerTag.personId ? 'Assigned Speaker' : 'Unassigned',
+            icon: <User className="h-3 w-3" />
         }
+    ]), [segment]);
+
+    const badgeItems = useMemo(() => ([
+        {
+            label: `${computedMetadata.utteranceCount} utterances`,
+            variant: 'secondary' as const,
+            icon: <Hash className="h-3 w-3" />
+        },
+        {
+            label: `${computedMetadata.totalWordCount} words`,
+            variant: 'secondary' as const,
+            icon: <Hash className="h-3 w-3" />
+        },
+        {
+            label: `${computedMetadata.duration.toFixed(1)}s duration`,
+            variant: 'secondary' as const,
+            icon: <Clock className="h-3 w-3" />
+        },
+        ...(computedMetadata.hasSummary ? [{
+            label: 'Has Summary',
+            variant: 'outline' as const
+        }] : []),
+        ...(computedMetadata.hasTopicLabels ? [{
+            label: `${segment.topicLabels.length} topics`,
+            variant: 'outline' as const,
+            icon: <Tag className="h-3 w-3" />
+        }] : [])
+    ]), [computedMetadata, segment.topicLabels.length]);
+
+    const handleOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen && editor.isEditMode) {
+            editor.actions.cancelEdit();
+        }
+        onOpenChange(nextOpen);
     };
 
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    };
+    if (!editor.isEditMode) {
+        return (
+            <JsonMetadataDialog
+                open={open}
+                onOpenChange={handleOpenChange}
+                title="SpeakerSegment Metadata"
+                data={formattedMetadata}
+                metadata={metadataItems}
+                badges={badgeItems}
+                footerActions={
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={editor.actions.enterEditMode}
+                        className="flex items-center gap-2"
+                    >
+                        <Edit className="h-4 w-4" />
+                        Edit Data
+                    </Button>
+                }
+            />
+        );
+    }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        SpeakerSegment {editor.isEditMode ? 'Editor' : 'Metadata'}
+                        SpeakerSegment Editor
                     </DialogTitle>
                     <DialogDescription className="flex flex-wrap items-center gap-4 text-sm">
                         <span className="flex items-center gap-1">
@@ -145,19 +189,16 @@ export default function SpeakerSegmentMetadataDialog({
                             <User className="h-3 w-3" />
                             {segment.speakerTag.personId ? 'Assigned Speaker' : 'Unassigned'}
                         </span>
-                        {editor.isEditMode && (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                                <Edit className="h-3 w-3" />
-                                Edit Mode
-                            </Badge>
-                        )}
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                            <Edit className="h-3 w-3" />
+                            Edit Mode
+                        </Badge>
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Quick Stats */}
                 <div className="flex flex-wrap gap-2 py-2 border-b">
                     <Badge variant="secondary" className="flex items-center gap-1">
-                        <FileText className="h-3 w-3" />
+                        <Hash className="h-3 w-3" />
                         {computedMetadata.utteranceCount} utterances
                     </Badge>
                     <Badge variant="secondary" className="flex items-center gap-1">
@@ -179,7 +220,6 @@ export default function SpeakerSegmentMetadataDialog({
                     )}
                 </div>
 
-                {/* Validation Errors */}
                 {editor.validationErrors.length > 0 && (
                     <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
@@ -193,115 +233,59 @@ export default function SpeakerSegmentMetadataDialog({
                     </Alert>
                 )}
 
-                {/* Content Area */}
                 <ScrollArea className="flex-1 min-h-0">
-                    <div className="relative">
-                        {editor.isEditMode ? (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-sm text-muted-foreground">
-                                        Edit utterances and summary data. Remove utterances by deleting them from the array.
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={editor.actions.addEmptyUtterance}
-                                        className="flex items-center gap-1"
-                                    >
-                                        <Plus className="h-3 w-3" />
-                                        Add Empty Utterance
-                                    </Button>
-                                </div>
-                                <Textarea
-                                    value={editor.editedData}
-                                    onChange={(e) => editor.actions.updateEditedData(e.target.value)}
-                                    className="min-h-[400px] font-mono text-sm resize-none"
-                                    style={{ 
-                                        whiteSpace: 'pre-wrap',
-                                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
-                                    }}
-                                    placeholder="Edit the JSON data..."
-                                    aria-label="Editable JSON data for SpeakerSegment"
-                                />
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-muted-foreground">
+                                Edit utterances and summary data. Remove utterances by deleting them from the array.
                             </div>
-                        ) : (
-                            <Textarea
-                                value={jsonString}
-                                readOnly
-                                className="min-h-[400px] font-mono text-sm resize-none border-0 bg-muted/30"
-                                style={{ 
-                                    whiteSpace: 'pre-wrap',
-                                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
-                                }}
-                                aria-label="SpeakerSegment metadata in JSON format"
-                            />
-                        )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={editor.actions.addEmptyUtterance}
+                                className="flex items-center gap-1"
+                            >
+                                <Plus className="h-3 w-3" />
+                                Add Empty Utterance
+                            </Button>
+                        </div>
+                        <Textarea
+                            value={editor.editedData}
+                            onChange={(e) => editor.actions.updateEditedData(e.target.value)}
+                            className="min-h-[400px] font-mono text-sm resize-none"
+                            style={{
+                                whiteSpace: 'pre-wrap',
+                                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                            }}
+                            placeholder="Edit the JSON data..."
+                            aria-label="Editable JSON data for SpeakerSegment"
+                        />
                     </div>
                 </ScrollArea>
 
                 <DialogFooter className="flex justify-between items-center">
                     <div className="text-xs text-muted-foreground">
-                        {editor.isEditMode 
-                            ? `${editor.editedData.length.toLocaleString()} characters • ${editor.editedData.split('\n').length} lines`
-                            : `${jsonString.length.toLocaleString()} characters • ${jsonString.split('\n').length} lines`
-                        }
+                        {`${editor.editedData.length.toLocaleString()} characters • ${editor.editedData.split('\n').length} lines`}
                     </div>
                     <div className="flex gap-2">
-                        {editor.isEditMode ? (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={editor.actions.cancelEdit}
-                                    disabled={editor.isSaving}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    onClick={editor.actions.saveChanges}
-                                    disabled={editor.isSaving || editor.validationErrors.length > 0}
-                                >
-                                    {editor.isSaving ? 'Saving...' : 'Save Changes'}
-                                </Button>
-                            </>
-                        ) : (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleCopy}
-                                    className="flex items-center gap-2"
-                                >
-                                    {copied ? (
-                                        <>
-                                            <Check className="h-4 w-4" />
-                                            Copied!
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Copy className="h-4 w-4" />
-                                            Copy JSON
-                                        </>
-                                    )}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={editor.actions.enterEditMode}
-                                    className="flex items-center gap-2"
-                                >
-                                    <Edit className="h-4 w-4" />
-                                    Edit Data
-                                </Button>
-                                <Button variant="default" onClick={() => onOpenChange(false)}>
-                                    Close
-                                </Button>
-                            </>
-                        )}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={editor.actions.cancelEdit}
+                            disabled={editor.isSaving}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={editor.actions.saveChanges}
+                            disabled={editor.isSaving || editor.validationErrors.length > 0}
+                        >
+                            {editor.isSaving ? 'Saving...' : 'Save Changes'}
+                        </Button>
                     </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
-} 
+}
