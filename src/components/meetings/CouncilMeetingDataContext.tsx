@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment } from '@/lib/db/speakerSegments';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -18,14 +18,17 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
     updateSpeakerTagLabel: (tagId: string, label: string) => void;
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
+    createEmptySegmentBefore: (beforeSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     deleteEmptySegment: (segmentId: string) => Promise<void>;
+    updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
     addHighlight: (highlight: HighlightWithUtterances) => void;
     updateHighlight: (highlightId: string, updates: Partial<HighlightWithUtterances>) => void;
     removeHighlight: (highlightId: string) => void;
+    extractSpeakerSegment: (segmentId: string, startUtteranceId: string, endUtteranceId: string) => Promise<void>;
 }
 
 const CouncilMeetingDataContext = createContext<CouncilMeetingDataContext | undefined>(undefined);
@@ -119,16 +122,41 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 data.meeting.id
             );
 
-            // Find the index of the segment we're inserting after
-            const segmentIndex = transcript.findIndex(s => s.id === afterSegmentId);
-            if (segmentIndex === -1) return;
-
             // Insert the new segment after it
-            setTranscript(prev => [
-                ...prev.slice(0, segmentIndex + 1),
-                newSegment,
-                ...prev.slice(segmentIndex + 1)
-            ]);
+            setTranscript(prev => {
+                // Find the index of the segment we're inserting after using fresh state
+                const segmentIndex = prev.findIndex(s => s.id === afterSegmentId);
+                if (segmentIndex === -1) return prev;
+                
+                return [
+                    ...prev.slice(0, segmentIndex + 1),
+                    newSegment,
+                    ...prev.slice(segmentIndex + 1)
+                ];
+            });
+
+            // Add the new speaker tag to our state
+            setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
+        },
+        createEmptySegmentBefore: async (beforeSegmentId: string) => {
+            const newSegment = await createEmptySpeakerSegmentBefore(
+                beforeSegmentId,
+                data.meeting.cityId,
+                data.meeting.id
+            );
+
+            // Insert the new segment before it
+            setTranscript(prev => {
+                // Find the index of the segment we're inserting before using fresh state
+                const segmentIndex = prev.findIndex(s => s.id === beforeSegmentId);
+                if (segmentIndex === -1) return prev;
+                
+                return [
+                    ...prev.slice(0, segmentIndex),
+                    newSegment,
+                    ...prev.slice(segmentIndex)
+                ];
+            });
 
             // Add the new speaker tag to our state
             setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
@@ -190,18 +218,58 @@ export function CouncilMeetingDataProvider({ children, data }: {
         deleteEmptySegment: async (segmentId: string) => {
             await deleteEmptySpeakerSegment(segmentId, data.meeting.cityId);
 
-            // Remove the segment from the transcript
-            setTranscript(prev => prev.filter(s => s.id !== segmentId));
-
-            // Remove the associated speaker tag
             const segment = speakerSegmentsMap.get(segmentId);
-            if (segment) {
-                setSpeakerTags(prev => prev.filter(t => t.id !== segment.speakerTagId));
-            }
+            const deletedSpeakerTagId = segment?.speakerTagId;
+
+            // Remove the segment from the transcript
+            setTranscript(prev => {
+                const updated = prev.filter(s => s.id !== segmentId);
+                
+                // Only remove the speaker tag if no other segments are using it
+                if (deletedSpeakerTagId) {
+                    const isTagStillInUse = updated.some(s => s.speakerTagId === deletedSpeakerTagId);
+                    if (!isTagStillInUse) {
+                        setSpeakerTags(prevTags => prevTags.filter(t => t.id !== deletedSpeakerTagId));
+                    }
+                }
+                
+                return updated;
+            });
         },
         addHighlight,
         updateHighlight,
-        removeHighlight
+        removeHighlight,
+        updateSpeakerSegmentData: async (segmentId: string, editData: EditableSpeakerSegmentData) => {
+            console.log(`Updating speaker segment ${segmentId} data`);
+            const updatedSegment = await updateSpeakerSegmentData(segmentId, editData, data.meeting.cityId);
+            
+            // Update transcript state with the fully updated segment data
+            setTranscript(prev => prev.map(segment =>
+                segment.id === segmentId ? updatedSegment : segment
+            ));
+        },
+        extractSpeakerSegment: async (segmentId: string, startUtteranceId: string, endUtteranceId: string) => {
+            const newSegments = await extractSpeakerSegment(data.meeting.cityId, data.meeting.id, segmentId, startUtteranceId, endUtteranceId);
+            
+            // Replace the original segment with the new segments (Before, Middle, After)
+            setTranscript(prev => {
+                const originalIndex = prev.findIndex(s => s.id === segmentId);
+                if (originalIndex === -1) return prev;
+
+                const updatedTranscript = [...prev];
+                updatedTranscript.splice(originalIndex, 1, ...newSegments);
+                
+                return updatedTranscript;
+            });
+            
+            // Add any new speaker tags that were created
+            const newTags = newSegments.map(s => s.speakerTag);
+            setSpeakerTags(prev => {
+                 const prevIds = new Set(prev.map(t => t.id));
+                 const tagsToAdd = newTags.filter(t => !prevIds.has(t.id));
+                 return [...prev, ...tagsToAdd];
+            });
+        }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight]);
 
     return (
