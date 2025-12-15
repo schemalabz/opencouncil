@@ -214,14 +214,23 @@ export function CouncilMeetingDataProvider({ children, data }: {
         deleteEmptySegment: async (segmentId: string) => {
             await deleteEmptySpeakerSegment(segmentId, data.meeting.cityId);
 
-            // Remove the segment from the transcript
-            setTranscript(prev => prev.filter(s => s.id !== segmentId));
-
-            // Remove the associated speaker tag
             const segment = speakerSegmentsMap.get(segmentId);
-            if (segment) {
-                setSpeakerTags(prev => prev.filter(t => t.id !== segment.speakerTagId));
-            }
+            const deletedSpeakerTagId = segment?.speakerTagId;
+
+            // Remove the segment from the transcript
+            setTranscript(prev => {
+                const updated = prev.filter(s => s.id !== segmentId);
+                
+                // Only remove the speaker tag if no other segments are using it
+                if (deletedSpeakerTagId) {
+                    const isTagStillInUse = updated.some(s => s.speakerTagId === deletedSpeakerTagId);
+                    if (!isTagStillInUse) {
+                        setSpeakerTags(prevTags => prevTags.filter(t => t.id !== deletedSpeakerTagId));
+                    }
+                }
+                
+                return updated;
+            });
         },
         addHighlight,
         updateHighlight,
