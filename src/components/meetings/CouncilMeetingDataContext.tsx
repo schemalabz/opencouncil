@@ -122,16 +122,18 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 data.meeting.id
             );
 
-            // Find the index of the segment we're inserting after
-            const segmentIndex = transcript.findIndex(s => s.id === afterSegmentId);
-            if (segmentIndex === -1) return;
-
             // Insert the new segment after it
-            setTranscript(prev => [
-                ...prev.slice(0, segmentIndex + 1),
-                newSegment,
-                ...prev.slice(segmentIndex + 1)
-            ]);
+            setTranscript(prev => {
+                // Find the index of the segment we're inserting after using fresh state
+                const segmentIndex = prev.findIndex(s => s.id === afterSegmentId);
+                if (segmentIndex === -1) return prev;
+                
+                return [
+                    ...prev.slice(0, segmentIndex + 1),
+                    newSegment,
+                    ...prev.slice(segmentIndex + 1)
+                ];
+            });
 
             // Add the new speaker tag to our state
             setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
@@ -143,16 +145,18 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 data.meeting.id
             );
 
-            // Find the index of the segment we're inserting before
-            const segmentIndex = transcript.findIndex(s => s.id === beforeSegmentId);
-            if (segmentIndex === -1) return;
-
             // Insert the new segment before it
-            setTranscript(prev => [
-                ...prev.slice(0, segmentIndex),
-                newSegment,
-                ...prev.slice(segmentIndex)
-            ]);
+            setTranscript(prev => {
+                // Find the index of the segment we're inserting before using fresh state
+                const segmentIndex = prev.findIndex(s => s.id === beforeSegmentId);
+                if (segmentIndex === -1) return prev;
+                
+                return [
+                    ...prev.slice(0, segmentIndex),
+                    newSegment,
+                    ...prev.slice(segmentIndex)
+                ];
+            });
 
             // Add the new speaker tag to our state
             setSpeakerTags(prev => [...prev, newSegment.speakerTag]);
