@@ -96,20 +96,25 @@ const UtteranceC: React.FC<{
             "underline decoration-blue-500 decoration-2": isTaskModified,
             "decoration-green-500 underline decoration-2": isUserModified,
             "text-red-500 font-bold": isUncertain,
+            "select-none": options.editable || editingHighlight, // Prevent text selection in modes with range selection
         }
     );
 
     const handleClick = (e: React.MouseEvent) => {
         // If we're in highlight editing mode, handle highlight toggling and seek to utterance
         if (editingHighlight) {
-            updateHighlightUtterances(localUtterance.id, isHighlighted ? 'remove' : 'add');
+            // Pass shift modifier for range selection
+            updateHighlightUtterances(
+                localUtterance.id, 
+                isHighlighted ? 'remove' : 'add',
+                { shift: e.shiftKey }
+            );
             // Seek to the utterance timestamp so user can easily play and listen to what they highlighted
             seekTo(localUtterance.startTimestamp);
         } else if (options.editable) {
             // Editing Mode: Handle Selection Logic
             // Prevent text editing if modifiers are present (intent is selection)
             if (e.shiftKey || e.ctrlKey || e.metaKey) {
-                e.preventDefault();
                 toggleSelection(localUtterance.id, {
                     shift: e.shiftKey,
                     ctrl: e.ctrlKey || e.metaKey

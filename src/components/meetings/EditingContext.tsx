@@ -4,6 +4,7 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { ACTIONS, useKeyboardShortcut } from '@/contexts/KeyboardShortcutsContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { calculateUtteranceRange } from '@/lib/selection-utils';
 
 interface EditingContextType {
     selectedUtteranceIds: Set<string>;
@@ -41,21 +42,9 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             const newSet = new Set(prev);
 
             if (modifiers.shift && lastClickedUtteranceId) {
-                // Range selection
-                const startIndex = allUtterances.findIndex(u => u.id === lastClickedUtteranceId);
-                const endIndex = allUtterances.findIndex(u => u.id === id);
-
-                if (startIndex !== -1 && endIndex !== -1) {
-                    const start = Math.min(startIndex, endIndex);
-                    const end = Math.max(startIndex, endIndex);
-                    
-                    // We clear previous selection if shift-clicking usually? 
-                    // Standard behavior: Shift+Click extends selection from anchor.
-                    // For simplicity here: Add range to existing selection.
-                    for (let i = start; i <= end; i++) {
-                        newSet.add(allUtterances[i].id);
-                    }
-                }
+                // Range selection using shared utility
+                const rangeIds = calculateUtteranceRange(allUtterances, lastClickedUtteranceId, id);
+                rangeIds.forEach(rangeId => newSet.add(rangeId));
             } else if (modifiers.ctrl) {
                 // Toggle individual
                 if (newSet.has(id)) {
