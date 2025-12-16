@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EditingGuideDialog } from './EditingGuideDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
+import { SpeakersOverviewSheet } from './transcript/SpeakersOverviewSheet';
 
 export function EditingModeBar() {
     const { options, updateOptions } = useTranscriptOptions();
@@ -146,6 +147,9 @@ export function EditingModeBar() {
                                             <UserRoundSearch className="h-4 w-4 mr-1" />
                                             <span className="hidden sm:inline">{t('actions.unknownSpeaker')}</span>
                                         </Button>
+
+                                        {/* Speakers Overview */}
+                                        <SpeakersOverviewSheet />
 
                                         {/* Editing Guide */}
                                         <Tooltip open={showGuideHint}>
