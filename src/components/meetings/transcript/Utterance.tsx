@@ -47,9 +47,9 @@ const UtteranceC: React.FC<{
     const canEdit = options.editsAllowed;
     const t = useTranslations('transcript.utterance');
 
-    const hasEditOptions = canEdit || options.editable;
-    const hasShareOption = !editingHighlight;
-    const hasContextMenuOptions = hasEditOptions || hasShareOption;
+    const canStartHighlight = canEdit && !editingHighlight && !options.editable;
+    const canShare = !editingHighlight && !options.editable;
+    const hasContextMenuOptions = canStartHighlight || options.editable || canShare;
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
@@ -356,7 +356,7 @@ const UtteranceC: React.FC<{
                 </span>
             </ContextMenuTrigger>
             <ContextMenuContent>
-                {canEdit && !editingHighlight && (
+                {canStartHighlight && (
                     <ContextMenuItem onClick={handleStartHighlightHere}>
                         <Star className="h-4 w-4 mr-2" />
                         {t('contextMenu.startHighlightFromHere')}
@@ -384,7 +384,7 @@ const UtteranceC: React.FC<{
                         </ContextMenuItem>
                     </>
                 )}
-                {!editingHighlight && (
+                {canShare && (
                     <ContextMenuItem onClick={handleShareFromHere}>
                         <Copy className="h-4 w-4 mr-2" />
                         {t('contextMenu.shareFromHere')}
