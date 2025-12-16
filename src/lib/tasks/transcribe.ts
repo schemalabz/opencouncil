@@ -6,6 +6,7 @@ import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForCity } from "@/lib/db/people";
+import { buildUnknownSpeakerLabel } from "../utils";
 
 async function deleteExistingSpeakerData(
     meetingId: string,
@@ -189,6 +190,8 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         // Create speaker tags with person identification when available
         const speakerTags = new Map<number, string>();
         let identifiedSpeakersCount = 0;
+        let unknownCounter = 1;
+        const nextUnknownLabel = () => buildUnknownSpeakerLabel(unknownCounter++);
 
         // Process speaker identification results
         if (response.transcript.transcription.speakers && response.transcript.transcription.speakers.length > 0) {
@@ -211,49 +214,53 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
 
             // Create speaker tags for all speakers
             console.log(`Creating ${response.transcript.transcription.speakers.length} speaker tags...`);
-            for (const speakerInfo of response.transcript.transcription.speakers) {
+
+            // 1. Map speaker ID to match info for quick lookup
+            const speakerMatchMap = new Map(
+                response.transcript.transcription.speakers.map(s => [s.speaker, s])
+            );
+
+            // 2. Get unique speakers in order of appearance from utterances
+            // JavaScript Set preserves insertion order, and utterances are time-sorted
+            const speakersInOrder = [...new Set(response.transcript.transcription.utterances.map(u => u.speaker))];
+
+            // 3. Create tags in appearance order
+            for (const speakerId of speakersInOrder) {
+                // Skip if we already processed this speaker (just in case)
+                if (speakerTags.has(speakerId)) continue;
+
+                const matchInfo = speakerMatchMap.get(speakerId);
+                const isMatched = matchInfo?.match;
+
                 const speakerTag = await tx.speakerTag.create({
                     data: {
-                        label: `SPEAKER_${speakerInfo.speaker}`,
+                        label: isMatched
+                            ? `SPEAKER_${speakerId}`
+                            : nextUnknownLabel(),
                         // Only connect if we verified the person exists
-                        ...(speakerInfo.match ? { person: { connect: { id: speakerInfo.match } } } : {})
+                        ...(isMatched ? { person: { connect: { id: matchInfo.match! } } } : {})
                     }
                 });
 
-                if (speakerInfo.match) {
+                if (isMatched) {
                     identifiedSpeakersCount++;
                 }
 
-                speakerTags.set(speakerInfo.speaker, speakerTag.id);
+                speakerTags.set(speakerId, speakerTag.id);
+            }
+
+            // Check if there are speakers in the identified speakers list that were not in the utterances
+            // This is just for logging/debugging, as we only create tags for speakers who actually speak
+            const unusedSpeakers = [...speakerMatchMap.keys()].filter(id => !speakerTags.has(id));
+            
+            if (unusedSpeakers.length > 0) {
+                console.log(`Note: ${unusedSpeakers.length} speakers listed in identified speakers but not found in utterances: ${unusedSpeakers.join(', ')}`);
             }
         } else {
             throw new Error('No speakers found. Process cannot continue');
         }
 
         console.log(`Created ${speakerTags.size} speaker tags (${identifiedSpeakersCount} identified with persons)`);
-
-        // Sanity check: Make sure we have a speaker tag for each unique speaker in the utterances
-        const uniqueSpeakersInUtterances = new Set(response.transcript.transcription.utterances.map(u => u.speaker));
-        let missingSpeakerTagsCount = 0;
-
-        for (const speaker of uniqueSpeakersInUtterances) {
-            if (!speakerTags.has(speaker)) {
-                console.warn(`Missing speaker tag for speaker ${speaker} found in utterances. Creating it now.`);
-                const speakerTag = await tx.speakerTag.create({
-                    data: {
-                        label: `SPEAKER_${speaker}`
-                    }
-                });
-                speakerTags.set(speaker, speakerTag.id);
-                missingSpeakerTagsCount++;
-            }
-        }
-
-        if (missingSpeakerTagsCount > 0) {
-            console.log(`Created ${missingSpeakerTagsCount} additional speaker tags from sanity check`);
-        } else {
-            console.log(`Sanity check passed: All speakers in utterances have corresponding speaker tags`);
-        }
 
         // OPTIMIZATION: Create segments in parallel batches with nested utterances
         // This dramatically reduces database round-trips from 2N sequential to N/BATCH_SIZE parallel batches
