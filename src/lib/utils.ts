@@ -13,6 +13,11 @@ export const IS_DEV = process.env.NODE_ENV === 'development';
 
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
 
+export const UNKNOWN_SPEAKER_LABEL = "Άγνωστος Ομιλητής";
+
+export const buildUnknownSpeakerLabel = (index: number) =>
+  `${UNKNOWN_SPEAKER_LABEL} ${index}`;
+
 export function subjectToMapFeature(subject: SubjectWithRelations) {
   if (!subject.location?.coordinates) return null;
 
