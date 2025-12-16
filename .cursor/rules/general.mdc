@@ -9,3 +9,4 @@ alwaysApply: true
 - Never create markdown (`.md`) files after you're done -- unless you're directly asked. It's okay to update existing docs
 - Never use emojis in your replies
 - I know i am absolutely right, no need to mention it
+- Use the time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`) instead of redefining them locally.

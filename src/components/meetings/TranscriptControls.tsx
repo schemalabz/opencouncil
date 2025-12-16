@@ -2,7 +2,7 @@
 import { Play, Pause, Loader, ChevronLeft, ChevronRight, Youtube } from "lucide-react"
 import { useTranslations } from 'next-intl';
 import { useVideo } from "./VideoProvider"
-import { cn } from "@/lib/utils";
+import { cn, formatTimestamp } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
@@ -68,12 +68,6 @@ export default function TranscriptControls({ className }: { className?: string }
         updateHoveredSpeaker(touchTime);
     };
 
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    };
     const { getParty, getPerson, getSpeakerTag } = useCouncilMeetingData();
     const [hoverTime, setHoverTime] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
