@@ -9,7 +9,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Bot, FileJson } from "lucide-react";
-import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
+import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 
@@ -129,13 +129,6 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const isEmpty = utterances.length === 0;
 
     const summary = segment.summary;
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = timestamp % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
-    };
 
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
