@@ -1,15 +1,8 @@
 import { el } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
-import { getPartyFromRoles, getSingleCityRole } from '@/lib/utils';
+import { getPartyFromRoles, getSingleCityRole, formatTimestamp } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
-
-const formatTimestamp = (timestamp: number) => {
-    const hours = Math.floor(timestamp / 3600);
-    const minutes = Math.floor((timestamp % 3600) / 60);
-    const seconds = Math.floor(timestamp % 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
 
 const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
     return [

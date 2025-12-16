@@ -122,6 +122,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
     onPersonChange?: (personId: string | null) => void;
     onLabelChange?: (label: string) => void;
     availablePeople?: PersonWithRelations[];
+    nextUnknownLabel?: string;
 }
 
 function PersonBadge({
@@ -136,6 +137,7 @@ function PersonBadge({
     onPersonChange,
     onLabelChange,
     availablePeople,
+    nextUnknownLabel,
     preferFullName = false,
     size = 'md',
 }: PersonBadgeProps) {
@@ -227,13 +229,13 @@ function PersonBadge({
                             <CommandEmpty>No results found</CommandEmpty>
                             <CommandGroup>
                                 <CommandItem
-                                    onSelect={() => handleSetLabel("Άγνωστος Ομιλητής")}
+                                    onSelect={() => handleSetLabel(nextUnknownLabel || "Άγνωστος Ομιλητής")}
                                     className="flex items-center gap-2"
                                 >
                                     <div className="w-10 h-10 relative shrink-0 flex items-center justify-center bg-muted rounded-full">
                                         <span className="text-xs font-medium">?</span>
                                     </div>
-                                    <span className="font-medium">Άγνωστος Ομιλητής</span>
+                                    <span className="font-medium">{nextUnknownLabel || "Άγνωστος Ομιλητής"}</span>
                                 </CommandItem>
                             </CommandGroup>
                             <CommandGroup>

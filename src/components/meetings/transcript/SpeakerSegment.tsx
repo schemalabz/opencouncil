@@ -9,7 +9,7 @@ import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, Bot, FileJson } from "lucide-react";
-import { getPartyFromRoles } from "@/lib/utils";
+import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 
@@ -82,12 +82,33 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     renderMock: boolean,
     isFirstSegment?: boolean 
 }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+
+    // Calculate the next unknown speaker label
+    const nextUnknownLabel = useMemo(() => {
+        if (!speakerTags) return buildUnknownSpeakerLabel(1);
+
+        let maxIndex = 0;
+        speakerTags.forEach(tag => {
+            if (tag.label?.startsWith(UNKNOWN_SPEAKER_LABEL)) {
+                // Extract number from end of string
+                const match = tag.label.match(/(\d+)$/);
+                if (match) {
+                    const index = parseInt(match[1], 10);
+                    if (!isNaN(index)) {
+                        maxIndex = Math.max(maxIndex, index);
+                    }
+                }
+            }
+        });
+
+        return buildUnknownSpeakerLabel(maxIndex + 1);
+    }, [speakerTags]);
 
     const memoizedData = useMemo(() => {
         const speakerTag = getSpeakerTag(segment.speakerTagId);
@@ -108,13 +129,6 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const isEmpty = utterances.length === 0;
 
     const summary = segment.summary;
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = timestamp % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
-    };
 
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
@@ -190,6 +204,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                 editable={options.editable}
                                                 onPersonChange={handlePersonChange}
                                                 onLabelChange={handleLabelChange}
+                                                nextUnknownLabel={nextUnknownLabel}
                                                 availablePeople={people.map(p => ({
                                                     ...p,
                                                     party: getPartyFromRoles(p.roles)

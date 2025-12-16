@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, Hash, User, Tag, Edit, AlertTriangle, Plus } from "lucide-react";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
+import { formatTimestamp } from "@/lib/utils";
 import { JsonMetadataDialog } from '@/components/ui/json-metadata-dialog';
 import { useSpeakerSegmentEditor } from '@/hooks/useSpeakerSegmentEditor';
 
@@ -31,13 +32,6 @@ export default function SpeakerSegmentMetadataDialog({
     onOpenChange
 }: SpeakerSegmentMetadataDialogProps) {
     const editor = useSpeakerSegmentEditor(segment);
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    };
 
     const formatTimestampWithMs = (timestamp: number) => {
         const hours = Math.floor(timestamp / 3600);

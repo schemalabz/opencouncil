@@ -17,6 +17,8 @@ import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
+import { formatTimestamp } from '@/lib/utils';
+
 
 interface ShareDropdownProps {
     meetingId: string;
@@ -111,13 +113,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         navigator.clipboard.writeText(getShareableUrl());
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 3000);
-    };
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     };
 
     // Determine what's being shared based on the current path

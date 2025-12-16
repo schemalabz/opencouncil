@@ -19,7 +19,7 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn, formatTime } from "@/lib/utils"
 import { sortSubjectsByImportance } from "@/lib/utils"
 import { useTranscriptOptions } from "./options/OptionsContext"
 
@@ -214,16 +214,6 @@ export default function MeetingSidebar() {
 function ControlsWidget() {
     const { isPlaying, togglePlayPause, isSeeking, currentTime, duration } = useVideo();
     const { state } = useSidebar();
-
-    const formatTime = (time: number) => {
-        const hours = Math.floor(time / 3600);
-        const minutes = Math.floor((time % 3600) / 60);
-        const seconds = Math.floor(time % 60);
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    };
 
     if (state === "collapsed") {
         return (
