@@ -10,18 +10,21 @@ The system divides editing into distinct categories and modes:
 
 1.  **Editing Mode Lifecycle**:
     *   **Activation**: Users enter "Editing Mode" via the `EditButton` in the global header. This activates `options.editable` in the `TranscriptOptionsContext`.
-    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls (Playback Speed, Next Unknown Speaker, Exit).
+    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls (Playback Speed, Next Unknown Speaker, Speakers Overview, Editing Guide, Exit).
     *   **Exclusivity**: Editing Mode is mutually exclusive with **Highlight Mode**. Users cannot create highlights while editing the transcript, and vice versa.
 
 2.  **Text Content Editing** (in Editing Mode):
     *   Handled by the `Utterance` component in the transcript view.
     *   Users edit text directly inline. Browser-native spellcheck is enabled.
-    *   **Visual Feedback**: User-edited utterances are distinguished by a **green underline** (`decoration-green-500`), making human verification immediately visible without compromising readability.
+    *   **Visual Feedback**:
+        *   **User Edited**: Distinguished by a **green underline** (`decoration-green-500`), making human verification immediately visible.
+        *   **AI Corrected**: Distinguished by a **blue underline** (`decoration-blue-500`) for automated fixes.
+    *   **Optimistic Updates**: Changes are reflected immediately in the UI while saving to the backend in the background, ensuring a responsive editing experience.
     *   Updates are sent to the backend via the `editUtterance` server action.
     *   **History Tracking**: Critical for auditability, every text change is logged in the `UtteranceEdit` table.
 
 3.  **Structural Editing**:
-    *   **Speaker Assignment**: The `PersonBadge` component handles speaker identification. It includes an explicit "Unknown Speaker" (`Άγνωστος`) option and improved autocomplete to quickly assign speakers.
+    *   **Speaker Assignment**: The `PersonBadge` component handles speaker identification. It includes an explicit "Unknown Speaker" (`Άγνωστος Ομιλητής`) option and improved autocomplete to quickly assign speakers. The system can also auto-number unknown speakers (e.g., "Άγνωστος Ομιλητής 1").
     *   **Segment Operations**: Handled via context menus (e.g., "Move to Previous Segment").
     *   **Extract Segment**: Users can select a range of utterances (Shift+Click) within a segment and extract them into a new independent segment (useful for A-B-A speaker patterns).
         *   **Selection**: Visualized with bold text.
@@ -45,8 +48,10 @@ The system divides editing into distinct categories and modes:
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
 6.  **Interaction Enhancements**:
-    *   **Keyboard Shortcuts**: Managed via `KeyboardShortcutsContext` and `EditingContext`.
-    *   **Selection Mode**: Managed via `EditingContext`, supports Shift+Click for ranges and Ctrl+Click for toggling.
+    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`.
+    *   **Selection Mode**: Managed via `EditingContext`. Supports **Shift+Click** for range selection (selecting multiple sequential utterances) and **Ctrl+Click** for toggling individual selections.
+    *   **Speakers Overview**: A dedicated sheet (`SpeakersOverviewSheet`) provides real-time statistics (duration, segment count) and navigation for every speaker in the meeting.
+    *   **In-App Guide**: A comprehensive `EditingGuideDialog` provides immediate access to shortcuts and workflow instructions.
 
 **Shortcuts Reference**
 
@@ -57,9 +62,12 @@ The system divides editing into distinct categories and modes:
 | | `ArrowRight` | Seek to next utterance |
 | | `ArrowUp` | Increase Playback Speed |
 | | `ArrowDown` | Decrease Playback Speed |
-| **Navigation** | `Enter` | Edit active utterance / Save & Close |
-| **Editing** | `e` | Extract selected utterances to new segment |
-| | `Escape` | Clear selection / Cancel text edit |
+| **Editing** | `Enter` | Edit active utterance / Save & Close |
+| | `Escape` | Cancel text edit |
+| **Selection** | `Shift + Click` | Select Range of Utterances |
+| | `Ctrl + Click` | Toggle Selection of Utterance |
+| | `e` | Extract selected utterances to new segment |
+| | `Escape` | Clear selection |
 | **Global** | `Ctrl + b` | Toggle Sidebar |
 
 **Sequence Diagram**
@@ -122,7 +130,9 @@ sequenceDiagram
     *   `SpeakerSegment`: [`prisma/schema.prisma`](../../prisma/schema.prisma)
 
 *   **Frontend Components**:
-    *   `EditingModeBar`: [`src/components/meetings/EditingModeBar.tsx`](../../src/components/meetings/EditingModeBar.tsx) (Contextual bar with playback speed, unknown speaker navigation, and exit)
+    *   `EditingModeBar`: [`src/components/meetings/EditingModeBar.tsx`](../../src/components/meetings/EditingModeBar.tsx) (Contextual bar with tools and navigation)
+    *   `SpeakersOverviewSheet`: [`src/components/meetings/transcript/SpeakersOverviewSheet.tsx`](../../src/components/meetings/transcript/SpeakersOverviewSheet.tsx) (Speaker statistics and navigation)
+    *   `EditingGuideDialog`: [`src/components/meetings/EditingGuideDialog.tsx`](../../src/components/meetings/EditingGuideDialog.tsx) (In-app user guide)
     *   `EditButton`: [`src/components/meetings/EditButton.tsx`](../../src/components/meetings/EditButton.tsx) (Entry point in global header)
     *   `TranscriptControls`: [`src/components/meetings/TranscriptControls.tsx`](../../src/components/meetings/TranscriptControls.tsx) (Video player and clip navigation)
     *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx) (Inline editing, visual state)
