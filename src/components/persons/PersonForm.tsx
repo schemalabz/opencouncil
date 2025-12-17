@@ -112,7 +112,8 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             name: role.name,
             name_en: role.name_en,
             startDate: role.startDate,
-            endDate: role.endDate
+            endDate: role.endDate,
+            rank: role.rank
         }))
 
         console.log('Roles to be sent:', cleanRoles)

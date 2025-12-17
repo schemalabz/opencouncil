@@ -100,6 +100,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: values.isHead,
             startDate: values.startDate,
             endDate: values.endDate,
+            rank: editingRole?.rank ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
         }
