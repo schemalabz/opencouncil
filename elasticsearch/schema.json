@@ -1,0 +1,339 @@
+[
+  {
+    "database": "production",
+    "index": "subjects",
+    "mapping": {
+      "id": { "type": "keyword" },
+      "name": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": {
+          "keyword": { "type": "keyword", "ignore_above": 256 },
+          "semantic": {
+            "type": "semantic_text",
+            "inference_id": "opencouncil-multilingual-e5-small-elasticsearch"
+          }
+        }
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": {
+          "semantic": {
+            "type": "semantic_text",
+            "inference_id": "opencouncil-multilingual-e5-small-elasticsearch"
+          }
+        }
+      },
+      "city_id": { "type": "keyword" },
+      "city_name": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "city_name_en": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "councilMeeting_id": { "type": "keyword" },
+      "meeting_date": { "type": "date" },
+      "meeting_name": { "type": "text", "analyzer": "greek" },
+      "meeting_released": { "type": "boolean" },
+      "topic_id": { "type": "keyword" },
+      "topic_name": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "topic_name_en": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "introduced_by_person_id": { "type": "keyword" },
+      "introduced_by_person_name": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "introduced_by_person_name_en": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "introduced_by_party_id": { "type": "keyword" },
+      "introduced_by_party_name": {
+        "type": "text",
+        "analyzer": "greek",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "introduced_by_party_name_en": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+      },
+      "location_text": { "type": "text", "analyzer": "greek" },
+      "location_geojson": { "type": "geo_shape" },
+      "agenda_item_index": { "type": "integer" },
+      "non_agenda_reason": { "type": "keyword" },
+      "created_at": { "type": "date" },
+      "updated_at": { "type": "date" },
+      "context": { "type": "text", "analyzer": "greek" },
+      "context_citation_urls": { "type": "keyword" },
+      "speaker_segments": {
+        "type": "nested",
+        "properties": {
+          "segment_id": { "type": "keyword" },
+          "speaker_person_id": { "type": "keyword" },
+          "speaker_person_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_person_name_en": {
+            "type": "text",
+            "analyzer": "standard",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_party_id": { "type": "keyword" },
+          "speaker_party_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_party_name_en": {
+            "type": "text",
+            "analyzer": "standard",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "text": { "type": "text", "analyzer": "greek" },
+          "summary": { "type": "text", "analyzer": "greek" }
+        }
+      }
+    },
+    "nodes": {
+      "table": "Subject",
+      "schema": "public",
+      "columns": [
+        "id",
+        "name",
+        "description",
+        "cityId",
+        "councilMeetingId",
+        "topicId",
+        "personId",
+        "locationId",
+        "agendaItemIndex",
+        "nonAgendaReason",
+        "createdAt",
+        "updatedAt",
+        "context",
+        "contextCitationUrls"
+      ],
+      "transform": {
+        "rename": {
+          "cityId": "city_id",
+          "councilMeetingId": "councilMeeting_id",
+          "topicId": "topic_id",
+          "personId": "introduced_by_person_id",
+          "locationId": "location_id",
+          "agendaItemIndex": "agenda_item_index",
+          "nonAgendaReason": "non_agenda_reason",
+          "createdAt": "created_at",
+          "updatedAt": "updated_at",
+          "contextCitationUrls": "context_citation_urls"
+        }
+      },
+      "children": [
+        {
+          "table": "City",
+          "schema": "public",
+          "columns": ["name"],
+          "label": "city_name",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["cityId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "City",
+          "schema": "public",
+          "columns": ["name_en"],
+          "label": "city_name_en",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["cityId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "CouncilMeeting",
+          "schema": "public",
+          "columns": ["dateTime"],
+          "label": "meeting_date",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["councilMeetingId", "cityId"], "child": ["id", "cityId"] }
+          }
+        },
+        {
+          "table": "CouncilMeeting",
+          "schema": "public",
+          "columns": ["name"],
+          "label": "meeting_name",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["councilMeetingId", "cityId"], "child": ["id", "cityId"] }
+          }
+        },
+        {
+          "table": "CouncilMeeting",
+          "schema": "public",
+          "columns": ["released"],
+          "label": "meeting_released",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["councilMeetingId", "cityId"], "child": ["id", "cityId"] }
+          }
+        },
+        {
+          "table": "Topic",
+          "schema": "public",
+          "columns": ["name"],
+          "label": "topic_name",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["topicId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "Topic",
+          "schema": "public",
+          "columns": ["name_en"],
+          "label": "topic_name_en",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["topicId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "Person",
+          "schema": "public",
+          "columns": ["name"],
+          "label": "introduced_by_person_name",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["personId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "Person",
+          "schema": "public",
+          "columns": ["name_en"],
+          "label": "introduced_by_person_name_en",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["personId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "IntroducedByPartyView",
+          "schema": "public",
+          "base_tables": ["Role", "Party"],
+          "primary_key": ["person_id", "city_id"],
+          "columns": ["party_id"],
+          "label": "introduced_by_party_id",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+          }
+        },
+        {
+          "table": "IntroducedByPartyView",
+          "schema": "public",
+          "base_tables": ["Role", "Party"],
+          "primary_key": ["person_id", "city_id"],
+          "columns": ["party_name"],
+          "label": "introduced_by_party_name",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+          }
+        },
+        {
+          "table": "IntroducedByPartyView",
+          "schema": "public",
+          "base_tables": ["Role", "Party"],
+          "primary_key": ["person_id", "city_id"],
+          "columns": ["party_name_en"],
+          "label": "introduced_by_party_name_en",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["personId", "cityId"], "child": ["person_id", "city_id"] }
+          }
+        },
+        {
+          "table": "LocationSearchView",
+          "schema": "public",
+          "base_tables": ["Location"],
+          "primary_key": ["id"],
+          "columns": ["text"],
+          "label": "location_text",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["locationId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "LocationSearchView",
+          "schema": "public",
+          "base_tables": ["Location"],
+          "primary_key": ["id"],
+          "columns": ["geojson"],
+          "label": "location_geojson",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["locationId"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "SubjectSpeakerSegmentSearchView",
+          "schema": "public",
+          "base_tables": ["SubjectSpeakerSegment", "SpeakerSegment", "SpeakerTag", "Person", "Party", "Role", "Utterance"],
+          "primary_key": ["segment_id"],
+          "label": "speaker_segments",
+          "relationship": {
+            "variant": "object",
+            "type": "one_to_many",
+            "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
+          },
+          "columns": [
+            "segment_id",
+            "text",
+            "summary",
+            "speaker_person_id",
+            "speaker_person_name",
+            "speaker_person_name_en",
+            "speaker_party_id",
+            "speaker_party_name",
+            "speaker_party_name_en"
+          ]
+        }
+      ]
+    }
+  }
+]

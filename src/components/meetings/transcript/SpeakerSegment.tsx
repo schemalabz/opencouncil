@@ -1,7 +1,5 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { SpeakerTag, Utterance, Word, Party, Person } from "@prisma/client";
+import React, { useMemo, useState } from 'react';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { useInView } from 'framer-motion';
 import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
@@ -10,8 +8,10 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot } from "lucide-react";
-import { getPartyFromRoles } from "@/lib/utils";
+import { Plus, Trash2, Bot, FileJson } from "lucide-react";
+import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
+import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
+import { useSession } from 'next-auth/react';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -43,10 +43,72 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: TranscriptType[number], renderMock: boolean }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
+const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: { 
+    segmentId: string, 
+    isFirstSegment: boolean 
+}) => {
+    const { createEmptySegmentBefore } = useCouncilMeetingData();
+    const { options } = useTranscriptOptions();
+
+    // Only show for the first segment
+    if (!options.editable || !isFirstSegment) return null;
+
+    return (
+        <div className="w-full h-2 group relative">
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 bg-white hover:bg-gray-100"
+                            onClick={() => createEmptySegmentBefore(segmentId)}
+                        >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add segment before
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Add a new empty segment before the first segment</p>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        </div>
+    );
+};
+
+const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: { 
+    segment: TranscriptType[number], 
+    renderMock: boolean,
+    isFirstSegment?: boolean 
+}) => {
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin;
+    const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+
+    // Calculate the next unknown speaker label
+    const nextUnknownLabel = useMemo(() => {
+        if (!speakerTags) return buildUnknownSpeakerLabel(1);
+
+        let maxIndex = 0;
+        speakerTags.forEach(tag => {
+            if (tag.label?.startsWith(UNKNOWN_SPEAKER_LABEL)) {
+                // Extract number from end of string
+                const match = tag.label.match(/(\d+)$/);
+                if (match) {
+                    const index = parseInt(match[1], 10);
+                    if (!isNaN(index)) {
+                        maxIndex = Math.max(maxIndex, index);
+                    }
+                }
+            }
+        });
+
+        return buildUnknownSpeakerLabel(maxIndex + 1);
+    }, [speakerTags]);
 
     const memoizedData = useMemo(() => {
         const speakerTag = getSpeakerTag(segment.speakerTagId);
@@ -68,13 +130,6 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
     const summary = segment.summary;
 
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = timestamp % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
-    };
-
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
             updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
@@ -89,6 +144,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
 
     return (
         <>
+            {/* Add the new button before the segment */}
+            {options.editable && isFirstSegment && !renderMock && (
+                <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
+            )}
+            
             <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
                     <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30'>
@@ -144,6 +204,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 editable={options.editable}
                                                 onPersonChange={handlePersonChange}
                                                 onLabelChange={handleLabelChange}
+                                                nextUnknownLabel={nextUnknownLabel}
                                                 availablePeople={people.map(p => ({
                                                     ...p,
                                                     party: getPartyFromRoles(p.roles)
@@ -166,6 +227,23 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p>Delete empty segment</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                        {isSuperAdmin && !renderMock && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                        onClick={() => setMetadataDialogOpen(true)}
+                                                    >
+                                                        <FileJson className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>View segment metadata</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
@@ -226,6 +304,12 @@ const SpeakerSegment = React.memo(({ segment, renderMock }: { segment: Transcrip
                     <AddSegmentButton segmentId={segment.id} />
                 )
             )}
+
+            <SpeakerSegmentMetadataDialog
+                segment={segment}
+                open={metadataDialogOpen}
+                onOpenChange={setMetadataDialogOpen}
+            />
         </>
     );
 });
