@@ -20,7 +20,7 @@ import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive } from '@/lib/utils';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
@@ -48,7 +48,7 @@ function PartyMembersTab({
         people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                (!role.endDate || new Date(role.endDate) > new Date())
+                isRoleActive(role)
             )
         ),
         [people, party.id]);
@@ -58,8 +58,7 @@ function PartyMembersTab({
         people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                role.endDate &&
-                new Date(role.endDate) <= new Date()
+                !isRoleActive(role)
             )
         ),
         [people, party.id]);

@@ -70,22 +70,9 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
                                 }
                             }
                         }
-                    },
-                    where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
                     }
+                    // Removed the where clause to include all roles (active and inactive)
+                    // The component will filter them appropriately
                 }
             }
         });
@@ -93,7 +80,14 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
         if (!party) return null;
 
         // Extract people from roles and include all their roles
-        const people = party.roles.map(role => role.person);
+        // Deduplicate people by id since a person can have multiple roles
+        const peopleMap = new Map<string, Person & { roles: (Role & { city?: City | null; administrativeBody?: AdministrativeBody | null; party?: Party | null })[] }>();
+        party.roles.forEach(role => {
+            if (!peopleMap.has(role.person.id)) {
+                peopleMap.set(role.person.id, role.person);
+            }
+        });
+        const people = Array.from(peopleMap.values());
 
         // Create a new object without the roles property
         const { roles, ...partyWithoutRoles } = party;
@@ -149,11 +143,19 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
         });
 
         // Add people property to each party and remove roles
+        // Deduplicate people by id since a person can have multiple roles
         const partiesWithPeople = parties.map(party => {
             const { roles, ...partyWithoutRoles } = party;
+            const peopleMap = new Map<string, Person & { roles: (Role & { city?: City | null; administrativeBody?: AdministrativeBody | null; party?: Party | null })[] }>();
+            roles.forEach(role => {
+                if (!peopleMap.has(role.person.id)) {
+                    peopleMap.set(role.person.id, role.person);
+                }
+            });
+            const people = Array.from(peopleMap.values());
             return {
                 ...partyWithoutRoles,
-                people: roles.map(role => role.person)
+                people
             };
         });
 

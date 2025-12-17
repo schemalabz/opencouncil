@@ -4,7 +4,7 @@ import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
-import { cn } from '@/lib/utils';
+import { cn, isRoleActive } from '@/lib/utils';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useMemo } from 'react';
 
@@ -22,7 +22,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         return party.people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                (!role.endDate || new Date(role.endDate) > new Date())
+                isRoleActive(role)
             )
         ).sort((a, b) => {
             // Sort by isHead first (true comes before false)
