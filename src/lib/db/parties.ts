@@ -1,7 +1,28 @@
 "use server";
-import { City, AdministrativeBody, Party, Person, Role } from '@prisma/client';
+import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+
+const partyWithRolesInclude = {
+    roles: {
+        include: {
+            person: {
+                include: {
+                    roles: {
+                        include: {
+                            city: true,
+                            administrativeBody: true,
+                            party: true
+                        }
+                    }
+                }
+            }
+        }
+    }
+} satisfies Prisma.PartyInclude;
+
+type PartyWithRoles = Prisma.PartyGetPayload<{ include: typeof partyWithRolesInclude }>;
+export type PersonWithRoles = PartyWithRoles['roles'][number]['person'];
 
 export async function deleteParty(id: string): Promise<void> {
     await withUserAuthorizedToEdit({ partyId: id });
@@ -43,45 +64,21 @@ export async function editParty(id: string, partyData: Partial<Omit<Party, 'id' 
 }
 
 export type PartyWithPersons = Omit<Party, 'roles'> & {
-    people: (Person & {
-        roles: (Role & {
-            city?: City | null;
-            administrativeBody?: AdministrativeBody | null;
-            party?: Party | null;
-        })[]
-    })[];
+    people: PersonWithRoles[];
 }
 
 export async function getParty(id: string): Promise<PartyWithPersons | null> {
     try {
         const party = await prisma.party.findUnique({
             where: { id },
-            include: {
-                roles: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        city: true,
-                                        administrativeBody: true,
-                                        party: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Removed the where clause to include all roles (active and inactive)
-                    // The component will filter them appropriately
-                }
-            }
+            include: partyWithRolesInclude
         });
 
         if (!party) return null;
 
         // Extract people from roles and include all their roles
         // Deduplicate people by id since a person can have multiple roles
-        const peopleMap = new Map<string, Person & { roles: (Role & { city?: City | null; administrativeBody?: AdministrativeBody | null; party?: Party | null })[] }>();
+        const peopleMap = new Map<string, PersonWithRoles>();
         party.roles.forEach(role => {
             if (!peopleMap.has(role.person.id)) {
                 peopleMap.set(role.person.id, role.person);
@@ -97,7 +94,7 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
             people
         };
 
-        return partyWithPersons as PartyWithPersons;
+        return partyWithPersons;
     } catch (error) {
         console.error('Error fetching party:', error);
         throw new Error('Failed to fetch party');
@@ -110,19 +107,7 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
             where: { cityId },
             include: {
                 roles: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        city: true,
-                                        administrativeBody: true,
-                                        party: true
-                                    }
-                                }
-                            }
-                        }
-                    },
+                    ...partyWithRolesInclude.roles,
                     where: {
                         OR: [
                             // Both dates are null (ongoing role)
@@ -146,7 +131,7 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
         // Deduplicate people by id since a person can have multiple roles
         const partiesWithPeople = parties.map(party => {
             const { roles, ...partyWithoutRoles } = party;
-            const peopleMap = new Map<string, Person & { roles: (Role & { city?: City | null; administrativeBody?: AdministrativeBody | null; party?: Party | null })[] }>();
+            const peopleMap = new Map<string, PersonWithRoles>();
             roles.forEach(role => {
                 if (!peopleMap.has(role.person.id)) {
                     peopleMap.set(role.person.id, role.person);
@@ -159,7 +144,7 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
             };
         });
 
-        return partiesWithPeople as PartyWithPersons[];
+        return partiesWithPeople;
     } catch (error) {
         console.error('Error fetching parties for city:', error);
         throw new Error('Failed to fetch parties for city');
