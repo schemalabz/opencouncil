@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,17 +12,18 @@ interface JsonMetadataDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     title?: string;
-    data: any;
+    data: unknown;
     metadata?: Array<{
         label: string;
-        value: string | number | React.ReactNode;
-        icon?: React.ReactNode;
+        value: string | number | ReactNode;
+        icon?: ReactNode;
     }>;
     badges?: Array<{
         label: string;
         variant?: 'default' | 'secondary' | 'outline' | 'destructive';
-        icon?: React.ReactNode;
+        icon?: ReactNode;
     }>;
+    footerActions?: ReactNode;
 }
 
 /**
@@ -55,7 +56,8 @@ export function JsonMetadataDialog({
     title = 'Metadata',
     data,
     metadata,
-    badges
+    badges,
+    footerActions
 }: JsonMetadataDialogProps) {
     const [copied, setCopied] = useState(false);
 
@@ -124,6 +126,7 @@ export function JsonMetadataDialog({
                         {jsonString.length.toLocaleString()} characters • {jsonString.split('\n').length} lines
                     </div>
                     <div className="flex gap-2">
+                        {footerActions}
                         <Button
                             variant="outline"
                             size="sm"
