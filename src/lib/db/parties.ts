@@ -67,6 +67,28 @@ export type PartyWithPersons = Omit<Party, 'roles'> & {
     people: PersonWithRoles[];
 }
 
+/**
+ * Transforms a raw party object (with roles) into a PartyWithPersons object.
+ * 
+ * It extracts unique people from the party's roles list and returns a new object
+ * that has a `people` array instead of `roles`. This is necessary because a person
+ * can have multiple roles in the same party, but we want to list them only once.
+ */
+function normalizePartyPeople(party: PartyWithRoles): PartyWithPersons {
+    const peopleMap = new Map<string, PersonWithRoles>();
+    party.roles.forEach(role => {
+        if (!peopleMap.has(role.person.id)) {
+            peopleMap.set(role.person.id, role.person);
+        }
+    });
+    
+    const { roles, ...partyWithoutRoles } = party;
+    return {
+        ...partyWithoutRoles,
+        people: Array.from(peopleMap.values())
+    };
+}
+
 export async function getParty(id: string): Promise<PartyWithPersons | null> {
     try {
         const party = await prisma.party.findUnique({
@@ -76,25 +98,7 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
 
         if (!party) return null;
 
-        // Extract people from roles and include all their roles
-        // Deduplicate people by id since a person can have multiple roles
-        const peopleMap = new Map<string, PersonWithRoles>();
-        party.roles.forEach(role => {
-            if (!peopleMap.has(role.person.id)) {
-                peopleMap.set(role.person.id, role.person);
-            }
-        });
-        const people = Array.from(peopleMap.values());
-
-        // Create a new object without the roles property
-        const { roles, ...partyWithoutRoles } = party;
-
-        const partyWithPersons = {
-            ...partyWithoutRoles,
-            people
-        };
-
-        return partyWithPersons;
+        return normalizePartyPeople(party);
     } catch (error) {
         console.error('Error fetching party:', error);
         throw new Error('Failed to fetch party');
@@ -127,22 +131,7 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
             }
         });
 
-        // Add people property to each party and remove roles
-        // Deduplicate people by id since a person can have multiple roles
-        const partiesWithPeople = parties.map(party => {
-            const { roles, ...partyWithoutRoles } = party;
-            const peopleMap = new Map<string, PersonWithRoles>();
-            roles.forEach(role => {
-                if (!peopleMap.has(role.person.id)) {
-                    peopleMap.set(role.person.id, role.person);
-                }
-            });
-            const people = Array.from(peopleMap.values());
-            return {
-                ...partyWithoutRoles,
-                people
-            };
-        });
+        const partiesWithPeople = parties.map(normalizePartyPeople);
 
         return partiesWithPeople;
     } catch (error) {
