@@ -120,11 +120,11 @@ export function LocationSelector({
         }
     };
 
-    // Removed automatic focus effect - it causes keyboard to dismiss on mobile
-
     const handleSelectLocation = async (suggestion: PlaceSuggestion) => {
+        if (isLoading) return;
+
         setIsLoading(true);
-        setError(null); // Clear any error when selecting a location
+        setError(null);
 
         try {
             const placeDetails = await getPlaceDetails(suggestion.placeId);
@@ -146,7 +146,6 @@ export function LocationSelector({
             setError('Σφάλμα κατά την ανάκτηση των λεπτομερειών της τοποθεσίας.');
         } finally {
             setIsLoading(false);
-            // Don't refocus on mobile - it causes the keyboard to dismiss
         }
     };
 
@@ -206,16 +205,7 @@ export function LocationSelector({
                                 <li
                                     key={suggestion.id}
                                     className="px-4 py-4 md:py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex items-center gap-3 border-b last:border-b-0 border-gray-100 touch-manipulation min-h-[48px] md:min-h-0"
-                                    onMouseDown={(e) => {
-                                        // Prevent input from losing focus on mobile when tapping suggestions
-                                        e.preventDefault();
-                                        handleSelectLocation(suggestion);
-                                    }}
-                                    onClick={(e) => {
-                                        // Fallback handler for accessibility (keyboard navigation, screen readers, programmatic clicks)
-                                        e.preventDefault();
-                                        handleSelectLocation(suggestion);
-                                    }}
+                                    onClick={() => handleSelectLocation(suggestion)}
                                 >
                                     <MapPin className="h-5 w-5 md:h-4 md:w-4 text-primary flex-shrink-0" />
                                     <span className="line-clamp-2 text-base md:text-sm">{suggestion.text}</span>
