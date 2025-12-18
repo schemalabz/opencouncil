@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
-import prisma from '@/lib/db/prisma'
+import { updateRoleRankings } from '@/lib/db/roles'
 
 export async function POST(
     request: Request,
@@ -9,7 +9,7 @@ export async function POST(
 ) {
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
-        
+
         const body = await request.json();
         const { rankings }: { rankings: Array<{ roleId: string, rank: number | null }> } = body;
 
@@ -17,15 +17,7 @@ export async function POST(
             return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
         }
 
-        // Update roles in a transaction
-        await prisma.$transaction(
-            rankings.map(({ roleId, rank }) =>
-                prisma.role.update({
-                    where: { id: roleId },
-                    data: { rank }
-                })
-            )
-        );
+        await updateRoleRankings(params.cityId, params.partyId, rankings);
 
         // Revalidate cache
         revalidateTag(`city:${params.cityId}:parties`);
@@ -36,6 +28,17 @@ export async function POST(
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error updating role rankings:', error);
+
+        // Handle validation errors with appropriate status codes
+        if (error instanceof Error) {
+            if (error.message.includes('not found')) {
+                return NextResponse.json({ error: error.message }, { status: 400 });
+            }
+            if (error.message.includes('do not belong') || error.message.includes('does not belong')) {
+                return NextResponse.json({ error: error.message }, { status: 403 });
+            }
+        }
+
         return NextResponse.json({ error: 'Failed to update rankings' }, { status: 500 });
     }
 }
