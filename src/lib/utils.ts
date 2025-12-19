@@ -280,6 +280,30 @@ export function isRoleActive(role: { startDate: Date | null, endDate: Date | nul
 }
 
 /**
+ * Finds the first active party role from a list of roles.
+ * @param roles Array of roles with party relations
+ * @param partyId Optional party ID to filter by
+ * @param date Date to check for active roles (defaults to current date)
+ * @returns The first active party role, or null if none found
+ */
+export function getActivePartyRole<T extends Role & { partyId?: string | null }>(
+  roles: T[],
+  partyId?: string,
+  date?: Date
+): T | null {
+  const checkDate = date || new Date();
+
+  // Filter roles that are active at the specified date
+  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
+
+  // Find the first role that has a party (and matches partyId if provided)
+  if (partyId) {
+    return activeRoles.find(role => role.partyId === partyId) || null;
+  }
+  return activeRoles.find(role => role.partyId) || null;
+}
+
+/**
  * Extracts party affiliation from a list of roles at a specific date.
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)

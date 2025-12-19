@@ -1,6 +1,7 @@
 import { PersonWithRelations } from '@/lib/db/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { PeopleOrdering } from '@prisma/client';
+import { getActivePartyRole } from '@/lib/utils';
 
 /**
  * Sorts an array of Person objects by the last word in their name (typically last name)
@@ -126,7 +127,7 @@ export const sortPeople = (
             peopleByParty[party.id] = [];
         }
     });
-    
+
     // Sort parties by member count (descending)
     const sortedParties = [...parties].sort((a, b) => {
         const aCount = peopleByParty[a.id]?.length || 0;
@@ -136,7 +137,7 @@ export const sortPeople = (
 
     // Sort people within each party and flatten
     const sortedPeople: PersonWithRelations[] = [];
-    
+
     sortedParties.forEach(party => {
         const partyPeople = peopleByParty[party.id] || [];
         const sortedPartyPeople = sortPartyMembers(partyPeople, party.id, false);
@@ -147,6 +148,6 @@ export const sortPeople = (
     const noPartyPeople = peopleByParty['_no_party'] || [];
     const sortedNoPartyPeople = sortPersonsByLastName(noPartyPeople);
     sortedPeople.push(...sortedNoPartyPeople);
-    
+
     return sortedPeople;
 };
