@@ -134,7 +134,6 @@ export function MunicipalitySelector({
                     >
                         {cities
                             .filter(city => city.isListed)
-                            .slice(0, 5)
                             .map((city) => (
                                 <motion.div
                                     key={city.id}
