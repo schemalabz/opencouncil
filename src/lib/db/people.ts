@@ -2,6 +2,7 @@
 import { Person, Party, Role, AdministrativeBody, City, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { getActiveRoleCondition } from "../utils";
 
 export type PersonWithRelations = Person & {
     roles: (Role & {
@@ -170,19 +171,7 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
             include: {
                 roles: {
                     where: activeRolesOnly ? {
-                        OR: [
-                            // Both dates null
-                            { startDate: null, endDate: null },
-                            // Only start date set - active if in past
-                            { startDate: { lte: now }, endDate: null },
-                            // Only end date set - active if in future
-                            { startDate: null, endDate: { gt: now } },
-                            // Both dates set - active if current time is within range
-                            {
-                                startDate: { lte: now },
-                                endDate: { gt: now }
-                            }
-                        ]
+                        OR: getActiveRoleCondition(now)
                     } : undefined,
                     include: {
                         party: true,

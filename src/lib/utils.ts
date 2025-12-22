@@ -500,4 +500,24 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
   }
 }
 
+/**
+ * Returns the Prisma OR condition for finding active roles at a given date.
+ * Default date is the current time.
+ */
+export function getActiveRoleCondition(date: Date = new Date()) {
+  return [
+    // Both dates are null (ongoing role)
+    { startDate: null, endDate: null },
+    // Only start date is set and it's in the past
+    { startDate: { lte: date }, endDate: null },
+    // Only end date is set and it's in the future
+    { startDate: null, endDate: { gt: date } },
+    // Both dates are set and current time is within range
+    {
+      startDate: { lte: date },
+      endDate: { gt: date }
+    }
+  ];
+}
+
 // Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts

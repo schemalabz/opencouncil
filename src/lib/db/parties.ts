@@ -2,6 +2,7 @@
 import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { getActiveRoleCondition } from "../utils";
 
 const partyWithRolesInclude = {
     roles: {
@@ -89,6 +90,12 @@ function normalizePartyPeople(party: PartyWithRoles): PartyWithPersons {
     };
 }
 
+/**
+ * Fetches a party by ID, including all people who have ever had a role in the party.
+ *
+ * Note: This includes both active and inactive people. Filtering for active/inactive
+ * members is expected to be handled by the consumer (e.g. client-side in Party.tsx).
+ */
 export async function getParty(id: string): Promise<PartyWithPersons | null> {
     try {
         const party = await prisma.party.findUnique({
@@ -105,6 +112,11 @@ export async function getParty(id: string): Promise<PartyWithPersons | null> {
     }
 }
 
+/**
+ * Fetches all parties for a city, including only active people.
+ *
+ * Note: This differs from `getParty` by automatically filtering out inactive roles/people.
+ */
 export async function getPartiesForCity(cityId: string): Promise<PartyWithPersons[]> {
     try {
         const parties = await prisma.party.findMany({
@@ -113,19 +125,7 @@ export async function getPartiesForCity(cityId: string): Promise<PartyWithPerson
                 roles: {
                     ...partyWithRolesInclude.roles,
                     where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
+                        OR: getActiveRoleCondition()
                     }
                 }
             }
