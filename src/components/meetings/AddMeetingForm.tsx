@@ -202,17 +202,12 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                     <FormField
                         control={form.control}
                         name="administrativeBodyId"
-                        render={({ field }) => (
+                        render={({ field: { value, onChange, ...field } }) => (
                             <FormItem>
                                 <FormLabel>{t('administrativeBody')}</FormLabel>
-                                <Select 
-                                    onValueChange={(value) => {
-                                        field.onChange(value === "none" ? undefined : value);
-                                    }} 
-                                    value={field.value || "none"}
-                                >
+                                <Select onValueChange={onChange} value={value?.toString() || "none"}>
                                     <FormControl>
-                                        <SelectTrigger>
+                                        <SelectTrigger {...field}>
                                             <SelectValue placeholder={t('selectAdministrativeBody')} />
                                         </SelectTrigger>
                                     </FormControl>
