@@ -21,6 +21,7 @@ import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Switch } from "@/components/ui/switch"
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -51,7 +52,8 @@ const formSchema = z.object({
     }).regex(/^[a-z-]+$/, {
         message: "ID must contain only lowercase letters a-z and dashes.",
     }),
-    authorityType: z.enum(['municipality', 'region'])
+    authorityType: z.enum(['municipality', 'region']),
+    supportsNotifications: z.boolean()
 })
 
 interface CityFormProps {
@@ -119,7 +121,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
-            authorityType: city?.authorityType || "municipality"
+            authorityType: city?.authorityType || "municipality",
+            supportsNotifications: city?.supportsNotifications || false
         },
     })
 
@@ -146,6 +149,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
+        formData.append('supportsNotifications', values.supportsNotifications.toString())
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -364,6 +368,28 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         {t('cityIdDescription')}
                                     </FormDescription>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="supportsNotifications"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('supportsNotifications')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('supportsNotificationsDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
                                 </FormItem>
                             )}
                         />

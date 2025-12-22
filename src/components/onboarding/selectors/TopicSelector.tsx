@@ -142,7 +142,7 @@ export function TopicSelector({
                             {selectedTopics.length > 0 && (
                                 <Button
                                     variant="ghost"
-                                    className="h-7 px-2 text-xs"
+                                    className="h-11 md:h-7 px-3 md:px-2 text-xs touch-manipulation"
                                     onClick={handleRemoveAll}
                                 >
                                     Καθαρισμός όλων
@@ -162,10 +162,10 @@ export function TopicSelector({
                                         <Button
                                             variant="outline"
                                             className={cn(
-                                                "w-full justify-start gap-2 overflow-hidden p-3 h-auto relative",
+                                                "w-full justify-start gap-2 overflow-hidden p-4 md:p-3 min-h-[56px] md:min-h-0 h-auto relative",
                                                 "transition-all duration-200",
                                                 isSelected && "ring-2 ring-offset-2",
-                                                "hover:shadow-md"
+                                                "hover:shadow-md touch-manipulation"
                                             )}
                                             style={{
                                                 borderColor: `${topic.colorHex}${isSelected ? 'FF' : '80'}`,

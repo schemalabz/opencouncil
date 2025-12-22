@@ -152,8 +152,9 @@ export function FormContainer() {
         <div
             className={cn(
                 "absolute z-10 transition-all duration-300 ease-in-out",
-                "fixed top-24 bottom-8 mx-auto w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
-                isDesktop ? "left-4" : "left-1/2 -translate-x-1/2"
+                "fixed top-20 md:top-24 bottom-4 md:bottom-8 mx-auto w-[95%] md:w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
+                isDesktop ? "left-4" : "left-1/2 -translate-x-1/2",
+                "safe-area-inset-top safe-area-inset-bottom"
             )}
         >
             <div className={cn(
