@@ -1,10 +1,6 @@
 "use server";
 import prisma from "./prisma";
-
-export interface RoleRanking {
-    roleId: string;
-    rank: number | null;
-}
+import { RoleRanking } from "./types";
 
 /**
  * Updates role rankings for roles belonging to a specific party and city.
@@ -70,4 +66,3 @@ export async function updateRoleRankings(
         )
     );
 }
-

@@ -18,6 +18,7 @@ import {
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
 import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
+import { RoleWithRelations } from '@/lib/db/types'
 import { Loader2, Check } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import React, { useRef } from "react"
@@ -45,7 +46,7 @@ const formSchema = z.object({
 })
 
 interface PersonFormProps {
-    person?: Person & { roles?: (Role & { party?: Party | null, administrativeBody?: AdministrativeBody | null })[] }
+    person?: Person & { roles?: RoleWithRelations[] }
     onSuccess?: () => void
     cityId: string,
     parties: Party[]
@@ -58,7 +59,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
-    const [roles, setRoles] = useState<(Role & { party?: Party | null, administrativeBody?: AdministrativeBody | null })[]>(person?.roles || [])
+    const [roles, setRoles] = useState<RoleWithRelations[]>(person?.roles || [])
     const t = useTranslations('PersonForm')
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)

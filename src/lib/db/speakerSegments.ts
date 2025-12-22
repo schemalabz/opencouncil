@@ -1,9 +1,10 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary, Prisma } from '@prisma/client';
+import { CouncilMeeting, City, Prisma } from '@prisma/client';
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
+import { roleWithRelationsInclude } from './types';
 
 export type SegmentWithRelations = {
     id: string;
@@ -23,13 +24,7 @@ const speakerSegmentWithRelationsInclude = {
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -410,13 +405,7 @@ export async function getLatestSegmentsForSpeaker(
                     include: {
                         person: {
                             include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
-                                }
+                                roles: roleWithRelationsInclude
                             }
                         }
                     }
@@ -506,11 +495,7 @@ export async function getLatestSegmentsForParty(
                                     where: {
                                         partyId: partyId
                                     },
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
+                                    include: roleWithRelationsInclude.include
                                 }
                             }
                         }

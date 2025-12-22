@@ -3,19 +3,14 @@ import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getActiveRoleCondition } from "../utils";
+import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 const partyWithRolesInclude = {
     roles: {
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            city: true,
-                            administrativeBody: true,
-                            party: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -23,7 +18,9 @@ const partyWithRolesInclude = {
 } satisfies Prisma.PartyInclude;
 
 type PartyWithRoles = Prisma.PartyGetPayload<{ include: typeof partyWithRolesInclude }>;
-export type PersonWithRoles = PartyWithRoles['roles'][number]['person'];
+export type PersonWithRoles = PartyWithRoles['roles'][number]['person'] & {
+    roles: RoleWithRelations[];
+};
 
 export async function deleteParty(id: string): Promise<void> {
     await withUserAuthorizedToEdit({ partyId: id });

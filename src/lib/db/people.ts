@@ -1,15 +1,12 @@
 "use server";
-import { Person, Party, Role, AdministrativeBody, City, VoicePrint } from '@prisma/client';
+import { Person, Role, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getActiveRoleCondition } from "../utils";
+import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
-    roles: (Role & {
-        party?: Party | null;
-        city?: City | null;
-        administrativeBody?: AdministrativeBody | null;
-    })[];
+    roles: RoleWithRelations[];
     voicePrints?: VoicePrint[];
 };
 
@@ -61,13 +58,7 @@ export async function createPerson(data: {
                 }
             },
             include: {
-                roles: {
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
-                }
+                roles: roleWithRelationsInclude
             }
         });
         return newPerson;
@@ -119,13 +110,7 @@ export async function editPerson(id: string, data: {
                     }
                 },
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             });
         });
@@ -141,13 +126,7 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
         const person = await prisma.person.findUnique({
             where: { id },
             include: {
-                roles: {
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
-                },
+                roles: roleWithRelationsInclude,
                 voicePrints: {
                     orderBy: {
                         createdAt: 'desc'
@@ -173,11 +152,7 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
                     where: activeRolesOnly ? {
                         OR: getActiveRoleCondition(now)
                     } : undefined,
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
+                    ...roleWithRelationsInclude
                 },
                 voicePrints: {
                     orderBy: {
