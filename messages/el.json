@@ -529,5 +529,13 @@
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
         "failedToDelete": "Αποτυχία διαγραφής"
+    },
+    "RSS": {
+        "title": "Τελευταίες Ενημερώσεις - {city}",
+        "description": "Ενημερώσεις για {municipality}",
+        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "subjects": "Θέματα",
+        "noSubjects": "Δεν υπάρχουν θέματα",
+        "cityNotFound": "Η πόλη δεν βρέθηκε"
     }
 }

@@ -346,5 +346,13 @@
         "fixTranscript": "Automatic correction",
         "humanReview": "Human reviewed",
         "summarize": "Summarized"
+    },
+    "RSS": {
+        "title": "Latest Updates - {city}",
+        "description": "Updates for {municipality}",
+        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "subjects": "Subjects",
+        "noSubjects": "No subjects listed",
+        "cityNotFound": "City not found"
     }
 }
