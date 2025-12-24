@@ -89,6 +89,7 @@
     "date-fns-tz": "^3.2.0",
     "docx": "^9.1.1",
     "dotenv": "^16.4.5",
+    "feed": "^5.1.0",
     "framer-motion": "^11.11.17",
     "get-video-duration": "^4.1.0",
     "glob": "^11.0.0",
@@ -125,6 +126,7 @@
     "resend": "^4.0.0",
     "rimraf": "^6.0.1",
     "sanitize-html": "^2.17.0",
+    "sharp": "^0.33.4",
     "swagger-ui-react": "^5.17.14",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
@@ -132,7 +134,6 @@
     "terra-draw-mapbox-gl-adapter": "^1.1.0",
     "timeago.js": "^4.0.2",
     "tsx": "^4.19.2",
-    "sharp": "^0.33.4",
     "uuid": "^10.0.0",
     "vaul": "^0.9.1",
     "video.js": "^8.17.4",
@@ -144,6 +145,7 @@
     "hls.js": "^1.6.7"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^10.10.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/aws-sdk": "^2.7.0",
@@ -170,9 +172,8 @@
     "prisma": "^5.22.0",
     "proj4": "^2.19.5",
     "tailwindcss": "^3.4.1",
+    "testcontainers": "^10.10.3",
     "ts-jest": "^29.2.5",
-    "typescript": "^5",
-    "@testcontainers/postgresql": "^10.10.3",
-    "testcontainers": "^10.10.3"
+    "typescript": "^5"
   }
 }
