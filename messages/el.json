@@ -563,6 +563,14 @@
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
         "failedToDelete": "Αποτυχία διαγραφής"
     },
+    "RSS": {
+        "title": "Τελευταίες Ενημερώσεις - {city}",
+        "description": "Ενημερώσεις για {municipality}",
+        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "subjects": "Θέματα",
+        "noSubjects": "Δεν υπάρχουν θέματα",
+        "cityNotFound": "Η πόλη δεν βρέθηκε"
+    },
     "PartyMemberRankingSheet": {
         "title": "Αλλαγή Σειράς Μελών",
         "description": "Σύρετε και αποθέστε τα μέλη για να αλλάξετε τη σειρά τους. Η σειρά θα αποθηκευτεί ως κατάταξη.",
