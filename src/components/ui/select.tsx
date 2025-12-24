@@ -74,7 +74,7 @@ SelectScrollDownButton.displayName =
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", onCloseAutoFocus, onEscapeKeyDown, onPointerDownOutside, ...props }, ref) => {
+>(({ className, children, position = "popper", onCloseAutoFocus, onEscapeKeyDown, onPointerDownOutside, onFocus, ...props }, ref) => {
   const handleCloseAutoFocus = React.useCallback((event: Event) => {
     // Prevent default focus restoration to avoid conflicts with parent focus scopes (Sheet/Dialog)
     // This is critical to prevent "too much recursion" errors
@@ -94,6 +94,12 @@ const SelectContent = React.forwardRef<
     onPointerDownOutside?.(event);
   }, [onPointerDownOutside]);
 
+  const handleFocus = React.useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    // Stop propagation to prevent focus events from reaching parent focus scopes
+    event.stopPropagation();
+    onFocus?.(event);
+  }, [onFocus]);
+
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
@@ -108,6 +114,7 @@ const SelectContent = React.forwardRef<
         onCloseAutoFocus={handleCloseAutoFocus}
         onEscapeKeyDown={handleEscapeKeyDown}
         onPointerDownOutside={handlePointerDownOutside}
+        onFocus={handleFocus}
         {...props}
       >
         <SelectScrollUpButton />
