@@ -20,7 +20,7 @@ interface CityStatus {
     totalMeetingsElastic: number;
     totalSubjectsElastic: number;
     isInElastic: boolean;
-    isListed: boolean;
+    status: 'pending' | 'unlisted' | 'listed';
 }
 
 interface RecentDocument {
@@ -81,7 +81,7 @@ export default function ElasticsearchStatus() {
         fetchStatus();
     }, []);
 
-    const filteredCities = status?.cities.filter(city => showUnlisted || city.isListed);
+    const filteredCities = status?.cities.filter(city => showUnlisted || city.status === 'listed');
 
     if (loading) {
         return (
@@ -160,9 +160,8 @@ export default function ElasticsearchStatus() {
                             {filteredCities?.map((city) => {
                                 const isLatestMeetingInSync = city.latestMeetingIdPostgres === city.latestMeetingIdElastic;
                                 const areTotalMeetingsInSync = city.totalMeetingsPostgres === city.totalMeetingsElastic;
-
                                 return (
-                                    <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : !city.isListed ? 'bg-yellow-50' : ''}>
+                                    <TableRow key={city.cityId} className={!city.isInElastic ? 'bg-red-50' : city.status !== 'listed' ? 'bg-yellow-50' : ''}>
                                         <TableCell>
                                             {city.cityName}
                                             {!city.isInElastic && <p className="text-xs text-red-600">Not in ES</p>}

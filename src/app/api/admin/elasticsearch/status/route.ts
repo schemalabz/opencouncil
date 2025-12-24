@@ -20,7 +20,7 @@ interface CityPostgresData {
     cityName: string;
     latestMeetingIdPostgres: string | null;
     totalMeetingsPostgres: number;
-    isListed: boolean;
+    status: 'pending' | 'unlisted' | 'listed';
 }
 
 export async function GET() {
@@ -65,7 +65,7 @@ export async function GET() {
                 cityName: city.name,
                 latestMeetingIdPostgres: latestMeeting?.id || null,
                 totalMeetingsPostgres: meetingsCount?._count._all || 0,
-                isListed: city.isListed,
+                status: city.status,
             };
         }
 
