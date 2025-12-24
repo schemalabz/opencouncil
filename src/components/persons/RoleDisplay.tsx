@@ -1,15 +1,9 @@
 import React from 'react';
-import { Role, Party, City, AdministrativeBody } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { Star, Building, Users } from 'lucide-react';
-
-type RoleWithRelations = Role & {
-    party?: Party | null;
-    city?: City | null;
-    administrativeBody?: AdministrativeBody | null;
-};
+import { RoleWithRelations } from '@/lib/db/types';
 
 interface RoleDisplayProps {
     roles: RoleWithRelations[];
