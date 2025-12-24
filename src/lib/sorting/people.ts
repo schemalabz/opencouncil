@@ -151,3 +151,4 @@ export const sortPeople = (
 
     return sortedPeople;
 };
+

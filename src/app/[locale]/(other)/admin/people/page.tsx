@@ -1,6 +1,6 @@
 import { getCities } from "@/lib/db/cities";
 import { getPeopleForCity, PersonWithRelations } from "@/lib/db/people";
-import { sortPersonsByLastName } from "@/components/utils";
+import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
 import People from "@/components/admin/people/people";
 

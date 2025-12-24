@@ -21,7 +21,7 @@ import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
-import { sortPartyMembers, sortInactivePartyMembers } from '@/components/utils';
+import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';

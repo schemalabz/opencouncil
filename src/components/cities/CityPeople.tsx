@@ -6,7 +6,7 @@ import List from '@/components/List';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { PersonWithRelations } from '@/lib/db/people';
-import { sortPeople } from '@/components/utils';
+import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { City } from '@prisma/client';
 

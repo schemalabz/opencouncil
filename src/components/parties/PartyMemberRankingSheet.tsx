@@ -25,8 +25,8 @@ import { PartyWithPersons } from '@/lib/db/parties';
 import { GripVertical, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { compareRanks } from '@/components/utils';
 import { isRoleActive, getActivePartyRole } from '@/lib/utils';
+import { compareRanks } from '@/lib/sorting/people';
 
 interface PartyMemberRankingSheetProps {
     open: boolean;
