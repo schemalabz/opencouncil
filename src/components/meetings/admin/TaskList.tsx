@@ -3,6 +3,7 @@ import { TaskStatus } from "@prisma/client";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from "lucide-react";
 import { TaskStatusComponent } from "./TaskStatus";
+import { useTranslations } from "next-intl";
 
 interface TaskListProps {
     tasks: TaskStatus[];
@@ -11,6 +12,8 @@ interface TaskListProps {
 }
 
 export default function TaskList({ tasks, onDelete, isLoading }: TaskListProps) {
+    const t = useTranslations('admin.taskList');
+    
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-20">
@@ -22,7 +25,7 @@ export default function TaskList({ tasks, onDelete, isLoading }: TaskListProps) 
     if (tasks.length === 0) {
         return (
             <div className="text-center text-muted-foreground py-4">
-                No tasks running
+                {t('noTasks')}
             </div>
         );
     }

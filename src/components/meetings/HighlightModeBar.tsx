@@ -11,6 +11,7 @@ import { HighlightPreviewDialog } from './HighlightPreviewDialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { HighlightDialog } from './HighlightDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useTranscriptOptions } from './options/OptionsContext';
 
 export function HighlightModeBar() {
   const { 
@@ -26,10 +27,12 @@ export function HighlightModeBar() {
     saveHighlight
   } = useHighlight();
 
+  const { options } = useTranscriptOptions();
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const t = useTranslations('highlights');
 
-  if (!editingHighlight) {
+  if (!editingHighlight || options.editable) {
     return null;
   }
 

@@ -12,7 +12,7 @@ import { requestGeneratePodcastSpec } from '@/lib/tasks/generatePodcastSpec';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { PersonBadge } from "@/components/persons/PersonBadge";
-import { getPartyFromRoles } from "@/lib/utils";
+import { formatTimestamp } from "@/lib/utils";
 
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
@@ -53,13 +53,6 @@ export default function Subjects() {
         if (segment) {
             seekTo(segment.startTimestamp);
         }
-    };
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
     const handleAllocationChange = (subjectId: string, value: AllocationOption) => {

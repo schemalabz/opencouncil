@@ -10,7 +10,7 @@ The QR Campaign system provides a lightweight way to manage dynamic redirects fo
 
 1. **Request Flow**: The middleware bypasses i18n routing for `/qr/*` paths, sending requests directly to the route handler
 2. **Database Lookup**: The route handler queries the `QrCampaign` table for an active campaign matching the code
-3. **URL Construction**: For relative URLs (e.g., `/chalandri`), it constructs an absolute URL using the request origin; external URLs are used as-is
+3. **URL Construction**: For relative URLs (e.g., `/chalandri`), it constructs an absolute URL using `NEXT_PUBLIC_BASE_URL`; external URLs are used as-is
 4. **UTM Parameter Injection**: Appends analytics tracking parameters (`utm_source=qr`, `utm_medium=offline`, `utm_campaign=<code>`) to the destination URL
 5. **Redirect**: Returns an HTTP 307 redirect to the final destination URL
 6. **Analytics**: Users can track scans in analytics tool by filtering for UTM parameters
@@ -35,7 +35,7 @@ sequenceDiagram
     Middleware->>RouteHandler: Forward request (bypass i18n)
     RouteHandler->>DB: SELECT * FROM QrCampaign WHERE code='keyring' AND isActive=true
     DB-->>RouteHandler: Return campaign { url: '/chalandri', isActive: true }
-    RouteHandler->>RouteHandler: Construct full URL with origin
+    RouteHandler->>RouteHandler: Construct full URL with configured base URL
     RouteHandler->>RouteHandler: Append UTM params (utm_source=qr, utm_medium=offline, utm_campaign=keyring)
     RouteHandler-->>Browser: 307 Redirect to https://opencouncil.gr/chalandri?utm_source=qr&utm_medium=offline&utm_campaign=keyring
     Browser->>Plausible: Track pageview with UTM params

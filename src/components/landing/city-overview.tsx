@@ -1,5 +1,7 @@
+'use client';
+
 import { Users, Building2, CalendarDays, BadgeX } from "lucide-react";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import MeetingCard from "../meetings/MeetingCard";
 import { LandingCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
@@ -12,6 +14,7 @@ interface CityOverviewProps {
 }
 
 export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
+    const router = useRouter();
     const latestMeeting = city.mostRecentMeeting;
 
     const statCard = (icon: React.ReactNode, title: string, subtitle: string, href: string, index: number) => {
@@ -20,12 +23,16 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
         const hoverBorderClass = isAccent ? "hover:border-accent/30" : "hover:border-orange/30";
 
         return (
-            <Link href={href} className={cn(
-                "block p-4 sm:p-5 relative overflow-hidden rounded-xl",
-                "bg-gradient-to-br from-background to-muted/50",
-                "border border-border", hoverBorderClass,
-                "hover:shadow-md transition-all duration-300 group"
-            )}>
+            <Link
+                href={href}
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                    "block p-4 sm:p-5 relative overflow-hidden rounded-xl h-full z-10",
+                    "bg-gradient-to-br from-background to-muted/50",
+                    "border border-border", hoverBorderClass,
+                    "hover:shadow-md transition-all duration-300 group"
+                )}
+            >
                 <div className="absolute inset-0 bg-gradient-to-r from-accent/5 via-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-gradientFlow" />
                 <div className="relative space-y-2">
                     <div className="flex items-center gap-3">
@@ -40,8 +47,22 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
         );
     };
 
+    const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Only navigate if clicking on the card itself, not on nested links or buttons
+        const target = e.target as HTMLElement;
+        const isLink = target.closest('a');
+        const isButton = target.closest('button');
+
+        if (!isLink && !isButton) {
+            router.push(`/${city.id}`);
+        }
+    };
+
     return (
-        <div className="space-y-6 sm:space-y-8">
+        <div
+            onClick={handleCardClick}
+            className="block space-y-6 sm:space-y-8 cursor-pointer group/overview"
+        >
             <div className="flex items-center gap-4">
                 <CityMiniCard
                     city={city}
@@ -61,9 +82,9 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
             )}
 
             {/* Latest Meeting and Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-stretch">
                 {/* Latest Meeting */}
-                <div className="h-auto lg:h-64">
+                <div className="h-full" onClick={(e) => e.stopPropagation()}>
                     {latestMeeting && (
                         <MeetingCard
                             item={{
@@ -77,7 +98,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:w-80">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:w-80 h-full">
                     {statCard(
                         <Users className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city._count.persons} Πρόσωπα`,

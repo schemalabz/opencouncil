@@ -5,11 +5,18 @@ import { SearchRequest, ExtractedFilters } from './types';
 export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
     const filters: estypes.QueryDslQueryContainer[] = [];
 
+    // Always filter for released meetings only
+    filters.push({
+        term: {
+            'meeting_released': true
+        }
+    });
+
     // Add city filter if specified
     if (request.cityIds && request.cityIds.length > 0) {
         filters.push({
             terms: {
-                'public_subject_city_id': request.cityIds
+                'city_id': request.cityIds
             }
         });
     }
@@ -19,20 +26,20 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
         // Add filter for introduced by person
         filters.push({
             terms: {
-                'public_subject_introduced_by_person_id': request.personIds
+                'introduced_by_person_id': request.personIds
             }
         });
 
         // Add filter for speaker segments
         filters.push({
             nested: {
-                path: 'public_subject_speaker_segments',
+                path: 'speaker_segments',
                 query: {
                     bool: {
                         must: [
                             {
                                 terms: {
-                                    'public_subject_speaker_segments.speaker.person_id': request.personIds
+                                    'speaker_segments.speaker_person_id': request.personIds
                                 }
                             }
                         ]
@@ -46,7 +53,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
     if (request.partyIds && request.partyIds.length > 0) {
         filters.push({
             terms: {
-                'public_subject_introduced_by_party_id': request.partyIds
+                'introduced_by_party_id': request.partyIds
             }
         });
     }
@@ -55,7 +62,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
     if (request.topicIds && request.topicIds.length > 0) {
         filters.push({
             terms: {
-                'public_subject_topic_id': request.topicIds
+                'topic_id': request.topicIds
             }
         });
     }
@@ -64,7 +71,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
     if (request.dateRange) {
         filters.push({
             range: {
-                'public_subject_meeting_date': {
+                'meeting_date': {
                     gte: request.dateRange.start,
                     lte: request.dateRange.end
                 }
@@ -79,7 +86,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
             filters.push({
                 geo_distance: {
                     distance: `${request.locations[0].radius}km`,
-                    'public_subject_location_geojson': {
+                    'location_geojson': {
                         lat: request.locations[0].point.lat,
                         lon: request.locations[0].point.lon
                     }
@@ -92,7 +99,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
                     should: request.locations.map(loc => ({
                         geo_distance: {
                             distance: `${loc.radius}km`,
-                            'public_subject_location_geojson': {
+                            'location_geojson': {
                                 lat: loc.point.lat,
                                 lon: loc.point.lon
                             }
@@ -136,9 +143,9 @@ export function buildSearchQuery(
                                             multi_match: {
                                                 query: mergedRequest.query,
                                                 fields: [
-                                                    'public_subject_name^4',           // Highest boost - most important identifier
-                                                    'public_subject_description^3',    // High boost - detailed content
-                                                    ...(extractedFilters.locationName ? ['public_subject_location_text^3'] : []), // Add location text with high boost when location is extracted
+                                                    'name^4',           // Highest boost - most important identifier
+                                                    'description^3',    // High boost - detailed content
+                                                    ...(extractedFilters.locationName ? ['location_text^3'] : []), // Add location text with high boost when location is extracted
                                                 ],
                                                 type: 'best_fields',
                                                 operator: 'or'
@@ -147,13 +154,13 @@ export function buildSearchQuery(
                                         {
                                             // Nested query for speaker segments
                                             nested: {
-                                                path: 'public_subject_speaker_segments',
+                                                path: 'speaker_segments',
                                                 query: {
                                                     bool: {
                                                         should: [
                                                             {
                                                                 match: {
-                                                                    'public_subject_speaker_segments.text': {
+                                                                    'speaker_segments.text': {
                                                                         query: mergedRequest.query,
                                                                         boost: 2
                                                                     }
@@ -161,7 +168,7 @@ export function buildSearchQuery(
                                                             },
                                                             {
                                                                 match: {
-                                                                    'public_subject_speaker_segments.summary': {
+                                                                    'speaker_segments.summary': {
                                                                         query: mergedRequest.query,
                                                                         boost: 2
                                                                     }
@@ -172,7 +179,7 @@ export function buildSearchQuery(
                                                     }
                                                 },
                                                 inner_hits: {
-                                                    _source: ['public_subject_speaker_segments.segment_id']
+                                                    _source: ['speaker_segments.segment_id']
                                                 }
                                             }
                                         }
@@ -188,14 +195,23 @@ export function buildSearchQuery(
                             standard: {
                                 query: {
                                     bool: {
-                                        must: [
+                                        should: [
                                             {
                                                 semantic: {
                                                     query: mergedRequest.query,
-                                                    field: 'public_subject_description.semantic'
+                                                    field: 'name.semantic',
+                                                    boost: 2.0  // Higher boost for name
+                                                }
+                                            },
+                                            {
+                                                semantic: {
+                                                    query: mergedRequest.query,
+                                                    field: 'description.semantic',
+                                                    boost: 1.5  // Medium boost for description
                                                 }
                                             }
                                         ],
+                                        minimum_should_match: 1,
                                         filter: buildFilters(mergedRequest)
                                     }
                                 }

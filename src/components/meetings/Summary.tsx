@@ -20,20 +20,13 @@ import {
 import { CommandList } from "cmdk";
 import Combobox from "../Combobox";
 import { PersonBadge } from "../persons/PersonBadge";
-import { getPartyFromRoles } from "@/lib/utils";
+import { getPartyFromRoles, formatTimestamp } from "@/lib/utils";
 
 export default function Summary() {
     const { transcript, getPerson, getParty, parties, speakerTags } = useCouncilMeetingData();
     const { seekTo } = useVideo();
     const [selectedParty, setSelectedParty] = useState<string | null>(null);
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = Math.floor(timestamp % 60);
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    };
 
     const topics = useMemo(() => {
         return Array.from(new Set(transcript.flatMap(segment => segment.topicLabels.map(tl => tl.topic.name))));

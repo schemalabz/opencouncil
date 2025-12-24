@@ -37,7 +37,7 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
     };
 
     return (
-        <section className="relative min-h-[85vh] flex items-start justify-center overflow-hidden w-full">
+        <section className="relative min-h-[70vh] flex items-start justify-center overflow-hidden w-full">
             <motion.div
                 style={{ opacity, y }}
                 variants={container}
@@ -52,8 +52,8 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                     />
                 </motion.div>
 
-                <div className="text-center space-y-8 sm:space-y-10 mt-16 sm:mt-20">
-                    <motion.div variants={item} className="space-y-6">
+                <div className="text-center space-y-6 sm:space-y-8 mt-12 sm:mt-16">
+                    <motion.div variants={item} className="space-y-4">
                         <motion.h1
                             variants={item}
                             className="text-3xl sm:text-5xl md:text-7xl font-normal"

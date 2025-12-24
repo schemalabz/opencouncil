@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { cn, getPartyFromRoles } from "@/lib/utils";
+import { cn, getPartyFromRoles, formatTimestamp } from "@/lib/utils";
 import { PersonBadge } from "../persons/PersonBadge";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { useState } from "react";
@@ -13,13 +13,6 @@ import { el, enUS } from "date-fns/locale";
 export function Result({ result, className }: { result: SegmentWithRelations, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const locale = useLocale();
-
-    const formatTimestamp = (timestamp: number) => {
-        const hours = Math.floor(timestamp / 3600);
-        const minutes = Math.floor((timestamp % 3600) / 60);
-        const seconds = timestamp % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(Math.floor(seconds)).padStart(2, '0')}`;
-    };
 
     const party = result.person ? getPartyFromRoles(result.person.roles) : null;
     const borderColor = party?.colorHex || '#D3D3D3';

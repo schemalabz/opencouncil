@@ -15,9 +15,6 @@ export const TASK_CONFIG = {
   summarize: {
     requiredForPipeline: true,
   },
-  syncElasticsearch: {
-    requiredForPipeline: false,
-  },
   generatePodcastSpec: {
     requiredForPipeline: false,
   },

@@ -1,17 +1,16 @@
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import ElasticsearchManagement from '@/components/admin/elasticsearch/ElasticsearchManagement';
+import ElasticsearchStatus from '@/components/admin/elasticsearch/Status';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Elasticsearch Management - OpenCouncil Admin',
-  description: 'Manage Elasticsearch connector configuration and monitor sync status',
+  title: 'Elasticsearch Status - OpenCouncil Admin',
+  description: 'Monitor Elasticsearch sync status',
 };
 
 /**
- * Elasticsearch Management Admin Page
+ * Elasticsearch Status Admin Page
  * 
- * Provides a dedicated interface for managing Elasticsearch connector configurations,
- * monitoring sync status, and preventing data loss incidents through validation
+ * Provides monitoring of Elasticsearch sync status via pgsync
  */
 export default async function ElasticsearchAdminPage() {
   // Ensure user has admin permissions
@@ -22,16 +21,14 @@ export default async function ElasticsearchAdminPage() {
       <div className="space-y-6">
         {/* Page Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Elasticsearch Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Elasticsearch Status</h1>
           <p className="text-muted-foreground">
-            Manage Elasticsearch connector configuration and monitor sync status.
-            Configure which cities are included in search indexing and validate 
-            configurations before applying them.
+            Monitor Elasticsearch sync status. Data is synced automatically via pgsync.
           </p>
         </div>
         
-        {/* Main Management Interface */}
-        <ElasticsearchManagement />
+        {/* Status Display */}
+        <ElasticsearchStatus />
       </div>
     </div>
   );
