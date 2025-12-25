@@ -10,8 +10,21 @@ import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { Container, OgHeader } from '@/components/og/shared-components';
 import { getSubjectDataForOG } from '@/lib/db/subject';
+import fs from 'fs';
+import path from 'path';
 
-// Meeting OG Image
+// Load and convert the logo to base64
+let logoBase64: string;
+try {
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+    const logo = fs.readFileSync(logoPath);
+    logoBase64 = `data:image/png;base64,${logo.toString('base64')}`;
+} catch (error) {
+    console.error('Failed to load logo:', error);
+    logoBase64 = '';
+}
+
+// Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
@@ -141,6 +154,192 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                 )}
             </div>
         </Container>
+    );
+};
+
+// Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
+const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
+    const data = await getMeetingDataForOG(cityId, meetingId);
+    if (!data) return null;
+
+    const meetingDate = new Date(data.dateTime);
+    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    // Sort subjects by hotness
+    const sortedSubjects = [...data.subjects].sort((a, b) => {
+        if (a.hot && !b.hot) return -1;
+        if (!a.hot && b.hot) return 1;
+        return 0;
+    });
+    const topSubjects = sortedSubjects.slice(0, 5);
+    const remainingCount = Math.max(0, data.subjects.length - 5);
+
+    return (
+        <div
+            style={{
+                height: '100%',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#ffffff',
+                padding: '64px 48px',
+                position: 'relative',
+            }}
+        >
+            {/* Header */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '20px',
+                marginBottom: '48px',
+            }}>
+                {data.city.logoImage && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={data.city.logoImage}
+                        height="100"
+                        alt="City Logo"
+                        style={{
+                            objectFit: 'contain',
+                        }}
+                    />
+                )}
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                }}>
+                    <span style={{
+                        fontSize: 36,
+                        fontWeight: 600,
+                        color: '#1f2937',
+                        display: 'flex',
+                    }}>
+                        {data.city.name_municipality}
+                    </span>
+                </div>
+            </div>
+
+            {/* Main Content */}
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px',
+            }}>
+                <h1 style={{
+                    fontSize: 72,
+                    fontWeight: 700,
+                    color: '#111827',
+                    lineHeight: 1.2,
+                    margin: 0,
+                    maxWidth: '100%',
+                }}>
+                    {data.name}
+                </h1>
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    color: '#4b5563',
+                    fontSize: 32,
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                    }}>
+                        <span>📅</span>
+                        <span>{formattedDate}</span>
+                    </div>
+
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                    }}>
+                        <span>📋</span>
+                        <span>{data.subjects?.length || 0} Θέματα</span>
+                    </div>
+                </div>
+
+                {topSubjects.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px',
+                        marginTop: '24px',
+                    }}>
+                        {topSubjects.map((subject) => (
+                            <div key={subject.id} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
+                                padding: '16px 24px',
+                                borderRadius: '16px',
+                                color: '#ffffff',
+                                fontSize: 28,
+                                fontWeight: 600,
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                width: '100%',
+                            }}>
+                                <span style={{
+                                    display: 'flex',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>{subject.name}</span>
+                            </div>
+                        ))}
+                        {remainingCount > 0 && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                color: '#6b7280',
+                                fontSize: 24,
+                                marginTop: '8px',
+                            }}>
+                                <span style={{
+                                    display: 'flex'
+                                }}>+{remainingCount} ακόμα θέματα</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Watermark */}
+            <div
+                style={{
+                    position: 'absolute',
+                    bottom: 48,
+                    right: 48,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    opacity: 0.7,
+                }}
+            >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoBase64} width='48' height='48' alt='OpenCouncil' />
+                <span
+                    style={{
+                        fontSize: 24,
+                        fontWeight: 500,
+                        color: '#6b7280',
+                    }}
+                >
+                    OpenCouncil
+                </span>
+            </div>
+        </div>
     );
 };
 
@@ -1082,16 +1281,33 @@ export async function GET(request: Request) {
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
+    const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
 
     try {
         let element;
+        let width = 1200;
+        let height = 630;
+
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId);
         } else if (subjectId && meetingId && cityId) {
             // Subject-specific OG image
             element = await SubjectOGImage(cityId, meetingId, subjectId);
         } else if (meetingId && cityId) {
-            element = await MeetingOGImage(cityId, meetingId);
+            // Handle variant for meeting images
+            if (variant === 'story') {
+                element = await MeetingStoryOGImage(cityId, meetingId);
+                width = 1080;
+                height = 1920;
+            } else if (variant === 'feed') {
+                // Square format for feed posts
+                element = await MeetingOGImage(cityId, meetingId);
+                width = 1080;
+                height = 1080;
+            } else {
+                // Default landscape format
+                element = await MeetingOGImage(cityId, meetingId);
+            }
         } else if (personId && cityId) {
             element = await PersonOGImage(cityId, personId);
         } else if (pageType === 'people' && cityId) {
@@ -1113,8 +1329,8 @@ export async function GET(request: Request) {
         }
 
         return new ImageResponse(element, {
-            width: 1200,
-            height: 630,
+            width,
+            height,
         });
     } catch (e) {
         console.error(e);
