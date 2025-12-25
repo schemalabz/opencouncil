@@ -12,7 +12,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Loader2 } from "lucide-react";
+import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Loader2, Instagram } from "lucide-react";
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -33,6 +33,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [ogImageUrl, setOgImageUrl] = useState('');
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+    const [downloading, setDownloading] = useState<string | null>(null);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
@@ -113,6 +114,52 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         navigator.clipboard.writeText(getShareableUrl());
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 3000);
+    };
+
+    const downloadImage = async (variant: 'story' | 'feed' | 'default') => {
+        const baseUrl = window.location.origin;
+        let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        
+        // Add variant parameter if not default
+        if (variant !== 'default') {
+            imageUrl += `&variant=${variant}`;
+        }
+
+        // Add subjectId if on subject page
+        if (pathname.includes('/subjects/')) {
+            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
+            if (subjectId) {
+                imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
+                // Note: Subject pages don't support variants yet, so we skip variant for them
+            }
+        }
+
+        setDownloading(variant);
+        
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch image');
+            }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Set filename based on variant
+            const variantName = variant === 'story' ? 'story' : variant === 'feed' ? 'feed' : 'og';
+            a.download = `meeting-${variantName}-${meetingId}.png`;
+            
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading image:', error);
+        } finally {
+            setDownloading(null);
+        }
     };
 
     // Determine what's being shared based on the current path
@@ -234,8 +281,50 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     )}
                 </div>
 
+                {ogImageUrl && !pathname.includes('/subjects/') && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <div className="p-3">
+                            <label className="text-xs font-medium text-muted-foreground mb-3 block">
+                                Εξαγωγή Εικόνας
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    onClick={() => downloadImage('story')}
+                                    disabled={downloading !== null}
+                                    variant="outline"
+                                    className="h-auto py-3 flex flex-col items-center gap-2"
+                                >
+                                    {downloading === 'story' ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Instagram className="w-4 h-4" />
+                                    )}
+                                    <span className="text-xs">Story</span>
+                                    <span className="text-[10px] text-muted-foreground">9:16</span>
+                                </Button>
+                                <Button
+                                    onClick={() => downloadImage('feed')}
+                                    disabled={downloading !== null}
+                                    variant="outline"
+                                    className="h-auto py-3 flex flex-col items-center gap-2"
+                                >
+                                    {downloading === 'feed' ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <FileDown className="w-4 h-4" />
+                                    )}
+                                    <span className="text-xs">Post</span>
+                                    <span className="text-[10px] text-muted-foreground">1:1</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </>
+                )}
+
                 {ogImageUrl && (
                     <>
+                        <DropdownMenuSeparator />
                         <div className="p-3">
                             <div className="rounded-lg border overflow-hidden bg-muted/50">
                                 <div className="aspect-[1200/630] relative bg-muted/30">
