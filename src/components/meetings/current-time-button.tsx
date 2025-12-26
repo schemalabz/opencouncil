@@ -14,7 +14,7 @@ export default function CurrentTimeButton() {
         return (
             <Button
                 onClick={() => scrollToUtterance(currentTime)}
-                className={`fixed ${isWide ? 'bottom-24 left-1/2 transform -translate-x-1/2' : 'bottom-2 left-1/2 transform -translate-x-1/2'} shadow-md z-40`}
+                className={`fixed ${isWide ? 'bottom-24 left-1/2 transform -translate-x-1/2' : 'bottom-2 left-1/2 transform -translate-x-1/2'} shadow-md z-40 bg-background hover:bg-background hover:border-accent hover:text-accent-foreground hover:shadow-lg transition-all`}
                 variant="outline"
             >
                 <Icon className="w-4 h-4 mr-2" />
