@@ -57,6 +57,13 @@
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
         "authorityTypeDescription": "Select the type of authority.",
+        "municipality": "Municipality",
+        "region": "Region",
+        "peopleOrdering": "People Ordering",
+        "selectOrderingMethod": "Select ordering method",
+        "defaultOrdering": "Default (Alphabetical)",
+        "partyRankOrdering": "Party Ranking",
+        "peopleOrderingDescription": "Choose how people are ordered on the people page. Party Ranking orders by party power and custom party rankings.",
         "CityMessageForm": {
             "sectionTitle": "City Message",
             "toggle": "Toggle city message",
@@ -335,7 +342,15 @@
         "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
-        "loadMore": "Load more"
+        "loadMore": "Load more",
+        "changeMemberOrdering": "Change Member Ordering",
+        "recentSegments": "Recent Segments",
+        "leaderLabel": "Leader: ",
+        "breadcrumbHome": "Home",
+        "tabPeople": "People",
+        "tabPeopleShort": "Members",
+        "tabStatistics": "Statistics",
+        "tabStatisticsShort": "Stats"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",
@@ -347,5 +362,21 @@
         "fixTranscript": "Automatic correction",
         "humanReview": "Human reviewed",
         "summarize": "Summarized"
+    },
+    "PartyMemberRankingSheet": {
+        "title": "Change Member Ordering",
+        "description": "Drag and drop members to reorder them. The order will be saved as rankings.",
+        "rank": "Rank: {rank}",
+        "save": "Save Ranking",
+        "saving": "Saving...",
+        "reset": "Reset Ranking",
+        "resetting": "Resetting...",
+        "rankingsSaved": "Rankings saved",
+        "rankingsSavedDescription": "Member rankings have been updated successfully.",
+        "rankingsReset": "Rankings reset",
+        "rankingsResetDescription": "All member rankings have been reset.",
+        "error": "Error",
+        "saveError": "Failed to save rankings. Please try again.",
+        "resetError": "Failed to reset rankings. Please try again."
     }
 }

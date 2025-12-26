@@ -1,7 +1,26 @@
 "use server";
-import { City, AdministrativeBody, Party, Person, Role } from '@prisma/client';
+import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { getActiveRoleCondition } from "../utils";
+import { RoleWithRelations, roleWithRelationsInclude } from "./types";
+
+const partyWithRolesInclude = {
+    roles: {
+        include: {
+            person: {
+                include: {
+                    roles: roleWithRelationsInclude
+                }
+            }
+        }
+    }
+} satisfies Prisma.PartyInclude;
+
+type PartyWithRoles = Prisma.PartyGetPayload<{ include: typeof partyWithRolesInclude }>;
+export type PersonWithRoles = PartyWithRoles['roles'][number]['person'] & {
+    roles: RoleWithRelations[];
+};
 
 export async function deleteParty(id: string): Promise<void> {
     await withUserAuthorizedToEdit({ partyId: id });
@@ -43,121 +62,75 @@ export async function editParty(id: string, partyData: Partial<Omit<Party, 'id' 
 }
 
 export type PartyWithPersons = Omit<Party, 'roles'> & {
-    people: (Person & {
-        roles: (Role & {
-            city?: City | null;
-            administrativeBody?: AdministrativeBody | null;
-            party?: Party | null;
-        })[]
-    })[];
+    people: PersonWithRoles[];
 }
 
+/**
+ * Transforms a raw party object (with roles) into a PartyWithPersons object.
+ * 
+ * It extracts unique people from the party's roles list and returns a new object
+ * that has a `people` array instead of `roles`. This is necessary because a person
+ * can have multiple roles in the same party, but we want to list them only once.
+ */
+function normalizePartyPeople(party: PartyWithRoles): PartyWithPersons {
+    const peopleMap = new Map<string, PersonWithRoles>();
+    party.roles.forEach(role => {
+        if (!peopleMap.has(role.person.id)) {
+            peopleMap.set(role.person.id, role.person);
+        }
+    });
+    
+    const { roles, ...partyWithoutRoles } = party;
+    return {
+        ...partyWithoutRoles,
+        people: Array.from(peopleMap.values())
+    };
+}
+
+/**
+ * Fetches a party by ID, including all people who have ever had a role in the party.
+ *
+ * Note: This includes both active and inactive people. Filtering for active/inactive
+ * members is expected to be handled by the consumer (e.g. client-side in Party.tsx).
+ */
 export async function getParty(id: string): Promise<PartyWithPersons | null> {
     try {
         const party = await prisma.party.findUnique({
             where: { id },
-            include: {
-                roles: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        city: true,
-                                        administrativeBody: true,
-                                        party: true
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
-                    }
-                }
-            }
+            include: partyWithRolesInclude
         });
 
         if (!party) return null;
 
-        // Extract people from roles and include all their roles
-        const people = party.roles.map(role => role.person);
-
-        // Create a new object without the roles property
-        const { roles, ...partyWithoutRoles } = party;
-
-        const partyWithPersons = {
-            ...partyWithoutRoles,
-            people
-        };
-
-        return partyWithPersons as PartyWithPersons;
+        return normalizePartyPeople(party);
     } catch (error) {
         console.error('Error fetching party:', error);
         throw new Error('Failed to fetch party');
     }
 }
 
+/**
+ * Fetches all parties for a city, including only active people.
+ *
+ * Note: This differs from `getParty` by automatically filtering out inactive roles/people.
+ */
 export async function getPartiesForCity(cityId: string): Promise<PartyWithPersons[]> {
     try {
         const parties = await prisma.party.findMany({
             where: { cityId },
             include: {
                 roles: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        city: true,
-                                        administrativeBody: true,
-                                        party: true
-                                    }
-                                }
-                            }
-                        }
-                    },
+                    ...partyWithRolesInclude.roles,
                     where: {
-                        OR: [
-                            // Both dates are null (ongoing role)
-                            { startDate: null, endDate: null },
-                            // Only start date is set and it's in the past
-                            { startDate: { lte: new Date() }, endDate: null },
-                            // Only end date is set and it's in the future
-                            { startDate: null, endDate: { gt: new Date() } },
-                            // Both dates are set and current time is within range
-                            {
-                                startDate: { lte: new Date() },
-                                endDate: { gt: new Date() }
-                            }
-                        ]
+                        OR: getActiveRoleCondition()
                     }
                 }
             }
         });
 
-        // Add people property to each party and remove roles
-        const partiesWithPeople = parties.map(party => {
-            const { roles, ...partyWithoutRoles } = party;
-            return {
-                ...partyWithoutRoles,
-                people: roles.map(role => role.person)
-            };
-        });
+        const partiesWithPeople = parties.map(normalizePartyPeople);
 
-        return partiesWithPeople as PartyWithPersons[];
+        return partiesWithPeople;
     } catch (error) {
         console.error('Error fetching parties for city:', error);
         throw new Error('Failed to fetch parties for city');

@@ -28,11 +28,7 @@ export interface Statistics {
 }
 type SpeakerSegmentInfo = SpeakerSegment & {
     speakerTag: {
-        person: (Person & {
-            roles: (Role & {
-                party: Party | null;
-            })[];
-        }) | null;
+        person: PersonWithRelations | null;
     },
     topicLabels: (TopicLabel & {
         topic: Topic;
@@ -95,7 +91,9 @@ export async function getStatisticsFor(
                         include: {
                             roles: {
                                 include: {
-                                    party: true
+                                    party: true,
+                                    administrativeBody: true,
+                                    city: true
                                 }
                             }
                         }

@@ -74,6 +74,11 @@
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",
+        "peopleOrdering": "Ταξινόμηση Προσώπων",
+        "selectOrderingMethod": "Επιλέξτε μέθοδο ταξινόμησης",
+        "defaultOrdering": "Προεπιλογή (Αλφαβητική)",
+        "partyRankOrdering": "Κατάταξη Παράταξης",
+        "peopleOrderingDescription": "Επιλέξτε πώς θα ταξινομούνται τα πρόσωπα στη σελίδα προσώπων. Η Κατάταξη Παράταξης ταξινομεί με βάση τη δύναμη της παράταξης και τις προσαρμοσμένες κατατάξεις των παρατάξεων.",
         "CityMessageForm": {
             "sectionTitle": "Μήνυμα Πόλης",
             "toggle": "Εναλλαγή μηνύματος πόλης",
@@ -323,7 +328,15 @@
         "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
         "loading": "Φόρτωση...",
-        "loadMore": "Περισσότερα"
+        "loadMore": "Περισσότερα",
+        "changeMemberOrdering": "Αλλαγή Ταξινόμησης Μελών",
+        "recentSegments": "Πρόσφατες τοποθετήσεις",
+        "leaderLabel": "Επικεφαλής: ",
+        "breadcrumbHome": "Αρχική",
+        "tabPeople": "Πρόσωπα",
+        "tabPeopleShort": "Μέλη",
+        "tabStatistics": "Στατιστικά",
+        "tabStatisticsShort": "Στατ."
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
@@ -486,6 +499,17 @@
         "submitting": "Υποβολή...",
         "continue": "Υποβολή"
     },
+    "MeetingStatus": {
+        "scheduled": "Προγραμματισμένη",
+        "ready": "Ολοκληρωμένη",
+        "notReady": "Μη Ολοκληρωμένη",
+        "requiredForCompletion": "Απαιτείται για ολοκλήρωση",
+        "processAgenda": "Ημερήσια Διάταξη Επεξεργασμένη",
+        "transcribe": "Απομαγνητοφωνημένη",
+        "fixTranscript": "Αυτόματη Διόρθωση",
+        "humanReview": "Αξιολογημένη από άνθρωπο",
+        "summarize": "Summarized"
+    },
     "AdministrativeBodiesList": {
         "addNew": "Προσθήκη Νέου",
         "editBody": "Επεξεργασία Όργανου",
@@ -520,15 +544,21 @@
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
         "failedToDelete": "Αποτυχία διαγραφής"
     },
-    "MeetingStatus": {
-        "scheduled": "Προγραμματισμένη",
-        "ready": "Ολοκληρωμένη",
-        "notReady": "Μη Ολοκληρωμένη",
-        "requiredForCompletion": "Απαιτείται για ολοκλήρωση",
-        "processAgenda": "Ημερήσια Διάταξη Επεξεργασμένη",
-        "transcribe": "Απομαγνητοφωνημένη",
-        "fixTranscript": "Αυτόματη Διόρθωση",
-        "humanReview": "Αξιολογημένη από άνθρωπο",
-        "summarize": "Summarized"
+    "PartyMemberRankingSheet": {
+        "title": "Αλλαγή Σειράς Μελών",
+        "description": "Σύρετε και αποθέστε τα μέλη για να αλλάξετε τη σειρά τους. Η σειρά θα αποθηκευτεί ως κατάταξη.",
+        "rank": "Κατάταξη: {rank}",
+        "save": "Αποθήκευση Κατάταξης",
+        "saving": "Αποθήκευση...",
+        "reset": "Επαναφορά Κατάταξης",
+        "resetting": "Επαναφορά...",
+        "rankingsSaved": "Η κατάταξη αποθηκεύτηκε",
+        "rankingsSavedDescription": "Η κατάταξη των μελών ενημερώθηκε επιτυχώς.",
+        "rankingsReset": "Η κατάταξη επανήλθε",
+        "rankingsResetDescription": "Όλες οι κατατάξεις μελών έχουν επαναφερθεί.",
+        "error": "Σφάλμα",
+        "saveError": "Αποτυχία αποθήκευσης της κατάταξης. Παρακαλώ δοκιμάστε ξανά.",
+        "resetError": "Αποτυχία επαναφοράς της κατάταξης. Παρακαλώ δοκιμάστε ξανά."
     }
 }
+

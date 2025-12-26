@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
+import { City, Party, AdministrativeBody } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
@@ -23,12 +23,7 @@ import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/u
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { RoleDisplay } from './RoleDisplay';
 import { TopicFilter } from '@/components/TopicFilter';
-
-type RoleWithRelations = Role & {
-    party?: Party | null;
-    city?: City | null;
-    administrativeBody?: AdministrativeBody | null;
-};
+import { RoleWithRelations } from '@/lib/db/types';
 
 export default function PersonC({ city, person, parties, administrativeBodies, statistics }: {
     city: City,

@@ -51,7 +51,8 @@ const formSchema = z.object({
     }).regex(/^[a-z-]+$/, {
         message: "ID must contain only lowercase letters a-z and dashes.",
     }),
-    authorityType: z.enum(['municipality', 'region'])
+    authorityType: z.enum(['municipality', 'region']),
+    peopleOrdering: z.enum(['default', 'partyRank']).optional()
 })
 
 interface CityFormProps {
@@ -119,7 +120,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
-            authorityType: city?.authorityType || "municipality"
+            authorityType: city?.authorityType || "municipality",
+            peopleOrdering: city?.peopleOrdering || "default"
         },
     })
 
@@ -146,6 +148,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
+        if (values.peopleOrdering) {
+            formData.append('peopleOrdering', values.peopleOrdering)
+        }
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -241,8 +246,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="municipality">Municipality</SelectItem>
-                                    <SelectItem value="region">Region</SelectItem>
+                                    <SelectItem value="municipality">{t('municipality')}</SelectItem>
+                                    <SelectItem value="region">{t('region')}</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormDescription>
@@ -252,6 +257,32 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         </FormItem>
                     )}
                 />
+                {city && (
+                    <FormField
+                        control={form.control}
+                        name="peopleOrdering"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('peopleOrdering')}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value || "default"}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={t('selectOrderingMethod')} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="default">{t('defaultOrdering')}</SelectItem>
+                                        <SelectItem value="partyRank">{t('partyRankOrdering')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    {t('peopleOrderingDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <FormField
                     control={form.control}
                     name="logoImage"
