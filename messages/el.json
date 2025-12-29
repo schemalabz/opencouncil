@@ -80,6 +80,8 @@
         "statusPending": "Εκκρεμής",
         "statusUnlisted": "Μη Καταχωρημένη",
         "statusListed": "Καταχωρημένη",
+        "supportsNotifications": "Υποστήριξη Ειδοποιήσεων",
+        "supportsNotificationsDescription": "Ενεργοποίηση εγγραφής και διαχείρισης ειδοποιήσεων για τους πολίτες.",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",
@@ -570,4 +572,3 @@
         "resetError": "Αποτυχία επαναφοράς της κατάταξης. Παρακαλώ δοκιμάστε ξανά."
     }
 }
-

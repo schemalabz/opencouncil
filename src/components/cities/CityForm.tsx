@@ -22,6 +22,7 @@ import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -55,6 +56,7 @@ const formSchema = z.object({
     authorityType: z.enum(['municipality', 'region']),
     officialSupport: z.boolean().default(false),
     status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
+    supportsNotifications: z.boolean(),
     peopleOrdering: z.enum(['default', 'partyRank']).optional()
 })
 
@@ -127,6 +129,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             authorityType: city?.authorityType || "municipality",
             officialSupport: city?.officialSupport || false,
             status: city?.status || 'pending',
+            supportsNotifications: city?.supportsNotifications || false,
             peopleOrdering: city?.peopleOrdering || "default"
         },
     })
@@ -156,6 +159,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('authorityType', values.authorityType)
         formData.append('officialSupport', values.officialSupport.toString())
         formData.append('status', values.status)
+        formData.append('supportsNotifications', values.supportsNotifications.toString())
         if (values.peopleOrdering) {
             formData.append('peopleOrdering', values.peopleOrdering)
         }
@@ -403,6 +407,28 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         {t('cityIdDescription')}
                                     </FormDescription>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="supportsNotifications"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('supportsNotifications')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('supportsNotificationsDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
                                 </FormItem>
                             )}
                         />
