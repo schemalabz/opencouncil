@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { formatDistanceToNow, formatDistance, format as formatDate } from 'date-fns';
 import { formatDurationMs } from '@/lib/formatters/time';
-import { ExternalLink, AlertCircle, Clock, Info, Timer, Eye } from 'lucide-react';
+import { ExternalLink, AlertCircle, Clock, Info, Timer, Eye, CheckCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -41,7 +41,8 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
   if (reviews.length === 0) {
     return (
       <div className="text-center py-12 border rounded-lg">
-        <p className="text-muted-foreground">No meetings need review at this time.</p>
+        <p className="text-muted-foreground">No reviews found matching the current filters.</p>
+        <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters to see more results.</p>
       </div>
     );
   }
@@ -119,10 +120,15 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                     <AlertCircle className="h-3 w-3" />
                     Needs Review
                   </Badge>
-                ) : (
+                ) : review.status === 'inProgress' ? (
                   <Badge variant="secondary" className="flex items-center gap-1 w-fit">
                     <Clock className="h-3 w-3" />
                     In Progress
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="flex items-center gap-1 w-fit bg-green-600 hover:bg-green-700">
+                    <CheckCircle className="h-3 w-3" />
+                    Completed
                   </Badge>
                 )}
               </TableCell>
@@ -313,10 +319,15 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                       <AlertCircle className="h-3 w-3" />
                       Needs Review
                     </Badge>
-                  ) : (
+                  ) : selectedReview.status === 'inProgress' ? (
                     <Badge variant="secondary" className="flex items-center gap-1 w-fit">
                       <Clock className="h-3 w-3" />
                       In Progress
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" className="flex items-center gap-1 w-fit bg-green-600 hover:bg-green-700">
+                      <CheckCircle className="h-3 w-3" />
+                      Completed
                     </Badge>
                   )}
                 </div>
