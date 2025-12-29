@@ -41,6 +41,23 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
+ * Formats duration in milliseconds to a human-readable string like "2h 15m"
+ * @param ms - Duration in milliseconds
+ * @returns Formatted string
+ */
+export function formatDurationMs(ms: number): string {
+  if (ms === 0) return '0m';
+  
+  const totalMinutes = Math.round(ms / (60 * 1000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  if (hours === 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+/**
  * Formats a date to a relative time string (e.g., "2 hours ago", "3 days ago")
  * @param date - The date to format
  * @param locale - The locale to use for formatting (defaults to 'el')
