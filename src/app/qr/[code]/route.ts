@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { env } from '@/env.mjs';
 
 function isExternalUrl(url: string): boolean {
     return url.startsWith('http://') || url.startsWith('https://');
 }
 
-function appendUtmParams(urlString: string, code: string, requestUrl: URL): string {
+function appendUtmParams(urlString: string, code: string): string {
     try {
-        // For relative URLs, construct full URL using request origin
+        // For relative URLs, construct full URL using configured base URL
         const fullUrl = isExternalUrl(urlString) 
             ? new URL(urlString)
-            : new URL(urlString, requestUrl.origin);
+            : new URL(urlString, env.NEXT_PUBLIC_BASE_URL);
         
         if (!fullUrl.searchParams.has('utm_source')) fullUrl.searchParams.set('utm_source', 'qr');
         if (!fullUrl.searchParams.has('utm_medium')) fullUrl.searchParams.set('utm_medium', 'offline');
@@ -26,7 +27,7 @@ function appendUtmParams(urlString: string, code: string, requestUrl: URL): stri
 export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
     const code = params.code;
     if (!code) {
-        return NextResponse.redirect(new URL('/', req.url), 302);
+        return NextResponse.redirect(new URL('/', env.NEXT_PUBLIC_BASE_URL), 302);
     }
 
     const campaign = await prisma.qrCampaign.findUnique({
@@ -37,10 +38,10 @@ export async function GET(req: NextRequest, { params }: { params: { code: string
     if (!campaign || !campaign.isActive) {
         // Fallback to homepage if not found/inactive
         const locale = 'el';
-        return NextResponse.redirect(new URL(`/${locale}`, req.url), 302);
+        return NextResponse.redirect(new URL(`/${locale}`, env.NEXT_PUBLIC_BASE_URL), 302);
     }
 
-    const destination = appendUtmParams(campaign.url, code, new URL(req.url));
+    const destination = appendUtmParams(campaign.url, code);
 
     return NextResponse.redirect(destination, 307);
 }
