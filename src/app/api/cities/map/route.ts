@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCitiesWithGeometry } from '@/lib/db/cities'
 import prisma from '@/lib/db/prisma'
-import { ListEnd } from 'lucide-react';
 
 // Enable caching - revalidate every 1 hour
 export const revalidate = 3600;
