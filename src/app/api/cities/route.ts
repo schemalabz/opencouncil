@@ -64,9 +64,9 @@ export async function POST(request: Request) {
     }
 
     try {
-        const result = await uploadFile(logoImage, { 
+        const result = await uploadFile(logoImage, {
             prefix: 'city-logos',
-            useCdn: true 
+            useCdn: true
         })
         const logoImageUrl = result.url
 

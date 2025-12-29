@@ -133,11 +133,11 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    status: 'listed',
+                    status: { in: ['listed', 'unlisted'] },
                     OR: [
                         { status: 'listed' },
                         {
-                            status: 'unlisted',
+                            status: { in: ['unlisted', 'pending'] },
                             id: { in: [] }
                         }
                     ]
@@ -163,11 +163,11 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    status: 'listed',
+                    status: { in: ['listed', 'unlisted'] },
                     OR: [
                         { status: 'listed' },
                         {
-                            status: 'unlisted',
+                            status: { in: ['unlisted', 'pending'] },
                             id: { in: [] }
                         }
                     ]
