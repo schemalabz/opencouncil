@@ -40,7 +40,7 @@ const CITY_COUNT_SELECT = {
 
 const CITY_ORDER_BY = [
     { officialSupport: 'desc' as const },
-    { status: 'asc' as const }, // Alphabetically: listed < pending < unlisted, so listed comes first
+    { status: 'desc' as const },
     { name: 'asc' as const }
 ];
 
