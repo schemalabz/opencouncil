@@ -1,11 +1,39 @@
-import { getMeetingsNeedingReview, getReviewers } from '@/lib/db/reviews';
+import { getMeetingsNeedingReview, getReviewers, ReviewProgress, ReviewAggregates } from '@/lib/db/reviews';
 import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
 import { ReviewFilters } from '@/components/admin/reviews/ReviewFilters';
+import { ReviewAggregatesDisplay } from '@/components/admin/reviews/ReviewAggregates';
 
 interface PageProps {
   searchParams: { 
     show?: 'needsAttention' | 'all' | 'completed';
     reviewerId?: string;
+  };
+}
+
+function calculateReviewAggregates(reviews: ReviewProgress[]): ReviewAggregates {
+  const totalReviews = reviews.length;
+  
+  const totalUserEditedUtterances = reviews.reduce(
+    (sum, review) => sum + review.userEditedUtterances, 
+    0
+  );
+  
+  const totalReviewTimeMs = reviews.reduce(
+    (sum, review) => sum + review.estimatedReviewTimeMs, 
+    0
+  );
+  
+  // Calculate average efficiency (only from reviews that have efficiency data)
+  const reviewsWithEfficiency = reviews.filter(r => r.reviewEfficiency !== null);
+  const averageEfficiency = reviewsWithEfficiency.length > 0
+    ? reviewsWithEfficiency.reduce((sum, r) => sum + (r.reviewEfficiency || 0), 0) / reviewsWithEfficiency.length
+    : null;
+  
+  return {
+    totalReviews,
+    totalUserEditedUtterances,
+    totalReviewTimeMs,
+    averageEfficiency
   };
 }
 
@@ -16,6 +44,9 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
     getMeetingsNeedingReview({ show, reviewerId }),
     getReviewers()
   ]);
+  
+  // Calculate aggregates from filtered reviews
+  const aggregates = calculateReviewAggregates(reviews);
   
   return (
     <div className="container mx-auto py-8 px-4">
@@ -33,6 +64,8 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
           reviewers={reviewers}
         />
       </div>
+      
+      <ReviewAggregatesDisplay aggregates={aggregates} />
       
       <ReviewsTable reviews={reviews} />
     </div>
