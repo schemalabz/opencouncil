@@ -24,8 +24,7 @@ function buildAlternates(path: string) {
 async function fetchSitemapData(): Promise<SitemapCity[]> {
     return prisma.city.findMany({
         where: {
-            isPending: false,
-            isListed: true
+            status: 'listed',
         },
         select: {
             id: true,

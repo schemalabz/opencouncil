@@ -133,12 +133,8 @@ export function MunicipalitySelector({
                         className="mt-4 flex flex-wrap justify-center gap-2"
                     >
                         {cities
-<<<<<<< HEAD
                             .filter(city => city.status === 'listed')
                             .slice(0, 5)
-=======
-                            .filter(city => city.isListed)
->>>>>>> production
                             .map((city) => (
                                 <motion.div
                                     key={city.id}

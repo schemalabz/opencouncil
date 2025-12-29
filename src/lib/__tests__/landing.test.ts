@@ -133,12 +133,12 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isPending: false,
+                    status: 'listed',
                     OR: [
-                        { isListed: true },
+                        { status: 'listed' },
                         {
-                            isListed: false,
-                            id: { in: [] } // Empty array of administerable cities
+                            status: 'unlisted',
+                            id: { in: [] }
                         }
                     ]
                 })
@@ -163,12 +163,12 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    isPending: false,
+                    status: 'listed',
                     OR: [
-                        { isListed: true },
+                        { status: 'listed' },
                         {
-                            isListed: false,
-                            id: { in: [] } // No cities to administer directly
+                            status: 'unlisted',
+                            id: { in: [] }
                         }
                     ]
                 })

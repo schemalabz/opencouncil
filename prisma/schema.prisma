@@ -60,9 +60,9 @@ enum AuthorityType {
 }
 
 enum CityStatus {
-  pending   // City is pending activation (isPending: true)
-  unlisted // City is not publicly listed (isPending: false, isListed: false)
-  listed    // City is publicly listed (isPending: false, isListed: true)
+  pending   
+  unlisted
+  listed
 }
 
 enum PeopleOrdering {
