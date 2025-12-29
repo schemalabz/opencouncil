@@ -79,7 +79,7 @@ export type UtteranceWithEdits = MeetingWithReviewData['speakerSegments'][0]['ut
 // EXPORTED INTERFACES
 // ============================================================================
 
-export type ReviewStatus = 'needsReview' | 'inProgress';
+export type ReviewStatus = 'needsReview' | 'inProgress' | 'completed';
 
 export interface ReviewProgress {
   meetingId: string;
@@ -462,8 +462,17 @@ function calculateUnifiedReviewSessions(
 
 /**
  * Process a single meeting and calculate its review progress
+ * 
+ * This function serves as the final filter/processor after database fetch.
+ * It returns null for meetings that should be excluded based on their status.
+ * 
+ * @param meeting - Meeting data with task statuses and utterance edits
+ * @param includeCompleted - Whether to include meetings with completed humanReview task
+ *                           - true: Include completed reviews (for 'all' and 'completed' filters)
+ *                           - false: Exclude completed reviews (for 'needsAttention' filter)
+ * @returns ReviewProgress object or null if meeting should be excluded
  */
-function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress | null {
+function calculateReviewProgress(meeting: MeetingWithReviewData, includeCompleted = false): ReviewProgress | null {
   const hasFixTranscript = meeting.taskStatuses.some(
     t => t.type === 'fixTranscript' && t.status === 'succeeded'
   );
@@ -471,8 +480,14 @@ function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress
     t => t.type === 'humanReview' && t.status === 'succeeded'
   );
 
-  // Only include meetings where fixTranscript is done but humanReview is not
-  if (!hasFixTranscript || hasHumanReview) {
+  // Apply final filtering logic
+  if (!hasFixTranscript) {
+    // Never include meetings without fixTranscript
+    return null;
+  }
+  
+  if (!includeCompleted && hasHumanReview) {
+    // When not including completed, skip meetings with humanReview done
     return null;
   }
 
@@ -601,8 +616,15 @@ function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress
     ? estimatedReviewTimeMs / meetingDurationMs
     : null;
   
-  // Determine status
-  const status: ReviewStatus = reviewedUtterances === 0 ? 'needsReview' : 'inProgress';
+  // Determine status based on review completion
+  let status: ReviewStatus;
+  if (hasHumanReview) {
+    status = 'completed';
+  } else if (reviewedUtterances === 0) {
+    status = 'needsReview';
+  } else {
+    status = 'inProgress';
+  }
   
   const progressPercentage = totalUtterances > 0
     ? Math.round((reviewedUtterances / totalUtterances) * 100)
@@ -635,25 +657,180 @@ function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress
   };
 }
 
+// ============================================================================
+// REVIEW FILTERING SYSTEM
+// ============================================================================
+//
+// This section implements a two-stage filtering system for review data:
+//
+// STAGE 1: DATABASE FILTERING (Prisma WHERE conditions)
+//   - Reduces dataset before fetching from database
+//   - Filters by task status (fixTranscript, humanReview)
+//   - Filters meetings where user has made ANY edits (for reviewer filter)
+//   - More efficient: Less data transferred and processed
+//
+// STAGE 2: JAVASCRIPT FILTERING (after fetch)
+//   - Calculates detailed review progress for each meeting
+//   - Verifies user is PRIMARY reviewer (most edits), not just any contributor
+//   - Excludes meetings that don't meet final criteria
+//
+// FILTER OPTIONS:
+//   show: 'needsAttention' (default) - Has fixTranscript, no humanReview
+//         'all' - Has fixTranscript (any humanReview status)
+//         'completed' - Has both fixTranscript AND humanReview
+//   
+//   reviewerId: Filter to show only meetings where specified user is primary reviewer
+//
+// ============================================================================
+
 /**
- * Get all meetings that need review (fixTranscript done, humanReview not done)
+ * Filter options for getMeetingsNeedingReview
  */
-export async function getMeetingsNeedingReview(): Promise<ReviewProgress[]> {
-  // Get all meetings with their task statuses
+export interface ReviewFilterOptions {
+  show?: 'needsAttention' | 'all' | 'completed';
+  reviewerId?: string;
+}
+
+// ============================================================================
+// FILTER HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Build database where conditions for review status filtering
+ */
+function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.CouncilMeetingWhereInput {
+  const hasFixTranscript = {
+    taskStatuses: {
+      some: {
+        type: 'fixTranscript' as const,
+        status: 'succeeded' as const
+      }
+    }
+  };
+
+  const hasHumanReview = {
+    taskStatuses: {
+      some: {
+        type: 'humanReview' as const,
+        status: 'succeeded' as const
+      }
+    }
+  };
+
+  switch (show) {
+    case 'needsAttention':
+      // Has fixTranscript but NOT humanReview
+      return {
+        AND: [
+          hasFixTranscript,
+          { NOT: hasHumanReview }
+        ]
+      };
+
+    case 'completed':
+      // Has both fixTranscript AND humanReview
+      return {
+        AND: [
+          hasFixTranscript,
+          hasHumanReview
+        ]
+      };
+
+    case 'all':
+    default:
+      // Just needs fixTranscript (includes all statuses)
+      return hasFixTranscript;
+  }
+}
+
+/**
+ * Build database where conditions for reviewer filtering
+ */
+function buildReviewerWhereConditions(reviewerId: string): Prisma.CouncilMeetingWhereInput {
+  return {
+    speakerSegments: {
+      some: {
+        utterances: {
+          some: {
+            utteranceEdits: {
+              some: {
+                editedBy: 'user',
+                userId: reviewerId
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+/**
+ * Combine multiple where conditions using AND
+ */
+function combineWhereConditions(
+  conditions: Prisma.CouncilMeetingWhereInput[]
+): Prisma.CouncilMeetingWhereInput {
+  if (conditions.length === 0) return {};
+  if (conditions.length === 1) return conditions[0];
+  
+  return { AND: conditions };
+}
+
+/**
+ * Determine if completed reviews should be included based on filter
+ */
+function shouldIncludeCompleted(show: ReviewFilterOptions['show']): boolean {
+  return show === 'all' || show === 'completed';
+}
+
+/**
+ * Get meetings for review with optional filters
+ */
+export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewProgress[]> {
+  const { show = 'needsAttention', reviewerId } = filters;
+  
+  // Build database filter conditions
+  const conditions: Prisma.CouncilMeetingWhereInput[] = [];
+  
+  // Add status filter
+  conditions.push(buildStatusWhereConditions(show));
+  
+  // Add reviewer filter if specified
+  // Note: This finds meetings where the user has made ANY edits
+  // The "primary reviewer" check happens after fetching
+  if (reviewerId) {
+    conditions.push(buildReviewerWhereConditions(reviewerId));
+  }
+  
+  // Combine all conditions
+  const whereConditions = combineWhereConditions(conditions);
+  
+  // Fetch meetings from database
   const meetings = await prisma.councilMeeting.findMany({
+    where: whereConditions,
     include: reviewProgressInclude,
     orderBy: {
       dateTime: 'desc'
     }
   });
 
+  // Process meetings and apply final filtering
   const reviewProgressList: ReviewProgress[] = [];
+  const includeCompleted = shouldIncludeCompleted(show);
 
   for (const meeting of meetings) {
-    const progress = calculateReviewProgress(meeting);
-    if (progress) {
-      reviewProgressList.push(progress);
+    const progress = calculateReviewProgress(meeting, includeCompleted);
+    
+    if (!progress) continue;
+    
+    // If filtering by reviewer, verify they are the PRIMARY reviewer
+    // (Database filter only ensures they made SOME edits)
+    if (reviewerId && progress.primaryReviewer?.userId !== reviewerId) {
+      continue;
     }
+    
+    reviewProgressList.push(progress);
   }
 
   return reviewProgressList;
@@ -720,6 +897,32 @@ export async function getReviewProgressForMeeting(
     return null;
   }
 
-  return calculateReviewProgress(meeting);
+  return calculateReviewProgress(meeting, true); // Include completed for individual meeting view
+}
+
+/**
+ * Get list of all reviewers who have worked on transcripts
+ * Returns unique list of users who have made edits
+ */
+export async function getReviewers(): Promise<Array<{ id: string; name: string | null; email: string }>> {
+  const users = await prisma.user.findMany({
+    where: {
+      utteranceEdits: {
+        some: {
+          editedBy: 'user'
+        }
+      }
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  });
+
+  return users;
 }
 
