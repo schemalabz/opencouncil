@@ -5,6 +5,7 @@ import type { HighlightWithUtterances } from '@/lib/db/highlights';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useVideo } from './VideoProvider';
 import { Utterance } from '@prisma/client';
+import { calculateUtteranceRange } from '@/lib/selection-utils';
 
 export interface HighlightUtterance {
   id: string;
@@ -40,7 +41,7 @@ interface HighlightContextType {
   isCreating: boolean;
   isEditingDisabled: boolean;
   enterEditMode: (highlight: HighlightWithUtterances) => void;
-  updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove') => void;
+  updateHighlightUtterances: (utteranceId: string, action: 'add' | 'remove', modifiers?: { shift: boolean }) => void;
   resetToOriginal: () => void;
   exitEditMode: () => void;
   exitEditModeAndRedirectToHighlight: () => void;
@@ -75,6 +76,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
   const { transcript, getSpeakerTag, getPerson, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
@@ -91,6 +93,11 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       });
     });
     return map;
+  }, [transcript]);
+
+  // Flatten utterances for range selection
+  const allUtterances = useMemo(() => {
+    return transcript.flatMap(segment => segment.utterances);
   }, [transcript]);
 
   const calculateHighlightData = useCallback((highlight: HighlightWithUtterances | null): HighlightCalculationResult | null => {
@@ -325,64 +332,70 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const isEditingDisabled = isSaving;
 
   // Update highlight utterances during editing - called when adding/removing utterances
-  const updateHighlightUtterances = useCallback((utteranceId: string, action: 'add' | 'remove') => {
+  const updateHighlightUtterances = useCallback((utteranceId: string, action: 'add' | 'remove', modifiers?: { shift: boolean }) => {
     if (!editingHighlight || isEditingDisabled) return;
-        
-    let updatedHighlight: HighlightWithUtterances;
     
-    if (action === 'add') {
-      // Check if utterance is already in the highlight
-      const alreadyExists = editingHighlight.highlightedUtterances.some(
-        hu => hu.utteranceId === utteranceId
-      );
-      
-      if (alreadyExists) {
-        console.log('Utterance already exists, skipping');
-        return; // No change needed
-      }
-      
-      // Find the utterance in the transcript to get the full data
-      const utterance = utteranceMap.get(utteranceId);
-      if (!utterance) {
-        console.log('Utterance not found in map, skipping');
-        return; // Utterance not found
-      }
-      
-      // Create a temporary HighlightedUtterance for editing purposes
-      // We'll use temporary IDs since this is just for the UI state
-      const tempId = `temp-${Date.now()}-${Math.random()}`;
-      const now = new Date();
-      
-      const newHighlightedUtterance = {
-        id: tempId,
-        utteranceId,
-        highlightId: editingHighlight.id,
-        createdAt: now,
-        updatedAt: now,
-        utterance: utterance
-      };
-      
-      updatedHighlight = {
-        ...editingHighlight,
-        highlightedUtterances: [
-          ...editingHighlight.highlightedUtterances,
-          newHighlightedUtterance
-        ]
-      };
-      
-    } else {
+    if (action === 'remove') {
       // Remove utterance from highlight
-      updatedHighlight = {
+      const updatedHighlight = {
         ...editingHighlight,
         highlightedUtterances: editingHighlight.highlightedUtterances.filter(
           hu => hu.utteranceId !== utteranceId
         )
       };
+      
+      setEditingHighlight(updatedHighlight);
+      setIsDirty(true);
+      return;
     }
     
-    setEditingHighlight(updatedHighlight);
-    setIsDirty(true); // Mark as dirty since we made changes
-  }, [editingHighlight, utteranceMap, isEditingDisabled, setEditingHighlight, setIsDirty]);
+    // Action is 'add' - determine which utterances to add
+    let utteranceIdsToAdd: string[];
+    
+    if (modifiers?.shift && lastClickedUtteranceId) {
+      // Range selection with Shift modifier
+      utteranceIdsToAdd = calculateUtteranceRange(allUtterances, lastClickedUtteranceId, utteranceId);
+    } else {
+      // Single selection
+      utteranceIdsToAdd = [utteranceId];
+    }
+    
+    // Update last clicked for future range selections
+    setLastClickedUtteranceId(utteranceId);
+    
+    // Filter out already highlighted utterances and create new highlighted utterance objects
+    const now = new Date();
+    const newHighlightedUtterances = utteranceIdsToAdd
+      .filter(id => !editingHighlight.highlightedUtterances.some(hu => hu.utteranceId === id))
+      .map(id => {
+        const utterance = utteranceMap.get(id);
+        if (!utterance) return null;
+        
+        return {
+          id: `temp-${Date.now()}-${Math.random()}`,
+          utteranceId: id,
+          highlightId: editingHighlight.id,
+          createdAt: now,
+          updatedAt: now,
+          utterance: utterance
+        };
+      })
+      .filter((hu): hu is NonNullable<typeof hu> => hu !== null);
+    
+    // Only update if we have new utterances to add
+    if (newHighlightedUtterances.length > 0) {
+      const updatedHighlight = {
+        ...editingHighlight,
+        highlightedUtterances: [
+          ...editingHighlight.highlightedUtterances,
+          ...newHighlightedUtterances
+        ]
+      };
+      
+      setEditingHighlight(updatedHighlight);
+      setIsDirty(true);
+    }
+  }, [editingHighlight, utteranceMap, isEditingDisabled, setEditingHighlight, setIsDirty, lastClickedUtteranceId, allUtterances]);
 
   // Reset to original state - discard all changes
   const resetToOriginal = () => {

@@ -1,9 +1,10 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary } from '@prisma/client';
+import { CouncilMeeting, City, Prisma } from '@prisma/client';
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
+import { roleWithRelationsInclude } from './types';
 
 export type SegmentWithRelations = {
     id: string;
@@ -17,16 +18,46 @@ export type SegmentWithRelations = {
     summary: { text: string } | null;
 };
 
+const speakerSegmentWithRelationsInclude = {
+    utterances: true,
+    speakerTag: {
+        include: {
+            person: {
+                include: {
+                    roles: roleWithRelationsInclude
+                }
+            }
+        }
+    },
+    summary: true,
+    topicLabels: {
+        include: {
+            topic: true
+        }
+    }
+} satisfies Prisma.SpeakerSegmentInclude;
+
+export type SpeakerSegmentWithRelations = Prisma.SpeakerSegmentGetPayload<{ include: typeof speakerSegmentWithRelationsInclude }>;
+
+// New interface for editable speaker segment data
+export interface EditableSpeakerSegmentData {
+    utterances: Array<{
+        id: string;          // read-only for reference
+        text: string;        // editable
+        startTimestamp: number; // editable
+        endTimestamp: number;   // editable
+    }>;
+    summary?: {
+        text: string;        // editable
+        type: 'procedural' | 'substantive'; // editable
+    } | null;
+}
+
 export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
     cityId: string,
     meetingId: string
-): Promise<SpeakerSegment & {
-    utterances: Utterance[];
-    speakerTag: SpeakerTag;
-    topicLabels: (TopicLabel & { topic: Topic })[];
-    summary: Summary | null;
-}> {
+): Promise<SpeakerSegmentWithRelations> {
     // First get the segment we're inserting after to get its end timestamp and speaker tag info
     const currentSegment = await prisma.speakerSegment.findUnique({
         where: { id: afterSegmentId },
@@ -75,33 +106,65 @@ export async function createEmptySpeakerSegmentAfter(
             meetingId,
             speakerTagId: newSpeakerTag.id
         },
-        include: {
-            utterances: true,
-            speakerTag: {
-                include: {
-                    person: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    city: true,
-                                    administrativeBody: true
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            summary: true,
-            topicLabels: {
-                include: {
-                    topic: true
-                }
-            }
-        }
+        include: speakerSegmentWithRelationsInclude
     });
 
     console.log(`Created a new speaker segment starting at ${startTimestamp} and ending at ${endTimestamp}. Previous segment ended at ${currentSegment.endTimestamp}, next segment starts at ${nextSegment?.startTimestamp}`);
+
+    return newSegment;
+}
+
+export async function createEmptySpeakerSegmentBefore(
+    beforeSegmentId: string,
+    cityId: string,
+    meetingId: string
+): Promise<SpeakerSegmentWithRelations> {
+    // First get the segment we're inserting before to get its start timestamp
+    const firstSegment = await prisma.speakerSegment.findUnique({
+        where: { id: beforeSegmentId },
+        include: {
+            utterances: true,
+            speakerTag: true
+        }
+    });
+
+    if (!firstSegment) {
+        throw new Error('Segment not found');
+    }
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    // Calculate timestamps for the new segment
+    // We want to create a small segment before the first segment
+    const endTimestamp = firstSegment.startTimestamp - 0.01;
+    const startTimestamp = Math.max(0, endTimestamp - 0.01);
+
+    // If the first segment starts too close to 0, we need to adjust or throw an error
+    if (startTimestamp < 0 || startTimestamp >= endTimestamp) {
+        throw new Error('Cannot create segment before first segment: insufficient timestamp space');
+    }
+
+    // Create a new speaker tag
+    const newSpeakerTag = await prisma.speakerTag.create({
+        data: {
+            label: "New speaker segment",
+            personId: null // Reset the person association for the new tag
+        }
+    });
+
+    // Create the new segment
+    const newSegment = await prisma.speakerSegment.create({
+        data: {
+            startTimestamp,
+            endTimestamp,
+            cityId,
+            meetingId,
+            speakerTagId: newSpeakerTag.id
+        },
+        include: speakerSegmentWithRelationsInclude
+    });
+
+    console.log(`Created a new speaker segment before first segment: ${startTimestamp} - ${endTimestamp}. First segment starts at ${firstSegment.startTimestamp}`);
 
     return newSegment;
 }
@@ -253,30 +316,7 @@ export async function moveUtterancesToNextSegment(
 async function getSegmentWithIncludes(segmentId: string) {
     return await prisma.speakerSegment.findUnique({
         where: { id: segmentId },
-        include: {
-            utterances: true,
-            speakerTag: {
-                include: {
-                    person: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    city: true,
-                                    administrativeBody: true
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            summary: true,
-            topicLabels: {
-                include: {
-                    topic: true
-                }
-            }
-        }
+        include: speakerSegmentWithRelationsInclude
     });
 }
 
@@ -365,13 +405,7 @@ export async function getLatestSegmentsForSpeaker(
                     include: {
                         person: {
                             include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
-                                }
+                                roles: roleWithRelationsInclude
                             }
                         }
                     }
@@ -461,11 +495,7 @@ export async function getLatestSegmentsForParty(
                                     where: {
                                         partyId: partyId
                                     },
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
+                                    include: roleWithRelationsInclude.include
                                 }
                             }
                         }
@@ -558,4 +588,261 @@ export async function getLatestSegmentsForParty(
         results,
         totalCount
     };
+}
+
+export async function updateSpeakerSegmentData(
+    segmentId: string,
+    data: EditableSpeakerSegmentData,
+    cityId: string
+): Promise<SpeakerSegmentWithRelations> {
+    // Get the current segment to verify ownership and get current state
+    const currentSegment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: {
+            utterances: true,
+            summary: true
+        }
+    });
+
+    if (!currentSegment) {
+        throw new Error('Speaker segment not found');
+    }
+
+    if (currentSegment.cityId !== cityId) {
+        throw new Error('City ID mismatch');
+    }
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    // Validate the input data
+    if (data.utterances.length === 0) {
+        throw new Error('At least one utterance must remain');
+    }
+
+    // Validate utterance timestamps
+    for (const utterance of data.utterances) {
+        if (utterance.startTimestamp >= utterance.endTimestamp) {
+            throw new Error(`Invalid timestamps for utterance ${utterance.id}: start must be less than end`);
+        }
+    }
+
+    // Validate summary if provided
+    if (data.summary && (!data.summary.text || data.summary.text.trim().length === 0)) {
+        throw new Error('Summary text cannot be empty if summary is provided');
+    }
+
+    return await prisma.$transaction(async (prisma) => {
+        // Get existing utterance IDs for comparison
+        const existingUtteranceIds = new Set(currentSegment.utterances.map(u => u.id));
+        const newUtteranceIds = new Set(data.utterances.map(u => u.id));
+
+        // Find utterances to delete (in existing but not in new)
+        const utterancesToDelete = Array.from(existingUtteranceIds).filter(id => !newUtteranceIds.has(id));
+
+        // Delete removed utterances
+        if (utterancesToDelete.length > 0) {
+            await prisma.utterance.deleteMany({
+                where: { id: { in: utterancesToDelete } }
+            });
+        }
+
+        // Update existing utterances and create new ones
+        for (const utteranceData of data.utterances) {
+            if (existingUtteranceIds.has(utteranceData.id)) {
+                // Update existing utterance
+                await prisma.utterance.update({
+                    where: { id: utteranceData.id },
+                    data: {
+                        text: utteranceData.text,
+                        startTimestamp: utteranceData.startTimestamp,
+                        endTimestamp: utteranceData.endTimestamp
+                    }
+                });
+            } else if (utteranceData.id.startsWith('temp_')) {
+                // Create new utterance (temporary ID indicates a new utterance)
+                await prisma.utterance.create({
+                    data: {
+                        text: utteranceData.text || '',
+                        startTimestamp: utteranceData.startTimestamp,
+                        endTimestamp: utteranceData.endTimestamp,
+                        speakerSegmentId: segmentId
+                    }
+                });
+            }
+        }
+
+        // Calculate new segment timestamps based on utterances
+        const allTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+        const newSegmentStart = Math.min(...allTimestamps);
+        const newSegmentEnd = Math.max(...allTimestamps);
+
+        // Update or delete summary
+        if (data.summary) {
+            await prisma.summary.upsert({
+                where: { speakerSegmentId: segmentId },
+                update: {
+                    text: data.summary.text,
+                    type: data.summary.type
+                },
+                create: {
+                    text: data.summary.text,
+                    type: data.summary.type,
+                    speakerSegmentId: segmentId
+                }
+            });
+        } else if (currentSegment.summary) {
+            // Delete summary if it exists but wasn't provided in the update
+            await prisma.summary.delete({
+                where: { speakerSegmentId: segmentId }
+            });
+        }
+
+        // Update segment timestamps
+        await prisma.speakerSegment.update({
+            where: { id: segmentId },
+            data: {
+                startTimestamp: newSegmentStart,
+                endTimestamp: newSegmentEnd
+            }
+        });
+
+        // Return the updated segment with all relations
+        const updatedSegment = await prisma.speakerSegment.findUnique({
+            where: { id: segmentId },
+            include: speakerSegmentWithRelationsInclude
+        });
+
+        if (!updatedSegment) {
+            throw new Error('Failed to retrieve updated segment');
+        }
+
+        return updatedSegment;
+    });
+}
+
+export async function extractSpeakerSegment(
+    cityId: string,
+    meetingId: string,
+    segmentId: string,
+    startUtteranceId: string,
+    endUtteranceId: string
+): Promise<SpeakerSegmentWithRelations[]> {
+    // 1. Verify segment exists
+    const originalSegment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: { utterances: { orderBy: { startTimestamp: 'asc' } } }
+    });
+
+    if (!originalSegment) throw new Error('Segment not found');
+    if (originalSegment.cityId !== cityId) throw new Error('City mismatch');
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    // 2. Find utterance indices
+    const utterances = originalSegment.utterances;
+    const startIndex = utterances.findIndex(u => u.id === startUtteranceId);
+    const endIndex = utterances.findIndex(u => u.id === endUtteranceId);
+
+    if (startIndex === -1 || endIndex === -1) throw new Error('Utterances not found in segment');
+    if (startIndex > endIndex) throw new Error('Invalid utterance range');
+
+    // 3. Split utterances into three groups: before, middle (to extract), and after
+    const beforeUtterances = utterances.slice(0, startIndex);
+    const middleUtterances = utterances.slice(startIndex, endIndex + 1);
+    const afterUtterances = utterances.slice(endIndex + 1);
+
+    return await prisma.$transaction(async (tx) => {
+        const createdSegments: SpeakerSegmentWithRelations[] = [];
+
+        // Create the new middle segment with extracted utterances
+        const middleStart = middleUtterances[0].startTimestamp;
+        const middleEnd = middleUtterances[middleUtterances.length - 1].endTimestamp;
+
+        const middleTag = await tx.speakerTag.create({
+            data: { label: 'New speaker segment', personId: null }
+        });
+
+        const middleSegment = await tx.speakerSegment.create({
+            data: {
+                cityId,
+                meetingId,
+                speakerTagId: middleTag.id,
+                startTimestamp: middleStart,
+                endTimestamp: middleEnd,
+            },
+            include: speakerSegmentWithRelationsInclude
+        });
+
+        // Move middle utterances
+        await tx.utterance.updateMany({
+            where: { id: { in: middleUtterances.map(u => u.id) } },
+            data: { speakerSegmentId: middleSegment.id }
+        });
+
+        // Update or delete the original segment based on remaining utterances
+        if (beforeUtterances.length > 0) {
+            const beforeStart = beforeUtterances[0].startTimestamp;
+            const beforeEnd = beforeUtterances[beforeUtterances.length - 1].endTimestamp;
+
+            await tx.speakerSegment.update({
+                where: { id: segmentId },
+                data: { startTimestamp: beforeStart, endTimestamp: beforeEnd }
+            });
+        } else {
+            await tx.speakerSegment.delete({ where: { id: segmentId } });
+        }
+
+        // Create after segment if there are remaining utterances
+        if (afterUtterances.length > 0) {
+            const afterStart = afterUtterances[0].startTimestamp;
+            const afterEnd = afterUtterances[afterUtterances.length - 1].endTimestamp;
+
+            const afterSegment = await tx.speakerSegment.create({
+                data: {
+                    cityId,
+                    meetingId,
+                    speakerTagId: originalSegment.speakerTagId, // Same speaker as original
+                    startTimestamp: afterStart,
+                    endTimestamp: afterEnd
+                },
+                include: speakerSegmentWithRelationsInclude
+            });
+
+            await tx.utterance.updateMany({
+                where: { id: { in: afterUtterances.map(u => u.id) } },
+                data: { speakerSegmentId: afterSegment.id }
+            });
+            createdSegments.push(afterSegment);
+        }
+
+        // Return all segments in chronological order
+        const finalSegments = [];
+
+        // Re-fetch original if not deleted
+        if (beforeUtterances.length > 0) {
+            const updatedOriginal = await tx.speakerSegment.findUnique({
+                where: { id: segmentId },
+                include: speakerSegmentWithRelationsInclude
+            });
+            if (updatedOriginal) finalSegments.push(updatedOriginal);
+        }
+
+        // Re-fetch middle to ensure relations
+        const finalMiddle = await tx.speakerSegment.findUnique({
+            where: { id: middleSegment.id },
+            include: speakerSegmentWithRelationsInclude
+        });
+        if (finalMiddle) finalSegments.push(finalMiddle);
+
+        if (afterUtterances.length > 0) {
+            const finalAfter = await tx.speakerSegment.findUnique({
+                // @ts-ignore - we know we created it if length > 0
+                where: { id: createdSegments[0].id },
+                include: speakerSegmentWithRelationsInclude
+            });
+            if (finalAfter) finalSegments.push(finalAfter);
+        }
+
+        return finalSegments;
+    });
 }

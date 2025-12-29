@@ -34,7 +34,11 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
+<<<<<<< HEAD
     const supportsNotifications = formData.get('supportsNotifications') === 'true'
+=======
+    const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
+>>>>>>> production
 
     // Message data
     const hasMessage = formData.get('hasMessage') === 'true'
@@ -59,7 +63,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 
     let city;
-    
+
     // Update city data
     try {
         city = await editCity(params.cityId, {
@@ -70,7 +74,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             timezone,
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
-            supportsNotifications
+            supportsNotifications,
+            ...(peopleOrdering && { peopleOrdering })
         });
     } catch (error) {
         console.error('Error updating city:', error);

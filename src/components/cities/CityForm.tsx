@@ -53,7 +53,8 @@ const formSchema = z.object({
         message: "ID must contain only lowercase letters a-z and dashes.",
     }),
     authorityType: z.enum(['municipality', 'region']),
-    supportsNotifications: z.boolean()
+    supportsNotifications: z.boolean(),
+    peopleOrdering: z.enum(['default', 'partyRank']).optional()
 })
 
 interface CityFormProps {
@@ -122,7 +123,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
             authorityType: city?.authorityType || "municipality",
-            supportsNotifications: city?.supportsNotifications || false
+            supportsNotifications: city?.supportsNotifications || false,
+            peopleOrdering: city?.peopleOrdering || "default"
         },
     })
 
@@ -150,6 +152,9 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
         formData.append('supportsNotifications', values.supportsNotifications.toString())
+        if (values.peopleOrdering) {
+            formData.append('peopleOrdering', values.peopleOrdering)
+        }
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -245,8 +250,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                     </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                    <SelectItem value="municipality">Municipality</SelectItem>
-                                    <SelectItem value="region">Region</SelectItem>
+                                    <SelectItem value="municipality">{t('municipality')}</SelectItem>
+                                    <SelectItem value="region">{t('region')}</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormDescription>
@@ -256,6 +261,32 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         </FormItem>
                     )}
                 />
+                {city && (
+                    <FormField
+                        control={form.control}
+                        name="peopleOrdering"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('peopleOrdering')}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value || "default"}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={t('selectOrderingMethod')} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="default">{t('defaultOrdering')}</SelectItem>
+                                        <SelectItem value="partyRank">{t('partyRankOrdering')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    {t('peopleOrderingDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
                 <FormField
                     control={form.control}
                     name="logoImage"
@@ -292,7 +323,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
                 {/* City Message Section - SuperAdmin Only */}
                 {isSuperAdmin && city && (
-                    <CityMessageForm 
+                    <CityMessageForm
                         existingMessage={cityMessage}
                         onMessageChange={setMessageData}
                     />

@@ -63,9 +63,9 @@ export async function POST(request: Request) {
     }
 
     try {
-        const result = await uploadFile(logoImage, { 
+        const result = await uploadFile(logoImage, {
             prefix: 'city-logos',
-            useCdn: true 
+            useCdn: true
         })
         const logoImageUrl = result.url
 
@@ -82,8 +82,9 @@ export async function POST(request: Request) {
             isPending: true,
             authorityType,
             wikipediaId: null,
-            supportsNotifications,
-            consultationsEnabled: false
+            supportsNotifications: false,
+            consultationsEnabled: false,
+            peopleOrdering: 'default'
         })
 
         return NextResponse.json(city)

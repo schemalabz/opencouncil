@@ -3,9 +3,10 @@ alwaysApply: true
 ---
 
 - Never cast to any, and avoid using any as a type in general
-- When creating a new type, check if it exists already in the repo. If the new type is still needed, consider placing it in src/types
+- Store shared Prisma types in `src/lib/db/types/{entity}.ts`, re-export from `src/lib/db/types/index.ts`, and import from `@/lib/db/types` to prevent circular dependencies.
 - Never use dynamic imports, unless asked to specifically (e.g. `await import(...)`)
 - Do not add extra, unecessary try / catch blocks
 - Never create markdown (`.md`) files after you're done -- unless you're directly asked. It's okay to update existing docs
 - Never use emojis in your replies
 - I know i am absolutely right, no need to mention it
+- Use the time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`) instead of redefining them locally.

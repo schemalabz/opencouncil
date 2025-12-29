@@ -6,12 +6,26 @@ import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
-import { formatDistanceToNow } from 'date-fns';
-import { el } from 'date-fns/locale';
+
+// Export time formatters from the new location
+export {
+  formatTime,
+  formatTimestamp,
+  formatDuration,
+  formatRelativeTime,
+  formatDate,
+  formatDateTime,
+  formatDateRange
+} from './formatters/time';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
+
+export const UNKNOWN_SPEAKER_LABEL = "Άγνωστος Ομιλητής";
+
+export const buildUnknownSpeakerLabel = (index: number) =>
+  `${UNKNOWN_SPEAKER_LABEL} ${index}`;
 
 export function subjectToMapFeature(subject: SubjectWithRelations) {
   if (!subject.location?.coordinates) return null;
@@ -72,47 +86,7 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
   return diffMonths;
 }
 
-export function formatDate(date: Date): string {
-  if (date instanceof Date) {
-    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
-  } else if (typeof date === 'string') {
-    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(new Date(date));
-  } else {
-    throw new Error(`Invalid date: ${date}`);
-  }
-}
-
-export function formatDateTime(date: Date, timezone?: string): string {
-  const options: Intl.DateTimeFormatOptions = {
-    dateStyle: 'long',
-    timeStyle: 'short'
-  };
-
-  if (timezone) {
-    options.timeZone = timezone;
-  }
-
-  if (date instanceof Date) {
-    return new Intl.DateTimeFormat('el-GR', options).format(date);
-  } else if (typeof date === 'string') {
-    return new Intl.DateTimeFormat('el-GR', options).format(new Date(date));
-  } else {
-    throw new Error(`Invalid date: ${date}`);
-  }
-}
-
-export function formatDateRange(startDate: Date | null, endDate: Date | null, t: any): string {
-  if (startDate && endDate) {
-    return `${t('from')} ${formatDate(startDate)} ${t('until')} ${formatDate(endDate)}`;
-  }
-  if (startDate && !endDate) {
-    return `${t('from')} ${formatDate(startDate)} ${t('until')} ${t('present')}`;
-  }
-  if (!startDate && endDate) {
-    return `${t('until')} ${formatDate(endDate)}`;
-  }
-  return '';
-}
+// Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts
 
 export function sortSubjectsByImportance<T extends Subject & {
   topic?: Topic | null,
@@ -303,6 +277,30 @@ export function isRoleActiveAt(role: { startDate: Date | null, endDate: Date | n
 export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
   const now = new Date();
   return isRoleActiveAt(role, now);
+}
+
+/**
+ * Finds the first active party role from a list of roles.
+ * @param roles Array of roles with party relations
+ * @param partyId Optional party ID to filter by
+ * @param date Date to check for active roles (defaults to current date)
+ * @returns The first active party role, or null if none found
+ */
+export function getActivePartyRole<T extends Role & { partyId?: string | null }>(
+  roles: T[],
+  partyId?: string,
+  date?: Date
+): T | null {
+  const checkDate = date || new Date();
+
+  // Filter roles that are active at the specified date
+  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
+
+  // Find the first role that has a party (and matches partyId if provided)
+  if (partyId) {
+    return activeRoles.find(role => role.partyId === partyId) || null;
+  }
+  return activeRoles.find(role => role.partyId) || null;
 }
 
 /**
@@ -502,33 +500,18 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
   }
 }
 
-/**
- * Formats time in seconds to a human-readable string
- * @param time - Time in seconds
- * @returns Formatted string like "5:30" or "1:23:45"
- */
-export function formatTime(time: number): string {
-  const hours = Math.floor(time / 3600);
-  const minutes = Math.floor((time % 3600) / 60);
-  const seconds = Math.floor(time % 60);
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-/**
- * Formats a date to a relative time string (e.g., "2 hours ago", "3 days ago")
- * @param date - The date to format
- * @param locale - The locale to use for formatting (defaults to 'el')
- * @returns Formatted relative time string in the specified locale
- */
-export function formatRelativeTime(date: Date, locale: string = 'el'): string {
-  // Map locale to date-fns locale
-  const dateFnsLocale = locale === 'en' ? undefined : el;
-  
-  return formatDistanceToNow(date, {
-    addSuffix: true,
-    locale: dateFnsLocale
-  });
+export function getActiveRoleCondition(date: Date = new Date()) {
+  return [
+    // Both dates are null (ongoing role)
+    { startDate: null, endDate: null },
+    // Only start date is set and it's in the past
+    { startDate: { lte: date }, endDate: null },
+    // Only end date is set and it's in the future
+    { startDate: null, endDate: { gt: date } },
+    // Both dates are set and current time is within range
+    {
+      startDate: { lte: date },
+      endDate: { gt: date }
+    }
+  ];
 }

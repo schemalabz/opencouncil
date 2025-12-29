@@ -81,10 +81,11 @@ export default async function PeoplePage({
 }: {
     params: { cityId: string }
 }) {
-    const [partiesWithPersons, administrativeBodies, allPeople] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, city] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
-        getPeopleForCityCached(cityId)
+        getPeopleForCityCached(cityId),
+        getCityCached(cityId)
     ]);
 
     if (!partiesWithPersons) {
@@ -100,6 +101,7 @@ export default async function PeoplePage({
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             canEdit={canEdit}
+            city={city}
         />
     );
 } 

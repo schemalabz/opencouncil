@@ -9,6 +9,8 @@ import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
 import { HighlightProvider } from './HighlightContext'
 import { MeetingData } from '@/lib/getMeetingData'
 import { KeyboardShortcuts } from './KeyboardShortcuts'
+import { KeyboardShortcutsProvider } from '@/contexts/KeyboardShortcutsContext'
+import { EditingProvider } from './EditingContext'
 
 
 type CouncilMeetingWrapperProps = {
@@ -59,8 +61,12 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
                 <TranscriptOptionsProvider editable={editable}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                         <HighlightProvider>
-                            <KeyboardShortcuts />
-                            {children}
+                            <KeyboardShortcutsProvider>
+                                <EditingProvider>
+                                    <KeyboardShortcuts />
+                                    {children}
+                                </EditingProvider>
+                            </KeyboardShortcutsProvider>
                         </HighlightProvider>
                     </VideoProvider>
                 </TranscriptOptionsProvider>

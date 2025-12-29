@@ -1,10 +1,15 @@
 {
   "utterance": {
+    "editing": {
+      "saveShortcut": "Save (Enter)",
+      "cancelShortcut": "Cancel (Escape)"
+    },
     "contextMenu": {
       "startHighlightFromHere": "Start Highlight from here",
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
-      "shareFromHere": "Share from here"
+      "shareFromHere": "Share from here",
+      "extractSegment": "Extract segment"
     },
     "toasts": {
       "moveUtterances": "Move utterances?",
@@ -15,7 +20,11 @@
       "highlightCreated": "Highlight Created",
       "highlightCreatedDescription": "Highlight started with this utterance. Add more utterances to build your highlight.",
       "error": "Error",
-      "createHighlightError": "Failed to create highlight. Please try again."
+      "createHighlightError": "Failed to create highlight. Please try again.",
+      "editError": "Failed to save changes. Please try again."
+    },
+    "common": {
+      "error": "Error"
     }
   },
   "controls": {
