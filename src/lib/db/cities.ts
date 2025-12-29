@@ -17,7 +17,7 @@ type CityCounts = {
     councilMeetings: number;
 };
 
-export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'isPending' | 'isListed' | 'officialSupport' | 'authorityType'> & {
+export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'status' | 'officialSupport' | 'authorityType'> & {
     _count: CityCounts;
 };
 
@@ -40,7 +40,7 @@ const CITY_COUNT_SELECT = {
 
 const CITY_ORDER_BY = [
     { officialSupport: 'desc' as const },
-    { isListed: 'desc' as const },
+    { status: 'desc' as const },
     { name: 'asc' as const }
 ];
 
@@ -165,9 +165,8 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
                 name_municipality_en: true,
                 logoImage: true,
                 supportsNotifications: true,
-                isPending: true,
+                status: true,
                 authorityType: true,
-                isListed: true,
                 officialSupport: true,
                 _count: CITY_COUNT_SELECT
             },
@@ -193,16 +192,21 @@ export async function getCities({ includeUnlisted = false, includePending = fals
     }
 
     // Build where clause based on user permissions
-    let whereClause: any = {
-        // In Prisma, undefined means "ignore this condition entirely"
-        // So we can use it to conditionally include or exclude pending cities
-        isPending: includePending ? undefined : false
-    };
+    let whereClause: any = {};
 
-    if (!includeUnlisted) {
+    if (!includeUnlisted && !includePending) {
         // Public mode: only show listed cities
-        whereClause.isListed = true;
-    } else if (!currentUser?.isSuperAdmin) {
+        whereClause.status = 'listed';
+    } else if (!includePending) {
+        // Include unlisted but exclude pending
+        whereClause.status = { in: ['listed', 'unlisted'] };
+    } else if (!includeUnlisted) {
+        // Include pending but only listed
+        whereClause.status = { in: ['listed', 'pending'] };
+    }
+    // If both includeUnlisted and includePending are true, show all (no filter)
+
+    if (includeUnlisted && !currentUser?.isSuperAdmin) {
         // Authenticated user mode: show listed cities + cities they can administer
         const administerableCityIds = currentUser?.administers
             .filter(a => a.cityId)
@@ -211,15 +215,15 @@ export async function getCities({ includeUnlisted = false, includePending = fals
         whereClause = {
             ...whereClause,
             OR: [
-                { isListed: true },
+                { status: 'listed' },
                 {
-                    isListed: false,
+                    status: { in: ['unlisted', 'pending'] },
                     id: { in: administerableCityIds }
                 }
             ]
         };
     }
-    // Superadmin mode: show all cities (no additional filter needed beyond isPending)
+    // Superadmin mode: show all cities (no additional filter needed)
 
     try {
         const cities = await prisma.city.findMany({
@@ -242,11 +246,18 @@ export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, in
     }
 
     try {
+        let statusFilter: any;
+        if (!includeUnlisted && !includePending) {
+            statusFilter = 'listed';
+        } else if (!includePending) {
+            statusFilter = { in: ['listed', 'unlisted'] };
+        } else if (!includeUnlisted) {
+            statusFilter = { in: ['listed', 'pending'] };
+        }
+        // If both are true, show all (no filter)
+
         const cities = await prisma.city.findMany({
-            where: {
-                isPending: includePending ? undefined : false,
-                isListed: (includeUnlisted || includePending) ? undefined : true
-            },
+            where: statusFilter ? { status: statusFilter } : {},
             include: {
                 councilMeetings: true
             },
@@ -325,6 +336,7 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
         const cities = await prisma.city.findMany({
             where: {
                 officialSupport: true,
+                status: 'listed',
                 logoImage: {
                     not: null
                 }

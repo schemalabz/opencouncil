@@ -20,8 +20,7 @@ export async function GET() {
                 createdAt: true,
                 updatedAt: true,
                 officialSupport: true,
-                isListed: true,
-                isPending: true,
+                status: true,
                 authorityType: true,
                 wikipediaId: true,
                 supportsNotifications: true,
@@ -33,8 +32,11 @@ export async function GET() {
                     }
                 }
             },
+            where: {
+                status: 'listed'
+            },
             orderBy: [
-                { isListed: 'desc' },
+                { status: 'desc' },
                 { name: 'asc' }
             ]
         });

@@ -23,7 +23,7 @@ The system uses Claude Sonnet 4 with web search to find current information abou
 4. AI searches web for municipal information using Greek queries
 5. System generates data matching `json-schemas/city.schema.json`
 6. User reviews/edits data in tabbed interface
-7. Click "Save" to create all entities and activate city (sets `city.isPending = false` if needed)
+7. Click "Save" to create all entities and activate city
 
 ## Technical Implementation
 

@@ -29,7 +29,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
         setSelectedCity(city);
         setIsNavigating(true);
 
-        const targetUrl = city.isPending ? `/${city.id}/petition` : `/${city.id}`;
+        const targetUrl = city.status === 'pending' ? `/${city.id}/petition` : `/${city.id}`;
 
         // Force a proper history entry by ensuring the browser processes this as a user action
         // Use setTimeout with 0 delay to ensure this runs in the next tick
@@ -152,7 +152,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                             <CityOverview
                                 key={city.id}
                                 city={city}
-                                showPrivateLabel={!city.isListed}
+                                showPrivateLabel={city.status !== 'listed'}
                             />
                         ))}
 

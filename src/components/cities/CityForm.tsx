@@ -21,6 +21,7 @@ import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -52,6 +53,8 @@ const formSchema = z.object({
         message: "ID must contain only lowercase letters a-z and dashes.",
     }),
     authorityType: z.enum(['municipality', 'region']),
+    officialSupport: z.boolean().default(false),
+    status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
     peopleOrdering: z.enum(['default', 'partyRank']).optional()
 })
 
@@ -80,6 +83,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         notificationBehavior?: NotificationBehavior | null;
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
+    const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
 
     // Message data for form submission - only stored when message component updates
     const [messageData, setMessageData] = useState<MessageFormState | null>(null);
@@ -121,6 +125,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
             authorityType: city?.authorityType || "municipality",
+            officialSupport: city?.officialSupport || false,
+            status: city?.status || 'pending',
             peopleOrdering: city?.peopleOrdering || "default"
         },
     })
@@ -148,6 +154,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
+        formData.append('officialSupport', values.officialSupport.toString())
+        formData.append('status', values.status)
         if (values.peopleOrdering) {
             formData.append('peopleOrdering', values.peopleOrdering)
         }
@@ -319,7 +327,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
                 {/* City Message Section - SuperAdmin Only */}
                 {isSuperAdmin && city && (
-                    <CityMessageForm 
+                    <CityMessageForm
                         existingMessage={cityMessage}
                         onMessageChange={setMessageData}
                     />
@@ -400,6 +408,78 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                         />
                     </CollapsibleContent>
                 </Collapsible>
+                {isSuperAdmin && (
+                    <Collapsible
+                        open={isAdminSettingsOpen}
+                        onOpenChange={setIsAdminSettingsOpen}
+                        className="space-y-2"
+                    >
+                        <div className="flex items-center justify-between space-x-4 px-4">
+                            <h4 className="text-sm font-semibold">
+                                {t('adminSettings')}
+                            </h4>
+                            <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="w-9 p-0">
+                                    {isAdminSettingsOpen ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                    )}
+                                    <span className="sr-only">{t('toggle')}</span>
+                                </Button>
+                            </CollapsibleTrigger>
+                        </div>
+                        <CollapsibleContent className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="officialSupport"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                            <FormLabel>
+                                                {t('officialSupport')}
+                                            </FormLabel>
+                                            <FormDescription>
+                                                {t('officialSupportDescription')}
+                                            </FormDescription>
+                                        </div>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="status"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('status')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectStatus')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="pending">{t('statusPending')}</SelectItem>
+                                                <SelectItem value="unlisted">{t('statusUnlisted')}</SelectItem>
+                                                <SelectItem value="listed">{t('statusListed')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('statusDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </CollapsibleContent>
+                    </Collapsible>
+                )}
                 {city && (
                     <Collapsible
                         open={isAdminBodiesOpen}

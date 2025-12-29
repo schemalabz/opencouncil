@@ -17,7 +17,7 @@ export default async function HomePage({
     ]);
 
     // Only fetch meeting information for listed cities with official support
-    const supportedCities = allCities.filter(city => city.officialSupport && city.isListed);
+    const supportedCities = allCities.filter(city => city.officialSupport && city.status === 'listed');
     
     // Fetch most recent meeting for supported cities in parallel to create citiesWithMeetings
     const citiesWithMeetings: LandingCity[] = await Promise.all(
