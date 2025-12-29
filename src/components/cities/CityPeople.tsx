@@ -6,15 +6,17 @@ import List from '@/components/List';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { PersonWithRelations } from '@/lib/db/people';
-import { sortPersonsByLastName } from '@/components/utils';
+import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
+import { City } from '@prisma/client';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
     partiesWithPersons: PartyWithPersons[],
     administrativeBodies: AdministrativeBody[],
     cityId: string,
-    canEdit: boolean
+    canEdit: boolean,
+    city: City | null
 };
 
 export default function CityPeople({
@@ -22,7 +24,8 @@ export default function CityPeople({
     partiesWithPersons,
     administrativeBodies,
     cityId, 
-    canEdit
+    canEdit,
+    city
 }: CityPeopleProps) {
     const t = useTranslations('Person');
 
@@ -32,7 +35,9 @@ export default function CityPeople({
         [partiesWithPersons]
     );
 
-    const orderedPersons = sortPersonsByLastName(allPeople);
+    const orderedPersons = useMemo(() => {
+        return sortPeople(allPeople, partiesWithPersons, city?.peopleOrdering);
+    }, [allPeople, partiesWithPersons, city?.peopleOrdering]);
 
     const peopleAdministrativeBodies = [
         ...Array.from(new Map(

@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { Bot, Eye, Building2, Lightbulb } from 'lucide-react';
 
 interface OpenCouncilDescriptionProps {
     className?: string;
@@ -6,38 +6,28 @@ interface OpenCouncilDescriptionProps {
 }
 
 export function OpenCouncilDescription({ className = "", animate = false }: OpenCouncilDescriptionProps) {
-    const content = (
+    return (
         <p className={`text-sm sm:text-lg md:text-xl lg:text-2xl text-muted-foreground mx-auto leading-relaxed ${className}`}>
             To OpenCouncil χρησιμοποιεί{' '}
-            <em className="not-italic inline-flex items-center px-1.5 py-0.5 sm:px-2 sm:py-1 text-foreground">
-                🤖 τεχνητή νοημοσύνη
+            <em className="not-italic inline-flex items-center gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 text-foreground">
+                <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
+                τεχνητή νοημοσύνη
             </em>{' '}
             για να{' '}
-            <em className="not-italic inline-flex items-center px-2 py-1 text-foreground">
-                👀 παρακολουθεί
+            <em className="not-italic inline-flex items-center gap-1.5 px-2 py-1 text-foreground">
+                <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                παρακολουθεί
             </em>{' '}
             τα{' '}
-            <em className="not-italic inline-flex items-center px-2 py-1 text-foreground">
-                🏛️ δημοτικά συμβούλια
+            <em className="not-italic inline-flex items-center gap-1.5 px-2 py-1 text-foreground">
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                δημοτικά συμβούλια
             </em>{' '}
             και να τα κάνει{' '}
-            <em className="not-italic inline-flex items-center px-2 py-1 text-foreground">
-                💡 απλά και κατανοητά
+            <em className="not-italic inline-flex items-center gap-1.5 px-2 py-1 text-foreground">
+                <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5" />
+                απλά και κατανοητά
             </em>
         </p>
     );
-
-    if (animate) {
-        return (
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                {content}
-            </motion.div>
-        );
-    }
-
-    return content;
 } 

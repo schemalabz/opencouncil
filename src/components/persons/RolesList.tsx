@@ -17,7 +17,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
-import { Party, AdministrativeBody, Role } from '@prisma/client'
+import { Party, AdministrativeBody } from '@prisma/client'
+import { RoleWithRelations } from '@/lib/db/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -50,11 +51,6 @@ const formSchema = z.object({
     partyId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
 })
-
-interface RoleWithRelations extends Role {
-    party?: Party | null;
-    administrativeBody?: AdministrativeBody | null;
-}
 
 interface RolesListProps {
     personId?: string;
@@ -100,8 +96,13 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: values.isHead,
             startDate: values.startDate,
             endDate: values.endDate,
+            rank: editingRole?.rank ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
+            // Relations will be populated below if available
+            party: null,
+            administrativeBody: null,
+            city: null
         }
 
         if (values.type === 'party' && values.partyId) {

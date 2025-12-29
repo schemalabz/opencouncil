@@ -20,10 +20,12 @@ import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
+import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
+import PartyMemberRankingSheet from './PartyMemberRankingSheet';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -42,13 +44,14 @@ function PartyMembersTab({
     canEdit: boolean
 }) {
     const t = useTranslations('Party');
+    const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
         people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                (!role.endDate || new Date(role.endDate) > new Date())
+                isRoleActive(role)
             )
         ),
         [people, party.id]);
@@ -58,8 +61,7 @@ function PartyMembersTab({
         people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                role.endDate &&
-                new Date(role.endDate) <= new Date()
+                !isRoleActive(role)
             )
         ),
         [people, party.id]);
@@ -72,22 +74,33 @@ function PartyMembersTab({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <div className="flex items-center gap-2 mb-4">
-                    <Users className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg sm:text-xl font-semibold">{t('currentMembers')}</h2>
-                    <span className="text-sm text-muted-foreground">({activePeople.length})</span>
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-primary" />
+                        <h2 className="text-lg sm:text-xl font-semibold">{t('currentMembers')}</h2>
+                        <span className="text-sm text-muted-foreground">({activePeople.length})</span>
+                    </div>
+                    {canEdit && city.peopleOrdering === 'partyRank' && (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setIsRankingSheetOpen(true)}
+                            >
+                                {t('changeMemberOrdering')}
+                            </Button>
+                            <PartyMemberRankingSheet
+                                open={isRankingSheetOpen}
+                                onOpenChange={setIsRankingSheetOpen}
+                                party={party}
+                                people={people}
+                                cityId={city.id}
+                            />
+                        </>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {activePeople
-                        .sort((a, b) => {
-                            // Sort by isHead first (true comes before false)
-                            const aIsHead = a.roles.some((role: Role) => role.partyId === party.id && role.isHead);
-                            const bIsHead = b.roles.some((role: Role) => role.partyId === party.id && role.isHead);
-                            if (aIsHead && !bIsHead) return -1;
-                            if (!aIsHead && bIsHead) return 1;
-                            // Then sort by name
-                            return a.name.localeCompare(b.name);
-                        })
+                    {sortPartyMembers(activePeople, party.id, true)
                         .map(person => (
                             <PersonCard
                                 key={person.id}
@@ -108,19 +121,7 @@ function PartyMembersTab({
                 >
                     <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
                     <div className="space-y-3">
-                        {inactivePeople
-                            .sort((a, b) => {
-                                // Sort by most recent end date first
-                                const aEnd = Math.max(...a.roles
-                                    .filter(role => role.partyId === party.id && role.endDate)
-                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0));
-                                const bEnd = Math.max(...b.roles
-                                    .filter(role => role.partyId === party.id && role.endDate)
-                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0));
-                                if (aEnd !== bEnd) return bEnd - aEnd;
-                                // Then sort by name
-                                return a.name.localeCompare(b.name);
-                            })
+                        {sortInactivePartyMembers(inactivePeople, party.id)
                             .map(person => (
                                 <motion.div
                                     key={person.id}
@@ -261,7 +262,7 @@ function StatisticsAndSegmentsTab({
                 transition={{ delay: 0.4 }}
                 className="relative"
             >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4">Πρόσφατες τοποθετήσεις</h2>
+                <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentSegments')}</h2>
 
                 {isLoadingSegments && latestSegments.length === 0 ? (
                     <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
@@ -465,7 +466,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
-                                    <Link href="/">Αρχική</Link>
+                                    <Link href="/">{t('breadcrumbHome')}</Link>
                                 </BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
@@ -517,7 +518,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                         animate={{ opacity: 1 }}
                                         transition={{ delay: 0.25 }}
                                     >
-                                        <span className="text-muted-foreground">Επικεφαλής: </span>
+                                        <span className="text-muted-foreground">{t('leaderLabel')}</span>
                                         <Link
                                             href={`/${city.id}/people/${partyLeader.person.id}`}
                                             className="hover:underline text-primary font-medium"
@@ -563,13 +564,13 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1 bg-muted/50">
                                 <TabsTrigger value="people" className="text-xs sm:text-sm py-2 px-3">
                                     <Users className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden xs:inline">Πρόσωπα</span>
-                                    <span className="xs:hidden">Μέλη</span>
+                                    <span className="hidden xs:inline">{t('tabPeople')}</span>
+                                    <span className="xs:hidden">{t('tabPeopleShort')}</span>
                                 </TabsTrigger>
                                 <TabsTrigger value="statistics" className="text-xs sm:text-sm py-2 px-3">
                                     <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden sm:inline">Στατιστικά</span>
-                                    <span className="sm:hidden">Stats</span>
+                                    <span className="hidden sm:inline">{t('tabStatistics')}</span>
+                                    <span className="sm:hidden">{t('tabStatisticsShort')}</span>
                                 </TabsTrigger>
                             </TabsList>
                         </div>

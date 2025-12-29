@@ -30,6 +30,7 @@ model City {
   geometry Unsupported("geometry")?
   supportsNotifications Boolean @default(false)
   consultationsEnabled Boolean @default(false)
+  peopleOrdering PeopleOrdering @default(default)
 
   parties        Party[]
   persons        Person[]
@@ -62,6 +63,11 @@ enum CityStatus {
   pending   // City is pending activation (isPending: true)
   unlisted // City is not publicly listed (isPending: false, isListed: false)
   listed    // City is publicly listed (isPending: false, isListed: true)
+}
+
+enum PeopleOrdering {
+  default
+  partyRank
 }
 
 enum AdministrativeBodyType {
@@ -679,6 +685,7 @@ model Role {
   isHead Boolean @default(false)
   name String?
   name_en String?
+  rank Int?
 
   startDate DateTime?
   endDate DateTime?

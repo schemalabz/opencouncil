@@ -39,6 +39,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
+    const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
 
     // Only allow superadmins to modify officialSupport and status
     let officialSupport: boolean | undefined = undefined
@@ -98,6 +99,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             timezone,
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
+            ...(peopleOrdering && { peopleOrdering })
         }
 
         // Only include admin-only fields if user is superadmin

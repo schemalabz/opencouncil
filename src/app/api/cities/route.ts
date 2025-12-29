@@ -83,7 +83,8 @@ export async function POST(request: Request) {
             authorityType,
             wikipediaId: null,
             supportsNotifications: false,
-            consultationsEnabled: false
+            consultationsEnabled: false,
+            peopleOrdering: 'default'
         })
 
         return NextResponse.json(city)

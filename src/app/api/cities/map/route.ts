@@ -26,6 +26,7 @@ export async function GET() {
                 wikipediaId: true,
                 supportsNotifications: true,
                 consultationsEnabled: true,
+                peopleOrdering: true,
                 _count: {
                     select: {
                         councilMeetings: true

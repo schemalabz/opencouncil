@@ -5,14 +5,16 @@ import {
 } from '@prisma/client';
 
 // Import types first
-import type { PersonWithRelations } from './people';
-import type { PartyWithPersons } from './parties';
-import type { CityWithGeometry } from './cities';
-import type { HighlightWithUtterances } from './highlights';
-import type { PodcastSpecWithRelations } from './podcasts';
-import type { SegmentWithRelations } from './speakerSegments';
-import { CouncilMeetingWithAdminBodyAndSubjects } from './meetings';
+import type { PersonWithRelations } from '../people';
+import type { PartyWithPersons } from '../parties';
+import type { CityWithGeometry } from '../cities';
+import type { HighlightWithUtterances } from '../highlights';
+import type { PodcastSpecWithRelations } from '../podcasts';
+import type { SegmentWithRelations } from '../speakerSegments';
+import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
 
+// Re-export db types
+export * from './roles';
 
 // Meeting with all related data
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {

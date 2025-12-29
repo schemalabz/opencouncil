@@ -443,6 +443,7 @@ async function seedPersons(persons: any[]) {
         id: role.id,
         personId: person.id,
         cityId: role.cityId,
+        partyId: role.partyId,
         administrativeBodyId: role.administrativeBodyId,
         isHead: role.isHead || false,
         name: role.name,

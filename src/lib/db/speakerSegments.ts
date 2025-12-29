@@ -1,9 +1,10 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City, SpeakerSegment, Utterance, SpeakerTag, TopicLabel, Topic, Summary, Prisma } from '@prisma/client';
+import { CouncilMeeting, City, Prisma } from '@prisma/client';
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
+import { roleWithRelationsInclude } from './types';
 
 export type SegmentWithRelations = {
     id: string;
@@ -23,13 +24,7 @@ const speakerSegmentWithRelationsInclude = {
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -410,13 +405,7 @@ export async function getLatestSegmentsForSpeaker(
                     include: {
                         person: {
                             include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
-                                }
+                                roles: roleWithRelationsInclude
                             }
                         }
                     }
@@ -506,11 +495,7 @@ export async function getLatestSegmentsForParty(
                                     where: {
                                         partyId: partyId
                                     },
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
+                                    include: roleWithRelationsInclude.include
                                 }
                             }
                         }
@@ -798,7 +783,7 @@ export async function extractSpeakerSegment(
         if (beforeUtterances.length > 0) {
             const beforeStart = beforeUtterances[0].startTimestamp;
             const beforeEnd = beforeUtterances[beforeUtterances.length - 1].endTimestamp;
-            
+
             await tx.speakerSegment.update({
                 where: { id: segmentId },
                 data: { startTimestamp: beforeStart, endTimestamp: beforeEnd }
@@ -811,7 +796,7 @@ export async function extractSpeakerSegment(
         if (afterUtterances.length > 0) {
             const afterStart = afterUtterances[0].startTimestamp;
             const afterEnd = afterUtterances[afterUtterances.length - 1].endTimestamp;
-            
+
             const afterSegment = await tx.speakerSegment.create({
                 data: {
                     cityId,
@@ -820,22 +805,22 @@ export async function extractSpeakerSegment(
                     startTimestamp: afterStart,
                     endTimestamp: afterEnd
                 },
-                 include: speakerSegmentWithRelationsInclude
+                include: speakerSegmentWithRelationsInclude
             });
-            
+
             await tx.utterance.updateMany({
                 where: { id: { in: afterUtterances.map(u => u.id) } },
                 data: { speakerSegmentId: afterSegment.id }
             });
-             createdSegments.push(afterSegment);
+            createdSegments.push(afterSegment);
         }
 
         // Return all segments in chronological order
         const finalSegments = [];
-        
+
         // Re-fetch original if not deleted
         if (beforeUtterances.length > 0) {
-             const updatedOriginal = await tx.speakerSegment.findUnique({
+            const updatedOriginal = await tx.speakerSegment.findUnique({
                 where: { id: segmentId },
                 include: speakerSegmentWithRelationsInclude
             });
@@ -848,16 +833,16 @@ export async function extractSpeakerSegment(
             include: speakerSegmentWithRelationsInclude
         });
         if (finalMiddle) finalSegments.push(finalMiddle);
-        
+
         if (afterUtterances.length > 0) {
-              const finalAfter = await tx.speakerSegment.findUnique({
+            const finalAfter = await tx.speakerSegment.findUnique({
                 // @ts-ignore - we know we created it if length > 0
-                where: { id: createdSegments[0].id }, 
+                where: { id: createdSegments[0].id },
                 include: speakerSegmentWithRelationsInclude
             });
-             if (finalAfter) finalSegments.push(finalAfter);
+            if (finalAfter) finalSegments.push(finalAfter);
         }
-        
+
         return finalSegments;
     });
 }

@@ -4,9 +4,10 @@ import { Card, CardContent } from "../ui/card";
 import { useTranslations } from 'next-intl';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { PersonAvatarList } from '../persons/PersonAvatarList';
-import { cn } from '@/lib/utils';
+import { cn, isRoleActive } from '@/lib/utils';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useMemo } from 'react';
+import { sortPartyMembers } from '@/lib/sorting/people';
 
 interface PartyCardProps {
     item: PartyWithPersons
@@ -19,20 +20,13 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
     // Get active people with party roles
     const activePeople = useMemo(() => {
-        return party.people.filter(person =>
+        const filtered = party.people.filter(person =>
             person.roles.some(role =>
                 role.partyId === party.id &&
-                (!role.endDate || new Date(role.endDate) > new Date())
+                isRoleActive(role)
             )
-        ).sort((a, b) => {
-            // Sort by isHead first (true comes before false)
-            const aIsHead = a.roles.some(role => role.partyId === party.id && role.isHead);
-            const bIsHead = b.roles.some(role => role.partyId === party.id && role.isHead);
-            if (aIsHead && !bIsHead) return -1;
-            if (!aIsHead && bIsHead) return 1;
-            // Then sort by name
-            return a.name.localeCompare(b.name);
-        });
+        );
+        return sortPartyMembers(filtered, party.id, true);
     }, [party.people, party.id]);
 
     // Transform people into PersonWithRelations for PersonAvatarList
