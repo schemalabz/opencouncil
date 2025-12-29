@@ -57,6 +57,8 @@
         "authorityType": "Authority Type",
         "selectAuthorityType": "Select the authority type",
         "authorityTypeDescription": "Select the type of authority.",
+        "supportsNotifications": "Support Notifications",
+        "supportsNotificationsDescription": "Enable notification signup and management for citizens.",
         "municipality": "Municipality",
         "region": "Region",
         "peopleOrdering": "People Ordering",

@@ -71,6 +71,8 @@
         "authorityType": "Τύπος Αρχής",
         "selectAuthorityType": "Επιλέξτε τον τύπο της αρχής",
         "authorityTypeDescription": "Επιλέξτε τον τύπο της αρχής που αντιστοιχεί",
+        "supportsNotifications": "Υποστήριξη Ειδοποιήσεων",
+        "supportsNotificationsDescription": "Ενεργοποίηση εγγραφής και διαχείρισης ειδοποιήσεων για τους πολίτες.",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",

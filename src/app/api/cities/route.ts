@@ -56,15 +56,16 @@ export async function POST(request: Request) {
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File
     const authorityType = formData.get('authorityType') as 'municipality' | 'region' || 'municipality'
+    const supportsNotifications = formData.get('supportsNotifications') === 'true'
 
     if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     try {
-        const result = await uploadFile(logoImage, { 
+        const result = await uploadFile(logoImage, {
             prefix: 'city-logos',
-            useCdn: true 
+            useCdn: true
         })
         const logoImageUrl = result.url
 
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
             isPending: true,
             authorityType,
             wikipediaId: null,
-            supportsNotifications: false,
+            supportsNotifications,
             consultationsEnabled: false,
             peopleOrdering: 'default'
         })

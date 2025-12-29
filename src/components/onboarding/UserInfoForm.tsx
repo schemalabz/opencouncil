@@ -5,6 +5,7 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import { useSession } from 'next-auth/react';
 import { User, Mail, Phone, Lock, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface UserInfoFormData {
     name: string;
@@ -128,12 +129,17 @@ export function UserInfoForm({
                         <Input
                             id="name"
                             type="text"
+                            autoComplete="name"
+                            inputMode="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Εισάγετε το ονοματεπώνυμό σας"
                             disabled={isLoggedIn && !!session?.user?.name}
-                            className={isLoggedIn && !!session?.user?.name ?
-                                "bg-gray-100 text-gray-700 cursor-not-allowed" : ""}
+                            className={cn(
+                                "text-base md:text-sm",
+                                isLoggedIn && !!session?.user?.name ?
+                                    "bg-gray-100 text-gray-700 cursor-not-allowed" : ""
+                            )}
                             readOnly={isLoggedIn && !!session?.user?.name}
                         />
                     </div>
@@ -163,12 +169,17 @@ export function UserInfoForm({
                     <Input
                         id="email"
                         type="email"
+                        autoComplete="email"
+                        inputMode="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Εισάγετε το email σας"
                         disabled={isLoggedIn}
                         readOnly={isLoggedIn}
-                        className={isLoggedIn ? "bg-gray-100 text-gray-700 cursor-not-allowed" : ""}
+                        className={cn(
+                            "text-base md:text-sm",
+                            isLoggedIn ? "bg-gray-100 text-gray-700 cursor-not-allowed" : ""
+                        )}
                     />
                     {isLoggedIn && (
                         <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
@@ -196,7 +207,7 @@ export function UserInfoForm({
                             hideDropdown={true}
                             value={phone}
                             onChange={(value) => setPhone(value)}
-                            inputClassName="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            inputClassName="flex h-11 md:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             placeholder="Το τηλέφωνό σας"
                         />
                     </div>

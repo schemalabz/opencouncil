@@ -21,6 +21,7 @@ import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Switch } from "@/components/ui/switch"
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -52,6 +53,7 @@ const formSchema = z.object({
         message: "ID must contain only lowercase letters a-z and dashes.",
     }),
     authorityType: z.enum(['municipality', 'region']),
+    supportsNotifications: z.boolean(),
     peopleOrdering: z.enum(['default', 'partyRank']).optional()
 })
 
@@ -121,6 +123,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
             authorityType: city?.authorityType || "municipality",
+            supportsNotifications: city?.supportsNotifications || false,
             peopleOrdering: city?.peopleOrdering || "default"
         },
     })
@@ -148,6 +151,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('timezone', values.timezone)
         formData.append('id', values.id)
         formData.append('authorityType', values.authorityType)
+        formData.append('supportsNotifications', values.supportsNotifications.toString())
         if (values.peopleOrdering) {
             formData.append('peopleOrdering', values.peopleOrdering)
         }
@@ -319,7 +323,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
                 {/* City Message Section - SuperAdmin Only */}
                 {isSuperAdmin && city && (
-                    <CityMessageForm 
+                    <CityMessageForm
                         existingMessage={cityMessage}
                         onMessageChange={setMessageData}
                     />
@@ -395,6 +399,28 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         {t('cityIdDescription')}
                                     </FormDescription>
                                     <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="supportsNotifications"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('supportsNotifications')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('supportsNotificationsDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
                                 </FormItem>
                             )}
                         />
