@@ -126,6 +126,16 @@ export interface ReviewStats {
   completedThisWeek: number;
 }
 
+/**
+ * Aggregated statistics from a list of reviews
+ */
+export interface ReviewAggregates {
+  totalReviews: number;
+  totalUserEditedUtterances: number;
+  totalReviewTimeMs: number;
+  averageEfficiency: number | null;
+}
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -925,4 +935,5 @@ export async function getReviewers(): Promise<Array<{ id: string; name: string |
 
   return users;
 }
+
 
