@@ -198,10 +198,10 @@ export async function POST(
                 })
             );
 
-            // Set city as listed (no longer pending)
+            // Set city as unlisted (no longer pending, but not yet publicly listed)
             await tx.city.update({
                 where: { id: params.cityId },
-                data: { status: 'listed' },
+                data: { status: 'unlisted' },
             });
 
             const totalRoles = validatedData.people.reduce((count, person) => count + (person.roles?.length || 0), 0);
