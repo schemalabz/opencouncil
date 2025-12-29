@@ -82,7 +82,7 @@ export async function POST(request: Request) {
             isPending: true,
             authorityType,
             wikipediaId: null,
-            supportsNotifications: false,
+            supportsNotifications,
             consultationsEnabled: false,
             peopleOrdering: 'default'
         })
