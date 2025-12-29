@@ -27,7 +27,8 @@ export function LocationSelector({
 }: LocationSelectorProps) {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [isSelectingLocation, setIsSelectingLocation] = useState(false);
     const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +67,7 @@ export function LocationSelector({
 
             if (debouncedInputValue.trim().length > 2) {
                 setIsWaitingForDebounce(false); // No longer waiting, now actually fetching
-                setIsLoading(true);
+                setIsLoadingSuggestions(true);
                 try {
                     // Extract city center coordinates from geometry if available
                     let cityCoordinates: [number, number] | undefined;
@@ -94,7 +95,7 @@ export function LocationSelector({
                     console.error('Unexpected error fetching place suggestions:', error);
                     setError('Απροσδόκητο σφάλμα κατά την αναζήτηση. Παρακαλώ δοκιμάστε ξανά.');
                 } finally {
-                    setIsLoading(false);
+                    setIsLoadingSuggestions(false);
                     // Don't refocus on mobile - it causes the keyboard to dismiss
                 }
             } else {
@@ -121,9 +122,9 @@ export function LocationSelector({
     };
 
     const handleSelectLocation = async (suggestion: PlaceSuggestion) => {
-        if (isLoading) return;
+        if (isSelectingLocation) return;
 
-        setIsLoading(true);
+        setIsSelectingLocation(true);
         setError(null);
 
         try {
@@ -138,6 +139,7 @@ export function LocationSelector({
                 onSelect(location);
                 setInputValue('');
                 setSuggestions([]);
+                setIsWaitingForDebounce(false);
             } else {
                 setError('Δεν ήταν δυνατή η ανάκτηση των λεπτομερειών της τοποθεσίας.');
             }
@@ -145,7 +147,7 @@ export function LocationSelector({
             console.error('Error fetching place details:', error);
             setError('Σφάλμα κατά την ανάκτηση των λεπτομερειών της τοποθεσίας.');
         } finally {
-            setIsLoading(false);
+            setIsSelectingLocation(false);
         }
     };
 
@@ -164,11 +166,12 @@ export function LocationSelector({
                             data-lpignore="true"
                             data-form-type="other"
                             placeholder={`Αναζητήστε διεύθυνση στον δήμο ${city.name}...`}
-                            className={`pl-10 py-5 text-base md:text-sm ${(isLoading || isWaitingForDebounce) ? 'pr-10' : ''}`}
+                            className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
                             value={inputValue}
                             onChange={handleInputChange}
+                            disabled={isSelectingLocation}
                         />
-                        {(isLoading || isWaitingForDebounce) && (
+                        {(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) && (
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
                                 <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin text-primary" />
                             </div>
@@ -180,6 +183,8 @@ export function LocationSelector({
                         onClick={() => {
                             setInputValue('');
                             setError(null);
+                            setIsWaitingForDebounce(false);
+                            setSuggestions([]);
                         }}
                         className={cn(
                             "transition-opacity h-11 w-11 md:h-10 md:w-10 touch-manipulation",
@@ -204,8 +209,11 @@ export function LocationSelector({
                             {suggestions.map((suggestion) => (
                                 <li
                                     key={suggestion.id}
-                                    className="px-4 py-4 md:py-3 hover:bg-gray-50 active:bg-gray-100 cursor-pointer flex items-center gap-3 border-b last:border-b-0 border-gray-100 touch-manipulation min-h-[48px] md:min-h-0"
-                                    onClick={() => handleSelectLocation(suggestion)}
+                                    className={cn(
+                                        "px-4 py-4 md:py-3 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-3 border-b last:border-b-0 border-gray-100 touch-manipulation min-h-[48px] md:min-h-0",
+                                        isSelectingLocation ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                                    )}
+                                    onClick={() => !isSelectingLocation && handleSelectLocation(suggestion)}
                                 >
                                     <MapPin className="h-5 w-5 md:h-4 md:w-4 text-primary flex-shrink-0" />
                                     <span className="line-clamp-2 text-base md:text-sm">{suggestion.text}</span>
