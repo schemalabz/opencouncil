@@ -107,6 +107,16 @@ export interface ReviewProgress {
   firstEditAt: Date | null;
   lastEditAt: Date | null;
   lastReviewedUtteranceTimestamp: number | null; // Timestamp of last user-edited utterance
+  
+  // Review time estimation
+  estimatedReviewTimeMs: number; // Estimated time spent reviewing (excluding breaks)
+  reviewSessions: number; // Number of distinct review sessions
+  reviewSessionsDetail: ReviewSession[]; // Detailed breakdown of each review session (primary reviewer only)
+  unifiedReviewSessions: UnifiedReviewSession[]; // All reviewers' sessions merged chronologically
+  
+  // Meeting duration (derived from utterances)
+  meetingDurationMs: number; // Total duration of the meeting content
+  reviewEfficiency: number | null; // Ratio of review time to meeting duration (e.g., 1.5 = 1.5:1 ratio)
 }
 
 export interface ReviewStats {
@@ -132,6 +142,322 @@ function isUserEdit(edit: UtteranceWithEdits['utteranceEdits'][0]): boolean {
  */
 function isTaskEdit(edit: UtteranceWithEdits['utteranceEdits'][0]): boolean {
   return edit.editedBy === 'task';
+}
+
+/**
+ * Calculate the duration of an utterance in seconds
+ */
+function getUtteranceDurationSeconds(utterance: Pick<UtteranceWithEdits, 'startTimestamp' | 'endTimestamp'>): number {
+  return utterance.endTimestamp - utterance.startTimestamp;
+}
+
+// ============================================================================
+// REVIEW TIME ESTIMATION ALGORITHM
+// ============================================================================
+//
+// This algorithm estimates the actual time a reviewer spent working on a
+// transcript, excluding breaks and interruptions.
+//
+// KEY INSIGHT: The gap between edits includes both:
+// 1. Time spent reading/reviewing utterances that didn't need editing
+// 2. Breaks/interruptions (coffee, meetings, etc.)
+//
+// APPROACH: We use utterance durations to separate work from breaks:
+// - Calculate expected review time based on audio duration of utterances
+// - If actual time exceeds expected + threshold, it's a break (new session)
+// - Sum up all session durations for total review time
+//
+// EXAMPLE:
+// Edit at 10:00 on utterance #100
+// Edit at 10:25 on utterance #300
+// Utterances 101-299 total audio: 15 minutes
+// Expected review time: 15 min × 1.5 = 22.5 minutes
+// Actual time: 25 minutes
+// Excess: 2.5 minutes → Still same session (minor pause)
+//
+// But if actual time was 45 minutes:
+// Excess: 22.5 minutes → New session (took a break)
+// ============================================================================
+
+/**
+ * Configuration for review time estimation
+ * 
+ * These values can be tuned based on observed reviewer behavior.
+ * Not exported because this is a 'use server' file (only async functions can be exported).
+ * If you need to access these values from client components, create a separate config file.
+ */
+const REVIEW_TIME_CONFIG = {
+  // How much slower than audio speed do people review?
+  // 1.0 = same as speaking speed
+  // 1.5 = 50% slower (recommended - allows time to read, think)
+  // 2.0 = twice as slow (very careful review)
+  REVIEW_SPEED_MULTIPLIER: 1.5,
+  
+  // Maximum "excess time" before we consider it a break (in minutes)
+  // This is time beyond the expected review duration
+  MAX_EXCESS_TIME_MINUTES: 10,
+  
+  // Time to add at the end of each session (wrap-up time)
+  SESSION_BUFFER_MINUTES: 2,
+  
+  // Minimum time to credit for a single edit (in minutes)
+  SINGLE_EDIT_TIME_MINUTES: 3,
+} as const;
+
+// Export session type for UI components
+export interface ReviewSession {
+  startTime: Date;
+  endTime: Date;
+  utterancesCovered: number;
+  totalUtteranceDurationSeconds: number;
+  durationMs: number;
+  meetingStartTimestamp: number; // Start timestamp of the earliest utterance edited in this session (in seconds)
+  meetingEndTimestamp: number; // End timestamp of the latest utterance edited in this session (in seconds)
+  reviewerId?: string; // Added to identify which reviewer worked this session
+  reviewerName?: string | null;
+  reviewerEmail?: string;
+}
+
+// Unified session across all reviewers
+export interface UnifiedReviewSession extends ReviewSession {
+  reviewerId: string;
+  reviewerName: string | null;
+  reviewerEmail: string;
+  isPrimaryReviewer: boolean;
+}
+
+/**
+ * Calculate estimated review time for a primary reviewer
+ * 
+ * Leverages the nested structure of utterances with their edits.
+ * For utterances with multiple edits, uses the FIRST edit timestamp (initial review).
+ * 
+ * @param primaryReviewerId - User ID of the primary reviewer
+ * @param allUtterances - All utterances in the meeting (already sorted by position with nested edits)
+ * @returns Estimated review time in milliseconds and session breakdown
+ */
+function calculateReviewTime(
+  reviewerId: string,
+  allUtterances: UtteranceWithEdits[],
+  includeReviewerInfo = false
+): { totalTimeMs: number; sessions: ReviewSession[] } {
+  // Find utterances edited by this reviewer and get their first edit timestamp
+  interface EditedUtterance {
+    utteranceIndex: number;
+    utterance: typeof allUtterances[0];
+    firstEditTime: Date;
+    reviewerName: string | null;
+    reviewerEmail: string;
+  }
+  
+  const editedUtterances: EditedUtterance[] = [];
+  
+  for (let i = 0; i < allUtterances.length; i++) {
+    const utterance = allUtterances[i];
+    
+    // Find first edit by this reviewer on this utterance
+    const reviewerEditsOnThis = utterance.utteranceEdits
+      .filter(e => isUserEdit(e) && e.user?.id === reviewerId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    
+    if (reviewerEditsOnThis.length > 0) {
+      const firstEdit = reviewerEditsOnThis[0];
+      editedUtterances.push({
+        utteranceIndex: i,
+        utterance,
+        firstEditTime: firstEdit.createdAt,
+        reviewerName: firstEdit.user?.name ?? null,
+        reviewerEmail: firstEdit.user?.email ?? '',
+      });
+    }
+  }
+  
+  if (editedUtterances.length === 0) {
+    return { totalTimeMs: 0, sessions: [] };
+  }
+  
+  // Handle single edit case
+  if (editedUtterances.length === 1) {
+    const singleEditTimeMs = REVIEW_TIME_CONFIG.SINGLE_EDIT_TIME_MINUTES * 60 * 1000;
+    const singleUtterance = editedUtterances[0].utterance;
+    const session: ReviewSession = {
+      startTime: editedUtterances[0].firstEditTime,
+      endTime: editedUtterances[0].firstEditTime,
+      utterancesCovered: 1,
+      totalUtteranceDurationSeconds: 0,
+      durationMs: singleEditTimeMs,
+      meetingStartTimestamp: singleUtterance.startTimestamp,
+      meetingEndTimestamp: singleUtterance.endTimestamp,
+    };
+    
+    if (includeReviewerInfo) {
+      session.reviewerId = reviewerId;
+      session.reviewerName = editedUtterances[0].reviewerName;
+      session.reviewerEmail = editedUtterances[0].reviewerEmail;
+    }
+    
+    return {
+      totalTimeMs: singleEditTimeMs,
+      sessions: [session]
+    };
+  }
+  
+  // Sort edited utterances by EDIT TIME (chronologically)
+  // This ensures session times flow forward even if reviewer jumped around
+  editedUtterances.sort((a, b) => a.firstEditTime.getTime() - b.firstEditTime.getTime());
+  
+  // Detect sessions by analyzing gaps between consecutive edits
+  const sessions: ReviewSession[] = [];
+  let sessionStartIdx = 0;
+  
+  for (let i = 1; i < editedUtterances.length; i++) {
+    const prevEdited = editedUtterances[i - 1];
+    const currentEdited = editedUtterances[i];
+    
+    // Calculate time gap between edits (chronologically)
+    const timeGapMs = currentEdited.firstEditTime.getTime() - prevEdited.firstEditTime.getTime();
+    
+    // For utterances between edits, we look at the POSITION difference
+    // to understand how much content was potentially reviewed
+    const positionDiff = Math.abs(currentEdited.utteranceIndex - prevEdited.utteranceIndex);
+    
+    // Get utterances in the range between these two positions
+    const minPos = Math.min(prevEdited.utteranceIndex, currentEdited.utteranceIndex);
+    const maxPos = Math.max(prevEdited.utteranceIndex, currentEdited.utteranceIndex);
+    const utterancesBetween = allUtterances.slice(minPos + 1, maxPos + 1);
+    
+    // Calculate total audio duration of utterances between edits
+    const totalUtteranceDurationSeconds = utterancesBetween.reduce(
+      (sum, u) => sum + getUtteranceDurationSeconds(u),
+      0
+    );
+    
+    // Expected review time = audio duration × speed multiplier
+    const expectedReviewTimeMs = totalUtteranceDurationSeconds * 1000 * REVIEW_TIME_CONFIG.REVIEW_SPEED_MULTIPLIER;
+    
+    // Excess time = time beyond what we'd expect for reviewing the utterances
+    const excessTimeMs = timeGapMs - expectedReviewTimeMs;
+    const maxExcessMs = REVIEW_TIME_CONFIG.MAX_EXCESS_TIME_MINUTES * 60 * 1000;
+    
+    // If excess time is too large, end current session and start new one
+    if (excessTimeMs >= maxExcessMs || timeGapMs < 0) {
+      // Save the completed session
+      const sessionEdits = editedUtterances.slice(sessionStartIdx, i);
+      const sessionDurationMs = prevEdited.firstEditTime.getTime() - editedUtterances[sessionStartIdx].firstEditTime.getTime();
+      const bufferMs = REVIEW_TIME_CONFIG.SESSION_BUFFER_MINUTES * 60 * 1000;
+      
+      // Count unique utterances in this session
+      const sessionUtteranceIndices = new Set(sessionEdits.map(e => e.utteranceIndex));
+      
+      // Calculate total duration of utterances in session
+      const sessionUtteranceDuration = sessionEdits.reduce(
+        (sum, e) => sum + getUtteranceDurationSeconds(e.utterance),
+        0
+      );
+      
+      // Find the meeting timestamp range covered in this session
+      const sessionUtterances = sessionEdits.map(e => e.utterance);
+      const meetingStartTimestamp = Math.min(...sessionUtterances.map(u => u.startTimestamp));
+      const meetingEndTimestamp = Math.max(...sessionUtterances.map(u => u.endTimestamp));
+      
+      const session: ReviewSession = {
+        startTime: editedUtterances[sessionStartIdx].firstEditTime,
+        endTime: prevEdited.firstEditTime,
+        utterancesCovered: sessionUtteranceIndices.size,
+        totalUtteranceDurationSeconds: sessionUtteranceDuration,
+        durationMs: Math.max(0, sessionDurationMs) + bufferMs,
+        meetingStartTimestamp,
+        meetingEndTimestamp,
+      };
+      
+      if (includeReviewerInfo) {
+        session.reviewerId = reviewerId;
+        session.reviewerName = editedUtterances[sessionStartIdx].reviewerName;
+        session.reviewerEmail = editedUtterances[sessionStartIdx].reviewerEmail;
+      }
+      
+      sessions.push(session);
+      
+      // Start new session
+      sessionStartIdx = i;
+    }
+  }
+  
+  // Don't forget to add the last session
+  const lastSessionEdits = editedUtterances.slice(sessionStartIdx);
+  const lastSessionDurationMs = editedUtterances[editedUtterances.length - 1].firstEditTime.getTime() 
+    - editedUtterances[sessionStartIdx].firstEditTime.getTime();
+  const bufferMs = REVIEW_TIME_CONFIG.SESSION_BUFFER_MINUTES * 60 * 1000;
+  
+  // Count unique utterances in last session
+  const lastSessionUtteranceIndices = new Set(lastSessionEdits.map(e => e.utteranceIndex));
+  
+  // Calculate total duration of utterances in last session
+  const lastSessionUtteranceDuration = lastSessionEdits.reduce(
+    (sum, e) => sum + getUtteranceDurationSeconds(e.utterance),
+    0
+  );
+  
+  // Find the meeting timestamp range covered in last session
+  const lastSessionUtterances = lastSessionEdits.map(e => e.utterance);
+  const lastMeetingStartTimestamp = Math.min(...lastSessionUtterances.map(u => u.startTimestamp));
+  const lastMeetingEndTimestamp = Math.max(...lastSessionUtterances.map(u => u.endTimestamp));
+  
+  const lastSession: ReviewSession = {
+    startTime: editedUtterances[sessionStartIdx].firstEditTime,
+    endTime: editedUtterances[editedUtterances.length - 1].firstEditTime,
+    utterancesCovered: lastSessionUtteranceIndices.size,
+    totalUtteranceDurationSeconds: lastSessionUtteranceDuration,
+    durationMs: Math.max(0, lastSessionDurationMs) + bufferMs,
+    meetingStartTimestamp: lastMeetingStartTimestamp,
+    meetingEndTimestamp: lastMeetingEndTimestamp,
+  };
+  
+  if (includeReviewerInfo) {
+    lastSession.reviewerId = reviewerId;
+    lastSession.reviewerName = editedUtterances[sessionStartIdx].reviewerName;
+    lastSession.reviewerEmail = editedUtterances[sessionStartIdx].reviewerEmail;
+  }
+  
+  sessions.push(lastSession);
+  
+  // Calculate total time across all sessions
+  const totalTimeMs = sessions.reduce((sum, session) => sum + session.durationMs, 0);
+  
+  return { totalTimeMs, sessions };
+}
+
+/**
+ * Calculate unified review sessions across all reviewers
+ * Returns all sessions merged chronologically with reviewer identification
+ */
+function calculateUnifiedReviewSessions(
+  allReviewers: ReviewerInfo[],
+  primaryReviewerId: string | null,
+  allUtterances: UtteranceWithEdits[]
+): UnifiedReviewSession[] {
+  const allSessions: UnifiedReviewSession[] = [];
+  
+  // Calculate sessions for each reviewer
+  for (const reviewer of allReviewers) {
+    const { totalTimeMs, sessions } = calculateReviewTime(reviewer.userId, allUtterances, true);
+    
+    // Convert to UnifiedReviewSession with reviewer info
+    for (const session of sessions) {
+      allSessions.push({
+        ...session,
+        reviewerId: reviewer.userId,
+        reviewerName: reviewer.userName,
+        reviewerEmail: reviewer.userEmail,
+        isPrimaryReviewer: reviewer.userId === primaryReviewerId,
+      });
+    }
+  }
+  
+  // Sort all sessions chronologically
+  allSessions.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  
+  return allSessions;
 }
 
 /**
@@ -233,6 +559,48 @@ function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress
     ? new Date(Math.max(...userEditTimestamps.map(d => d.getTime())))
     : null;
   
+  // Calculate review time for primary reviewer
+  let estimatedReviewTimeMs = 0;
+  let reviewSessions = 0;
+  let reviewSessionsDetail: ReviewSession[] = [];
+  
+  if (primaryReviewer) {
+    // Pass the primary reviewer ID and the full utterances structure
+    // The function will leverage the nested edits directly
+    const reviewTimeResult = calculateReviewTime(primaryReviewer.userId, allUtterances);
+    estimatedReviewTimeMs = reviewTimeResult.totalTimeMs;
+    reviewSessions = reviewTimeResult.sessions.length;
+    reviewSessionsDetail = reviewTimeResult.sessions;
+  }
+  
+  // Calculate unified review sessions across all reviewers
+  const unifiedReviewSessions = calculateUnifiedReviewSessions(
+    reviewers,
+    primaryReviewer?.userId ?? null,
+    allUtterances
+  );
+  
+  // Calculate meeting duration from utterances
+  // Duration = last utterance end time - first utterance start time
+  let meetingDurationMs = 0;
+  if (allUtterances.length > 0) {
+    const firstUtterance = allUtterances[0];
+    const lastUtterance = allUtterances[allUtterances.length - 1];
+    const meetingDurationSeconds = getUtteranceDurationSeconds({
+      startTimestamp: firstUtterance.startTimestamp,
+      endTimestamp: lastUtterance.endTimestamp
+    });
+    meetingDurationMs = meetingDurationSeconds * 1000;
+  }
+  
+  // Calculate review efficiency (ratio of review time to meeting duration)
+  // Example: 0.5 means review took half as long as the meeting
+  //          1.0 means review took same time as meeting
+  //          2.0 means review took twice as long as meeting
+  const reviewEfficiency = meetingDurationMs > 0 && estimatedReviewTimeMs > 0
+    ? estimatedReviewTimeMs / meetingDurationMs
+    : null;
+  
   // Determine status
   const status: ReviewStatus = reviewedUtterances === 0 ? 'needsReview' : 'inProgress';
   
@@ -258,6 +626,12 @@ function calculateReviewProgress(meeting: MeetingWithReviewData): ReviewProgress
     firstEditAt,
     lastEditAt,
     lastReviewedUtteranceTimestamp,
+    estimatedReviewTimeMs,
+    reviewSessions,
+    reviewSessionsDetail,
+    unifiedReviewSessions,
+    meetingDurationMs,
+    reviewEfficiency,
   };
 }
 
