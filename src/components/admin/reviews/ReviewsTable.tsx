@@ -30,6 +30,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
+import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
 
 interface ReviewsTableProps {
   reviews: ReviewProgress[];
@@ -384,10 +385,17 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             reviewEfficiency={selectedReview.reviewEfficiency}
           />
           
-          {/* Action Button */}
-          <div className="mt-6 pt-6 border-t">
+          {/* Action Buttons */}
+          <div className="mt-6 pt-6 border-t space-y-3">
+            <MarkReviewCompleteButton
+              cityId={selectedReview.cityId}
+              meetingId={selectedReview.meetingId}
+              isCompleted={selectedReview.status === 'completed'}
+              onSuccess={() => setSelectedReview(null)}
+            />
+            
             <Link href={`/${selectedReview.cityId}/${selectedReview.meetingId}/transcript`}>
-              <Button className="w-full">
+              <Button variant="outline" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Go to Transcript Review
               </Button>
