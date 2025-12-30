@@ -8,21 +8,8 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, OgHeader } from '@/components/og/shared-components';
+import { Container, OgHeader, OpenCouncilWatermark } from '@/components/og/shared-components';
 import { getSubjectDataForOG } from '@/lib/db/subject';
-import fs from 'fs';
-import path from 'path';
-
-// Load and convert the logo to base64
-let logoBase64: string;
-try {
-    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
-    const logo = fs.readFileSync(logoPath);
-    logoBase64 = `data:image/png;base64,${logo.toString('base64')}`;
-} catch (error) {
-    console.error('Failed to load logo:', error);
-    logoBase64 = '';
-}
 
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
@@ -36,12 +23,8 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
-    // Sort subjects by hotness
-    const sortedSubjects = [...data.subjects].sort((a, b) => {
-        if (a.hot && !b.hot) return -1;
-        if (!a.hot && b.hot) return 1;
-        return 0;
-    });
+    // Sort subjects by importance (hot subjects first, then by speaking time)
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
     const topSubjects = sortedSubjects.slice(0, 3);
     const remainingCount = Math.max(0, data.subjects.length - 3);
 
@@ -169,12 +152,8 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
-    // Sort subjects by hotness
-    const sortedSubjects = [...data.subjects].sort((a, b) => {
-        if (a.hot && !b.hot) return -1;
-        if (!a.hot && b.hot) return 1;
-        return 0;
-    });
+    // Sort subjects by importance (hot subjects first, then by speaking time)
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
     const topSubjects = sortedSubjects.slice(0, 5);
     const remainingCount = Math.max(0, data.subjects.length - 5);
 
@@ -316,29 +295,7 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
             </div>
 
             {/* Watermark */}
-            <div
-                style={{
-                    position: 'absolute',
-                    bottom: 48,
-                    right: 48,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    opacity: 0.7,
-                }}
-            >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoBase64} width='48' height='48' alt='OpenCouncil' />
-                <span
-                    style={{
-                        fontSize: 24,
-                        fontWeight: 500,
-                        color: '#6b7280',
-                    }}
-                >
-                    OpenCouncil
-                </span>
-            </div>
+            <OpenCouncilWatermark />
         </div>
     );
 };
