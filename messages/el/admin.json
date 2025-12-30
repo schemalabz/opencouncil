@@ -65,7 +65,6 @@
       "processAgenda": "processAgenda",
       "summarize": "summarize",
       "fixTranscript": "fixTranscript",
-      "markHumanReviewComplete": "markHumanReviewComplete",
       "beforeMeeting": "beforeMeeting",
       "afterMeeting": "afterMeeting",
       "refreshMeetingCache": "Ανανέωση Cache Συνεδρίασης",
@@ -107,13 +106,6 @@
       },
       "errorRequestingTranscriptFix": {
         "title": "Σφάλμα αιτήματος διόρθωσης μεταγραφής"
-      },
-      "humanReviewComplete": {
-        "title": "Ο ανθρώπινος έλεγχος ολοκληρώθηκε",
-        "description": "Η συνεδρία σημειώθηκε ως ελεγμένη από άνθρωπο."
-      },
-      "errorMarkingReviewComplete": {
-        "title": "Σφάλμα σημείωσης ολοκλήρωσης ελέγχου"
       },
       "taskDeleted": {
         "title": "Η εργασία διαγράφηκε",

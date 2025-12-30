@@ -936,4 +936,48 @@ export async function getReviewers(): Promise<Array<{ id: string; name: string |
   return users;
 }
 
+/**
+ * Get review stats for a meeting based on the actual reviewers (not current user)
+ * Returns stats for the primary reviewer and lists all other reviewers
+ * Used when marking a review as complete to show the actual work done
+ */
+export async function getMeetingReviewStats(cityId: string, meetingId: string) {
+  // Use the existing calculateReviewProgress which already identifies reviewers
+  const progress = await getReviewProgressForMeeting(cityId, meetingId);
+  
+  if (!progress) {
+    throw new Error('Meeting not found');
+  }
+
+  if (!progress.primaryReviewer) {
+    return {
+      hasReviewers: false,
+      primaryReviewer: null,
+      secondaryReviewers: [],
+      editCount: 0,
+      estimatedReviewTimeMs: 0,
+      unifiedReviewSessions: [],
+      meetingDurationMs: progress.meetingDurationMs,
+      reviewEfficiency: 0,
+    };
+  }
+
+  // Get secondary reviewers (everyone except primary)
+  const secondaryReviewers = progress.reviewers.filter(
+    r => r.userId !== progress.primaryReviewer?.userId
+  );
+
+  return {
+    hasReviewers: true,
+    primaryReviewer: progress.primaryReviewer,
+    secondaryReviewers,
+    editCount: progress.primaryReviewer.editCount,
+    totalUtterances: progress.totalUtterances,
+    estimatedReviewTimeMs: progress.estimatedReviewTimeMs,
+    unifiedReviewSessions: progress.unifiedReviewSessions,
+    meetingDurationMs: progress.meetingDurationMs,
+    reviewEfficiency: progress.reviewEfficiency || 0,
+  };
+}
+
 
