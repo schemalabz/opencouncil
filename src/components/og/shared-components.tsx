@@ -14,7 +14,7 @@ try {
 }
 
 // Shared watermark component
-const OpenCouncilWatermark = () => (
+export const OpenCouncilWatermark = () => (
     <div
         style={{
             position: "absolute",

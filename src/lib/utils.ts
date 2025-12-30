@@ -89,11 +89,14 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 
 // Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts
 
-export function sortSubjectsByImportance<T extends Subject & {
-  topic?: Topic | null,
-  statistics?: Statistics,
-  // Make the type more flexible for different speaker segment structures
-  speakerSegments?: any[]
+export function sortSubjectsByImportance<T extends {
+  id?: string;
+  name: string;
+  hot: boolean;
+  topic?: Partial<Topic> | { colorHex?: string } | null;
+  statistics?: Statistics;
+  speakerSegments?: any[];
+  agendaItemIndex?: number | null;
 }>(
   subjects: T[],
   orderBy: 'importance' | 'appearance' = 'importance'

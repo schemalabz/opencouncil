@@ -18,6 +18,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
+import { downloadFile } from '@/lib/export/meetings';
 
 
 interface ShareDropdownProps {
@@ -49,15 +50,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
         // Generate OG image URL based on current path
         const baseUrl = window.location.origin;
-        let ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
-
-        // Add specific parameters based on current path
-        if (pathname.includes('/subjects/')) {
-            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
-            if (subjectId) {
-                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
-            }
-        }
+        const ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
 
         setOgImageUrl(ogUrl);
     }, [pathname, cityId, meetingId]);
@@ -125,15 +118,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             imageUrl += `&variant=${variant}`;
         }
 
-        // Add subjectId if on subject page
-        if (pathname.includes('/subjects/')) {
-            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
-            if (subjectId) {
-                imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
-                // Note: Subject pages don't support variants yet, so we skip variant for them
-            }
-        }
-
         setDownloading(variant);
         
         try {
@@ -143,18 +127,12 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
             }
             
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
             
             // Set filename based on variant
             const variantName = variant === 'story' ? 'story' : variant === 'feed' ? 'feed' : 'og';
-            a.download = `meeting-${variantName}-${meetingId}.png`;
+            const fileName = `meeting-${variantName}-${meetingId}.png`;
             
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
+            downloadFile(blob, fileName);
         } catch (error) {
             console.error('Error downloading image:', error);
         } finally {
@@ -286,37 +264,29 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         <DropdownMenuSeparator />
                         <div className="p-3">
                             <label className="text-xs font-medium text-muted-foreground mb-3 block">
-                                Εξαγωγή Εικόνας
+                                Εξαγωγή Προεπισκόπησης ως Εικόνα
                             </label>
                             <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                    onClick={() => downloadImage('story')}
-                                    disabled={downloading !== null}
-                                    variant="outline"
-                                    className="h-auto py-3 flex flex-col items-center gap-2"
-                                >
-                                    {downloading === 'story' ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Instagram className="w-4 h-4" />
-                                    )}
-                                    <span className="text-xs">Story</span>
-                                    <span className="text-[10px] text-muted-foreground">9:16</span>
-                                </Button>
-                                <Button
-                                    onClick={() => downloadImage('feed')}
-                                    disabled={downloading !== null}
-                                    variant="outline"
-                                    className="h-auto py-3 flex flex-col items-center gap-2"
-                                >
-                                    {downloading === 'feed' ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <FileDown className="w-4 h-4" />
-                                    )}
-                                    <span className="text-xs">Post</span>
-                                    <span className="text-[10px] text-muted-foreground">1:1</span>
-                                </Button>
+                                {[
+                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
+                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
+                                ].map(({ type, icon: Icon, label, ratio }) => (
+                                    <Button
+                                        key={type}
+                                        onClick={() => downloadImage(type)}
+                                        disabled={downloading !== null}
+                                        variant="outline"
+                                        className="h-auto py-3 flex flex-col items-center gap-2"
+                                    >
+                                        {downloading === type ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <Icon className="w-4 h-4" />
+                                        )}
+                                        <span className="text-xs">{label}</span>
+                                        <span className="text-[10px] text-muted-foreground">{ratio}</span>
+                                    </Button>
+                                ))}
                             </div>
                         </div>
                     </>
