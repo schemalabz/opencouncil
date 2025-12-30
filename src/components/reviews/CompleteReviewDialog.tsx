@@ -146,9 +146,10 @@ export function CompleteReviewDialog({
                   {stats.unifiedReviewSessions && stats.unifiedReviewSessions.length > 0 && (
                     <ReviewSessionsBreakdown
                       sessions={stats.unifiedReviewSessions}
-                      totalReviewTimeMs={stats.estimatedReviewTimeMs}
+                      totalReviewTimeMs={stats.totalReviewTimeMs}
                       meetingDurationMs={stats.meetingDurationMs}
-                      reviewEfficiency={stats.reviewEfficiency}
+                      reviewEfficiency={stats.totalReviewEfficiency}
+                      hideBreaks={true}
                     />
                   )}
 

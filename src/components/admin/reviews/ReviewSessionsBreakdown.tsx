@@ -1,7 +1,7 @@
 'use client'
 import { UnifiedReviewSession } from '@/lib/db/reviews';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, FileEdit, Coffee, User, Crown, Info } from 'lucide-react';
+import { Clock, FileEdit, User, Crown, Info, Pause } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { formatDurationMs, formatTime } from '@/lib/formatters/time';
@@ -13,6 +13,7 @@ interface ReviewSessionsBreakdownProps {
   totalReviewTimeMs: number;
   meetingDurationMs: number;
   reviewEfficiency: number | null;
+  hideBreaks?: boolean;
 }
 
 export function ReviewSessionsBreakdown({
@@ -20,6 +21,7 @@ export function ReviewSessionsBreakdown({
   totalReviewTimeMs,
   meetingDurationMs,
   reviewEfficiency,
+  hideBreaks = false,
 }: ReviewSessionsBreakdownProps) {
   const t = useTranslations('reviews.sessionBreakdown');
 
@@ -30,14 +32,6 @@ export function ReviewSessionsBreakdown({
       </div>
     );
   }
-
-  // Calculate actual total time from all sessions (all reviewers)
-  const actualTotalReviewTimeMs = sessions.reduce((sum, session) => sum + session.durationMs, 0);
-  
-  // Calculate actual efficiency based on all reviewers' time
-  const actualReviewEfficiency = meetingDurationMs > 0 && actualTotalReviewTimeMs > 0
-    ? actualTotalReviewTimeMs / meetingDurationMs
-    : null;
 
   // Group sessions by reviewer to show individual contributions
   const reviewerStats = new Map<string, { 
@@ -86,7 +80,7 @@ export function ReviewSessionsBreakdown({
   return (
     <div className="space-y-6 py-4">
       {/* Overview Section */}
-      {meetingDurationMs > 0 && actualReviewEfficiency !== null && (
+      {meetingDurationMs > 0 && reviewEfficiency !== null && (
         <Card className="bg-muted/50">
           <CardContent className="pt-6">
             <div className="space-y-4">
@@ -112,13 +106,13 @@ export function ReviewSessionsBreakdown({
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <div className="text-lg font-semibold">{formatDurationMs(actualTotalReviewTimeMs)}</div>
+                  <div className="text-lg font-semibold">{formatDurationMs(totalReviewTimeMs)}</div>
                 </div>
                 
                 <div>
                   <div className="text-muted-foreground mb-1">{t('reviewEfficiency')}</div>
                   <div className="text-lg font-semibold">
-                    1:{actualReviewEfficiency.toFixed(1)}
+                    1:{reviewEfficiency.toFixed(1)}
                   </div>
                 </div>
               </div>
@@ -237,12 +231,12 @@ export function ReviewSessionsBreakdown({
                     </Card>
                   </div>
                   
-                  {/* Break Indicator */}
-                  {nextBreak && (
+                  {/* Pause Indicator - Only show if not hidden */}
+                  {!hideBreaks && nextBreak && (
                     <div className="ml-14 mt-4 mb-4">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Coffee className="h-4 w-4" />
-                        <span>{t('break')}: {formatDurationMs(nextBreak.durationMs)}</span>
+                        <Pause className="h-4 w-4" />
+                        <span>{t('pause')}: {formatDurationMs(nextBreak.durationMs)}</span>
                       </div>
                     </div>
                   )}

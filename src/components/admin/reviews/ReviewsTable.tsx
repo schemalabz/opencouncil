@@ -380,9 +380,9 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
           {/* Unified Timeline */}
           <ReviewSessionsBreakdown
             sessions={selectedReview.unifiedReviewSessions}
-            totalReviewTimeMs={selectedReview.estimatedReviewTimeMs}
+            totalReviewTimeMs={selectedReview.totalReviewTimeMs}
             meetingDurationMs={selectedReview.meetingDurationMs}
-            reviewEfficiency={selectedReview.reviewEfficiency}
+            reviewEfficiency={selectedReview.totalReviewEfficiency}
           />
           
           {/* Action Buttons */}

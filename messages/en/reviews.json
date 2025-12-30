@@ -34,7 +34,7 @@
     "reviewSessions": "Review Sessions",
     "explanation": {
       "title": "How we calculate review time",
-      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from breaks."
+      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from pauses."
     }
   },
   "sessionBreakdown": {
@@ -51,11 +51,11 @@
     "duration": "Duration",
     "utterancesCovered": "Utterances Covered",
     "meetingContent": "Meeting Content",
-    "break": "Break",
+    "pause": "Pause",
     "noSessions": "No review sessions recorded yet.",
     "explanation": {
       "title": "How we calculate review time",
-      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from breaks."
+      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from pauses."
     }
   }
 }
