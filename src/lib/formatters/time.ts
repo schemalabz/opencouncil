@@ -41,7 +41,7 @@ export function formatDuration(seconds: number): string {
 }
 
 /**
- * Formats duration in milliseconds to a human-readable string like "2h 15m"
+ * Formats duration in milliseconds to a human-readable string like "2d 5h" or "3h 20m" or "45m"
  * @param ms - Duration in milliseconds
  * @returns Formatted string
  */
@@ -49,12 +49,16 @@ export function formatDurationMs(ms: number): string {
   if (ms === 0) return '0m';
   
   const totalMinutes = Math.round(ms / (60 * 1000));
-  const hours = Math.floor(totalMinutes / 60);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
   const minutes = totalMinutes % 60;
   
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length === 0) parts.push(`${minutes}m`);
+  
+  return parts.join(' ');
 }
 
 /**

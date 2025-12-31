@@ -96,7 +96,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                 </TooltipProvider>
               </div>
             </TableHead>
-            <TableHead>Last Activity</TableHead>
+            <TableHead>Activity</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -268,13 +268,16 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </TableCell>
               
               <TableCell>
-                {review.lastEditAt ? (
-                  <span className="text-sm text-muted-foreground">
-                    {formatDistanceToNow(new Date(review.lastEditAt), { addSuffix: true })}
-                  </span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Never</span>
-                )}
+                <div className="space-y-0.5">
+                  <div className="text-sm">
+                    {review.reviewDurationMs !== null ? formatDurationMs(review.reviewDurationMs) : '-'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {review.lastEditAt
+                      ? formatDistanceToNow(new Date(review.lastEditAt), { addSuffix: true })
+                      : 'Never'}
+                  </div>
+                </div>
               </TableCell>
               
               <TableCell className="text-right">
