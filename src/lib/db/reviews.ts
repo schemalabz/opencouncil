@@ -116,6 +116,9 @@ export interface ReviewProgress {
   // Meeting duration (derived from utterances)
   meetingDurationMs: number; // Total duration of the meeting content
   reviewEfficiency: number | null; // estimatedReviewTimeMs / meetingDurationMs (primary reviewer ratio)
+  
+  // Review duration (from meeting date to last edit)
+  reviewDurationMs: number | null; // Time from meetingDate to lastEditAt (null if no edits yet)
 }
 
 export interface ReviewStats {
@@ -592,6 +595,12 @@ function calculateReviewProgress(meeting: MeetingWithReviewData, includeComplete
     ? totalReviewTimeMs / meetingDurationMs
     : null;
   
+  // Calculate review duration (from meeting date to last edit)
+  // This represents how long it took from the meeting to complete the review
+  const reviewDurationMs = lastEditAt && meeting.dateTime
+    ? lastEditAt.getTime() - meeting.dateTime.getTime()
+    : null;
+  
   // Determine status based on review completion
   let status: ReviewStatus;
   if (hasHumanReview) {
@@ -629,6 +638,7 @@ function calculateReviewProgress(meeting: MeetingWithReviewData, includeComplete
     totalReviewEfficiency,
     meetingDurationMs,
     reviewEfficiency,
+    reviewDurationMs,
   };
 }
 
