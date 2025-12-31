@@ -65,7 +65,6 @@
       "processAgenda": "processAgenda",
       "summarize": "summarize",
       "fixTranscript": "fixTranscript",
-      "markHumanReviewComplete": "markHumanReviewComplete",
       "beforeMeeting": "beforeMeeting",
       "afterMeeting": "afterMeeting",
       "refreshMeetingCache": "Refresh Meeting Cache",
@@ -107,13 +106,6 @@
       },
       "errorRequestingTranscriptFix": {
         "title": "Error requesting transcript fix"
-      },
-      "humanReviewComplete": {
-        "title": "Human review marked complete",
-        "description": "The meeting has been marked as human reviewed."
-      },
-      "errorMarkingReviewComplete": {
-        "title": "Error marking review complete"
       },
       "taskDeleted": {
         "title": "Task deleted",

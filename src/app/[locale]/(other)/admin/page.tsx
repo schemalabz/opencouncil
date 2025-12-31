@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileText, Settings, Search } from 'lucide-react';
+import { Users, FileText, Settings, Search, ClipboardCheck } from 'lucide-react';
 import Link from 'next/link';
+import { ReviewsOverviewWidget } from '@/components/admin/reviews/ReviewsOverviewWidget';
 
 export default function Page() {
     return (
@@ -53,6 +54,20 @@ export default function Page() {
                     </Card>
                 </Link>
                 
+                <Link href="/admin/reviews">
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Reviews</CardTitle>
+                            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-xs text-muted-foreground">
+                                Track human review progress on transcripts
+                            </p>
+                        </CardContent>
+                    </Card>
+                </Link>
+                
                 <Link href="/admin/settings">
                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -66,6 +81,10 @@ export default function Page() {
                         </CardContent>
                     </Card>
                 </Link>
+            </div>
+            
+            <div className="mt-8">
+                <ReviewsOverviewWidget />
             </div>
         </div>
     );
