@@ -4,13 +4,14 @@ OpenCouncil sends real-time admin alerts to Discord for key events:
 
 - 🆕 **New meeting added** - With link to view meeting
 - ▶️ **Task started/completed/failed** - With links to admin panel
+- ✅ **Human review completed** - With review statistics (edits, time, efficiency)
 - ✨ **User onboarded** - Via notification preferences, petition, magic link, or admin invite
 - 📝 **New petition** - When submitted for a municipality
 - 🔔 **Citizen notification signup** - When users sign up for citizen notifications
 - 📬 **Notifications created** - Summary when notifications are created for a meeting
 - 📤 **Notifications sent** - Summary of delivery results (emails, messages, failures)
 
-*No PII (emails, phone numbers, names) is transmitted in these admin alerts.*
+*Note: Reviewer names/emails are included in review completion alerts for accountability.*
 
 ## Quick Setup
 
@@ -57,6 +58,46 @@ Task Type: transcribe | Municipality: Athens
 Meeting: City Council - January 2025
 [Open Admin Panel](https://...)
 ```
+
+**Human Review Completed:**
+
+*Single reviewer:*
+```
+✅ Human Review Completed - athens
+jan15_2025
+Municipality: Athens | Meeting: City Council - January 2025
+👤 Primary Reviewer: John Doe (127 / 1230 utterances edited)
+⏱️ Review Time (Primary): 2h 15m
+🎬 Sessions: 3 (10m + 1h2m + 43m)
+⚡ Efficiency: 1:0.6 | 📊 Meeting Duration: 3h 30m
+[Open Meeting](https://...) | [View All Reviews](https://...)
+```
+
+*Multiple reviewers:*
+```
+✅ Human Review Completed - athens
+jan15_2025
+Municipality: Athens | Meeting: City Council - January 2025
+👤 Primary Reviewer: John Doe (127 / 1230 utterances edited)
+👥 Additional Reviewers: Jane Smith (15 edits), Bob Johnson (8 edits)
+⏱️ Review Time (Primary): 2h 15m
+⏱️ Total Time (All): 2h 45m
+🎬 Sessions: 4 (10m + 1h2m + ↳25m + ↳8m)
+⚡ Efficiency: 1:0.8 | 📊 Meeting Duration: 3h 30m
+[Open Meeting](https://...) | [View All Reviews](https://...)
+```
+
+*If reviewer provides manual time estimate:*
+```
+⏱️ Review Time (Primary): 2h 15m (Reviewer estimate: 3h)
+```
+
+**Notes:**
+- The primary reviewer is determined by who made the most edits, regardless of who clicked "Mark as Complete"
+- Session durations show the breakdown of active review time across all reviewers in chronological order
+- Secondary reviewer sessions are marked with ↳ symbol
+- Efficiency is calculated using total time from all reviewers
+- "Total Time (All)" field only appears when there are multiple reviewers
 
 **User Onboarded:**
 ```

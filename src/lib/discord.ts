@@ -6,6 +6,8 @@
  */
 
 import { env } from '@/env.mjs';
+import { formatDurationMs } from '@/lib/formatters/time';
+import type { ReviewerInfo } from '@/lib/db/reviews';
 
 interface DiscordEmbed {
     title?: string;
@@ -487,6 +489,145 @@ export async function sendNotificationsSentAdminAlert(data: {
                     inline: false,
                 },
             ],
+            timestamp: new Date().toISOString(),
+        }],
+    });
+}
+
+/**
+ * Send admin alert when a human review is completed
+ */
+export async function sendHumanReviewCompletedAdminAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    primaryReviewer: ReviewerInfo;
+    secondaryReviewers: ReviewerInfo[];
+    editCount: number;
+    totalUtterances: number;
+    estimatedReviewTimeMs: number;
+    totalReviewTimeMs: number; // Total time from all reviewers
+    sessionDurations: number[]; // Array of session durations in milliseconds
+    sessionReviewerIds: string[]; // Array of reviewer IDs for each session (to mark primary vs secondary)
+    meetingDurationMs: number;
+    reviewEfficiency: number;
+    manualReviewTime?: string;
+}): Promise<void> {
+    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+    const adminReviewsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/reviews`;
+
+    const primaryReviewTime = formatDurationMs(data.estimatedReviewTimeMs);
+    const totalReviewTime = formatDurationMs(data.totalReviewTimeMs);
+    const meetingDuration = formatDurationMs(data.meetingDurationMs);
+    const efficiency = `1:${data.reviewEfficiency.toFixed(1)}`;
+    
+    // Format sessions with durations, marking secondary reviewers with ↳
+    const sessionDurationsFormatted = data.sessionDurations
+        .map((ms, index) => {
+            const duration = formatDurationMs(ms);
+            const isSecondary = data.sessionReviewerIds[index] !== data.primaryReviewer.userId;
+            return isSecondary ? `↳${duration}` : duration;
+        })
+        .join(' + ');
+    const sessionsDisplay = `${data.sessionDurations.length} (${sessionDurationsFormatted})`;
+    
+    // If manual time provided, format it for display
+    const reviewTimeDisplay = data.manualReviewTime 
+        ? `${primaryReviewTime} (Reviewer estimate: ${data.manualReviewTime})`
+        : primaryReviewTime;
+
+    // Format primary reviewer
+    const primaryReviewerName = data.primaryReviewer.userName || data.primaryReviewer.userEmail;
+    
+    // Format secondary reviewers if any
+    const secondaryReviewersText = data.secondaryReviewers.length > 0
+        ? data.secondaryReviewers
+            .map(r => `${r.userName || r.userEmail} (${r.editCount} edits)`)
+            .join(', ')
+        : 'None';
+
+    const fields: Array<{
+        name: string;
+        value: string;
+        inline?: boolean;
+    }> = [
+        {
+            name: 'Municipality',
+            value: data.cityName,
+            inline: true,
+        },
+        {
+            name: 'Meeting',
+            value: data.meetingName,
+            inline: true,
+        },
+        {
+            name: '👤 Primary Reviewer',
+            value: `${primaryReviewerName} (${data.editCount} / ${data.totalUtterances} utterances edited)`,
+            inline: false,
+        },
+    ];
+
+    // Add secondary reviewers field if there are any
+    if (data.secondaryReviewers.length > 0) {
+        fields.push({
+            name: '👥 Additional Reviewers',
+            value: secondaryReviewersText,
+            inline: false,
+        });
+    }
+
+    // Add time fields
+    fields.push({
+        name: '⏱️ Review Time (Primary)',
+        value: reviewTimeDisplay,
+        inline: true,
+    });
+    
+    // Add total time field only if there are secondary reviewers
+    if (data.secondaryReviewers.length > 0) {
+        fields.push({
+            name: '⏱️ Total Time (All)',
+            value: totalReviewTime,
+            inline: true,
+        });
+    }
+    
+    fields.push(
+        {
+            name: '🎬 Sessions',
+            value: sessionsDisplay,
+            inline: false,
+        },
+        {
+            name: '⚡ Efficiency',
+            value: efficiency,
+            inline: true,
+        },
+        {
+            name: '📊 Meeting Duration',
+            value: meetingDuration,
+            inline: true,
+        },
+        {
+            name: 'View Meeting',
+            value: `[Open Meeting](${meetingUrl})`,
+            inline: true,
+        },
+        {
+            name: 'All Reviews',
+            value: `[View All Reviews](${adminReviewsUrl})`,
+            inline: false,
+        }
+    );
+
+    await sendDiscordMessage({
+        embeds: [{
+            title: `✅ Human Review Completed - ${data.cityId}`,
+            description: `${data.meetingId}`,
+            color: 0x2ecc71, // Green
+            fields,
             timestamp: new Date().toISOString(),
         }],
     });
