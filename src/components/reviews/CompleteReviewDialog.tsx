@@ -51,7 +51,7 @@ export function CompleteReviewDialog({
       // Fetch stats when dialog opens - gets actual reviewer info from edit history
       setIsLoading(true);
       setError(null);
-      getMeetingReviewStats(cityId, meetingId)
+      getMeetingReviewStats({ cityId, meetingId })
         .then(setStats)
         .catch((err) => {
           console.error('Failed to fetch review stats:', err);

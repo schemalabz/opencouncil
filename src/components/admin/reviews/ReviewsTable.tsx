@@ -1,13 +1,13 @@
 'use client'
 import { useState } from 'react';
-import { ReviewProgress } from '@/lib/db/reviews';
+import { ReviewListItem, ReviewDetail, getReviewProgressForMeeting } from '@/lib/db/reviews';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { formatDistanceToNow, formatDistance, format as formatDate } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { formatDurationMs } from '@/lib/formatters/time';
-import { ExternalLink, AlertCircle, Clock, Info, Timer, Eye, CheckCircle } from 'lucide-react';
+import { ExternalLink, AlertCircle, Clock, Info, Eye, CheckCircle, Loader2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -33,11 +33,34 @@ import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
 import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
 
 interface ReviewsTableProps {
-  reviews: ReviewProgress[];
+  reviews: ReviewListItem[];
 }
 
 export function ReviewsTable({ reviews }: ReviewsTableProps) {
-  const [selectedReview, setSelectedReview] = useState<ReviewProgress | null>(null);
+  const [selectedReviewId, setSelectedReviewId] = useState<{cityId: string, meetingId: string} | null>(null);
+  const [selectedReviewDetail, setSelectedReviewDetail] = useState<ReviewDetail | null>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+  
+  const handleOpenDetail = async (cityId: string, meetingId: string) => {
+    const meeting = { cityId, meetingId };
+    setSelectedReviewId(meeting);
+    setIsLoadingDetail(true);
+    setSelectedReviewDetail(null);
+    
+    try {
+      const detail = await getReviewProgressForMeeting(meeting);
+      setSelectedReviewDetail(detail);
+    } catch (error) {
+      console.error('Failed to load review details:', error);
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+  
+  const handleCloseDetail = () => {
+    setSelectedReviewId(null);
+    setSelectedReviewDetail(null);
+  };
   
   if (reviews.length === 0) {
     return (
@@ -50,7 +73,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
   
   return (
     <>
-    <Sheet open={!!selectedReview} onOpenChange={(open) => !open && setSelectedReview(null)}>
+    <Sheet open={!!selectedReviewId} onOpenChange={(open) => !open && handleCloseDetail()}>
     <div className="border rounded-lg">
       <Table>
         <TableHeader>
@@ -78,25 +101,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             </TableHead>
             <TableHead>Edits</TableHead>
             <TableHead>Primary Reviewer</TableHead>
-            <TableHead>
-              <div className="flex items-center gap-1">
-                Review Time
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="max-w-xs text-xs">
-                        Estimated time spent by primary reviewer. Calculated from edit patterns
-                        and utterance durations, excluding breaks longer than 10 minutes.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </TableHead>
-            <TableHead>Activity</TableHead>
+            <TableHead>Time to review</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -213,69 +218,17 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               </TableCell>
               
               <TableCell>
-                {review.estimatedReviewTimeMs > 0 ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="cursor-help">
-                          <div className="flex items-center gap-1 text-sm font-medium">
-                            <Timer className="h-3 w-3 text-purple-600" />
-                            {formatDurationMs(review.estimatedReviewTimeMs)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {review.reviewSessions} session{review.reviewSessions !== 1 ? 's' : ''}
-                            {review.reviewEfficiency !== null && (
-                              <span className="ml-1">
-                                • 1:{review.reviewEfficiency.toFixed(1)} ratio
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <div className="text-xs space-y-1">
-                          <p><strong>Estimated review time</strong></p>
-                          <p>Based on edit patterns and utterance durations</p>
-                          <p>Excludes breaks longer than 10 minutes</p>
-                          {review.meetingDurationMs > 0 && (
-                            <>
-                              <p className="mt-2 pt-2 border-t">
-                                <strong>Meeting duration:</strong> {formatDurationMs(review.meetingDurationMs)}
-                              </p>
-                              {review.reviewEfficiency !== null && (
-                                <p>
-                                  <strong>Efficiency:</strong> 1:{review.reviewEfficiency.toFixed(1)}
-                                </p>
-                              )}
-                            </>
-                          )}
-                          {review.firstEditAt && review.lastEditAt && (
-                            <p className="mt-2 pt-2 border-t">
-                              <strong>Calendar span:</strong> {formatDate(new Date(review.firstEditAt), 'MMM d, h:mm a')} - {formatDate(new Date(review.lastEditAt), 'MMM d, h:mm a')}
-                              <br />
-                              <span className="text-muted-foreground">
-                                ({formatDistance(new Date(review.firstEditAt), new Date(review.lastEditAt))})
-                              </span>
-                            </p>
-                          )}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <span className="text-sm text-muted-foreground">-</span>
-                )}
-              </TableCell>
-              
-              <TableCell>
                 <div className="space-y-0.5">
                   <div className="text-sm">
                     {review.reviewDurationMs !== null ? formatDurationMs(review.reviewDurationMs) : '-'}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {review.lastEditAt
-                      ? formatDistanceToNow(new Date(review.lastEditAt), { addSuffix: true })
-                      : 'Never'}
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {review.lastEditAt
+                        ? formatDistanceToNow(new Date(review.lastEditAt), { addSuffix: true })
+                        : 'Never'}
+                    </span>
                   </div>
                 </div>
               </TableCell>
@@ -284,7 +237,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedReview(review)}
+                  onClick={() => handleOpenDetail(review.cityId, review.meetingId)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Details
@@ -298,32 +251,39 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
     </div>
     
     {/* Sheet for detailed review information */}
-    {selectedReview && (
+    {selectedReviewId && (
       <SheetContent className="sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Review Details</SheetTitle>
           <SheetDescription>
-            {selectedReview.cityName} - {selectedReview.meetingName}
+            {selectedReviewDetail ? `${selectedReviewDetail.cityName} - ${selectedReviewDetail.meetingName}` : 'Loading...'}
           </SheetDescription>
         </SheetHeader>
         
+        {isLoadingDetail && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        
+        {!isLoadingDetail && selectedReviewDetail && (
         <div className="mt-6">
           {/* Overview Section */}
           <div className="space-y-4 mb-6 pb-6 border-b">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Meeting Date</div>
-                <div className="font-medium">{new Date(selectedReview.meetingDate).toLocaleDateString()}</div>
+                <div className="font-medium">{new Date(selectedReviewDetail.meetingDate).toLocaleDateString()}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Status</div>
                 <div>
-                  {selectedReview.status === 'needsReview' ? (
+                  {selectedReviewDetail.status === 'needsReview' ? (
                     <Badge variant="destructive" className="flex items-center gap-1 w-fit">
                       <AlertCircle className="h-3 w-3" />
                       Needs Review
                     </Badge>
-                  ) : selectedReview.status === 'inProgress' ? (
+                  ) : selectedReviewDetail.status === 'inProgress' ? (
                     <Badge variant="secondary" className="flex items-center gap-1 w-fit">
                       <Clock className="h-3 w-3" />
                       In Progress
@@ -339,34 +299,34 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Progress</div>
                 <div className="flex items-center gap-2">
-                  <Progress value={selectedReview.progressPercentage} className="w-24" />
-                  <span className="text-sm">{selectedReview.progressPercentage}%</span>
+                  <Progress value={selectedReviewDetail.progressPercentage} className="w-24" />
+                  <span className="text-sm">{selectedReviewDetail.progressPercentage}%</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {selectedReview.reviewedUtterances} / {selectedReview.totalUtterances} reviewed
+                  {selectedReviewDetail.reviewedUtterances} / {selectedReviewDetail.totalUtterances} reviewed
                 </div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Edits</div>
                 <div className="text-sm">
-                  <span className="font-medium text-blue-600">{selectedReview.userEditedUtterances}</span> manual
+                  <span className="font-medium text-blue-600">{selectedReviewDetail.userEditedUtterances}</span> manual
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  <span className="font-medium text-green-600">{selectedReview.taskEditedUtterances}</span> automated
+                  <span className="font-medium text-green-600">{selectedReviewDetail.taskEditedUtterances}</span> automated
                 </div>
               </div>
             </div>
             
             {/* Reviewers */}
-            {selectedReview.reviewers.length > 0 && (
+            {selectedReviewDetail.reviewers.length > 0 && (
               <div>
                 <div className="text-sm text-muted-foreground mb-2">Reviewers</div>
                 <div className="space-y-2">
-                  {selectedReview.reviewers.map((reviewer) => (
+                  {selectedReviewDetail.reviewers.map((reviewer) => (
                     <div key={reviewer.userId} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{reviewer.userName || reviewer.userEmail}</span>
-                        {selectedReview.primaryReviewer?.userId === reviewer.userId && (
+                        {selectedReviewDetail.primaryReviewer?.userId === reviewer.userId && (
                           <Badge variant="default" className="text-xs">Primary</Badge>
                         )}
                       </div>
@@ -381,23 +341,25 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
           </div>
           
           {/* Unified Timeline */}
-          <ReviewSessionsBreakdown
-            sessions={selectedReview.unifiedReviewSessions}
-            totalReviewTimeMs={selectedReview.totalReviewTimeMs}
-            meetingDurationMs={selectedReview.meetingDurationMs}
-            reviewEfficiency={selectedReview.totalReviewEfficiency}
-          />
+          {selectedReviewDetail.unifiedReviewSessions.length > 0 && (
+            <ReviewSessionsBreakdown
+              sessions={selectedReviewDetail.unifiedReviewSessions}
+              totalReviewTimeMs={selectedReviewDetail.totalReviewTimeMs}
+              meetingDurationMs={selectedReviewDetail.meetingDurationMs}
+              reviewEfficiency={selectedReviewDetail.totalReviewEfficiency}
+            />
+          )}
           
           {/* Action Buttons */}
           <div className="mt-6 pt-6 border-t space-y-3">
             <MarkReviewCompleteButton
-              cityId={selectedReview.cityId}
-              meetingId={selectedReview.meetingId}
-              isCompleted={selectedReview.status === 'completed'}
-              onSuccess={() => setSelectedReview(null)}
+              cityId={selectedReviewDetail.cityId}
+              meetingId={selectedReviewDetail.meetingId}
+              isCompleted={selectedReviewDetail.status === 'completed'}
+              onSuccess={handleCloseDetail}
             />
             
-            <Link href={`/${selectedReview.cityId}/${selectedReview.meetingId}/transcript`}>
+            <Link href={`/${selectedReviewDetail.cityId}/${selectedReviewDetail.meetingId}/transcript`}>
               <Button variant="outline" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Go to Transcript Review
@@ -405,10 +367,12 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             </Link>
           </div>
         </div>
+        )}
       </SheetContent>
     )}
   </Sheet>
     </>
   );
 }
+
 
