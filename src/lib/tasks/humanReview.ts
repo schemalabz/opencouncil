@@ -32,7 +32,7 @@ export async function markHumanReviewComplete(cityId: string, meetingId: string,
 
     // Get actual reviewer stats from the meeting's edit history
     // This identifies the primary reviewer (most edits) regardless of who clicks "complete"
-    const stats = await getMeetingReviewStats(cityId, meetingId);
+    const stats = await getMeetingReviewStats({ cityId, meetingId });
 
     // Get meeting details for Discord alert
     const meeting = await prisma.councilMeeting.findUnique({

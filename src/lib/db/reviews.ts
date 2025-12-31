@@ -2,57 +2,85 @@
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 
-const reviewProgressInclude = {
-  city: {
-    select: {
-      name: true,
-    }
-  },
-  taskStatuses: {
-    where: {
-      type: {
-        in: ['fixTranscript', 'humanReview']
-      },
-      status: 'succeeded'
-    },
-    orderBy: {
-      createdAt: 'desc'
-    }
-  },
-  speakerSegments: {
-    include: {
-      utterances: {
-        include: {
-          utteranceEdits: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                }
-              }
-            },
-            orderBy: {
-              createdAt: 'asc'
-            }
-          }
-        },
-        orderBy: {
-          startTimestamp: 'asc'
-        }
-      }
-    },
-    orderBy: {
-      startTimestamp: 'asc'
-    }
-  }
-} satisfies Prisma.CouncilMeetingInclude;
+// ============================================================================
+// SHARED PRISMA PATTERNS
+// ============================================================================
 
-// Derive type from the include pattern
-type MeetingWithReviewData = Prisma.CouncilMeetingGetPayload<{
-  include: typeof reviewProgressInclude;
-}>;
+/**
+ * Meeting identifier type for consistent parameter passing
+ */
+type MeetingId = {
+  cityId: string;
+  meetingId: string;
+};
+
+/**
+ * Reusable WHERE clause builders for consistent queries
+ * All functions accept MeetingId to avoid param order mistakes
+ */
+const whereClause = {
+  /** Match utterances by meeting */
+  utterancesByMeeting: ({ cityId, meetingId }: MeetingId): Prisma.UtteranceWhereInput => ({
+    speakerSegment: { meetingId, cityId },
+  }),
+  
+  /** Match user edits by meeting */
+  userEditsByMeeting: ({ cityId, meetingId }: MeetingId): Prisma.UtteranceEditWhereInput => ({
+    editedBy: 'user',
+    utterance: {
+      speakerSegment: { meetingId, cityId },
+    },
+  }),
+  
+  /** Match succeeded task statuses for review tracking */
+  reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
+    type: { in: ['fixTranscript', 'humanReview'] },
+    status: 'succeeded'
+  }),
+};
+
+/**
+ * Reusable SELECT/INCLUDE patterns
+ */
+const selectPattern = {
+  /** User info for reviewers */
+  user: { id: true, name: true, email: true } as const,
+  
+  /** City name */
+  cityName: { name: true } as const,
+};
+
+/**
+ * Reusable INCLUDE patterns for meetings with review data
+ */
+const includePattern = {
+  /** Basic meeting info with city and relevant task statuses */
+  meetingWithReviewInfo: () => ({
+    city: { select: selectPattern.cityName },
+    taskStatuses: {
+      where: whereClause.reviewTaskStatuses(),
+      orderBy: { createdAt: 'desc' as const }
+    }
+  }),
+  
+  /** Utterances with user edits for session calculation */
+  utterancesForSessions: () => ({
+    utteranceEdits: {
+      where: { editedBy: 'user' as const },
+      include: {
+        user: { select: selectPattern.user }
+      },
+      orderBy: { createdAt: 'asc' as const }
+    }
+  }),
+};
+
+/**
+ * Helper to build meeting composite key
+ */
+const meetingKey = (cityId: string, meetingId: string) => ({
+  cityId_id: { cityId, id: meetingId }
+});
 
 // ============================================================================
 // SHARED TYPES
@@ -71,55 +99,29 @@ export interface ReviewerInfo {
 
 /**
  * Utterance with nested edits structure
- * Derived from Prisma's generated types based on our include pattern
+ * Used for session calculation - matches the shape we load for sessions
  */
-export type UtteranceWithEdits = MeetingWithReviewData['speakerSegments'][0]['utterances'][0];
+export type UtteranceWithEdits = Prisma.UtteranceGetPayload<{
+  include: {
+    utteranceEdits: {
+      include: {
+        user: {
+          select: {
+            id: true;
+            name: true;
+            email: true;
+          }
+        }
+      }
+    }
+  }
+}>;
 
 // ============================================================================
 // EXPORTED INTERFACES
 // ============================================================================
 
 export type ReviewStatus = 'needsReview' | 'inProgress' | 'completed';
-
-export interface ReviewProgress {
-  meetingId: string;
-  cityId: string;
-  cityName: string;
-  meetingName: string;
-  meetingDate: Date;
-  status: ReviewStatus;
-  
-  // Utterance counts
-  totalUtterances: number;
-  reviewedUtterances: number; // Based on sequential progress (last user edit timestamp)
-  userEditedUtterances: number; // Actually edited by users
-  taskEditedUtterances: number; // Automatically fixed by fixTranscript
-  
-  // Progress
-  progressPercentage: number; // Pre-calculated for performance: Math.round((reviewedUtterances / totalUtterances) * 100)
-  
-  // Reviewers
-  reviewers: ReviewerInfo[];
-  primaryReviewer: ReviewerInfo | null;
-  
-  // Timestamps
-  firstEditAt: Date | null;
-  lastEditAt: Date | null;
-  
-  // Review time estimation (pre-calculated for performance)
-  estimatedReviewTimeMs: number; // Primary reviewer's time (sum of their sessions from unifiedReviewSessions)
-  reviewSessions: number; // Number of distinct review sessions by primary reviewer
-  unifiedReviewSessions: UnifiedReviewSession[]; // All reviewers' sessions merged chronologically
-  totalReviewTimeMs: number; // Total time from all reviewers (sum of all unifiedReviewSessions)
-  totalReviewEfficiency: number | null; // totalReviewTimeMs / meetingDurationMs
-  
-  // Meeting duration (derived from utterances)
-  meetingDurationMs: number; // Total duration of the meeting content
-  reviewEfficiency: number | null; // estimatedReviewTimeMs / meetingDurationMs (primary reviewer ratio)
-  
-  // Review duration (from meeting date to last edit)
-  reviewDurationMs: number | null; // Time from meetingDate to lastEditAt (null if no edits yet)
-}
 
 export interface ReviewStats {
   needsReview: number;
@@ -129,13 +131,38 @@ export interface ReviewStats {
 }
 
 /**
- * Aggregated statistics from a list of reviews
+ * Light review data for list view (no session calculations)
  */
-export interface ReviewAggregates {
-  totalReviews: number;
-  totalUserEditedUtterances: number;
+export interface ReviewListItem {
+  meetingId: string;
+  cityId: string;
+  cityName: string;
+  meetingName: string;
+  meetingDate: Date;
+  status: ReviewStatus;
+  totalUtterances: number;
+  reviewedUtterances: number;
+  userEditedUtterances: number;
+  taskEditedUtterances: number;
+  progressPercentage: number;
+  reviewers: ReviewerInfo[];
+  primaryReviewer: ReviewerInfo | null;
+  firstEditAt: Date | null;
+  lastEditAt: Date | null;
+  meetingDurationMs: number;
+  reviewDurationMs: number | null;
+}
+
+/**
+ * Full review data with session calculations (for detail view)
+ */
+export interface ReviewDetail extends ReviewListItem {
+  estimatedReviewTimeMs: number;
+  reviewSessions: number;
+  unifiedReviewSessions: UnifiedReviewSession[];
   totalReviewTimeMs: number;
-  averageEfficiency: number | null;
+  totalReviewEfficiency: number | null;
+  reviewEfficiency: number | null;
 }
 
 // ============================================================================
@@ -150,17 +177,33 @@ function isUserEdit(edit: UtteranceWithEdits['utteranceEdits'][0]): boolean {
 }
 
 /**
- * Filter edits to only include task-made edits
- */
-function isTaskEdit(edit: UtteranceWithEdits['utteranceEdits'][0]): boolean {
-  return edit.editedBy === 'task';
-}
-
-/**
  * Calculate the duration of an utterance in seconds
  */
 function getUtteranceDurationSeconds(utterance: Pick<UtteranceWithEdits, 'startTimestamp' | 'endTimestamp'>): number {
   return utterance.endTimestamp - utterance.startTimestamp;
+}
+
+/**
+ * Determine review status based on task completion and progress
+ */
+function determineReviewStatus(
+  hasFixTranscript: boolean,
+  hasHumanReview: boolean,
+  reviewedUtterances: number
+): ReviewStatus {
+  if (!hasFixTranscript) {
+    throw new Error('Cannot determine status for meeting without fixTranscript');
+  }
+  
+  if (hasHumanReview) {
+    return 'completed';
+  }
+  
+  if (reviewedUtterances === 0) {
+    return 'needsReview';
+  }
+  
+  return 'inProgress';
 }
 
 // ============================================================================
@@ -436,123 +479,31 @@ function calculateUnifiedReviewSessions(
 }
 
 /**
- * Process a single meeting and calculate its review progress
+ * Calculate session data from loaded utterances with edits
+ * Used only for detail view when full session breakdown is needed
  * 
- * This function serves as the final filter/processor after database fetch.
- * It returns null for meetings that should be excluded based on their status.
- * 
- * @param meeting - Meeting data with task statuses and utterance edits
- * @param includeCompleted - Whether to include meetings with completed humanReview task
- *                           - true: Include completed reviews (for 'all' and 'completed' filters)
- *                           - false: Exclude completed reviews (for 'needsAttention' filter)
- * @returns ReviewProgress object or null if meeting should be excluded
+ * @param allUtterances - Utterances with nested edits (sorted by timestamp)
+ * @param reviewers - List of reviewers with edit counts
+ * @param primaryReviewerId - ID of primary reviewer (most edits)
+ * @returns Session calculations (times, sessions, efficiency)
  */
-function calculateReviewProgress(meeting: MeetingWithReviewData, includeCompleted = false): ReviewProgress | null {
-  const hasFixTranscript = meeting.taskStatuses.some(
-    t => t.type === 'fixTranscript' && t.status === 'succeeded'
-  );
-  const hasHumanReview = meeting.taskStatuses.some(
-    t => t.type === 'humanReview' && t.status === 'succeeded'
-  );
-
-  // Apply final filtering logic
-  if (!hasFixTranscript) {
-    // Never include meetings without fixTranscript
-    return null;
-  }
-  
-  if (!includeCompleted && hasHumanReview) {
-    // When not including completed, skip meetings with humanReview done
-    return null;
-  }
-
-  // Get all utterances sorted by timestamp
-  const allUtterances = meeting.speakerSegments
-    .flatMap(seg => seg.utterances)
-    .sort((a, b) => a.startTimestamp - b.startTimestamp);
-  
-  const totalUtterances = allUtterances.length;
-  
-  // Separate user and task edits
-  const allUserEdits = allUtterances.flatMap(u => 
-    u.utteranceEdits.filter(isUserEdit)
-  );
-  const allTaskEdits = allUtterances.flatMap(u => 
-    u.utteranceEdits.filter(isTaskEdit)
-  );
-  
-  // Count unique utterances edited by users and tasks
-  const userEditedUtteranceIds = new Set(allUserEdits.map(e => e.utteranceId));
-  const taskEditedUtteranceIds = new Set(allTaskEdits.map(e => e.utteranceId));
-  
-  const userEditedUtterances = userEditedUtteranceIds.size;
-  const taskEditedUtterances = taskEditedUtteranceIds.size;
-  
-  // Find the last utterance edited by a user (sequential progress)
-  let reviewedUtterances = 0;
-  
-  if (allUserEdits.length > 0) {
-    // Get the utterance IDs that have user edits
-    const utterancesWithUserEdits = allUtterances.filter(u => 
-      u.utteranceEdits.some(isUserEdit)
-    );
-    
-    if (utterancesWithUserEdits.length > 0) {
-      // Find the last one by timestamp
-      const lastEditedUtterance = utterancesWithUserEdits[utterancesWithUserEdits.length - 1];
-      const lastReviewedUtteranceTimestamp = lastEditedUtterance.startTimestamp;
-      
-      // Count all utterances up to and including this timestamp as reviewed
-      reviewedUtterances = allUtterances.filter(
-        u => u.startTimestamp <= lastReviewedUtteranceTimestamp
-      ).length;
-    }
-  }
-  
-  // Group user edits by user
-  const editsByUser = new Map<string, {
-    userId: string;
-    userName: string | null;
-    userEmail: string;
-    editCount: number;
-  }>();
-  
-  for (const edit of allUserEdits) {
-    if (edit.user) {
-      const existing = editsByUser.get(edit.user.id);
-      if (existing) {
-        existing.editCount++;
-      } else {
-        editsByUser.set(edit.user.id, {
-          userId: edit.user.id,
-          userName: edit.user.name,
-          userEmail: edit.user.email,
-          editCount: 1,
-        });
-      }
-    }
-  }
-  
-  const reviewers = Array.from(editsByUser.values()).sort(
-    (a, b) => b.editCount - a.editCount
-  );
-  
-  const primaryReviewer = reviewers.length > 0 ? reviewers[0] : null;
-  
-  // Get first and last USER edit timestamps
-  const userEditTimestamps = allUserEdits.map(e => e.createdAt);
-  const firstEditAt = userEditTimestamps.length > 0
-    ? new Date(Math.min(...userEditTimestamps.map(d => d.getTime())))
-    : null;
-  const lastEditAt = userEditTimestamps.length > 0
-    ? new Date(Math.max(...userEditTimestamps.map(d => d.getTime())))
-    : null;
-  
+function calculateSessionData(
+  allUtterances: UtteranceWithEdits[],
+  reviewers: ReviewerInfo[],
+  primaryReviewerId: string | null,
+  meetingDurationMs: number
+): {
+  estimatedReviewTimeMs: number;
+  reviewSessions: number;
+  unifiedReviewSessions: UnifiedReviewSession[];
+  totalReviewTimeMs: number;
+  totalReviewEfficiency: number | null;
+  reviewEfficiency: number | null;
+} {
   // Calculate unified review sessions across all reviewers
-  // This is our single source of truth for all session data
   const unifiedReviewSessions = calculateUnifiedReviewSessions(
     reviewers,
-    primaryReviewer?.userId ?? null,
+    primaryReviewerId,
     allUtterances
   );
   
@@ -566,79 +517,28 @@ function calculateReviewProgress(meeting: MeetingWithReviewData, includeComplete
   );
   const reviewSessions = primaryReviewerSessions.length;
   
-  // Calculate total review time from all reviewers (sum of all unified sessions)
-  const totalReviewTimeMs = unifiedReviewSessions.reduce((sum, session) => sum + session.durationMs, 0);
+  // Calculate total review time from all reviewers
+  const totalReviewTimeMs = unifiedReviewSessions.reduce(
+    (sum, session) => sum + session.durationMs, 
+    0
+  );
   
-  // Calculate meeting duration from utterances
-  // Duration = last utterance end time - first utterance start time
-  let meetingDurationMs = 0;
-  if (allUtterances.length > 0) {
-    const firstUtterance = allUtterances[0];
-    const lastUtterance = allUtterances[allUtterances.length - 1];
-    const meetingDurationSeconds = getUtteranceDurationSeconds({
-      startTimestamp: firstUtterance.startTimestamp,
-      endTimestamp: lastUtterance.endTimestamp
-    });
-    meetingDurationMs = meetingDurationSeconds * 1000;
-  }
-  
-  // Calculate review efficiency (ratio of primary reviewer's time to meeting duration)
-  // Example: 0.5 means review took half as long as the meeting
-  //          1.0 means review took same time as meeting
-  //          2.0 means review took twice as long as meeting
+  // Calculate review efficiency
   const reviewEfficiency = meetingDurationMs > 0 && estimatedReviewTimeMs > 0
     ? estimatedReviewTimeMs / meetingDurationMs
     : null;
   
-  // Calculate total review efficiency (all reviewers combined)
   const totalReviewEfficiency = meetingDurationMs > 0 && totalReviewTimeMs > 0
     ? totalReviewTimeMs / meetingDurationMs
     : null;
   
-  // Calculate review duration (from meeting date to last edit)
-  // This represents how long it took from the meeting to complete the review
-  const reviewDurationMs = lastEditAt && meeting.dateTime
-    ? lastEditAt.getTime() - meeting.dateTime.getTime()
-    : null;
-  
-  // Determine status based on review completion
-  let status: ReviewStatus;
-  if (hasHumanReview) {
-    status = 'completed';
-  } else if (reviewedUtterances === 0) {
-    status = 'needsReview';
-  } else {
-    status = 'inProgress';
-  }
-  
-  const progressPercentage = totalUtterances > 0
-    ? Math.round((reviewedUtterances / totalUtterances) * 100)
-    : 0;
-  
   return {
-    meetingId: meeting.id,
-    cityId: meeting.cityId,
-    cityName: meeting.city.name,
-    meetingName: meeting.name,
-    meetingDate: meeting.dateTime,
-    status,
-    totalUtterances,
-    reviewedUtterances,
-    userEditedUtterances,
-    taskEditedUtterances,
-    progressPercentage,
-    reviewers,
-    primaryReviewer,
-    firstEditAt,
-    lastEditAt,
     estimatedReviewTimeMs,
     reviewSessions,
     unifiedReviewSessions,
     totalReviewTimeMs,
     totalReviewEfficiency,
-    meetingDurationMs,
     reviewEfficiency,
-    reviewDurationMs,
   };
 }
 
@@ -762,17 +662,238 @@ function combineWhereConditions(
   return { AND: conditions };
 }
 
+
 /**
- * Determine if completed reviews should be included based on filter
+ * Get aggregated stats for a meeting without loading full nested data
+ * Used for efficient list views
  */
-function shouldIncludeCompleted(show: ReviewFilterOptions['show']): boolean {
-  return show === 'all' || show === 'completed';
+async function getAggregatedMeetingStats(
+  meeting: MeetingId
+): Promise<Omit<ReviewListItem, 'meetingId' | 'cityId' | 'cityName' | 'meetingName' | 'meetingDate' | 'status'>> {
+  const map = await getAggregatedMeetingStatsBatch([meeting]);
+  return map.get(getMeetingMapKey(meeting)) ?? getEmptyAggregatedMeetingStats();
+}
+
+type AggregatedMeetingStats = Omit<
+  ReviewListItem,
+  'meetingId' | 'cityId' | 'cityName' | 'meetingName' | 'meetingDate' | 'status'
+>;
+
+function getMeetingMapKey(meeting: MeetingId): string {
+  return `${meeting.cityId}:${meeting.meetingId}`;
+}
+
+function getEmptyAggregatedMeetingStats(): AggregatedMeetingStats {
+  return {
+    totalUtterances: 0,
+    reviewedUtterances: 0,
+    userEditedUtterances: 0,
+    taskEditedUtterances: 0,
+    progressPercentage: 0,
+    reviewers: [],
+    primaryReviewer: null,
+    firstEditAt: null,
+    lastEditAt: null,
+    meetingDurationMs: 0,
+    reviewDurationMs: null,
+  };
+}
+
+async function getAggregatedMeetingStatsBatch(
+  meetings: MeetingId[]
+): Promise<Map<string, AggregatedMeetingStats>> {
+  const statsByMeeting = new Map<string, AggregatedMeetingStats>();
+
+  if (meetings.length === 0) return statsByMeeting;
+
+  // Initialize defaults so missing rows still return valid stats.
+  for (const meeting of meetings) {
+    statsByMeeting.set(getMeetingMapKey(meeting), getEmptyAggregatedMeetingStats());
+  }
+
+  const meetingPairs = Prisma.join(
+    meetings.map((m) => Prisma.sql`(${m.cityId}::text, ${m.meetingId}::text)`)
+  );
+
+  const [meetingAggRows, reviewerRows] = await Promise.all([
+    prisma.$queryRaw<
+      Array<{
+        cityId: string;
+        meetingId: string;
+        totalUtterances: bigint;
+        reviewedUtterances: bigint;
+        userEditedUtterances: bigint;
+        taskEditedUtterances: bigint;
+        firstEditAt: Date | null;
+        lastEditAt: Date | null;
+        minStartTimestamp: number | null;
+        maxEndTimestamp: number | null;
+      }>
+    >`
+      WITH meeting_pairs("cityId","meetingId") AS (VALUES ${meetingPairs}),
+      utterances AS (
+        SELECT
+          ss."cityId" AS "cityId",
+          ss."meetingId" AS "meetingId",
+          u.id AS "utteranceId",
+          u."startTimestamp" AS "startTimestamp",
+          u."endTimestamp" AS "endTimestamp"
+        FROM meeting_pairs mp
+        LEFT JOIN "SpeakerSegment" ss
+          ON ss."cityId" = mp."cityId" AND ss."meetingId" = mp."meetingId"
+        LEFT JOIN "Utterance" u
+          ON u."speakerSegmentId" = ss.id
+      ),
+      last_user_edit AS (
+        SELECT
+          ss."cityId" AS "cityId",
+          ss."meetingId" AS "meetingId",
+          MAX(u."startTimestamp") AS "lastTs"
+        FROM meeting_pairs mp
+        JOIN "SpeakerSegment" ss
+          ON ss."cityId" = mp."cityId" AND ss."meetingId" = mp."meetingId"
+        JOIN "Utterance" u ON u."speakerSegmentId" = ss.id
+        JOIN "UtteranceEdit" ue ON ue."utteranceId" = u.id
+        WHERE ue."editedBy" = 'user'
+        GROUP BY ss."cityId", ss."meetingId"
+      ),
+      edit_distinct AS (
+        SELECT
+          ss."cityId" AS "cityId",
+          ss."meetingId" AS "meetingId",
+          COUNT(DISTINCT CASE WHEN ue."editedBy" = 'user' THEN ue."utteranceId" END)::bigint AS "userEditedUtterances",
+          COUNT(DISTINCT CASE WHEN ue."editedBy" = 'task' THEN ue."utteranceId" END)::bigint AS "taskEditedUtterances",
+          MIN(CASE WHEN ue."editedBy" = 'user' THEN ue."createdAt" END) AS "firstEditAt",
+          MAX(CASE WHEN ue."editedBy" = 'user' THEN ue."createdAt" END) AS "lastEditAt"
+        FROM meeting_pairs mp
+        JOIN "SpeakerSegment" ss
+          ON ss."cityId" = mp."cityId" AND ss."meetingId" = mp."meetingId"
+        JOIN "Utterance" u ON u."speakerSegmentId" = ss.id
+        JOIN "UtteranceEdit" ue ON ue."utteranceId" = u.id
+        WHERE ue."editedBy" IN ('user', 'task')
+        GROUP BY ss."cityId", ss."meetingId"
+      )
+      SELECT
+        mp."cityId" AS "cityId",
+        mp."meetingId" AS "meetingId",
+        COALESCE(COUNT(u."utteranceId"), 0)::bigint AS "totalUtterances",
+        COALESCE(
+          COUNT(u."utteranceId") FILTER (
+            WHERE l."lastTs" IS NOT NULL AND u."startTimestamp" <= l."lastTs"
+          ),
+          0
+        )::bigint AS "reviewedUtterances",
+        COALESCE(ed."userEditedUtterances", 0)::bigint AS "userEditedUtterances",
+        COALESCE(ed."taskEditedUtterances", 0)::bigint AS "taskEditedUtterances",
+        ed."firstEditAt" AS "firstEditAt",
+        ed."lastEditAt" AS "lastEditAt",
+        MIN(u."startTimestamp") AS "minStartTimestamp",
+        MAX(u."endTimestamp") AS "maxEndTimestamp"
+      FROM meeting_pairs mp
+      LEFT JOIN utterances u
+        ON u."cityId" = mp."cityId" AND u."meetingId" = mp."meetingId"
+      LEFT JOIN last_user_edit l
+        ON l."cityId" = mp."cityId" AND l."meetingId" = mp."meetingId"
+      LEFT JOIN edit_distinct ed
+        ON ed."cityId" = mp."cityId" AND ed."meetingId" = mp."meetingId"
+      GROUP BY
+        mp."cityId",
+        mp."meetingId",
+        l."lastTs",
+        ed."userEditedUtterances",
+        ed."taskEditedUtterances",
+        ed."firstEditAt",
+        ed."lastEditAt"
+    `,
+
+    prisma.$queryRaw<
+      Array<{
+        cityId: string;
+        meetingId: string;
+        userId: string;
+        userName: string | null;
+        userEmail: string;
+        editCount: bigint;
+      }>
+    >`
+      WITH meeting_pairs("cityId","meetingId") AS (VALUES ${meetingPairs})
+      SELECT
+        ss."cityId" AS "cityId",
+        ss."meetingId" AS "meetingId",
+        usr.id AS "userId",
+        usr.name AS "userName",
+        usr.email AS "userEmail",
+        COUNT(*)::bigint AS "editCount"
+      FROM meeting_pairs mp
+      JOIN "SpeakerSegment" ss
+        ON ss."cityId" = mp."cityId" AND ss."meetingId" = mp."meetingId"
+      JOIN "Utterance" u ON u."speakerSegmentId" = ss.id
+      JOIN "UtteranceEdit" ue ON ue."utteranceId" = u.id
+      JOIN "User" usr ON usr.id = ue."userId"
+      WHERE ue."editedBy" = 'user'
+      GROUP BY ss."cityId", ss."meetingId", usr.id, usr.name, usr.email
+      ORDER BY ss."cityId", ss."meetingId", "editCount" DESC
+    `,
+  ]);
+
+  for (const row of meetingAggRows) {
+    const key = getMeetingMapKey({ cityId: row.cityId, meetingId: row.meetingId });
+    const existing = statsByMeeting.get(key) ?? getEmptyAggregatedMeetingStats();
+
+    const totalUtterances = Number(row.totalUtterances);
+    const reviewedUtterances = Number(row.reviewedUtterances);
+
+    const meetingDurationMs =
+      row.minStartTimestamp !== null && row.maxEndTimestamp !== null
+        ? (row.maxEndTimestamp - row.minStartTimestamp) * 1000
+        : 0;
+
+    const progressPercentage =
+      totalUtterances > 0 ? Math.round((reviewedUtterances / totalUtterances) * 100) : 0;
+
+    statsByMeeting.set(key, {
+      ...existing,
+      totalUtterances,
+      reviewedUtterances,
+      userEditedUtterances: Number(row.userEditedUtterances),
+      taskEditedUtterances: Number(row.taskEditedUtterances),
+      firstEditAt: row.firstEditAt,
+      lastEditAt: row.lastEditAt,
+      meetingDurationMs,
+      progressPercentage,
+    });
+  }
+
+  const reviewersByMeeting = new Map<string, ReviewerInfo[]>();
+  for (const row of reviewerRows) {
+    const key = getMeetingMapKey({ cityId: row.cityId, meetingId: row.meetingId });
+    const list = reviewersByMeeting.get(key) ?? [];
+    list.push({
+      userId: row.userId,
+      userName: row.userName,
+      userEmail: row.userEmail,
+      editCount: Number(row.editCount),
+    });
+    reviewersByMeeting.set(key, list);
+  }
+
+  for (const [key, reviewers] of reviewersByMeeting.entries()) {
+    const existing = statsByMeeting.get(key) ?? getEmptyAggregatedMeetingStats();
+    statsByMeeting.set(key, {
+      ...existing,
+      reviewers,
+      primaryReviewer: reviewers.length > 0 ? reviewers[0] : null,
+    });
+  }
+
+  return statsByMeeting;
 }
 
 /**
  * Get meetings for review with optional filters
+ * Optimized for list views - uses aggregations, no session detection
  */
-export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewProgress[]> {
+export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewListItem[]> {
   const { show = 'needsAttention', reviewerId } = filters;
   
   // Build database filter conditions
@@ -791,44 +912,105 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   // Combine all conditions
   const whereConditions = combineWhereConditions(conditions);
   
-  // Fetch meetings from database
+  // Fetch meetings from database (lightweight - no nested data)
   const meetings = await prisma.councilMeeting.findMany({
     where: whereConditions,
-    include: reviewProgressInclude,
+    include: includePattern.meetingWithReviewInfo(),
     orderBy: {
       dateTime: 'desc'
     }
   });
 
-  // Process meetings and apply final filtering
-  const reviewProgressList: ReviewProgress[] = [];
-  const includeCompleted = shouldIncludeCompleted(show);
+  // Note: DB filtering already ensures the correct fixTranscript/humanReview constraints
+  // based on `show`. We only inspect taskStatuses here to determine `completed` vs not
+  // for `show === 'all'`.
+  const meetingIds: MeetingId[] = meetings.map((m) => ({ cityId: m.cityId, meetingId: m.id }));
+  const statsByMeeting = await getAggregatedMeetingStatsBatch(meetingIds);
 
-  for (const meeting of meetings) {
-    const progress = calculateReviewProgress(meeting, includeCompleted);
-    
-    if (!progress) continue;
-    
+  const items: ReviewListItem[] = [];
+  for (const m of meetings) {
+    const stats = statsByMeeting.get(getMeetingMapKey({ cityId: m.cityId, meetingId: m.id })) ?? getEmptyAggregatedMeetingStats();
+
     // If filtering by reviewer, verify they are the PRIMARY reviewer
-    // (Database filter only ensures they made SOME edits)
-    if (reviewerId && progress.primaryReviewer?.userId !== reviewerId) {
+    if (reviewerId && stats.primaryReviewer?.userId !== reviewerId) {
       continue;
     }
-    
-    reviewProgressList.push(progress);
+
+    const hasHumanReview = m.taskStatuses.some(t => t.type === 'humanReview' && t.status === 'succeeded');
+    const status = determineReviewStatus(true, hasHumanReview, stats.reviewedUtterances);
+
+    const reviewDurationMs = stats.lastEditAt && m.dateTime
+      ? stats.lastEditAt.getTime() - m.dateTime.getTime()
+      : null;
+
+    items.push({
+      meetingId: m.id,
+      cityId: m.cityId,
+      cityName: m.city.name,
+      meetingName: m.name,
+      meetingDate: m.dateTime,
+      status,
+      ...stats,
+      reviewDurationMs,
+    });
   }
 
-  return reviewProgressList;
+  return items;
 }
 
 /**
  * Get high-level review statistics
  */
 export async function getReviewStats(): Promise<ReviewStats> {
-  const reviewProgress = await getMeetingsNeedingReview();
-  
-  const needsReview = reviewProgress.filter(r => r.status === 'needsReview').length;
-  const inProgress = reviewProgress.filter(r => r.status === 'inProgress').length;
+  // We can derive needsReview/inProgress from presence of any user edits.
+  const baseNeedsAttentionWhere: Prisma.CouncilMeetingWhereInput = buildStatusWhereConditions('needsAttention');
+
+  const [needsReview, inProgress] = await Promise.all([
+    // Needs review = has fixTranscript, no humanReview, and NO user edits
+    prisma.councilMeeting.count({
+      where: {
+        AND: [
+          baseNeedsAttentionWhere,
+          {
+            NOT: {
+              speakerSegments: {
+                some: {
+                  utterances: {
+                    some: {
+                      utteranceEdits: {
+                        some: { editedBy: 'user' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    }),
+    // In progress = has fixTranscript, no humanReview, and HAS user edits
+    prisma.councilMeeting.count({
+      where: {
+        AND: [
+          baseNeedsAttentionWhere,
+          {
+            speakerSegments: {
+              some: {
+                utterances: {
+                  some: {
+                    utteranceEdits: {
+                      some: { editedBy: 'user' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    }),
+  ]);
   
   // Get completed reviews
   const now = new Date();
@@ -862,27 +1044,87 @@ export async function getReviewStats(): Promise<ReviewStats> {
 }
 
 /**
- * Get detailed review progress for a specific meeting
+ * Get detailed review progress for a specific meeting with session calculations
+ * Uses aggregations for basic data + loads utterances only for session calculation
  */
 export async function getReviewProgressForMeeting(
-  cityId: string,
-  meetingId: string
-): Promise<ReviewProgress | null> {
-  const meeting = await prisma.councilMeeting.findUnique({
-    where: {
-      cityId_id: {
-        cityId,
-        id: meetingId
-      }
-    },
-    include: reviewProgressInclude
+  meetingId: MeetingId
+): Promise<ReviewDetail | null> {
+  // Get basic meeting info
+  const meetingRecord = await prisma.councilMeeting.findUnique({
+    where: meetingKey(meetingId.cityId, meetingId.meetingId),
+    include: includePattern.meetingWithReviewInfo()
   });
 
-  if (!meeting) {
+  if (!meetingRecord) {
     return null;
   }
 
-  return calculateReviewProgress(meeting, true); // Include completed for individual meeting view
+  // Get aggregated stats (same as list view)
+  const stats = await getAggregatedMeetingStats(meetingId);
+
+  // Check task statuses
+  const hasFixTranscript = meetingRecord.taskStatuses.some(
+    t => t.type === 'fixTranscript' && t.status === 'succeeded'
+  );
+  const hasHumanReview = meetingRecord.taskStatuses.some(
+    t => t.type === 'humanReview' && t.status === 'succeeded'
+  );
+
+  if (!hasFixTranscript) {
+    return null;
+  }
+
+  // Determine status
+  const status = determineReviewStatus(
+    hasFixTranscript,
+    hasHumanReview,
+    stats.reviewedUtterances
+  );
+
+  // Calculate review duration
+  const reviewDurationMs = stats.lastEditAt && meetingRecord.dateTime
+    ? stats.lastEditAt.getTime() - meetingRecord.dateTime.getTime()
+    : null;
+
+  // Load utterances with edits ONLY for session calculation
+  const utterancesForSessions = await prisma.utterance.findMany({
+    where: whereClause.utterancesByMeeting(meetingId),
+    include: includePattern.utterancesForSessions(),
+    orderBy: { startTimestamp: 'asc' }
+  });
+
+  // Calculate sessions
+  const sessionData = calculateSessionData(
+    utterancesForSessions,
+    stats.reviewers,
+    stats.primaryReviewer?.userId ?? null,
+    stats.meetingDurationMs
+  );
+
+  return {
+    // Base meeting info
+    meetingId: meetingRecord.id,
+    cityId: meetingRecord.cityId,
+    cityName: meetingRecord.city.name,
+    meetingName: meetingRecord.name,
+    meetingDate: meetingRecord.dateTime,
+    status,
+    // Aggregated stats (all ReviewListItem fields)
+    totalUtterances: stats.totalUtterances,
+    reviewedUtterances: stats.reviewedUtterances,
+    userEditedUtterances: stats.userEditedUtterances,
+    taskEditedUtterances: stats.taskEditedUtterances,
+    progressPercentage: stats.progressPercentage,
+    reviewers: stats.reviewers,
+    primaryReviewer: stats.primaryReviewer,
+    firstEditAt: stats.firstEditAt,
+    lastEditAt: stats.lastEditAt,
+    meetingDurationMs: stats.meetingDurationMs,
+    reviewDurationMs,
+    // Session data
+    ...sessionData,
+  };
 }
 
 /**
@@ -916,9 +1158,9 @@ export async function getReviewers(): Promise<Array<{ id: string; name: string |
  * Returns stats for the primary reviewer and lists all other reviewers
  * Used when marking a review as complete to show the actual work done
  */
-export async function getMeetingReviewStats(cityId: string, meetingId: string) {
+export async function getMeetingReviewStats(meetingId: MeetingId) {
   // Use the existing calculateReviewProgress which already identifies reviewers
-  const progress = await getReviewProgressForMeeting(cityId, meetingId);
+  const progress = await getReviewProgressForMeeting(meetingId);
   
   if (!progress) {
     throw new Error('Meeting not found');
