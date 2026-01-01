@@ -291,7 +291,7 @@ export const getTaskVersionsForMeetings = async (taskTypes: MeetingTaskType[]): 
         },
         where: {
             city: {
-                isPending: false
+                status: { not: 'pending' }
             }
         }
     });
@@ -322,7 +322,7 @@ export const getTaskVersionsGroupedByCity = async (taskTypes: MeetingTaskType[])
     // Get city information
     const cities = await prisma.city.findMany({
         where: {
-            isPending: false
+            status: { not: 'pending' }
         },
         select: {
             id: true,

@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
-import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
     const city = await getCity(params.cityId);
@@ -26,6 +26,11 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     if (!authorizedToEdit) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
+
+    // Check if user is superadmin (required for officialSupport and status changes)
+    const currentUser = await getCurrentUser()
+    const isSuperAdmin = currentUser?.isSuperAdmin ?? false
+
     const formData = await request.formData()
     const name = formData.get('name') as string
     const name_en = formData.get('name_en') as string
@@ -34,6 +39,21 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const timezone = formData.get('timezone') as string
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
+    const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
+
+    // Only allow superadmins to modify officialSupport and status
+    let officialSupport: boolean | undefined = undefined
+    let status: 'pending' | 'unlisted' | 'listed' | undefined = undefined
+    if (isSuperAdmin) {
+        const officialSupportValue = formData.get('officialSupport')
+        if (officialSupportValue !== null) {
+            officialSupport = officialSupportValue === 'true'
+        }
+        const statusValue = formData.get('status') as string | null
+        if (statusValue && ['pending', 'unlisted', 'listed'].includes(statusValue)) {
+            status = statusValue as 'pending' | 'unlisted' | 'listed'
+        }
+    }
 
     // Message data
     const hasMessage = formData.get('hasMessage') === 'true'
@@ -58,18 +78,41 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     }
 
     let city;
-    
+
     // Update city data
     try {
-        city = await editCity(params.cityId, {
+        const updateData: {
+            name: string
+            name_en: string
+            name_municipality: string
+            name_municipality_en: string
+            timezone: string
+            logoImage?: string
+            authorityType: 'municipality' | 'region'
+            officialSupport?: boolean
+            status?: 'pending' | 'unlisted' | 'listed'
+        } = {
             name,
             name_en,
             name_municipality,
             name_municipality_en,
             timezone,
             ...(logoImageUrl && { logoImage: logoImageUrl }),
-            authorityType
-        });
+            authorityType,
+            ...(peopleOrdering && { peopleOrdering })
+        }
+
+        // Only include admin-only fields if user is superadmin
+        if (isSuperAdmin) {
+            if (officialSupport !== undefined) {
+                updateData.officialSupport = officialSupport
+            }
+            if (status !== undefined) {
+                updateData.status = status
+            }
+        }
+
+        city = await editCity(params.cityId, updateData);
     } catch (error) {
         console.error('Error updating city:', error);
         return NextResponse.json({ error: 'Failed to update city' }, { status: 500 });

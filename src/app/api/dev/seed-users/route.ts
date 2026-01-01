@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
         // Get available cities and topics for seeding
         const cities = await prisma.city.findMany({
-            where: { isListed: true },
+            where: { status: 'listed' },
             orderBy: { name: 'asc' }
         })
 

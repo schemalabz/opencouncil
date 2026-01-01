@@ -22,7 +22,6 @@ import { Pencil, Bell } from 'lucide-react';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
-import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
 import { useTranslations } from 'next-intl';
 
 export default function AdminActions({
@@ -137,23 +136,6 @@ export default function AdminActions({
         } catch (error) {
             toast({
                 title: t('toasts.errorRequestingTranscriptFix.title'),
-                description: `${error}`,
-                variant: 'destructive'
-            });
-        }
-    };
-
-    const handleMarkReviewComplete = async () => {
-        try {
-            await markHumanReviewComplete(meeting.cityId, meeting.id);
-            toast({
-                title: t('toasts.humanReviewComplete.title'),
-                description: t('toasts.humanReviewComplete.description'),
-            });
-            fetchTaskStatuses();
-        } catch (error) {
-            toast({
-                title: t('toasts.errorMarkingReviewComplete.title'),
                 description: `${error}`,
                 variant: 'destructive'
             });
@@ -412,9 +394,6 @@ export default function AdminActions({
                 </Popover>
                 <Button onClick={handleFixTranscript}>
                     {t('buttons.fixTranscript')}
-                </Button>
-                <Button variant="outline" onClick={handleMarkReviewComplete}>
-                    {t('buttons.markHumanReviewComplete')}
                 </Button>
             </div>
         </div>

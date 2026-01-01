@@ -4,14 +4,15 @@ import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
 import { PersonWithRelations, getPeopleForCity } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
 import { aiChatStream, AIConfig } from '@/lib/ai';
-import { findSubjectsByQuery } from '@/lib/seed-data';
 import { City } from '@prisma/client';
 import { 
+    findSubjectsByQuery,
     findMockSpeakerSegmentsForSubject,
     generateMockClaudeResponse 
 } from '@/lib/db/chat-mock-data';
 import { getCity } from '@/lib/db/cities';
 import { IS_DEV } from '@/lib/utils';
+import { groupPeopleByActiveParty } from '@/lib/sorting/people';
 
 // Define types for our content extraction
 interface ExtractedSegment {
@@ -119,36 +120,34 @@ function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
     type FormattedPerson = { name: string; roles: string };
     type PeopleByParty = Record<string, FormattedPerson[]>;
 
-    // Group people by party
-    const peopleByParty = people.reduce((acc: PeopleByParty, person) => {
-        const partyRole = person.roles.find(role => role.party);
-        const partyName = partyRole?.party?.name || "Ανεξάρτητοι";
-        
-        if (!acc[partyName]) {
-            acc[partyName] = [];
-        }
-
-        // Format roles for this person, filtering out unnecessary roles
-        const formattedRoles = person.roles
-            .filter(role => role.city || role.administrativeBody) // Only include city and admin body roles
-            .map(role => {
-                if (role.city) return `${role.name || "Μέλος"}`;
-                if (role.administrativeBody) return `${role.administrativeBody.name} (${role.name || "Μέλος"})`;
-                return null;
-            })
-
-        acc[partyName].push({
-            name: person.name,
-            roles: formattedRoles.join(", ")
+    // Group people by party name for display
+    const groupedPeople = groupPeopleByActiveParty(people, 'name');
+    
+    // Format people with their roles
+    const peopleByParty: PeopleByParty = Object.entries(groupedPeople).reduce((acc, [partyName, partyPeople]) => {
+        acc[partyName] = partyPeople.map(person => {
+            // Format roles for this person, filtering out unnecessary roles
+            const formattedRoles = person.roles
+                .filter(role => role.city || role.administrativeBody) // Only include city and admin body roles
+                .map(role => {
+                    if (role.city) return `${role.name || "Μέλος"}`;
+                    if (role.administrativeBody) return `${role.administrativeBody.name} (${role.name || "Μέλος"})`;
+                    return null;
+                })
+                .filter(Boolean)
+                .join(", ");
+            
+            return {
+                name: person.name,
+                roles: formattedRoles
+            };
         });
-
+        
+        // Sort people within each party by name
+        acc[partyName].sort((a, b) => a.name.localeCompare(b.name));
+        
         return acc;
-    }, {});
-
-    // Sort people within each party
-    Object.keys(peopleByParty).forEach(party => {
-        peopleByParty[party].sort((a: FormattedPerson, b: FormattedPerson) => a.name.localeCompare(b.name));
-    });
+    }, {} as PeopleByParty);
 
     return `
 Πληροφορίες για το ${city.name} (${city.name_municipality}):

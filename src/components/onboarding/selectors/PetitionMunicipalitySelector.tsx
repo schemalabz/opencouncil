@@ -23,7 +23,7 @@ export function PetitionMunicipalitySelector({ cities }: PetitionMunicipalitySel
         setSelectedCity(city);
         setIsNavigating(true);
 
-        const targetUrl = !city.isListed ? `/${city.id}/petition` : `/${city.id}`;
+        const targetUrl = city.status !== 'listed' ? `/${city.id}/petition` : `/${city.id}`;
 
         // Force a proper history entry by ensuring the browser processes this as a user action
         setTimeout(() => {

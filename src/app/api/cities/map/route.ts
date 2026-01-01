@@ -20,20 +20,23 @@ export async function GET() {
                 createdAt: true,
                 updatedAt: true,
                 officialSupport: true,
-                isListed: true,
-                isPending: true,
+                status: true,
                 authorityType: true,
                 wikipediaId: true,
                 supportsNotifications: true,
                 consultationsEnabled: true,
+                peopleOrdering: true,
                 _count: {
                     select: {
                         councilMeetings: true
                     }
                 }
             },
+            where: {
+                status: 'listed'
+            },
             orderBy: [
-                { isListed: 'desc' },
+                { status: 'desc' },
                 { name: 'asc' }
             ]
         });

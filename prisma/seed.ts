@@ -353,8 +353,7 @@ async function seedCities(cities: any[]) {
     logoImage: city.logoImage,
     timezone: city.timezone || 'Europe/Athens',
     officialSupport: city.officialSupport || false,
-    isListed: city.isListed || false,
-    isPending: city.isPending || false,
+    status: city.status || 'pending',
     authorityType: city.authorityType || 'municipality',
     wikipediaId: city.wikipediaId,
     consultationsEnabled: city.id === 'athens' ? true : false, // Enable consultations for Athens
@@ -444,6 +443,7 @@ async function seedPersons(persons: any[]) {
         id: role.id,
         personId: person.id,
         cityId: role.cityId,
+        partyId: role.partyId,
         administrativeBodyId: role.administrativeBodyId,
         isHead: role.isHead || false,
         name: role.name,

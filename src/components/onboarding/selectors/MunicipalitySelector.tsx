@@ -25,13 +25,13 @@ export function MunicipalitySelector({
         {
             key: 'supported',
             label: 'ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ',
-            items: cities.filter(city => city.isListed),
+            items: cities.filter(city => city.status === 'listed'),
             icon: MapPin
         },
         {
             key: 'all',
             label: 'ΌΛΟΙ ΟΙ ΔΗΜΟΙ',
-            items: cities.filter(city => !city.isListed),
+            items: cities.filter(city => city.status !== 'listed'),
             icon: MapPin
         }
     ];
@@ -133,7 +133,7 @@ export function MunicipalitySelector({
                         className="mt-4 flex flex-wrap justify-center gap-2"
                     >
                         {cities
-                            .filter(city => city.isListed)
+                            .filter(city => city.status === 'listed')
                             .slice(0, 5)
                             .map((city) => (
                                 <motion.div

@@ -12,7 +12,8 @@
     "exit": "Exit",
     "enableEdit": "Enable Editing Mode",
     "guide": "Guide",
-    "speakers": "Speakers"
+    "speakers": "Speakers",
+    "completeReview": "Complete Review"
   },
   "stats": {
     "title": "Speakers"
@@ -123,6 +124,8 @@
     "selectionErrorDiffSegments": "Cannot extract utterances from different segments at once.",
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
-    "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle."
+    "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
+    "reviewCompleted": "Review Completed",
+    "reviewCompletedDescription": "The transcript review has been marked as complete."
   }
 }

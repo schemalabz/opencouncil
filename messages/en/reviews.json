@@ -1,0 +1,62 @@
+{
+  "completeDialog": {
+    "title": "Complete Review",
+    "description": "You are about to mark this transcript review as complete. Here's a summary of the review work.",
+    "primaryReviewer": "Primary Reviewer:",
+    "additionalContributors": "Additional contributors:",
+    "noEdits": "No edits have been made to this transcript yet. Are you sure you want to mark it as complete?",
+    "buttons": {
+      "cancel": "Cancel",
+      "markComplete": "Mark as Complete",
+      "completing": "Completing..."
+    },
+    "toasts": {
+      "success": {
+        "title": "Review Completed",
+        "description": "The review has been marked as complete."
+      },
+      "error": {
+        "title": "Error",
+        "description": "Failed to mark review as complete"
+      }
+    },
+    "manualTime": {
+      "label": "The calculated review time is not accurate",
+      "placeholder": "Enter actual review time (e.g., 2h 30m)",
+      "help": "This will be shown in reports for context, but won't replace the calculated time."
+    }
+  },
+  "stats": {
+    "editsMade": "Edits Made",
+    "reviewTime": "Review Time",
+    "meetingDuration": "Meeting Duration",
+    "efficiency": "Efficiency",
+    "reviewSessions": "Review Sessions",
+    "explanation": {
+      "title": "How we calculate review time",
+      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from pauses."
+    }
+  },
+  "sessionBreakdown": {
+    "meetingDuration": "Meeting Duration",
+    "totalReviewTime": "Total Review Time",
+    "reviewEfficiency": "Review Efficiency",
+    "reviewerBreakdown": "Time per Reviewer",
+    "reviewTimeline": "Review Timeline",
+    "sessions": "sessions",
+    "timelineDescription": "Showing all reviewers' sessions in chronological order",
+    "session": "Session",
+    "primaryReviewer": "Primary Reviewer",
+    "reviewer": "Reviewer",
+    "duration": "Duration",
+    "utterancesCovered": "Utterances Covered",
+    "meetingContent": "Meeting Content",
+    "pause": "Pause",
+    "noSessions": "No review sessions recorded yet.",
+    "explanation": {
+      "title": "How we calculate review time",
+      "description": "This is an approximation based on edit timestamps and the audio duration between edits. We detect review sessions by analyzing time gaps that exceed the expected review time, helping distinguish active work from pauses."
+    }
+  }
+}
+

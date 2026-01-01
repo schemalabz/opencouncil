@@ -1,14 +1,12 @@
 "use server";
-import { Person, Party, Role, AdministrativeBody, City, VoicePrint } from '@prisma/client';
+import { Person, Role, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { getActiveRoleCondition } from "../utils";
+import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
-    roles: (Role & {
-        party?: Party | null;
-        city?: City | null;
-        administrativeBody?: AdministrativeBody | null;
-    })[];
+    roles: RoleWithRelations[];
     voicePrints?: VoicePrint[];
 };
 
@@ -54,18 +52,13 @@ export async function createPerson(data: {
                         name_en: role.name_en,
                         isHead: role.isHead,
                         startDate: role.startDate,
-                        endDate: role.endDate
+                        endDate: role.endDate,
+                        rank: role.rank
                     }))
                 }
             },
             include: {
-                roles: {
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
-                }
+                roles: roleWithRelationsInclude
             }
         });
         return newPerson;
@@ -111,18 +104,13 @@ export async function editPerson(id: string, data: {
                             name_en: role.name_en,
                             isHead: role.isHead,
                             startDate: role.startDate,
-                            endDate: role.endDate
+                            endDate: role.endDate,
+                            rank: role.rank
                         }))
                     }
                 },
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             });
         });
@@ -138,13 +126,7 @@ export async function getPerson(id: string): Promise<PersonWithRelations | null>
         const person = await prisma.person.findUnique({
             where: { id },
             include: {
-                roles: {
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
-                },
+                roles: roleWithRelationsInclude,
                 voicePrints: {
                     orderBy: {
                         createdAt: 'desc'
@@ -168,25 +150,9 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
             include: {
                 roles: {
                     where: activeRolesOnly ? {
-                        OR: [
-                            // Both dates null
-                            { startDate: null, endDate: null },
-                            // Only start date set - active if in past
-                            { startDate: { lte: now }, endDate: null },
-                            // Only end date set - active if in future
-                            { startDate: null, endDate: { gt: now } },
-                            // Both dates set - active if current time is within range
-                            {
-                                startDate: { lte: now },
-                                endDate: { gt: now }
-                            }
-                        ]
+                        OR: getActiveRoleCondition(now)
                     } : undefined,
-                    include: {
-                        party: true,
-                        city: true,
-                        administrativeBody: true
-                    }
+                    ...roleWithRelationsInclude
                 },
                 voicePrints: {
                     orderBy: {

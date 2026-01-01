@@ -196,7 +196,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                                 type="edit"
                             />
                         )}
-                        {isSuperAdmin && (city.isPending || hasNoData) && (
+                        {isSuperAdmin && (city.status === 'pending' || hasNoData) && (
                             <Sheet open={isCityCreatorOpen} onOpenChange={setIsCityCreatorOpen}>
                                 <SheetTrigger asChild>
                                     <Button variant="outline" size="sm">
@@ -222,7 +222,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                                 </SheetContent>
                             </Sheet>
                         )}
-                        {IS_DEV && isSuperAdmin && !city.isPending && (
+                        {IS_DEV && isSuperAdmin && city.status !== 'pending' && (
                             <Button
                                 variant="destructive"
                                 size="sm"
@@ -254,7 +254,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             />
                         </Button>
                     )}
-                    {!city.isPending && !city.officialSupport && (
+                    {city.status !== 'pending' && !city.officialSupport && (
                         <Button
                             onClick={() => router.push(`/${city.id}/petition`)}
                             size="xl"

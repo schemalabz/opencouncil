@@ -24,13 +24,13 @@ model City {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   officialSupport Boolean @default(false)
-  isListed Boolean @default(false)
-  isPending Boolean @default(false)
+  status CityStatus @default(pending)
   authorityType AuthorityType @default(municipality)
   wikipediaId String?
   geometry Unsupported("geometry")?
   supportsNotifications Boolean @default(false)
   consultationsEnabled Boolean @default(false)
+  peopleOrdering PeopleOrdering @default(default)
 
   parties        Party[]
   persons        Person[]
@@ -51,12 +51,23 @@ model City {
   consultations Consultation[]
   consultationComments ConsultationComment[]
 
-  @@index([isPending, isListed])
+  @@index([status])
 }
 
 enum AuthorityType {
   municipality
   region
+}
+
+enum CityStatus {
+  pending   
+  unlisted
+  listed
+}
+
+enum PeopleOrdering {
+  default
+  partyRank
 }
 
 enum AdministrativeBodyType {
@@ -674,6 +685,7 @@ model Role {
   isHead Boolean @default(false)
   name String?
   name_en String?
+  rank Int?
 
   startDate DateTime?
   endDate DateTime?
