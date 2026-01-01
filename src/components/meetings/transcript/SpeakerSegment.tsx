@@ -151,7 +151,10 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
             
             <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
                 <div className='w-full'>
-                    <div className='sticky top-0 flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30'>
+                    <div 
+                        className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
+                        style={{ top: 'var(--banner-offset, 0px)' }}
+                    >
                         {renderMock ? (
                             <div className='flex flex-col w-full space-y-2 py-2'>
                                 <div className='flex items-center justify-between w-full px-4'>
