@@ -7,6 +7,7 @@ import { getPartiesForCity } from '@/lib/db/parties';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
+import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { CouncilMeeting, SpeakerTag, TaskStatus } from '@prisma/client';
 import { Party } from '@prisma/client';
 
@@ -19,18 +20,20 @@ export type MeetingData = {
     highlights: HighlightWithUtterances[];
     subjects: (SubjectWithRelations & { statistics?: Statistics })[];
     speakerTags: SpeakerTag[];
+    taskStatus: MeetingTaskStatus;
 }
 
 export const getMeetingData = async (cityId: string, meetingId: string): Promise<MeetingData> => {
     console.log('getting meeting data for', cityId, meetingId);
-    const [meeting, transcript, city, people, parties, highlights, subjects] = await Promise.all([
+    const [meeting, transcript, city, people, parties, highlights, subjects, taskStatus] = await Promise.all([
         getCouncilMeeting(cityId, meetingId),
         getTranscript(meetingId, cityId),
         getCity(cityId),
         getPeopleForCity(cityId),
         getPartiesForCity(cityId),
         getHighlightsForMeeting(cityId, meetingId),
-        getSubjectsForMeeting(cityId, meetingId)
+        getSubjectsForMeeting(cityId, meetingId),
+        getMeetingTaskStatus(cityId, meetingId)
     ]);
 
     if (!meeting || !city || !transcript || !subjects) {
@@ -48,5 +51,15 @@ export const getMeetingData = async (cityId: string, meetingId: string): Promise
         .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
         .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
 
-    return { meeting, transcript, city: cityWithGeometry[0], people, parties, highlights, subjects: subjectsWithStatistics, speakerTags };
+    return { 
+        meeting, 
+        transcript, 
+        city: cityWithGeometry[0], 
+        people, 
+        parties, 
+        highlights, 
+        subjects: subjectsWithStatistics, 
+        speakerTags,
+        taskStatus
+    };
 }

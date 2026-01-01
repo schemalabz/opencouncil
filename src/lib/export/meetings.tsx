@@ -3,7 +3,7 @@ import { pdf } from '@react-pdf/renderer';
 import { renderDocx } from '@/components/meetings/docx/CouncilMeetingDocx';
 import { MeetingData } from '@/lib/getMeetingData';
 
-export type MeetingDataForExport = Omit<MeetingData, 'parties' | 'highlights' | 'subjects' | 'speakerTags'>;
+export type MeetingDataForExport = Omit<MeetingData, 'parties' | 'highlights' | 'subjects' | 'speakerTags' | 'taskStatus'>;
 
 export async function exportMeetingToDocx(data: MeetingDataForExport): Promise<Blob> {
   const { city, meeting, transcript, people } = data;

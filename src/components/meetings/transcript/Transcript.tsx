@@ -8,15 +8,25 @@ import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
+import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 
 export default function Transcript() {
-    const { transcript: speakerSegments, getHighlight } = useCouncilMeetingData();
+    const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const { enterEditMode } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
+    const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
+    
+    // Check if transcript is unverified (humanReview not completed)
+    const isUnverified = !taskStatus.humanReview;
+
+    // Derive scroll state from visible segments - if first segment (index 0) is not visible, we've scrolled
+    const isScrolled = useMemo(() => {
+        return visibleSegments.size > 0 && !visibleSegments.has(0);
+    }, [visibleSegments]);
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
@@ -38,7 +48,8 @@ export default function Transcript() {
                             const rect = child.getBoundingClientRect();
                             return rect.top < window.innerHeight && rect.bottom >= 0;
                         })
-                        .map((child) => displayedSegments[parseInt(child.id.split('-')[2])]);
+                        .map((child) => displayedSegments[parseInt(child.id.split('-')[2])])
+                        .filter(Boolean); // Filter out any undefined segments (e.g., banner)
 
                     if (visibleSegments.length > 0) {
                         const firstVisible = visibleSegments[0];
@@ -122,8 +133,11 @@ export default function Transcript() {
             threshold: 0,
         });
 
+        // Only observe speaker segment elements, not other children like the banner
         Array.from(containerRef.current.children).forEach((child) => {
-            observer.observe(child);
+            if (child.id && child.id.startsWith('speaker-segment-')) {
+                observer.observe(child);
+            }
         });
 
         return () => observer.disconnect();
@@ -139,7 +153,13 @@ export default function Transcript() {
     }
 
     return (
-        <div className="container" ref={containerRef} >
+        <div className="container" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+            {isUnverified && (
+                <UnverifiedTranscriptBanner 
+                    isScrolled={isScrolled}
+                    onBannerHeightChange={setBannerHeight}
+                />
+            )}
             {displayedSegments.map((segment, index: number) => {
                 // Determine if this segment should be fully rendered
                 const shouldRender = visibleSegments.has(index) ||
