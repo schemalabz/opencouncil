@@ -6,6 +6,7 @@ import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
+import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
 
 // Export time formatters from the new location
 export {
@@ -361,18 +362,22 @@ export function normalizeText(text: string): string {
     .replace(/ΰ/g, 'υ');
 }
 
-export function getMeetingState(meeting: {
+/**
+ * Get media type information for a meeting
+ * Returns the type of media available with label and icon component
+ */
+export function getMeetingMediaType(meeting: {
   videoUrl?: string | null;
   audioUrl?: string | null;
   muxPlaybackId?: string | null;
   agendaUrl?: string | null;
   subjects?: any[];
-}): { label: string; icon: string } {
+}): { label: string; icon: LucideIcon } {
   // Video state - if there's a video and mux playback id
   if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
     return {
       label: "Bίντεο",
-      icon: "video"
+      icon: VideoIcon
     };
   }
 
@@ -380,7 +385,7 @@ export function getMeetingState(meeting: {
   if (meeting.audioUrl && meeting.muxPlaybackId) {
     return {
       label: "Ήχος",
-      icon: "audio"
+      icon: AudioLines
     };
   }
 
@@ -388,14 +393,14 @@ export function getMeetingState(meeting: {
   if (meeting.agendaUrl && meeting.subjects && meeting.subjects.length > 0 && !meeting.muxPlaybackId) {
     return {
       label: "Διάταξη",
-      icon: "fileText"
+      icon: FileText
     };
   }
 
   // Empty state - default case
   return {
     label: "Κενή",
-    icon: "ban"
+    icon: Ban
   };
 }
 

@@ -6,8 +6,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
-import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, getMeetingState, IS_DEV } from '@/lib/utils';
+import { CalendarIcon, Clock, Loader2, ChevronRight } from 'lucide-react';
+import { sortSubjectsByImportance, formatDateTime, getMeetingMediaType, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -102,23 +102,14 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
     const isTodayWithoutVideo = isToday && !meeting.videoUrl;
 
-    const getMediaIcon = () => {
-        if (meeting.videoUrl) return <VideoIcon className="w-4 h-4" />;
-        if (meeting.audioUrl) return <AudioLines className="w-4 h-4" />;
-        if (meeting.agendaUrl) return <FileText className="w-4 h-4" />;
-        return <Ban className="w-4 h-4" />;
-    };
-
     const getMediaStatus = () => {
-        const meetingState = getMeetingState(meeting);
+        const meetingMediaType = getMeetingMediaType(meeting);
+        const Icon = meetingMediaType.icon;
 
         return (
             <div className="flex items-center gap-1">
-                {meetingState.icon === "video" && <VideoIcon className="w-4 h-4" />}
-                {meetingState.icon === "audio" && <AudioLines className="w-4 h-4" />}
-                {meetingState.icon === "fileText" && <FileText className="w-4 h-4" />}
-                {meetingState.icon === "ban" && <Ban className="w-4 h-4" />}
-                <span>{meetingState.label}</span>
+                <Icon className="w-4 h-4" />
+                <span>{meetingMediaType.label}</span>
             </div>
         );
     };

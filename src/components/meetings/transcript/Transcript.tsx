@@ -2,21 +2,33 @@
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useVideo } from "../VideoProvider";
-import { debounce, joinTranscriptSegments } from '@/lib/utils';
+import { debounce, joinTranscriptSegments, cn } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
+import { useTranslations } from "next-intl";
+import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 
 export default function Transcript() {
-    const { transcript: speakerSegments, getHighlight } = useCouncilMeetingData();
+    const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const { enterEditMode } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
+    const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
+    const tTranscript = useTranslations('transcript');
+    
+    // Check if transcript is unverified (humanReview not completed)
+    const isUnverified = !taskStatus.humanReview;
+
+    // Derive scroll state from visible segments - if first segment (index 0) is not visible, we've scrolled
+    const isScrolled = useMemo(() => {
+        return visibleSegments.size > 0 && !visibleSegments.has(0);
+    }, [visibleSegments]);
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
@@ -139,7 +151,13 @@ export default function Transcript() {
     }
 
     return (
-        <div className="container" ref={containerRef} >
+        <div className="container" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+            {isUnverified && (
+                <UnverifiedTranscriptBanner 
+                    isScrolled={isScrolled}
+                    onBannerHeightChange={setBannerHeight}
+                />
+            )}
             {displayedSegments.map((segment, index: number) => {
                 // Determine if this segment should be fully rendered
                 const shouldRender = visibleSegments.has(index) ||
