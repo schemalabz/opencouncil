@@ -10,7 +10,6 @@ import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
-import { Snow } from "./snow";
 
 export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     const { status } = useSession();
@@ -95,19 +94,14 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
 
     return (
         <div className="min-h-screen relative">
-            {/* Snow Effect */}
-            <Snow />
-            
             {/* Hero Section - Full Width */}
-            <div className="relative z-10">
-                <Hero
-                    latestPost={latestPost}
-                    cities={allCities}
-                    value={selectedCity}
-                    onCitySelect={handleCitySelect}
-                    isNavigating={isNavigating}
-                />
-            </div>
+            <Hero
+                latestPost={latestPost}
+                cities={allCities}
+                value={selectedCity}
+                onCitySelect={handleCitySelect}
+                isNavigating={isNavigating}
+            />
 
             {/* Scroll Indicator */}
             <div
