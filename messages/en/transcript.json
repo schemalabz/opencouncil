@@ -34,5 +34,9 @@
     "play": "Play",
     "previousClip": "Previous clip",
     "nextClip": "Next clip"
+  },
+  "unverifiedBanner": {
+    "title": "Automatic Transcript",
+    "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated within 48 hours of the meeting."
   }
 }
