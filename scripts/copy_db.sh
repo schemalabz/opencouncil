@@ -40,7 +40,7 @@ if [ "$CONFIRMATION" != "$CONFIRMATION_CODE" ]; then
     exit 1
 fi
 
-# Array of table names
+# Array of tables -- we only copy tables that don't have user data.
 TABLES=(
     "City"
     "Topic" 
@@ -65,6 +65,10 @@ TABLES=(
     "PodcastPart"
     "PodcastPartAudioUtterance"
     "Offer"
+    "VoicePrint"
+    "CityMessage"
+    "Consultation"
+    "QrCampaign"
 )
 
 # Delete all rows from destination tables if --clear flag is set
