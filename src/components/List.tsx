@@ -262,17 +262,46 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     </Button>
 
                     <div className="flex gap-1">
-                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(page => (
-                            <Button
-                                key={page}
-                                variant={page === pagination.currentPage ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => handlePageChange(page)}
-                                className="min-w-[40px]"
-                            >
-                                {page}
-                            </Button>
-                        ))}
+                        {(() => {
+                            const { currentPage, totalPages } = pagination;
+                            const pages: (number | string)[] = [];
+                            const maxVisible = 7;
+
+                            if (totalPages <= maxVisible) {
+                                for (let i = 1; i <= totalPages; i++) pages.push(i);
+                            } else {
+                                pages.push(1);
+
+                                if (currentPage > 3) pages.push('...');
+
+                                const start = Math.max(2, currentPage - 1);
+                                const end = Math.min(totalPages - 1, currentPage + 1);
+
+                                for (let i = start; i <= end; i++) {
+                                    if (!pages.includes(i)) pages.push(i);
+                                }
+
+                                if (currentPage < totalPages - 2) pages.push('...');
+
+                                if (!pages.includes(totalPages)) pages.push(totalPages);
+                            }
+
+                            return pages.map((page, idx) =>
+                                page === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="px-2 py-1">...</span>
+                                ) : (
+                                    <Button
+                                        key={page}
+                                        variant={page === currentPage ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handlePageChange(page as number)}
+                                        className="min-w-[40px]"
+                                    >
+                                        {page}
+                                    </Button>
+                                )
+                            );
+                        })()}
                     </div>
 
                     <Button

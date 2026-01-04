@@ -10,7 +10,8 @@ export default async function MeetingsPage({
     params: { cityId: string };
     searchParams: { page?: string };
 }) {
-    const currentPage = parseInt(searchParams.page || '1', 10);
+    const pageNumber = parseInt(searchParams.page || '1', 10);
+    const currentPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
     const pageSize = 12;
 
     const [city, councilMeetings, totalCount] = await Promise.all([
