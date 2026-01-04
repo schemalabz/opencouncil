@@ -61,14 +61,14 @@ export async function getCityCached(cityId: string) {
 /**
  * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
  */
-export async function getCouncilMeetingsForCityCached(cityId: string, { limit }: { limit?: number } = {}) {
+export async function getCouncilMeetingsForCityCached(cityId: string, { limit, page, pageSize = 12 }: { limit?: number; page?: number; pageSize?: number } = {}) {
   // Check if the user is authorized to edit the city
   // This happens OUTSIDE the cached function to avoid using headers() inside cache
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
 
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit, page, pageSize }),
+    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}` : (limit ? `limit:${limit}` : 'all'), page ? `pageSize:${pageSize}` : ''],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
