@@ -96,13 +96,15 @@ export async function getMeetingStatusCached(cityId: string, meetingId: string) 
   )();
 }
 
-/** 
+/**
  * Cached version of getCouncilMeetingsCountForCity that fetches and caches the count of all meetings for a city
  */
 export async function getCouncilMeetingsCountForCityCached(cityId: string) {
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+
   return createCache(
-    () => getCouncilMeetingsCountForCity(cityId),
-    ['city', cityId, 'meetings', 'count'],
+    () => getCouncilMeetingsCountForCity(cityId, { includeUnreleased }),
+    ['city', cityId, 'meetings', 'count', includeUnreleased ? 'withUnreleased' : 'onlyReleased'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
