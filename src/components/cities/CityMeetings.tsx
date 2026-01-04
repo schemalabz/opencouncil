@@ -10,14 +10,20 @@ type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
     cityId: string,
     timezone: string,
-    canEdit: boolean
+    canEdit: boolean,
+    currentPage?: number,
+    totalPages?: number,
+    pageSize?: number
 };
 
-export default function CityMeetings({ 
-    councilMeetings, 
-    cityId, 
+export default function CityMeetings({
+    councilMeetings,
+    cityId,
     timezone,
-    canEdit
+    canEdit,
+    currentPage,
+    totalPages,
+    pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
 
@@ -50,6 +56,11 @@ export default function CityMeetings({
             mdColumns={2}
             lgColumns={3}
             allText="Όλα τα όργανα"
+            pagination={currentPage && totalPages ? {
+                currentPage,
+                totalPages,
+                pageSize: pageSize || 12
+            } : undefined}
         />
     );
 } 
