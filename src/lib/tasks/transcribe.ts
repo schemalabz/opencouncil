@@ -14,7 +14,7 @@ async function deleteExistingSpeakerData(
     db: Prisma.TransactionClient | typeof prisma = prisma
 ) {
     console.log(`Deleting existing speaker data for meeting ${meetingId}`);
-    
+
     // Get all unique speakerTagIds used by this meeting's segments
     const speakerSegments = await db.speakerSegment.findMany({
         where: {
@@ -25,9 +25,9 @@ async function deleteExistingSpeakerData(
             speakerTagId: true
         }
     });
-    
+
     const speakerTagIds = [...new Set(speakerSegments.map(s => s.speakerTagId))];
-    
+
     // Delete the SpeakerTags, which will cascade delete the SpeakerSegments
     if (speakerTagIds.length > 0) {
         await db.speakerTag.deleteMany({
@@ -86,7 +86,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
     const city = councilMeeting.city;
 
     const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)].flatMap(s => s.split(' '));
-    const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίας του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
+    const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίασης του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
 
     // Get voiceprints for people in the city
     const people = await getPeopleForCity(cityId);
@@ -157,9 +157,9 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
     // This reduces time spent inside the transaction
     console.log(`Pre-computing speaker segments and utterance mappings...`);
     const preComputeStart = Date.now();
-    
+
     const speakerSegmentsData = getSpeakerSegmentsFromUtterances(response.transcript.transcription.utterances);
-    
+
     // Pre-map utterances to segments to avoid filtering inside transaction
     const segmentUtteranceMap = new Map<number, typeof response.transcript.transcription.utterances>();
     speakerSegmentsData.forEach((segment, index) => {
@@ -168,7 +168,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         );
         segmentUtteranceMap.set(index, segmentUtterances);
     });
-    
+
     console.log(`Pre-computed ${speakerSegmentsData.length} segments with utterances in ${((Date.now() - preComputeStart) / 1000).toFixed(2)}s`);
 
     // Start a transaction
@@ -204,7 +204,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                     const personExists = await tx.person.findUnique({
                         where: { id: speakerInfo.match }
                     });
-                    
+
                     if (!personExists) {
                         console.warn(`Warning: Person with ID ${speakerInfo.match} not found. Skipping person connection for speaker ${speakerInfo.speaker}`);
                         speakerInfo.match = null; // Remove the invalid match
@@ -252,7 +252,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             // Check if there are speakers in the identified speakers list that were not in the utterances
             // This is just for logging/debugging, as we only create tags for speakers who actually speak
             const unusedSpeakers = [...speakerMatchMap.keys()].filter(id => !speakerTags.has(id));
-            
+
             if (unusedSpeakers.length > 0) {
                 console.log(`Note: ${unusedSpeakers.length} speakers listed in identified speakers but not found in utterances: ${unusedSpeakers.join(', ')}`);
             }
@@ -267,13 +267,13 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         // Performance: ~10-50x faster than sequential processing
         console.log(`Creating ${speakerSegmentsData.length} segments with nested utterances in parallel batches...`);
         const segmentCreationStart = Date.now();
-        
+
         const BATCH_SIZE = 50; // Process 50 segments at a time in parallel
         let processedSegments = 0;
-        
+
         for (let i = 0; i < speakerSegmentsData.length; i += BATCH_SIZE) {
             const batch = speakerSegmentsData.slice(i, i + BATCH_SIZE);
-            
+
             // Create all segments in this batch in parallel with their utterances
             await Promise.all(batch.map(async (segment, batchIndex) => {
                 const segmentIndex = i + batchIndex;
@@ -299,7 +299,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                     }
                 });
             }));
-            
+
             processedSegments += batch.length;
             const elapsed = ((Date.now() - segmentCreationStart) / 1000).toFixed(1);
             console.log(`Batch progress: ${processedSegments}/${speakerSegmentsData.length} segments created - ${elapsed}s elapsed`);
@@ -311,7 +311,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
         timeout: 10 * 60 * 1000, // Increased timeout due to more complex operations
         maxWait: 5000, // Maximum time to wait for a connection from the pool (5 seconds)
     });
-    
+
     console.log(`Transaction completed successfully`);
 }
 

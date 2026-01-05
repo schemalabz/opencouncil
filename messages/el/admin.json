@@ -4,13 +4,13 @@
     "succeeded": "Ολοκληρώθηκε",
     "failed": "Απέτυχε",
     "unknownError": "Άγνωστο σφάλμα",
-      "deleteDialog": {
-        "title": "Διαγραφή εργασίας;",
-        "description": "Αυτή η ενέργεια θα αφαιρέσει οριστικά την εργασία και τις σχετικές πληροφορίες προόδου.",
-        "warning": "Η ενέργεια δεν μπορεί να αναιρεθεί.",
-        "cancel": "Ακύρωση",
-        "confirm": "Διαγραφή εργασίας"
-      },
+    "deleteDialog": {
+      "title": "Διαγραφή εργασίας;",
+      "description": "Αυτή η ενέργεια θα αφαιρέσει οριστικά την εργασία και τις σχετικές πληροφορίες προόδου.",
+      "warning": "Η ενέργεια δεν μπορεί να αναιρεθεί.",
+      "cancel": "Ακύρωση",
+      "confirm": "Διαγραφή εργασίας"
+    },
     "reprocessDialog": {
       "title": "Επανεκτέλεση από Βάση Δεδομένων: {taskType}",
       "explanation": "Όταν εκτελείται μια εργασία, αποθηκεύουμε πάντα το raw αποτέλεσμα στη βάση δεδομένων, ώστε να μπορείτε να το επεξεργαστείτε ξανά, χωρίς να χρειάζεται να επανεκτέλεσετε το task.",
@@ -42,25 +42,25 @@
   },
   "adminActions": {
     "sections": {
-      "meetingDetails": "Διαχείριση Συνεδρίας",
+      "meetingDetails": "Διαχείριση Συνεδρίασης",
       "meetingDetailsSubtitle": "",
       "taskStatuses": "Κατάσταση Εργασιών",
       "taskStatusesSubtitle": "Παρακολούθηση εργασιών που εκτελούνται στο backend.",
       "requestNewTasks": "Αίτημα Νέων Εργασιών",
       "requestNewTasksSubtitle": "Εκκίνηση εργασιών επεξεργασίας στο backend της πλατφόρμας.",
-      "meetingRelease": "Δημοσίευση Συνεδρίας",
-      "meetingReleaseSubtitle": "Έλεγχος της δημόσιας ορατότητας αυτής της συνεδρίας.",
+      "meetingRelease": "Δημοσίευση Συνεδρίασης",
+      "meetingReleaseSubtitle": "Έλεγχος της δημόσιας ορατότητας αυτής της συνεδρίασης.",
       "notifications": "Ειδοποιήσεις",
-      "notificationsSubtitle": "Δημιουργία ειδοποιήσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίας.",
+      "notificationsSubtitle": "Δημιουργία ειδοποιήσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίασης.",
       "cacheManagement": "Διαχείριση Cache",
       "cacheManagementSubtitle": "Εξαναγκασμός ανανέωσης των δεδομένων cache για άμεση προβολή αλλαγών.",
       "podcastSpecs": "Podcast Specs",
-      "podcastSpecsSubtitle": "Διαχείριση προδιαγραφών δημιουργίας podcast για αυτή τη συνεδρία.",
+      "podcastSpecsSubtitle": "Διαχείριση προδιαγραφών δημιουργίας podcast για αυτή τη συνεδρίαση.",
       "export": "Εξαγωγή",
-      "exportSubtitle": "Λήψη δεδομένων συνεδρίας σε διάφορες μορφές."
+      "exportSubtitle": "Λήψη δεδομένων συνεδρίασης σε διάφορες μορφές."
     },
     "buttons": {
-      "editMeeting": "Επεξεργασία Συνεδρίας",
+      "editMeeting": "Επεξεργασία Συνεδρίασης",
       "transcribe": "transcribe",
       "processAgenda": "processAgenda",
       "summarize": "summarize",
@@ -68,7 +68,7 @@
       "markHumanReviewComplete": "markHumanReviewComplete",
       "beforeMeeting": "beforeMeeting",
       "afterMeeting": "afterMeeting",
-      "refreshMeetingCache": "Ανανέωση Cache Συνεδρίας",
+      "refreshMeetingCache": "Ανανέωση Cache Συνεδρίασης",
       "refreshCityCache": "Ανανέωση Cache Πόλης",
       "addTopic": "Προσθήκη Θέματος",
       "starting": "Ξεκινάει...",
@@ -131,7 +131,7 @@
         "description": "Η συνεδρία αποσύρθηκε."
       },
       "errorTogglingRelease": {
-        "title": "Σφάλμα εναλλαγής δημοσίευσης συνεδρίας"
+        "title": "Σφάλμα εναλλαγής δημοσίευσης συνεδρίασης"
       },
       "agendaProcessingRequested": {
         "title": "Αίτημα επεξεργασίας ατζέντας",
@@ -154,8 +154,8 @@
       },
       "unknownError": "Προέκυψε άγνωστο σφάλμα",
       "meetingCacheInvalidated": {
-        "title": "Το Cache της Συνεδρίας Ακυρώθηκε",
-        "description": "Τα δεδομένα της συνεδρίας θα ανανεωθούν στο επόμενο αίτημα."
+        "title": "Το Cache της Συνεδρίασης Ακυρώθηκε",
+        "description": "Τα δεδομένα της συνεδρίασης θα ανανεωθούν στο επόμενο αίτημα."
       },
       "cityCacheInvalidated": {
         "title": "Το Cache της Πόλης Ακυρώθηκε",
@@ -163,10 +163,9 @@
       },
       "error": {
         "title": "Σφάλμα",
-        "failedToInvalidateMeetingCache": "Αποτυχία ακύρωσης cache συνεδρίας",
+        "failedToInvalidateMeetingCache": "Αποτυχία ακύρωσης cache συνεδρίασης",
         "failedToInvalidateCityCache": "Αποτυχία ακύρωσης cache πόλης"
       }
     }
   }
 }
-
