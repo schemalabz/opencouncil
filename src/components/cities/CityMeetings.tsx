@@ -27,22 +27,12 @@ export default function CityMeetings({
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
 
-    const orderedMeetings = [...councilMeetings]
-        .filter(meeting => canEdit || meeting.released)
-        .sort((a, b) => {
-            const timeCompare = new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
-            if (timeCompare === 0) {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            }
-            return timeCompare;
-        });
-
     const administrativeBodies = getAdministrativeBodiesForMeetings(councilMeetings);
     const defaultFilterValues = getDefaultAdministrativeBodyFilters(administrativeBodies);
 
     return (
         <List
-            items={orderedMeetings}
+            items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCard}
             itemProps={{ cityTimezone: timezone }}
