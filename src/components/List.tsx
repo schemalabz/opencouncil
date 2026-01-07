@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
@@ -9,6 +9,7 @@ import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
 import { updateFilterURL } from '@/lib/utils/filterURL';
+import { Pagination } from './ui/pagination';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -164,40 +165,6 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         router.push(`?${params.toString()}`);
     };
 
-    const pageNumbers = useMemo(() => {
-        if (!pagination) return [];
-
-        const { currentPage, totalPages } = pagination;
-        const MAX_VISIBLE = 7;
-
-        if (totalPages <= MAX_VISIBLE) {
-            return Array.from({ length: totalPages }, (_, i) => i + 1);
-        }
-
-        const pages: (number | string)[] = [1];
-
-        if (currentPage > 3) {
-            pages.push('...');
-        }
-
-        const rangeStart = Math.max(2, currentPage - 1);
-        const rangeEnd = Math.min(totalPages - 1, currentPage + 1);
-
-        for (let i = rangeStart; i <= rangeEnd; i++) {
-            pages.push(i);
-        }
-
-        if (currentPage < totalPages - 2) {
-            pages.push('...');
-        }
-
-        if (pages[pages.length - 1] !== totalPages) {
-            pages.push(totalPages);
-        }
-
-        return pages;
-    }, [pagination]);
-
     return (
         <div className="space-y-6">
             {(showSearch || editable) && (
@@ -279,47 +246,14 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
             )}
 
-            {/* Pagination Controls */}
-            {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-6">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage - 1)}
-                        disabled={pagination.currentPage === 1}
-                    >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
-                        {t('previous')}
-                    </Button>
-
-                    <div className="flex gap-1">
-                        {pageNumbers.map((page, idx) =>
-                            page === '...' ? (
-                                <span key={`ellipsis-${idx}`} className="px-2 py-1">...</span>
-                            ) : (
-                                <Button
-                                    key={page}
-                                    variant={page === pagination.currentPage ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => handlePageChange(page as number)}
-                                    className="min-w-[40px]"
-                                >
-                                    {page}
-                                </Button>
-                            )
-                        )}
-                    </div>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                    >
-                        {t('next')}
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                </div>
+            {pagination && (
+                <Pagination
+                    currentPage={pagination.currentPage}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    onPageChange={handlePageChange}
+                    labels={{ previous: t('previous'), next: t('next') }}
+                />
             )}
         </div>
     );
