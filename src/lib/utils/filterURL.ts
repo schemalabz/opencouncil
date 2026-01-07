@@ -46,5 +46,6 @@ export function updateFilterURL<T>(
         params.set('filters', selectedLabels.join(','));
     }
 
+    params.delete('page'); // Reset to page 1 on filter change
     router.replace(`?${params.toString()}`);
 }
