@@ -132,6 +132,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     useEffect(() => {
         if (!showSearch) return;
 
+        // Avoid overriding pagination/filter URL changes when the search value didn't change.
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (localSearchQuery === urlSearchQuery) return;
+
         const timeoutId = setTimeout(() => {
             const params = new URLSearchParams(searchParams.toString());
             if (localSearchQuery) {
@@ -139,6 +143,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             } else {
                 params.delete('search');
             }
+            params.delete('page'); // Reset to page 1 on search
             router.replace(`?${params.toString()}`);
         }, 300); // 300ms debounce delay
 

@@ -60,3 +60,38 @@ describe('calculatePageNumbers', () => {
         });
     });
 });
+
+describe('pagination reset on search/filter change', () => {
+    function updateParamsWithPageReset(currentParams: string, updates: Record<string, string | null>): string {
+        const params = new URLSearchParams(currentParams);
+        for (const [key, value] of Object.entries(updates)) {
+            if (value === null) {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        }
+        params.delete('page');
+        return params.toString();
+    }
+
+    it('should reset page when search changes', () => {
+        const result = updateParamsWithPageReset('page=3', { search: 'test' });
+        expect(result).toBe('search=test');
+    });
+
+    it('should reset page when filter changes', () => {
+        const result = updateParamsWithPageReset('page=3', { filters: 'someFilter' });
+        expect(result).toBe('filters=someFilter');
+    });
+
+    it('should reset page when search is cleared', () => {
+        const result = updateParamsWithPageReset('page=3&search=old', { search: null });
+        expect(result).toBe('');
+    });
+
+    it('should preserve other params when resetting page', () => {
+        const result = updateParamsWithPageReset('page=3&other=value', { search: 'test' });
+        expect(result).toBe('other=value&search=test');
+    });
+});
