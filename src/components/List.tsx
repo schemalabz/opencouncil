@@ -128,6 +128,18 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
+    // Client-side pagination: slice filtered items
+    const paginatedItems = pagination
+        ? filteredItems.slice(
+            (pagination.currentPage - 1) * pagination.pageSize,
+            pagination.currentPage * pagination.pageSize
+        )
+        : filteredItems;
+
+    const totalPages = pagination
+        ? Math.ceil(filteredItems.length / pagination.pageSize)
+        : 1;
+
     // Debounced URL update for search
     useEffect(() => {
         if (!showSearch) return;
@@ -232,7 +244,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {filteredItems.map((item) => (
+                        {paginatedItems.map((item) => (
                             <div
                                 key={item.id}
                                 className={carouselItemClasses}
@@ -251,10 +263,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
             )}
 
-            {pagination && (
+            {pagination && totalPages > 1 && (
                 <Pagination
                     currentPage={pagination.currentPage}
-                    totalPages={pagination.totalPages}
+                    totalPages={totalPages}
                     pageSize={pagination.pageSize}
                     onPageChange={handlePageChange}
                     labels={{ previous: t('previous'), next: t('next') }}
