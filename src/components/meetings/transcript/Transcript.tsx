@@ -10,6 +10,21 @@ import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 
+// Helper functions for speaker segment identification and parsing
+const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
+
+const isSpeakerSegmentElement = (element: Element): boolean => {
+    return Boolean(element.id && element.id.startsWith(SPEAKER_SEGMENT_PREFIX));
+};
+
+const parseSegmentIndex = (elementId: string): number => {
+    return parseInt(elementId.split('-')[2], 10);
+};
+
+const createSegmentId = (index: number): string => {
+    return `${SPEAKER_SEGMENT_PREFIX}${index}`;
+};
+
 export default function Transcript() {
     const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
@@ -33,6 +48,19 @@ export default function Transcript() {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
 
+    // Helper to calculate time interval from segment indices
+    const calculateTimeInterval = useCallback((segmentIndices: number[] | Set<number>): [number, number] | null => {
+        const indices = Array.isArray(segmentIndices) ? segmentIndices : Array.from(segmentIndices);
+        const sortedIndices = indices.sort((a, b) => a - b);
+        const validSegments = sortedIndices.map(index => displayedSegments[index]).filter(Boolean);
+        
+        if (validSegments.length === 0) return null;
+        
+        const firstVisible = validSegments[0];
+        const lastVisible = validSegments[validSegments.length - 1];
+        return [firstVisible.startTimestamp, lastVisible.endTimestamp];
+    }, [displayedSegments]);
+
     // Add effect to handle initial scroll position
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -43,18 +71,17 @@ export default function Transcript() {
             if (!isNaN(seconds)) {
                 // Force an immediate scroll update
                 const updateScrollInterval = () => {
-                    const visibleSegments = Array.from(containerRef.current!.children)
+                    const visibleIndices = Array.from(containerRef.current!.children)
                         .filter((child) => {
                             const rect = child.getBoundingClientRect();
                             return rect.top < window.innerHeight && rect.bottom >= 0;
                         })
-                        .map((child) => displayedSegments[parseInt(child.id.split('-')[2])])
-                        .filter(Boolean); // Filter out any undefined segments (e.g., banner)
+                        .filter(isSpeakerSegmentElement)
+                        .map((child) => parseSegmentIndex(child.id));
 
-                    if (visibleSegments.length > 0) {
-                        const firstVisible = visibleSegments[0];
-                        const lastVisible = visibleSegments[visibleSegments.length - 1];
-                        setCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
+                    const interval = calculateTimeInterval(visibleIndices);
+                    if (interval) {
+                        setCurrentScrollInterval(interval);
                     }
                 };
 
@@ -62,7 +89,7 @@ export default function Transcript() {
                 setTimeout(updateScrollInterval, 100);
             }
         }
-    }, [displayedSegments, setCurrentScrollInterval]);
+    }, [displayedSegments, setCurrentScrollInterval, calculateTimeInterval]);
 
     // Handle highlight editing initialization from URL
     useEffect(() => {
@@ -86,7 +113,7 @@ export default function Transcript() {
         const updates: { index: number; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
-            const segmentIndex = parseInt(entry.target.id.split('-')[2]);
+            const segmentIndex = parseSegmentIndex(entry.target.id);
             const isCurrentlyVisible = visibleSegments.has(segmentIndex);
 
             if (entry.isIntersecting && !isCurrentlyVisible) {
@@ -111,18 +138,12 @@ export default function Transcript() {
             setVisibleSegments(newVisibleSegments);
 
             // Update scroll interval with debouncing for performance
-            const visibleSegmentsList = Array.from(newVisibleSegments)
-                .sort((a, b) => a - b)
-                .map(index => displayedSegments[index])
-                .filter(Boolean); // Filter out any undefined segments
-
-            if (visibleSegmentsList.length > 0) {
-                const firstVisible = visibleSegmentsList[0];
-                const lastVisible = visibleSegmentsList[visibleSegmentsList.length - 1];
-                debouncedSetCurrentScrollInterval([firstVisible.startTimestamp, lastVisible.endTimestamp]);
+            const interval = calculateTimeInterval(newVisibleSegments);
+            if (interval) {
+                debouncedSetCurrentScrollInterval(interval);
             }
         }
-    }, [visibleSegments, displayedSegments, debouncedSetCurrentScrollInterval]);
+    }, [visibleSegments, calculateTimeInterval, debouncedSetCurrentScrollInterval]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -135,7 +156,7 @@ export default function Transcript() {
 
         // Only observe speaker segment elements, not other children like the banner
         Array.from(containerRef.current.children).forEach((child) => {
-            if (child.id && child.id.startsWith('speaker-segment-')) {
+            if (isSpeakerSegmentElement(child)) {
                 observer.observe(child);
             }
         });
@@ -169,7 +190,7 @@ export default function Transcript() {
                 return (
                     <div
                         key={index}
-                        id={`speaker-segment-${index}`}
+                        id={createSegmentId(index)}
                     >
                         <SpeakerSegment
                             segment={segment}
