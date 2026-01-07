@@ -16,7 +16,7 @@ export default async function MeetingsPage({
 
     const [city, councilMeetings] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsForCityCached(cityId, { page: currentPage, pageSize }),
+        getCouncilMeetingsForCityCached(cityId, {}),
     ]);
 
     if (!city) {
@@ -24,7 +24,6 @@ export default async function MeetingsPage({
     }
 
     const canEdit = await isUserAuthorizedToEdit({ cityId });
-    const totalPages = Math.ceil(city._count.councilMeetings / pageSize);
 
     return (
         <CityMeetings
@@ -33,7 +32,6 @@ export default async function MeetingsPage({
             timezone={city.timezone}
             canEdit={canEdit}
             currentPage={currentPage}
-            totalPages={totalPages}
             pageSize={pageSize}
         />
     );

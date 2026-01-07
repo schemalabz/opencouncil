@@ -20,7 +20,6 @@ export default function CityMeetings({
     timezone,
     canEdit,
     currentPage,
-    totalPages,
     pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
@@ -44,10 +43,10 @@ export default function CityMeetings({
             mdColumns={2}
             lgColumns={3}
             allText="Όλα τα όργανα"
-            pagination={currentPage && totalPages ? {
+            pagination={currentPage && pageSize ? {
                 currentPage,
-                totalPages,
-                pageSize: pageSize || 12
+                totalPages: 0,
+                pageSize
             } : undefined}
         />
     );
