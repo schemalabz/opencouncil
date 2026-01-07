@@ -4,6 +4,7 @@ import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
+import { PaginationParams } from '@/lib/db/types';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
@@ -32,11 +33,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     allText?: string;
     showSearch?: boolean;
     defaultFilterValues?: F[];
-    pagination?: {
-        currentPage: number;
-        totalPages: number;
-        pageSize: number;
-    };
+    pagination?: PaginationParams;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({

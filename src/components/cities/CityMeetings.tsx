@@ -5,16 +5,14 @@ import MeetingCard from '@/components/meetings/MeetingCard';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { getDefaultAdministrativeBodyFilters, getAdministrativeBodiesForMeetings } from '@/lib/utils/administrativeBodies';
+import { PaginationParams } from '@/lib/db/types';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
     cityId: string,
     timezone: string,
     canEdit: boolean,
-    currentPage?: number,
-    totalPages?: number,
-    pageSize?: number
-};
+} & Partial<PaginationParams>;
 
 export default function CityMeetings({
     councilMeetings,
