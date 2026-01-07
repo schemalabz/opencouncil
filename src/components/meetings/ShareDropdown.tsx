@@ -259,39 +259,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     )}
                 </div>
 
-                {ogImageUrl && !pathname.includes('/subjects/') && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3">
-                            <label className="text-xs font-medium text-muted-foreground mb-3 block">
-                                Εξαγωγή Προεπισκόπησης ως Εικόνα
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
-                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
-                                ].map(({ type, icon: Icon, label, ratio }) => (
-                                    <Button
-                                        key={type}
-                                        onClick={() => downloadImage(type)}
-                                        disabled={downloading !== null}
-                                        variant="outline"
-                                        className="h-auto py-3 flex flex-col items-center gap-2"
-                                    >
-                                        {downloading === type ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Icon className="w-4 h-4" />
-                                        )}
-                                        <span className="text-xs">{label}</span>
-                                        <span className="text-[10px] text-muted-foreground">{ratio}</span>
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
-
                 {ogImageUrl && (
                     <>
                         <DropdownMenuSeparator />
@@ -331,6 +298,40 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                         <span>Προεπισκόπηση κοινοποίησης</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {ogImageUrl && !pathname.includes('/subjects/') && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <div className="p-3">
+                            <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                                Εξαγωγή Προεπισκόπησης ως Εικόνα
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
+                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
+                                ].map(({ type, icon: Icon, label, ratio }) => (
+                                    <Button
+                                        key={type}
+                                        onClick={() => downloadImage(type)}
+                                        disabled={downloading !== null}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 flex items-center gap-1.5"
+                                    >
+                                        {downloading === type ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                            <Icon className="w-3 h-3" />
+                                        )}
+                                        <span className="text-xs">{label}</span>
+                                        <span className="text-[10px] text-muted-foreground">({ratio})</span>
+                                    </Button>
+                                ))}
                             </div>
                         </div>
                     </>
