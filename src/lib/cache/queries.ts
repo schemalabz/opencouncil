@@ -2,7 +2,7 @@ import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
 import { getCityMessage } from "@/lib/db/cityMessages";
-import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib/db/meetings";
+import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
@@ -96,18 +96,6 @@ export async function getMeetingStatusCached(cityId: string, meetingId: string) 
   )();
 }
 
-/**
- * Cached version of getCouncilMeetingsCountForCity that fetches and caches the count of all meetings for a city
- */
-export async function getCouncilMeetingsCountForCityCached(cityId: string) {
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
-
-  return createCache(
-    () => getCouncilMeetingsCountForCity(cityId, { includeUnreleased }),
-    ['city', cityId, 'meetings', 'count', includeUnreleased ? 'withUnreleased' : 'onlyReleased'],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
-  )();
-}
 
 /**
  * Cached version of getPartiesForCity that fetches and caches all parties for a city

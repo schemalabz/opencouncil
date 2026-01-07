@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsForCityCached, getCouncilMeetingsCountForCityCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsForCityCached } from "@/lib/cache";
 
 export default async function MeetingsPage({
     params: { cityId },
@@ -14,10 +14,9 @@ export default async function MeetingsPage({
     const currentPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
     const pageSize = 12;
 
-    const [city, councilMeetings, totalCount] = await Promise.all([
+    const [city, councilMeetings] = await Promise.all([
         getCityCached(cityId),
         getCouncilMeetingsForCityCached(cityId, { page: currentPage, pageSize }),
-        getCouncilMeetingsCountForCityCached(cityId)
     ]);
 
     if (!city) {
@@ -25,7 +24,7 @@ export default async function MeetingsPage({
     }
 
     const canEdit = await isUserAuthorizedToEdit({ cityId });
-    const totalPages = Math.ceil(totalCount / pageSize);
+    const totalPages = Math.ceil(city._count.councilMeetings / pageSize);
 
     return (
         <CityMeetings

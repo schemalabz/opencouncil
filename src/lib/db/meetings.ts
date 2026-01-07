@@ -141,21 +141,6 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
     }
 }
 
-export async function getCouncilMeetingsCountForCity(cityId: string): Promise<number> {
-    try {
-        const count = await prisma.councilMeeting.count({
-            where: {
-                cityId,
-                released: true
-            }
-        });
-        return count;
-    } catch (error) {
-        console.error('Error counting council meetings for city:', error);
-        throw new Error('Failed to count council meetings for city');
-    }
-}
-
 export async function getMeetingDataForOG(cityId: string, meetingId: string) {
     try {
         const data = await prisma.councilMeeting.findUnique({
