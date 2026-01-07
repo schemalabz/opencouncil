@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from './button';
 import { PaginationParams } from '@/lib/db/types';
+import { calculatePageNumbers } from '@/lib/pagination';
 
 interface PaginationProps extends PaginationParams {
     onPageChange: (page: number) => void;
@@ -19,36 +20,10 @@ export function Pagination({
     onPageChange,
     labels = { previous: 'Previous', next: 'Next' }
 }: PaginationProps) {
-    const pageNumbers = useMemo(() => {
-        const MAX_VISIBLE = 7;
-
-        if (totalPages <= MAX_VISIBLE) {
-            return Array.from({ length: totalPages }, (_, i) => i + 1);
-        }
-
-        const pages: (number | string)[] = [1];
-
-        if (currentPage > 3) {
-            pages.push('...');
-        }
-
-        const rangeStart = Math.max(2, currentPage - 1);
-        const rangeEnd = Math.min(totalPages - 1, currentPage + 1);
-
-        for (let i = rangeStart; i <= rangeEnd; i++) {
-            pages.push(i);
-        }
-
-        if (currentPage < totalPages - 2) {
-            pages.push('...');
-        }
-
-        if (pages[pages.length - 1] !== totalPages) {
-            pages.push(totalPages);
-        }
-
-        return pages;
-    }, [currentPage, totalPages]);
+    const pageNumbers = useMemo(
+        () => calculatePageNumbers(currentPage, totalPages),
+        [currentPage, totalPages]
+    );
 
     if (totalPages <= 1) {
         return null;
