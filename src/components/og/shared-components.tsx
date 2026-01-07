@@ -1,3 +1,4 @@
+import type React from "react";
 import fs from "fs";
 import path from "path";
 
@@ -13,24 +14,35 @@ try {
     logoBase64 = "";
 }
 
+interface OpenCouncilWatermarkProps {
+    size?: number;
+    fontSize?: number;
+    bottom?: number;
+    right?: number;
+}
+
 // Shared watermark component
-export const OpenCouncilWatermark = () => (
+export const OpenCouncilWatermark = ({
+    size = 40,
+    fontSize = 21,
+    bottom = 40,
+    right = 40,
+}: OpenCouncilWatermarkProps = {}) => (
     <div
         style={{
             position: "absolute",
-            bottom: 40,
-            right: 40,
+            bottom,
+            right,
             display: "flex",
             alignItems: "center",
-            gap: "8px",
             opacity: 0.7,
         }}
     >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoBase64} width='40' height='40' alt='OpenCouncil' />
+        <img src={logoBase64} width={size} height={size} alt='OpenCouncil' style={{ marginRight: "8px" }} />
         <span
             style={{
-                fontSize: 21,
+                fontSize,
                 fontWeight: 500,
                 color: "#6b7280",
             }}
@@ -41,7 +53,12 @@ export const OpenCouncilWatermark = () => (
 );
 
 // Shared container component
-export const Container = ({ children }: { children: React.ReactNode }) => (
+interface ContainerProps {
+    children: React.ReactNode;
+    watermarkProps?: OpenCouncilWatermarkProps;
+}
+
+export const Container = ({ children, watermarkProps }: ContainerProps) => (
     <div
         style={{
             height: "100%",
@@ -54,7 +71,7 @@ export const Container = ({ children }: { children: React.ReactNode }) => (
         }}
     >
         {children}
-        <OpenCouncilWatermark />
+        <OpenCouncilWatermark {...watermarkProps} />
     </div>
 );
 

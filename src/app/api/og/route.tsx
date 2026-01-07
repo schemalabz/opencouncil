@@ -140,6 +140,131 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
     );
 };
 
+// Meeting Feed OG Image (Square - 1080x1080)
+const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
+    const data = await getMeetingDataForOG(cityId, meetingId);
+    if (!data) return null;
+
+    const meetingDate = new Date(data.dateTime);
+    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
+    const topSubjects = sortedSubjects.slice(0, 6);
+    const remainingCount = Math.max(0, data.subjects.length - 6);
+
+    return (
+        <Container watermarkProps={{ size: 120, fontSize: 50 }}>
+            <OgHeader
+                city={{
+                    name: data.city.name_municipality,
+                    logoImage: data.city.logoImage
+                }}
+            />
+
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '28px',
+                paddingTop: '8px',
+            }}>
+                <h1 style={{
+                    fontSize: 64,
+                    fontWeight: 800,
+                    color: '#111827',
+                    lineHeight: 1.25,
+                    margin: 0,
+                    maxWidth: '98%',
+                }}>
+                    {data.name}
+                </h1>
+
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '24px',
+                    color: '#4b5563',
+                    fontSize: 32,
+                    marginTop: '8px',
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}>
+                        <span>📅</span>
+                        <span>{formattedDate}</span>
+                    </div>
+
+                    <div style={{
+                        width: 4,
+                        height: 4,
+                        borderRadius: '50%',
+                        background: '#9ca3af',
+                    }} />
+
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}>
+                        <span>📋</span>
+                        <span>{data.subjects?.length || 0} Θέματα</span>
+                    </div>
+                </div>
+
+                {topSubjects.length > 0 && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px',
+                        marginTop: '14px',
+                    }}>
+                        {topSubjects.map((subject) => (
+                            <div key={subject.id} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
+                                padding: '16px 30px',
+                                borderRadius: '9999px',
+                                color: '#ffffff',
+                                fontSize: 30,
+                                fontWeight: 800,
+                                boxShadow: '0 3px 6px rgba(0, 0, 0, 0.08)',
+                                maxWidth: '95%',
+                            }}>
+                                <span style={{
+                                    display: 'flex',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}>{subject.name}</span>
+                            </div>
+                        ))}
+                        {remainingCount > 0 && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                color: '#6b7280',
+                                fontSize: 20,
+                                marginTop: '4px',
+                            }}>
+                                <span style={{ display: 'flex' }}>+{remainingCount} ακόμα θέματα</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </Container>
+    );
+};
+
 // Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
 const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
@@ -154,8 +279,8 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
 
     // Sort subjects by importance (hot subjects first, then by speaking time)
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    const topSubjects = sortedSubjects.slice(0, 5);
-    const remainingCount = Math.max(0, data.subjects.length - 5);
+    const topSubjects = sortedSubjects.slice(0, 9);
+    const remainingCount = Math.max(0, data.subjects.length - 9);
 
     return (
         <div
@@ -211,10 +336,10 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                 gap: '32px',
             }}>
                 <h1 style={{
-                    fontSize: 72,
-                    fontWeight: 700,
+                    fontSize: 88,
+                    fontWeight: 800,
                     color: '#111827',
-                    lineHeight: 1.2,
+                    lineHeight: 1.14,
                     margin: 0,
                     maxWidth: '100%',
                 }}>
@@ -224,9 +349,9 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '16px',
+                    gap: '18px',
                     color: '#4b5563',
-                    fontSize: 32,
+                    fontSize: 36,
                 }}>
                     <div style={{
                         display: 'flex',
@@ -251,21 +376,21 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                     <div style={{
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '14px',
-                        marginTop: '24px',
+                        gap: '20px',
+                        marginTop: '36px',
                     }}>
                         {topSubjects.map((subject) => (
                             <div key={subject.id} style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '12px',
+                                gap: '16px',
                                 backgroundColor: subject.topic?.colorHex || '#e5e7eb',
-                                padding: '16px 24px',
-                                borderRadius: '16px',
+                                padding: '24px 34px',
+                                borderRadius: '22px',
                                 color: '#ffffff',
-                                fontSize: 28,
-                                fontWeight: 600,
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                fontSize: 38,
+                                fontWeight: 800,
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
                                 width: '100%',
                             }}>
                                 <span style={{
@@ -278,12 +403,12 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                         ))}
                         {remainingCount > 0 && (
                             <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                color: '#6b7280',
-                                fontSize: 24,
-                                marginTop: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            color: '#6b7280',
+                            fontSize: 26,
+                            marginTop: '8px',
                             }}>
                                 <span style={{
                                     display: 'flex'
@@ -295,7 +420,7 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
             </div>
 
             {/* Watermark */}
-            <OpenCouncilWatermark />
+            <OpenCouncilWatermark size={120} fontSize={50} bottom={52} right={52} />
         </div>
     );
 };
@@ -1258,7 +1383,7 @@ export async function GET(request: Request) {
                 height = 1920;
             } else if (variant === 'feed') {
                 // Square format for feed posts
-                element = await MeetingOGImage(cityId, meetingId);
+                element = await MeetingFeedOGImage(cityId, meetingId);
                 width = 1080;
                 height = 1080;
             } else {
