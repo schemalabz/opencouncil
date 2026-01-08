@@ -1,4 +1,4 @@
-import { Offer, Party, Role, Subject, Topic } from "@prisma/client";
+import { Party, Role } from "@prisma/client";
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
@@ -89,15 +89,21 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 
 // Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts
 
-export function sortSubjectsByImportance<T extends {
-  id?: string;
+/**
+ * Minimal interface for subjects that can be sorted by importance.
+ * Only declares the fields actually used by the sorting logic.
+ * Any type matching this structure can be sorted.
+ */
+interface SortableSubject {
   name: string;
   hot: boolean;
-  topic?: Partial<Topic> | { colorHex?: string } | null;
+  // Optional fields used for advanced sorting
   statistics?: Statistics;
   speakerSegments?: any[];
   agendaItemIndex?: number | null;
-}>(
+}
+
+export function sortSubjectsByImportance<T extends SortableSubject>(
   subjects: T[],
   orderBy: 'importance' | 'appearance' = 'importance'
 ) {
