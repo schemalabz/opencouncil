@@ -8,7 +8,7 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, OgHeader, OpenCouncilWatermark } from '@/components/og/shared-components';
+import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills } from '@/components/og/shared-components';
 import { getSubjectDataForOG } from '@/lib/db/subject';
 
 // Meeting OG Image (Landscape - 1200x630)
@@ -25,8 +25,6 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
 
     // Sort subjects by importance (hot subjects first, then by speaking time)
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    const topSubjects = sortedSubjects.slice(0, 3);
-    const remainingCount = Math.max(0, data.subjects.length - 3);
 
     return (
         <Container>
@@ -56,84 +54,32 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                     {data.name}
                 </h1>
 
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                    color: '#4b5563',
-                    fontSize: 28,
-                    marginTop: '8px',
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📅</span>
-                        <span>{formattedDate}</span>
-                    </div>
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={28}
+                    gap={24}
+                    iconGap={8}
+                />
 
-                    <div style={{
-                        width: 4,
-                        height: 4,
-                        borderRadius: '50%',
-                        background: '#9ca3af',
-                    }} />
-
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📋</span>
-                        <span>{data.subjects?.length || 0} Θέματα</span>
-                    </div>
-                </div>
-
-                {topSubjects.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                        marginTop: '16px',
-                    }}>
-                        {topSubjects.map((subject) => (
-                            <div key={subject.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
-                                padding: '10px 20px',
-                                borderRadius: '9999px',
-                                color: '#ffffff',
-                                fontSize: 22,
-                                fontWeight: 600,
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                maxWidth: '85%',
-                            }}>
-                                <span style={{
-                                    display: 'flex',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}>{subject.name}</span>
-                            </div>
-                        ))}
-                        {remainingCount > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                color: '#6b7280',
-                                fontSize: 18,
-                                marginTop: '4px',
-                            }}>
-                                <span style={{
-                                    display: 'flex'
-                                }}>+{remainingCount} ακόμα θέματα</span>
-                            </div>
-                        )}
-                    </div>
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={3}
+                        styles={{
+                            containerGap: 10,
+                            containerMarginTop: 16,
+                            pillPadding: [10, 20],
+                            pillRadius: 9999,
+                            pillFontSize: 22,
+                            pillFontWeight: 600,
+                            pillBoxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                            pillMaxWidth: '85%',
+                            remainingFontSize: 18,
+                            remainingMarginTop: 4,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
                 )}
             </div>
         </Container>
@@ -153,8 +99,6 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
     });
 
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    const topSubjects = sortedSubjects.slice(0, 6);
-    const remainingCount = Math.max(0, data.subjects.length - 6);
 
     return (
         <Container watermarkProps={{ size: 120, fontSize: 50 }}>
@@ -183,82 +127,32 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
                     {data.name}
                 </h1>
 
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                    color: '#4b5563',
-                    fontSize: 32,
-                    marginTop: '8px',
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📅</span>
-                        <span>{formattedDate}</span>
-                    </div>
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={32}
+                    gap={24}
+                    iconGap={8}
+                />
 
-                    <div style={{
-                        width: 4,
-                        height: 4,
-                        borderRadius: '50%',
-                        background: '#9ca3af',
-                    }} />
-
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📋</span>
-                        <span>{data.subjects?.length || 0} Θέματα</span>
-                    </div>
-                </div>
-
-                {topSubjects.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '14px',
-                        marginTop: '14px',
-                    }}>
-                        {topSubjects.map((subject) => (
-                            <div key={subject.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
-                                padding: '16px 30px',
-                                borderRadius: '9999px',
-                                color: '#ffffff',
-                                fontSize: 30,
-                                fontWeight: 800,
-                                boxShadow: '0 3px 6px rgba(0, 0, 0, 0.08)',
-                                maxWidth: '95%',
-                            }}>
-                                <span style={{
-                                    display: 'flex',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}>{subject.name}</span>
-                            </div>
-                        ))}
-                        {remainingCount > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                color: '#6b7280',
-                                fontSize: 20,
-                                marginTop: '4px',
-                            }}>
-                                <span style={{ display: 'flex' }}>+{remainingCount} ακόμα θέματα</span>
-                            </div>
-                        )}
-                    </div>
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={6}
+                        styles={{
+                            containerGap: 14,
+                            containerMarginTop: 14,
+                            pillPadding: [16, 30],
+                            pillRadius: 9999,
+                            pillFontSize: 30,
+                            pillFontWeight: 800,
+                            pillBoxShadow: '0 3px 6px rgba(0, 0, 0, 0.08)',
+                            pillMaxWidth: '95%',
+                            remainingFontSize: 20,
+                            remainingMarginTop: 4,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
                 )}
             </div>
         </Container>
@@ -279,8 +173,6 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
 
     // Sort subjects by importance (hot subjects first, then by speaking time)
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    const topSubjects = sortedSubjects.slice(0, 9);
-    const remainingCount = Math.max(0, data.subjects.length - 9);
 
     return (
         <div
@@ -346,76 +238,34 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                     {data.name}
                 </h1>
 
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '18px',
-                    color: '#4b5563',
-                    fontSize: 36,
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                    }}>
-                        <span>📅</span>
-                        <span>{formattedDate}</span>
-                    </div>
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={36}
+                    stacked
+                    stackGap={18}
+                    iconGap={12}
+                    separator={false}
+                />
 
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                    }}>
-                        <span>📋</span>
-                        <span>{data.subjects?.length || 0} Θέματα</span>
-                    </div>
-                </div>
-
-                {topSubjects.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '20px',
-                        marginTop: '36px',
-                    }}>
-                        {topSubjects.map((subject) => (
-                            <div key={subject.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '16px',
-                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
-                                padding: '24px 34px',
-                                borderRadius: '22px',
-                                color: '#ffffff',
-                                fontSize: 38,
-                                fontWeight: 800,
-                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
-                                width: '100%',
-                            }}>
-                                <span style={{
-                                    display: 'flex',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}>{subject.name}</span>
-                            </div>
-                        ))}
-                        {remainingCount > 0 && (
-                            <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            color: '#6b7280',
-                            fontSize: 26,
-                            marginTop: '8px',
-                            }}>
-                                <span style={{
-                                    display: 'flex'
-                                }}>+{remainingCount} ακόμα θέματα</span>
-                            </div>
-                        )}
-                    </div>
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={9}
+                        styles={{
+                            containerGap: 20,
+                            containerMarginTop: 36,
+                            pillPadding: [24, 34],
+                            pillRadius: 22,
+                            pillFontSize: 38,
+                            pillFontWeight: 800,
+                            pillBoxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
+                            pillWidth: '100%',
+                            remainingFontSize: 26,
+                            remainingMarginTop: 8,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
                 )}
             </div>
 
