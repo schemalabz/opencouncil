@@ -48,5 +48,5 @@ const sections = [
 ];
 
 export default function PrivacyPage() {
-    return <DocumentViewer sections={sections} lastUpdated="8 Ιανουαρίου 2026" title="Πολιτική Απορρήτου" />
+    return <DocumentViewer sections={sections} lastUpdated="8 Ιανουαρίου 2026" title="Ενημέρωση για την επεξεργασία δεδομένων προσωπικού χαρακτήρα" />
 }
