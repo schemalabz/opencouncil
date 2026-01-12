@@ -50,7 +50,20 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
         // Generate OG image URL based on current path
         const baseUrl = window.location.origin;
-        const ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        let ogUrl: string;
+
+        // For subject pages, include subjectId in the API request
+        if (pathname.includes('/subjects/')) {
+            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
+            if (subjectId) {
+                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
+            } else {
+                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+            }
+        } else {
+            // For meeting pages, use the API route
+            ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        }
 
         setOgImageUrl(ogUrl);
     }, [pathname, cityId, meetingId]);
@@ -112,6 +125,14 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const downloadImage = async (variant: 'story' | 'feed' | 'default') => {
         const baseUrl = window.location.origin;
         let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        
+        // Add subjectId if on a subject page
+        if (pathname.includes('/subjects/')) {
+            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
+            if (subjectId) {
+                imageUrl += `&subjectId=${subjectId}`;
+            }
+        }
         
         // Add variant parameter if not default
         if (variant !== 'default') {
