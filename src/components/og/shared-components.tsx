@@ -56,9 +56,10 @@ export const OpenCouncilWatermark = ({
 interface ContainerProps {
     children: React.ReactNode;
     watermarkProps?: OpenCouncilWatermarkProps;
+    containerPadding?: string;
 }
 
-export const Container = ({ children, watermarkProps }: ContainerProps) => (
+export const Container = ({ children, watermarkProps, containerPadding = "48px" }: ContainerProps) => (
     <div
         style={{
             height: "100%",
@@ -66,7 +67,7 @@ export const Container = ({ children, watermarkProps }: ContainerProps) => (
             display: "flex",
             flexDirection: "column",
             backgroundColor: "#ffffff",
-            padding: "48px",
+            padding: containerPadding,
             position: "relative",
         }}
     >
@@ -276,16 +277,25 @@ interface OgHeaderProps {
         name: string;
         dateFormatted: string;
     };
+    logoHeight?: number;
+    nameSize?: number;
+    marginBottom?: string;
 }
 
-export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
+export const OgHeader = ({ 
+    city, 
+    meeting,
+    logoHeight = 80,
+    nameSize = 32,
+    marginBottom = "40px"
+}: OgHeaderProps) => (
     <div
         style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             width: "100%",
-            marginBottom: "40px",
+            marginBottom,
         }}
     >
         <div
@@ -307,7 +317,7 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={city.logoImage}
-                        height="80"
+                        height={logoHeight}
                         alt="City Logo"
                         style={{
                             objectFit: "contain",
@@ -323,7 +333,7 @@ export const OgHeader = ({ city, meeting }: OgHeaderProps) => (
                 >
                     <span
                         style={{
-                            fontSize: "32px",
+                            fontSize: `${nameSize}px`,
                             fontWeight: 600,
                             color: "#1f2937",
                             display: "flex",

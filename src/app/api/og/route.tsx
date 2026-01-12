@@ -175,52 +175,20 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
     return (
-        <div
-            style={{
-                height: '100%',
-                width: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: '#ffffff',
-                padding: '64px 48px',
-                position: 'relative',
-            }}
+        <Container 
+            watermarkProps={{ size: 120, fontSize: 50, bottom: 52, right: 52 }}
+            containerPadding="64px 48px"
         >
-            {/* Header */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '20px',
-                marginBottom: '48px',
-            }}>
-                {data.city.logoImage && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={data.city.logoImage}
-                        height="100"
-                        alt="City Logo"
-                        style={{
-                            objectFit: 'contain',
-                        }}
-                    />
-                )}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                }}>
-                    <span style={{
-                        fontSize: 36,
-                        fontWeight: 600,
-                        color: '#1f2937',
-                        display: 'flex',
-                    }}>
-                        {data.city.name_municipality}
-                    </span>
-                </div>
-            </div>
+            <OgHeader
+                city={{
+                    name: data.city.name_municipality,
+                    logoImage: data.city.logoImage
+                }}
+                logoHeight={100}
+                nameSize={36}
+                marginBottom="48px"
+            />
 
-            {/* Main Content */}
             <div style={{
                 flex: 1,
                 display: 'flex',
@@ -268,10 +236,7 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
                     />
                 )}
             </div>
-
-            {/* Watermark */}
-            <OpenCouncilWatermark size={120} fontSize={50} bottom={52} right={52} />
-        </div>
+        </Container>
     );
 };
 
