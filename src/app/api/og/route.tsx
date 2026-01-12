@@ -8,10 +8,11 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, OgHeader } from '@/components/og/shared-components';
-import { getSubjectDataForOG } from '@/lib/db/subject';
+import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills } from '@/components/og/shared-components';
+// Import the native subject OG image generator for reuse
+import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
-// Meeting OG Image
+// Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
     if (!data) return null;
@@ -23,14 +24,8 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
-    // Sort subjects by hotness
-    const sortedSubjects = [...data.subjects].sort((a, b) => {
-        if (a.hot && !b.hot) return -1;
-        if (!a.hot && b.hot) return 1;
-        return 0;
-    });
-    const topSubjects = sortedSubjects.slice(0, 3);
-    const remainingCount = Math.max(0, data.subjects.length - 3);
+    // Sort subjects by importance (hot subjects first, then by speaking time)
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
     return (
         <Container>
@@ -60,84 +55,186 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
                     {data.name}
                 </h1>
 
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                    color: '#4b5563',
-                    fontSize: 28,
-                    marginTop: '8px',
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={28}
+                    gap={24}
+                    iconGap={8}
+                />
+
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={3}
+                        styles={{
+                            containerGap: 10,
+                            containerMarginTop: 16,
+                            pillPadding: [10, 20],
+                            pillRadius: 9999,
+                            pillFontSize: 22,
+                            pillFontWeight: 600,
+                            pillBoxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                            pillMaxWidth: '85%',
+                            remainingFontSize: 18,
+                            remainingMarginTop: 4,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
+                )}
+            </div>
+        </Container>
+    );
+};
+
+// Meeting Feed OG Image (Square - 1080x1080)
+const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
+    const data = await getMeetingDataForOG(cityId, meetingId);
+    if (!data) return null;
+
+    const meetingDate = new Date(data.dateTime);
+    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
+
+    return (
+        <Container watermarkProps={{ size: 120, fontSize: 50 }}>
+            <OgHeader
+                city={{
+                    name: data.city.name_municipality,
+                    logoImage: data.city.logoImage
+                }}
+            />
+
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '28px',
+                paddingTop: '8px',
+            }}>
+                <h1 style={{
+                    fontSize: 64,
+                    fontWeight: 800,
+                    color: '#111827',
+                    lineHeight: 1.25,
+                    margin: 0,
+                    maxWidth: '98%',
                 }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📅</span>
-                        <span>{formattedDate}</span>
-                    </div>
+                    {data.name}
+                </h1>
 
-                    <div style={{
-                        width: 4,
-                        height: 4,
-                        borderRadius: '50%',
-                        background: '#9ca3af',
-                    }} />
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={32}
+                    gap={24}
+                    iconGap={8}
+                />
 
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <span>📋</span>
-                        <span>{data.subjects?.length || 0} Θέματα</span>
-                    </div>
-                </div>
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={6}
+                        styles={{
+                            containerGap: 14,
+                            containerMarginTop: 14,
+                            pillPadding: [16, 30],
+                            pillRadius: 9999,
+                            pillFontSize: 30,
+                            pillFontWeight: 800,
+                            pillBoxShadow: '0 3px 6px rgba(0, 0, 0, 0.08)',
+                            pillMaxWidth: '95%',
+                            remainingFontSize: 20,
+                            remainingMarginTop: 4,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
+                )}
+            </div>
+        </Container>
+    );
+};
 
-                {topSubjects.length > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                        marginTop: '16px',
-                    }}>
-                        {topSubjects.map((subject) => (
-                            <div key={subject.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                backgroundColor: subject.topic?.colorHex || '#e5e7eb',
-                                padding: '10px 20px',
-                                borderRadius: '9999px',
-                                color: '#ffffff',
-                                fontSize: 22,
-                                fontWeight: 600,
-                                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                maxWidth: '85%',
-                            }}>
-                                <span style={{
-                                    display: 'flex',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                }}>{subject.name}</span>
-                            </div>
-                        ))}
-                        {remainingCount > 0 && (
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                color: '#6b7280',
-                                fontSize: 18,
-                                marginTop: '4px',
-                            }}>
-                                <span style={{
-                                    display: 'flex'
-                                }}>+{remainingCount} ακόμα θέματα</span>
-                            </div>
-                        )}
-                    </div>
+// Meeting Story OG Image (Vertical - 1080x1920 for Instagram Stories)
+const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
+    const data = await getMeetingDataForOG(cityId, meetingId);
+    if (!data) return null;
+
+    const meetingDate = new Date(data.dateTime);
+    const formattedDate = meetingDate.toLocaleDateString('el-GR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+
+    // Sort subjects by importance (hot subjects first, then by speaking time)
+    const sortedSubjects = sortSubjectsByImportance(data.subjects);
+
+    return (
+        <Container 
+            watermarkProps={{ size: 120, fontSize: 50, bottom: 52, right: 52 }}
+            containerPadding="64px 48px"
+        >
+            <OgHeader
+                city={{
+                    name: data.city.name_municipality,
+                    logoImage: data.city.logoImage
+                }}
+                logoHeight={100}
+                nameSize={36}
+                marginBottom="48px"
+            />
+
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px',
+            }}>
+                <h1 style={{
+                    fontSize: 88,
+                    fontWeight: 800,
+                    color: '#111827',
+                    lineHeight: 1.14,
+                    margin: 0,
+                    maxWidth: '100%',
+                }}>
+                    {data.name}
+                </h1>
+
+                <MeetingMetaRow
+                    formattedDate={formattedDate}
+                    subjectsCount={data.subjects?.length || 0}
+                    fontSize={36}
+                    stacked
+                    stackGap={18}
+                    iconGap={12}
+                    separator={false}
+                />
+
+                {sortedSubjects.length > 0 && (
+                    <SubjectPills
+                        subjects={sortedSubjects}
+                        limit={9}
+                        styles={{
+                            containerGap: 20,
+                            containerMarginTop: 36,
+                            pillPadding: [24, 34],
+                            pillRadius: 22,
+                            pillFontSize: 38,
+                            pillFontWeight: 800,
+                            pillBoxShadow: '0 4px 12px rgba(0, 0, 0, 0.14)',
+                            pillWidth: '100%',
+                            remainingFontSize: 26,
+                            remainingMarginTop: 8,
+                            remainingColor: '#6b7280',
+                        }}
+                    />
                 )}
             </div>
         </Container>
@@ -818,262 +915,6 @@ const ChatOGImage = () => {
     );
 };
 
-// Subject OG Image
-const SubjectOGImage = async (cityId: string, meetingId: string, subjectId: string) => {
-    const data = await getSubjectDataForOG(cityId, meetingId, subjectId);
-
-    if (!data) return null;
-
-    // Use the same calculation as the subject page - from statistics
-    const totalMinutes = Math.round(data.statistics?.speakingSeconds ? data.statistics.speakingSeconds / 60 : 0);
-
-    // Get top speaker IDs from statistics
-    const topSpeakersIds =
-        data.statistics?.people?.sort((a, b) => b.speakingSeconds - a.speakingSeconds).map(p => p.item.id) || [];
-
-    // Add the introducer at the start if they exist and aren't already in top speakers
-    const introducedByPerson = data.subject.introducedBy;
-    if (introducedByPerson && !topSpeakersIds.includes(introducedByPerson.id)) {
-        topSpeakersIds.unshift(introducedByPerson.id);
-    }
-
-    // Filter and sort to get top speakers (limit to first 4 for space)
-    const topSpeakers = topSpeakersIds
-        .map(id => data.people.find(p => p.id === id))
-        .filter((p): p is any => p !== undefined)
-        .slice(0, 4);
-
-    return (
-        <Container>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px',
-            }}>
-                {/* Header with city and meeting info */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                }}>
-                    {data.city.logoImage && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={data.city.logoImage}
-                            alt={data.city.name}
-                            width="80"
-                            height="80"
-                            style={{ objectFit: 'contain' }}
-                        />
-                    )}
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                    }}>
-                        <div style={{
-                            fontSize: '24px',
-                            color: '#6b7280',
-                            display: 'flex',
-                        }}>
-                            {data.city.name}
-                        </div>
-                        <div style={{
-                            fontSize: '20px',
-                            color: '#9ca3af',
-                            display: 'flex',
-                        }}>
-                            {data.meeting.name}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Subject title */}
-                <div style={{
-                    fontSize: '48px',
-                    fontWeight: 'bold',
-                    color: '#1f2937',
-                    lineHeight: 1.2,
-                    paddingRight: '120px', // Make room for statistics
-                    display: 'flex',
-                }}>
-                    {data.subject.name}
-                </div>
-
-                {/* Topic and location badges */}
-                <div style={{
-                    display: 'flex',
-                    gap: '16px',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                }}>
-                    {/* Topic badge */}
-                    {data.subject.topic && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            backgroundColor: data.subject.topic.colorHex || '#e5e7eb',
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            color: '#ffffff',
-                            fontSize: '18px',
-                            fontWeight: '600',
-                        }}>
-                            <div style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: '#ffffff',
-                                display: 'flex',
-                            }} />
-                            <span style={{ display: 'flex' }}>{data.subject.topic.name}</span>
-                        </div>
-                    )}
-
-                    {/* Location badge */}
-                    {data.subject.location && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            backgroundColor: '#f3f4f6',
-                            padding: '8px 16px',
-                            borderRadius: '8px',
-                            color: '#4b5563',
-                            fontSize: '18px',
-                            fontWeight: '500',
-                        }}>
-                            <span style={{ display: 'flex' }}>📍</span>
-                            <span style={{ display: 'flex' }}>{data.subject.location.text}</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Speaking time and speakers */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '32px',
-                }}>
-                    {/* Speaking time */}
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                    }}>
-                        <div style={{
-                            fontSize: '36px',
-                            fontWeight: 'bold',
-                            color: '#1f2937',
-                            display: 'flex',
-                        }}>
-                            {totalMinutes}
-                        </div>
-                        <div style={{
-                            fontSize: '16px',
-                            color: '#6b7280',
-                            display: 'flex',
-                        }}>
-                            λεπτά συζήτησης
-                        </div>
-                    </div>
-
-                    {/* Top speakers */}
-                    {topSpeakers.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            gap: '12px',
-                            alignItems: 'center',
-                        }}>
-                            {topSpeakers.map((person, index) => {
-                                // Find party from roles
-                                const currentRole = person.roles?.find((role: any) => {
-                                    const now = new Date();
-                                    return (!role.startDate || role.startDate <= now) &&
-                                        (!role.endDate || role.endDate > now);
-                                });
-                                const partyColor = currentRole?.party?.colorHex || '#e5e7eb';
-
-                                // Get initials
-                                const nameParts = person.name.split(' ');
-                                const initials = nameParts.length > 1
-                                    ? `${nameParts[0].charAt(0)}${nameParts[nameParts.length - 1].charAt(0)}`
-                                    : person.name.substring(0, 2).toUpperCase();
-
-                                const isIntroducer = introducedByPerson && person.id === introducedByPerson.id;
-
-                                return (
-                                    <div key={person.id} style={{
-                                        position: 'relative',
-                                        display: 'flex',
-                                    }}>
-                                        <div style={{
-                                            width: '60px',
-                                            height: '60px',
-                                            borderRadius: '30px',
-                                            backgroundColor: '#ffffff',
-                                            border: `3px solid ${partyColor}`,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '20px',
-                                            fontWeight: 'bold',
-                                            color: partyColor,
-                                        }}>
-                                            {person.image ? (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                    src={person.image}
-                                                    alt={person.name}
-                                                    width="60"
-                                                    height="60"
-                                                    style={{ borderRadius: '30px', objectFit: 'cover' }}
-                                                />
-                                            ) : (
-                                                <span style={{ display: 'flex' }}>{initials}</span>
-                                            )}
-                                        </div>
-                                        {isIntroducer && (
-                                            <div style={{
-                                                position: 'absolute',
-                                                top: '-6px',
-                                                right: '-6px',
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '12px',
-                                                backgroundColor: '#ffffff',
-                                                border: '2px solid #ffffff',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                fontSize: '12px',
-                                            }}>
-                                                ✏️
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                            {topSpeakersIds.length > 4 && (
-                                <div style={{
-                                    fontSize: '16px',
-                                    color: '#6b7280',
-                                    display: 'flex',
-                                }}>
-                                    +{topSpeakersIds.length - 4} ακόμα
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </Container>
-    );
-};
-
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cityId = searchParams.get('cityId');
@@ -1082,16 +923,34 @@ export async function GET(request: Request) {
     const personId = searchParams.get('personId');
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'about', 'search', 'chat'
+    const variant = searchParams.get('variant'); // 'story' for 9:16, 'feed' for 1:1, default is landscape
 
     try {
         let element;
+        let width = 1200;
+        let height = 630;
+
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId);
         } else if (subjectId && meetingId && cityId) {
-            // Subject-specific OG image
-            element = await SubjectOGImage(cityId, meetingId, subjectId);
+            // Subject-specific OG image - reuse the native opengraph-image.tsx logic
+            // Note: locale doesn't affect the image content, so we use 'el' as default
+            return await SubjectOgImage({ params: { locale: 'el', cityId, meetingId, subjectId } });
         } else if (meetingId && cityId) {
-            element = await MeetingOGImage(cityId, meetingId);
+            // Handle variant for meeting images
+            if (variant === 'story') {
+                element = await MeetingStoryOGImage(cityId, meetingId);
+                width = 1080;
+                height = 1920;
+            } else if (variant === 'feed') {
+                // Square format for feed posts
+                element = await MeetingFeedOGImage(cityId, meetingId);
+                width = 1080;
+                height = 1080;
+            } else {
+                // Default landscape format
+                element = await MeetingOGImage(cityId, meetingId);
+            }
         } else if (personId && cityId) {
             element = await PersonOGImage(cityId, personId);
         } else if (pageType === 'people' && cityId) {
@@ -1113,8 +972,8 @@ export async function GET(request: Request) {
         }
 
         return new ImageResponse(element, {
-            width: 1200,
-            height: 630,
+            width,
+            height,
         });
     } catch (e) {
         console.error(e);
