@@ -14,6 +14,8 @@ For a complete list of options:
 ./run.sh --help
 ```
 
+**Running Multiple Instances**: If you need to run multiple instances simultaneously (e.g., with git worktrees), the script automatically detects available ports. See the [CONTRIBUTING guide](../CONTRIBUTING.md#working-with-multiple-features-simultaneously) for details on this workflow.
+
 ### Development Mode
 
 ```bash
@@ -36,6 +38,29 @@ For a complete list of options:
 # Run with remote database
 ./run.sh --prod --remote-db
 ```
+
+### Running Multiple Instances
+
+You can run multiple instances of OpenCouncil simultaneously, which is useful for git worktrees or parallel development. **The script automatically detects if ports are in use** and finds the next available port:
+
+```bash
+# First instance (uses default ports: 3000, 5555, 5432)
+./run.sh
+
+# Second instance (automatically uses 3001, 5556, 5433)
+./run.sh
+
+# Third instance (automatically uses 3002, 5557, 5434)
+./run.sh
+```
+
+The script will inform you which ports it's using. If you prefer to specify ports manually:
+
+```bash
+./run.sh --app-port 3001 --prisma-port 5556 --db-port 5433
+```
+
+The script will automatically detect if ports are in use and find the next available ones, making it easy to run multiple instances without manual configuration.
 
 ### Running Just the Database
 

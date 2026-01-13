@@ -6,7 +6,7 @@ services:
       args:
         - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     env_file:
       - ${ENV_FILE:-.env}
     environment:
@@ -25,8 +25,8 @@ services:
       args:
         - USE_LOCAL_DB=${USE_LOCAL_DB:-true}
     ports:
-      - "3000:3000"
-      - "5555:5555"
+      - "${APP_PORT:-3000}:3000"
+      - "${PRISMA_STUDIO_PORT:-5555}:5555"
     env_file:
       - ${ENV_FILE:-.env}
     environment:
@@ -54,7 +54,7 @@ services:
       - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
       - POSTGRES_DB=${DATABASE_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     command: -c 'max_connections=200'
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]

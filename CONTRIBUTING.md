@@ -9,6 +9,27 @@ To get started with development, you'll need to set up the project on your local
 > [!TIP]
 > Please follow the [Development Setup guide in our README.md](./README.md#development-setup) to get your environment up and running.
 
+### Working with Multiple Features Simultaneously
+
+When collaborating with AI co-pilots on multiple features or bug fixes in parallel, git worktrees provide an efficient workflow. Each worktree is a separate working directory linked to the same repository, allowing you to work on multiple branches without switching contexts.
+
+```bash
+# Create a new branch from main and set up a worktree for it
+git worktree add -b feature-branch-name ../opencouncil-feature-name main
+
+# Open a new terminal/IDE window in the worktree directory
+# Then start the development environment
+cd ../opencouncil-feature-name
+./run.sh  # Automatically uses available ports (e.g., 3001, 5556, 5433)
+```
+
+Our Docker setup automatically detects if ports are in use and allocates the next available ports, making it seamless to run multiple instances simultaneously. Open each worktree in a separate terminal or IDE window to work on multiple features in parallel. This allows you to:
+- Keep your main development environment running while testing features in isolation
+- Work with AI co-pilots on multiple issues concurrently in different windows
+- Quickly switch between different features without stopping and restarting services
+
+For more details on Docker configuration, see [`docs/docker-usage.md`](./docs/docker-usage.md).
+
 ## Contributor Workflow
 
 Our development methodology is founded on a **co-creation partnership** between human contributors and AI. The human provides the creative leadership and strategic direction; the AI acts as a thinking partner and a powerful co-creator, automating the heavy lifting of planning and coding. **This process is supported by a series of dedicated AI co-pilots, each guided [by a prompt that can be found in our repository](/docs/prompts/)**.

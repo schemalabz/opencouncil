@@ -8,9 +8,52 @@ USE_LOCAL_DB="true"
 ENV_FILE=".env"
 DETACHED=""
 EXTRA_OPTIONS=""
+AUTO_PORT="false"
+APP_PORT=""
+PRISMA_STUDIO_PORT=""
+DB_PORT=""
 
 # Track the last used configuration
 LAST_CONFIG_FILE=".last_docker_config"
+
+# Function to check if a port is in use
+function is_port_in_use() {
+    local port=$1
+    # Check if port is in use using multiple methods for reliability
+    if command -v lsof &> /dev/null; then
+        lsof -i :$port -sTCP:LISTEN -t &> /dev/null
+        return $?
+    elif command -v ss &> /dev/null; then
+        ss -ltn | grep -q ":$port " &> /dev/null
+        return $?
+    elif command -v netstat &> /dev/null; then
+        netstat -tuln | grep -q ":$port " &> /dev/null
+        return $?
+    else
+        # Fallback: try to bind to the port using bash
+        (echo >/dev/tcp/localhost/$port) &>/dev/null
+        return $?
+    fi
+}
+
+# Function to find the next available port starting from a base port
+function find_available_port() {
+    local base_port=$1
+    local max_attempts=${2:-20}  # Try up to 20 ports
+    local current_port=$base_port
+    
+    for ((i=0; i<max_attempts; i++)); do
+        if ! is_port_in_use $current_port; then
+            echo $current_port
+            return 0
+        fi
+        ((current_port++))
+    done
+    
+    # If we couldn't find an available port, return the base port and let Docker fail with a clear error
+    echo $base_port
+    return 1
+}
 
 # Function to safely clean Docker resources specific to our app
 function clean_resources() {
@@ -61,6 +104,11 @@ function show_help {
   echo "  --env FILE           Specify the environment file (default: .env)"
   echo "  --detached, -d       Run in detached mode (background)"
   echo "  --help               Show this help message"
+  echo "Port configuration (for running multiple instances):"
+  echo "  --auto-port          Automatically find available ports (default)"
+  echo "  --app-port PORT      Set the app port explicitly (disables auto-port)"
+  echo "  --prisma-port PORT   Set the Prisma Studio port explicitly (disables auto-port)"
+  echo "  --db-port PORT       Set the database port explicitly (disables auto-port)"
   echo "Helper commands:"
   echo "  --clean              Remove all OpenCouncil Docker resources (containers, volumes, networks)"
   echo ""
@@ -69,6 +117,9 @@ function show_help {
   echo "  ./run.sh -- --build               # Force rebuild of all containers"
   echo "  ./run.sh -- -V                    # Show docker compose version"
   echo "  ./run.sh --prod --remote-db -- --build --no-cache  # Build with no cache in prod mode"
+  echo "  ./run.sh                          # Automatically finds available ports"
+  echo "  ./run.sh --app-port 3001 --db-port 5433           # Use specific ports"
+  echo "  APP_PORT=3001 DB_PORT=5433 ./run.sh               # Alternative using env vars"
   exit 0
 }
 
@@ -94,6 +145,10 @@ while [[ "$#" -gt 0 ]]; do
         --remote-db) USE_LOCAL_DB="false" ;;
         --env) ENV_FILE="$2"; shift ;;
         --detached|-d) DETACHED="-d" ;;
+        --auto-port) AUTO_PORT="true" ;;
+        --app-port) APP_PORT="$2"; AUTO_PORT="false"; shift ;;
+        --prisma-port) PRISMA_STUDIO_PORT="$2"; AUTO_PORT="false"; shift ;;
+        --db-port) DB_PORT="$2"; AUTO_PORT="false"; shift ;;
         --help) show_help ;;
         --clean)
             clean_resources
@@ -116,9 +171,61 @@ else
 fi
 echo ""
 
+# Auto-detect available ports if not explicitly set
+if [ -z "$APP_PORT" ]; then
+    AUTO_PORT="true"
+fi
+
+if [ "$AUTO_PORT" = "true" ]; then
+    echo "🔍 Auto-detecting available ports..."
+    
+    # Find available ports
+    if [ -z "$APP_PORT" ]; then
+        APP_PORT=$(find_available_port 3000)
+        if [ $? -eq 0 ]; then
+            if [ "$APP_PORT" != "3000" ]; then
+                echo "   ℹ️  Port 3000 is in use, using $APP_PORT for app instead"
+            fi
+        else
+            echo "   ⚠️  Could not find available port for app, trying 3000 anyway"
+        fi
+    fi
+    
+    if [ -z "$PRISMA_STUDIO_PORT" ]; then
+        PRISMA_STUDIO_PORT=$(find_available_port 5555)
+        if [ $? -eq 0 ]; then
+            if [ "$PRISMA_STUDIO_PORT" != "5555" ]; then
+                echo "   ℹ️  Port 5555 is in use, using $PRISMA_STUDIO_PORT for Prisma Studio instead"
+            fi
+        else
+            echo "   ⚠️  Could not find available port for Prisma Studio, trying 5555 anyway"
+        fi
+    fi
+    
+    if [ -z "$DB_PORT" ] && [ "$USE_LOCAL_DB" = "true" ]; then
+        DB_PORT=$(find_available_port 5432)
+        if [ $? -eq 0 ]; then
+            if [ "$DB_PORT" != "5432" ]; then
+                echo "   ℹ️  Port 5432 is in use, using $DB_PORT for database instead"
+            fi
+        else
+            echo "   ⚠️  Could not find available port for database, trying 5432 anyway"
+        fi
+    fi
+    echo ""
+fi
+
+# Set defaults if still empty
+APP_PORT="${APP_PORT:-3000}"
+PRISMA_STUDIO_PORT="${PRISMA_STUDIO_PORT:-5555}"
+DB_PORT="${DB_PORT:-5432}"
+
 # Export variables for docker compose
 export USE_LOCAL_DB=$USE_LOCAL_DB
 export ENV_FILE=$ENV_FILE
+export APP_PORT=$APP_PORT
+export PRISMA_STUDIO_PORT=$PRISMA_STUDIO_PORT
+export DB_PORT=$DB_PORT
 
 # Load environment variables from the specified env file
 if [ -f "$ENV_FILE" ]; then
@@ -150,6 +257,17 @@ if [ -f "$ENV_FILE" ]; then
 else
     echo "Warning: Environment file $ENV_FILE not found. Using default environment variables."
 fi
+
+# Print port configuration
+echo "🔌 Port configuration:"
+echo "   - App: http://localhost:$APP_PORT"
+if [ "$MODE" = "dev" ]; then
+    echo "   - Prisma Studio: http://localhost:$PRISMA_STUDIO_PORT"
+fi
+if [ "$USE_LOCAL_DB" = "true" ]; then
+    echo "   - Database: localhost:$DB_PORT"
+fi
+echo ""
 
 # If there are extra options, show them
 if [ ! -z "$EXTRA_OPTIONS" ]; then

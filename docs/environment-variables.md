@@ -142,6 +142,15 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 | `SEED_DATA_URL` | URL to fetch seed data from if local file doesn't exist. | No | [link](https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json) |
 | `SEED_DATA_PATH` | Path to local seed data file. | No | `./prisma/seed_data.json` |
 
+### Docker Port Configuration
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `APP_PORT` | Host port for the Next.js application. | No | `3000` (auto-detected) |
+| `PRISMA_STUDIO_PORT` | Host port for Prisma Studio (dev mode only). | No | `5555` (auto-detected) |
+| `DB_PORT` | Host port for the local PostgreSQL database. | No | `5432` (auto-detected) |
+
+**Note**: By default, the run script automatically detects if these ports are in use and finds the next available port. This makes it easy to run multiple instances simultaneously (e.g., with git worktrees) without manual configuration. You can override this by explicitly setting these variables or using command-line flags. See [Running Multiple Instances](./docker-usage.md#running-multiple-instances) for detailed usage examples.
+
 ## Development Features
 
 ### Mock Data
