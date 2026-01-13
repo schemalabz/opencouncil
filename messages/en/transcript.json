@@ -21,7 +21,11 @@
       "highlightCreatedDescription": "Highlight started with this utterance. Add more utterances to build your highlight.",
       "error": "Error",
       "createHighlightError": "Failed to create highlight. Please try again.",
-      "editError": "Failed to save changes. Please try again."
+      "editError": "Failed to save changes. Please try again.",
+      "deleteUtterance": "Delete utterance?",
+      "deleteUtteranceDescription": "This action cannot be undone.",
+      "utteranceDeletedSuccessfully": "Utterance deleted successfully",
+      "deleteError": "Failed to delete utterance"
     },
     "common": {
       "error": "Error"
@@ -38,5 +42,14 @@
   "unverifiedBanner": {
     "title": "Automatic Transcript",
     "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated within 48 hours of the meeting."
+  },
+  "emptySegment": {
+    "noUtterances": "No utterances in this segment",
+    "addUtterance": "Add Utterance",
+    "adding": "Adding..."
+  },
+  "addUtterance": {
+    "button": "Add utterance",
+    "tooltip": "Add a new utterance at the end of this segment"
   }
 }

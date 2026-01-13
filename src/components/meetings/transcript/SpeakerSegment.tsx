@@ -8,10 +8,11 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot, FileJson } from "lucide-react";
+import { Plus, Trash2, Bot, FileJson, MessageSquarePlus } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
+import { useTranslations } from 'next-intl';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -74,6 +75,93 @@ const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: {
                 </Tooltip>
             </div>
         </div>
+    );
+};
+
+const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
+    const { addUtteranceToSegment } = useCouncilMeetingData();
+    const [isLoading, setIsLoading] = useState(false);
+    const t = useTranslations('transcript.emptySegment');
+
+    const handleAddUtterance = async () => {
+        setIsLoading(true);
+        try {
+            const newUtteranceId = await addUtteranceToSegment(segmentId);
+            
+            // Focus on the new utterance after a short delay to ensure it's rendered
+            setTimeout(() => {
+                const utteranceElement = document.getElementById(newUtteranceId);
+                if (utteranceElement) {
+                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    utteranceElement.click(); // Trigger click to enter edit mode
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Failed to add utterance:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="px-4 py-8 flex flex-col items-center gap-3 border-2 border-dashed border-muted rounded-md my-2">
+            <MessageSquarePlus className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t('noUtterances')}</p>
+            <Button 
+                onClick={handleAddUtterance} 
+                size="sm" 
+                variant="outline"
+                disabled={isLoading}
+            >
+                <Plus className="h-4 w-4 mr-2" />
+                {isLoading ? t('adding') : t('addUtterance')}
+            </Button>
+        </div>
+    );
+};
+
+const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
+    const { addUtteranceToSegment } = useCouncilMeetingData();
+    const { options } = useTranscriptOptions();
+    const t = useTranslations('transcript.addUtterance');
+
+    if (!options.editable) return null;
+
+    const handleAddUtterance = async () => {
+        try {
+            const newUtteranceId = await addUtteranceToSegment(segmentId);
+            
+            // Focus on the new utterance after a short delay to ensure it's rendered
+            setTimeout(() => {
+                const utteranceElement = document.getElementById(newUtteranceId);
+                if (utteranceElement) {
+                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    utteranceElement.click(); // Trigger click to enter edit mode
+                }
+            }, 100);
+        } catch (error) {
+            console.error('Failed to add utterance:', error);
+        }
+    };
+
+    return (
+        <span className="inline-flex items-center group relative ml-1">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                        onClick={handleAddUtterance}
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{t('tooltip')}</p>
+                </TooltipContent>
+            </Tooltip>
+        </span>
     );
 };
 
@@ -285,17 +373,22 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                             </div>
                         )}
                     </div>
-                    <div className='font-mono px-4 py-3 text-justify w-full leading-relaxed'>
-                        {renderMock ? (
+                    <div className='font-mono px-4 py-3 text-justify w-full leading-relaxed group'>
+                        {utterances.length === 0 && options.editable && !renderMock ? (
+                            <EmptySegmentState segmentId={segment.id} />
+                        ) : renderMock ? (
                             <div className='w-full break-words whitespace-pre-wrap'>
                                 {utterances.map((u, i) =>
                                     <span className='break-words' id={u.id} key={u.id}>{u.text} </span>
                                 )}
                             </div>
                         ) : (
-                            <>
+                            <div className='w-full break-words whitespace-pre-wrap'>
                                 {utterances.map((u) => <UtteranceC utterance={u} key={u.id} />)}
-                            </>
+                                {utterances.length > 0 && options.editable && (
+                                    <AddUtteranceButton segmentId={segment.id} />
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>

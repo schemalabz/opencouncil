@@ -8,7 +8,7 @@ import { useHighlight } from "../HighlightContext";
 import { editUtterance } from "@/lib/db/utterance";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -35,7 +35,7 @@ const UtteranceC: React.FC<{
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
-    const { moveUtterancesToPrevious, moveUtterancesToNext } = useCouncilMeetingData();
+    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance } = useCouncilMeetingData();
     const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
@@ -243,6 +243,24 @@ const UtteranceC: React.FC<{
         await extractSelectedSegment();
     };
 
+    const handleDeleteUtterance = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        // Delete immediately without confirmation since utterance is empty
+        try {
+            await deleteUtterance(localUtterance.id);
+            toast({
+                description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }),
+            });
+        } catch (error) {
+            toast({
+                title: t('common.error'),
+                description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }),
+                variant: 'destructive'
+            });
+        }
+    };
+
     if (localUtterance.drift > options.maxUtteranceDrift) {
         return <span id={localUtterance.id} className="hover:bg-accent utterance transcript-text" />;
     }
@@ -316,10 +334,46 @@ const UtteranceC: React.FC<{
         );
     }
 
+    // Show placeholder for empty utterances in editing mode
+    const isEmptyUtterance = !localUtterance.text.trim();
+    const displayText = options.editable && isEmptyUtterance
+        ? '[Empty utterance - click to edit]' 
+        : localUtterance.text + ' ';
+    
+    const emptyUtteranceClass = options.editable && isEmptyUtterance
+        ? 'text-muted-foreground italic'
+        : '';
+
     if (!hasContextMenuOptions) {
         return (
-            <span className={className} id={localUtterance.id} onClick={handleClick}>
-                {localUtterance.text + ' '}
+            <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
+                {displayText}
+            </span>
+        );
+    }
+
+    // Show inline delete button for empty utterances in editing mode
+    if (options.editable && isEmptyUtterance && !isEditing) {
+        return (
+            <span className="inline-flex items-center gap-1 group">
+                <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
+                    {displayText}
+                </span>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
+                            onClick={handleDeleteUtterance}
+                        >
+                            <Trash2 className="h-3 w-3 text-red-600" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Delete empty utterance</p>
+                    </TooltipContent>
+                </Tooltip>
             </span>
         );
     }
@@ -351,8 +405,8 @@ const UtteranceC: React.FC<{
             }
         }}>
             <ContextMenuTrigger>
-                <span className={className} id={localUtterance.id} onClick={handleClick}>
-                    {localUtterance.text + ' '}
+                <span className={cn(className, emptyUtteranceClass)} id={localUtterance.id} onClick={handleClick}>
+                    {displayText}
                 </span>
             </ContextMenuTrigger>
             <ContextMenuContent>

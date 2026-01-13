@@ -33,12 +33,21 @@ The system divides editing into distinct categories and modes:
 
 4.  **Segment Management**:
     *   **Creation**: Users can create new empty speaker segments either after an existing segment or before the very first segment.
+    *   **Adding Utterances to Empty Segments**:
+        *   **Main UI (Primary Method)**: When editing mode is active and a segment has no utterances, an empty state UI is automatically displayed with a prominent "Add Utterance" button. Clicking this button:
+            *   Creates a new empty utterance with timestamps calculated from the segment boundaries
+            *   Start timestamp = segment start (or after the last utterance if segment is not empty)
+            *   Duration = 1 second
+            *   Immediately enables inline editing so the user can type the utterance text
+            *   Uses the unified `addUtteranceToSegment` backend function
+        *   **Adding to Non-Empty Segments**: A small inline "+" button appears at the end of each segment's text on hover, allowing users to naturally add new utterances at the end.
+        *   **Advanced Method (Super Admin)**: The `SpeakerSegmentMetadataDialog` provides JSON-level editing for batch operations and complex edits.
     *   **Metadata Inspection**: Super Admins can view detailed metadata via the `SpeakerSegmentMetadataDialog`.
     *   **Advanced Editing**: The system supports complex segment updates via 
     `updateSpeakerSegmentData`, accessible through the metadata dialog. This allows:
         *   Batch updates of utterances (text, timestamps).
-        *   **Adding Utterances**: Users can click "Add Empty Utterance" to append a new 
-        placeholder utterance to the segment's JSON data. The backend recognizes these via 
+        *   **Adding Multiple Utterances**: Users can click "Add Empty Utterance" to append new 
+        placeholder utterances to the segment's JSON data. The backend recognizes these via 
         temporary IDs (`temp_...`) and creates actual records.
         *   Deleting utterances (by removing them from the JSON array).
         *   Automatic recalculation of segment boundaries.
@@ -104,6 +113,15 @@ sequenceDiagram
     Backend->>Database: CREATE SpeakerTag & SpeakerSegment
     Backend-->>Frontend: Return new Segment
 
+    %% Add Utterance to Segment Flow
+    User->>Frontend: Clicks "Add Utterance" (empty segment or hover button)
+    Frontend->>Backend: addUtteranceToSegment(segmentId)
+    Backend->>Backend: Calculate timestamps (segment start if empty, after last utterance otherwise)
+    Backend->>Database: CREATE Utterance with calculated timestamps
+    Backend->>Database: UPDATE Segment end timestamp if needed
+    Backend-->>Frontend: Return updated Segment with new Utterance
+    Frontend->>Frontend: Automatically enter edit mode on new utterance
+
     %% Extraction Flow
     User->>Frontend: Selects utterances (Shift+Click)
     User->>Frontend: Presses 'e' or clicks "Extract Segment"
@@ -137,6 +155,7 @@ sequenceDiagram
     *   `TranscriptControls`: [`src/components/meetings/TranscriptControls.tsx`](../../src/components/meetings/TranscriptControls.tsx) (Video player and clip navigation)
     *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx) (Inline editing, visual state)
     *   `PersonBadge`: [`src/components/persons/PersonBadge.tsx`](../../src/components/persons/PersonBadge.tsx) (Speaker autocomplete and assignment)
+    *   `SpeakerSegment`: [`src/components/meetings/transcript/SpeakerSegment.tsx`](../../src/components/meetings/transcript/SpeakerSegment.tsx) (Displays empty state UI with "Add Utterance" button via `EmptySegmentState` component)
 
 *   **State & Context**:
     *   `TranscriptOptionsContext`: [`src/components/meetings/options/OptionsContext.tsx`](../../src/components/meetings/options/OptionsContext.tsx) (Manages `editable` state)
@@ -149,7 +168,8 @@ sequenceDiagram
     *   `moveUtterancesToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts)
     *   `extractSpeakerSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles extracting utterance ranges into new segments)
     *   `createEmptySpeakerSegmentBefore/After`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles creating new segments with "New speaker segment" tag)
-    *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion, and timestamp recalculation)
+    *   `addUtteranceToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Unified function for adding utterances to any segment - handles both empty and non-empty cases with automatic timestamp calculation)
+    *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion via temp IDs, and timestamp recalculation - used for advanced editing)
 
 **Business Rules & Assumptions**
 
@@ -159,6 +179,14 @@ sequenceDiagram
 *   **Segment Creation**:
     *   Creating a segment *after* an existing one sets its start time to the previous segment's end time (+0.01s).
     *   Creating a segment *before* the first segment is only possible if there is available time (start > 0). It defaults to a small duration before the first segment's start.
+*   **Adding Utterances to Segments**:
+    *   Available for both empty and non-empty segments via `addUtteranceToSegment`.
+    *   Timestamps are automatically calculated:
+        *   **Empty segment**: `start = segment.startTimestamp`, `duration = min(1 second, segment duration)`
+        *   **Non-empty segment**: `start = last utterance's end timestamp`, `duration = 1 second`
+        *   If the new utterance extends beyond the segment's end, the segment's `endTimestamp` is automatically updated.
+        *   `end = start + duration`
+    *   After creation, the utterance is immediately editable inline (frontend automatically focuses the new utterance).
 *   **Complex Segment Edits**: When updating a whole segment via `updateSpeakerSegmentData`, at least one utterance must remain. Timestamps must be valid (start < end).
     *   New utterances added via the JSON editor use temporary IDs (starting with `temp_`) which are detected by the backend and replaced with real DB records.
 *   **Edit Attribution**: All text edits must be attributed to either a specific `User` or a `task`.

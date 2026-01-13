@@ -2,7 +2,8 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
 import { Person, Party, SpeakerTag } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
-import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment } from '@/lib/db/speakerSegments';
+import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
+import { deleteUtterance } from '@/lib/db/utterance';
 import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -23,6 +24,8 @@ export interface CouncilMeetingDataContext extends MeetingData {
     moveUtterancesToNext: (utteranceId: string, currentSegmentId: string) => Promise<void>;
     deleteEmptySegment: (segmentId: string) => Promise<void>;
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
+    addUtteranceToSegment: (segmentId: string) => Promise<string>;
+    deleteUtterance: (utteranceId: string) => Promise<void>;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
     addHighlight: (highlight: HighlightWithUtterances) => void;
@@ -248,6 +251,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 segment.id === segmentId ? updatedSegment : segment
             ));
         },
+        addUtteranceToSegment: async (segmentId: string) => {
+            console.log(`Adding utterance to segment ${segmentId}`);
+            const updatedSegment = await addUtteranceToSegment(segmentId, data.meeting.cityId);
+            
+            // Update transcript state with the fully updated segment data
+            setTranscript(prev => prev.map(segment =>
+                segment.id === segmentId ? updatedSegment : segment
+            ));
+            
+            // Return the ID of the newly created utterance (last one in the updated segment)
+            const newUtterance = updatedSegment.utterances[updatedSegment.utterances.length - 1];
+            return newUtterance?.id || '';
+        },
         extractSpeakerSegment: async (segmentId: string, startUtteranceId: string, endUtteranceId: string) => {
             const newSegments = await extractSpeakerSegment(data.meeting.cityId, data.meeting.id, segmentId, startUtteranceId, endUtteranceId);
             
@@ -269,6 +285,36 @@ export function CouncilMeetingDataProvider({ children, data }: {
                  const tagsToAdd = newTags.filter(t => !prevIds.has(t.id));
                  return [...prev, ...tagsToAdd];
             });
+        },
+        deleteUtterance: async (utteranceId: string) => {
+            console.log(`Deleting utterance ${utteranceId}`);
+            const { segmentId, remainingUtterances } = await deleteUtterance(utteranceId);
+            
+            // Update the segment to remove the utterance
+            setTranscript(prev => prev.map(segment => {
+                if (segment.id === segmentId) {
+                    const updatedUtterances = segment.utterances.filter(u => u.id !== utteranceId);
+                    
+                    // If no utterances remain, keep the segment but with empty utterances array
+                    // This will trigger the empty state UI to show
+                    if (remainingUtterances === 0) {
+                        return {
+                            ...segment,
+                            utterances: []
+                        };
+                    }
+                    
+                    // Otherwise, recalculate timestamps based on remaining utterances
+                    const allTimestamps = updatedUtterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+                    return {
+                        ...segment,
+                        utterances: updatedUtterances,
+                        startTimestamp: Math.min(...allTimestamps),
+                        endTimestamp: Math.max(...allTimestamps)
+                    };
+                }
+                return segment;
+            }));
         }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight]);
 

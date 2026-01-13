@@ -53,6 +53,23 @@ export interface EditableSpeakerSegmentData {
     } | null;
 }
 
+/**
+ * Calculate timestamps for a new utterance in an empty segment
+ * Uses segment boundaries and ensures a reasonable duration (max 1 second)
+ */
+function calculateEmptySegmentUtteranceTimestamps(
+    segmentStart: number,
+    segmentEnd: number
+): { startTimestamp: number; endTimestamp: number } {
+    const segmentDuration = segmentEnd - segmentStart;
+    const utteranceDuration = Math.min(1, segmentDuration);
+    
+    return {
+        startTimestamp: segmentStart,
+        endTimestamp: segmentStart + utteranceDuration
+    };
+}
+
 export async function createEmptySpeakerSegmentAfter(
     afterSegmentId: string,
     cityId: string,
@@ -167,6 +184,94 @@ export async function createEmptySpeakerSegmentBefore(
     console.log(`Created a new speaker segment before first segment: ${startTimestamp} - ${endTimestamp}. First segment starts at ${firstSegment.startTimestamp}`);
 
     return newSegment;
+}
+
+/**
+ * Add a new empty utterance to an empty speaker segment
+ * This is a simplified operation focused on the common case of adding a single utterance
+ * to a segment that has no utterances.
+ */
+/**
+ * Adds a new empty utterance to a segment
+ * - If segment is empty: creates utterance at segment start with 1 second duration
+ * - If segment has utterances: creates utterance after the last one with 1 second duration
+ */
+export async function addUtteranceToSegment(
+    segmentId: string,
+    cityId: string
+): Promise<SpeakerSegmentWithRelations> {
+    // Get the segment with its utterances
+    const segment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: {
+            utterances: {
+                orderBy: { startTimestamp: 'asc' }
+            }
+        }
+    });
+
+    if (!segment) {
+        throw new Error('Speaker segment not found');
+    }
+
+    if (segment.cityId !== cityId) {
+        throw new Error('City ID mismatch');
+    }
+
+    await withUserAuthorizedToEdit({ cityId });
+
+    let startTimestamp: number;
+    let endTimestamp: number;
+
+    if (segment.utterances.length === 0) {
+        // If segment is empty, use the segment boundaries
+        const timestamps = calculateEmptySegmentUtteranceTimestamps(
+            segment.startTimestamp,
+            segment.endTimestamp
+        );
+        startTimestamp = timestamps.startTimestamp;
+        endTimestamp = timestamps.endTimestamp;
+    } else {
+        // Get the last utterance
+        const lastUtterance = segment.utterances[segment.utterances.length - 1];
+        
+        // Start the new utterance right after the last one
+        startTimestamp = lastUtterance.endTimestamp;
+        // Default duration of 1 second for the new utterance
+        endTimestamp = startTimestamp + 1;
+    }
+
+    // Create the new utterance
+    await prisma.utterance.create({
+        data: {
+            text: '',
+            startTimestamp,
+            endTimestamp,
+            speakerSegmentId: segmentId
+        }
+    });
+
+    // Update segment end timestamp if the new utterance extends beyond it
+    if (endTimestamp > segment.endTimestamp) {
+        await prisma.speakerSegment.update({
+            where: { id: segmentId },
+            data: { endTimestamp }
+        });
+    }
+
+    // Return the updated segment with all relations
+    const updatedSegment = await prisma.speakerSegment.findUnique({
+        where: { id: segmentId },
+        include: speakerSegmentWithRelationsInclude
+    });
+
+    if (!updatedSegment) {
+        throw new Error('Failed to retrieve updated segment');
+    }
+
+    console.log(`Added new utterance to segment ${segmentId} at ${startTimestamp} - ${endTimestamp}`);
+
+    return updatedSegment;
 }
 
 async function moveUtterancesToSegment(
