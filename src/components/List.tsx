@@ -4,9 +4,11 @@ import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
+import { PaginationParams } from '@/lib/db/types';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
+import { Pagination } from './ui/pagination';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -30,6 +32,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     filter?: (selectedValues: F[], item: T) => boolean;
     allText?: string;
     showSearch?: boolean;
+    pagination?: PaginationParams;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -49,7 +52,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     showSearch = true,
     layout = 'grid',
     carouselItemWidth = 300,
-    carouselGap = 16
+    carouselGap = 16,
+    pagination
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -120,6 +124,18 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
+    // Client-side pagination: slice filtered items
+    const paginatedItems = pagination
+        ? filteredItems.slice(
+            (pagination.currentPage - 1) * pagination.pageSize,
+            pagination.currentPage * pagination.pageSize
+        )
+        : filteredItems;
+
+    const totalPages = pagination
+        ? Math.ceil(filteredItems.length / pagination.pageSize)
+        : 1;
+
     // Debounced URL update for search
     useEffect(() => {
         if (!showSearch) return;
@@ -131,6 +147,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             } else {
                 params.delete('search');
             }
+            params.delete('page'); // Reset to page 1 on search
             router.replace(`?${params.toString()}`);
         }, 300); // 300ms debounce delay
 
@@ -157,7 +174,18 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             params.set('filters', selectedLabels.join(','));
         }
 
+        params.delete('page'); // Reset to page 1 on filter change
         router.replace(`?${params.toString()}`);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (newPage > 1) {
+            params.set('page', newPage.toString());
+        } else {
+            params.delete('page');
+        }
+        router.push(`?${params.toString()}`);
     };
 
     return (
@@ -222,7 +250,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {filteredItems.map((item) => (
+                        {paginatedItems.map((item) => (
                             <div
                                 key={item.id}
                                 className={carouselItemClasses}
@@ -239,6 +267,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
+            )}
+
+            {pagination && totalPages > 1 && (
+                <Pagination
+                    currentPage={pagination.currentPage}
+                    totalPages={totalPages}
+                    pageSize={pagination.pageSize}
+                    onPageChange={handlePageChange}
+                    labels={{ previous: t('previous'), next: t('next') }}
+                />
             )}
         </div>
     );

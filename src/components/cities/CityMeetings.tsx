@@ -4,31 +4,24 @@ import List from '@/components/List';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { PaginationParams } from '@/lib/db/types';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
     cityId: string,
     timezone: string,
-    canEdit: boolean
-};
+    canEdit: boolean,
+} & Partial<PaginationParams>;
 
-export default function CityMeetings({ 
-    councilMeetings, 
-    cityId, 
+export default function CityMeetings({
+    councilMeetings,
+    cityId,
     timezone,
-    canEdit
+    canEdit,
+    currentPage,
+    pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
-
-    const orderedMeetings = [...councilMeetings]
-        .filter(meeting => canEdit || meeting.released)
-        .sort((a, b) => {
-            const timeCompare = new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
-            if (timeCompare === 0) {
-                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-            }
-            return timeCompare;
-        });
 
     const administrativeBodies = Array.from(new Map(councilMeetings
         .map(meeting => [
@@ -42,7 +35,7 @@ export default function CityMeetings({
 
     return (
         <List
-            items={orderedMeetings}
+            items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCard}
             itemProps={{ cityTimezone: timezone }}
@@ -55,6 +48,11 @@ export default function CityMeetings({
             mdColumns={2}
             lgColumns={3}
             allText="Όλα τα όργανα"
+            pagination={currentPage && pageSize ? {
+                currentPage,
+                totalPages: 0,
+                pageSize
+            } : undefined}
         />
     );
 } 
