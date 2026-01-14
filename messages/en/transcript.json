@@ -2,7 +2,11 @@
   "utterance": {
     "editing": {
       "saveShortcut": "Save (Enter)",
-      "cancelShortcut": "Cancel (Escape)"
+      "cancelShortcut": "Cancel (Escape)",
+      "timestamps": "Timestamps",
+      "useCurrent": "Use Current",
+      "setStartTime": "Set to current video time ([)",
+      "setEndTime": "Set to current video time (])"
     },
     "contextMenu": {
       "startHighlightFromHere": "Start Highlight from here",

@@ -9,6 +9,7 @@
     "unknownSpeaker": "Unknown Speaker",
     "nextUnknown": "Next Unknown",
     "speed": "Speed",
+    "skipInterval": "Skip Interval",
     "exit": "Exit",
     "enableEdit": "Enable Editing Mode",
     "guide": "Guide",
@@ -54,8 +55,18 @@
         "playPause": "Play / Pause",
         "previous": "Seek to previous utterance",
         "next": "Seek to next utterance",
+        "skipBackward": "Skip backward by interval",
+        "skipForward": "Skip forward by interval",
         "speedUp": "Increase playback speed",
         "speedDown": "Decrease playback speed"
+      },
+      "utteranceEditing": {
+        "title": "While Editing Utterance",
+        "playPause": "Play / Pause (Shift+Space works in text editor)",
+        "skipBackward": "Skip backward (Shift+← works in text editor)",
+        "skipForward": "Skip forward (Shift+→ works in text editor)",
+        "setStartTime": "Set start time to current video time",
+        "setEndTime": "Set end time to current video time"
       },
       "editing": {
         "title": "Text Editing",

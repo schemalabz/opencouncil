@@ -7,7 +7,7 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X, BookOpen, CheckCircle } from 'lucide-react';
+import { Edit, Gauge, UserRoundSearch, X, BookOpen, CheckCircle, SkipForward } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -173,6 +173,32 @@ export function EditingModeBar() {
                                                         className={Math.abs(parseFloat(playbackSpeed) - speed) < 0.01 ? "bg-accent font-bold" : ""}
                                                     >
                                                         {speed}x
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+
+                                        {/* Skip Interval */}
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="flex items-center space-x-1"
+                                                    title={t('actions.skipInterval')}
+                                                >
+                                                    <SkipForward className="h-4 w-4 mr-1" />
+                                                    <span>{options.skipInterval}s</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {[2, 5, 10, 15, 30].map((interval) => (
+                                                    <DropdownMenuItem
+                                                        key={interval}
+                                                        onClick={() => updateOptions({ skipInterval: interval })}
+                                                        className={options.skipInterval === interval ? "bg-accent font-bold" : ""}
+                                                    >
+                                                        {interval}s
                                                     </DropdownMenuItem>
                                                 ))}
                                             </DropdownMenuContent>

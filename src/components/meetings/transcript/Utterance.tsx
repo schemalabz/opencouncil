@@ -5,10 +5,10 @@ import { useTranslations } from 'next-intl';
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
-import { editUtterance } from "@/lib/db/utterance";
+import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     ContextMenu,
@@ -24,23 +24,25 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useShare } from "@/contexts/ShareContext";
-import { useEditing } from "../EditingContext";
-import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { useEditing } from "../EditingContext";import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { formatTimestamp } from "@/lib/formatters/time";
 
 const UtteranceC: React.FC<{
     utterance: Utterance,
     onUpdate?: (updatedUtterance: Utterance) => void
 }> = React.memo(({ utterance, onUpdate }) => {
-    const { currentTime, seekTo } = useVideo();
+    const { currentTime, seekTo, togglePlayPause } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
-    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance } = useCouncilMeetingData();
+    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
     const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
     const [editedText, setEditedText] = useState(utterance.text);
+    const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
+    const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
     const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
@@ -58,6 +60,8 @@ const UtteranceC: React.FC<{
     useEffect(() => {
         setLocalUtterance(utterance);
         setEditedText(utterance.text);
+        setEditedStartTime(utterance.startTimestamp);
+        setEditedEndTime(utterance.endTimestamp);
     }, [utterance]);
 
     useEffect(() => {
@@ -136,21 +140,66 @@ const UtteranceC: React.FC<{
     const handleEdit = async (e: React.FormEvent | React.MouseEvent) => {
         e.preventDefault();
         const originalText = localUtterance.text;
+        const originalStart = localUtterance.startTimestamp;
+        const originalEnd = localUtterance.endTimestamp;
+        
+        // Check if timestamps changed
+        const timestampsChanged = editedStartTime !== originalStart || editedEndTime !== originalEnd;
         
         // Optimistic update - immediate
-        setLocalUtterance({ ...localUtterance, text: editedText });
+        setLocalUtterance({ 
+            ...localUtterance, 
+            text: editedText,
+            startTimestamp: editedStartTime,
+            endTimestamp: editedEndTime
+        });
         setIsEditing(false);
         
         // Background save
         try {
+            // Update text first
             const updatedUtterance = await editUtterance(localUtterance.id, editedText);
-            setLocalUtterance(updatedUtterance);
-            onUpdate?.(updatedUtterance);
+            
+            // Then update timestamps if they changed
+            if (timestampsChanged) {
+                const { utterance: finalUtterance } = await updateUtteranceTimestamps(
+                    localUtterance.id, 
+                    editedStartTime, 
+                    editedEndTime
+                );
+                setLocalUtterance(finalUtterance);
+                
+                // Update everything in context in one call
+                // This will automatically recalculate and update segment timestamps
+                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { 
+                    text: editedText,
+                    startTimestamp: editedStartTime, 
+                    endTimestamp: editedEndTime 
+                });
+                
+                // Call onUpdate if provided (for future extensibility)
+                onUpdate?.(finalUtterance);
+            } else {
+                setLocalUtterance(updatedUtterance);
+                
+                // Update just the text in context
+                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { text: editedText });
+                
+                // Call onUpdate if provided (for future extensibility)
+                onUpdate?.(updatedUtterance);
+            }
         } catch (error) {
             console.error('Failed to edit utterance:', error);
             // Silent revert
-            setLocalUtterance({ ...localUtterance, text: originalText });
+            setLocalUtterance({ 
+                ...localUtterance, 
+                text: originalText,
+                startTimestamp: originalStart,
+                endTimestamp: originalEnd
+            });
             setEditedText(originalText);
+            setEditedStartTime(originalStart);
+            setEditedEndTime(originalEnd);
             toast({
                 title: t('common.error'),
                 description: t('toasts.editError'),
@@ -162,6 +211,16 @@ const UtteranceC: React.FC<{
     const handleCancel = () => {
         setIsEditing(false);
         setEditedText(localUtterance.text);
+        setEditedStartTime(localUtterance.startTimestamp);
+        setEditedEndTime(localUtterance.endTimestamp);
+    };
+
+    const setStartTimeToCurrentVideo = () => {
+        setEditedStartTime(currentTime);
+    };
+
+    const setEndTimeToCurrentVideo = () => {
+        setEditedEndTime(currentTime);
     };
 
     const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
@@ -267,8 +326,9 @@ const UtteranceC: React.FC<{
 
     if (isEditing) {
         return (
-            <div className="relative w-full py-1">
-                <form onSubmit={handleEdit}>
+            <div className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
+                {/* Text Editor */}
+                <form onSubmit={handleEdit} className="relative">
                     <textarea
                         spellCheck={true}
                         lang="el"
@@ -280,6 +340,22 @@ const UtteranceC: React.FC<{
                                 handleEdit(e);
                             } else if (e.key === 'Escape') {
                                 handleCancel();
+                            } else if (e.code === 'BracketLeft' && e.shiftKey) {
+                                e.preventDefault();
+                                setStartTimeToCurrentVideo();
+                            } else if (e.code === 'BracketRight' && e.shiftKey) {
+                                e.preventDefault();
+                                setEndTimeToCurrentVideo();
+                            } else if (e.key === 'ArrowLeft' && e.shiftKey) {
+                                e.preventDefault();
+                                const newTime = Math.max(0, currentTime - options.skipInterval);
+                                seekTo(newTime);
+                            } else if (e.key === 'ArrowRight' && e.shiftKey) {
+                                e.preventDefault();
+                                seekTo(currentTime + options.skipInterval);
+                            } else if (e.key === ' ' && e.shiftKey) {
+                                e.preventDefault();
+                                togglePlayPause();
                             }
                         }}
                         className="w-full resize-none border border-gray-300 rounded px-2 py-1 pr-16 text-sm min-h-[2.5em] transcript-text"
@@ -295,40 +371,88 @@ const UtteranceC: React.FC<{
                             target.style.height = target.scrollHeight + 'px';
                         }}
                     />
+                    <div className="absolute top-1 right-1 flex gap-1">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-green-100"
+                                    onClick={handleEdit}
+                                >
+                                    <Check className="h-3.5 w-3.5 text-green-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{t('editing.saveShortcut')}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 hover:bg-red-100"
+                                    onClick={handleCancel}
+                                >
+                                    <X className="h-3.5 w-3.5 text-red-600" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{t('editing.cancelShortcut')}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
                 </form>
-                <div className="absolute top-2 right-2 flex gap-1">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-green-100"
-                                onClick={handleEdit}
-                            >
-                                <Check className="h-3.5 w-3.5 text-green-600" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{t('editing.saveShortcut')}</p>
-                        </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 hover:bg-red-100"
-                                onClick={handleCancel}
-                            >
-                                <X className="h-3.5 w-3.5 text-red-600" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{t('editing.cancelShortcut')}</p>
-                        </TooltipContent>
-                    </Tooltip>
+                
+                {/* Timestamp Controls - Bottom, subtle */}
+                <div className="flex items-center justify-end gap-2 mt-1 pt-1 border-t border-gray-200">
+                    <span className="text-[10px] text-gray-400 mr-1">⏱️</span>
+                    <div className="flex items-center gap-0.5">
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-50 rounded text-gray-500">
+                            {formatTimestamp(editedStartTime, true)}
+                        </span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0 hover:bg-blue-50"
+                                    onClick={setStartTimeToCurrentVideo}
+                                >
+                                    <Clock className="h-2.5 w-2.5 text-gray-400 hover:text-blue-500" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="text-xs">Set start to current time (Shift+[)</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <span className="text-[10px] text-gray-300">→</span>
+                    <div className="flex items-center gap-0.5">
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-50 rounded text-gray-500">
+                            {formatTimestamp(editedEndTime, true)}
+                        </span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0 hover:bg-blue-50"
+                                    onClick={setEndTimeToCurrentVideo}
+                                >
+                                    <Clock className="h-2.5 w-2.5 text-gray-400 hover:text-blue-500" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="text-xs">Set end to current time (Shift+])</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
                 </div>
             </div>
         );

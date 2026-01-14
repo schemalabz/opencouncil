@@ -26,6 +26,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     addUtteranceToSegment: (segmentId: string) => Promise<string>;
     deleteUtterance: (utteranceId: string) => Promise<void>;
+    updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number }>) => void;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
     addHighlight: (highlight: HighlightWithUtterances) => void;
@@ -47,6 +48,16 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const [highlights, setHighlights] = useState(data.highlights);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
+
+    // Helper function to recalculate segment timestamps based on utterances
+    const recalculateSegmentTimestamps = useCallback((utterances: Array<{ startTimestamp: number; endTimestamp: number }>) => {
+        if (utterances.length === 0) return null;
+        const allTimestamps = utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+        return {
+            startTimestamp: Math.min(...allTimestamps),
+            endTimestamp: Math.max(...allTimestamps)
+        };
+    }, []);
 
     // Create a map of speaker tag IDs to their segment counts
     const speakerTagSegmentCounts = useMemo(() => {
@@ -296,27 +307,49 @@ export function CouncilMeetingDataProvider({ children, data }: {
                     const updatedUtterances = segment.utterances.filter(u => u.id !== utteranceId);
                     
                     // If no utterances remain, keep the segment but with empty utterances array
-                    // This will trigger the empty state UI to show
                     if (remainingUtterances === 0) {
-                        return {
-                            ...segment,
-                            utterances: []
-                        };
+                        return { ...segment, utterances: [] };
                     }
                     
                     // Otherwise, recalculate timestamps based on remaining utterances
-                    const allTimestamps = updatedUtterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+                    const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
                     return {
                         ...segment,
                         utterances: updatedUtterances,
-                        startTimestamp: Math.min(...allTimestamps),
-                        endTimestamp: Math.max(...allTimestamps)
+                        ...newTimestamps
+                    };
+                }
+                return segment;
+            }));
+        },
+        updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number }>) => {
+            setTranscript(prev => prev.map(segment => {
+                if (segment.id === segmentId) {
+                    // Update the utterance
+                    const updatedUtterances = segment.utterances.map(u =>
+                        u.id === utteranceId ? { ...u, ...updates } : u
+                    );
+                    
+                    // If timestamps changed, recalculate segment boundaries
+                    const timestampsChanged = 'startTimestamp' in updates || 'endTimestamp' in updates;
+                    if (timestampsChanged) {
+                        const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+                        return {
+                            ...segment,
+                            utterances: updatedUtterances,
+                            ...newTimestamps
+                        };
+                    }
+                    
+                    return {
+                        ...segment,
+                        utterances: updatedUtterances
                     };
                 }
                 return segment;
             }));
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>

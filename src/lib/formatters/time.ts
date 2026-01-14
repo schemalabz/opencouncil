@@ -20,13 +20,22 @@ export function formatTime(time: number): string {
  * Formats time in seconds to a fixed HH:MM:SS format
  * Always includes hours, minutes, and seconds padded with zeros
  * @param time - Time in seconds
- * @returns Formatted string like "00:05:30" or "01:23:45"
+ * @param showMilliseconds - Whether to include milliseconds (default: false)
+ * @returns Formatted string like "00:05:30" or "01:23:45.123"
  */
-export function formatTimestamp(time: number): string {
+export function formatTimestamp(time: number, showMilliseconds: boolean = false): string {
   const hours = Math.floor(time / 3600);
   const minutes = Math.floor((time % 3600) / 60);
   const seconds = Math.floor(time % 60);
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const milliseconds = Math.floor((time % 1) * 1000);
+  
+  const baseTimestamp = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  if (showMilliseconds) {
+    return `${baseTimestamp}.${milliseconds.toString().padStart(3, '0')}`;
+  }
+  
+  return baseTimestamp;
 }
 
 /**

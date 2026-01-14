@@ -10,17 +10,29 @@ The system divides editing into distinct categories and modes:
 
 1.  **Editing Mode Lifecycle**:
     *   **Activation**: Users enter "Editing Mode" via the `EditButton` in the global header. This activates `options.editable` in the `TranscriptOptionsContext`.
-    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls (Playback Speed, Next Unknown Speaker, Speakers Overview, Editing Guide, Exit).
+    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls:
+        *   **Playback Speed**: Adjust video playback speed (0.5x - 2.0x)
+        *   **Skip Interval**: Configure time skip interval for Shift+Arrow navigation (2-30 seconds, default 5s)
+        *   **Next Unknown Speaker**: Jump to next segment with unidentified speaker
+        *   **Speakers Overview**: View statistics and navigate by speaker
+        *   **Complete Review**: Mark transcript review as complete
+        *   **Editing Guide**: Access keyboard shortcuts and workflow documentation
+        *   **Exit**: Return to read-only mode
     *   **Exclusivity**: Editing Mode is mutually exclusive with **Highlight Mode**. Users cannot create highlights while editing the transcript, and vice versa.
 
 2.  **Text Content Editing** (in Editing Mode):
     *   Handled by the `Utterance` component in the transcript view.
     *   Users edit text directly inline. Browser-native spellcheck is enabled.
+    *   **Timestamp Editing**: While editing an utterance, users can adjust start/end timestamps:
+        *   Set timestamps to current video time using clock icon buttons or keyboard shortcuts (`Shift+[` for start, `Shift+]` for end)
+        *   Timestamp changes are displayed in real-time in the editing UI
+        *   **Important**: Timestamp changes are saved only when the utterance edit is saved (via Enter key or Save button), not immediately when clicking the clock icon
+        *   After saving, parent segment timestamps automatically recalculate based on contained utterances
     *   **Visual Feedback**:
         *   **User Edited**: Distinguished by a **green underline** (`decoration-green-500`), making human verification immediately visible.
         *   **AI Corrected**: Distinguished by a **blue underline** (`decoration-blue-500`) for automated fixes.
     *   **Optimistic Updates**: Changes are reflected immediately in the UI while saving to the backend in the background, ensuring a responsive editing experience.
-    *   Updates are sent to the backend via the `editUtterance` server action.
+    *   Updates are sent to the backend via the `editUtterance` and `updateUtteranceTimestamps` server actions.
     *   **History Tracking**: Critical for auditability, every text change is logged in the `UtteranceEdit` table.
 
 3.  **Structural Editing**:
@@ -57,7 +69,14 @@ The system divides editing into distinct categories and modes:
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
 6.  **Interaction Enhancements**:
-    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`.
+    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`. Key shortcuts include:
+        *   **Utterance Navigation**: Arrow keys to jump between utterances
+        *   **Time-based Navigation**: `Shift+Arrow` keys to skip forward/backward by configurable interval (2-30s) - useful for manual transcription and reviewing audio
+        *   **Playback Control**: Space for play/pause, Up/Down arrows for speed adjustment
+        *   **While Editing Utterances**: When actively editing utterance text, all Shift-based shortcuts continue to work:
+            *   Video control (`Shift+Space` for play/pause)
+            *   Time-based navigation (`Shift+Arrow` keys for skip forward/backward)
+            *   Timestamp setting (`Shift+[` and `Shift+]` to set start/end timestamps to current video time)
     *   **Selection Mode**: Managed via `EditingContext`. Supports **Shift+Click** for range selection (selecting multiple sequential utterances) and **Ctrl+Click** for toggling individual selections.
     *   **Speakers Overview**: A dedicated sheet (`SpeakersOverviewSheet`) provides real-time statistics (duration, segment count) and navigation for every speaker in the meeting.
     *   **In-App Guide**: A comprehensive `EditingGuideDialog` provides immediate access to shortcuts and workflow instructions.
@@ -69,10 +88,17 @@ The system divides editing into distinct categories and modes:
 | **Playback** | `Space` | Play / Pause |
 | | `ArrowLeft` | Seek to previous utterance |
 | | `ArrowRight` | Seek to next utterance |
+| | `Shift + ArrowLeft` | Skip backward by interval (2-30s, configurable) |
+| | `Shift + ArrowRight` | Skip forward by interval (2-30s, configurable) |
 | | `ArrowUp` | Increase Playback Speed |
 | | `ArrowDown` | Decrease Playback Speed |
-| **Editing** | `Enter` | Edit active utterance / Save & Close |
+| **Text Editing** | `Enter` | Edit active utterance / Save & Close |
 | | `Escape` | Cancel text edit |
+| **While Editing Utterance** | `Shift + Space` | Play / Pause (works in text editor) |
+| | `Shift + ArrowLeft` | Skip backward (works in text editor) |
+| | `Shift + ArrowRight` | Skip forward (works in text editor) |
+| | `Shift + [` | Set start timestamp to current video time |
+| | `Shift + ]` | Set end timestamp to current video time |
 | **Selection** | `Shift + Click` | Select Range of Utterances |
 | | `Ctrl + Click` | Toggle Selection of Utterance |
 | | `e` | Extract selected utterances to new segment |

@@ -9,6 +9,7 @@ export interface TranscriptOptions {
     highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
     playbackSpeed: number;
+    skipInterval: number; // seconds to skip forward/backward
 }
 
 interface TranscriptOptionsContextType {
@@ -24,7 +25,8 @@ const defaultOptions: TranscriptOptions = {
     selectedSpeakerTag: null,
     highlightLowConfidenceWords: true,
     maxUtteranceDrift: 500,
-    playbackSpeed: 1
+    playbackSpeed: 1,
+    skipInterval: 5 // default to 5 seconds
 };
 
 function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {

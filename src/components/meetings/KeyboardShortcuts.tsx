@@ -79,5 +79,16 @@ export function KeyboardShortcuts() {
         updateOptions({ playbackSpeed: newSpeedDown });
     }, options.editable);
 
+    // Skip Backward (Shift + ArrowLeft)
+    useKeyboardShortcut(ACTIONS.SKIP_BACKWARD.id, () => {
+        const newTime = Math.max(0, currentTime - options.skipInterval);
+        seekTo(newTime);
+    }, options.editable);
+
+    // Skip Forward (Shift + ArrowRight)
+    useKeyboardShortcut(ACTIONS.SKIP_FORWARD.id, () => {
+        seekTo(currentTime + options.skipInterval);
+    }, options.editable);
+
     return null;
 } 

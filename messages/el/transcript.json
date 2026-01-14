@@ -2,7 +2,11 @@
   "utterance": {
     "editing": {
       "saveShortcut": "Αποθήκευση (Enter)",
-      "cancelShortcut": "Ακύρωση (Escape)"
+      "cancelShortcut": "Ακύρωση (Escape)",
+      "timestamps": "Χρονοσήμανση",
+      "useCurrent": "Χρήση Τρέχουσας",
+      "setStartTime": "Ορισμός στην τρέχουσα ώρα βίντεο ([)",
+      "setEndTime": "Ορισμός στην τρέχουσα ώρα βίντεο (])"
     },
     "contextMenu": {
       "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",

@@ -119,6 +119,14 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                         <Badge variant="secondary">→</Badge>
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.playback.skipBackward')}</span>
+                                        <Badge variant="secondary">Shift+←</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.playback.skipForward')}</span>
+                                        <Badge variant="secondary">Shift+→</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.speedUp')}</span>
                                         <Badge variant="secondary">↑</Badge>
                                     </div>
@@ -143,6 +151,36 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.editing.cancel')}</span>
                                         <Badge variant="secondary">Esc</Badge>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">{t('shortcuts.utteranceEditing.title')}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.utteranceEditing.playPause')}</span>
+                                        <Badge variant="secondary">Shift+Space</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.utteranceEditing.skipBackward')}</span>
+                                        <Badge variant="secondary">Shift+←</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.utteranceEditing.skipForward')}</span>
+                                        <Badge variant="secondary">Shift+→</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.utteranceEditing.setStartTime')}</span>
+                                        <Badge variant="secondary">Shift+[</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-sm">{t('shortcuts.utteranceEditing.setEndTime')}</span>
+                                        <Badge variant="secondary">Shift+]</Badge>
                                     </div>
                                 </div>
                             </CardContent>
