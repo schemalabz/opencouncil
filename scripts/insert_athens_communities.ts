@@ -51,19 +51,40 @@ async function readCSV(filePath: string): Promise<CommunityMember[]> {
 }
 
 async function main() {
-  console.log('Starting Athens community councils import...');
+  // Parse command-line arguments
+  const args = process.argv.slice(2);
+  let cityId: string | undefined;
+  let csvPath: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--city-id' && i + 1 < args.length) {
+      cityId = args[i + 1];
+      i++;
+    } else if (args[i] === '--csv' && i + 1 < args.length) {
+      csvPath = args[i + 1];
+      i++;
+    }
+  }
+
+  if (!cityId || !csvPath) {
+    console.error('Usage: npx tsx scripts/insert_athens_communities.ts --city-id <cityId> --csv <csvPath>');
+    console.error('Example: npx tsx scripts/insert_athens_communities.ts --city-id athens --csv athens_community_councillors.csv');
+    process.exit(1);
+  }
+
+  console.log(`Starting community councils import for city: ${cityId}...`);
 
   // Read CSV file
-  const csvPath = path.join(__dirname, '..', 'athens_community_councillors.csv');
-  console.log(`\nReading CSV from: ${csvPath}`);
-  const communityMembers = await readCSV(csvPath);
+  const resolvedCsvPath = path.isAbsolute(csvPath) ? csvPath : path.join(process.cwd(), csvPath);
+  console.log(`\nReading CSV from: ${resolvedCsvPath}`);
+  const communityMembers = await readCSV(resolvedCsvPath);
   console.log(`  ✓ Loaded ${communityMembers.length} members from CSV`);
 
   // Query for party IDs by name
   console.log('\nQuerying party IDs from database...');
   const parties = await prisma.party.findMany({
     where: {
-      cityId: 'athens',
+      cityId: cityId,
     },
     select: {
       id: true,
@@ -99,7 +120,7 @@ async function main() {
         name_en: `${englishOrdinals[i - 1]} Municipal Community`,
         type: 'community',
         notificationBehavior: 'NOTIFICATIONS_APPROVAL',
-        cityId: 'athens',
+        cityId: cityId,
       },
     });
     communities.push(community);
@@ -118,7 +139,7 @@ async function main() {
           name_en: member.name_en,
           name_short: member.name_short,
           name_short_en: member.name_short_en,
-          cityId: 'athens',
+          cityId: cityId,
         },
       });
       createdPersons[member.name] = person.id;
@@ -145,7 +166,7 @@ async function main() {
       await prisma.role.create({
         data: {
           personId,
-          cityId: 'athens',
+          cityId: cityId,
           partyId,
           isHead: false,
         },
@@ -172,7 +193,7 @@ async function main() {
       await prisma.role.create({
         data: {
           personId,
-          cityId: 'athens',
+          cityId: cityId,
           administrativeBodyId: community.id,
           isHead: member.isChair,
         },
