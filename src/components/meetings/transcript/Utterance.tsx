@@ -46,10 +46,9 @@ const UtteranceC: React.FC<{
     const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
-    const canEdit = options.editsAllowed;
     const t = useTranslations('transcript.utterance');
 
-    const canStartHighlight = canEdit && !editingHighlight && !options.editable;
+    const canStartHighlight = options.canCreateHighlights && !editingHighlight && !options.editable;
     const canShare = !editingHighlight && !options.editable;
     const hasContextMenuOptions = canStartHighlight || options.editable || canShare;
 

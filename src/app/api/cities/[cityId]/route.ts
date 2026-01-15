@@ -37,6 +37,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
     const supportsNotifications = formData.get('supportsNotifications') === 'true'
     const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
+    const highlightCreationPermission = formData.get('highlightCreationPermission') as 'ADMINS_ONLY' | 'EVERYONE' | null
 
     // Only allow superadmins to modify officialSupport and status
     let officialSupport: boolean | undefined = undefined
@@ -89,6 +90,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             officialSupport?: boolean
             supportsNotifications?: boolean
             status?: 'pending' | 'unlisted' | 'listed'
+            highlightCreationPermission?: 'ADMINS_ONLY' | 'EVERYONE'
         } = {
             name,
             name_en,
@@ -98,7 +100,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
             supportsNotifications,
-            ...(peopleOrdering && { peopleOrdering })
+            ...(peopleOrdering && { peopleOrdering }),
+            ...(highlightCreationPermission && { highlightCreationPermission })
         }
 
         // Only include admin-only fields if user is superadmin

@@ -90,6 +90,11 @@
         "defaultOrdering": "Προεπιλογή (Αλφαβητική)",
         "partyRankOrdering": "Κατάταξη Παράταξης",
         "peopleOrderingDescription": "Επιλέξτε πώς θα ταξινομούνται τα πρόσωπα στη σελίδα προσώπων. Η Κατάταξη Παράταξης ταξινομεί με βάση τη δύναμη της παράταξης και τις προσαρμοσμένες κατατάξεις των παρατάξεων.",
+        "highlightCreationPermission": "Δικαίωμα Δημιουργίας Στιγμιοτύπων",
+        "selectHighlightCreationPermission": "Επιλέξτε ποιος μπορεί να δημιουργήσει στιγμιότυπα",
+        "highlightCreationAdminsOnly": "Μόνο Διαχειριστές",
+        "highlightCreationEveryone": "Όλοι",
+        "highlightCreationPermissionDescription": "Ελέγξτε ποιος μπορεί να δημιουργήσει στιγμιότυπα για αυτήν την πόλη",
         "CityMessageForm": {
             "sectionTitle": "Μήνυμα Πόλης",
             "toggle": "Εναλλαγή μηνύματος πόλης",

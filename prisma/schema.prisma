@@ -31,6 +31,7 @@ model City {
   supportsNotifications Boolean @default(false)
   consultationsEnabled Boolean @default(false)
   peopleOrdering PeopleOrdering @default(default)
+  highlightCreationPermission HighlightCreationPermission @default(ADMINS_ONLY)
 
   parties        Party[]
   persons        Person[]
@@ -68,6 +69,11 @@ enum CityStatus {
 enum PeopleOrdering {
   default
   partyRank
+}
+
+enum HighlightCreationPermission {
+  EVERYONE
+  ADMINS_ONLY
 }
 
 enum AdministrativeBodyType {
@@ -445,6 +451,9 @@ model Highlight {
   meetingId String
   cityId String
 
+  createdBy   User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
   highlightedUtterances HighlightedUtterance[]
   
   subject Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
@@ -456,6 +465,7 @@ model Highlight {
   isShowcased Boolean @default(false)
 
   @@index([meetingId, cityId])
+  @@index([cityId, createdById])
 }
 
 model HighlightedUtterance {
@@ -574,6 +584,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   utteranceEdits UtteranceEdit[]
+  highlights Highlight[]
 }
  
 model Account {

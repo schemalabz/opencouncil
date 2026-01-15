@@ -26,6 +26,7 @@ export async function GET() {
                 supportsNotifications: true,
                 consultationsEnabled: true,
                 peopleOrdering: true,
+                highlightCreationPermission: true,
                 _count: {
                     select: {
                         councilMeetings: true

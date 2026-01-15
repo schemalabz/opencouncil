@@ -1,10 +1,10 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { startTask } from './tasks';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';
 import { getPartyFromRoles, isRoleActiveAt, getSingleCityRole } from '@/lib/utils';
+import { canViewHighlight } from '@/lib/db/highlights';
 
 export async function requestGenerateHighlight(
     highlightId: string,
@@ -51,7 +51,14 @@ export async function requestGenerateHighlight(
         throw new Error('Highlight not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
+    const authorized = await canViewHighlight({ 
+        cityId: highlight.cityId, 
+        createdById: highlight.createdById 
+    });
+    
+    if (!authorized) {
+        throw new Error('Not authorized to generate this highlight');
+    }
 
     if (!highlight.meeting.videoUrl) {
         throw new Error('Meeting media not found: videoUrl is required');

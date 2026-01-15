@@ -73,6 +73,11 @@
         "defaultOrdering": "Default (Alphabetical)",
         "partyRankOrdering": "Party Ranking",
         "peopleOrderingDescription": "Choose how people are ordered on the people page. Party Ranking orders by party power and custom party rankings.",
+        "highlightCreationPermission": "Highlight Creation Permission",
+        "selectHighlightCreationPermission": "Select who can create highlights",
+        "highlightCreationAdminsOnly": "Admins Only",
+        "highlightCreationEveryone": "Everyone",
+        "highlightCreationPermissionDescription": "Control who can create highlights for this city",
         "CityMessageForm": {
             "sectionTitle": "City Message",
             "toggle": "Toggle city message",

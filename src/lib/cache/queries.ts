@@ -12,9 +12,14 @@ import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
 
 /**
- * Cached version of getMeetingData that fetches and caches all data for a meeting
+ * Cached version of getMeetingData that fetches and caches all data for a meeting.
+ * User-specific highlight visibility is handled internally via getCurrentUser(),
+ * and cache() is request-scoped so each user gets their own cached results.
  */
-export const getMeetingDataCached = cache(async (cityId: string, meetingId: string): Promise<MeetingData | null> => {
+export const getMeetingDataCached = cache(async (
+  cityId: string,
+  meetingId: string
+): Promise<MeetingData | null> => {
   const startTime = performance.now();
   console.log(`Fetching meeting data for`, cityId, meetingId);
 

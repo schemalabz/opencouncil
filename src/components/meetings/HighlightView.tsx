@@ -7,7 +7,7 @@ import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar } from "lucide-react";
+import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime, formatRelativeTime } from "@/lib/utils";
@@ -25,9 +25,13 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const { meeting, subjects, removeHighlight, updateHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
-  const canEdit = options.editsAllowed;
+  const canCreateHighlights = options.canCreateHighlights;
+  const canEditCity = options.editsAllowed;
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
   const t = useTranslations('highlights');
+
+  // Only show creator for city editors (they can see all highlights)
+  const creatorName = canEditCity ? highlight.createdBy?.name : null;
 
   const highlightData = calculateHighlightData(highlight);
 
@@ -199,16 +203,22 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   <Calendar className="h-4 w-4" />
                   <span>{t('highlightView.lastUpdated', { relativeTime: formatRelativeTime(highlight.updatedAt, locale) })}</span>
                 </div>
+                {creatorName && (
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    <span>{creatorName}</span>
+                  </div>
+                )}
               </div>
             </div>
             
-            {canEdit && (
+            {canCreateHighlights && (
               <div className="flex items-center space-x-2">
                 <Button size="sm" onClick={handleEditContent}>
                   <Edit className="h-4 w-4 mr-2" />
                   {t('details.editContent')}
                 </Button>
-                {highlight.muxPlaybackId && (
+                {canEditCity && highlight.muxPlaybackId && (
                   <Button
                     size="sm" 
                     variant="outline"

@@ -57,7 +57,8 @@ const formSchema = z.object({
     officialSupport: z.boolean().default(false),
     status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
     supportsNotifications: z.boolean(),
-    peopleOrdering: z.enum(['default', 'partyRank']).optional()
+    peopleOrdering: z.enum(['default', 'partyRank']).optional(),
+    highlightCreationPermission: z.enum(['ADMINS_ONLY', 'EVERYONE']).default('ADMINS_ONLY')
 })
 
 interface CityFormProps {
@@ -130,7 +131,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             officialSupport: city?.officialSupport || false,
             status: city?.status || 'pending',
             supportsNotifications: city?.supportsNotifications || false,
-            peopleOrdering: city?.peopleOrdering || "default"
+            peopleOrdering: city?.peopleOrdering || "default",
+            highlightCreationPermission: city?.highlightCreationPermission || 'ADMINS_ONLY'
         },
     })
 
@@ -160,6 +162,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('officialSupport', values.officialSupport.toString())
         formData.append('status', values.status)
         formData.append('supportsNotifications', values.supportsNotifications.toString())
+        formData.append('highlightCreationPermission', values.highlightCreationPermission)
         if (values.peopleOrdering) {
             formData.append('peopleOrdering', values.peopleOrdering)
         }
@@ -498,6 +501,30 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         </Select>
                                         <FormDescription>
                                             {t('statusDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="highlightCreationPermission"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('highlightCreationPermission')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectHighlightCreationPermission')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="ADMINS_ONLY">{t('highlightCreationAdminsOnly')}</SelectItem>
+                                                <SelectItem value="EVERYONE">{t('highlightCreationEveryone')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('highlightCreationPermissionDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

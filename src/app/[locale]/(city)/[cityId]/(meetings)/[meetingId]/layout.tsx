@@ -1,6 +1,6 @@
 "use server";
 import { notFound } from 'next/navigation';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
@@ -19,6 +19,7 @@ import { ShareProvider } from '@/contexts/ShareContext';
 import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
 import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
+import { HighlightCreationPermission } from '@prisma/client';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -102,6 +103,9 @@ export default async function CouncilMeetingPage({
     children: React.ReactNode
 }) {
 
+    const currentUser = await getCurrentUser();
+    const editable = await isUserAuthorizedToEdit({ cityId });
+
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
@@ -110,7 +114,10 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const editable = await isUserAuthorizedToEdit({ cityId: data.meeting.cityId });
+    const highlightCreationAllowed = editable || (
+        !!currentUser &&
+        data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
+    );
 
     const meetingMediaType = getMeetingMediaType(data.meeting);
 
@@ -123,7 +130,11 @@ export default async function CouncilMeetingPage({
 
     return (
         <ShareProvider>
-            <CouncilMeetingWrapper meetingData={data} editable={editable}>
+            <CouncilMeetingWrapper 
+                meetingData={data} 
+                editable={editable}
+                canCreateHighlights={highlightCreationAllowed}
+            >
                 <HighlightProvider>
                     <SidebarProvider>
                         <NavigationEvents />

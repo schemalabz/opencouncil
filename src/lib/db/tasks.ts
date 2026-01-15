@@ -3,6 +3,7 @@ import { withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
 import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG } from "../tasks/types";
+import { getHighlightPermissions } from "./highlights";
 
 // Derived type for meeting task completion status
 export type MeetingTaskStatus = {
@@ -57,7 +58,24 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
  * Get generateHighlight tasks for a specific highlight within a meeting
  */
 export async function getGenerateHighlightTasksForHighlight(cityId: string, meetingId: string, highlightId: string): Promise<TaskStatus[]> {
-    await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
+    // Check authorization: city editors can view any highlight's tasks, regular users only their own
+    const permissions = await getHighlightPermissions(cityId);
+    if (!permissions) {
+        throw new Error('Authentication required');
+    }
+
+    if (!permissions.canEditCity) {
+        // Regular users can only view tasks for their own highlights
+        const highlight = await prisma.highlight.findUnique({
+            where: { id: highlightId },
+            select: { createdById: true }
+        });
+
+        if (!highlight || highlight.createdById !== permissions.userId) {
+            throw new Error('Not authorized to view tasks for this highlight');
+        }
+    }
+
     try {
         const tasks = await prisma.taskStatus.findMany({
             where: {
