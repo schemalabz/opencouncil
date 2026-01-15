@@ -159,7 +159,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     }
                 }
             } catch (error) {
-                console.error(`Error processing result for task ${taskId}: ${error}`);
+                console.error(`Error processing result for task ${taskId}:`, error);
                 await prisma.taskStatus.update({
                     where: { id: taskId },
                     data: { status: 'failed', version: update.version }
@@ -206,8 +206,12 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             error: update.error,
         });
     } else if (update.status === 'processing') {
-        await prisma.taskStatus.update({
-            where: { id: taskId },
+        // Use updateMany with WHERE clause to atomically prevent overwriting terminal states
+        await prisma.taskStatus.updateMany({
+            where: { 
+                id: taskId,
+                status: { notIn: ['succeeded', 'failed'] }
+            },
             data: { status: 'pending', stage: update.stage, percentComplete: update.progressPercent, version: update.version }
         });
     }
