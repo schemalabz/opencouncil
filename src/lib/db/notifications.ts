@@ -2,7 +2,7 @@
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
-import { getCitiesWithGeometry } from "./cities";
+import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
@@ -100,7 +100,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
 
         // Combine results
         const cities = [...notificationPreferences.map(np => np.city), ...petitions.map(p => p.city)];
-        const citiesWithGeometry = await getCitiesWithGeometry(cities);
+        const citiesWithGeometry = await attachGeometryToCities(cities);
 
         // Get all location IDs that need coordinates
         const allLocationIds = notificationPreferences.flatMap(np =>
@@ -112,7 +112,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
         // Prepare to store the locations with proper coordinates
         let locationsWithCoordinates: Record<string, { id: string, text: string, coordinates: [number, number] }> = {};
 
-        // If there are any locations, get their coordinates using the same pattern as getCitiesWithGeometry
+        // If there are any locations, get their coordinates using the same pattern as attachGeometryToCities
         if (allLocationIds.length > 0) {
             try {
                 const locationsWithGeometry = await prisma.$queryRaw<

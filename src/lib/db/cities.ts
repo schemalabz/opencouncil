@@ -3,6 +3,10 @@ import { City, CouncilMeeting, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 
+export type CityGeometryOptions = {
+    includeGeometry?: boolean;
+};
+
 export type CityWithGeometry = City & {
     geometry?: GeoJSON.Geometry;
 };
@@ -83,7 +87,18 @@ export async function editCity(id: string, cityData: Partial<Omit<City, 'id' | '
     }
 }
 
-export async function getCity(id: string): Promise<CityWithCounts | null> {
+async function attachGeometryToCity<T extends Pick<City, 'id'>>(
+    city: T | null
+): Promise<(T & { geometry?: GeoJSON.Geometry }) | null> {
+    if (!city) return null;
+    const [withGeom] = await attachGeometryToCities([city]);
+    return withGeom ?? null;
+}
+
+export async function getCity(
+    id: string,
+    options?: CityGeometryOptions
+): Promise<(CityWithCounts & { geometry?: GeoJSON.Geometry }) | null> {
     try {
         const city = await prisma.city.findUnique({
             where: { id },
@@ -91,16 +106,23 @@ export async function getCity(id: string): Promise<CityWithCounts | null> {
                 _count: CITY_COUNT_SELECT
             }
         });
-        return city;
+        
+        if (!city) return null;
+        if (!options?.includeGeometry) return city;
+        
+        return await attachGeometryToCity(city);
     } catch (error) {
         console.error('Error fetching city:', error);
         throw new Error('Failed to fetch city');
     }
 }
 
-export async function getFullCity(cityId: string) {
+export async function getFullCity(
+    cityId: string,
+    options?: CityGeometryOptions
+) {
     const canEdit = await isUserAuthorizedToEdit({ cityId });
-    return await prisma.city.findUnique({
+    const city = await prisma.city.findUnique({
         where: { id: cityId },
         include: {
             councilMeetings: {
@@ -152,6 +174,11 @@ export async function getFullCity(cityId: string) {
             }
         }
     });
+    
+    if (!city) return null;
+    if (!options?.includeGeometry) return city;
+    
+    return await attachGeometryToCity(city);
 }
 
 export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
@@ -270,8 +297,18 @@ export async function getCitiesWithCouncilMeetings({ includeUnlisted = false, in
     }
 }
 
-export async function getCitiesWithGeometry(cities: City[]): Promise<CityWithGeometry[]> {
-    if (cities.length === 0) return [];
+/**
+ * Attach geometry to a list of cities.
+ * This is the core geometry enrichment function; parent methods check the includeGeometry option before calling.
+ * Use this directly when you have cities from relations and need to enrich them with geometry.
+ * For single city fetches, prefer getCity(id, { includeGeometry: true }) instead.
+ */
+export async function attachGeometryToCities<T extends Pick<City, 'id'>>(
+    cities: T[]
+): Promise<Array<T & { geometry?: GeoJSON.Geometry }>> {
+    if (cities.length === 0) {
+        return cities;
+    }
 
     const cityWithGeometry = await prisma.$queryRaw<
         ({ id: string, geometry: string | null })[]

@@ -1,7 +1,7 @@
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';
 import { getCities } from '@/lib/db/cities';
-import { getCitiesWithGeometry } from '@/lib/db/cities';
+import { getCity } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/utils';
 import { Location } from './types';
@@ -65,11 +65,10 @@ export async function extractFilters(query: string): Promise<ExtractedFilters> {
 // Resolve location coordinates
 export async function resolveLocationCoordinates(locationName: string, cityId: string): Promise<Location | undefined> {
     try {
-        // Get city with geometry directly
-        const citiesWithGeometry = await getCitiesWithGeometry([{ id: cityId } as any]);
-        const cityWithGeometry = citiesWithGeometry[0];
+        // Get city with geometry
+        const cityWithGeometry = await getCity(cityId, { includeGeometry: true });
 
-        if (!cityWithGeometry) {
+        if (!cityWithGeometry || !cityWithGeometry.geometry) {
             return undefined;
         }
 
