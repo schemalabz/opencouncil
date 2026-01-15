@@ -107,23 +107,46 @@ async function main() {
     process.exit(1);
   }
 
-  // Create 7 Administrative Bodies (Municipal Communities)
-  console.log('\n1. Creating 7 administrative bodies...');
-  const communities = [];
-  for (let i = 1; i <= 7; i++) {
-    const greekOrdinals = ['1η', '2η', '3η', '4η', '5η', '6η', '7η'];
-    const englishOrdinals = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+  // Determine unique community numbers from CSV
+  const uniqueCommunityNumbers = [...new Set(communityMembers.map(m => m.communityNumber))].sort((a, b) => a - b);
+  console.log(`\n1. Creating ${uniqueCommunityNumbers.length} administrative bodies...`);
+  console.log(`   Community numbers found in CSV: ${uniqueCommunityNumbers.join(', ')}`);
 
+  // Helper function to get Greek ordinal
+  const getGreekOrdinal = (num: number): string => {
+    const ordinals: { [key: number]: string } = {
+      1: '1η', 2: '2η', 3: '3η', 4: '4η', 5: '5η',
+      6: '6η', 7: '7η', 8: '8η', 9: '9η', 10: '10η',
+      11: '11η', 12: '12η', 13: '13η', 14: '14η', 15: '15η',
+      16: '16η', 17: '17η', 18: '18η', 19: '19η', 20: '20η'
+    };
+    return ordinals[num] || `${num}η`;
+  };
+
+  // Helper function to get English ordinal
+  const getEnglishOrdinal = (num: number): string => {
+    const ordinals: { [key: number]: string } = {
+      1: '1st', 2: '2nd', 3: '3rd', 4: '4th', 5: '5th',
+      6: '6th', 7: '7th', 8: '8th', 9: '9th', 10: '10th',
+      11: '11th', 12: '12th', 13: '13th', 14: '14th', 15: '15th',
+      16: '16th', 17: '17th', 18: '18th', 19: '19th', 20: '20th'
+    };
+    return ordinals[num] || `${num}th`;
+  };
+
+  // Create administrative bodies for each unique community number
+  const communityMap = new Map<number, any>();
+  for (const communityNum of uniqueCommunityNumbers) {
     const community = await prisma.administrativeBody.create({
       data: {
-        name: `${greekOrdinals[i - 1]} Δημοτική Κοινότητα`,
-        name_en: `${englishOrdinals[i - 1]} Municipal Community`,
+        name: `${getGreekOrdinal(communityNum)} Δημοτική Κοινότητα`,
+        name_en: `${getEnglishOrdinal(communityNum)} Municipal Community`,
         type: 'community',
         notificationBehavior: 'NOTIFICATIONS_APPROVAL',
         cityId: cityId,
       },
     });
-    communities.push(community);
+    communityMap.set(communityNum, community);
     console.log(`  ✓ Created ${community.name_en} (${community.id})`);
   }
 
@@ -186,8 +209,11 @@ async function main() {
     const personId = createdPersons[member.name];
     if (!personId) continue;
 
-    const community = communities[member.communityNumber - 1];
-    if (!community) continue;
+    const community = communityMap.get(member.communityNumber);
+    if (!community) {
+      console.error(`  ✗ Community ${member.communityNumber} not found for ${member.name}`);
+      continue;
+    }
 
     try {
       await prisma.role.create({
@@ -208,7 +234,7 @@ async function main() {
 
   console.log('\n✅ Import completed successfully!');
   console.log(`\nSummary:`);
-  console.log(`  - Administrative Bodies: ${communities.length}`);
+  console.log(`  - Administrative Bodies: ${communityMap.size}`);
   console.log(`  - Persons: ${Object.keys(createdPersons).length}`);
   console.log(`  - Party Roles: ${partyRoleCount}`);
   console.log(`  - Community Roles: ${communityRoleCount} (${chairCount} chairs)`);
