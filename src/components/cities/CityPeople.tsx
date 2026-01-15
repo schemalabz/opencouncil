@@ -72,7 +72,7 @@ export default function CityPeople({
 
         // Check if any person has no administrative body role
         const hasNoAdminBody = allPeople.some(person =>
-            person.roles.some(role => !role.administrativeBody)
+            !person.roles.some(role => role.administrativeBody)
         );
 
         return [
