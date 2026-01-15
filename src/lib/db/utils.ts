@@ -14,14 +14,20 @@ import { getPartyFromRoles, getSingleCityRole } from "../utils";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
-    const people = await getPeopleForCity(cityId);
+    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
+
+    if (!councilMeeting) {
+        throw new Error('Council meeting not found');
+    }
+
+    // Get relevant people based on meeting's administrative body
+    const people = await import('./people').then(m => m.getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId));
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();
     const city = await getCity(cityId);
-    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
 
-    if (!city || !councilMeeting) {
-        throw new Error('City or council meeting not found');
+    if (!city) {
+        throw new Error('City not found');
     }
 
     return {

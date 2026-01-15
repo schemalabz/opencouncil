@@ -167,4 +167,65 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
         console.error('Error fetching people for city:', error);
         throw new Error('Failed to fetch people for city');
     }
+}
+
+/**
+ * Get relevant people for a meeting based on its administrative body type.
+ * This filters people to avoid AI confusion by only including relevant members.
+ *
+ * Rules:
+ * - Council meetings (type=council): All council members + people with no admin body + community heads
+ * - Committee meetings (type=committee): Only members of that specific committee
+ * - Community meetings (type=community): Only members of that specific community
+ * - No admin body: All people in the city
+ */
+export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null): Promise<PersonWithRelations[]> {
+    const allPeople = await getPeopleForCity(cityId);
+
+    // If no administrative body, return all people
+    if (!administrativeBodyId) {
+        return allPeople;
+    }
+
+    // Get the administrative body to check its type
+    const adminBody = await prisma.administrativeBody.findUnique({
+        where: { id: administrativeBodyId }
+    });
+
+    if (!adminBody) {
+        // If admin body not found, return all people as fallback
+        console.warn(`Administrative body ${administrativeBodyId} not found, returning all people`);
+        return allPeople;
+    }
+
+    // Filter based on administrative body type
+    if (adminBody.type === 'council') {
+        // Council meetings: Include council members, people with no admin body, and community heads
+        return allPeople.filter(person => {
+            const hasCouncilRole = person.roles.some(
+                role => role.administrativeBodyId === administrativeBodyId
+            );
+            const hasNoAdminBody = !person.roles.some(
+                role => role.administrativeBody
+            );
+            const isCommunityHead = person.roles.some(
+                role => role.administrativeBody?.type === 'community' && role.isHead
+            );
+
+            return hasCouncilRole || hasNoAdminBody || isCommunityHead;
+        });
+    } else if (adminBody.type === 'committee') {
+        // Committee meetings: Only members of this specific committee
+        return allPeople.filter(person =>
+            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
+        );
+    } else if (adminBody.type === 'community') {
+        // Community meetings: Only members of this specific community
+        return allPeople.filter(person =>
+            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
+        );
+    }
+
+    // Fallback: return all people
+    return allPeople;
 } 
