@@ -30,6 +30,7 @@ const getRoleIconColor = (role: RoleWithRelations) => {
 };
 
 const getRoleText = (role: RoleWithRelations) => {
+    // Party roles (has partyId)
     if (role.partyId && role.party) {
         const text = role.party.name;
         if (role.isHead) return `${text} (Επικεφαλής)`;
@@ -37,16 +38,24 @@ const getRoleText = (role: RoleWithRelations) => {
         return text;
     }
 
-    if (role.cityId) {
-        if (role.isHead) return 'Δήμαρχος';
-        return role.name || 'Μέλος';
+    // Administrative body roles (has administrativeBodyId)
+    if (role.administrativeBodyId && role.administrativeBody) {
+        // For administrative body roles, show role name first (e.g., "Πρόεδρος"), then body name
+        if (role.name) {
+            return `${role.name} - ${role.administrativeBody.name}`;
+        }
+        // If no role name but is head, use "Πρόεδρος"
+        if (role.isHead) {
+            return `Πρόεδρος - ${role.administrativeBody.name}`;
+        }
+        // Otherwise just show the administrative body name
+        return role.administrativeBody.name;
     }
 
-    if (role.administrativeBodyId && role.administrativeBody) {
-        let text = role.administrativeBody.name;
-        if (role.name) text += ` - ${role.name}`;
-        if (role.isHead) text += ' (Πρόεδρος)';
-        return text;
+    // City-level roles (has cityId but no partyId or administrativeBodyId, e.g., mayor)
+    if (role.cityId && !role.partyId && !role.administrativeBodyId) {
+        if (role.isHead) return 'Δήμαρχος';
+        return role.name || 'Μέλος';
     }
 
     return role.name || 'Μέλος';

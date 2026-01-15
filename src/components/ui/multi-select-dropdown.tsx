@@ -7,7 +7,7 @@ import {
     DropdownMenuContent,
     DropdownMenuCheckboxItem,
 } from "./dropdown-menu";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export interface Option<T> {
     value: T;
@@ -32,6 +32,11 @@ export function MultiSelectDropdown<T>({
     allText = "Όλα"
 }: MultiSelectDropdownProps<T>) {
     const [selectedValues, setSelectedValues] = useState<T[]>(defaultValues);
+
+    // Sync internal state with defaultValues prop when it changes
+    useEffect(() => {
+        setSelectedValues(defaultValues);
+    }, [defaultValues]);
 
     const handleValueChange = (value: T, checked: boolean) => {
         setSelectedValues(prev => {

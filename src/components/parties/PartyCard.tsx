@@ -29,14 +29,71 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         return sortPartyMembers(filtered, party.id, true);
     }, [party.people, party.id]);
 
+    // Sort active people so council members appear first
+    const sortedActivePeople = useMemo(() => {
+        return [...activePeople].sort((a, b) => {
+            const aIsCouncil = a.roles.some(role =>
+                role.administrativeBody?.type === 'council'
+            );
+            const bIsCouncil = b.roles.some(role =>
+                role.administrativeBody?.type === 'council'
+            );
+            if (aIsCouncil && !bIsCouncil) return -1;
+            if (!aIsCouncil && bIsCouncil) return 1;
+            return 0;
+        });
+    }, [activePeople]);
+
+    // Count members by administrative body type
+    const memberCountsByType = useMemo(() => {
+        const counts = {
+            council: 0,
+            committee: 0,
+            community: 0
+        };
+
+        activePeople.forEach(person => {
+            const adminBodyTypes = new Set(
+                person.roles
+                    .filter(role => role.administrativeBody)
+                    .map(role => role.administrativeBody!.type)
+            );
+
+            // Count each person only once per type
+            if (adminBodyTypes.has('council')) counts.council++;
+            if (adminBodyTypes.has('committee')) counts.committee++;
+            if (adminBodyTypes.has('community')) counts.community++;
+        });
+
+        return counts;
+    }, [activePeople]);
+
+    // Build member breakdown text
+    const memberBreakdownText = useMemo(() => {
+        const parts = [];
+
+        if (memberCountsByType.council > 0) {
+            const noun = memberCountsByType.council === 1 ? 'μέλος' : 'μέλη';
+            parts.push(`${memberCountsByType.council} ${noun} Δημοτικού Συμβουλίου`);
+        }
+        if (memberCountsByType.committee > 0) {
+            parts.push(`${memberCountsByType.committee} στην Δημοτική Επιτροπή`);
+        }
+        if (memberCountsByType.community > 0) {
+            parts.push(`${memberCountsByType.community} στις Δημοτικές Κοινότητες`);
+        }
+
+        return parts.join(', ');
+    }, [memberCountsByType]);
+
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>
-        activePeople.map(person => ({
+        sortedActivePeople.map(person => ({
             ...person,
             party,
             roles: person.roles.filter(role => role.partyId === party.id)
         }))
-        , [activePeople, party]);
+        , [sortedActivePeople, party]);
 
     const handleClick = () => {
         router.push(`/${party.cityId}/parties/${party.id}`);
@@ -92,13 +149,14 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                     )}
                 </div>
 
-                {/* Footer with member count */}
+                {/* Footer with member breakdown by administrative body */}
                 <div className="pt-3 border-t border-border/50 mt-4 pl-3 sm:pl-4">
                     <div className="text-xs text-muted-foreground font-medium">
-                        {activePeople.length === 1
-                            ? `${activePeople.length} μέλος`
-                            : `${activePeople.length} μέλη`
-                        }
+                        {memberBreakdownText || (
+                            activePeople.length === 1
+                                ? `${activePeople.length} μέλος`
+                                : `${activePeople.length} μέλη`
+                        )}
                     </div>
                 </div>
             </CardContent>
