@@ -2,7 +2,6 @@
 import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
-import { getPeopleForCity } from "../db/people";
 import { getPartiesForCity } from "../db/parties";
 import { getAllTopics } from "../db/topics";
 import { startTask } from "./tasks";

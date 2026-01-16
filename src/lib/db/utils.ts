@@ -1,7 +1,7 @@
 "use server"
 
 import { getTranscript } from "./transcript";
-import { getPeopleForCity } from "./people";
+import { getPeopleForCity, getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
@@ -14,14 +14,20 @@ import { getPartyFromRoles, getSingleCityRole } from "../utils";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
-    const people = await getPeopleForCity(cityId);
+    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
+
+    if (!councilMeeting) {
+        throw new Error('Council meeting not found');
+    }
+
+    // Get relevant people based on meeting's administrative body
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();
     const city = await getCity(cityId);
-    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
 
-    if (!city || !councilMeeting) {
-        throw new Error('City or council meeting not found');
+    if (!city) {
+        throw new Error('City not found');
     }
 
     return {

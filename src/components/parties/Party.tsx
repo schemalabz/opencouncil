@@ -1,6 +1,6 @@
 'use client';
 import { useTranslations } from 'next-intl';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
 import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { Search, Users, TrendingUp } from "lucide-react";
 import { Input } from '../ui/input';
@@ -18,6 +18,8 @@ import { Statistics } from '../Statistics';
 import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
+import { updateFilterURL } from '@/lib/utils/filterURL';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
@@ -26,6 +28,7 @@ import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
+import { MultiSelectDropdown } from '../ui/multi-select-dropdown';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -36,15 +39,72 @@ function PartyMembersTab({
     city,
     party,
     people,
-    canEdit
+    canEdit,
+    administrativeBodies
 }: {
     city: City,
     party: PartyWithPersons,
     people: PersonWithRelations[],
-    canEdit: boolean
+    canEdit: boolean,
+    administrativeBodies: AdministrativeBody[]
 }) {
     const t = useTranslations('Party');
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
+
+    // Get administrative bodies that party members belong to
+    const partyMembers = useMemo(() =>
+        people.filter(person =>
+            person.roles.some(role => role.partyId === party.id)
+        ),
+        [people, party.id]
+    );
+
+    const partyAdministrativeBodies = useMemo(() =>
+        getAdministrativeBodiesForPeople(partyMembers),
+        [partyMembers]
+    );
+
+    const defaultFilterValues = useMemo(() =>
+        getDefaultAdministrativeBodyFilters(partyAdministrativeBodies, true),
+        [partyAdministrativeBodies]
+    );
+
+    // Get filter values from URL or use default
+    const selectedAdminBodyIds = useMemo<(string | null)[]>(() => {
+        const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+        return selectedFilterLabels.length > 0
+            ? selectedFilterLabels.map(label =>
+                partyAdministrativeBodies.find(f => f.label === label)?.value
+            ).filter((value): value is string | null => value !== undefined)
+            : (defaultFilterValues ?? []);
+    }, [searchParams, partyAdministrativeBodies, defaultFilterValues]);
+
+    // Handle filter change
+    const handleAdminBodyFilterChange = (selectedValues: (string | null)[]) => {
+        updateFilterURL(selectedValues, partyAdministrativeBodies, defaultFilterValues, searchParams, router);
+    };
+
+    // Filter people based on selected administrative bodies
+    const filterByAdminBody = useCallback((person: PersonWithRelations) => {
+        // If no filters selected, show all
+        if (selectedAdminBodyIds.length === 0) return true;
+
+        // Check if person has no administrative body role
+        const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
+
+        // If "no admin body" is selected and person has no admin body, include them
+        if (selectedAdminBodyIds.includes(null) && hasNoAdminBody) {
+            return true;
+        }
+
+        // Check if person has any of the selected administrative bodies
+        return person.roles.some(role =>
+            role.administrativeBody &&
+            selectedAdminBodyIds.includes(role.administrativeBody.id)
+        );
+    }, [selectedAdminBodyIds]);
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
@@ -52,9 +112,9 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 isRoleActive(role)
-            )
+            ) && filterByAdminBody(person)
         ),
-        [people, party.id]);
+        [people, party.id, filterByAdminBody]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
@@ -62,12 +122,29 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 !isRoleActive(role)
-            )
+            ) && filterByAdminBody(person)
         ),
-        [people, party.id]);
+        [people, party.id, filterByAdminBody]);
 
     return (
         <div className="space-y-8">
+            {/* Administrative Body Filter - only show if there's more than one */}
+            {partyAdministrativeBodies.length > 1 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <MultiSelectDropdown
+                        options={partyAdministrativeBodies}
+                        defaultValues={selectedAdminBodyIds}
+                        onChange={handleAdminBodyFilterChange}
+                        className="w-full sm:w-[300px]"
+                        allText="Όλα τα όργανα"
+                    />
+                </motion.div>
+            )}
+
             {/* Current Members Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -581,6 +658,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 party={party}
                                 people={persons}
                                 canEdit={canEdit}
+                                administrativeBodies={administrativeBodies}
                             />
                         </TabsContent>
 

@@ -7,6 +7,7 @@ import { cn, normalizeText } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
+import { updateFilterURL } from '@/lib/utils/filterURL';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -30,6 +31,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     filter?: (selectedValues: F[], item: T) => boolean;
     allText?: string;
     showSearch?: boolean;
+    defaultFilterValues?: F[];
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -49,7 +51,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     showSearch = true,
     layout = 'grid',
     carouselItemWidth = 300,
-    carouselGap = 16
+    carouselGap = 16,
+    defaultFilterValues
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -63,11 +66,12 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
     // Convert filter labels to values
+    // If no filters in URL, use defaultFilterValues if provided, otherwise all values
     const selectedFilters = selectedFilterLabels.length > 0
         ? selectedFilterLabels.map(label =>
             filterAvailableValues.find(f => f.label === label)?.value
         ).filter((value): value is F => value !== undefined)
-        : filterAvailableValues.map(f => f.value);
+        : (defaultFilterValues || filterAvailableValues.map(f => f.value));
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
@@ -144,20 +148,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     };
 
     const handleFilterChange = (selectedValues: F[]) => {
-        const params = new URLSearchParams(searchParams.toString());
-
-        // If all filters are selected or no filters are selected, remove the filter parameter
-        if (selectedValues.length === filterAvailableValues.length || selectedValues.length === 0) {
-            params.delete('filters');
-        } else {
-            // Convert values to labels for URL
-            const selectedLabels = selectedValues
-                .map(value => filterAvailableValues.find(f => f.value === value)?.label)
-                .filter((label): label is string => label !== undefined);
-            params.set('filters', selectedLabels.join(','));
-        }
-
-        router.replace(`?${params.toString()}`);
+        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams, router);
     };
 
     return (

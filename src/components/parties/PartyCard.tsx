@@ -18,7 +18,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const t = useTranslations('Party');
     const router = useRouter();
 
-    // Get active people with party roles
+    // Get active people with party roles, sorted with council members first
     const activePeople = useMemo(() => {
         const filtered = party.people.filter(person =>
             person.roles.some(role =>
@@ -28,6 +28,74 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         );
         return sortPartyMembers(filtered, party.id, true);
     }, [party.people, party.id]);
+
+    // Count members by administrative body type
+    const memberCountsByType = useMemo(() => {
+        const counts = {
+            council: 0,
+            committee: 0,
+            community: 0
+        };
+
+        activePeople.forEach(person => {
+            const adminBodyTypes = new Set(
+                person.roles
+                    .filter(role => role.administrativeBody)
+                    .map(role => role.administrativeBody!.type)
+            );
+
+            // Count each person only once per type
+            if (adminBodyTypes.has('council')) counts.council++;
+            if (adminBodyTypes.has('committee')) counts.committee++;
+            if (adminBodyTypes.has('community')) counts.community++;
+        });
+
+        return counts;
+    }, [activePeople]);
+
+    // Build member breakdown text
+    const memberBreakdownText = useMemo(() => {
+        const breakdownParts: string[] = [];
+
+        if (memberCountsByType.council > 0) {
+            breakdownParts.push(`${memberCountsByType.council} στο Δημοτικό Συμβούλιο`);
+        }
+        if (memberCountsByType.committee > 0) {
+            breakdownParts.push(`${memberCountsByType.committee} σε επιτροπές`);
+        }
+        if (memberCountsByType.community > 0) {
+            breakdownParts.push(`${memberCountsByType.community} σε κοινότητες`);
+        }
+
+        const mayorCount = activePeople.filter(person =>
+            person.roles.some(role =>
+                role.cityId &&
+                !role.partyId &&
+                !role.administrativeBodyId &&
+                role.isHead
+            )
+        ).length;
+
+        const peopleWithoutAdminCount = activePeople.filter(person =>
+            !person.roles.some(role => role.administrativeBodyId)
+        ).length;
+
+        const othersCount = Math.max(0, peopleWithoutAdminCount - mayorCount);
+
+        if (othersCount > 0) {
+            breakdownParts.push(`${othersCount} άλλοι`);
+        }
+
+        if (breakdownParts.length === 0) {
+            return mayorCount > 0 ? 'Δήμαρχος' : '';
+        }
+
+        if (mayorCount > 0) {
+            return `Δήμαρχος, ${breakdownParts.join(', ')}`;
+        }
+
+        return breakdownParts.join(', ');
+    }, [activePeople, memberCountsByType]);
 
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>
@@ -92,13 +160,10 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                     )}
                 </div>
 
-                {/* Footer with member count */}
+                {/* Footer with member breakdown by administrative body */}
                 <div className="pt-3 border-t border-border/50 mt-4 pl-3 sm:pl-4">
                     <div className="text-xs text-muted-foreground font-medium">
-                        {activePeople.length === 1
-                            ? `${activePeople.length} μέλος`
-                            : `${activePeople.length} μέλη`
-                        }
+                        {memberBreakdownText}
                     </div>
                 </div>
             </CardContent>

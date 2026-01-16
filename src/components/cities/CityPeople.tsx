@@ -9,6 +9,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { City } from '@prisma/client';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -39,25 +40,15 @@ export default function CityPeople({
         return sortPeople(allPeople, partiesWithPersons, city?.peopleOrdering);
     }, [allPeople, partiesWithPersons, city?.peopleOrdering]);
 
-    const peopleAdministrativeBodies = [
-        ...Array.from(new Map(
-            allPeople
-                .flatMap(person => person.roles
-                    .filter(role => role.administrativeBody)
-                    .map(role => [
-                        role.administrativeBody!.id,
-                        {
-                            value: role.administrativeBody!.id,
-                            label: role.administrativeBody!.name
-                        }
-                    ])
-                )
-        ).values()),
-        ...(allPeople.some(person => person.roles.some(role => !role.administrativeBody)) ? [{
-            value: null,
-            label: "Χωρίς διοικητικό όργανο"
-        }] : [])
-    ];
+    const peopleAdministrativeBodies = useMemo(() =>
+        getAdministrativeBodiesForPeople(allPeople),
+        [allPeople]
+    );
+
+    const defaultFilterValues = useMemo(() =>
+        getDefaultAdministrativeBodyFilters(peopleAdministrativeBodies),
+        [peopleAdministrativeBodies]
+    );
 
     return (
         <List
@@ -75,6 +66,7 @@ export default function CityPeople({
                     role.administrativeBody && selectedValues.includes(role.administrativeBody.id)
                 )
             }
+            defaultFilterValues={defaultFilterValues}
             smColumns={1}
             mdColumns={2}
             lgColumns={3}

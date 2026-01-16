@@ -5,7 +5,7 @@ import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance } from "../apiTypes";
 import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { getPeopleForCity } from "@/lib/db/people";
+import { getPeopleForMeeting } from "@/lib/db/people";
 import { buildUnknownSpeakerLabel } from "../utils";
 
 async function deleteExistingSpeakerData(
@@ -88,8 +88,8 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
     const vocabulary = [city.name, ...city.persons.map(p => p.name), ...city.parties.map(p => p.name)].flatMap(s => s.split(' '));
     const prompt = `Αυτή είναι η απομαγνητοφώνηση της συνεδρίασης του δήμου της ${city.name} που έγινε στις ${councilMeeting.dateTime}.`;
 
-    // Get voiceprints for people in the city
-    const people = await getPeopleForCity(cityId);
+    // Get voiceprints for relevant people based on meeting's administrative body
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const voiceprints: Voiceprint[] = people
         .filter(person => person.voicePrints && person.voicePrints.length > 0)
         .map(person => ({
@@ -97,7 +97,7 @@ export async function requestTranscribe(youtubeUrl: string, councilMeetingId: st
             voiceprint: person.voicePrints![0].embedding
         }));
 
-    console.log(`Found ${voiceprints.length} voiceprints for people in the city`);
+    console.log(`Found ${voiceprints.length} voiceprints for people relevant to this meeting`);
 
     const body: Omit<TranscribeRequest, 'callbackUrl'> = {
         youtubeUrl,
