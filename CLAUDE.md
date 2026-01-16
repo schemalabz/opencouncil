@@ -151,6 +151,31 @@ Multi-channel delivery in `src/lib/notifications/`:
 - Never create markdown files after completing tasks (unless directly asked)
 - Use time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`)
 
+### Code Organization & DRY Principles
+
+**Import Organization**:
+- **All imports must be at the top of the file** - Never use dynamic imports or imports in the middle of functions unless absolutely necessary
+- Group imports logically: React/Next.js first, then third-party, then local
+- Use consistent import style within a file
+
+**Don't Repeat Yourself (DRY)**:
+- **Always check for duplicated logic** - If two components have similar code blocks (>10 lines), extract to a shared utility
+- Common extraction targets:
+  - Filtering/sorting logic → Extract to `src/lib/utils/` or `src/lib/sorting/`
+  - URL parameter handling → Extract to utilities
+  - Data transformation logic → Extract to utilities
+  - Complex calculations → Extract to helper functions
+- **Location for shared utilities**:
+  - `src/lib/utils/` - General utilities (e.g., `filterURL.ts`, `administrativeBodies.ts`)
+  - `src/lib/sorting/` - Sorting functions (e.g., `people.ts`)
+  - `src/lib/formatters/` - Formatting functions (e.g., `time.ts`)
+
+**Before committing code**:
+1. Search for similar code patterns in the codebase
+2. Check if logic exists in multiple places
+3. Extract duplicates to shared utilities
+4. Ensure all imports are at the top of files
+
 ### TypeScript
 - Strict mode is enabled
 - Use interfaces/types for data structures
