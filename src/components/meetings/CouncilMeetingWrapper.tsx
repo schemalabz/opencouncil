@@ -15,6 +15,7 @@ import { EditingProvider } from './EditingContext'
 
 type CouncilMeetingWrapperProps = {
     editable: boolean,
+    canCreateHighlights: boolean,
     meetingData: MeetingData,
     children: React.ReactNode
 }
@@ -22,7 +23,7 @@ type CouncilMeetingWrapperProps = {
 const LayoutContext = createContext<{ isWide: boolean }>({ isWide: false });
 export const useLayout = () => useContext(LayoutContext);
 
-export default function CouncilMeetingWrapper({ meetingData, editable, children }: CouncilMeetingWrapperProps) {
+export default function CouncilMeetingWrapper({ meetingData, editable, canCreateHighlights, children }: CouncilMeetingWrapperProps) {
     const [isWide, setIsWide] = useState(false);
     const [loading, setLoading] = useState(true);
 
@@ -58,7 +59,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, children 
     return (
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
-                <TranscriptOptionsProvider editable={editable}>
+                <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                         <HighlightProvider>
                             <KeyboardShortcutsProvider>

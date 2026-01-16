@@ -96,7 +96,7 @@
     "highlightUpdated": "Highlight updated successfully.",
     "highlightDeleted": "Highlight deleted successfully.",
     "deleteError": "Failed to delete highlight. Please try again.",
-    "generationStarted": "Video generation started. This may take a few minutes.",
+    "generationStarted": "Video generation started. This may take a few minutes. You'll receive an email when it's ready.",
     "generationError": "Failed to generate video. Please try again.",
     "showcaseAdded": "Highlight added to showcase.",
     "showcaseRemoved": "Highlight removed from showcase.",
@@ -175,7 +175,7 @@
     "lastUpdated": "Last updated {relativeTime}",
     "generating": "Generating...",
     "generateVideo": "Generate Video",
-    "generatingVideo": "Generating highlight video... This may take a few minutes.",
+    "generatingVideo": "Generating highlight video... This may take a few minutes. You'll receive an email when complete.",
     "contentAndVideo": "Content & Video",
     "contentPreview": "Content Preview",
     "video": "Video"

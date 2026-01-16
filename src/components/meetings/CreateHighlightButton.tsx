@@ -24,7 +24,7 @@ export function CreateHighlightButton({
 }: CreateHighlightButtonProps) {
     const { createHighlight, isCreating, editingHighlight } = useHighlight();
     const { options } = useTranscriptOptions();
-    const canEdit = options.editsAllowed;
+    const canCreateHighlight = options.canCreateHighlights;
     const t = useTranslations('highlights');
 
     // Do not render if overall editing (structural) is active
@@ -32,7 +32,7 @@ export function CreateHighlightButton({
         return null;
     }
 
-    if (!canEdit) {
+    if (!canCreateHighlight) {
         return null;
     }
 

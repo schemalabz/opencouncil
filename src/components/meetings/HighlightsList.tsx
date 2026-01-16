@@ -6,7 +6,7 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Users, Star, Play, Loader2, Calendar, Tag } from "lucide-react";
+import { Clock, Users, Star, Play, Loader2, Calendar, Tag, User } from "lucide-react";
 
 import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
@@ -22,6 +22,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const locale = useLocale();
   const { calculateHighlightData } = useHighlight();
   const { subjects } = useCouncilMeetingData();
+  const { options } = useTranscriptOptions();
   const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('highlights');
   
@@ -31,6 +32,10 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const duration = highlightData?.statistics.duration || 0;
   const speakerCount = highlightData?.statistics.speakerCount || 0;
   const utteranceCount = highlightData?.statistics.utteranceCount || 0;
+  
+  // Only show creator for city editors (they can see all highlights)
+  const canEditCity = options.editsAllowed;
+  const creatorName = canEditCity ? highlight.createdBy?.name : null;
 
   const handleCardClick = () => {
     if (isLoading) return; // Prevent multiple clicks
@@ -66,8 +71,8 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                 )}
               </div>
               
-              {/* Subject badge - prominent but not overwhelming */}
-              <div className="mb-3">
+              {/* Subject badge and creator info */}
+              <div className="mb-3 space-y-2">
                 <div className="flex items-center space-x-2">
                   <Tag className="h-3 w-3 text-muted-foreground" />
                   {highlight.subjectId ? (
@@ -80,6 +85,14 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                     </Badge>
                   )}
                 </div>
+                
+                {/* Creator info */}
+                {creatorName && (
+                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                    <User className="h-3 w-3" />
+                    <span>{creatorName}</span>
+                  </div>
+                )}
               </div>
               
               {/* Stats row - compact and organized */}
@@ -139,9 +152,9 @@ const AddHighlightButton = () => {
 };
 
 export default function HighlightsList() {
-  const { meeting, highlights } = useCouncilMeetingData();
+  const { highlights } = useCouncilMeetingData();
   const { options } = useTranscriptOptions();
-  const canEdit = options.editsAllowed;
+  const canCreateHighlights = options.canCreateHighlights;
   const t = useTranslations('highlights');
 
   const showcasedHighlights = highlights.filter(h => h.isShowcased);
@@ -159,7 +172,7 @@ export default function HighlightsList() {
       </div>
 
       {/* Create New Highlight Button */}
-      {canEdit && (
+      {canCreateHighlights && highlights.length > 0 && (
         <div className="flex justify-center">
           <AddHighlightButton />
         </div>
@@ -230,9 +243,7 @@ export default function HighlightsList() {
               <p className="text-sm mb-4">
                 {t('emptyState.description')}
               </p>
-              {canEdit && (
-                <AddHighlightButton />
-              )}
+              {canCreateHighlights && <AddHighlightButton />}
             </div>
           </div>
         )}

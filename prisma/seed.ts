@@ -357,6 +357,7 @@ async function seedCities(cities: any[]) {
     authorityType: city.authorityType || 'municipality',
     wikipediaId: city.wikipediaId,
     consultationsEnabled: city.id === 'athens' ? true : false, // Enable consultations for Athens
+    highlightCreationPermission: city.highlightCreationPermission || 'ADMINS_ONLY',
   }))
 
   await prisma.city.createMany({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteHighlight, toggleHighlightShowcase, upsertHighlight, getHighlight } from "@/lib/db/highlights";
+import { handleApiError } from "@/lib/api/errors";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
     try {
@@ -11,9 +12,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
             return NextResponse.json({ error: "Highlight not found" }, { status: 404 });
         }
         return NextResponse.json(highlight, { status: 200 });
-    } catch (error: any) {
-        console.error("Failed to fetch highlight:", error);
-        return NextResponse.json({ error: error?.message || "Failed to fetch highlight" }, { status: 500 });
+    } catch (error) {
+        return handleApiError(error, "Failed to fetch highlight");
     }
 }
 
@@ -33,9 +33,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             subjectId
         });
         return NextResponse.json(highlight, { status: 200 });
-    } catch (error: any) {
-        console.error("Failed to update highlight:", error);
-        return NextResponse.json({ error: error?.message || "Failed to update" }, { status: 500 });
+    } catch (error) {
+        return handleApiError(error, "Failed to update highlight");
     }
 }
 
@@ -46,9 +45,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
         }
         await deleteHighlight(params.id);
         return NextResponse.json({ ok: true }, { status: 200 });
-    } catch (error: any) {
-        console.error("Failed to delete highlight:", error);
-        return NextResponse.json({ error: error?.message || "Failed to delete" }, { status: 500 });
+    } catch (error) {
+        return handleApiError(error, "Failed to delete highlight");
     }
 }
 
@@ -59,8 +57,7 @@ export async function PATCH(_req: NextRequest, { params }: { params: { id: strin
         }
         const updated = await toggleHighlightShowcase(params.id);
         return NextResponse.json(updated, { status: 200 });
-    } catch (error: any) {
-        console.error("Failed to toggle showcase:", error);
-        return NextResponse.json({ error: error?.message || "Failed to toggle showcase" }, { status: 500 });
+    } catch (error) {
+        return handleApiError(error, "Failed to toggle showcase");
     }
 } 

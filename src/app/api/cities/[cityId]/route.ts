@@ -1,24 +1,20 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
-import { deleteCity, editCity, getCity, getCitiesWithGeometry } from '@/lib/db/cities'
+import { deleteCity, editCity, getCity } from '@/lib/db/cities'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
-    const city = await getCity(params.cityId);
+    const city = await getCity(params.cityId, { includeGeometry: true });
 
     if (!city) {
         return NextResponse.json({ error: 'City not found' }, { status: 404 });
     }
 
-    // Get the city with geometry
-    const citiesWithGeometry = await getCitiesWithGeometry([city]);
-    const cityWithGeometry = citiesWithGeometry[0];
+    console.log('API returning city with geometry:', city);
 
-    console.log('API returning city with geometry:', cityWithGeometry);
-
-    return NextResponse.json(cityWithGeometry);
+    return NextResponse.json(city);
 }
 
 export async function PUT(request: Request, { params }: { params: { cityId: string } }) {
@@ -41,6 +37,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
     const supportsNotifications = formData.get('supportsNotifications') === 'true'
     const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
+    const highlightCreationPermission = formData.get('highlightCreationPermission') as 'ADMINS_ONLY' | 'EVERYONE' | null
 
     // Only allow superadmins to modify officialSupport and status
     let officialSupport: boolean | undefined = undefined
@@ -93,6 +90,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             officialSupport?: boolean
             supportsNotifications?: boolean
             status?: 'pending' | 'unlisted' | 'listed'
+            highlightCreationPermission?: 'ADMINS_ONLY' | 'EVERYONE'
         } = {
             name,
             name_en,
@@ -102,7 +100,8 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
             supportsNotifications,
-            ...(peopleOrdering && { peopleOrdering })
+            ...(peopleOrdering && { peopleOrdering }),
+            ...(highlightCreationPermission && { highlightCreationPermission })
         }
 
         // Only include admin-only fields if user is superadmin

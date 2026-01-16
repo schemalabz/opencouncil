@@ -13,7 +13,29 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams) {
     const resend = new Resend(env.RESEND_API_KEY);
-    const { from, to, cc, subject, html, text } = params;
+    let { from, to, cc, subject, html, text } = params;
+
+    // Development email override: redirect all emails to a single address
+    const isDev = process.env.NODE_ENV !== 'production';
+    const devEmailOverride = env.DEV_EMAIL_OVERRIDE;
+
+    if (isDev && devEmailOverride) {
+        const originalTo = to;
+        const originalCc = cc;
+        
+        // Redirect email to dev address
+        to = devEmailOverride;
+        cc = undefined; // Clear CC to avoid sending to real addresses
+        
+        // Modify subject to include original recipient
+        subject = `[DEV → ${originalTo}] ${subject}`;
+        
+        // Log for debugging
+        console.log(`📧 Dev mode: Redirecting email from "${originalTo}" to "${devEmailOverride}"`);
+        if (originalCc) {
+            console.log(`   Original CC: ${originalCc}`);
+        }
+    }
 
     try {
         const result = await resend.emails.send({

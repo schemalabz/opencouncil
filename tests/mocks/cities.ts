@@ -1,4 +1,4 @@
-export async function getCitiesWithGeometry(cities: any[]) {
+export async function attachGeometryToCities(cities: any[]) {
     return cities
 }
 

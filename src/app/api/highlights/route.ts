@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertHighlight } from "@/lib/db/highlights";
+import { handleApiError } from "@/lib/api/errors";
 
 export async function POST(req: NextRequest) {
     try {
@@ -19,8 +20,7 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json(highlight, { status: 201 });
-    } catch (error: any) {
-        console.error("Failed to create highlight:", error);
-        return NextResponse.json({ error: error?.message || "Failed to create highlight" }, { status: 500 });
+    } catch (error) {
+        return handleApiError(error, "Failed to create highlight");
     }
 } 

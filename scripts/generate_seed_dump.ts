@@ -484,7 +484,7 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
         
         if (locationIds.length > 0) {
           try {
-            // Get geometry data using the pattern from getCitiesWithGeometry and getSubjectsForMeeting
+            // Get geometry data using the pattern from attachGeometryToCities and getSubjectsForMeeting
             const locationGeometry = await prisma.$queryRaw<Array<{ id: string; geojson: string }>>`
               SELECT id, ST_AsGeoJSON(coordinates)::text as geojson
               FROM "Location"
