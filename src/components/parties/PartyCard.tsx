@@ -18,7 +18,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
     const t = useTranslations('Party');
     const router = useRouter();
 
-    // Get active people with party roles
+    // Get active people with party roles, sorted with council members first
     const activePeople = useMemo(() => {
         const filtered = party.people.filter(person =>
             person.roles.some(role =>
@@ -28,21 +28,6 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
         );
         return sortPartyMembers(filtered, party.id, true);
     }, [party.people, party.id]);
-
-    // Sort active people so council members appear first
-    const sortedActivePeople = useMemo(() => {
-        return [...activePeople].sort((a, b) => {
-            const aIsCouncil = a.roles.some(role =>
-                role.administrativeBody?.type === 'council'
-            );
-            const bIsCouncil = b.roles.some(role =>
-                role.administrativeBody?.type === 'council'
-            );
-            if (aIsCouncil && !bIsCouncil) return -1;
-            if (!aIsCouncil && bIsCouncil) return 1;
-            return 0;
-        });
-    }, [activePeople]);
 
     // Count members by administrative body type
     const memberCountsByType = useMemo(() => {
@@ -88,12 +73,12 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>
-        sortedActivePeople.map(person => ({
+        activePeople.map(person => ({
             ...person,
             party,
             roles: person.roles.filter(role => role.partyId === party.id)
         }))
-        , [sortedActivePeople, party]);
+        , [activePeople, party]);
 
     const handleClick = () => {
         router.push(`/${party.cityId}/parties/${party.id}`);

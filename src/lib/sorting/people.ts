@@ -25,7 +25,7 @@ export const compareRanks = (aRank: number | null, bRank: number | null): number
 };
 
 /**
- * Sorts party members by: head status (optional), then rank, then name
+ * Sorts party members by: council members first, then head status (optional), then rank, then name
  */
 export const sortPartyMembers = (
     people: PersonWithRelations[],
@@ -35,19 +35,29 @@ export const sortPartyMembers = (
     return [...people].sort((a, b) => {
         const aRole = getActivePartyRole(a.roles, partyId);
         const bRole = getActivePartyRole(b.roles, partyId);
-        
-        // Sort by isHead first if enabled
+
+        // Sort by council membership first (council members appear first)
+        const aIsCouncil = a.roles.some(role =>
+            role.administrativeBody?.type === 'council'
+        );
+        const bIsCouncil = b.roles.some(role =>
+            role.administrativeBody?.type === 'council'
+        );
+        if (aIsCouncil && !bIsCouncil) return -1;
+        if (!aIsCouncil && bIsCouncil) return 1;
+
+        // Then sort by isHead if enabled
         if (prioritizeHead) {
             const aIsHead = aRole?.isHead ?? false;
             const bIsHead = bRole?.isHead ?? false;
             if (aIsHead && !bIsHead) return -1;
             if (!aIsHead && bIsHead) return 1;
         }
-        
+
         // Then sort by rank
         const rankCompare = compareRanks(aRole?.rank ?? null, bRole?.rank ?? null);
         if (rankCompare !== 0) return rankCompare;
-        
+
         // Finally sort by name
         return a.name.localeCompare(b.name);
     });
