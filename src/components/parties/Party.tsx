@@ -72,13 +72,13 @@ function PartyMembersTab({
     );
 
     // Get filter values from URL or use default
-    const selectedAdminBodyIds = useMemo(() => {
+    const selectedAdminBodyIds = useMemo<(string | null)[]>(() => {
         const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
         return selectedFilterLabels.length > 0
             ? selectedFilterLabels.map(label =>
                 partyAdministrativeBodies.find(f => f.label === label)?.value
             ).filter((value): value is string | null => value !== undefined)
-            : defaultFilterValues;
+            : (defaultFilterValues ?? []);
     }, [searchParams, partyAdministrativeBodies, defaultFilterValues]);
 
     // Handle filter change
