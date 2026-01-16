@@ -139,6 +139,7 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `DEV_TEST_CITY_ID` | The city ID used for creating development test users. | No | `chania` |
+| `DEV_EMAIL_OVERRIDE` | Email address to receive ALL emails in development mode. When set, redirects all outgoing emails to this address instead of the actual recipients. The subject line will be prefixed with `[DEV → original@email.com]` to show the intended recipient. | No | - |
 | `SEED_DATA_URL` | URL to fetch seed data from if local file doesn't exist. | No | [link](https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json) |
 | `SEED_DATA_PATH` | Path to local seed data file. | No | `./prisma/seed_data.json` |
 
@@ -175,6 +176,20 @@ When `NODE_ENV=development`:
 - Debug information is shown in the UI
 - Mock data can be toggled in the chat interface
 - QuickLogin tool is available for testing different user permission levels
+- Email override is available via `DEV_EMAIL_OVERRIDE` to intercept all outgoing emails
+
+### Email Testing in Development
+To test email functionality without sending emails to real users, set the `DEV_EMAIL_OVERRIDE` environment variable:
+
+```bash
+DEV_EMAIL_OVERRIDE=your-test-email@example.com
+```
+
+When set, all emails will be redirected to this address in development mode. The subject line will be prefixed with `[DEV → original@email.com]` to indicate the intended recipient. This applies to all emails:
+- Highlight completion notifications
+- Authentication emails
+- User invitations
+- Notification system emails
 
 ## Production Setup
 
