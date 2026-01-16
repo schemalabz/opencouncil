@@ -59,24 +59,18 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Get filter and search values from URL
     const searchQuery = searchParams.get('search') || '';
-    const selectedFilterLabels = useMemo(() =>
-        searchParams.get('filters')?.split(',').filter(Boolean) || [],
-        [searchParams]
-    );
+    const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
 
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
     // Convert filter labels to values
     // If no filters in URL, use defaultFilterValues if provided, otherwise all values
-    // Memoized to prevent unnecessary re-renders and race conditions with URL updates
-    const selectedFilters = useMemo(() => {
-        return selectedFilterLabels.length > 0
-            ? selectedFilterLabels.map(label =>
-                filterAvailableValues.find(f => f.label === label)?.value
-            ).filter((value): value is F => value !== undefined)
-            : (defaultFilterValues || filterAvailableValues.map(f => f.value));
-    }, [selectedFilterLabels, filterAvailableValues, defaultFilterValues]);
+    const selectedFilters = selectedFilterLabels.length > 0
+        ? selectedFilterLabels.map(label =>
+            filterAvailableValues.find(f => f.label === label)?.value
+        ).filter((value): value is F => value !== undefined)
+        : (defaultFilterValues || filterAvailableValues.map(f => f.value));
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
