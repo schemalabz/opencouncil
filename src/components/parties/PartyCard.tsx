@@ -55,21 +55,47 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
 
     // Build member breakdown text
     const memberBreakdownText = useMemo(() => {
-        const parts = [];
+        const breakdownParts: string[] = [];
 
         if (memberCountsByType.council > 0) {
-            const noun = memberCountsByType.council === 1 ? 'μέλος' : 'μέλη';
-            parts.push(`${memberCountsByType.council} ${noun} Δημοτικού Συμβουλίου`);
+            breakdownParts.push(`${memberCountsByType.council} στο Δημοτικό Συμβούλιο`);
         }
         if (memberCountsByType.committee > 0) {
-            parts.push(`${memberCountsByType.committee} στην Δημοτική Επιτροπή`);
+            breakdownParts.push(`${memberCountsByType.committee} σε επιτροπές`);
         }
         if (memberCountsByType.community > 0) {
-            parts.push(`${memberCountsByType.community} στις Δημοτικές Κοινότητες`);
+            breakdownParts.push(`${memberCountsByType.community} σε κοινότητες`);
         }
 
-        return parts.join(', ');
-    }, [memberCountsByType]);
+        const mayorCount = activePeople.filter(person =>
+            person.roles.some(role =>
+                role.cityId &&
+                !role.partyId &&
+                !role.administrativeBodyId &&
+                role.isHead
+            )
+        ).length;
+
+        const peopleWithoutAdminCount = activePeople.filter(person =>
+            !person.roles.some(role => role.administrativeBodyId)
+        ).length;
+
+        const othersCount = Math.max(0, peopleWithoutAdminCount - mayorCount);
+
+        if (othersCount > 0) {
+            breakdownParts.push(`${othersCount} άλλοι`);
+        }
+
+        if (breakdownParts.length === 0) {
+            return mayorCount > 0 ? 'Δήμαρχος' : '';
+        }
+
+        if (mayorCount > 0) {
+            return `Δήμαρχος, ${breakdownParts.join(', ')}`;
+        }
+
+        return breakdownParts.join(', ');
+    }, [activePeople, memberCountsByType]);
 
     // Transform people into PersonWithRelations for PersonAvatarList
     const activePersonsForAvatarList = useMemo(() =>
@@ -137,11 +163,7 @@ export default function PartyCard({ item: party, editable }: PartyCardProps) {
                 {/* Footer with member breakdown by administrative body */}
                 <div className="pt-3 border-t border-border/50 mt-4 pl-3 sm:pl-4">
                     <div className="text-xs text-muted-foreground font-medium">
-                        {memberBreakdownText || (
-                            activePeople.length === 1
-                                ? `${activePeople.length} μέλος`
-                                : `${activePeople.length} μέλη`
-                        )}
+                        {memberBreakdownText}
                     </div>
                 </div>
             </CardContent>
