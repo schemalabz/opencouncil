@@ -5,6 +5,7 @@ import { startTask } from './tasks';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';
 import { getPartyFromRoles, isRoleActiveAt, getSingleCityRole } from '@/lib/utils';
 import { canViewHighlight } from '@/lib/db/highlights';
+import { sendHighlightCompleteEmail } from '@/lib/email/highlightComplete';
 
 export async function requestGenerateHighlight(
     highlightId: string,
@@ -132,15 +133,80 @@ export async function requestGenerateHighlight(
 }
 
 export async function handleGenerateHighlightResult(taskId: string, result: GenerateHighlightResult) {
-    // Process the first part (we only send one part per highlight)
-    if (result.parts && result.parts.length > 0) {
+    // Get the task status to determine success/failure
+    const task = await prisma.taskStatus.findUnique({
+        where: { id: taskId },
+        select: {
+            status: true,
+            requestBody: true
+        }
+    });
+
+    if (!task) {
+        console.error('Task not found:', taskId);
+        return;
+    }
+
+    // Extract highlight ID from the request
+    let highlightId: string | undefined;
+    try {
+        const request = JSON.parse(task.requestBody) as GenerateHighlightRequest;
+        highlightId = request.parts?.[0]?.id;
+    } catch (error) {
+        console.error('Failed to parse task request body:', error);
+        return;
+    }
+
+    if (!highlightId) {
+        console.error('No highlight ID found in task request');
+        return;
+    }
+
+    // Determine status based on task result
+    const status: 'success' | 'failure' = task.status === 'succeeded' && result.parts && result.parts.length > 0 
+        ? 'success' 
+        : 'failure';
+
+    // Get createdById - either from update (success) or findUnique (failure)
+    let createdById: string | null = null;
+
+    if (status === 'success' && result.parts && result.parts.length > 0) {
         const part = result.parts[0];
-        await prisma.highlight.update({
+        
+        // Update highlight and get createdById in a single query
+        const highlight = await prisma.highlight.update({
             where: { id: part.id },
             data: {
                 videoUrl: part.url,
                 ...(part.muxPlaybackId ? { muxPlaybackId: part.muxPlaybackId } : {}),
             },
+            select: {
+                createdById: true
+            }
+        });
+        
+        createdById = highlight.createdById;
+    } else {
+        // Task failed - just get createdById
+        const highlight = await prisma.highlight.findUnique({
+            where: { id: highlightId },
+            select: {
+                createdById: true
+            }
+        });
+        
+        createdById = highlight?.createdById ?? null;
+    }
+
+    // Send email notification to the creator if they exist
+    if (createdById) {
+        // Fire and forget - don't await to avoid blocking task completion
+        sendHighlightCompleteEmail({
+            userId: createdById,
+            highlightId,
+            status
+        }).catch(error => {
+            console.error('Failed to send highlight completion email:', error);
         });
     }
 } 
