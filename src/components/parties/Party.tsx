@@ -19,6 +19,7 @@ import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speake
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
+import { updateFilterURL } from '@/lib/utils/filterURL';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
@@ -82,26 +83,7 @@ function PartyMembersTab({
 
     // Handle filter change
     const handleAdminBodyFilterChange = (selectedValues: (string | null)[]) => {
-        const params = new URLSearchParams(searchParams.toString());
-
-        // Check if selected values match the default (both Δημοτικό Συμβούλιο and Άλλοι)
-        const matchesDefault = defaultFilterValues.length === selectedValues.length &&
-            defaultFilterValues.every(v => selectedValues.includes(v));
-
-        // If all filters selected, none selected, or matches default, remove the filter parameter
-        if (selectedValues.length === partyAdministrativeBodies.length ||
-            selectedValues.length === 0 ||
-            matchesDefault) {
-            params.delete('filters');
-        } else {
-            // Convert values to labels for URL
-            const selectedLabels = selectedValues
-                .map(value => partyAdministrativeBodies.find(f => f.value === value)?.label)
-                .filter((label): label is string => label !== undefined);
-            params.set('filters', selectedLabels.join(','));
-        }
-
-        router.replace(`?${params.toString()}`);
+        updateFilterURL(selectedValues, partyAdministrativeBodies, defaultFilterValues, searchParams, router);
     };
 
     // Filter people based on selected administrative bodies

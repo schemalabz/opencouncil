@@ -7,6 +7,7 @@ import { cn, normalizeText } from '@/lib/utils';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
+import { updateFilterURL } from '@/lib/utils/filterURL';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -147,27 +148,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     };
 
     const handleFilterChange = (selectedValues: F[]) => {
-        const params = new URLSearchParams(searchParams.toString());
-
-        // Check if selected values match the default filter values
-        const matchesDefault = defaultFilterValues &&
-            selectedValues.length === defaultFilterValues.length &&
-            selectedValues.every(v => defaultFilterValues.includes(v));
-
-        // If all filters are selected, no filters are selected, or matches default, remove the filter parameter
-        if (selectedValues.length === filterAvailableValues.length ||
-            selectedValues.length === 0 ||
-            matchesDefault) {
-            params.delete('filters');
-        } else {
-            // Convert values to labels for URL
-            const selectedLabels = selectedValues
-                .map(value => filterAvailableValues.find(f => f.value === value)?.label)
-                .filter((label): label is string => label !== undefined);
-            params.set('filters', selectedLabels.join(','));
-        }
-
-        router.replace(`?${params.toString()}`);
+        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams, router);
     };
 
     return (
