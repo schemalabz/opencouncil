@@ -55,6 +55,7 @@ async function main() {
   const args = process.argv.slice(2);
   let cityId: string | undefined;
   let csvPath: string | undefined;
+  let isDryRun = false;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--city-id' && i + 1 < args.length) {
@@ -63,6 +64,8 @@ async function main() {
     } else if (args[i] === '--csv' && i + 1 < args.length) {
       csvPath = args[i + 1];
       i++;
+    } else if (args[i] === '--dry-run') {
+      isDryRun = true;
     }
   }
 
@@ -73,6 +76,9 @@ async function main() {
   }
 
   console.log(`Starting community councils import for city: ${cityId}...`);
+  if (isDryRun) {
+    console.log('Dry run enabled: no database writes will be performed.');
+  }
 
   // Read CSV file
   const resolvedCsvPath = path.isAbsolute(csvPath) ? csvPath : path.join(process.cwd(), csvPath);
@@ -134,18 +140,30 @@ async function main() {
     return ordinals[num] || `${num}th`;
   };
 
+  const createDryRunId = (() => {
+    let counter = 0;
+    return (prefix: string) => {
+      counter += 1;
+      return `dryrun_${prefix}_${counter}`;
+    };
+  })();
+
   // Create administrative bodies for each unique community number
-  const communityMap = new Map<number, any>();
+  const communityMap = new Map<number, { id: string; name_en: string }>();
   for (const communityNum of uniqueCommunityNumbers) {
-    const community = await prisma.administrativeBody.create({
-      data: {
-        name: `${getGreekOrdinal(communityNum)} Δημοτική Κοινότητα`,
-        name_en: `${getEnglishOrdinal(communityNum)} Municipal Community`,
-        type: 'community',
-        notificationBehavior: 'NOTIFICATIONS_APPROVAL',
-        cityId: cityId,
-      },
-    });
+    const name = `${getGreekOrdinal(communityNum)} Δημοτική Κοινότητα`;
+    const nameEn = `${getEnglishOrdinal(communityNum)} Municipal Community`;
+    const community = isDryRun
+      ? { id: createDryRunId('community'), name_en: nameEn }
+      : await prisma.administrativeBody.create({
+          data: {
+            name,
+            name_en: nameEn,
+            type: 'community',
+            notificationBehavior: 'NOTIFICATIONS_APPROVAL',
+            cityId: cityId,
+          },
+        });
     communityMap.set(communityNum, community);
     console.log(`  ✓ Created ${community.name_en} (${community.id})`);
   }
@@ -156,15 +174,21 @@ async function main() {
 
   for (const member of communityMembers) {
     try {
-      const person = await prisma.person.create({
-        data: {
-          name: member.name,
-          name_en: member.name_en,
-          name_short: member.name_short,
-          name_short_en: member.name_short_en,
-          cityId: cityId,
-        },
-      });
+      const person = isDryRun
+        ? {
+            id: createDryRunId('person'),
+            name: member.name,
+            name_short: member.name_short,
+          }
+        : await prisma.person.create({
+            data: {
+              name: member.name,
+              name_en: member.name_en,
+              name_short: member.name_short,
+              name_short_en: member.name_short_en,
+              cityId: cityId,
+            },
+          });
       createdPersons[member.name] = person.id;
       console.log(`  ✓ Created ${person.name} (${person.name_short})`);
     } catch (error) {
@@ -186,14 +210,16 @@ async function main() {
     }
 
     try {
-      await prisma.role.create({
-        data: {
-          personId,
-          cityId: cityId,
-          partyId,
-          isHead: false,
-        },
-      });
+      if (!isDryRun) {
+        await prisma.role.create({
+          data: {
+            personId,
+            cityId: cityId,
+            partyId,
+            isHead: false,
+          },
+        });
+      }
       partyRoleCount++;
     } catch (error) {
       console.error(`  ✗ Failed to create party role for ${member.name}:`, error);
@@ -216,14 +242,16 @@ async function main() {
     }
 
     try {
-      await prisma.role.create({
-        data: {
-          personId,
-          cityId: cityId,
-          administrativeBodyId: community.id,
-          isHead: member.isChair,
-        },
-      });
+      if (!isDryRun) {
+        await prisma.role.create({
+          data: {
+            personId,
+            cityId: cityId,
+            administrativeBodyId: community.id,
+            isHead: member.isChair,
+          },
+        });
+      }
       communityRoleCount++;
       if (member.isChair) chairCount++;
     } catch (error) {
