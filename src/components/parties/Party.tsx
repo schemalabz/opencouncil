@@ -18,6 +18,7 @@ import { Statistics } from '../Statistics';
 import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
@@ -52,71 +53,22 @@ function PartyMembersTab({
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
 
     // Get administrative bodies that party members belong to
-    const partyAdministrativeBodies = useMemo(() => {
-        // Get all people who are party members
-        const partyMembers = people.filter(person =>
+    const partyMembers = useMemo(() =>
+        people.filter(person =>
             person.roles.some(role => role.partyId === party.id)
-        );
-
-        // Extract unique administrative bodies from party members (from their separate admin body roles)
-        const adminBodiesMap = new Map(
-            partyMembers
-                .flatMap(person => person.roles
-                    .filter(role => role.administrativeBody)
-                    .map(role => [
-                        role.administrativeBody!.id,
-                        {
-                            value: role.administrativeBody!.id,
-                            label: role.administrativeBody!.name,
-                            type: role.administrativeBody!.type
-                        }
-                    ])
-                )
-        );
-
-        // Sort: council first, committees second, communities alphabetically, then Άλλοι
-        const sortedBodies = Array.from(adminBodiesMap.values()).sort((a, b) => {
-            // Council first
-            if (a.type === 'council' && b.type !== 'council') return -1;
-            if (a.type !== 'council' && b.type === 'council') return 1;
-
-            // Committees second
-            if (a.type === 'committee' && b.type === 'community') return -1;
-            if (a.type === 'community' && b.type === 'committee') return 1;
-
-            // Within same type, sort alphabetically by label
-            return a.label.localeCompare(b.label, 'el');
-        });
-
-        // Check if any party member has no administrative body role
-        const hasNoAdminBody = partyMembers.some(person =>
-            !person.roles.some(role => role.administrativeBody)
-        );
-
-        return [
-            ...sortedBodies.map(({ value, label }) => ({ value, label })),
-            ...(hasNoAdminBody ? [{
-                value: null as string | null,
-                label: "Άλλοι"
-            }] : [])
-        ];
-    }, [people, party.id]);
-
-    // Find "Δημοτικό Συμβούλιο" and "Άλλοι" for default filters
-    const defaultCouncilBody = partyAdministrativeBodies.find(
-        body => body.label === "Δημοτικό Συμβούλιο"
-    );
-    const othersBody = partyAdministrativeBodies.find(
-        body => body.label === "Άλλοι"
+        ),
+        [people, party.id]
     );
 
-    // Build default filter values (Δημοτικό Συμβούλιο + Άλλοι)
-    const defaultFilterValues = useMemo(() => {
-        const defaults: (string | null)[] = [];
-        if (defaultCouncilBody) defaults.push(defaultCouncilBody.value);
-        if (othersBody) defaults.push(othersBody.value);
-        return defaults.length > 0 ? defaults : partyAdministrativeBodies.map(f => f.value);
-    }, [defaultCouncilBody, othersBody, partyAdministrativeBodies]);
+    const partyAdministrativeBodies = useMemo(() =>
+        getAdministrativeBodiesForPeople(partyMembers),
+        [partyMembers]
+    );
+
+    const defaultFilterValues = useMemo(() =>
+        getDefaultAdministrativeBodyFilters(partyAdministrativeBodies, true),
+        [partyAdministrativeBodies]
+    );
 
     // Get filter values from URL or use default
     const selectedAdminBodyIds = useMemo(() => {
