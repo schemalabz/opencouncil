@@ -1,7 +1,7 @@
 "use server"
 
 import { getTranscript } from "./transcript";
-import { getPeopleForCity } from "./people";
+import { getPeopleForCity, getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
@@ -21,7 +21,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     }
 
     // Get relevant people based on meeting's administrative body
-    const people = await import('./people').then(m => m.getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId));
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();
     const city = await getCity(cityId);
