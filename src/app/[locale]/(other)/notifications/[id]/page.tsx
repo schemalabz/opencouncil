@@ -9,6 +9,7 @@ import { ReasonBadge } from '@/components/notifications/ReasonBadge';
 import Icon from '@/components/icon';
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring';
 import { getNotificationForView } from '@/lib/db/notifications';
+import { stripMarkdown } from '@/lib/formatters/markdown';
 
 export default async function NotificationPage({ params }: { params: { id: string; locale: string } }) {
     const notification = await getNotificationForView(params.id);
@@ -149,7 +150,7 @@ export default async function NotificationPage({ params }: { params: { id: strin
                                         {subject.description && (
                                             <CardContent className="pt-0">
                                                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed group-hover:text-muted-foreground/80 transition-colors duration-300">
-                                                    {subject.description}
+                                                    {stripMarkdown(subject.description)}
                                                 </p>
                                             </CardContent>
                                         )}

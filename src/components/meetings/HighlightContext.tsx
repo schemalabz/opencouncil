@@ -399,7 +399,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
             ...newHighlightedUtterances
           ]
         };
-        
+
         setEditingHighlight(updatedHighlight);
         setIsDirty(true);
       }

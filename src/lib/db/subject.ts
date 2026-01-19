@@ -3,6 +3,7 @@ import {
     Subject,
     SubjectSpeakerSegment,
     SpeakerSegment,
+    SpeakerContribution,
     Highlight,
     Location,
     Topic,
@@ -14,6 +15,7 @@ import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
 import { getPeopleForCity } from './people';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
+import { extractUtteranceIds } from '@/lib/referenceUtils';
 
 // Type for location with coordinates
 export type LocationWithCoordinates = Location & {
@@ -24,6 +26,10 @@ export type LocationWithCoordinates = Location & {
 };
 
 export type SubjectWithRelations = Subject & {
+    contributions: (SpeakerContribution & {
+        speaker: PersonWithRelations | null;
+    })[];
+    // Keep speakerSegments for backward compatibility during transition
     speakerSegments: (SubjectSpeakerSegment & {
         speakerSegment: SpeakerSegment;
     })[];
@@ -45,6 +51,22 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
     try {
         const subjects = await prisma.subject.findMany({
             include: {
+                contributions: {
+                    include: {
+                        speaker: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -82,6 +104,22 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 councilMeetingId,
             },
             include: {
+                contributions: {
+                    include: {
+                        speaker: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -149,6 +187,22 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 id: subjectId,
             },
             include: {
+                contributions: {
+                    include: {
+                        speaker: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: 'asc' },
+                },
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -234,4 +288,20 @@ export async function getSubjectDataForOG(
         console.error('Error fetching subject data for OG:', error);
         return null;
     }
+}
+
+/**
+ * Extract utterance IDs from contribution references for highlight creation
+ * @param contributions - Array of speaker contributions
+ * @returns Deduplicated array of utterance IDs
+ */
+export function extractUtteranceIdsFromContributions(
+    contributions: { text: string }[]
+): string[] {
+    const allIds: string[] = [];
+    for (const contribution of contributions) {
+        const ids = extractUtteranceIds(contribution.text);
+        allIds.push(...ids);
+    }
+    return [...new Set(allIds)]; // Deduplicate
 }
