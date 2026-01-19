@@ -1,12 +1,12 @@
 'use client'
-import { CouncilMeeting, Subject, Topic } from '@prisma/client';
+import { CouncilMeeting, Subject, Topic, AdministrativeBody } from '@prisma/client';
 import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
-import { CalendarIcon, Clock, Loader2, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
 import { sortSubjectsByImportance, formatDateTime, getMeetingMediaType, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,8 @@ interface MeetingCardProps {
         subjects: (Subject & {
             topic?: Topic | null,
             speakerSegments?: any[] // Using any for flexibility with the structure
-        })[]
+        })[],
+        administrativeBody?: AdministrativeBody | null
     };
     editable: boolean;
     mostRecent?: boolean;
@@ -65,7 +66,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
-    // Since data comes from the backend as ordered by hot status already (due to db query order),
+    // Since data comes from the backend as ordered by hot status already (due to db query order),d
     // we maintain that order but use our utility for consistency
     const sortedSubjects = useMemo(() => {
         const result = sortSubjectsByImportance(meeting.subjects, 'importance');
@@ -197,6 +198,12 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                         {/* Meeting metadata - more compact */}
                         <div className="mt-1 mb-1 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                            {meeting.administrativeBody && (
+                                <div className="flex items-center gap-1">
+                                    <Building className="w-3.5 h-3.5 text-muted-foreground/70" />
+                                    <span>{meeting.administrativeBody.name}</span>
+                                </div>
+                            )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
                                 <span>{(isUpcoming || isToday)

@@ -8,7 +8,7 @@ export interface FilterOption<T = string | null> {
 
 /**
  * Updates URL with filter parameters based on selected values
- * - Removes 'filters' param if all selected, none selected, or matches default
+ * - Removes 'filters' param if selection matches default behavior (none selected, or matches explicit defaults, or all selected when no defaults exist)
  * - Otherwise sets 'filters' param to comma-separated labels
  */
 export function updateFilterURL<T>(
@@ -20,15 +20,23 @@ export function updateFilterURL<T>(
 ): void {
     const params = new URLSearchParams(searchParams.toString());
 
+    const allSelected = selectedValues.length === filterOptions.length;
+    const noneSelected = selectedValues.length === 0;
+
     // Check if selected values match the default filter values
     const matchesDefault = defaultFilterValues &&
         selectedValues.length === defaultFilterValues.length &&
         selectedValues.every(v => defaultFilterValues.includes(v));
 
-    // If all filters are selected, no filters are selected, or matches default, remove the filter parameter
-    if (selectedValues.length === filterOptions.length ||
-        selectedValues.length === 0 ||
-        matchesDefault) {
+    // Determine if we should remove the filter parameter:
+    // - No filters selected (will use defaults or all on reload)
+    // - Matches explicit default values
+    // - All filters selected AND no defaults exist (so "all" is the implicit default)
+    const shouldRemoveParam = noneSelected ||
+        matchesDefault ||
+        (allSelected && !defaultFilterValues);
+
+    if (shouldRemoveParam) {
         params.delete('filters');
     } else {
         // Convert values to labels for URL

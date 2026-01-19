@@ -4,6 +4,7 @@ import List from '@/components/List';
 import MeetingCard from '@/components/meetings/MeetingCard';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { getDefaultAdministrativeBodyFilters, getAdministrativeBodiesForMeetings } from '@/lib/utils/administrativeBodies';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
@@ -30,15 +31,8 @@ export default function CityMeetings({
             return timeCompare;
         });
 
-    const administrativeBodies = Array.from(new Map(councilMeetings
-        .map(meeting => [
-            meeting.administrativeBody?.id,
-            {
-                value: meeting.administrativeBody?.id,
-                label: meeting.administrativeBody?.name || "Χωρίς διοικητικό όργανο"
-            }
-        ])
-    ).values());
+    const administrativeBodies = getAdministrativeBodiesForMeetings(councilMeetings);
+    const defaultFilterValues = getDefaultAdministrativeBodyFilters(administrativeBodies);
 
     return (
         <List
@@ -50,7 +44,8 @@ export default function CityMeetings({
             formProps={{ cityId }}
             t={t}
             filterAvailableValues={administrativeBodies}
-            filter={(selectedValues, meeting: CouncilMeetingWithAdminBodyAndSubjects) => selectedValues.includes(meeting.administrativeBody?.id)}
+            filter={(selectedValues, meeting: CouncilMeetingWithAdminBodyAndSubjects) => selectedValues.includes(meeting.administrativeBody?.id ?? null)}
+            defaultFilterValues={defaultFilterValues}
             smColumns={1}
             mdColumns={2}
             lgColumns={3}
