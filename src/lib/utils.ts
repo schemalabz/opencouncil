@@ -290,6 +290,48 @@ export function isRoleActive(role: { startDate: Date | null, endDate: Date | nul
 }
 
 /**
+ * Calculates the date range from multiple roles by finding the earliest start date
+ * and latest end date. Returns null for dates that don't exist or are invalid.
+ * @param roles Array of roles with startDate and endDate fields
+ * @returns Object with startDate and endDate (both Date | null)
+ */
+export function getDateRangeFromRoles<T extends { startDate: Date | null, endDate: Date | null }>(
+  roles: T[]
+): { startDate: Date | null, endDate: Date | null } {
+  // Get valid start date timestamps
+  const startTimestamps = roles
+    .filter(role => role.startDate)
+    .map(role => {
+      const timestamp = new Date(role.startDate!).getTime();
+      return isFinite(timestamp) ? timestamp : null;
+    })
+    .filter((ts): ts is number => ts !== null);
+
+  // Get valid end date timestamps
+  const endTimestamps = roles
+    .filter(role => role.endDate)
+    .map(role => {
+      const timestamp = new Date(role.endDate!).getTime();
+      return isFinite(timestamp) ? timestamp : null;
+    })
+    .filter((ts): ts is number => ts !== null);
+
+  // Calculate min start date and max end date
+  const minStartTimestamp = startTimestamps.length > 0 ? Math.min(...startTimestamps) : null;
+  const maxEndTimestamp = endTimestamps.length > 0 ? Math.max(...endTimestamps) : null;
+
+  // Create Date objects only if we have valid timestamps
+  const startDate = minStartTimestamp !== null ? new Date(minStartTimestamp) : null;
+  const endDate = maxEndTimestamp !== null ? new Date(maxEndTimestamp) : null;
+
+  // Validate dates before returning
+  const validStartDate = startDate && isFinite(startDate.getTime()) ? startDate : null;
+  const validEndDate = endDate && isFinite(endDate.getTime()) ? endDate : null;
+
+  return { startDate: validStartDate, endDate: validEndDate };
+}
+
+/**
  * Finds the first active party role from a list of roles.
  * @param roles Array of roles with party relations
  * @param partyId Optional party ID to filter by

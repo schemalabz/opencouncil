@@ -22,7 +22,7 @@ import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters }
 import { updateFilterURL } from '@/lib/utils/filterURL';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -233,15 +233,11 @@ function PartyMembersTab({
                                             </div>
                                         </Link>
                                         <span className="text-xs text-muted-foreground text-right flex-shrink-0">
-                                            {formatDateRange(
-                                                new Date(Math.min(...person.roles
-                                                    .filter(role => role.partyId === party.id && role.startDate)
-                                                    .map(role => role.startDate ? new Date(role.startDate).getTime() : Infinity))),
-                                                new Date(Math.max(...person.roles
-                                                    .filter(role => role.partyId === party.id && role.endDate)
-                                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0))),
-                                                t
-                                            )}
+                                            {(() => {
+                                                const partyRoles = person.roles.filter(role => role.partyId === party.id);
+                                                const { startDate, endDate } = getDateRangeFromRoles(partyRoles);
+                                                return formatDateRange(startDate, endDate, t);
+                                            })()}
                                         </span>
                                     </div>
                                 </motion.div>
