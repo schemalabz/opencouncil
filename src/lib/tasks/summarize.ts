@@ -93,13 +93,41 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
         }
     }, { timeout: 120000 });
 
-    await createSubjectsForMeeting(
+    // Create subjects and get mapping from API subject IDs/names to database IDs
+    const subjectNameToIdMap = await createSubjectsForMeeting(
         response.subjects,
         councilMeeting.cityId,
         councilMeeting.id
     );
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
+
+    // Save utterance discussion statuses
+    if (response.utteranceDiscussionStatuses && response.utteranceDiscussionStatuses.length > 0) {
+        await prisma.$transaction(async (prisma) => {
+            for (const utteranceStatus of response.utteranceDiscussionStatuses) {
+                // Map the API subject identifier to the database subject ID
+                // The API provides subject.id (or falls back to subject.name) which we mapped during creation
+                const dbSubjectId = utteranceStatus.subjectId ? subjectNameToIdMap.get(utteranceStatus.subjectId) : null;
+
+                if (utteranceStatus.subjectId && !dbSubjectId) {
+                    console.warn(`Could not find database subject for API subject ID: ${utteranceStatus.subjectId}`);
+                }
+
+                await prisma.utterance.update({
+                    where: {
+                        id: utteranceStatus.utteranceId
+                    },
+                    data: {
+                        discussionStatus: utteranceStatus.status,
+                        discussionSubjectId: dbSubjectId || null
+                    }
+                });
+            }
+        }, { timeout: 120000 });
+
+        console.log(`Saved ${response.utteranceDiscussionStatuses.length} utterance discussion statuses`);
+    }
 
     // Create notifications if administrative body allows it
     const adminBody = councilMeeting.administrativeBody;

@@ -4,7 +4,8 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
-import { Play, FileText, MapPin, ScrollText, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Play, FileText, MapPin, ScrollText, Clock, ChevronDown } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -12,10 +13,12 @@ import Icon from "@/components/icon";
 import { subjectToMapFeature, getPartyFromRoles } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
-    const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty, meeting, transcript: allSpeakerSegments } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
 
     // If subjectId is provided, find the subject in the context
@@ -26,7 +29,21 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         notFound();
     }
 
-    const { topic, location, description, name, speakerSegments, agendaItemIndex, introducedBy } = subject;
+    const {
+        topic,
+        location,
+        description,
+        name,
+        speakerSegments,
+        agendaItemIndex,
+        introducedBy,
+        contributions,
+        topicImportance,
+        proximityImportance
+    } = subject;
+
+    // Use contributions if available, fallback to speaker segments
+    const hasContributions = contributions && contributions.length > 0;
 
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
@@ -104,7 +121,14 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     )}
                                 </div>
                                 {description && (
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+                                    <div className="text-sm text-muted-foreground leading-relaxed">
+                                        <FormattedTextDisplay
+                                            text={description}
+                                            meetingId={meeting.id}
+                                            cityId={meeting.cityId}
+                                            linkColor="black"
+                                        />
+                                    </div>
                                 )}
                             </div>
 
@@ -115,6 +139,43 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         person={introducedBy}
                                     />
                                 </div>
+                            )}
+
+                            {/* Notification Importance - Collapsible */}
+                            {(topicImportance || proximityImportance) && (
+                                <Collapsible className="pt-4 border-t">
+                                    <CollapsibleTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="gap-2 px-0 hover:bg-transparent">
+                                            <span className="text-sm font-medium">Περισσότερα</span>
+                                            <ChevronDown className="h-4 w-4" />
+                                        </Button>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent className="space-y-3 pt-3">
+                                        <p className="text-xs text-muted-foreground">
+                                            Αυτές οι πληροφορίες καθορίζουν ποιοι χρήστες θα ειδοποιηθούν για αυτό το θέμα με βάση τις προτιμήσεις τους.
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {topicImportance && (
+                                                <Badge variant="secondary">
+                                                    Σημασία Θέματος: {
+                                                        topicImportance === 'high' ? 'Υψηλή' :
+                                                        topicImportance === 'normal' ? 'Κανονική' :
+                                                        'Καμία'
+                                                    }
+                                                </Badge>
+                                            )}
+                                            {proximityImportance && (
+                                                <Badge variant="secondary">
+                                                    Σημασία Εγγύτητας: {
+                                                        proximityImportance === 'wide' ? 'Ευρεία' :
+                                                        proximityImportance === 'near' ? 'Κοντινή' :
+                                                        'Καμία'
+                                                    }
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </CollapsibleContent>
+                                </Collapsible>
                             )}
                         </div>
                     </div>
@@ -143,78 +204,137 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     <SubjectContext subject={subject} />
                 )}
 
-                {/* Speaker Segments Section */}
+                {/* Speaker Contributions OR Speaker Segments */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Τοποθετήσεις Ομιλητών</h3>
+                        <h3 className="text-lg font-semibold">
+                            Τοποθετήσεις
+                        </h3>
                         <div className="text-sm text-muted-foreground">
-                            {speakerSegments?.length || 0} τοποθετήσεις
+                            {hasContributions
+                                ? `${contributions.length} τοποθετήσεις`
+                                : `${speakerSegments?.length || 0} τοποθετήσεις`
+                            }
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        {(!speakerSegments || speakerSegments.length === 0) ? (
-                            <div className="bg-card rounded-lg p-8 text-center">
-                                <p className="text-sm text-muted-foreground">Δεν υπάρχουν τοποθετήσεις ομιλητών</p>
-                            </div>
-                        ) : (
-                            speakerSegments.map(segment => {
-                                const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
-                                const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                const party = person ? getPartyFromRoles(person.roles) : null;
-                                if (!speakerTag) return null;
+                    {hasContributions ? (
+                        /* NEW: Render Contributions */
+                        <div className="space-y-3">
+                            {contributions.length === 0 ? (
+                                <div className="bg-card rounded-lg p-8 text-center border">
+                                    <p className="text-sm text-muted-foreground">
+                                        Δεν υπάρχουν συνεισφορές ομιλητών
+                                    </p>
+                                </div>
+                            ) : (
+                                contributions.map(contribution => {
+                                    const speaker = contribution.speakerId
+                                        ? getPerson(contribution.speakerId)
+                                        : null;
 
-                                const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
-                                const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`
+                                    return (
+                                        <div
+                                            key={contribution.id}
+                                            className="group bg-card hover:bg-accent/50 transition-colors rounded-lg border shadow-sm"
+                                        >
+                                            <div className="p-4 space-y-4">
+                                                {/* Speaker Badge */}
+                                                <div className="flex items-center gap-4">
+                                                    {speaker ? (
+                                                        <PersonBadge
+                                                            person={speaker}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground italic">
+                                                            Άγνωστος ομιλητής
+                                                        </span>
+                                                    )}
+                                                </div>
 
-                                return (
-                                    <div
-                                        key={segment.speakerSegmentId}
-                                        className="group bg-card hover:bg-card/80 transition-colors rounded-lg border shadow-sm"
-                                    >
-                                        <div className="p-4">
-                                            <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                                <PersonBadge
-                                                    person={person}
-                                                    speakerTag={speakerTag}
-                                                />
-                                                <div className="flex gap-2 md:ml-auto">
-                                                    <Button
-                                                        onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                    >
-                                                        <Play className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        asChild
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                    >
-                                                        <Link href={transcriptUrl}>
-                                                            <FileText className="h-4 w-4 mr-1.5" />
-                                                            Απομαγνητοφώνηση
-                                                        </Link>
-                                                    </Button>
+                                                {/* Formatted Text with References */}
+                                                <div className="text-sm text-muted-foreground">
+                                                    <FormattedTextDisplay
+                                                        text={contribution.text}
+                                                        meetingId={meeting.id}
+                                                        cityId={meeting.cityId}
+                                                        linkColor="black"
+                                                    />
                                                 </div>
                                             </div>
-                                            {segment.summary ? (
-                                                <div className="mt-4 pl-4 border-l-2 border-muted">
-                                                    <p className="text-sm text-muted-foreground leading-relaxed">{segment.summary}</p>
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-sm mt-6 text-muted-foreground italic">
-                                                    Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση
-                                                </p>
-                                            )}
                                         </div>
-                                    </div>
-                                );
-                            })
-                        )}
-                    </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    ) : (
+                        /* FALLBACK: Render Speaker Segments (old format) */
+                        <div className="space-y-3">
+                            {(!speakerSegments || speakerSegments.length === 0) ? (
+                                <div className="bg-card rounded-lg p-8 text-center border">
+                                    <p className="text-sm text-muted-foreground">
+                                        Δεν υπάρχουν τοποθετήσεις ομιλητών
+                                    </p>
+                                </div>
+                            ) : (
+                                speakerSegments.map(segment => {
+                                    const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
+                                    const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                                    const party = person ? getPartyFromRoles(person.roles) : null;
+                                    if (!speakerTag) return null;
+
+                                    const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
+                                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`
+
+                                    return (
+                                        <div
+                                            key={segment.speakerSegmentId}
+                                            className="group bg-card hover:bg-card/80 transition-colors rounded-lg border shadow-sm"
+                                        >
+                                            <div className="p-4">
+                                                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                                    <PersonBadge
+                                                        person={person}
+                                                        speakerTag={speakerTag}
+                                                    />
+                                                    <div className="flex gap-2 md:ml-auto">
+                                                        <Button
+                                                            onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
+                                                        >
+                                                            <Play className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            asChild
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
+                                                        >
+                                                            <Link href={transcriptUrl}>
+                                                                <FileText className="h-4 w-4 mr-1.5" />
+                                                                Απομαγνητοφώνηση
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                {segment.summary ? (
+                                                    <div className="mt-4 pl-4 border-l-2 border-muted">
+                                                        <p className="text-sm text-muted-foreground leading-relaxed">{segment.summary}</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-sm mt-6 text-muted-foreground italic">
+                                                        Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

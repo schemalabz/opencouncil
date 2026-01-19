@@ -78,6 +78,7 @@ function subjectToSearchResult(
     // Create a base subject with relations
     const subjectWithRelations: SubjectWithRelations = {
         ...subject,
+        contributions: [],
         speakerSegments: [],
         highlights: [],
         location: null,

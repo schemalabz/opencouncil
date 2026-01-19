@@ -23,7 +23,7 @@ type Subject = {
 export function SubjectContext({ subject }: { subject: Subject }) {
     const [showSources, setShowSources] = useState(false)
     const [expanded, setExpanded] = useState(false)
-    const [shouldCollapse, setShouldCollapse] = useState(false)
+    const [shouldCollapse, setShouldCollapse] = useState(true) // Always collapsible by default
     const contentRef = useRef<HTMLDivElement>(null)
 
     const markdownComponents: Components = {
@@ -31,6 +31,18 @@ export function SubjectContext({ subject }: { subject: Subject }) {
         h2: ({ node, ...props }) => <h2 className="text-left text-base font-semibold mt-3 mb-2" {...props} />,
         h3: ({ node, ...props }) => <h3 className="text-left text-sm font-medium mt-2 mb-1.5" {...props} />,
         h4: ({ node, ...props }) => <h3 className="text-left text-sm font-medium mt-2 mb-1.5" {...props} />,
+        a: ({ node, href, children, ...props }) => (
+            <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:opacity-80 transition-colors"
+                style={{ color: 'hsl(213 49% 73%)' }}
+                {...props}
+            >
+                {children}
+            </a>
+        ),
         p: ({ node, children, ...props }) => {
             // Reuse the same processContent function logic
             const processContent = (content: React.ReactNode): React.ReactNode => {
