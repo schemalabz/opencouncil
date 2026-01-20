@@ -202,19 +202,29 @@ For Prisma-specific operations, you can use `exec.sh`:
 
 ## Managing Docker Resources
 
+### Cleaning Up Docker Resources
+
 The system provides a cleanup command to help manage Docker resources:
 
 ```bash
 ./run.sh --clean
 ```
+
 This command:
-- Stops and removes OpenCouncil containers
-- Removes OpenCouncil volumes (including database data)
+- Stops and removes all containers for the current worktree
+- Removes volumes (including database data)
 - Removes the configuration tracking file
-- Preserves Docker networks (they may be used by other instances)
+- Removes networks created by the containers
 - Use this when you want to start completely fresh
 
-Note: This command only affects Docker resources related to OpenCouncil and won't interfere with other Docker projects on your system. To clean up unused networks, use `docker network prune`.
+**When to use `--clean`:**
+- When you want to start completely fresh with a clean database
+- Before removing a git worktree (see [worktree teardown guide](../CONTRIBUTING.md#cleaning-up-after-feature-completion))
+- When troubleshooting Docker-related issues
+
+**For git worktrees:** Each worktree creates its own isolated set of Docker containers. Always run `./run.sh --clean` from within the worktree directory before removing it to avoid orphaned Docker resources.
+
+Note: This command only affects Docker resources in the current directory and won't interfere with other instances or Docker projects on your system.
 
 ## Docker Network Configuration
 

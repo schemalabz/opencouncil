@@ -58,21 +58,23 @@ function find_available_port() {
 
 # Function to safely clean Docker resources specific to our app
 function clean_resources() {
-    local project_name=$(docker compose ps --format json 2>/dev/null | jq -r '.[0].Project' 2>/dev/null)
+    # Docker Compose uses directory name as the default project name
+    # This matches the behavior of 'docker compose up' without -p flag
+    local project_name=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
     
-    if [ -z "$project_name" ]; then
-        # If no project is running, use the directory name as fallback
-        project_name=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-    fi
+    echo "🧹 Cleaning up Docker resources for project: $project_name"
     
-    echo "🧹 Cleaning up OpenCouncil Docker resources..."
-    docker compose -p "$project_name" down -v
+    # Stop and remove containers, networks, and volumes
+    # The -p flag tells docker compose to remove all resources labeled with this project name
+    # The --remove-orphans flag cleans up any containers not defined in the compose files
+    docker compose -p "$project_name" down -v --remove-orphans 2>/dev/null || {
+        echo "⚠️  Note: Some resources may not have existed (this is normal if containers weren't running)"
+    }
 
     # Remove the configuration tracking file
     rm -f "$LAST_CONFIG_FILE"
 
-    echo "✨ Cleanup complete!"
-    echo "ℹ️  Note: Docker networks are preserved (use 'docker network prune' to clean unused networks)"
+    echo "✨ Cleanup complete! All Docker resources for this worktree have been removed."
 }
 
 # Function to check if configuration has changed
@@ -117,7 +119,7 @@ function show_help {
   echo "                       Custom names are prefixed: opencouncil-net-NAME"
   echo "                       Can also be set via NETWORK_NAME env var in .env file"
   echo "Helper commands:"
-  echo "  --clean              Remove all OpenCouncil Docker resources (containers, volumes)"
+  echo "  --clean              Remove all Docker resources for this worktree (containers, volumes, networks)"
   echo ""
   echo "Any options after -- will be passed directly to docker compose."
   echo "Examples:"
