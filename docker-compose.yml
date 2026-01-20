@@ -16,6 +16,8 @@ services:
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
+    networks:
+      - default
     profiles: ["prod"]
 
   app-dev:
@@ -38,6 +40,8 @@ services:
       db:
         condition: service_healthy
         required: false  # Makes this dependency optional
+    networks:
+      - default
     profiles: ["dev"]
 
   # Local database service
@@ -61,7 +65,14 @@ services:
       interval: 10s
       retries: 5
       timeout: 10s
+    networks:
+      - default
     profiles: ["with-db"]
 
 volumes:
   pgdata:
+
+networks:
+  default:
+    name: ${NETWORK_NAME:-opencouncil-net}
+    external: ${NETWORK_EXTERNAL:-true}
