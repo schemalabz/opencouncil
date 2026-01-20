@@ -228,7 +228,8 @@ This categorization provides better organization and helps users understand the 
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
     *   `HighlightPreviewDialog`: `src/components/meetings/HighlightPreviewDialog.tsx` (dedicated preview dialog with video/text preview and generation options)
-    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, and preview button)
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, preview button, and guide)
+    *   `HighlightGuideDialog`: `src/components/meetings/HighlightGuideDialog.tsx` (in-app user guide for highlights)
     *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection and context menu creation)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:

@@ -12,6 +12,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { HighlightDialog } from './HighlightDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useTranscriptOptions } from './options/OptionsContext';
+import { HighlightGuideDialog } from './HighlightGuideDialog';
+import { GuideButton } from './GuideButton';
 
 export function HighlightModeBar() {
   const { 
@@ -225,6 +227,16 @@ export function HighlightModeBar() {
                     <Eye className="h-4 w-4" />
                     <span>{t('modeBar.preview')}</span>
                   </Button>
+
+                  {/* Highlight Guide */}
+                  <GuideButton
+                    storageKey="highlight-guide-seen"
+                    DialogComponent={HighlightGuideDialog}
+                    label={t('modeBar.guide')}
+                    hintTitle={t('guide.hint.title')}
+                    hintDescription={t('guide.hint.description')}
+                    ringClassName="ring-2 ring-amber-500 ring-offset-2 bg-amber-50 animate-pulse"
+                  />
                   
                   {/* Cancel only when not in preview */}
                   {!previewMode && (
