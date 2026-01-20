@@ -65,6 +65,7 @@
     "editContent": "Edit Content",
     "toggleShowcase": "Toggle Showcase",
     "download": "Download",
+    "downloading": "Downloading...",
     "delete": "Delete",
     "backToHighlights": "Back to Highlights",
     "generating": "Generating video...",
@@ -101,6 +102,8 @@
     "showcaseAdded": "Highlight added to showcase.",
     "showcaseRemoved": "Highlight removed from showcase.",
     "showcaseError": "Failed to toggle showcase status. Please try again.",
+    "downloadStarted": "Download started successfully.",
+    "downloadError": "Failed to download video. Please try again.",
     "saveFailed": "Save failed",
     "saveFailedDescription": "Please resolve issues and try again."
   },
