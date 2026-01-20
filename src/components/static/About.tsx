@@ -47,6 +47,14 @@ const people = [
             email: "mailto:eliza@schemalabs.gr"
         }
     },
+    {
+        name: "Θάνος Παπαδογιάννης",
+        image: "/people/thanos.png",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/athanasios-papadogiannis-099537195/",
+            email: "mailto:thanos@schemalabs.gr"
+        }
+    }
 ]
 function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
     const heroRef = useRef(null)
