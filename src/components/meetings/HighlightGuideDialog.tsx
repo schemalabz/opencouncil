@@ -142,9 +142,13 @@ export function HighlightGuideDialog({ children, onOpenChange }: HighlightGuideD
                                         <span className="text-sm">{t('selection.adding.clickToRemove')}</span>
                                         <Badge variant="secondary">{t('selection.adding.clickBadge')}</Badge>
                                     </div>
-                                    <div className="flex justify-between items-center py-2">
+                                    <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('selection.adding.selectRange')}</span>
                                         <Badge variant="secondary">{t('selection.adding.selectRangeBadge')}</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-sm">{t('selection.adding.deselectRange')}</span>
+                                        <Badge variant="secondary">{t('selection.adding.deselectRangeBadge')}</Badge>
                                     </div>
                                 </div>
                             </CardContent>

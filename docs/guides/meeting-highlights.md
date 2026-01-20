@@ -130,6 +130,7 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 2. **Content Editing**: 
    - User is in editing mode on the transcript page; `HighlightModeBar` appears
    - Click utterances in transcript to add/remove from highlight
+   - **Range Selection**: Click an utterance, then Shift+Click another to select/deselect all utterances in between
    - Visual feedback: selected utterances are bold/underlined; amber overlays on the timeline
    - Real-time statistics update (duration, speaker count, utterance count)
    - Navigation controls: Previous/Next clip within the timeline controls (shows "Clip X/Y")
