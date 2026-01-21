@@ -173,6 +173,30 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
 }
 
 /**
+ * Checks if a person has a city-level role (mayor or deputy mayor).
+ * City-level roles are identified by having cityId set but no partyId or administrativeBodyId.
+ * @param roles Array of roles to check
+ * @param date Optional date to check for active roles (defaults to current date)
+ * @returns true if person has an active city-level role
+ */
+export function hasCityLevelRole(
+  roles: (Role & { cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null })[],
+  date?: Date
+): boolean {
+  const checkDate = date || new Date();
+  return roles.some(role => {
+    // Must be active at the check date
+    if (!isRoleActiveAt(role, checkDate)) return false;
+    
+    // City-level role: has cityId but no partyId or administrativeBodyId
+    return role.cityId !== null && 
+           role.cityId !== undefined && 
+           !role.partyId && 
+           !role.administrativeBodyId;
+  });
+}
+
+/**
  * Generates Prisma query conditions for finding active roles at a specific date.
  * @param date Date to check for active roles (defaults to current date)
  * @returns Array of OR conditions for Prisma queries

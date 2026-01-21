@@ -2,7 +2,7 @@
 import { Person, Role, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { getActiveRoleCondition } from "../utils";
+import { getActiveRoleCondition, hasCityLevelRole } from "../utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -174,7 +174,7 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
  * This filters people to avoid AI confusion by only including relevant members.
  *
  * Rules:
- * - Council meetings (type=council): All council members + people with no admin body + community heads
+ * - Council meetings (type=council): All council members + people with no admin body + community heads + mayors
  * - Committee meetings (type=committee): Only members of that specific committee
  * - Community meetings (type=community): Only members of that specific community
  * - No admin body: All people in the city
@@ -200,8 +200,13 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
 
     // Filter based on administrative body type
     if (adminBody.type === 'council') {
-        // Council meetings: Include council members, people with no admin body, and community heads
+        // Council meetings: Include council members, people with no admin body, community heads, and mayors
         return allPeople.filter(person => {
+            // Always include mayors (people with city-level roles)
+            if (hasCityLevelRole(person.roles)) {
+                return true;
+            }
+
             const hasCouncilRole = person.roles.some(
                 role => role.administrativeBodyId === administrativeBodyId
             );

@@ -10,6 +10,7 @@ import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { City } from '@prisma/client';
 import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
+import { hasCityLevelRole } from '@/lib/utils';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -59,13 +60,28 @@ export default function CityPeople({
             formProps={{ cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={peopleAdministrativeBodies}
-            filter={(selectedValues, person) =>
-                selectedValues.length === 0 ||
-                (selectedValues.includes(null) && !person.roles.some(role => role.administrativeBody)) ||
-                person.roles.some(role =>
+            filter={(selectedValues, person) => {
+                // Always include mayors (people with city-level roles) regardless of admin body filter
+                if (hasCityLevelRole(person.roles)) {
+                    return true;
+                }
+                
+                // If no filters selected, show all
+                if (selectedValues.length === 0) return true;
+                
+                // Check if person has no administrative body role
+                const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
+                
+                // If "no admin body" is selected and person has no admin body, include them
+                if (selectedValues.includes(null) && hasNoAdminBody) {
+                    return true;
+                }
+                
+                // Check if person has any of the selected administrative bodies
+                return person.roles.some(role =>
                     role.administrativeBody && selectedValues.includes(role.administrativeBody.id)
-                )
-            }
+                );
+            }}
             defaultFilterValues={defaultFilterValues}
             smColumns={1}
             mdColumns={2}

@@ -29,6 +29,7 @@ export {
   getPartyFromRoles,
   getNonPartyRoles,
   getSingleCityRole,
+  hasCityLevelRole,
   getActiveRoleCondition
 } from './utils/roles';
 

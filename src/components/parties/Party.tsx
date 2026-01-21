@@ -22,7 +22,7 @@ import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters }
 import { updateFilterURL } from '@/lib/utils/filterURL';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles, hasCityLevelRole } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,6 +88,11 @@ function PartyMembersTab({
 
     // Filter people based on selected administrative bodies
     const filterByAdminBody = useCallback((person: PersonWithRelations) => {
+        // Always include mayors (people with city-level roles) regardless of admin body filter
+        if (hasCityLevelRole(person.roles)) {
+            return true;
+        }
+
         // If no filters selected, show all
         if (selectedAdminBodyIds.length === 0) return true;
 
