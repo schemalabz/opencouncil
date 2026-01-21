@@ -1,5 +1,6 @@
 import { PersonWithRelations } from '../db/people';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { hasCityLevelRole } from './roles';
 
 export interface AdministrativeBodyOption {
     value: string | null;
@@ -134,4 +135,39 @@ export function getDefaultAdministrativeBodyFilters(
     }
 
     return fallbackToAll ? bodies.map(b => b.value) : undefined;
+}
+
+/**
+ * Filters a person based on selected administrative body IDs.
+ * Always includes mayors (people with city-level roles) regardless of filter selection.
+ * 
+ * @param person - Person to filter
+ * @param selectedAdminBodyIds - Array of selected administrative body IDs (or null for "no admin body")
+ * @returns true if person should be included in the filtered results
+ */
+export function filterPersonByAdministrativeBodies(
+    person: PersonWithRelations,
+    selectedAdminBodyIds: (string | null)[]
+): boolean {
+    // Always include mayors (people with city-level roles) regardless of admin body filter
+    if (hasCityLevelRole(person.roles)) {
+        return true;
+    }
+
+    // If no filters selected, show all
+    if (selectedAdminBodyIds.length === 0) return true;
+
+    // Check if person has no administrative body role
+    const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
+
+    // If "no admin body" is selected and person has no admin body, include them
+    if (selectedAdminBodyIds.includes(null) && hasNoAdminBody) {
+        return true;
+    }
+
+    // Check if person has any of the selected administrative bodies
+    return person.roles.some(role =>
+        role.administrativeBody &&
+        selectedAdminBodyIds.includes(role.administrativeBody.id)
+    );
 }
