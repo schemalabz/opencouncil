@@ -3,18 +3,16 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
-import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
-import Image from 'next/image';
+import { City, Person, Role, AdministrativeBody } from '@prisma/client';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search, Users, TrendingUp } from "lucide-react";
+import { Search, Users, FileText } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
-import { Statistics } from '../Statistics';
 import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
@@ -233,8 +231,8 @@ function PartyMembersTab({
     );
 }
 
-// Statistics and Segments Tab Component
-function StatisticsAndSegmentsTab({
+// Segments Tab Component
+function SegmentsTab({
     city,
     party,
     administrativeBodies,
@@ -290,27 +288,6 @@ function StatisticsAndSegmentsTab({
                     onSelectAdminBody={onSelectAdminBody}
                 />
             )}
-
-            {/* Statistics Section */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-            >
-                <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
-                </div>
-                <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
-                    <Statistics
-                        type="party"
-                        id={party.id}
-                        cityId={city.id}
-                        color={party.colorHex}
-                        administrativeBodyId={selectedAdminBodyId}
-                    />
-                </div>
-            </motion.div>
 
             {/* Recent Segments Section */}
             <motion.div
@@ -624,10 +601,10 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                     <span className="hidden xs:inline">{t('tabPeople')}</span>
                                     <span className="xs:hidden">{t('tabPeopleShort')}</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="statistics" className="text-xs sm:text-sm py-2 px-3">
-                                    <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden sm:inline">{t('tabStatistics')}</span>
-                                    <span className="sm:hidden">{t('tabStatisticsShort')}</span>
+                                <TabsTrigger value="segments" className="text-xs sm:text-sm py-2 px-3">
+                                    <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('tabSegments')}</span>
+                                    <span className="sm:hidden">{t('tabSegmentsShort')}</span>
                                 </TabsTrigger>
                             </TabsList>
                         </div>
@@ -642,8 +619,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             />
                         </TabsContent>
 
-                        <TabsContent value="statistics" className="mt-6">
-                            <StatisticsAndSegmentsTab
+                        <TabsContent value="segments" className="mt-6">
+                            <SegmentsTab
                                 city={city}
                                 party={party}
                                 administrativeBodies={partyRelatedAdminBodies}

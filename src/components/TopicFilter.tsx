@@ -17,7 +17,7 @@ export function TopicFilter({
     onSelectTopic,
     className
 }: TopicFilterProps) {
-    const t = useTranslations('Statistics');
+    const t = useTranslations('Common');
 
     if (topics.length === 0) {
         return null;

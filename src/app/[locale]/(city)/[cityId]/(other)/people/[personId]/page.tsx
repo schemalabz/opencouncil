@@ -92,7 +92,7 @@ export default async function PersonPage({ params }: { params: { locale: string,
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic', 'person', 'party'])
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic'])
     ]);
 
     if (!person || !city) {
