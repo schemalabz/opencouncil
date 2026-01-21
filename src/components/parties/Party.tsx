@@ -183,7 +183,6 @@ function PartyMembersTab({
                                 key={person.id}
                                 item={person}
                                 editable={canEdit}
-                                parties={[party]}
                             />
                         ))}
                 </div>
