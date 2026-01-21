@@ -6,13 +6,12 @@ import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, FileText, User, TrendingUp, Clock } from "lucide-react";
+import { Search, ExternalLink, FileText, Clock } from "lucide-react";
 import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
-import { Statistics as StatisticsType } from "@/lib/statistics";
-import { Statistics } from '../Statistics';
+import { Statistics } from "@/lib/statistics";
 import { getLatestSegmentsForSpeaker, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
@@ -32,7 +31,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
-    statistics: StatisticsType
+    statistics: Statistics
 }) {
     const t = useTranslations('Person');
     const router = useRouter();
@@ -56,9 +55,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     // Filter topics to only show ones relevant to this person based on statistics
     const relevantTopics = useMemo(() => {
-        if (!statistics.topics) return [];
+        if (!statistics?.topics) return [];
         return statistics.topics.map(t => t.item).sort((a, b) => a.name.localeCompare(b.name));
-    }, [statistics.topics]);
+    }, [statistics?.topics]);
 
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
@@ -330,27 +329,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             person={person}
                         />
                     )}
-
-                    {/* Statistics Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                    >
-                        <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp className="h-5 w-5 text-primary" />
-                            <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
-                        </div>
-                        <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
-                            <Statistics
-                                type="person"
-                                id={person.id}
-                                cityId={city.id}
-                                administrativeBodyId={selectedAdminBodyId}
-                                emptyStateMessage={t('noStatisticsAvailable')}
-                            />
-                        </div>
-                    </motion.div>
 
                     {/* History Section - only show if there are inactive roles */}
                     {filterInactiveRoles(person.roles).length > 0 && (

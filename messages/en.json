@@ -1,4 +1,7 @@
 {
+    "Common": {
+        "allTopics": "All Topics"
+    },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
         "subtitle": "The information contained may have errors.",
@@ -223,20 +226,6 @@
         "activeUntil": "Member until",
         "active": "Member"
     },
-    "Statistics": {
-        "topicsList": "Topics List",
-        "topSpeakers": "Speakers with longest speaking times (minutes)",
-        "minutes": "Minutes",
-        "speakingTime": "Speaking Time",
-        "occurrences": "Occurrences",
-        "topic": "Topic",
-        "speaker": "Speaker",
-        "noDataAvailable": "No data available",
-        "loading": "Loading...",
-        "totalSpeakingTime": "Total Speaking Time",
-        "totalMinutes": "Total speaking minutes",
-        "allTopics": "All Topics"
-    },
     "OfferForm": {
         "respondToName": "Responsible Person Name",
         "respondToNameDescription": "The name of the person responsible for the offer",
@@ -325,13 +314,11 @@
         "activeFrom": "Active From",
         "activeTo": "Active To",
         "searchForPerson": "Search in transcripts related to this member",
-        "statistics": "Member Statistics",
         "searchItems": "Search members",
         "activeUntil": "Member until",
         "active": "Member",
         "from": "from",
         "until": "until",
-        "loadingStatistics": "Loading statistics...",
         "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
@@ -346,13 +333,11 @@
         "deleteParty": "Delete Party",
         "partyDeleted": "Party {name} was deleted",
         "searchInParty": "Search in statements from {partyName}",
-        "statistics": "Party Statistics",
         "items": "{count, plural, =0 {No parties} =1 {1 party} other {# parties}}",
         "searchItems": "Search parties",
         "item": "party",
         "addItem": "Add Party",
         "noItems": "There are no parties in OpenCouncil.",
-        "loadingStatistics": "Loading statistics...",
         "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
@@ -363,8 +348,8 @@
         "breadcrumbHome": "Home",
         "tabPeople": "People",
         "tabPeopleShort": "Members",
-        "tabStatistics": "Statistics",
-        "tabStatisticsShort": "Stats"
+        "tabSegments": "Statements",
+        "tabSegmentsShort": "Statements"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",
