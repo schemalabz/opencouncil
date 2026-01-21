@@ -39,6 +39,8 @@ services:
       - APP_PORT=${APP_PORT:-3000}
       - PRISMA_STUDIO_PORT=${PRISMA_STUDIO_PORT:-5555}
       - DB_PORT=${DB_PORT:-5432}
+      - NODE_OPTIONS=--max-old-space-size=8192
+      - NEXT_TELEMETRY_DISABLED=1
     volumes:
       - .:/app
     depends_on:
