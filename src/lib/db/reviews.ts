@@ -36,7 +36,7 @@ const whereClause = {
 
   /** Match succeeded task statuses for review tracking */
   reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
-    type: { in: ['fixTranscript', 'humanReview'] },
+    type: { in: ['transcribe', 'fixTranscript', 'humanReview'] },
     status: 'succeeded'
   }),
 };
@@ -191,12 +191,12 @@ function getUtteranceDurationSeconds(utterance: Pick<UtteranceWithEdits, 'startT
  * Determine review status based on task completion and progress
  */
 function determineReviewStatus(
-  hasFixTranscript: boolean,
+  hasTranscribe: boolean,
   hasHumanReview: boolean,
   reviewedUtterances: number
 ): ReviewStatus {
-  if (!hasFixTranscript) {
-    throw new Error('Cannot determine status for meeting without fixTranscript');
+  if (!hasTranscribe) {
+    throw new Error('Cannot determine status for meeting without transcribe');
   }
 
   if (hasHumanReview) {
@@ -554,7 +554,7 @@ function calculateSessionData(
 //
 // STAGE 1: DATABASE FILTERING (Prisma WHERE conditions)
 //   - Reduces dataset before fetching from database
-//   - Filters by task status (fixTranscript, humanReview)
+//   - Filters by task status (transcribe, humanReview)
 //   - Filters meetings where user has made ANY edits (for reviewer filter)
 //   - More efficient: Less data transferred and processed
 //
@@ -564,9 +564,9 @@ function calculateSessionData(
 //   - Excludes meetings that don't meet final criteria
 //
 // FILTER OPTIONS:
-//   show: 'needsAttention' (default) - Has fixTranscript, no humanReview
-//         'all' - Has fixTranscript (any humanReview status)
-//         'completed' - Has both fixTranscript AND humanReview
+//   show: 'needsAttention' (default) - Has transcribe, no humanReview
+//         'all' - Has transcribe (any humanReview status)
+//         'completed' - Has both transcribe AND humanReview
 //   
 //   reviewerId: Filter to show only meetings where specified user is primary reviewer
 //
@@ -589,10 +589,10 @@ export interface ReviewFilterOptions {
  * Build database where conditions for review status filtering
  */
 function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.CouncilMeetingWhereInput {
-  const hasFixTranscript = {
+  const hasTranscribe = {
     taskStatuses: {
       some: {
-        type: 'fixTranscript' as const,
+        type: 'transcribe' as const,
         status: 'succeeded' as const
       }
     }
@@ -609,27 +609,27 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
 
   switch (show) {
     case 'needsAttention':
-      // Has fixTranscript but NOT humanReview
+      // Has transcribe but NOT humanReview
       return {
         AND: [
-          hasFixTranscript,
+          hasTranscribe,
           { NOT: hasHumanReview }
         ]
       };
 
     case 'completed':
-      // Has both fixTranscript AND humanReview
+      // Has both transcribe AND humanReview
       return {
         AND: [
-          hasFixTranscript,
+          hasTranscribe,
           hasHumanReview
         ]
       };
 
     case 'all':
     default:
-      // Just needs fixTranscript (includes all statuses)
-      return hasFixTranscript;
+      // Just needs transcribe (includes all statuses)
+      return hasTranscribe;
   }
 }
 
@@ -929,7 +929,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
     }
   });
 
-  // Note: DB filtering already ensures the correct fixTranscript/humanReview constraints
+  // Note: DB filtering already ensures the correct transcribe/humanReview constraints
   // based on `show`. We only inspect taskStatuses here to determine `completed` vs not
   // for `show === 'all'`.
   const meetingIds: MeetingId[] = meetings.map((m) => ({ cityId: m.cityId, meetingId: m.id }));
@@ -944,8 +944,15 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       continue;
     }
 
+    const hasTranscribe = m.taskStatuses.some(t => t.type === 'transcribe' && t.status === 'succeeded');
+
+    // Skip meetings without transcribe (shouldn't happen due to DB filter, but safety check)
+    if (!hasTranscribe) {
+      continue;
+    }
+
     const hasHumanReview = m.taskStatuses.some(t => t.type === 'humanReview' && t.status === 'succeeded');
-    const status = determineReviewStatus(true, hasHumanReview, stats.reviewedUtterances);
+    const status = determineReviewStatus(hasTranscribe, hasHumanReview, stats.reviewedUtterances);
 
     const reviewDurationMs = stats.lastEditAt && m.dateTime
       ? stats.lastEditAt.getTime() - m.dateTime.getTime()
@@ -975,7 +982,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
   const baseNeedsAttentionWhere: Prisma.CouncilMeetingWhereInput = buildStatusWhereConditions('needsAttention');
 
   const [needsReview, inProgress] = await Promise.all([
-    // Needs review = has fixTranscript, no humanReview, and NO user edits
+    // Needs review = has transcribe, no humanReview, and NO user edits
     prisma.councilMeeting.count({
       where: {
         AND: [
@@ -998,7 +1005,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
         ],
       },
     }),
-    // In progress = has fixTranscript, no humanReview, and HAS user edits
+    // In progress = has transcribe, no humanReview, and HAS user edits
     prisma.councilMeeting.count({
       where: {
         AND: [
@@ -1052,100 +1059,6 @@ export async function getReviewStats(): Promise<ReviewStats> {
   };
 }
 
-export interface ReviewMetrics {
-  needsCorrections: number; // Duration in milliseconds
-  needsUpload: number; // Count of meetings
-  oldestNeedsCorrections: Date | null;
-  oldestNeedsUpload: Date | null;
-}
-
-/**
- * Get review metrics: meetings needing corrections and meetings needing upload
- * Returns duration in milliseconds instead of count
- */
-export async function getReviewMetrics(last30Days: boolean = false): Promise<ReviewMetrics> {
-  const dateFilter = buildDateFilter(last30Days);
-
-  // Needs corrections: meetings with fixTranscript succeeded but no humanReview succeeded
-  const needsCorrectionsMeetings = await prisma.councilMeeting.findMany({
-    where: {
-      AND: [
-        {
-          taskStatuses: {
-            some: {
-              type: 'fixTranscript',
-              status: 'succeeded'
-            }
-          }
-        },
-        {
-          NOT: {
-            taskStatuses: {
-              some: {
-                type: 'humanReview',
-                status: 'succeeded'
-              }
-            }
-          }
-        },
-        dateFilter
-      ]
-    },
-    include: {
-      speakerSegments: {
-        include: {
-          utterances: {
-            select: {
-              startTimestamp: true,
-              endTimestamp: true
-            }
-          }
-        }
-      }
-    },
-    orderBy: {
-      dateTime: 'asc'
-    }
-  });
-
-  // Needs upload: past meetings without transcribe succeeded
-  const needsUploadMeetings = await prisma.councilMeeting.findMany({
-    where: {
-      AND: [
-        {
-          NOT: {
-            taskStatuses: {
-              some: {
-                type: 'transcribe',
-                status: 'succeeded'
-              }
-            }
-          }
-        },
-        dateFilter
-      ]
-    },
-    select: {
-      dateTime: true
-    },
-    orderBy: {
-      dateTime: 'asc'
-    }
-  });
-
-  // Calculate total duration for needs corrections
-  const needsCorrectionsDuration = needsCorrectionsMeetings.reduce(
-    (sum, meeting) => sum + calculateMeetingDurationMs(meeting),
-    0
-  );
-
-  return {
-    needsCorrections: needsCorrectionsDuration,
-    needsUpload: needsUploadMeetings.length,
-    oldestNeedsCorrections: needsCorrectionsMeetings.length > 0 ? needsCorrectionsMeetings[0].dateTime : null,
-    oldestNeedsUpload: needsUploadMeetings.length > 0 ? needsUploadMeetings[0].dateTime : null,
-  };
-}
 
 /**
  * Get detailed review progress for a specific meeting with session calculations
@@ -1168,20 +1081,20 @@ export async function getReviewProgressForMeeting(
   const stats = await getAggregatedMeetingStats(meetingId);
 
   // Check task statuses
-  const hasFixTranscript = meetingRecord.taskStatuses.some(
-    t => t.type === 'fixTranscript' && t.status === 'succeeded'
+  const hasTranscribe = meetingRecord.taskStatuses.some(
+    t => t.type === 'transcribe' && t.status === 'succeeded'
   );
   const hasHumanReview = meetingRecord.taskStatuses.some(
     t => t.type === 'humanReview' && t.status === 'succeeded'
   );
 
-  if (!hasFixTranscript) {
+  if (!hasTranscribe) {
     return null;
   }
 
   // Determine status
   const status = determineReviewStatus(
-    hasFixTranscript,
+    hasTranscribe,
     hasHumanReview,
     stats.reviewedUtterances
   );

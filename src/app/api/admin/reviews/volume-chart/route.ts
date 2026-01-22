@@ -6,8 +6,8 @@ import { startOfWeek, subWeeks, format } from 'date-fns';
 
 interface WeekData {
   week: string;
-  corrected: number;
-  uncorrected: number;
+  reviewed: number;
+  needsReview: number;
 }
 
 export async function GET() {
@@ -47,13 +47,13 @@ export async function GET() {
     });
 
     // Calculate meeting duration and categorize
-    const meetingsByWeek = new Map<string, { corrected: number; uncorrected: number }>();
+    const meetingsByWeek = new Map<string, { reviewed: number; needsReview: number }>();
 
     // Initialize all 12 weeks with zero values
     for (let i = 0; i < 12; i++) {
       const weekStart = subWeeks(currentWeekStart, 11 - i);
       const weekKey = format(weekStart, 'yyyy-MM-dd');
-      meetingsByWeek.set(weekKey, { corrected: 0, uncorrected: 0 });
+      meetingsByWeek.set(weekKey, { reviewed: 0, needsReview: 0 });
     }
 
     for (const meeting of meetings) {
@@ -74,20 +74,20 @@ export async function GET() {
       }
 
       // Check task statuses
-      const hasFixTranscript = meeting.taskStatuses.some(
-        t => t.type === 'fixTranscript' && t.status === 'succeeded'
+      const hasTranscribe = meeting.taskStatuses.some(
+        t => t.type === 'transcribe' && t.status === 'succeeded'
       );
       const hasHumanReview = meeting.taskStatuses.some(
         t => t.type === 'humanReview' && t.status === 'succeeded'
       );
 
-      // Categorize: corrected = has humanReview, uncorrected = has fixTranscript but no humanReview
+      // Categorize: reviewed = has humanReview, needsReview = has transcribe but no humanReview
       if (hasHumanReview) {
         const weekData = meetingsByWeek.get(weekKey)!;
-        weekData.corrected += meetingDurationMs;
-      } else if (hasFixTranscript) {
+        weekData.reviewed += meetingDurationMs;
+      } else if (hasTranscribe) {
         const weekData = meetingsByWeek.get(weekKey)!;
-        weekData.uncorrected += meetingDurationMs;
+        weekData.needsReview += meetingDurationMs;
       }
     }
 
@@ -95,8 +95,8 @@ export async function GET() {
     const result: WeekData[] = Array.from(meetingsByWeek.entries())
       .map(([week, data]) => ({
         week,
-        corrected: data.corrected,
-        uncorrected: data.uncorrected
+        reviewed: data.reviewed,
+        needsReview: data.needsReview
       }))
       .sort((a, b) => a.week.localeCompare(b.week));
 

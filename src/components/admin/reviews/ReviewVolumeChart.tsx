@@ -11,17 +11,17 @@ import { formatDurationMs } from "@/lib/formatters/time";
 
 interface WeekData {
   week: string;
-  corrected: number;
-  uncorrected: number;
+  reviewed: number;
+  needsReview: number;
 }
 
 const chartConfig: ChartConfig = {
-  corrected: {
-    label: "Corrected",
+  reviewed: {
+    label: "Reviewed",
     color: "hsl(var(--chart-2))",
   },
-  uncorrected: {
-    label: "Uncorrected",
+  needsReview: {
+    label: "Needs Review",
     color: "hsl(var(--chart-1))",
   },
 };
@@ -34,15 +34,16 @@ export function ReviewVolumeChart() {
   const [hasLoaded, setHasLoaded] = useState(false);
 
   // Custom tooltip formatter - memoized to avoid recreating on each render
-  const formatTooltipValue = useCallback((value: number) => {
-    return formatDurationMs(value);
+  const formatTooltipValue = useCallback((value: number | string) => {
+    const numValue = typeof value === 'number' ? value : Number(value);
+    return formatDurationMs(numValue);
   }, []);
 
   useEffect(() => {
     // Only fetch data when expanded and not already loaded
     if (isOpen && !hasLoaded) {
       const abortController = new AbortController();
-      
+
       const fetchData = async () => {
         try {
           setIsLoading(true);
@@ -54,7 +55,7 @@ export function ReviewVolumeChart() {
             throw new Error("Failed to fetch chart data");
           }
           const result = await response.json();
-          
+
           // Check if request was aborted
           if (!abortController.signal.aborted) {
             setData(result);
@@ -102,12 +103,11 @@ export function ReviewVolumeChart() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Review Volume (12 Weeks)</CardTitle>
-                <CardDescription>Meeting time corrected vs uncorrected</CardDescription>
+                <CardDescription>Meeting time reviewed vs needs review</CardDescription>
               </div>
               <ChevronDown
-                className={`h-5 w-5 text-muted-foreground transition-transform ${
-                  isOpen ? "rotate-180" : ""
-                }`}
+                className={`h-5 w-5 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""
+                  }`}
               />
             </div>
           </CardHeader>
@@ -146,23 +146,23 @@ export function ReviewVolumeChart() {
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          formatter={(value: number) => formatTooltipValue(value)}
+                          formatter={(value) => formatTooltipValue(value as number | string)}
                           labelFormatter={(label) => `Week of ${label}`}
                         />
                       }
                     />
                     <Legend />
                     <Bar
-                      dataKey="corrected"
+                      dataKey="reviewed"
                       stackId="a"
-                      fill="var(--color-corrected)"
-                      name="Corrected"
+                      fill="var(--color-reviewed)"
+                      name="Reviewed"
                     />
                     <Bar
-                      dataKey="uncorrected"
+                      dataKey="needsReview"
                       stackId="a"
-                      fill="var(--color-uncorrected)"
-                      name="Uncorrected"
+                      fill="var(--color-needsReview)"
+                      name="Needs Review"
                     />
                   </BarChart>
                 </ResponsiveContainer>
