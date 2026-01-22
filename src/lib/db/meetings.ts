@@ -3,6 +3,7 @@ import { CouncilMeeting, Subject, AdministrativeBody } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
+import { buildDateFilter } from './reviews/dateFilters';
 
 type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
@@ -187,4 +188,69 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
         console.error('Error fetching meeting data for OG:', error);
         throw new Error('Failed to fetch meeting data for OG');
     }
+}
+
+export interface MeetingUploadMetrics {
+    needsUpload: number; // Count of meetings
+    scheduledFuture: number; // Count of future scheduled meetings
+    oldestNeedsUpload: Date | null;
+    earliestScheduledFuture: Date | null;
+}
+
+/**
+ * Get meeting upload metrics: meetings needing upload and scheduled future meetings
+ * These metrics are not review-specific, so they belong in meetings.ts
+ */
+export async function getMeetingUploadMetrics(last30Days: boolean = false): Promise<MeetingUploadMetrics> {
+    const now = new Date();
+
+    // Build date filter for past meetings (reuse shared utility)
+    const dateFilter = buildDateFilter(last30Days);
+
+    // Needs upload: past meetings without transcribe succeeded
+    const needsUploadMeetings = await prisma.councilMeeting.findMany({
+        where: {
+            AND: [
+                {
+                    NOT: {
+                        taskStatuses: {
+                            some: {
+                                type: 'transcribe',
+                                status: 'succeeded'
+                            }
+                        }
+                    }
+                },
+                dateFilter
+            ]
+        },
+        select: {
+            dateTime: true
+        },
+        orderBy: {
+            dateTime: 'asc'
+        }
+    });
+
+    // Scheduled future: meetings with dateTime in the future
+    const scheduledFutureMeetings = await prisma.councilMeeting.findMany({
+        where: {
+            dateTime: {
+                gt: now
+            }
+        },
+        select: {
+            dateTime: true
+        },
+        orderBy: {
+            dateTime: 'asc'
+        }
+    });
+
+    return {
+        needsUpload: needsUploadMeetings.length,
+        scheduledFuture: scheduledFutureMeetings.length,
+        oldestNeedsUpload: needsUploadMeetings.length > 0 ? needsUploadMeetings[0].dateTime : null,
+        earliestScheduledFuture: scheduledFutureMeetings.length > 0 ? scheduledFutureMeetings[0].dateTime : null,
+    };
 }
