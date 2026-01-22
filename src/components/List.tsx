@@ -136,17 +136,22 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
-    // Client-side pagination: slice filtered items
-    const paginatedItems = pagination
-        ? filteredItems.slice(
-            (pagination.currentPage - 1) * pagination.pageSize,
-            pagination.currentPage * pagination.pageSize
-        )
-        : filteredItems;
-
+    // Client-side pagination
     const totalPages = pagination
         ? Math.ceil(filteredItems.length / pagination.pageSize)
         : 1;
+
+    // Clamp currentPage to valid range
+    const currentPage = pagination
+        ? Math.max(1, Math.min(pagination.currentPage, totalPages))
+        : 1;
+
+    const paginatedItems = pagination
+        ? filteredItems.slice(
+            (currentPage - 1) * pagination.pageSize,
+            currentPage * pagination.pageSize
+        )
+        : filteredItems;
 
     // Debounced URL update for search
     useEffect(() => {
@@ -273,7 +278,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
             {pagination && totalPages > 1 && (
                 <Pagination
-                    currentPage={pagination.currentPage}
+                    currentPage={currentPage}
                     totalPages={totalPages}
                     pageSize={pagination.pageSize}
                     onPageChange={handlePageChange}
