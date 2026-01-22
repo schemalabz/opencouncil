@@ -75,6 +75,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         if (urlSearchQuery !== localSearchQuery) {
             setLocalSearchQuery(urlSearchQuery);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
     // Convert filter labels to values
