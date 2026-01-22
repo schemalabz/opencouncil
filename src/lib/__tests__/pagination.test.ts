@@ -61,6 +61,41 @@ describe('calculatePageNumbers', () => {
     });
 });
 
+describe('clampCurrentPage', () => {
+    // Helper that mirrors the clamping logic in List.tsx
+    function clampCurrentPage(currentPage: number, totalPages: number): number {
+        return Math.max(1, Math.min(currentPage, totalPages));
+    }
+
+    it('should return 1 for page 0', () => {
+        expect(clampCurrentPage(0, 5)).toBe(1);
+    });
+
+    it('should return 1 for negative page', () => {
+        expect(clampCurrentPage(-5, 5)).toBe(1);
+    });
+
+    it('should return totalPages when currentPage exceeds it', () => {
+        expect(clampCurrentPage(100, 5)).toBe(5);
+    });
+
+    it('should return currentPage when within valid range', () => {
+        expect(clampCurrentPage(3, 5)).toBe(3);
+    });
+
+    it('should handle edge case of page 1', () => {
+        expect(clampCurrentPage(1, 5)).toBe(1);
+    });
+
+    it('should handle edge case of last page', () => {
+        expect(clampCurrentPage(5, 5)).toBe(5);
+    });
+
+    it('should return 1 when totalPages is 0', () => {
+        expect(clampCurrentPage(1, 0)).toBe(1);
+    });
+});
+
 describe('pagination reset on search/filter change', () => {
     function updateParamsWithPageReset(currentParams: string, updates: Record<string, string | null>): string {
         const params = new URLSearchParams(currentParams);
