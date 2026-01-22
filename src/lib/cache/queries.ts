@@ -68,7 +68,7 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit, p
 
   return createCache(
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit, page, pageSize }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}` : (limit ? `limit:${limit}` : 'all'), page ? `pageSize:${pageSize}` : ''],
+    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all')],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
