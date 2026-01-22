@@ -414,5 +414,14 @@
             "near": "Near",
             "none": "None"
         }
+    },
+    "CouncilMeeting": {
+        "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
+        "searchItems": "Search meetings",
+        "item": "meeting",
+        "addItem": "Add Meeting",
+        "noItems": "There are no meetings in OpenCouncil.",
+        "previous": "Previous",
+        "next": "Next"
     }
 }
