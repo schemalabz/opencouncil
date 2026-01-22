@@ -34,7 +34,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     allText?: string;
     showSearch?: boolean;
     defaultFilterValues?: F[];
-    pagination?: PaginationParams;
+    pagination?: Omit<PaginationParams, 'totalPages'>;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -68,6 +68,14 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
+    // Sync local search state with URL on browser back/forward navigation
+    useEffect(() => {
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (urlSearchQuery !== localSearchQuery) {
+            setLocalSearchQuery(urlSearchQuery);
+        }
+    }, [searchParams]);
 
     // Convert filter labels to values
     // If no filters in URL, use defaultFilterValues if provided, otherwise all values

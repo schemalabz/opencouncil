@@ -43,11 +43,7 @@ export default function CityMeetings({
             mdColumns={2}
             lgColumns={3}
             allText="Όλα τα όργανα"
-            pagination={currentPage && pageSize ? {
-                currentPage,
-                totalPages: 0,
-                pageSize
-            } : undefined}
+            pagination={currentPage && pageSize ? { currentPage, pageSize } : undefined}
         />
     );
 } 
