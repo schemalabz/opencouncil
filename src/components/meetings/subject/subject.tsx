@@ -16,6 +16,7 @@ import { SubjectContext } from "./context";
 import { useMemo, useState } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DebugUtterances } from "./DebugUtterances";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting, transcript: allSpeakerSegments } = useCouncilMeetingData();
@@ -203,6 +204,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {subject.context && (
                     <SubjectContext subject={subject} />
                 )}
+
+                {/* Debug Section - Superadmin Only */}
+                <DebugUtterances subjectId={subject.id} />
 
                 {/* Speaker Contributions OR Speaker Segments */}
                 <div className="space-y-4">

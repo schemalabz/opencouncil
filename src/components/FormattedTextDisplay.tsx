@@ -24,16 +24,26 @@ export function FormattedTextDisplay({
         : 'underline hover:opacity-80';
     const linkStyle = linkColor === 'blue' ? { color: 'hsl(213 49% 73%)' } : undefined;
 
+    // Helper to render entity links (person, subject) with optional context
+    const renderEntityLink = (entityType: string, id: string, children: React.ReactNode) => {
+        if (meetingId && cityId) {
+            return (
+                <a
+                    href={`/${cityId}/${meetingId}/${entityType}/${id}`}
+                    className={`${linkClassName} inline`}
+                    style={linkStyle}
+                >
+                    {children}
+                </a>
+            );
+        }
+        return <span className="inline">{children}</span>;
+    };
+
     return (
         <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
-                urlTransform={(url) => {
-                    // Allow REF: protocol to pass through
-                    if (url.startsWith('REF:')) {
-                        return url;
-                    }
-                    return url;
-                }}
+                urlTransform={(url) => url} // Pass through all URLs unchanged
                 components={{
                     // Custom link renderer to handle REF:TYPE:ID links
                     a: ({ href, children }) => {
@@ -71,18 +81,7 @@ export function FormattedTextDisplay({
                                 );
 
                             case 'person':
-                                if (meetingId && cityId) {
-                                    return (
-                                        <a
-                                            href={`/${cityId}/${meetingId}/people/${id}`}
-                                            className={`${linkClassName} inline`}
-                                            style={linkStyle}
-                                        >
-                                            {children}
-                                        </a>
-                                    );
-                                }
-                                return <span className="inline">{children}</span>;
+                                return renderEntityLink('people', id, children);
 
                             case 'party':
                                 return (
@@ -92,18 +91,7 @@ export function FormattedTextDisplay({
                                 );
 
                             case 'subject':
-                                if (meetingId && cityId) {
-                                    return (
-                                        <a
-                                            href={`/${cityId}/${meetingId}/subjects/${id}`}
-                                            className={`${linkClassName} inline`}
-                                            style={linkStyle}
-                                        >
-                                            {children}
-                                        </a>
-                                    );
-                                }
-                                return <span className="inline">{children}</span>;
+                                return renderEntityLink('subjects', id, children);
 
                             default:
                                 return <span>{children}</span>;
