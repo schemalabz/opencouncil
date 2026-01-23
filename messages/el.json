@@ -85,6 +85,8 @@
         "statusListed": "Καταχωρημένη",
         "supportsNotifications": "Υποστήριξη Ειδοποιήσεων",
         "supportsNotificationsDescription": "Ενεργοποίηση εγγραφής και διαχείρισης ειδοποιήσεων για τους πολίτες.",
+        "consultationsEnabled": "Ενεργοποίηση Διαβουλεύσεων",
+        "consultationsEnabledDescription": "Ενεργοποίηση της καρτέλας δημόσιων διαβουλεύσεων για αυτήν την πόλη",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",
