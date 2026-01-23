@@ -305,3 +305,52 @@ export function extractUtteranceIdsFromContributions(
     }
     return [...new Set(allIds)]; // Deduplicate
 }
+
+/**
+ * Get all utterances tagged with a subject for debugging
+ * Only accessible to superadmins
+ */
+export async function getUtterancesForSubject(subjectId: string) {
+    const { getCurrentUser } = await import('@/lib/auth');
+    const user = await getCurrentUser();
+
+    // Only superadmins can access debug data
+    if (!user?.isSuperAdmin) {
+        return null;
+    }
+
+    const utterances = await prisma.utterance.findMany({
+        where: {
+            discussionSubjectId: subjectId,
+            discussionStatus: {
+                in: ['SUBJECT_DISCUSSION', 'VOTE']
+            }
+        },
+        select: {
+            id: true,
+            text: true,
+            startTimestamp: true,
+            endTimestamp: true,
+            discussionStatus: true,
+            speakerSegment: {
+                select: {
+                    speakerTag: {
+                        select: {
+                            label: true,
+                            person: {
+                                select: {
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: {
+            startTimestamp: 'asc'
+        }
+    });
+
+    return utterances;
+}

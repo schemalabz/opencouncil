@@ -14,12 +14,9 @@ export interface ParsedReference {
 /**
  * Parse markdown references in contribution text
  * @param markdown - Markdown text with REF:TYPE:ID links
- * @returns Parsed text and reference array
+ * @returns Array of parsed references
  */
-export function parseReferences(markdown: string): {
-    text: string;
-    references: ParsedReference[];
-} {
+export function parseReferences(markdown: string): ParsedReference[] {
     const references: ParsedReference[] = [];
     const refRegex = /\[([^\]]+)\]\(REF:(UTTERANCE|PERSON|PARTY|SUBJECT):([^)]+)\)/g;
 
@@ -32,7 +29,7 @@ export function parseReferences(markdown: string): {
         });
     }
 
-    return { text: markdown, references };
+    return references;
 }
 
 /**
@@ -41,7 +38,7 @@ export function parseReferences(markdown: string): {
  * @returns Array of utterance IDs
  */
 export function extractUtteranceIds(contributionText: string): string[] {
-    const { references } = parseReferences(contributionText);
+    const references = parseReferences(contributionText);
     return references
         .filter(ref => ref.type === 'utterance')
         .map(ref => ref.id);
