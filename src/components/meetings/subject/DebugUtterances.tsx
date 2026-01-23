@@ -65,11 +65,6 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
         }
     }, [open, utterances, subjectId]);
 
-    // Don't render if user is not authorized
-    if (isAuthorized === false) {
-        return null;
-    }
-
     // Calculate statistics (memoized to avoid redundant filtering)
     const statistics = useMemo(() => {
         if (!utterances) return { discussionCount: 0, voteCount: 0, discussionTime: 0, voteTime: 0 };
@@ -93,22 +88,27 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
         return { discussionCount, voteCount, discussionTime, voteTime };
     }, [utterances]);
 
+    // Don't render if user is not authorized
+    if (isAuthorized === false) {
+        return null;
+    }
+
     return (
         <Collapsible open={open} onOpenChange={setOpen}>
-            <div className="border-2 border-dashed border-yellow-400 bg-yellow-50 dark:bg-yellow-950 rounded-lg p-4">
+            <div className="rounded-lg">
                 <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-full justify-between hover:bg-yellow-100 dark:hover:bg-yellow-900">
+                    <Button variant="ghost" size="sm" className="w-full justify-between hover:bg-muted">
                         <div className="flex items-center gap-2">
-                            <Bug className="h-4 w-4 text-yellow-600" />
-                            <span className="font-medium text-yellow-900 dark:text-yellow-100">
-                                Superadmin Debug: Tagged Utterances
+                            <Bug className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-sm">
+                                Debug: Tagged Utterances
                             </span>
                         </div>
-                        <ChevronDown className={`h-4 w-4 text-yellow-600 transition-transform ${open ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
                     </Button>
                 </CollapsibleTrigger>
 
-                <CollapsibleContent className="mt-4 space-y-4">
+                <CollapsibleContent className="mt-4 space-y-4 pt-4 border-t">
                     {loading && (
                         <div className="text-sm text-muted-foreground text-center py-4">
                             Loading utterances...
@@ -117,7 +117,7 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
 
                     {!loading && utterances && utterances.length === 0 && (
                         <div className="text-sm text-muted-foreground text-center py-4">
-                            No utterances tagged with this subject
+                            No tagged utterances
                         </div>
                     )}
 
