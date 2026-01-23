@@ -169,6 +169,26 @@ const config = {
 					to: {
 						backgroundPosition: '350% 50%, 350% 50%'
 					}
+				},
+				'auto-scroll': {
+					'0%': {
+						transform: 'translateX(0)'
+					},
+					'20%': {
+						transform: 'translateX(0)'
+					},
+					'45%': {
+						transform: 'translateX(var(--scroll-distance))'
+					},
+					'65%': {
+						transform: 'translateX(var(--scroll-distance))'
+					},
+					'90%': {
+						transform: 'translateX(0)'
+					},
+					'100%': {
+						transform: 'translateX(0)'
+					}
 				}
 			},
 			animation: {
@@ -180,7 +200,8 @@ const config = {
 				'gradientFlow': 'gradientFlow 3s ease infinite',
 				'fade-in': 'fade-in 0.5s ease-out forwards',
 				'bounce': 'bounce 2s ease-in-out infinite',
-				'aurora': 'aurora 60s linear infinite'
+				'aurora': 'aurora 60s linear infinite',
+				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite'
 			},
 			fontFamily: {
 				sans: [
