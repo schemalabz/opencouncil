@@ -99,48 +99,44 @@ export function RoleDisplay({
         const primaryRole = roles.find(r => r.isHead) || roles[0];
 
         return (
-            <div className={cn("flex items-center", sizeClasses[size], className)}>
+            <div className={cn("flex items-center min-w-0", sizeClasses[size], className)}>
                 {primaryRole.partyId && primaryRole.party ? (
                     <Link
                         href={`/${primaryRole.city?.id || primaryRole.party.cityId}/parties/${primaryRole.party.id}`}
-                        className="no-underline hover:no-underline unstyled"
+                        className="no-underline hover:no-underline unstyled min-w-0"
                     >
                         <Badge
                             variant="secondary"
                             className={cn(
-                                "flex items-center gap-1.5 text-muted-foreground hover:bg-accent cursor-pointer font-normal",
+                                "flex items-center gap-1 sm:gap-1.5 text-muted-foreground hover:bg-accent cursor-pointer font-normal px-1.5 sm:px-2.5 py-0.5 sm:py-1 max-w-full",
                                 borderless && "border-0 bg-muted/50 hover:bg-muted"
                             )}
                         >
-                            <div className="flex items-center gap-1.5 w-6 flex-shrink-0">
+                            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                                 <div
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
                                     style={{ backgroundColor: primaryRole.party.colorHex }}
                                 />
-                                <div className="w-3 h-3 flex items-center justify-center">
-                                    {showIcons && primaryRole.isHead && (
-                                        <Star className="w-3 h-3 text-[#fc550a]" />
-                                    )}
-                                </div>
+                                {showIcons && primaryRole.isHead && (
+                                    <Star className="w-2 h-2 sm:w-3 sm:h-3 text-[#fc550a]" />
+                                )}
                             </div>
                             <span className={cn(
-                                "truncate",
+                                "truncate min-w-0",
                                 borderless && "text-sm"
                             )}>
                                 {primaryRole.party.name_short}
-                                {primaryRole.isHead && ' (Επικ.)'}
+                                {primaryRole.isHead && <span className="hidden sm:inline"> (Επικ.)</span>}
                             </span>
                         </Badge>
                     </Link>
                 ) : (
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 flex items-center justify-center flex-shrink-0">
-                            {showIcons && primaryRole.isHead && (
-                                <Star className="w-3 h-3 text-[#fc550a]" />
-                            )}
-                        </div>
+                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                        {showIcons && primaryRole.isHead && (
+                            <Star className="w-2 h-2 sm:w-3 sm:h-3 text-[#fc550a] shrink-0" />
+                        )}
                         <span className={cn(
-                            "text-muted-foreground truncate",
+                            "text-muted-foreground truncate min-w-0",
                             borderless && "text-sm"
                         )}>
                             {getRoleText(primaryRole)}
