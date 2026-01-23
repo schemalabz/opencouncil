@@ -4,10 +4,12 @@ import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
+import { PaginationParams } from '@/lib/db/types';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
 import { updateFilterURL } from '@/lib/utils/filterURL';
+import { Pagination } from './ui/pagination';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -32,6 +34,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     allText?: string;
     showSearch?: boolean;
     defaultFilterValues?: F[];
+    pagination?: Omit<PaginationParams, 'totalPages'>;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -52,7 +55,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     layout = 'grid',
     carouselItemWidth = 300,
     carouselGap = 16,
-    defaultFilterValues
+    defaultFilterValues,
+    pagination
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -64,6 +68,15 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
+    // Sync local search state with URL on browser back/forward navigation
+    useEffect(() => {
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (urlSearchQuery !== localSearchQuery) {
+            setLocalSearchQuery(urlSearchQuery);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     // Convert filter labels to values
     // If no filters in URL, use defaultFilterValues if provided, otherwise all values
@@ -124,9 +137,30 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
+    // Client-side pagination
+    const totalPages = pagination
+        ? Math.ceil(filteredItems.length / pagination.pageSize)
+        : 1;
+
+    // Clamp currentPage to valid range
+    const currentPage = pagination
+        ? Math.max(1, Math.min(pagination.currentPage, totalPages))
+        : 1;
+
+    const paginatedItems = pagination
+        ? filteredItems.slice(
+            (currentPage - 1) * pagination.pageSize,
+            currentPage * pagination.pageSize
+        )
+        : filteredItems;
+
     // Debounced URL update for search
     useEffect(() => {
         if (!showSearch) return;
+
+        // Avoid overriding pagination/filter URL changes when the search value didn't change.
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (localSearchQuery === urlSearchQuery) return;
 
         const timeoutId = setTimeout(() => {
             const params = new URLSearchParams(searchParams.toString());
@@ -135,6 +169,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             } else {
                 params.delete('search');
             }
+            params.delete('page'); // Reset to page 1 on search
             router.replace(`?${params.toString()}`);
         }, 300); // 300ms debounce delay
 
@@ -149,6 +184,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     const handleFilterChange = (selectedValues: F[]) => {
         updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams, router);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (newPage > 1) {
+            params.set('page', newPage.toString());
+        } else {
+            params.delete('page');
+        }
+        router.push(`?${params.toString()}`);
     };
 
     return (
@@ -213,7 +258,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {filteredItems.map((item) => (
+                        {paginatedItems.map((item) => (
                             <div
                                 key={item.id}
                                 className={carouselItemClasses}
@@ -230,6 +275,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
+            )}
+
+            {pagination && totalPages > 1 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pagination.pageSize}
+                    onPageChange={handlePageChange}
+                    labels={{ previous: t('previous'), next: t('next') }}
+                />
             )}
         </div>
     );
