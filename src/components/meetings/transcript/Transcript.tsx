@@ -174,7 +174,7 @@ export default function Transcript() {
     }
 
     return (
-        <div className="container" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+        <div className="container px-2 sm:px-4 md:px-6" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
             {isUnverified && (
                 <UnverifiedTranscriptBanner 
                     isScrolled={isScrolled}

@@ -8,7 +8,7 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot, FileJson, MessageSquarePlus } from "lucide-react";
+import { Plus, Trash2, Bot, FileJson, MessageSquarePlus, ChevronDown, ChevronUp } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
@@ -104,16 +104,16 @@ const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
     };
 
     return (
-        <div className="px-4 py-8 flex flex-col items-center gap-3 border-2 border-dashed border-muted rounded-md my-2">
-            <MessageSquarePlus className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">{t('noUtterances')}</p>
-            <Button 
-                onClick={handleAddUtterance} 
-                size="sm" 
+        <div className="px-2 sm:px-4 py-4 sm:py-8 flex flex-col items-center gap-2 sm:gap-3 border-2 border-dashed border-muted rounded-md my-2">
+            <MessageSquarePlus className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+            <p className="text-xs sm:text-sm text-muted-foreground">{t('noUtterances')}</p>
+            <Button
+                onClick={handleAddUtterance}
+                size="sm"
                 variant="outline"
                 disabled={isLoading}
             >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {isLoading ? t('adding') : t('addUtterance')}
             </Button>
         </div>
@@ -165,10 +165,10 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: { 
-    segment: TranscriptType[number], 
+const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
+    segment: TranscriptType[number],
     renderMock: boolean,
-    isFirstSegment?: boolean 
+    isFirstSegment?: boolean
 }) => {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
@@ -176,6 +176,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     // Calculate the next unknown speaker label
     const nextUnknownLabel = useMemo(() => {
@@ -237,7 +238,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                 <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
             )}
             
-            <div className='my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors' style={{ borderLeft: `4px solid ${memoizedData.borderColor}` }}>
+            <div className='my-2 sm:my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: memoizedData.borderColor }}>
                 <div className='w-full'>
                     <div 
                         className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
@@ -284,96 +285,136 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                 )}
                             </div>
                         ) : (
-                            <div className='flex flex-col w-full space-y-2 py-2'>
-                                <div className='flex items-center justify-between w-full px-4'>
-                                    <div className='flex-grow overflow-hidden'>
-                                        {memoizedData.speakerTag && (
-                                            <PersonBadge
-                                                person={memoizedData.person}
-                                                speakerTag={memoizedData.speakerTag}
-                                                segmentCount={memoizedData.segmentCount}
-                                                editable={options.editable}
-                                                onPersonChange={handlePersonChange}
-                                                onLabelChange={handleLabelChange}
-                                                nextUnknownLabel={nextUnknownLabel}
-                                                availablePeople={people.map(p => ({
-                                                    ...p,
-                                                    party: getPartyFromRoles(p.roles)
-                                                }))}
-                                            />
-                                        )}
-                                    </div>
-                                    <div className='flex items-center gap-3 ml-4'>
-                                        {options.editable && isEmpty && !renderMock && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                        onClick={() => deleteEmptySegment(segment.id)}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Delete empty segment</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                        {isSuperAdmin && !renderMock && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                        onClick={() => setMetadataDialogOpen(true)}
-                                                    >
-                                                        <FileJson className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>View segment metadata</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                                            <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                {summary && (
-                                    <div className='px-4 space-y-2'>
-                                        <div className='text-sm'>
-                                            {summary.text}
-                                        </div>
-                                        <div className='flex items-center justify-between'>
-                                            {segment.topicLabels.length > 0 && (
-                                                <div className='flex flex-wrap gap-2'>
-                                                    {segment.topicLabels.map(tl =>
-                                                        <TopicBadge topic={tl.topic} key={tl.topic.id} />
-                                                    )}
-                                                </div>
+                            <div className='flex flex-col w-full'>
+                                {/* Collapsed header (mobile only, shown when collapsed) */}
+                                {isCollapsed && (
+                                    <button
+                                        onClick={() => setIsCollapsed(false)}
+                                        className='sticky flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 border-b border-border/40'
+                                        style={{ top: 'var(--banner-offset, 0px)' }}
+                                    >
+                                        <div className='flex items-center gap-2.5 min-w-0 flex-1'>
+                                            {memoizedData.party && (
+                                                <div
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: memoizedData.party.colorHex }}
+                                                />
                                             )}
-                                            <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
-                                                {summary?.type === 'procedural' && (
-                                                    <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                                        Διαδικαστικό
-                                                    </span>
-                                                )}
-                                                <div className='flex items-center gap-1'>
-                                                    <Bot className="h-3 w-3" />
-                                                    <span>Αυτόματη σύνοψη</span>
-                                                </div>
+                                            <span className='text-sm font-medium truncate'>
+                                                {memoizedData.person ? memoizedData.person.name : memoizedData.speakerTag?.label}
+                                            </span>
+                                        </div>
+                                        <div className='flex items-center gap-1.5 shrink-0'>
+                                            <span className='text-[10px] text-muted-foreground font-medium'>
+                                                {formatTimestamp(segment.startTimestamp)}
+                                            </span>
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                    </button>
+                                )}
+
+                                {/* Full header (always on desktop, conditional on mobile) */}
+                                <div className={`${isCollapsed ? 'hidden md:flex' : 'flex'} flex-col w-full space-y-2 py-2`}>
+                                    <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
+                                        <div className='flex-grow overflow-hidden min-w-0'>
+                                            {memoizedData.speakerTag && (
+                                                <PersonBadge
+                                                    person={memoizedData.person}
+                                                    speakerTag={memoizedData.speakerTag}
+                                                    segmentCount={memoizedData.segmentCount}
+                                                    editable={options.editable}
+                                                    onPersonChange={handlePersonChange}
+                                                    onLabelChange={handleLabelChange}
+                                                    nextUnknownLabel={nextUnknownLabel}
+                                                    availablePeople={people.map(p => ({
+                                                        ...p,
+                                                        party: getPartyFromRoles(p.roles)
+                                                    }))}
+                                                    size="sm"
+                                                />
+                                            )}
+                                        </div>
+                                        <div className='flex items-center gap-1.5 sm:gap-3 shrink-0'>
+                                            {/* Manual collapse button (mobile only) */}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 md:hidden"
+                                                onClick={() => setIsCollapsed(true)}
+                                            >
+                                                <ChevronUp className="h-4 w-4" />
+                                            </Button>
+                                            {options.editable && isEmpty && !renderMock && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                            onClick={() => deleteEmptySegment(segment.id)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Delete empty segment</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {isSuperAdmin && !renderMock && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                            onClick={() => setMetadataDialogOpen(true)}
+                                                        >
+                                                            <FileJson className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>View segment metadata</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            <div className='hidden md:flex items-center gap-2 text-xs text-muted-foreground'>
+                                                <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                    {summary && (
+                                        <div className='px-2.5 sm:px-4 space-y-2'>
+                                            <div className='text-xs sm:text-sm'>
+                                                {summary.text}
+                                            </div>
+                                            <div className='flex flex-col gap-2'>
+                                                {segment.topicLabels.length > 0 && (
+                                                    <div className='flex flex-wrap gap-1.5'>
+                                                        {segment.topicLabels.map(tl =>
+                                                            <TopicBadge topic={tl.topic} key={tl.topic.id} />
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
+                                                    {summary?.type === 'procedural' && (
+                                                        <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium whitespace-nowrap">
+                                                            Διαδικαστικό
+                                                        </span>
+                                                    )}
+                                                    <div className='flex items-center gap-1 whitespace-nowrap'>
+                                                        <Bot className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                                                        <span>Σύνοψη</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
-                    <div className='font-mono px-4 py-3 text-justify w-full leading-relaxed group'>
+                    <div className='font-mono px-2.5 sm:px-4 py-1.5 sm:py-3 text-left sm:text-justify w-full leading-relaxed group text-sm sm:text-base'>
                         {utterances.length === 0 && options.editable && !renderMock ? (
                             <EmptySegmentState segmentId={segment.id} />
                         ) : renderMock ? (
