@@ -81,6 +81,11 @@
         "highlightCreationAdminsOnly": "Admins Only",
         "highlightCreationEveryone": "Everyone",
         "highlightCreationPermissionDescription": "Control who can create highlights for this city",
+        "supportsNotifications": "Enable Notifications",
+        "supportsNotificationsDescription": "Enable email and SMS notifications for meetings in this city",
+        "consultationsEnabled": "Enable Consultations",
+        "consultationsEnabledDescription": "Enable the public consultations tab for this city",
+        "administrativeBodies": "Administrative Bodies",
         "CityMessageForm": {
             "sectionTitle": "City Message",
             "toggle": "Toggle city message",

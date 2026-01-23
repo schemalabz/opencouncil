@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     const officialSupport = formData.get('officialSupport') === 'true'
     const status = (formData.get('status') as 'pending' | 'unlisted' | 'listed') || 'pending'
     const supportsNotifications = formData.get('supportsNotifications') === 'true'
+    const consultationsEnabled = formData.get('consultationsEnabled') === 'true'
     const highlightCreationPermission = (formData.get('highlightCreationPermission') as 'ADMINS_ONLY' | 'EVERYONE') || 'ADMINS_ONLY'
 
     if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
             authorityType,
             wikipediaId: null,
             supportsNotifications,
-            consultationsEnabled: false,
+            consultationsEnabled,
             peopleOrdering: 'default',
             highlightCreationPermission
         })

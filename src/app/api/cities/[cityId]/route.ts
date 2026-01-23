@@ -36,6 +36,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
     const logoImage = formData.get('logoImage') as File | null
     const authorityType = (formData.get('authorityType') as 'municipality' | 'region') || 'municipality'
     const supportsNotifications = formData.get('supportsNotifications') === 'true'
+    const consultationsEnabled = formData.get('consultationsEnabled') === 'true'
     const peopleOrdering = formData.get('peopleOrdering') as 'default' | 'partyRank' | null
     const highlightCreationPermission = formData.get('highlightCreationPermission') as 'ADMINS_ONLY' | 'EVERYONE' | null
 
@@ -89,6 +90,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             authorityType: 'municipality' | 'region'
             officialSupport?: boolean
             supportsNotifications?: boolean
+            consultationsEnabled?: boolean
             status?: 'pending' | 'unlisted' | 'listed'
             highlightCreationPermission?: 'ADMINS_ONLY' | 'EVERYONE'
         } = {
@@ -100,6 +102,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(logoImageUrl && { logoImage: logoImageUrl }),
             authorityType,
             supportsNotifications,
+            consultationsEnabled,
             ...(peopleOrdering && { peopleOrdering }),
             ...(highlightCreationPermission && { highlightCreationPermission })
         }
