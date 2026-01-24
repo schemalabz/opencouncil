@@ -1,16 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { Bot, ChevronDown, ChevronUp, LinkIcon, ExternalLink } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
 import React from "react"
-
-// Maximum height in pixels before collapsing
-const MAX_CONTENT_HEIGHT = 120
 
 // Define Subject type if not imported from Prisma
 type Subject = {
@@ -23,8 +17,6 @@ type Subject = {
 export function SubjectContext({ subject }: { subject: Subject }) {
     const [showSources, setShowSources] = useState(false)
     const [expanded, setExpanded] = useState(false)
-    const [shouldCollapse, setShouldCollapse] = useState(true) // Always collapsible by default
-    const contentRef = useRef<HTMLDivElement>(null)
 
     const markdownComponents: Components = {
         h1: ({ node, ...props }) => <h2 className="text-left text-base font-semibold mt-3 mb-2" {...props} />,
@@ -119,83 +111,45 @@ export function SubjectContext({ subject }: { subject: Subject }) {
         }
     }
 
-    // Check if content needs collapse/expand functionality
-    useEffect(() => {
-        if (contentRef.current) {
-            setShouldCollapse(contentRef.current.scrollHeight > MAX_CONTENT_HEIGHT)
-        }
-    }, [subject.context])
-
     if (!subject.context && (!subject.contextCitationUrls || subject.contextCitationUrls.length === 0)) {
         return null
     }
 
     return (
-        <Card className="overflow-hidden border-muted/60">
-            <CardHeader className="pb-2 space-y-1">
-                <CardTitle className="text-lg font-medium flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" />
-                    Πληροφορίες από το διαδίκτυο
-                </CardTitle>
-            </CardHeader>
+        <div className="bg-card rounded-lg overflow-hidden border">
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+            >
+                <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">Πληροφορίες από το διαδίκτυο</span>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
 
-            <CardContent className="space-y-3 pt-0">
+            {expanded && (
+                <div className="space-y-3 p-4 border-t">
                 {subject.context && (
-                    <div className="relative">
-                        <div
-                            ref={contentRef}
-                            style={{ maxHeight: expanded ? "none" : `${MAX_CONTENT_HEIGHT}px` }}
-                            className={cn(
-                                "text-sm text-muted-foreground pl-4 border-l-2 border-primary/20 py-1",
-                                !expanded && "overflow-hidden",
-                            )}
-                        >
-                            <ReactMarkdown components={markdownComponents}>{subject.context}</ReactMarkdown>
-                        </div>
-
-                        {shouldCollapse && !expanded && (
-                            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-                        )}
-
-                        {shouldCollapse && (
-                            <div className="flex justify-center mt-1 relative z-10">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 rounded-full px-3 text-xs font-medium hover:bg-muted/80 transition-colors bg-background shadow-sm"
-                                    onClick={() => setExpanded(!expanded)}
-                                >
-                                    {expanded ? (
-                                        <span className="flex items-center gap-1">
-                                            Λιγότερα <ChevronUp className="h-3.5 w-3.5" />
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1">
-                                            Περισσότερα <ChevronDown className="h-3.5 w-3.5" />
-                                        </span>
-                                    )}
-                                </Button>
-                            </div>
-                        )}
+                    <div className="text-sm text-muted-foreground">
+                        <ReactMarkdown components={markdownComponents}>{subject.context}</ReactMarkdown>
                     </div>
                 )}
 
                 {subject.contextCitationUrls && subject.contextCitationUrls.length > 0 && (
-                    <div className="space-y-2 pt-1">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-between h-8 px-3 hover:bg-muted/80 transition-colors"
+                    <div className="space-y-2 pt-2 mt-2 border-t">
+                        <button
+                            className="w-full flex items-center justify-between text-xs font-medium hover:text-primary transition-colors"
                             onClick={() => setShowSources(!showSources)}
                         >
-                            <span className="text-xs font-medium flex items-center gap-1.5">
-                                <LinkIcon className="h-3.5 w-3.5 text-primary" />
+                            <span className="flex items-center gap-1.5">
+                                <LinkIcon className="h-3.5 w-3.5" />
                                 Πηγές ({subject.contextCitationUrls.length})
                             </span>
                             {showSources ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                        </Button>
+                        </button>
                         {showSources && (
-                            <div className="pl-4 space-y-2 border-l-2 border-primary/20 py-1">
+                            <div className="space-y-2">
                                 {subject.contextCitationUrls.map((url, index) => (
                                     <a
                                         key={index}
@@ -215,8 +169,9 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                         )}
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+            )}
+        </div>
     )
 }
 
