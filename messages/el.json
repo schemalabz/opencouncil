@@ -566,5 +566,36 @@
         "error": "Σφάλμα",
         "saveError": "Αποτυχία αποθήκευσης της κατάταξης. Παρακαλώ δοκιμάστε ξανά.",
         "resetError": "Αποτυχία επαναφοράς της κατάταξης. Παρακαλώ δοκιμάστε ξανά."
+    },
+    "Subject": {
+        "agendaItem": "Θέμα #{index}",
+        "parties": "Παρατάξεις",
+        "minutes": "λεπτά",
+        "speakers": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
+        "introducer": "Εισηγητής",
+        "summary": "Σύνοψη",
+        "statements": "Τοποθετήσεις",
+        "statementsCount": "{count, plural, =1 {1 τοποθέτηση} other {# τοποθετήσεις}}",
+        "noContributions": "Δεν υπάρχουν συνεισφορές ομιλητών",
+        "unknownSpeaker": "Άγνωστος ομιλητής",
+        "noStatements": "Δεν υπάρχουν τοποθετήσεις ομιλητών",
+        "transcript": "Απομαγνητοφώνηση",
+        "noSummary": "Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση",
+        "viewMap": "Προβολή χάρτη",
+        "adminDetails": "Διαχειριστικά στοιχεία",
+        "notificationImportance": "Σημασία ειδοποιήσεων",
+        "notificationImportanceDescription": "Αυτές οι πληροφορίες καθορίζουν ποιοι χρήστες θα ειδοποιηθούν για αυτό το θέμα με βάση τις προτιμήσεις τους.",
+        "topicImportanceLabel": "Σημασία Θέματος",
+        "proximityImportanceLabel": "Σημασία Εγγύτητας",
+        "topicImportance": {
+            "high": "Υψηλή",
+            "normal": "Κανονική",
+            "none": "Καμία"
+        },
+        "proximityImportance": {
+            "wide": "Ευρεία",
+            "near": "Κοντινή",
+            "none": "Καμία"
+        }
     }
 }
