@@ -94,60 +94,80 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
-                {/* Quick Stats Bar */}
-                <div className="bg-card rounded-lg p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
-                        {/* Parties Section */}
-                        <div className="flex-grow min-w-0">
-                            <h3 className="text-sm font-semibold mb-3">{t("parties")}</h3>
-                            <div className="flex items-start gap-4">
-                                {/* Color Ring */}
-                                <div className="flex-shrink-0">
-                                    <ColorPercentageRing
-                                        data={colorPercentages}
-                                        size={80}
-                                        thickness={10}
-                                    >
-                                        <div className="flex flex-col items-center">
-                                            <div className="text-xl font-semibold">
-                                                {totalMinutes}
+                {/* Quick Stats Section */}
+                <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                    {/* Parties Card */}
+                    <div className="flex-grow rounded-lg shadow-sm overflow-hidden">
+                        <div
+                            className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
+                            style={{ borderRadius: "0.5rem" }}
+                        >
+                            <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+                                <h3 className="text-sm font-semibold mb-2">{t("parties")}</h3>
+                                {totalMinutes === 0 ? (
+                                    <div className="py-6 text-center">
+                                        <p className="text-sm text-muted-foreground">
+                                            {t("noDiscussionFound")}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start gap-3">
+                                        {/* Color Ring */}
+                                        <div className="flex-shrink-0">
+                                            <ColorPercentageRing
+                                                data={colorPercentages}
+                                                size={80}
+                                                thickness={10}
+                                            >
+                                                <div className="flex flex-col items-center">
+                                                    <div className="text-xl font-semibold">
+                                                        {totalMinutes}
+                                                    </div>
+                                                    <div className="text-[10px] text-muted-foreground">
+                                                        {t("minutes")}
+                                                    </div>
+                                                </div>
+                                            </ColorPercentageRing>
+                                        </div>
+
+                                        {/* Party Breakdown + Speaker Count */}
+                                        <div className="flex-grow min-w-0 space-y-2">
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                                {subject.statistics?.parties?.map((p) => (
+                                                    <div key={p.item.id} className="flex items-center gap-1.5 text-xs">
+                                                        <div
+                                                            className="w-3 h-3 rounded-sm shrink-0"
+                                                            style={{ backgroundColor: p.item.colorHex }}
+                                                        />
+                                                        <span className="font-medium">{p.item.name}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground">
-                                                {t("minutes")}
+
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span>{t("speakers", { count: subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0) })}</span>
                                             </div>
                                         </div>
-                                    </ColorPercentageRing>
-                                </div>
-
-                                {/* Party Breakdown + Speaker Count */}
-                                <div className="flex-grow min-w-0 space-y-3">
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                                        {subject.statistics?.parties?.map((p) => (
-                                            <div key={p.item.id} className="flex items-center gap-1.5 text-xs">
-                                                <div
-                                                    className="w-3 h-3 rounded-sm shrink-0"
-                                                    style={{ backgroundColor: p.item.colorHex }}
-                                                />
-                                                <span className="font-medium">{p.item.name}</span>
-                                            </div>
-                                        ))}
                                     </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
 
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>{t("speakers", { count: subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0) })}</span>
-                                    </div>
+                    {/* Introducer Card */}
+                    {introducedBy && (
+                        <div className="shrink-0 rounded-lg shadow-sm overflow-hidden md:max-w-[66%]">
+                            <div
+                                className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
+                                style={{ borderRadius: "0.5rem" }}
+                            >
+                                <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+                                    <h3 className="text-sm font-semibold mb-2">{t("introducer")}</h3>
+                                    <PersonBadge person={introducedBy} />
                                 </div>
                             </div>
                         </div>
-
-                        {/* Introducer Section */}
-                        {introducedBy && (
-                            <div className="shrink-0">
-                                <h3 className="text-sm font-semibold mb-3">{t("introducer")}</h3>
-                                <PersonBadge person={introducedBy} />
-                            </div>
-                        )}
-                    </div>
+                    )}
                 </div>
 
                 {/* Summary Section (Collapsible - Open by default) */}
@@ -196,36 +216,34 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
 
                 {/* Speaker Contributions OR Speaker Segments */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">
-                            {t("statements")}
-                        </h3>
-                        <div className="text-sm text-muted-foreground">
-                            {t("statementsCount", { count: hasContributions ? contributions.length : speakerSegments?.length || 0 })}
-                        </div>
-                    </div>
-
+                <CollapsibleCard
+                    icon={<ScrollText className="w-4 h-4" />}
+                    title={`${t("statements")} (${hasContributions ? contributions.length : speakerSegments?.length || 0})`}
+                    defaultOpen={true}
+                >
                     {hasContributions ? (
                         /* NEW: Render Contributions */
-                        <div className="space-y-3">
-                            {contributions.map(contribution => {
+                        contributions.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    {t("noStatements")}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {contributions.map((contribution, index) => {
                                     const speaker = contribution.speakerId
                                         ? getPerson(contribution.speakerId)
                                         : null;
 
                                     return (
-                                        <div
-                                            key={contribution.id}
-                                            className="group bg-card rounded-lg border shadow-sm"
-                                        >
+                                        <div key={contribution.id}>
+                                            {index > 0 && <div className="border-t border-border" />}
                                             <div className="p-4 space-y-4">
                                                 {/* Speaker Badge */}
                                                 <div className="flex items-center gap-4">
                                                     {speaker ? (
-                                                        <PersonBadge
-                                                            person={speaker}
-                                                        />
+                                                        <PersonBadge person={speaker} />
                                                     ) : (
                                                         <span className="text-sm text-muted-foreground italic">
                                                             {t("unknownSpeaker")}
@@ -250,33 +268,30 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                             </div>
                                         </div>
                                     );
-                                })
-                            }
-                        </div>
+                                })}
+                            </>
+                        )
                     ) : (
                         /* FALLBACK: Render Speaker Segments (old format) */
-                        <div className="space-y-3">
-                            {(!speakerSegments || speakerSegments.length === 0) ? (
-                                <div className="bg-card rounded-lg p-8 text-center border">
-                                    <p className="text-sm text-muted-foreground">
-                                        {t("noStatements")}
-                                    </p>
-                                </div>
-                            ) : (
-                                speakerSegments.map(segment => {
+                        (!speakerSegments || speakerSegments.length === 0) ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    {t("noStatements")}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {speakerSegments.map((segment, index) => {
                                     const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                     const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                    const party = person ? getPartyFromRoles(person.roles) : null;
                                     if (!speakerTag) return null;
 
                                     const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
-                                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`
+                                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`;
 
                                     return (
-                                        <div
-                                            key={segment.speakerSegmentId}
-                                            className="group bg-card hover:bg-card/80 transition-colors rounded-lg border shadow-sm"
-                                        >
+                                        <div key={segment.speakerSegmentId}>
+                                            {index > 0 && <div className="border-t border-border" />}
                                             <div className="p-4">
                                                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                                                     <PersonBadge
@@ -317,11 +332,11 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                             </div>
                                         </div>
                                     );
-                                })
-                            )}
-                        </div>
+                                })}
+                            </>
+                        )
                     )}
-                </div>
+                </CollapsibleCard>
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (

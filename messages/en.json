@@ -383,6 +383,7 @@
         "parties": "Parties",
         "minutes": "minutes",
         "speakers": "{count, plural, =1 {1 speaker} other {# speakers}}",
+        "noDiscussionFound": "No discussion found on this subject",
         "introducer": "Introducer",
         "summary": "Summary",
         "statements": "Statements",
