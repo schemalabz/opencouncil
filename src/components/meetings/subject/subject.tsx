@@ -21,7 +21,7 @@ import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
-    const { subjects, getSpeakerTag, getPerson, getParty, meeting, transcript: allSpeakerSegments } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
 
     // If subjectId is provided, find the subject in the context
