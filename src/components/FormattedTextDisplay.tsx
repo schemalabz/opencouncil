@@ -1,6 +1,6 @@
 "use client";
 
-import { ReferenceType } from "@/lib/referenceUtils";
+import { ReferenceType } from "@/lib/utils/references";
 import { Badge } from "./ui/badge";
 import ReactMarkdown from 'react-markdown';
 

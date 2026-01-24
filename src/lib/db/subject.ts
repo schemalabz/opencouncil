@@ -16,7 +16,7 @@ import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
 import { getPeopleForCity } from './people';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
-import { extractUtteranceIds } from '@/lib/referenceUtils';
+import { extractUtteranceIds } from '@/lib/utils/references';
 import { roleWithRelationsInclude } from './types/roles';
 
 // Shared include blocks for Subject queries
