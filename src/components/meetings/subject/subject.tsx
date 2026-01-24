@@ -19,10 +19,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { DebugUtterances } from "./DebugUtterances";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
+import { useTranslations } from "next-intl";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
+    const t = useTranslations("Subject");
 
     // If subjectId is provided, find the subject in the context
     const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
@@ -80,7 +82,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 {agendaItemIndex && (
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                                        <span className="font-medium">Θέμα #{agendaItemIndex}</span>
+                                        <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
                                     </>
                                 )}
                             </div>
@@ -96,7 +98,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-6">
                         {/* Parties Section */}
                         <div className="flex-grow min-w-0">
-                            <h3 className="text-sm font-semibold mb-3">Παρατάξεις</h3>
+                            <h3 className="text-sm font-semibold mb-3">{t("parties")}</h3>
                             <div className="flex items-start gap-4">
                                 {/* Color Ring */}
                                 <div className="flex-shrink-0">
@@ -110,7 +112,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                 {totalMinutes}
                                             </div>
                                             <div className="text-[10px] text-muted-foreground">
-                                                λεπτά
+                                                {t("minutes")}
                                             </div>
                                         </div>
                                     </ColorPercentageRing>
@@ -131,7 +133,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     </div>
 
                                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>{subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0)} ομιλητές</span>
+                                        <span>{t("speakers", { count: subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0) })}</span>
                                     </div>
                                 </div>
                             </div>
@@ -140,7 +142,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         {/* Introducer Section */}
                         {introducedBy && (
                             <div className="shrink-0">
-                                <h3 className="text-sm font-semibold mb-3">Εισηγητής</h3>
+                                <h3 className="text-sm font-semibold mb-3">{t("introducer")}</h3>
                                 <PersonBadge person={introducedBy} />
                             </div>
                         )}
@@ -150,7 +152,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {/* Description Section */}
                 {description && (
                     <div className="space-y-4">
-                        <h2 className="text-lg font-semibold text-left">Σύνοψη</h2>
+                        <h2 className="text-lg font-semibold text-left">{t("summary")}</h2>
                         <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
                             <FormattedTextDisplay
                                 text={description}
@@ -182,13 +184,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold">
-                            Τοποθετήσεις
+                            {t("statements")}
                         </h3>
                         <div className="text-sm text-muted-foreground">
-                            {hasContributions
-                                ? `${contributions.length} τοποθετήσεις`
-                                : `${speakerSegments?.length || 0} τοποθετήσεις`
-                            }
+                            {t("statementsCount", { count: hasContributions ? contributions.length : speakerSegments?.length || 0 })}
                         </div>
                     </div>
 
@@ -198,7 +197,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             {contributions.length === 0 ? (
                                 <div className="bg-card rounded-lg p-8 text-center border">
                                     <p className="text-sm text-muted-foreground">
-                                        Δεν υπάρχουν συνεισφορές ομιλητών
+                                        {t("noContributions")}
                                     </p>
                                 </div>
                             ) : (
@@ -221,7 +220,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                         />
                                                     ) : (
                                                         <span className="text-sm text-muted-foreground italic">
-                                                            Άγνωστος ομιλητής
+                                                            {t("unknownSpeaker")}
                                                         </span>
                                                     )}
                                                 </div>
@@ -252,7 +251,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             {(!speakerSegments || speakerSegments.length === 0) ? (
                                 <div className="bg-card rounded-lg p-8 text-center border">
                                     <p className="text-sm text-muted-foreground">
-                                        Δεν υπάρχουν τοποθετήσεις ομιλητών
+                                        {t("noStatements")}
                                     </p>
                                 </div>
                             ) : (
@@ -293,7 +292,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                         >
                                                             <Link href={transcriptUrl}>
                                                                 <FileText className="h-4 w-4 mr-1.5" />
-                                                                Απομαγνητοφώνηση
+                                                                {t("transcript")}
                                                             </Link>
                                                         </Button>
                                                     </div>
@@ -304,7 +303,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                     </div>
                                                 ) : (
                                                     <p className="text-center text-sm mt-6 text-muted-foreground italic">
-                                                        Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση
+                                                        {t("noSummary")}
                                                     </p>
                                                 )}
                                             </div>
@@ -324,7 +323,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium">Προβολή χάρτη</span>
+                                        <span className="font-medium">{t("viewMap")}</span>
                                     </div>
                                     <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
                                 </button>
@@ -351,7 +350,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-2">
                                         <ScrollText className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium text-sm">Διαχειριστικά στοιχεία</span>
+                                        <span className="font-medium text-sm">{t("adminDetails")}</span>
                                     </div>
                                     <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
                                 </button>
@@ -361,27 +360,19 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     {/* Notification Importance */}
                                     {(topicImportance || proximityImportance) && (
                                         <div className="space-y-2">
-                                            <div className="text-sm font-medium">Σημασία ειδοποιήσεων</div>
+                                            <div className="text-sm font-medium">{t("notificationImportance")}</div>
                                             <p className="text-xs text-muted-foreground">
-                                                Αυτές οι πληροφορίες καθορίζουν ποιοι χρήστες θα ειδοποιηθούν για αυτό το θέμα με βάση τις προτιμήσεις τους.
+                                                {t("notificationImportanceDescription")}
                                             </p>
                                             <div className="flex flex-wrap gap-2">
                                                 {topicImportance && (
                                                     <Badge variant="secondary">
-                                                        Σημασία Θέματος: {
-                                                            topicImportance === 'high' ? 'Υψηλή' :
-                                                            topicImportance === 'normal' ? 'Κανονική' :
-                                                            'Καμία'
-                                                        }
+                                                        {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
                                                     </Badge>
                                                 )}
                                                 {proximityImportance && (
                                                     <Badge variant="secondary">
-                                                        Σημασία Εγγύτητας: {
-                                                            proximityImportance === 'wide' ? 'Ευρεία' :
-                                                            proximityImportance === 'near' ? 'Κοντινή' :
-                                                            'Καμία'
-                                                        }
+                                                        {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
                                                     </Badge>
                                                 )}
                                             </div>

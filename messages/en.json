@@ -377,5 +377,36 @@
         "error": "Error",
         "saveError": "Failed to save rankings. Please try again.",
         "resetError": "Failed to reset rankings. Please try again."
+    },
+    "Subject": {
+        "agendaItem": "Subject #{index}",
+        "parties": "Parties",
+        "minutes": "minutes",
+        "speakers": "{count, plural, =1 {1 speaker} other {# speakers}}",
+        "introducer": "Introducer",
+        "summary": "Summary",
+        "statements": "Statements",
+        "statementsCount": "{count, plural, =1 {1 statement} other {# statements}}",
+        "noContributions": "No speaker contributions",
+        "unknownSpeaker": "Unknown speaker",
+        "noStatements": "No speaker statements",
+        "transcript": "Transcript",
+        "noSummary": "No automatic summary available for this statement",
+        "viewMap": "View map",
+        "adminDetails": "Admin details",
+        "notificationImportance": "Notification importance",
+        "notificationImportanceDescription": "This information determines which users will be notified about this subject based on their preferences.",
+        "topicImportanceLabel": "Topic Importance",
+        "proximityImportanceLabel": "Proximity Importance",
+        "topicImportance": {
+            "high": "High",
+            "normal": "Normal",
+            "none": "None"
+        },
+        "proximityImportance": {
+            "wide": "Wide",
+            "near": "Near",
+            "none": "None"
+        }
     }
 }
