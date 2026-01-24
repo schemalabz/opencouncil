@@ -27,8 +27,20 @@ export function CollapsibleCard({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className={`relative rounded-lg overflow-hidden group ${className}`}>
-        {/* Gradient border effect - visible on hover or when open */}
+      <div className={`relative rounded-lg group ${className}`}>
+        {/* Gray border - fades out on hover/open */}
+        <div
+          className={`absolute inset-0 rounded-lg transition-opacity duration-300 pointer-events-none ${open ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`}
+          style={{
+            background: 'hsl(var(--border))',
+            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+            padding: '1px'
+          }}
+        />
+
+        {/* Gradient border - fades in on hover/open */}
         <div
           className={`absolute inset-0 rounded-lg transition-opacity duration-300 pointer-events-none ${open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           style={{
@@ -41,7 +53,7 @@ export function CollapsibleCard({
           }}
         />
 
-        <div className="relative bg-white dark:bg-card rounded-lg overflow-hidden border border-border">
+        <div className="relative bg-white dark:bg-card rounded-lg overflow-hidden">
           <CollapsibleTrigger asChild>
             <button className="relative w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
               <div className="flex items-center gap-2 min-w-0 flex-1">
