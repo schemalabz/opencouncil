@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
 import { HighlightProvider } from './HighlightContext'
+import { UtteranceExpansionProvider } from './subject/UtteranceExpansionContext'
 import { MeetingData } from '@/lib/getMeetingData'
 import { KeyboardShortcuts } from './KeyboardShortcuts'
 import { KeyboardShortcutsProvider } from '@/contexts/KeyboardShortcutsContext'
@@ -61,14 +62,16 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
-                        <HighlightProvider>
-                            <KeyboardShortcutsProvider>
-                                <EditingProvider>
-                                    <KeyboardShortcuts />
-                                    {children}
-                                </EditingProvider>
-                            </KeyboardShortcutsProvider>
-                        </HighlightProvider>
+                        <UtteranceExpansionProvider>
+                            <HighlightProvider>
+                                <KeyboardShortcutsProvider>
+                                    <EditingProvider>
+                                        <KeyboardShortcuts />
+                                        {children}
+                                    </EditingProvider>
+                                </KeyboardShortcutsProvider>
+                            </HighlightProvider>
+                        </UtteranceExpansionProvider>
                     </VideoProvider>
                 </TranscriptOptionsProvider>
             </CouncilMeetingDataProvider>

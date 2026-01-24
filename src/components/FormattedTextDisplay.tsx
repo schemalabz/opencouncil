@@ -1,8 +1,10 @@
 "use client";
 
+import { memo } from "react";
 import { ReferenceType } from "@/lib/utils/references";
 import { Badge } from "./ui/badge";
 import ReactMarkdown from 'react-markdown';
+import { UtteranceReferenceLink } from "./meetings/subject/UtteranceReferenceLink";
 
 interface FormattedTextDisplayProps {
     text: string; // Markdown with REF:TYPE:ID links
@@ -12,7 +14,7 @@ interface FormattedTextDisplayProps {
     linkColor?: 'blue' | 'black'; // Optional link color override
 }
 
-export function FormattedTextDisplay({
+export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     text,
     onUtteranceClick,
     meetingId,
@@ -61,23 +63,14 @@ export function FormattedTextDisplay({
 
                         switch (refType) {
                             case 'utterance':
-                                // Use API endpoint for utterance links to enable proper navigation
-                                // Use <a> tag instead of Link to avoid locale prefix on API routes
+                                // Use UtteranceReferenceLink for inline mini transcript
                                 return (
-                                    <a
-                                        href={`/api/utterance/${id}`}
-                                        onClick={(e) => {
-                                            // If we're in the same meeting context, use the in-page navigation
-                                            if (onUtteranceClick) {
-                                                e.preventDefault();
-                                                onUtteranceClick(id);
-                                            }
-                                        }}
-                                        className={`${linkClassName} cursor-pointer inline`}
-                                        style={linkStyle}
+                                    <UtteranceReferenceLink
+                                        utteranceId={id}
+                                        linkColor={linkColor}
                                     >
                                         {children}
-                                    </a>
+                                    </UtteranceReferenceLink>
                                 );
 
                             case 'person':
@@ -103,4 +96,4 @@ export function FormattedTextDisplay({
             </ReactMarkdown>
         </div>
     );
-}
+});
