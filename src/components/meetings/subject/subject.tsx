@@ -149,22 +149,36 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </div>
                 </div>
 
-                {/* Description Section */}
+                {/* Summary Section (Collapsible - Open by default) */}
                 {description && (
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-semibold text-left">{t("summary")}</h2>
-                        <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
-                            <FormattedTextDisplay
-                                text={description}
-                                meetingId={meeting.id}
-                                cityId={meeting.cityId}
-                                linkColor="black"
-                            />
+                    <Collapsible defaultOpen={true}>
+                        <div className="bg-card rounded-lg overflow-hidden border">
+                            <CollapsibleTrigger asChild>
+                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-2">
+                                        <FileText className="w-4 h-4 text-muted-foreground" />
+                                        <span className="font-medium text-sm">{t("summary")}</span>
+                                    </div>
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
+                                </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="border-t">
+                                <div className="p-4 space-y-4">
+                                    <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
+                                        <FormattedTextDisplay
+                                            text={description}
+                                            meetingId={meeting.id}
+                                            cityId={meeting.cityId}
+                                            linkColor="black"
+                                        />
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <AIGeneratedBadge />
+                                    </div>
+                                </div>
+                            </CollapsibleContent>
                         </div>
-                        <div className="flex justify-end">
-                            <AIGeneratedBadge />
-                        </div>
-                    </div>
+                    </Collapsible>
                 )}
 
                 {/* Location & Map Section (Collapsible) */}
