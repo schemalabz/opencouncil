@@ -164,15 +164,34 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <div className="flex justify-end">
                             <AIGeneratedBadge />
                         </div>
-
-                        {/* Inline Metadata */}
-                        {location && (
-                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground pt-2">
-                                <MapPin className="w-3.5 h-3.5 shrink-0" />
-                                <span>{location.text}</span>
-                            </div>
-                        )}
                     </div>
+                )}
+
+                {/* Location & Map Section (Collapsible) */}
+                {location && (
+                    <Collapsible>
+                        <div className="bg-card rounded-lg overflow-hidden border">
+                            <CollapsibleTrigger asChild>
+                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                                        <span className="font-medium text-sm text-left truncate">{location.text}</span>
+                                    </div>
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform shrink-0 ml-2" />
+                                </button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <div className="h-[300px] w-full border-t">
+                                    <Map
+                                        center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
+                                        zoom={15}
+                                        features={mapFeatures}
+                                        animateRotation={false}
+                                    />
+                                </div>
+                            </CollapsibleContent>
+                        </div>
+                    </Collapsible>
                 )}
 
                 {/* Context Section */}
@@ -308,34 +327,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     )}
                 </div>
 
-                {/* Location Section (Collapsible) */}
-                {location && (
-                    <Collapsible>
-                        <div className="bg-card rounded-lg overflow-hidden">
-                            <CollapsibleTrigger asChild>
-                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium">{t("viewMap")}</span>
-                                    </div>
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
-                                </button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                                <div className="h-[300px] w-full border-t">
-                                    <Map
-                                        center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
-                                        zoom={15}
-                                        features={mapFeatures}
-                                        animateRotation={false}
-                                    />
-                                </div>
-                            </CollapsibleContent>
-                        </div>
-                    </Collapsible>
-                )}
-
-                {/* Notification Importance (Admin) */}
+                {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
                     <Collapsible>
                         <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed">
@@ -343,36 +335,40 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-2">
                                         <ScrollText className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium text-sm">{t("notificationImportance")}</span>
+                                        <span className="font-medium text-sm">{t("adminDetails")}</span>
                                     </div>
                                     <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
                                 </button>
                             </CollapsibleTrigger>
                             <CollapsibleContent className="border-t">
-                                <div className="p-4 space-y-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("notificationImportanceDescription")}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {topicImportance && (
-                                            <Badge variant="secondary">
-                                                {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
-                                            </Badge>
-                                        )}
-                                        {proximityImportance && (
-                                            <Badge variant="secondary">
-                                                {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
-                                            </Badge>
-                                        )}
+                                <div className="p-4 space-y-4">
+                                    {/* Notification Importance */}
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-medium">{t("notificationImportance")}</div>
+                                        <p className="text-xs text-muted-foreground">
+                                            {t("notificationImportanceDescription")}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {topicImportance && (
+                                                <Badge variant="secondary">
+                                                    {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
+                                                </Badge>
+                                            )}
+                                            {proximityImportance && (
+                                                <Badge variant="secondary">
+                                                    {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
+                                                </Badge>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    {/* Debug Utterances - Superadmin only */}
+                                    <DebugUtterances subjectId={subject.id} />
                                 </div>
                             </CollapsibleContent>
                         </div>
                     </Collapsible>
                 )}
-
-                {/* Debug Utterances (Superadmin only - checks auth internally) */}
-                <DebugUtterances subjectId={subject.id} />
             </div>
         </div>
     );
