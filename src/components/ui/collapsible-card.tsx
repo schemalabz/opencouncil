@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,60 +17,59 @@ interface CollapsibleCardProps {
   className?: string
 }
 
+const BORDER_RADIUS = "0.5rem"
+const BORDER_WIDTH = "1.5px"
+
 export function CollapsibleCard({
   icon,
   title,
   children,
   defaultOpen = false,
-  className = "",
+  className,
 }: CollapsibleCardProps) {
   const [open, setOpen] = React.useState(defaultOpen)
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className={`relative rounded-lg group ${className}`}>
-        {/* Gray border - fades out on hover/open */}
+      <div className={cn("group rounded-lg shadow-sm overflow-hidden", className)}>
         <div
-          className={`absolute inset-0 rounded-lg transition-opacity duration-300 pointer-events-none ${open ? 'opacity-0' : 'opacity-100 group-hover:opacity-0'}`}
+          className={cn(
+            "w-full h-full rounded-lg p-[1.5px] transition-all duration-300 bg-gradient-to-r",
+            "from-gray-300/40 via-gray-200/30 to-gray-300/40",
+            open && "from-[#fc550a]/30 via-[#a4c0e1]/30 to-[#fc550a]/30",
+            "group-hover:from-[#fc550a] group-hover:via-[#a4c0e1] group-hover:to-[#fc550a]",
+            "group-hover:bg-[length:200%_100%] group-hover:[animation-play-state:running]"
+          )}
           style={{
-            background: 'hsl(var(--border))',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-            padding: '1px'
+            animation: "gradientFlow 5s ease infinite",
+            animationPlayState: "paused",
+            borderRadius: BORDER_RADIUS,
           }}
-        />
-
-        {/* Gradient border - fades in on hover/open */}
-        <div
-          className={`absolute inset-0 rounded-lg transition-opacity duration-300 pointer-events-none ${open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--gradient-orange)), hsl(var(--gradient-blue)), hsl(var(--gradient-orange)))',
-            backgroundSize: '200% 200%',
-            WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'xor',
-            maskComposite: 'exclude',
-            padding: '1px'
-          }}
-        />
-
-        <div className="relative bg-white dark:bg-card rounded-lg overflow-hidden">
-          <CollapsibleTrigger asChild>
-            <button className="relative w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                {icon && (
-                  <div className="text-muted-foreground group-hover:text-[hsl(var(--gradient-orange))] transition-colors shrink-0">
-                    {icon}
-                  </div>
-                )}
-                <span className="font-medium text-sm text-left truncate">{title}</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="border-t border-border">
-            {children}
-          </CollapsibleContent>
+        >
+          <div
+            className="w-full h-full bg-card"
+            style={{ borderRadius: `calc(${BORDER_RADIUS} - ${BORDER_WIDTH})` }}
+          >
+            <CollapsibleTrigger asChild>
+              <button className="w-full p-4 flex items-center justify-between hover:bg-muted/20 transition-colors">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {icon && (
+                    <div className="text-muted-foreground group-hover:text-[#fc550a] transition-colors shrink-0">
+                      {icon}
+                    </div>
+                  )}
+                  <span className="font-medium text-sm text-left truncate">{title}</span>
+                </div>
+                <ChevronDown className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform shrink-0 ml-2",
+                  open && "rotate-180"
+                )} />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border">
+              {children}
+            </CollapsibleContent>
+          </div>
         </div>
       </div>
     </Collapsible>

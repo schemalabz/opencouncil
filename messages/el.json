@@ -572,6 +572,7 @@
         "parties": "Παρατάξεις",
         "minutes": "λεπτά",
         "speakers": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
+        "noDiscussionFound": "Δεν βρέθηκε συζήτηση επί του θέματος",
         "introducer": "Εισηγητής",
         "summary": "Σύνοψη",
         "statements": "Τοποθετήσεις",
