@@ -33,37 +33,34 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
     const [open, setOpen] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
+    // Check authorization on mount
     useEffect(() => {
-        // Only fetch when opened
-        if (open && utterances === null) {
-            setLoading(true);
-            fetch('/api/subject/debug-utterances', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ subjectId })
-            })
-                .then(res => {
-                    if (res.status === 403) {
-                        setIsAuthorized(false);
-                        return null;
-                    }
-                    if (!res.ok) throw new Error('Failed to fetch');
-                    return res.json();
-                })
-                .then(data => {
-                    if (data) {
-                        setUtterances(data.utterances || []);
-                        setIsAuthorized(true);
-                    }
-                    setLoading(false);
-                })
-                .catch(() => {
-                    setUtterances([]);
+        setLoading(true);
+        fetch('/api/subject/debug-utterances', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subjectId })
+        })
+            .then(res => {
+                if (res.status === 403) {
                     setIsAuthorized(false);
-                    setLoading(false);
-                });
-        }
-    }, [open, utterances, subjectId]);
+                    return null;
+                }
+                if (!res.ok) throw new Error('Failed to fetch');
+                return res.json();
+            })
+            .then(data => {
+                if (data) {
+                    setUtterances(data.utterances || []);
+                    setIsAuthorized(true);
+                }
+                setLoading(false);
+            })
+            .catch(() => {
+                setIsAuthorized(false);
+                setLoading(false);
+            });
+    }, [subjectId]);
 
     // Calculate statistics (memoized to avoid redundant filtering)
     const statistics = useMemo(() => {
@@ -88,8 +85,8 @@ export function DebugUtterances({ subjectId }: DebugUtterancesProps) {
         return { discussionCount, voteCount, discussionTime, voteTime };
     }, [utterances]);
 
-    // Don't render if user is not authorized
-    if (isAuthorized === false) {
+    // Don't render until authorization is checked or if user is not authorized
+    if (isAuthorized === null || isAuthorized === false) {
         return null;
     }
 
