@@ -335,50 +335,44 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </Collapsible>
                 )}
 
-                {/* Admin Panel (Collapsible) - Groups notification importance + debug */}
-                {((topicImportance || proximityImportance) || true) && ( // true for debug section which checks auth internally
+                {/* Notification Importance (Admin) */}
+                {(topicImportance || proximityImportance) && (
                     <Collapsible>
                         <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed">
                             <CollapsibleTrigger asChild>
                                 <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                                     <div className="flex items-center gap-2">
                                         <ScrollText className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium text-sm">{t("adminDetails")}</span>
+                                        <span className="font-medium text-sm">{t("notificationImportance")}</span>
                                     </div>
                                     <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
                                 </button>
                             </CollapsibleTrigger>
                             <CollapsibleContent className="border-t">
-                                <div className="p-4 space-y-4">
-                                    {/* Notification Importance */}
-                                    {(topicImportance || proximityImportance) && (
-                                        <div className="space-y-2">
-                                            <div className="text-sm font-medium">{t("notificationImportance")}</div>
-                                            <p className="text-xs text-muted-foreground">
-                                                {t("notificationImportanceDescription")}
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {topicImportance && (
-                                                    <Badge variant="secondary">
-                                                        {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
-                                                    </Badge>
-                                                )}
-                                                {proximityImportance && (
-                                                    <Badge variant="secondary">
-                                                        {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Debug Utterances - Will show/hide based on auth internally */}
-                                    <DebugUtterances subjectId={subject.id} />
+                                <div className="p-4 space-y-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        {t("notificationImportanceDescription")}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {topicImportance && (
+                                            <Badge variant="secondary">
+                                                {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
+                                            </Badge>
+                                        )}
+                                        {proximityImportance && (
+                                            <Badge variant="secondary">
+                                                {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </div>
                             </CollapsibleContent>
                         </div>
                     </Collapsible>
                 )}
+
+                {/* Debug Utterances (Superadmin only - checks auth internally) */}
+                <DebugUtterances subjectId={subject.id} />
             </div>
         </div>
     );
