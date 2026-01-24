@@ -61,9 +61,11 @@ export async function getStatisticsFor(
     let speakerSegmentIds: string[] | undefined;
     let utteranceDurationsBySegment: Map<string, number> | undefined;
 
+    // BACKWARD COMPATIBILITY: Support both new and old subject statistics systems
+    // - New system (preferred): Uses Utterance.discussionSubjectId for granular time tracking
+    // - Old system (fallback): Uses SubjectSpeakerSegment join table for legacy subjects
     if (subjectId) {
-        // Get utterances tagged with this subject during discussion
-        // Exclude VOTE status to avoid counting voting time
+        // Try new system: Query utterances with discussionSubjectId
         const utterances = await prisma.utterance.findMany({
             where: {
                 discussionSubjectId: subjectId,
@@ -76,21 +78,31 @@ export async function getStatisticsFor(
             }
         });
 
-        // If no utterances found, return empty statistics
-        if (utterances.length === 0) {
-            return EMPTY_STATISTICS;
-        }
+        if (utterances.length > 0) {
+            // NEW SYSTEM: Use granular utterance-based calculation
+            utteranceDurationsBySegment = new Map();
+            for (const utterance of utterances) {
+                const duration = Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
+                const currentDuration = utteranceDurationsBySegment.get(utterance.speakerSegmentId) || 0;
+                utteranceDurationsBySegment.set(utterance.speakerSegmentId, currentDuration + duration);
+            }
+            speakerSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
+        } else {
+            // OLD SYSTEM: Fall back to SubjectSpeakerSegment relation
+            const subjectSpeakerSegments = await prisma.subjectSpeakerSegment.findMany({
+                where: { subjectId },
+                select: { speakerSegmentId: true }
+            });
 
-        // Calculate total duration per speaker segment from utterances
-        utteranceDurationsBySegment = new Map();
-        for (const utterance of utterances) {
-            const duration = Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
-            const currentDuration = utteranceDurationsBySegment.get(utterance.speakerSegmentId) || 0;
-            utteranceDurationsBySegment.set(utterance.speakerSegmentId, currentDuration + duration);
-        }
+            if (subjectSpeakerSegments.length === 0) {
+                // Subject exists but has no speaker data in either system
+                return EMPTY_STATISTICS;
+            }
 
-        // Extract unique speaker segment IDs
-        speakerSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
+            speakerSegmentIds = subjectSpeakerSegments.map(s => s.speakerSegmentId);
+            // Leave utteranceDurationsBySegment as undefined
+            // This triggers full segment duration calculation in getStatisticsForTranscript
+        }
     }
 
     transcript = await prisma.speakerSegment.findMany({

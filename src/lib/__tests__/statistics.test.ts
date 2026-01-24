@@ -10,6 +10,15 @@ import prisma from '../db/prisma';
 jest.mock('../db/prisma', () => ({
   __esModule: true,
   default: {
+    utterance: {
+      findMany: jest.fn()
+    },
+    councilMeeting: {
+      findUnique: jest.fn()
+    },
+    subjectSpeakerSegment: {
+      findMany: jest.fn()
+    },
     speakerSegment: {
       findMany: jest.fn()
     }
@@ -34,6 +43,7 @@ describe('Statistics', () => {
               id: 'person-1',
               name: 'John Doe',
               role: 'Mayor',
+              roles: [],
               party: {
                 id: 'party-1',
                 name: 'Party A'
@@ -51,25 +61,33 @@ describe('Statistics', () => {
         }
       ];
 
+      (prisma.councilMeeting.findUnique as jest.Mock).mockResolvedValue({ dateTime: new Date() });
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue(mockSegments);
 
       await getStatisticsFor({ meetingId: 'meeting-1', cityId: 'city-1' }, ['person', 'party', 'topic']);
 
-      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith({
-        where: {
-          meetingId: 'meeting-1',
-          cityId: 'city-1',
-          speakerTag: {
-            personId: undefined,
-            person: undefined
-          },
-          subjects: undefined
-        },
-        include: expect.objectContaining({
-          speakerTag: expect.any(Object),
-          topicLabels: expect.any(Object)
+      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            meetingId: 'meeting-1',
+            cityId: 'city-1',
+            id: undefined,
+            speakerTag: {
+              personId: undefined
+            },
+            meeting: undefined,
+            NOT: {
+              summary: {
+                type: "procedural"
+              }
+            }
+          }),
+          include: expect.objectContaining({
+            speakerTag: expect.any(Object),
+            topicLabels: expect.any(Object)
+          })
         })
-      });
+      );
     });
 
     it('should call prisma with correct parameters for person statistics', async () => {
@@ -91,31 +109,75 @@ describe('Statistics', () => {
 
       await getStatisticsFor({ partyId: 'party-1' }, ['person', 'topic']);
 
+      // Note: Party filtering is done in application code after the query,
+      // not in the database query itself (see lines 141-148 in statistics.ts)
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          speakerTag: expect.objectContaining({
-            person: {
-              partyId: 'party-1'
-            }
-          })
+          speakerTag: {
+            personId: undefined
+          }
         })
       }));
     });
 
-    it('should call prisma with correct parameters for subject statistics', async () => {
+    it('should call prisma with correct parameters for subject statistics (new system)', async () => {
+      // Mock utterances query (new system)
+      (prisma.utterance.findMany as jest.Mock).mockResolvedValue([
+        {
+          speakerSegmentId: 'segment-1',
+          startTimestamp: 0,
+          endTimestamp: 30
+        }
+      ]);
       (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
 
       await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
 
-      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({
-          subjects: {
-            some: {
-              subjectId: 'subject-1'
-            }
+      // Verify new system was used
+      expect(prisma.utterance.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            discussionSubjectId: 'subject-1',
+            discussionStatus: 'SUBJECT_DISCUSSION'
           }
         })
-      }));
+      );
+
+      // Verify speaker segments were queried with filtered IDs
+      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { in: ['segment-1'] }
+          })
+        })
+      );
+    });
+
+    it('should fall back to old system when no utterances found', async () => {
+      // Mock empty utterances (trigger fallback)
+      (prisma.utterance.findMany as jest.Mock).mockResolvedValue([]);
+      // Mock old system query
+      (prisma.subjectSpeakerSegment.findMany as jest.Mock).mockResolvedValue([
+        { speakerSegmentId: 'segment-2' }
+      ]);
+      (prisma.speakerSegment.findMany as jest.Mock).mockResolvedValue([]);
+
+      await getStatisticsFor({ subjectId: 'subject-1' }, ['person', 'party', 'topic']);
+
+      // Verify fallback to old system
+      expect(prisma.subjectSpeakerSegment.findMany).toHaveBeenCalledWith({
+        where: { subjectId: 'subject-1' },
+        select: { speakerSegmentId: true }
+      });
+
+      // Verify speaker segments were queried with old system IDs
+      expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: { in: ['segment-2'] }
+          })
+        })
+      );
     });
 
     it('should call prisma with correct parameters for administrative body statistics', async () => {
@@ -232,43 +294,70 @@ describe('Statistics', () => {
     it('should group statistics by party correctly', async () => {
       const transcript = [
         {
+          id: 'segment-1',
           startTimestamp: 0,
           endTimestamp: 50,
           speakerTag: {
             person: {
               id: 'person-1',
-              party: {
-                id: 'party-1',
-                name: 'Party A'
-              }
+              roles: [
+                {
+                  id: 'role-1',
+                  partyId: 'party-1',
+                  party: {
+                    id: 'party-1',
+                    name: 'Party A'
+                  },
+                  startDate: new Date('2020-01-01'),
+                  endDate: null
+                }
+              ]
             }
           },
           topicLabels: []
         },
         {
+          id: 'segment-2',
           startTimestamp: 50,
           endTimestamp: 70,
           speakerTag: {
             person: {
               id: 'person-2',
-              party: {
-                id: 'party-1',
-                name: 'Party A'
-              }
+              roles: [
+                {
+                  id: 'role-2',
+                  partyId: 'party-1',
+                  party: {
+                    id: 'party-1',
+                    name: 'Party A'
+                  },
+                  startDate: new Date('2020-01-01'),
+                  endDate: null
+                }
+              ]
             }
           },
           topicLabels: []
         },
         {
+          id: 'segment-3',
           startTimestamp: 70,
           endTimestamp: 100,
           speakerTag: {
             person: {
               id: 'person-3',
-              party: {
-                id: 'party-2',
-                name: 'Party B'
-              }
+              roles: [
+                {
+                  id: 'role-3',
+                  partyId: 'party-2',
+                  party: {
+                    id: 'party-2',
+                    name: 'Party B'
+                  },
+                  startDate: new Date('2020-01-01'),
+                  endDate: null
+                }
+              ]
             }
           },
           topicLabels: []
@@ -282,7 +371,7 @@ describe('Statistics', () => {
 
       const partyAStats = stats.parties!.find(p => p.item.id === 'party-1');
       expect(partyAStats).toBeDefined();
-      expect(partyAStats!.speakingSeconds).toBe(50); // Only non-administrative role time (50)
+      expect(partyAStats!.speakingSeconds).toBe(70); // 50 + 20
 
       const partyBStats = stats.parties!.find(p => p.item.id === 'party-2');
       expect(partyBStats).toBeDefined();
