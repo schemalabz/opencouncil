@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Bot, ChevronDown, ChevronUp, LinkIcon, ExternalLink } from "lucide-react"
+import { Globe, ChevronDown, ChevronUp, LinkIcon, ExternalLink } from "lucide-react"
+import { GradientCollapsible } from "@/components/ui/gradient-collapsible"
 import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
 import React from "react"
@@ -16,7 +17,6 @@ type Subject = {
 
 export function SubjectContext({ subject }: { subject: Subject }) {
     const [showSources, setShowSources] = useState(false)
-    const [expanded, setExpanded] = useState(false)
 
     const markdownComponents: Components = {
         h1: ({ node, ...props }) => <h2 className="text-left text-base font-semibold mt-3 mb-2" {...props} />,
@@ -116,20 +116,11 @@ export function SubjectContext({ subject }: { subject: Subject }) {
     }
 
     return (
-        <div className="bg-card rounded-lg overflow-hidden border">
-            <button
-                onClick={() => setExpanded(!expanded)}
-                className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
-            >
-                <div className="flex items-center gap-2">
-                    <Bot className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">Πληροφορίες από το διαδίκτυο</span>
-                </div>
-                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />
-            </button>
-
-            {expanded && (
-                <div className="space-y-3 p-4 border-t">
+        <GradientCollapsible
+            icon={<Globe className="w-4 h-4" />}
+            title="Πληροφορίες από το διαδίκτυο"
+        >
+            <div className="space-y-3 p-4">
                 {subject.context && (
                     <div className="text-sm text-muted-foreground">
                         <ReactMarkdown components={markdownComponents}>{subject.context}</ReactMarkdown>
@@ -170,8 +161,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                     </div>
                 )}
             </div>
-            )}
-        </div>
+        </GradientCollapsible>
     )
 }
 
