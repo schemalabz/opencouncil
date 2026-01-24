@@ -194,14 +194,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     {hasContributions ? (
                         /* NEW: Render Contributions */
                         <div className="space-y-3">
-                            {contributions.length === 0 ? (
-                                <div className="bg-card rounded-lg p-8 text-center border">
-                                    <p className="text-sm text-muted-foreground">
-                                        {t("noContributions")}
-                                    </p>
-                                </div>
-                            ) : (
-                                contributions.map(contribution => {
+                            {contributions.map(contribution => {
                                     const speaker = contribution.speakerId
                                         ? getPerson(contribution.speakerId)
                                         : null;
@@ -243,7 +236,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         </div>
                                     );
                                 })
-                            )}
+                            }
                         </div>
                     ) : (
                         /* FALLBACK: Render Speaker Segments (old format) */
