@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import Icon from "./icon";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { useRouter } from "next/navigation";
+import { stripMarkdown } from "@/lib/formatters/markdown";
 import {
     Popover,
     PopoverContent,
@@ -58,7 +59,7 @@ export default function SubjectBadge({ subject, className }: SubjectBadgeProps) 
                         <div>
                             <div className="font-semibold">{subject.name}</div>
                             {subject.description && (
-                                <div className="text-sm text-muted-foreground line-clamp-2">{subject.description}</div>
+                                <div className="text-sm text-muted-foreground line-clamp-2">{stripMarkdown(subject.description)}</div>
                             )}
                         </div>
                     </div>

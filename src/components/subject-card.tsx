@@ -12,6 +12,7 @@ import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
+import { stripMarkdown } from "@/lib/formatters/markdown";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -116,7 +117,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                     )}
                     {subject.description && (
-                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{subject.description}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{stripMarkdown(subject.description)}</div>
                     )}
                 </CardContent>
                 <CardFooter className="pt-0 mt-auto flex flex-col h-[52px]">

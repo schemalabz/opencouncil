@@ -3,6 +3,7 @@
 import { render } from '@react-email/render';
 import { NotificationEmail } from '@/lib/email/templates/NotificationEmail';
 import { env } from '@/env.mjs';
+import { stripMarkdown } from '@/lib/formatters/markdown';
 
 interface NotificationSubject {
     id: string;
@@ -47,7 +48,10 @@ export async function generateEmailContent(notification: NotificationData): Prom
             meetingDate,
             administrativeBodyName: notification.meeting.administrativeBody?.name || 'Συνεδρίαση',
             cityName: notification.city.name_municipality,
-            subjects: notification.subjects,
+            subjects: notification.subjects.map(subject => ({
+                ...subject,
+                description: stripMarkdown(subject.description)
+            })),
             notificationUrl: `${env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`
         })
     );

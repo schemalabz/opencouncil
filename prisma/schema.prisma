@@ -137,7 +137,7 @@ model Person {
   name_short String
   name_short_en String
   image     String?
-  
+
   roles Role[]
 
   activeFrom DateTime?
@@ -154,6 +154,7 @@ model Person {
 
   administrators Administers[]
   subjectsIntroduced Subject[]
+  speakerContributions SpeakerContribution[]
 
   @@index([cityId])
 }
@@ -294,11 +295,23 @@ model Utterance {
   uncertain Boolean @default(false)
   lastModifiedBy LastModifiedBy?
 
+  // Discussion status tracking (from summarize task)
+  discussionStatus DiscussionStatus?
+  discussionSubject Subject? @relation(fields: [discussionSubjectId], references: [id], onDelete: SetNull)
+  discussionSubjectId String?
+
   words Word[]
   highlightedUtterances HighlightedUtterance[]
   podcastPartAudioUtterances PodcastPartAudioUtterance[]
   @@index([speakerSegmentId, startTimestamp])
   utteranceEdits UtteranceEdit[]
+}
+
+enum DiscussionStatus {
+  ATTENDANCE
+  SUBJECT_DISCUSSION
+  VOTE
+  OTHER
 }
 
 enum LastModifiedBy {
@@ -393,12 +406,22 @@ model Subject {
 
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
-  speakerSegments SubjectSpeakerSegment[]
+
+  // Keep both for backward compatibility during transition
+  speakerSegments SubjectSpeakerSegment[] // OLD - will deprecate
+  contributions   SpeakerContribution[]    // NEW
 
   context String?
   contextCitationUrls String[]
 
+  // NEW: Notification importance fields
+  topicImportance     String? // 'doNotNotify' | 'normal' | 'high'
+  proximityImportance String? // 'none' | 'near' | 'wide'
+
   notifications NotificationSubject[]
+
+  // Utterances tagged with this subject during discussion
+  discussionUtterances Utterance[]
 
   @@index([cityId, councilMeetingId])
 }
@@ -438,6 +461,24 @@ model SubjectSpeakerSegment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SpeakerContribution {
+  id        String   @id @default(cuid())
+  text      String   @db.Text // Markdown with REF:TYPE:ID links
+
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  speakerId String?  // personId (nullable for unidentified speakers)
+  speaker   Person?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([subjectId, speakerId])
+  @@index([subjectId])
+  @@index([speakerId])
 }
 
 model Highlight {

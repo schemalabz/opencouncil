@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Ban, Star, AlertCircle, Download } from 'lucide-react';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
+import { stripMarkdown } from '@/lib/formatters/markdown';
 
 interface Subject {
     id: string;
@@ -309,7 +310,7 @@ export function CreateNotificationModal({
                                             )}
                                         </div>
                                         <p className="text-sm text-gray-600 line-clamp-2">
-                                            {subject.description}
+                                            {stripMarkdown(subject.description)}
                                         </p>
                                     </div>
 

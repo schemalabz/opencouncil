@@ -8,8 +8,9 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot, FileJson, MessageSquarePlus } from "lucide-react";
+import { Plus, Trash2, FileJson, MessageSquarePlus } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
@@ -274,10 +275,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                         Διαδικαστικό
                                                     </span>
                                                 )}
-                                                <div className='flex items-center gap-1'>
-                                                    <Bot className="h-3 w-3" />
-                                                    <span>Αυτόματη σύνοψη</span>
-                                                </div>
+                                                <AIGeneratedBadge />
                                             </div>
                                         </div>
                                     </div>
@@ -362,10 +360,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                         Διαδικαστικό
                                                     </span>
                                                 )}
-                                                <div className='flex items-center gap-1'>
-                                                    <Bot className="h-3 w-3" />
-                                                    <span>Αυτόματη σύνοψη</span>
-                                                </div>
+                                                <AIGeneratedBadge />
                                             </div>
                                         </div>
                                     </div>

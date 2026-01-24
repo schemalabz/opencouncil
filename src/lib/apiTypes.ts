@@ -15,6 +15,21 @@ export interface TaskRequest {
     callbackUrl: string;
 }
 
+/*
+ * System endpoints
+ */
+
+export interface HealthResponse {
+    status: 'healthy' | 'unhealthy';
+    timestamp: string;
+    environment: string;
+    version: string;
+    name: string;
+    services?: {
+        [serviceName: string]: any;
+    };
+}
+
 export type MediaType = "audio" | "video";
 
 /*
@@ -108,24 +123,49 @@ export interface SubjectContext {
     citationUrls: string[];
 }
 
+export interface SpeakerSegment {
+    speakerSegmentId: string;
+    summary: string | null;
+}
+
+export interface SpeakerContribution {
+    speakerId: string | null;
+    text: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
+}
+
+export enum DiscussionStatus {
+    ATTENDANCE = "ATTENDANCE",
+    SUBJECT_DISCUSSION = "SUBJECT_DISCUSSION",
+    VOTE = "VOTE",
+    OTHER = "OTHER"
+}
+
+export interface DiscussionRange {
+    startUtteranceId: string | null;  // null = starts before batch
+    endUtteranceId: string | null;    // null = continues after batch
+    status: DiscussionStatus;
+    subjectId: string | null;         // required for SUBJECT_DISCUSSION/VOTE
+}
+
+export interface Location {
+    type: "point" | "lineString" | "polygon";
+    text: string; // e.g. an area, an address, a road name
+    coordinates: number[][]; // a sequence of coordinates. just one coordinate for a point, more for a line or polygon
+}
+
 export interface Subject {
+    id?: string;  // Optional ID assigned by backend (used for mapping utteranceDiscussionStatuses)
     name: string;
-    description: string;
+    description: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
     agendaItemIndex: number | "BEFORE_AGENDA" | "OUT_OF_AGENDA";
     introducedByPersonId: string | null;
 
-    speakerSegments: {
-        speakerSegmentId: string;
-        summary: string | null;
-    }[];
+    speakerContributions: SpeakerContribution[];
 
-    highlightedUtteranceIds: string[];
+    topicImportance: 'doNotNotify' | 'normal' | 'high';
+    proximityImportance: 'none' | 'near' | 'wide';
 
-    location: {
-        type: "point" | "lineString" | "polygon";
-        text: string; // e.g. an area, an address, a road name
-        coordinates: number[][]; // a sequence of coordinates. just one coordinate for a point, more for a line or polygon
-    } | null;
+    location: Location | null;
 
     topicLabel: string | null;
     context: SubjectContext | null;
@@ -183,6 +223,7 @@ export interface RequestOnTranscript extends TaskRequest {
         speakerName: string | null;
         speakerParty: string | null;
         speakerRole: string | null;
+        speakerId: string | null;  // personId from voiceprint matching
         speakerSegmentId: string;
         text: string;
         utterances: {
@@ -194,6 +235,7 @@ export interface RequestOnTranscript extends TaskRequest {
     }[];
     topicLabels: string[];
     cityName: string;
+    administrativeBodyName: string | null;
     partiesWithPeople: {
         name: string;
         people: {
@@ -237,6 +279,12 @@ export interface SummarizeResult {
     }[];
 
     subjects: Subject[];
+
+    utteranceDiscussionStatuses: {
+        utteranceId: string;
+        status: DiscussionStatus;
+        subjectId: string | null;  // only for SUBJECT_DISCUSSION and VOTE
+    }[];
 }
 
 /*
@@ -328,8 +376,8 @@ export interface GenerateHighlightRequest extends TaskRequest {
     render: {
         includeCaptions?: boolean;
         includeSpeakerOverlay?: boolean;
-        aspectRatio?: 'default' | 'social-9x16';
-        
+        aspectRatio?: AspectRatio;
+
         // Social media formatting options (only used when aspectRatio is 'social-9x16')
         socialOptions?: {
             marginType?: 'blur' | 'solid';
@@ -338,6 +386,8 @@ export interface GenerateHighlightRequest extends TaskRequest {
         };
     };
 }
+// Shared rendering types
+export type AspectRatio = 'default' | 'social-9x16';
 
 export interface GenerateHighlightResult {
     parts: Array<{

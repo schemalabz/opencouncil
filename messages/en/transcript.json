@@ -55,5 +55,11 @@
   "addUtterance": {
     "button": "Add utterance",
     "tooltip": "Add a new utterance at the end of this segment"
+  },
+  "miniTranscript": {
+    "play": "Play",
+    "pause": "Pause",
+    "seekTo": "Seek to",
+    "transcript": "Transcript"
   }
 }
