@@ -16,7 +16,7 @@ import { SubjectContext } from "./context";
 import { useMemo, useState } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { GradientCollapsible } from "@/components/ui/gradient-collapsible";
+import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { DebugUtterances } from "./DebugUtterances";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
@@ -152,7 +152,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 {/* Summary Section (Collapsible - Open by default) */}
                 {description && (
-                    <GradientCollapsible
+                    <CollapsibleCard
                         icon={<FileText className="w-4 h-4" />}
                         title={t("summary")}
                         defaultOpen={true}
@@ -170,12 +170,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 <AIGeneratedBadge />
                             </div>
                         </div>
-                    </GradientCollapsible>
+                    </CollapsibleCard>
                 )}
 
                 {/* Location & Map Section (Collapsible) */}
                 {location && (
-                    <GradientCollapsible
+                    <CollapsibleCard
                         icon={<MapPin className="w-4 h-4" />}
                         title={location.text}
                     >
@@ -187,7 +187,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 animateRotation={false}
                             />
                         </div>
-                    </GradientCollapsible>
+                    </CollapsibleCard>
                 )}
 
                 {/* Context Section */}
@@ -325,7 +325,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
-                    <GradientCollapsible
+                    <CollapsibleCard
                         icon={<ScrollText className="w-4 h-4" />}
                         title={t("adminDetails")}
                     >
@@ -353,7 +353,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             {/* Debug Utterances - Superadmin only */}
                             <DebugUtterances subjectId={subject.id} />
                         </div>
-                    </GradientCollapsible>
+                    </CollapsibleCard>
                 )}
             </div>
         </div>

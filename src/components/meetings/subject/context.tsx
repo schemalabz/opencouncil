@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Globe, ChevronDown, ChevronUp, LinkIcon, ExternalLink } from "lucide-react"
-import { GradientCollapsible } from "@/components/ui/gradient-collapsible"
+import { CollapsibleCard } from "@/components/ui/collapsible-card"
 import ReactMarkdown from "react-markdown"
 import type { Components } from "react-markdown"
 import React from "react"
@@ -116,7 +116,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
     }
 
     return (
-        <GradientCollapsible
+        <CollapsibleCard
             icon={<Globe className="w-4 h-4" />}
             title="Πληροφορίες από το διαδίκτυο"
         >
@@ -161,7 +161,7 @@ export function SubjectContext({ subject }: { subject: Subject }) {
                     </div>
                 )}
             </div>
-        </GradientCollapsible>
+        </CollapsibleCard>
     )
 }
 
