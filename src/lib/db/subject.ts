@@ -9,6 +9,7 @@ import {
     Topic,
     City,
     CouncilMeeting,
+    Prisma,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getCity } from './cities';
@@ -16,6 +17,25 @@ import { getCouncilMeeting } from './meetings';
 import { getPeopleForCity } from './people';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { extractUtteranceIds } from '@/lib/referenceUtils';
+import { roleWithRelationsInclude } from './types/roles';
+
+// Shared include blocks for Subject queries
+const contributionsInclude = {
+    include: {
+        speaker: {
+            include: {
+                roles: roleWithRelationsInclude
+            },
+        },
+    },
+    orderBy: { createdAt: 'asc' as const },
+} satisfies Prisma.SpeakerContributionFindManyArgs;
+
+const introducedByInclude = {
+    include: {
+        roles: roleWithRelationsInclude
+    },
+} satisfies Prisma.PersonDefaultArgs;
 
 // Type for location with coordinates
 export type LocationWithCoordinates = Location & {
@@ -51,22 +71,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
     try {
         const subjects = await prisma.subject.findMany({
             include: {
-                contributions: {
-                    include: {
-                        speaker: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    orderBy: { createdAt: 'asc' },
-                },
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -75,17 +80,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 highlights: true,
                 location: true,
                 topic: true,
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
+                introducedBy: introducedByInclude,
             },
         });
         return subjects;
@@ -104,22 +99,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 councilMeetingId,
             },
             include: {
-                contributions: {
-                    include: {
-                        speaker: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    orderBy: { createdAt: 'asc' },
-                },
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -130,17 +110,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                         },
                     },
                 },
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
+                introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,
                 topic: true,
@@ -187,22 +157,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 id: subjectId,
             },
             include: {
-                contributions: {
-                    include: {
-                        speaker: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    orderBy: { createdAt: 'asc' },
-                },
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -213,17 +168,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                         },
                     },
                 },
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
+                introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,
                 topic: true,
