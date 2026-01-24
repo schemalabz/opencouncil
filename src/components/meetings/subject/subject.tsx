@@ -16,6 +16,7 @@ import { SubjectContext } from "./context";
 import { useMemo, useState } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { GradientCollapsible } from "@/components/ui/gradient-collapsible";
 import { DebugUtterances } from "./DebugUtterances";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
@@ -151,61 +152,42 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 {/* Summary Section (Collapsible - Open by default) */}
                 {description && (
-                    <Collapsible defaultOpen={true}>
-                        <div className="bg-card rounded-lg overflow-hidden border">
-                            <CollapsibleTrigger asChild>
-                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium text-sm">{t("summary")}</span>
-                                    </div>
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
-                                </button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="border-t">
-                                <div className="p-4 space-y-4">
-                                    <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
-                                        <FormattedTextDisplay
-                                            text={description}
-                                            meetingId={meeting.id}
-                                            cityId={meeting.cityId}
-                                            linkColor="black"
-                                        />
-                                    </div>
-                                    <div className="flex justify-end">
-                                        <AIGeneratedBadge />
-                                    </div>
-                                </div>
-                            </CollapsibleContent>
+                    <GradientCollapsible
+                        icon={<FileText className="w-4 h-4" />}
+                        title={t("summary")}
+                        defaultOpen={true}
+                    >
+                        <div className="p-4 space-y-4">
+                            <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
+                                <FormattedTextDisplay
+                                    text={description}
+                                    meetingId={meeting.id}
+                                    cityId={meeting.cityId}
+                                    linkColor="black"
+                                />
+                            </div>
+                            <div className="flex justify-end">
+                                <AIGeneratedBadge />
+                            </div>
                         </div>
-                    </Collapsible>
+                    </GradientCollapsible>
                 )}
 
                 {/* Location & Map Section (Collapsible) */}
                 {location && (
-                    <Collapsible>
-                        <div className="bg-card rounded-lg overflow-hidden border">
-                            <CollapsibleTrigger asChild>
-                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
-                                        <span className="font-medium text-sm text-left truncate">{location.text}</span>
-                                    </div>
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform shrink-0 ml-2" />
-                                </button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                                <div className="h-[300px] w-full border-t">
-                                    <Map
-                                        center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
-                                        zoom={15}
-                                        features={mapFeatures}
-                                        animateRotation={false}
-                                    />
-                                </div>
-                            </CollapsibleContent>
+                    <GradientCollapsible
+                        icon={<MapPin className="w-4 h-4" />}
+                        title={location.text}
+                    >
+                        <div className="h-[300px] w-full">
+                            <Map
+                                center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
+                                zoom={15}
+                                features={mapFeatures}
+                                animateRotation={false}
+                            />
                         </div>
-                    </Collapsible>
+                    </GradientCollapsible>
                 )}
 
                 {/* Context Section */}
@@ -343,45 +325,35 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
-                    <Collapsible>
-                        <div className="bg-muted/30 rounded-lg overflow-hidden border border-dashed">
-                            <CollapsibleTrigger asChild>
-                                <button className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                                    <div className="flex items-center gap-2">
-                                        <ScrollText className="w-4 h-4 text-muted-foreground" />
-                                        <span className="font-medium text-sm">{t("adminDetails")}</span>
-                                    </div>
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform" />
-                                </button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="border-t">
-                                <div className="p-4 space-y-4">
-                                    {/* Notification Importance */}
-                                    <div className="space-y-2">
-                                        <div className="text-sm font-medium">{t("notificationImportance")}</div>
-                                        <p className="text-xs text-muted-foreground">
-                                            {t("notificationImportanceDescription")}
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {topicImportance && (
-                                                <Badge variant="secondary">
-                                                    {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
-                                                </Badge>
-                                            )}
-                                            {proximityImportance && (
-                                                <Badge variant="secondary">
-                                                    {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Debug Utterances - Superadmin only */}
-                                    <DebugUtterances subjectId={subject.id} />
+                    <GradientCollapsible
+                        icon={<ScrollText className="w-4 h-4" />}
+                        title={t("adminDetails")}
+                    >
+                        <div className="p-4 space-y-4">
+                            {/* Notification Importance */}
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium">{t("notificationImportance")}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("notificationImportanceDescription")}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {topicImportance && (
+                                        <Badge variant="secondary">
+                                            {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
+                                        </Badge>
+                                    )}
+                                    {proximityImportance && (
+                                        <Badge variant="secondary">
+                                            {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
+                                        </Badge>
+                                    )}
                                 </div>
-                            </CollapsibleContent>
+                            </div>
+
+                            {/* Debug Utterances - Superadmin only */}
+                            <DebugUtterances subjectId={subject.id} />
                         </div>
-                    </Collapsible>
+                    </GradientCollapsible>
                 )}
             </div>
         </div>
