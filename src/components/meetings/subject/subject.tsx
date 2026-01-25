@@ -5,7 +5,7 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, Clock, ChevronDown } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText, Clock, ChevronDown, CheckSquare } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -19,6 +19,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { DebugUtterances } from "./DebugUtterances";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
+import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
+import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { useTranslations } from "next-intl";
 
@@ -45,7 +47,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         introducedBy,
         contributions,
         topicImportance,
-        proximityImportance
+        proximityImportance,
+        discussedIn
     } = subject;
 
     // Use contributions if available, fallback to speaker segments
@@ -169,6 +172,11 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         </div>
                     )}
                 </div>
+
+                {/* Grouped Discussion Notice */}
+                {discussedIn && (
+                    <GroupedDiscussionNotice primarySubject={discussedIn} />
+                )}
 
                 {/* Summary Section (Collapsible - Open by default) */}
                 {description && (
@@ -336,6 +344,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </>
                         )
                     )}
+                </CollapsibleCard>
+
+                {/* Voting Section */}
+                <CollapsibleCard
+                    icon={<CheckSquare className="w-4 h-4" />}
+                    title={t("voting")}
+                    defaultOpen={false}
+                >
+                    <VotingSection subjectId={subject.id} />
                 </CollapsibleCard>
 
                 {/* Admin Section */}
