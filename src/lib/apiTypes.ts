@@ -169,6 +169,9 @@ export interface Subject {
 
     topicLabel: string | null;
     context: SubjectContext | null;
+
+    // Reference to primary subject ID (API identifier, not DB ID)
+    discussedIn?: string;
 }
 
 export interface ProcessAgendaResult {

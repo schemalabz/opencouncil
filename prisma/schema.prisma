@@ -423,7 +423,13 @@ model Subject {
   // Utterances tagged with this subject during discussion
   discussionUtterances Utterance[]
 
+  // Reference to primary subject if this was discussed as part of a group
+  discussedInId String?
+  discussedIn Subject? @relation("GroupedSubjects", fields: [discussedInId], references: [id], onDelete: SetNull)
+  groupedSubjects Subject[] @relation("GroupedSubjects")
+
   @@index([cityId, councilMeetingId])
+  @@index([discussedInId])
 }
 
 enum NonAgendaReason {
