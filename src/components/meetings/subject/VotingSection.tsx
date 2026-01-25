@@ -78,41 +78,15 @@ export function VotingSection({ subjectId }: VotingSectionProps) {
         );
     }
 
-    // Build context for each voting utterance
-    const utterancesWithContext = votingUtterances.map(votingUtterance => {
-        // Find the utterance's speaker segment in transcript
-        const segmentUtterances = transcript
-            .find(seg => seg.id === votingUtterance.speakerSegment.id)
-            ?.utterances || [];
-
-        const targetIndex = segmentUtterances.findIndex(u => u.id === votingUtterance.id);
-
-        if (targetIndex === -1) {
-            // Fallback: single utterance with no context
-            return {
-                contextUtterances: [votingUtterance as unknown as Utterance],
-                targetIndex: 0,
-                hasMore: { before: false, after: false },
-                speakerSegment: votingUtterance.speakerSegment
-            };
+    // Group voting utterances by speaker segment for smart display
+    const utterancesBySegment = new Map<string, VotingUtterance[]>();
+    for (const votingUtterance of votingUtterances) {
+        const segmentId = votingUtterance.speakerSegment.id;
+        if (!utterancesBySegment.has(segmentId)) {
+            utterancesBySegment.set(segmentId, []);
         }
-
-        // Get 5 before + target + 5 after
-        const start = Math.max(0, targetIndex - 5);
-        const end = Math.min(segmentUtterances.length, targetIndex + 6);
-        const contextUtterances = segmentUtterances.slice(start, end);
-        const adjustedTargetIndex = targetIndex - start;
-
-        return {
-            contextUtterances,
-            targetIndex: adjustedTargetIndex,
-            hasMore: {
-                before: start > 0,
-                after: end < segmentUtterances.length
-            },
-            speakerSegment: votingUtterance.speakerSegment
-        };
-    });
+        utterancesBySegment.get(segmentId)!.push(votingUtterance);
+    }
 
     return (
         <div className="p-4 space-y-4">
@@ -120,17 +94,24 @@ export function VotingSection({ subjectId }: VotingSectionProps) {
                 {t('votingDisclaimer')}
             </p>
             <div className="space-y-3">
-                {utterancesWithContext.map((item, index) => (
-                    <UtteranceMiniTranscript
-                        key={votingUtterances[index].id}
-                        utteranceId={votingUtterances[index].id}
-                        contextUtterances={item.contextUtterances}
-                        targetIndex={item.targetIndex}
-                        hasMore={item.hasMore}
-                        speakerSegment={item.speakerSegment}
-                        cityId={meeting.cityId}
-                    />
-                ))}
+                {Array.from(utterancesBySegment.entries()).map(([segmentId, segmentVotingUtterances]) => {
+                    // Find the speaker segment in transcript
+                    const transcriptSegment = transcript.find(seg => seg.id === segmentId);
+                    if (!transcriptSegment) return null;
+
+                    const targetUtteranceIds = segmentVotingUtterances.map(u => u.id);
+                    const allUtterances = transcriptSegment.utterances;
+
+                    return (
+                        <UtteranceMiniTranscript
+                            key={segmentId}
+                            targetUtteranceIds={targetUtteranceIds}
+                            allUtterances={allUtterances}
+                            speakerSegment={segmentVotingUtterances[0].speakerSegment}
+                            cityId={meeting.cityId}
+                        />
+                    );
+                })}
             </div>
         </div>
     );
