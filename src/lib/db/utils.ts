@@ -10,7 +10,7 @@ import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } fro
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
-import { getPartyFromRoles, getSingleCityRole } from "../utils";
+import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
@@ -60,10 +60,9 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
                 const party = getPartyFromRoles(person.roles, councilMeeting.dateTime);
                 return party?.id === p.id;
             }).map((person) => {
-                const cityRole = getSingleCityRole(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined);
                 return {
                     name: person.name,
-                    role: cityRole?.name || ''
+                    role: getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId)
                 }
             })
         })),
@@ -289,6 +288,29 @@ export async function createSubjectsForMeeting(
             }
         }
     }, { timeout: 60000 });
+
+    // Pass 2: Update subjects with discussedIn references
+    // This must happen after all subjects are created so we can map API IDs to DB IDs
+    const subjectsWithDiscussedIn = subjects.filter(s => s.discussedIn);
+
+    if (subjectsWithDiscussedIn.length > 0) {
+        for (const subject of subjectsWithDiscussedIn) {
+            const apiIdentifier = subject.id || subject.name;
+            const subjectDbId = subjectIdMap.get(apiIdentifier);
+            const primarySubjectDbId = subjectIdMap.get(subject.discussedIn!);
+
+            if (subjectDbId && primarySubjectDbId) {
+                await prisma.subject.update({
+                    where: { id: subjectDbId },
+                    data: {
+                        discussedIn: { connect: { id: primarySubjectDbId } }
+                    }
+                });
+            } else {
+                console.warn(`Could not link subject "${subject.name}" to primary subject "${subject.discussedIn}"`);
+            }
+        }
+    }
 
     return subjectIdMap;
 }

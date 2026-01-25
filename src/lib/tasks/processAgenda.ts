@@ -6,7 +6,8 @@ import prisma from "../db/prisma";
 import { createSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getAllTopics } from "../db/topics";
-import { getPartyFromRoles, getSingleCityRole } from "../utils";
+import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { getPeopleForMeeting } from "../db/people";
 
 export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: string, cityId: string, {
     force = false
@@ -30,22 +31,12 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
                 take: 1
             },
             city: {
-                include: {
-                    persons: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true
-                                }
-                            }
-                        }
-                    }
+                select: {
+                    name: true
                 }
-            },
+            }
         }
     });
-
-    const topicLabels = await getAllTopics();
 
     if (!councilMeeting) {
         throw new Error("Council meeting not found");
@@ -66,15 +57,30 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
         }
     }
 
+    // Get relevant people for the meeting (filtered by administrative body)
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    const topicLabels = await getAllTopics();
+
+    // Build people array with deduplication by ID (keep last entry)
+    const peopleMap = new Map();
+    for (const p of people) {
+        const roleName = getRoleNameForPerson(p.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId);
+        const party = getPartyFromRoles(p.roles, councilMeeting.dateTime);
+
+        peopleMap.set(p.id, {
+            id: p.id,
+            name: p.name, // Use full name, not name_short
+            role: roleName,
+            party: party?.name || ''
+        });
+    }
+
+    console.log(`ProcessAgenda people array:`, Array.from(peopleMap.values()));
+
     const body: Omit<ProcessAgendaRequest, 'callbackUrl'> = {
         agendaUrl,
         date: councilMeeting.dateTime.toISOString(),
-        people: councilMeeting.city.persons.map(p => ({
-            id: p.id,
-            name: p.name_short,
-            role: getSingleCityRole(p.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined)?.name || '',
-            party: getPartyFromRoles(p.roles)?.name || ''
-        })),
+        people: Array.from(peopleMap.values()),
         topicLabels: topicLabels.map(t => t.name),
         cityName: councilMeeting.city.name
     }
