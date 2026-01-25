@@ -109,7 +109,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     }
 
     // Execute all operations in a single transaction
-    await prisma.$transaction(operations, { timeout: 120000 });
+    // Note: Array-based $transaction doesn't support timeout in Prisma 5
+    // With batching, this should complete quickly (< 10 seconds)
+    await prisma.$transaction(operations);
 
     // Create subjects and get mapping from API subject IDs/names to database IDs
     const subjectNameToIdMap = await createSubjectsForMeeting(
@@ -144,7 +146,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
         });
 
         // Execute all updates in a single transaction
-        await prisma.$transaction(updateOperations, { timeout: 120000 });
+        // Note: Array-based $transaction doesn't support timeout in Prisma 5
+        // With batching, this should complete quickly
+        await prisma.$transaction(updateOperations);
 
         console.log(`Saved ${response.utteranceDiscussionStatuses.length} utterance discussion statuses`);
     }
