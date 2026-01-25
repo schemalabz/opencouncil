@@ -162,12 +162,13 @@ export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], dat
  * Gets a single city role from a list of roles.
  * @param roles Array of roles with cityId field
  * @param date Date to check for active roles (defaults to current date)
- * @param administrativeBodyId Optional administrative body ID to filter by
+ * @param administrativeBodyId Optional administrative body ID to filter by (NOT USED - city roles don't have administrativeBodyId)
  * @returns The first city role found, or null if none found
  */
 export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
   const checkDate = date || new Date();
-  const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
+  // Don't pass administrativeBodyId filter - city-level roles (mayor, deputy mayor) have cityId but null administrativeBodyId
+  const filteredRoles = getNonPartyRoles(roles, checkDate);
   const cityRoles = filteredRoles.filter(role => role.cityId);
   return cityRoles.length > 0 ? cityRoles[0] : null;
 }
@@ -215,5 +216,46 @@ export function getActiveRoleCondition(date: Date = new Date()) {
       endDate: { gt: date }
     }
   ];
+}
+
+/**
+ * Gets a display name for a person's role, using a fallback strategy.
+ * Tries city-level roles (mayor) first, then falls back to administrative body roles (council member).
+ * @param roles Array of roles with relations (party, administrativeBody, city)
+ * @param date Date to check for active roles (defaults to current date)
+ * @param administrativeBodyId Optional administrative body ID to filter by
+ * @returns Role name string (can be empty if no suitable role found)
+ */
+export function getRoleNameForPerson(
+  roles: (Role & {
+    party?: Party | null;
+    administrativeBody?: { name: string; name_en: string } | null;
+    city?: any | null;
+  })[],
+  date?: Date,
+  administrativeBodyId?: string | null
+): string {
+  const checkDate = date || new Date();
+
+  // 1. Try city-level role (mayor, deputy mayor) - has cityId set
+  const cityRole = getSingleCityRole(roles, checkDate, administrativeBodyId || undefined);
+  if (cityRole?.name || cityRole?.name_en) {
+    return cityRole.name || cityRole.name_en || '';
+  }
+
+  // 2. If no city-level role, try administrative body roles (council member, committee member)
+  const adminBodyRoles = roles.filter(role =>
+    !role.partyId &&
+    isRoleActiveAt(role, checkDate) &&
+    (!administrativeBodyId || role.administrativeBodyId === administrativeBodyId)
+  );
+
+  if (adminBodyRoles.length > 0) {
+    const firstRole = adminBodyRoles[0];
+    // Use role.name first, but fall back to administrativeBody name if role.name is null
+    return firstRole.name || firstRole.name_en || firstRole.administrativeBody?.name || firstRole.administrativeBody?.name_en || '';
+  }
+
+  return '';
 }
 
