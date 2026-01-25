@@ -57,6 +57,7 @@ export type SubjectWithRelations = Subject & {
     location: LocationWithCoordinates | null;
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
+    discussedIn: (Subject & { topic: Topic | null }) | null;
 };
 
 export type SubjectOgData = {
@@ -81,6 +82,11 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 location: true,
                 topic: true,
                 introducedBy: introducedByInclude,
+                discussedIn: {
+                    include: {
+                        topic: true,
+                    },
+                },
             },
         });
         return subjects;
@@ -114,6 +120,11 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 highlights: true,
                 location: true,
                 topic: true,
+                discussedIn: {
+                    include: {
+                        topic: true,
+                    },
+                },
             },
         });
 
@@ -172,6 +183,11 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 highlights: true,
                 location: true,
                 topic: true,
+                discussedIn: {
+                    include: {
+                        topic: true,
+                    },
+                },
             },
         });
 

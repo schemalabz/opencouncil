@@ -165,7 +165,12 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                         }
                     }
                 },
-                highlights: true
+                highlights: true,
+                discussedIn: {
+                    include: {
+                        topic: true
+                    }
+                }
             }
         });
 

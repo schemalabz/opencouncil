@@ -43,16 +43,31 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
-    // Speaker segment transaction
-    await prisma.$transaction(async (prisma) => {
-        for (const segmentSummary of response.speakerSegmentSummaries) {
-            if (!availableSpeakerSegmentIds.includes(segmentSummary.speakerSegmentId)) {
-                console.log(`Speaker segment ${segmentSummary.speakerSegmentId} not found`);
-                continue;
-            }
+    // Pre-fetch all topics to avoid repeated queries
+    const allTopicNames = new Set<string>();
+    for (const segmentSummary of response.speakerSegmentSummaries) {
+        if (segmentSummary.topicLabels) {
+            segmentSummary.topicLabels.forEach(label => allTopicNames.add(label));
+        }
+    }
 
-            // Update or create summary
-            await prisma.summary.upsert({
+    const topics = await prisma.topic.findMany({
+        where: { name: { in: Array.from(allTopicNames) } }
+    });
+    const topicByName = new Map(topics.map(t => [t.name, t]));
+
+    // Prepare all operations for batch execution
+    const operations: any[] = [];
+
+    for (const segmentSummary of response.speakerSegmentSummaries) {
+        if (!availableSpeakerSegmentIds.includes(segmentSummary.speakerSegmentId)) {
+            console.log(`Speaker segment ${segmentSummary.speakerSegmentId} not found`);
+            continue;
+        }
+
+        // Summary upsert
+        operations.push(
+            prisma.summary.upsert({
                 where: {
                     speakerSegmentId: segmentSummary.speakerSegmentId
                 },
@@ -65,16 +80,16 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     type: segmentSummary.type === "PROCEDURAL" ? "procedural" : "substantive",
                     speakerSegment: { connect: { id: segmentSummary.speakerSegmentId } }
                 }
-            });
+            })
+        );
 
-            // Update topic labels
-            if (segmentSummary.topicLabels) {
-                for (const topicLabel of segmentSummary.topicLabels) {
-                    const topic = await prisma.topic.findFirst({
-                        where: { name: topicLabel }
-                    });
-                    if (topic) {
-                        await prisma.topicLabel.upsert({
+        // Topic label upserts
+        if (segmentSummary.topicLabels) {
+            for (const topicLabel of segmentSummary.topicLabels) {
+                const topic = topicByName.get(topicLabel);
+                if (topic) {
+                    operations.push(
+                        prisma.topicLabel.upsert({
                             where: {
                                 id: `${segmentSummary.speakerSegmentId}_${topic.id}`
                             },
@@ -84,14 +99,17 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                                 speakerSegment: { connect: { id: segmentSummary.speakerSegmentId } },
                                 topic: { connect: { id: topic.id } }
                             }
-                        });
-                    } else {
-                        console.log(`Topic not found: ${topicLabel}`);
-                    }
+                        })
+                    );
+                } else {
+                    console.log(`Topic not found: ${topicLabel}`);
                 }
             }
         }
-    }, { timeout: 120000 });
+    }
+
+    // Execute all operations in a single transaction
+    await prisma.$transaction(operations, { timeout: 120000 });
 
     // Create subjects and get mapping from API subject IDs/names to database IDs
     const subjectNameToIdMap = await createSubjectsForMeeting(
@@ -102,29 +120,31 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);
 
-    // Save utterance discussion statuses
+    // Save utterance discussion statuses (batch update for performance)
     if (response.utteranceDiscussionStatuses && response.utteranceDiscussionStatuses.length > 0) {
-        await prisma.$transaction(async (prisma) => {
-            for (const utteranceStatus of response.utteranceDiscussionStatuses) {
-                // Map the API subject identifier to the database subject ID
-                // The API provides subject.id (or falls back to subject.name) which we mapped during creation
-                const dbSubjectId = utteranceStatus.subjectId ? subjectNameToIdMap.get(utteranceStatus.subjectId) : null;
+        // Prepare all updates
+        const updateOperations = response.utteranceDiscussionStatuses.map(utteranceStatus => {
+            // Map the API subject identifier to the database subject ID
+            // The API provides subject.id (or falls back to subject.name) which we mapped during creation
+            const dbSubjectId = utteranceStatus.subjectId ? subjectNameToIdMap.get(utteranceStatus.subjectId) : null;
 
-                if (utteranceStatus.subjectId && !dbSubjectId) {
-                    console.warn(`Could not find database subject for API subject ID: ${utteranceStatus.subjectId}`);
-                }
-
-                await prisma.utterance.update({
-                    where: {
-                        id: utteranceStatus.utteranceId
-                    },
-                    data: {
-                        discussionStatus: utteranceStatus.status,
-                        discussionSubjectId: dbSubjectId || null
-                    }
-                });
+            if (utteranceStatus.subjectId && !dbSubjectId) {
+                console.warn(`Could not find database subject for API subject ID: ${utteranceStatus.subjectId}`);
             }
-        }, { timeout: 120000 });
+
+            return prisma.utterance.update({
+                where: {
+                    id: utteranceStatus.utteranceId
+                },
+                data: {
+                    discussionStatus: utteranceStatus.status,
+                    discussionSubjectId: dbSubjectId || null
+                }
+            });
+        });
+
+        // Execute all updates in a single transaction
+        await prisma.$transaction(updateOperations, { timeout: 120000 });
 
         console.log(`Saved ${response.utteranceDiscussionStatuses.length} utterance discussion statuses`);
     }
