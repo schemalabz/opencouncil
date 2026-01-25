@@ -39,7 +39,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
             return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
-                speakerRole: getSingleCityRole(person?.roles || [], councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined)?.name || null,
+                speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
                 speakerSegmentId: segment.id,
                 speakerId: person?.id || null, // NEW: personId from voiceprint match
                 text: segment.utterances.map(u => u.text).join(' '),
