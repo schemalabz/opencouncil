@@ -40,17 +40,16 @@ if [ "$CONFIRMATION" != "$CONFIRMATION_CODE" ]; then
     exit 1
 fi
 
-# Array of tables -- we only copy tables that don't have user data.
+# Array of tables -- we only copy tables that don't have user data or tasks.
 TABLES=(
     "City"
-    "Topic" 
+    "Topic"
     "Location"
     "Party"
     "AdministrativeBody"
     "Person"
     "Role"
     "CouncilMeeting"
-    "TaskStatus"
     "SpeakerTag"
     "SpeakerSegment"
     "Utterance"
@@ -59,6 +58,7 @@ TABLES=(
     "Summary"
     "Subject"
     "SubjectSpeakerSegment"
+    "SpeakerContribution"
     "Highlight"
     "HighlightedUtterance"
     "PodcastSpec"
