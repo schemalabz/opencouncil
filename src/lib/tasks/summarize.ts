@@ -124,33 +124,71 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     // Save utterance discussion statuses (batch update for performance)
     if (response.utteranceDiscussionStatuses && response.utteranceDiscussionStatuses.length > 0) {
-        // Prepare all updates
-        const updateOperations = response.utteranceDiscussionStatuses.map(utteranceStatus => {
-            // Map the API subject identifier to the database subject ID
-            // The API provides subject.id (or falls back to subject.name) which we mapped during creation
-            const dbSubjectId = utteranceStatus.subjectId ? subjectNameToIdMap.get(utteranceStatus.subjectId) : null;
-
-            if (utteranceStatus.subjectId && !dbSubjectId) {
-                console.warn(`Could not find database subject for API subject ID: ${utteranceStatus.subjectId}`);
+        // First, deduplicate by utteranceId (keep last entry if duplicates exist)
+        // This prevents trying to update the same utterance twice in one transaction
+        const statusMap = new Map<string, typeof response.utteranceDiscussionStatuses[0]>();
+        for (const status of response.utteranceDiscussionStatuses) {
+            if (statusMap.has(status.utteranceId)) {
+                console.warn(`Duplicate utterance ID in response: ${status.utteranceId} - keeping last entry`);
             }
+            statusMap.set(status.utteranceId, status);
+        }
+        const dedupedStatuses = Array.from(statusMap.values());
 
-            return prisma.utterance.update({
-                where: {
-                    id: utteranceStatus.utteranceId
-                },
-                data: {
-                    discussionStatus: utteranceStatus.status,
-                    discussionSubjectId: dbSubjectId || null
-                }
-            });
+        // Validate which utterance IDs actually exist in the database
+        // This prevents errors if transcript was regenerated or modified
+        const utteranceIds = dedupedStatuses.map(s => s.utteranceId);
+        const existingUtterances = await prisma.utterance.findMany({
+            where: {
+                id: { in: utteranceIds }
+            },
+            select: { id: true }
         });
 
-        // Execute all updates in a single transaction
-        // Note: Array-based $transaction doesn't support timeout in Prisma 5
-        // With batching, this should complete quickly
-        await prisma.$transaction(updateOperations);
+        const existingUtteranceIds = new Set(existingUtterances.map(u => u.id));
 
-        console.log(`Saved ${response.utteranceDiscussionStatuses.length} utterance discussion statuses`);
+        // Filter to only statuses for utterances that exist
+        const validStatuses = dedupedStatuses.filter(status => {
+            const exists = existingUtteranceIds.has(status.utteranceId);
+            if (!exists) {
+                console.warn(`Skipping discussion status for non-existent utterance: ${status.utteranceId}`);
+            }
+            return exists;
+        });
+
+        if (validStatuses.length === 0) {
+            console.warn(`No valid utterances found to update discussion statuses (${response.utteranceDiscussionStatuses.length} returned by API)`);
+        } else {
+            // Use updateMany with individual where clauses to avoid transaction issues
+            // This is more resilient than batched updates in a transaction
+            const updatePromises = validStatuses.map(async (utteranceStatus) => {
+                // Map the API subject identifier to the database subject ID
+                const dbSubjectId = utteranceStatus.subjectId ? subjectNameToIdMap.get(utteranceStatus.subjectId) : null;
+
+                if (utteranceStatus.subjectId && !dbSubjectId) {
+                    console.warn(`Could not find database subject for API subject ID: ${utteranceStatus.subjectId}`);
+                }
+
+                try {
+                    await prisma.utterance.update({
+                        where: {
+                            id: utteranceStatus.utteranceId
+                        },
+                        data: {
+                            discussionStatus: utteranceStatus.status,
+                            discussionSubjectId: dbSubjectId || null
+                        }
+                    });
+                } catch (error) {
+                    console.error(`Failed to update utterance ${utteranceStatus.utteranceId}:`, error);
+                    // Don't throw - continue with other updates
+                }
+            });
+
+            await Promise.all(updatePromises);
+
+            console.log(`Saved ${validStatuses.length} utterance discussion statuses (${response.utteranceDiscussionStatuses.length - validStatuses.length} skipped/duplicates)`);
+        }
     }
 
     // Create notifications if administrative body allows it
