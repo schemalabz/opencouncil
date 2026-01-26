@@ -58,3 +58,8 @@ scripts/clear_advisory_locks.sh
 
 # Logs
 logs/
+
+# Nix / local dev artifacts
+.data/
+result
+result-*
