@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { cityFormSchema } from "@/lib/zod-schemas/city"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -31,36 +32,8 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "City name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "City name (English) must be at least 2 characters.",
-    }),
-    name_municipality: z.string().min(2, {
-        message: "Municipality name must be at least 2 characters.",
-    }),
-    name_municipality_en: z.string().min(2, {
-        message: "Municipality name (English) must be at least 2 characters.",
-    }),
-    timezone: z.string().min(1, {
-        message: "Timezone is required.",
-    }),
-    logoImage: z.instanceof(File).optional(),
-    id: z.string().min(2, {
-        message: "ID must be at least 2 characters.",
-    }).regex(/^[a-z-]+$/, {
-        message: "ID must contain only lowercase letters a-z and dashes.",
-    }),
-    authorityType: z.enum(['municipality', 'region']),
-    officialSupport: z.boolean().default(false),
-    status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
-    supportsNotifications: z.boolean(),
-    consultationsEnabled: z.boolean(),
-    peopleOrdering: z.enum(['default', 'partyRank']).optional(),
-    highlightCreationPermission: z.enum(['ADMINS_ONLY', 'EVERYONE']).default('ADMINS_ONLY')
-})
+// Use shared schema from lib/schemas/city.ts
+const formSchema = cityFormSchema
 
 interface CityFormProps {
     city?: City
