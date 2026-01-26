@@ -14,6 +14,13 @@ import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 
+// Helper function to switch name order (reverses word order for display)
+const switchOrder = (name: string | undefined) => {
+    if (!name) return null;
+    const parts = name.split(' ');
+    return parts.length > 1 ? parts.reverse().join(' ') : name;
+};
+
 interface PersonDisplayProps {
     person?: PersonWithRelations;
     speakerTag?: SpeakerTag;
@@ -40,12 +47,6 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
     };
 
     const imageSize = imageSizes[size];
-
-    const switchOrder = (name: string | undefined) => {
-        if (!name) return null;
-        const parts = name.split(' ');
-        return parts.length > 1 ? parts.reverse().join(' ') : name;
-    };
 
     const nameTextSize = size === 'lg' || size === 'xl' ? 'text-lg' : 'text-base';
     const roleTextSize = size === 'sm' ? 'text-xs' : 'text-sm';
@@ -123,6 +124,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
     onLabelChange?: (label: string) => void;
     availablePeople?: PersonWithRelations[];
     nextUnknownLabel?: string;
+    variant?: 'default' | 'inline';
 }
 
 function PersonBadge({
@@ -140,6 +142,7 @@ function PersonBadge({
     nextUnknownLabel,
     preferFullName = false,
     size = 'md',
+    variant = 'default',
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -166,6 +169,28 @@ function PersonBadge({
             router.push(`/${person.cityId}/people/${person.id}`);
         }
     };
+
+    // Inline variant - minimal display with just party dot and name
+    if (variant === 'inline') {
+        const party = person ? getPartyFromRoles(person.roles) : null;
+        return (
+            <div className={cn("flex items-center gap-2.5 min-w-0", className)}>
+                {party && (
+                    <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: party.colorHex }}
+                    />
+                )}
+                <span className="text-sm font-medium truncate">
+                    {person ? (
+                        preferFullName ? person.name : switchOrder(person.name)
+                    ) : (
+                        speakerTag?.label
+                    )}
+                </span>
+            </div>
+        );
+    }
 
     const badge = (
         <div
