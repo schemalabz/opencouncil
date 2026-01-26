@@ -7,6 +7,18 @@ export const cityStatusSchema = z.nativeEnum(CityStatus);
 export const peopleOrderingSchema = z.nativeEnum(PeopleOrdering);
 export const highlightCreationPermissionSchema = z.nativeEnum(HighlightCreationPermission);
 
+// Default values - single source of truth for tests and schemas
+// These align with Prisma schema defaults
+export const CITY_DEFAULTS = {
+  officialSupport: false,
+  status: 'pending' as CityStatus,
+  authorityType: 'municipality' as AuthorityType,
+  supportsNotifications: false,
+  consultationsEnabled: false,
+  peopleOrdering: 'default' as PeopleOrdering,
+  highlightCreationPermission: 'ADMINS_ONLY' as HighlightCreationPermission,
+} as const;
+
 // Helper to convert string to boolean (for FormData)
 const stringToBoolean = z.string().transform(val => val === 'true');
 
@@ -29,12 +41,12 @@ const baseCityFields = {
     message: "Timezone is required.",
   }),
   authorityType: authorityTypeSchema,
-  officialSupport: z.boolean().default(false),
-  status: cityStatusSchema.default('pending'),
+  officialSupport: z.boolean().default(CITY_DEFAULTS.officialSupport),
+  status: cityStatusSchema.default(CITY_DEFAULTS.status),
   supportsNotifications: z.boolean(),
   consultationsEnabled: z.boolean(),
   peopleOrdering: peopleOrderingSchema.optional(),
-  highlightCreationPermission: highlightCreationPermissionSchema.default('ADMINS_ONLY'),
+  highlightCreationPermission: highlightCreationPermissionSchema.default(CITY_DEFAULTS.highlightCreationPermission),
 };
 
 // Base schema for frontend forms (React Hook Form) - uses booleans directly
@@ -45,10 +57,10 @@ export const baseCityFormSchema = z.object(baseCityFields);
 export const baseCityFormDataSchema = z.object({
   ...baseCityFields,
   // Override boolean fields to accept strings and transform them
-  authorityType: authorityTypeSchema.default('municipality'),
-  officialSupport: stringToBoolean.default('false'),
-  supportsNotifications: stringToBoolean.default('false'),
-  consultationsEnabled: stringToBoolean.default('false'),
+  authorityType: authorityTypeSchema.default(CITY_DEFAULTS.authorityType),
+  officialSupport: stringToBoolean.default(String(CITY_DEFAULTS.officialSupport)),
+  supportsNotifications: stringToBoolean.default(String(CITY_DEFAULTS.supportsNotifications)),
+  consultationsEnabled: stringToBoolean.default(String(CITY_DEFAULTS.consultationsEnabled)),
 });
 
 // Create schema for FormData (POST route)
