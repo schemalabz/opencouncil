@@ -303,17 +303,12 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                         className='sticky flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 border-b border-border/40'
                                         style={{ top: 'var(--banner-offset, 0px)' }}
                                     >
-                                        <div className='flex items-center gap-2.5 min-w-0 flex-1'>
-                                            {memoizedData.party && (
-                                                <div
-                                                    className="w-2 h-2 rounded-full shrink-0"
-                                                    style={{ backgroundColor: memoizedData.party.colorHex }}
-                                                />
-                                            )}
-                                            <span className='text-sm font-medium truncate'>
-                                                {memoizedData.person ? memoizedData.person.name : memoizedData.speakerTag?.label}
-                                            </span>
-                                        </div>
+                                        <PersonBadge
+                                            person={memoizedData.person}
+                                            speakerTag={memoizedData.speakerTag}
+                                            variant="inline"
+                                            className="flex-1 min-w-0"
+                                        />
                                         <div className='flex items-center gap-1.5 shrink-0'>
                                             <span className='text-[10px] text-muted-foreground font-medium'>
                                                 {formatTimestamp(segment.startTimestamp)}
