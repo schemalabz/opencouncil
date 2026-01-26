@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { cityFormSchema } from "@/lib/zod-schemas/city"
+import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -101,13 +101,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
-            authorityType: city?.authorityType || "municipality",
-            officialSupport: city?.officialSupport || false,
-            status: city?.status || 'pending',
-            supportsNotifications: city?.supportsNotifications || false,
-            consultationsEnabled: city?.consultationsEnabled || false,
-            peopleOrdering: city?.peopleOrdering || "default",
-            highlightCreationPermission: city?.highlightCreationPermission || 'ADMINS_ONLY'
+            authorityType: city?.authorityType || CITY_DEFAULTS.authorityType,
+            officialSupport: city?.officialSupport ?? CITY_DEFAULTS.officialSupport,
+            status: city?.status || CITY_DEFAULTS.status,
+            supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
+            consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
+            peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
+            highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission
         },
     })
 
@@ -139,9 +139,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('supportsNotifications', values.supportsNotifications.toString())
         formData.append('consultationsEnabled', values.consultationsEnabled.toString())
         formData.append('highlightCreationPermission', values.highlightCreationPermission)
-        if (values.peopleOrdering) {
-            formData.append('peopleOrdering', values.peopleOrdering)
-        }
+        formData.append('peopleOrdering', values.peopleOrdering)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
