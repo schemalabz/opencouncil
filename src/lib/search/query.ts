@@ -182,6 +182,23 @@ export function buildSearchQuery(
                                                     _source: ['speaker_segments.segment_id']
                                                 }
                                             }
+                                        },
+                                        {
+                                            // Nested query for speaker contributions
+                                            nested: {
+                                                path: 'speaker_contributions',
+                                                query: {
+                                                    match: {
+                                                        'speaker_contributions.text': {
+                                                            query: mergedRequest.query,
+                                                            boost: 2
+                                                        }
+                                                    }
+                                                },
+                                                inner_hits: {
+                                                    _source: ['speaker_contributions.contribution_id']
+                                                }
+                                            }
                                         }
                                     ],
                                     minimum_should_match: 1,
