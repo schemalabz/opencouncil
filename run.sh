@@ -12,6 +12,7 @@ AUTO_PORT="false"
 APP_PORT=""
 PRISMA_STUDIO_PORT=""
 DB_PORT=""
+NETWORK_NAME=""
 
 # Track the last used configuration
 LAST_CONFIG_FILE=".last_docker_config"
@@ -57,31 +58,35 @@ function find_available_port() {
 
 # Function to safely clean Docker resources specific to our app
 function clean_resources() {
-    local project_name=$(docker compose ps --format json 2>/dev/null | jq -r '.[0].Project' 2>/dev/null)
+    # Docker Compose uses directory name as the default project name
+    # This matches the behavior of 'docker compose up' without -p flag
+    local project_name=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
     
-    if [ -z "$project_name" ]; then
-        # If no project is running, use the directory name as fallback
-        project_name=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
-    fi
+    echo "🧹 Cleaning up Docker resources for project: $project_name"
     
-    echo "🧹 Cleaning up OpenCouncil Docker resources..."
-    docker compose -p "$project_name" down -v
+    # Stop and remove containers, networks, and volumes
+    # The -p flag tells docker compose to remove all resources labeled with this project name
+    # The --remove-orphans flag cleans up any containers not defined in the compose files
+    docker compose -p "$project_name" down -v --remove-orphans 2>/dev/null || {
+        echo "⚠️  Note: Some resources may not have existed (this is normal if containers weren't running)"
+    }
 
     # Remove the configuration tracking file
     rm -f "$LAST_CONFIG_FILE"
 
-    echo "✨ Cleanup complete!"
+    echo "✨ Cleanup complete! All Docker resources for this worktree have been removed."
 }
 
 # Function to check if configuration has changed
 check_config_changed() {
-    local current_config="MODE=$MODE:USE_LOCAL_DB=$USE_LOCAL_DB"
+    local current_config="MODE=$MODE:USE_LOCAL_DB=$USE_LOCAL_DB:NETWORK_NAME=$NETWORK_NAME"
     
     if [ -f "$LAST_CONFIG_FILE" ]; then
         local last_config=$(cat "$LAST_CONFIG_FILE")
         if [ "$current_config" != "$last_config" ]; then
-            echo "🔄 Configuration changed, forcing rebuild..."
-            EXTRA_OPTIONS="$EXTRA_OPTIONS --build"
+            echo "🔄 Configuration changed, recreating containers..."
+            # Force recreation of containers (not just rebuild) when network changes
+            EXTRA_OPTIONS="$EXTRA_OPTIONS --force-recreate"
             echo "$current_config" > "$LAST_CONFIG_FILE"
             
             return 0
@@ -109,8 +114,12 @@ function show_help {
   echo "  --app-port PORT      Set the app port explicitly (disables auto-port)"
   echo "  --prisma-port PORT   Set the Prisma Studio port explicitly (disables auto-port)"
   echo "  --db-port PORT       Set the database port explicitly (disables auto-port)"
+  echo "Network configuration:"
+  echo "  --network NAME       Set custom network name (default: opencouncil-net)"
+  echo "                       Custom names are prefixed: opencouncil-net-NAME"
+  echo "                       Can also be set via NETWORK_NAME env var in .env file"
   echo "Helper commands:"
-  echo "  --clean              Remove all OpenCouncil Docker resources (containers, volumes, networks)"
+  echo "  --clean              Remove all Docker resources for this worktree (containers, volumes, networks)"
   echo ""
   echo "Any options after -- will be passed directly to docker compose."
   echo "Examples:"
@@ -119,7 +128,8 @@ function show_help {
   echo "  ./run.sh --prod --remote-db -- --build --no-cache  # Build with no cache in prod mode"
   echo "  ./run.sh                          # Automatically finds available ports"
   echo "  ./run.sh --app-port 3001 --db-port 5433           # Use specific ports"
-  echo "  APP_PORT=3001 DB_PORT=5433 ./run.sh               # Alternative using env vars"
+  echo "  ./run.sh --network feature-auth                   # Use custom network"
+  echo "  NETWORK_NAME=feature-auth ./run.sh                # Alternative using env var"
   exit 0
 }
 
@@ -149,6 +159,7 @@ while [[ "$#" -gt 0 ]]; do
         --app-port) APP_PORT="$2"; AUTO_PORT="false"; shift ;;
         --prisma-port) PRISMA_STUDIO_PORT="$2"; AUTO_PORT="false"; shift ;;
         --db-port) DB_PORT="$2"; AUTO_PORT="false"; shift ;;
+        --network) NETWORK_NAME="$2"; shift ;;
         --help) show_help ;;
         --clean)
             clean_resources
@@ -220,12 +231,24 @@ APP_PORT="${APP_PORT:-3000}"
 PRISMA_STUDIO_PORT="${PRISMA_STUDIO_PORT:-5555}"
 DB_PORT="${DB_PORT:-5432}"
 
+# Handle network name - add prefix for custom networks
+if [ -z "$NETWORK_NAME" ]; then
+    NETWORK_NAME="opencouncil-net"
+    NETWORK_EXTERNAL="true"  # Shared network should be external
+elif [ "$NETWORK_NAME" != "opencouncil-net" ]; then
+    # Add prefix to custom network names
+    NETWORK_NAME="opencouncil-net-${NETWORK_NAME}"
+    NETWORK_EXTERNAL="false"  # Custom networks are managed by this instance
+fi
+
 # Export variables for docker compose
 export USE_LOCAL_DB=$USE_LOCAL_DB
 export ENV_FILE=$ENV_FILE
 export APP_PORT=$APP_PORT
 export PRISMA_STUDIO_PORT=$PRISMA_STUDIO_PORT
 export DB_PORT=$DB_PORT
+export NETWORK_NAME=$NETWORK_NAME
+export NETWORK_EXTERNAL=$NETWORK_EXTERNAL
 
 # Load environment variables from the specified env file
 if [ -f "$ENV_FILE" ]; then
@@ -269,6 +292,11 @@ if [ "$USE_LOCAL_DB" = "true" ]; then
 fi
 echo ""
 
+# Print network configuration
+echo "📡 Network configuration:"
+echo "   - Using network: $NETWORK_NAME"
+echo ""
+
 # If there are extra options, show them
 if [ ! -z "$EXTRA_OPTIONS" ]; then
     echo "🛠️ Using additional docker compose options: $EXTRA_OPTIONS"
@@ -297,10 +325,21 @@ fi
 # Check if configuration changed and force rebuild if necessary
 check_config_changed
 
+# Ensure the Docker network exists (only for external/shared networks)
+if [ "$NETWORK_EXTERNAL" = "true" ]; then
+    if ! docker network inspect "$NETWORK_NAME" &>/dev/null; then
+        echo "📡 Creating shared Docker network: $NETWORK_NAME"
+        # Create network, but ignore error if it was created by another instance simultaneously
+        docker network create "$NETWORK_NAME" 2>/dev/null || true
+        # Verify it exists now (in case another instance created it)
+        if ! docker network inspect "$NETWORK_NAME" &>/dev/null; then
+            echo "❌ Failed to create or access network: $NETWORK_NAME"
+            exit 1
+        fi
+    fi
+fi
+
 # Run docker compose with profiles
 COMPOSE_FILES="-f docker-compose.yml"
-if [ "$MODE" = "dev" ]; then
-  COMPOSE_FILES="$COMPOSE_FILES -f docker-compose.dev.yml"
-fi
 
 docker compose --env-file $ENV_FILE $COMPOSE_FILES $PROFILES up $DETACHED $EXTRA_OPTIONS

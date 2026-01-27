@@ -1,4 +1,3 @@
-import { Party, Role } from "@prisma/client";
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
@@ -18,6 +17,21 @@ export {
   formatDateTime,
   formatDateRange
 } from './formatters/time';
+
+// Export role utilities from the new location
+export {
+  isRoleActive,
+  isRoleActiveAt,
+  filterActiveRoles,
+  filterInactiveRoles,
+  getDateRangeFromRoles,
+  getActivePartyRole,
+  getPartyFromRoles,
+  getNonPartyRoles,
+  getSingleCityRole,
+  hasCityLevelRole,
+  getActiveRoleCondition
+} from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -251,146 +265,6 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
   return joinedSegments;
 }
 
-
-
-
-export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
-  return roles.filter(isRoleActive);
-}
-
-export function filterInactiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
-  return roles.filter(role => !isRoleActive(role));
-}
-
-export function isRoleActiveAt(role: { startDate: Date | null, endDate: Date | null }, date: Date): boolean {
-  // Both dates null = active
-  if (!role.startDate && !role.endDate) return true;
-
-  // Only start date set - active if date is after start
-  if (role.startDate && !role.endDate) {
-    return role.startDate <= date;
-  }
-
-  // Only end date set - active if date is before end
-  if (!role.startDate && role.endDate) {
-    return role.endDate > date;
-  }
-
-  // Both dates set - active if date is within range
-  if (role.startDate && role.endDate) {
-    return role.startDate <= date && role.endDate > date;
-  }
-
-  return false;
-}
-
-export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
-  const now = new Date();
-  return isRoleActiveAt(role, now);
-}
-
-/**
- * Calculates the date range from multiple roles by finding the earliest start date
- * and latest end date. Returns null for dates that don't exist or are invalid.
- * @param roles Array of roles with startDate and endDate fields
- * @returns Object with startDate and endDate (both Date | null)
- */
-export function getDateRangeFromRoles<T extends { startDate: Date | null, endDate: Date | null }>(
-  roles: T[]
-): { startDate: Date | null, endDate: Date | null } {
-  // Get valid start date timestamps
-  const startTimestamps = roles
-    .filter(role => role.startDate)
-    .map(role => {
-      const timestamp = new Date(role.startDate!).getTime();
-      return isFinite(timestamp) ? timestamp : null;
-    })
-    .filter((ts): ts is number => ts !== null);
-
-  // Get valid end date timestamps
-  const endTimestamps = roles
-    .filter(role => role.endDate)
-    .map(role => {
-      const timestamp = new Date(role.endDate!).getTime();
-      return isFinite(timestamp) ? timestamp : null;
-    })
-    .filter((ts): ts is number => ts !== null);
-
-  // Calculate min start date and max end date
-  const minStartTimestamp = startTimestamps.length > 0 ? Math.min(...startTimestamps) : null;
-  const maxEndTimestamp = endTimestamps.length > 0 ? Math.max(...endTimestamps) : null;
-
-  // Create Date objects only if we have valid timestamps
-  const startDate = minStartTimestamp !== null ? new Date(minStartTimestamp) : null;
-  const endDate = maxEndTimestamp !== null ? new Date(maxEndTimestamp) : null;
-
-  // Validate dates before returning
-  const validStartDate = startDate && isFinite(startDate.getTime()) ? startDate : null;
-  const validEndDate = endDate && isFinite(endDate.getTime()) ? endDate : null;
-
-  return { startDate: validStartDate, endDate: validEndDate };
-}
-
-/**
- * Finds the first active party role from a list of roles.
- * @param roles Array of roles with party relations
- * @param partyId Optional party ID to filter by
- * @param date Date to check for active roles (defaults to current date)
- * @returns The first active party role, or null if none found
- */
-export function getActivePartyRole<T extends Role & { partyId?: string | null }>(
-  roles: T[],
-  partyId?: string,
-  date?: Date
-): T | null {
-  const checkDate = date || new Date();
-
-  // Filter roles that are active at the specified date
-  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
-
-  // Find the first role that has a party (and matches partyId if provided)
-  if (partyId) {
-    return activeRoles.find(role => role.partyId === partyId) || null;
-  }
-  return activeRoles.find(role => role.partyId) || null;
-}
-
-/**
- * Extracts party affiliation from a list of roles at a specific date.
- * @param roles Array of roles with party relations
- * @param date Date to check for active roles (defaults to current date)
- * @returns The party from the first active party role, or null if none found
- */
-export function getPartyFromRoles(
-  roles: (Role & { party?: Party | null })[],
-  date?: Date): Party | null {
-  const checkDate = date || new Date();
-
-  // Filter roles that are active at the specified date
-  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
-
-  // Find the first role that has a party
-  const activePartyRole = activeRoles.find(role => role.party);
-
-  return activePartyRole?.party || null;
-}
-
-export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], date?: Date, administrativeBodyId?: string): Role[] {
-  const checkDate = date || new Date();
-  let filteredRoles = roles.filter(role => !role.partyId).filter(role => isRoleActiveAt(role, checkDate));
-  if (administrativeBodyId) {
-    filteredRoles = filteredRoles.filter(role => role.administrativeBodyId && role.administrativeBodyId === administrativeBodyId);
-  }
-  return filteredRoles;
-}
-
-export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
-  const checkDate = date || new Date();
-  const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
-  const cityRoles = filteredRoles.filter(role => role.cityId);
-  return cityRoles.length > 0 ? cityRoles[0] : null;
-}
-
 export function normalizeText(text: string): string {
   if (!text) return '';
 
@@ -554,20 +428,4 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
     console.error('[Location] Error calculating geometry bounds:', error);
     return DEFAULT_RETURN;
   }
-}
-
-export function getActiveRoleCondition(date: Date = new Date()) {
-  return [
-    // Both dates are null (ongoing role)
-    { startDate: null, endDate: null },
-    // Only start date is set and it's in the past
-    { startDate: { lte: date }, endDate: null },
-    // Only end date is set and it's in the future
-    { startDate: null, endDate: { gt: date } },
-    // Both dates are set and current time is within range
-    {
-      startDate: { lte: date },
-      endDate: { gt: date }
-    }
-  ];
 }

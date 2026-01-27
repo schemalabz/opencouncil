@@ -9,7 +9,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { City } from '@prisma/client';
-import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters } from '@/lib/utils/administrativeBodies';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters, filterPersonByAdministrativeBodies } from '@/lib/utils/administrativeBodies';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -59,12 +59,8 @@ export default function CityPeople({
             formProps={{ cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={peopleAdministrativeBodies}
-            filter={(selectedValues, person) =>
-                selectedValues.length === 0 ||
-                (selectedValues.includes(null) && !person.roles.some(role => role.administrativeBody)) ||
-                person.roles.some(role =>
-                    role.administrativeBody && selectedValues.includes(role.administrativeBody.id)
-                )
+            filter={(selectedValues, person) => 
+                filterPersonByAdministrativeBodies(person, selectedValues)
             }
             defaultFilterValues={defaultFilterValues}
             smColumns={1}

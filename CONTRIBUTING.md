@@ -28,6 +28,25 @@ Our Docker setup automatically detects if ports are in use and allocates the nex
 - Work with AI co-pilots on multiple issues concurrently in different windows
 - Quickly switch between different features without stopping and restarting services
 
+#### Cleaning Up After Feature Completion
+
+Once your feature is complete and merged, clean up the worktree to free up disk space and keep your workspace organized. Each worktree creates its own set of Docker containers, so you need to clean those up first.
+
+```bash
+# 1. Clean up Docker resources from inside the worktree
+cd ../opencouncil-feature-name
+./run.sh --clean
+
+# 2. Navigate back and remove the worktree
+cd ../opencouncil
+git worktree remove ../opencouncil-feature-name
+
+# 3. Delete the branch if it's been merged
+git branch -d feature-branch-name
+```
+
+The `./run.sh --clean` command automatically detects and cleans up all Docker resources (containers, volumes, networks) specific to that worktree, ensuring nothing is left behind. The command works safely even if containers aren't currently running.
+
 For more details on Docker configuration, see [`docs/docker-usage.md`](./docs/docker-usage.md).
 
 ## Contributor Workflow

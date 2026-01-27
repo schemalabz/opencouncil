@@ -202,30 +202,153 @@ For Prisma-specific operations, you can use `exec.sh`:
 
 ## Managing Docker Resources
 
+### Cleaning Up Docker Resources
+
 The system provides a cleanup command to help manage Docker resources:
 
 ```bash
 ./run.sh --clean
 ```
+
 This command:
-- Stops and removes OpenCouncil containers
-- Removes OpenCouncil networks
-- Removes OpenCouncil volumes (including database data)
+- Stops and removes all containers for the current worktree
+- Removes volumes (including database data)
 - Removes the configuration tracking file
+- Removes networks created by the containers
 - Use this when you want to start completely fresh
 
-Note: This command only affects Docker resources related to OpenCouncil and won't interfere with other Docker projects on your system.
+**When to use `--clean`:**
+- When you want to start completely fresh with a clean database
+- Before removing a git worktree (see [worktree teardown guide](../CONTRIBUTING.md#cleaning-up-after-feature-completion))
+- When troubleshooting Docker-related issues
+
+**For git worktrees:** Each worktree creates its own isolated set of Docker containers. Always run `./run.sh --clean` from within the worktree directory before removing it to avoid orphaned Docker resources.
+
+Note: This command only affects Docker resources in the current directory and won't interfere with other instances or Docker projects on your system.
+
+## Docker Network Configuration
+
+OpenCouncil uses configurable Docker networks for inter-service communication and isolation between instances.
+
+### Default Behavior (Shared Network)
+
+By default, all OpenCouncil instances use the `opencouncil-net` network:
+
+```bash
+# Default shared network
+./run.sh
+```
+
+This allows:
+- Multiple OpenCouncil instances to communicate with a single `opencouncil-tasks` instance
+- Services to discover each other across instances
+- Simple setup for most development scenarios
+
+### Custom Networks (Isolated Development)
+
+For isolated feature development or testing multiple configurations in parallel, specify a custom network:
+
+```bash
+# Using a flag
+./run.sh --network feature-auth
+# Creates/uses network: opencouncil-net-feature-auth
+
+# Using an environment variable
+NETWORK_NAME=feature-auth ./run.sh
+
+# Or add to your .env file (useful for per-worktree configuration)
+echo "NETWORK_NAME=feature-auth" >> .env
+./run.sh
+```
+
+Custom network names are automatically prefixed with `opencouncil-net-` for consistency.
+
+The network being used is displayed when starting:
+
+```
+📡 Network configuration:
+   - Using network: opencouncil-net-feature-auth
+```
 
 ## Connecting to the Task Server
 
-For local development that requires communication with the `opencouncil-tasks` project, our Docker setup is pre-configured to facilitate this.
+To connect `opencouncil-tasks` to your OpenCouncil instance, configure it to use the same network. In `opencouncil-tasks`, set the network name in your `docker-compose.yml` or `docker-compose.dev.yml`:
 
-- The `docker-compose.dev.yml` file defines a shared Docker network named `opencouncil-net`.
-- The `./run.sh` script automatically applies this file when you run in the default development mode.
+```yaml
+networks:
+  opencouncil-net:
+    name: opencouncil-net  # or opencouncil-net-feature-auth for custom networks
+    external: true
+```
 
-This allows the main OpenCouncil application to communicate with the services in the `opencouncil-tasks` project, as long as the `opencouncil-tasks` services are also configured to join the `opencouncil-net` network.
+### Shared Network (Default)
 
-For proper bidirectional communication between the applications, you need to configure two environment variables in your `.env` file:
+```bash
+# In opencouncil
+./run.sh
+
+# In opencouncil-tasks
+# Ensure docker-compose.yml uses: name: opencouncil-net
+docker compose up
+```
+Both use `opencouncil-net` and can communicate.
+
+### Custom Network (Isolated Pair)
+
+```bash
+# In opencouncil
+./run.sh --network feature-auth
+
+# In opencouncil-tasks
+# Update docker-compose.yml to use: name: opencouncil-net-feature-auth
+docker compose up
+```
+Both now use `opencouncil-net-feature-auth` and are isolated from other instances.
+
+### Common Scenarios
+
+**Multiple OpenCouncil → Single Tasks Server:**
+```bash
+# Instance 1 (default network)
+cd ~/projects/opencouncil-main
+./run.sh
+
+# Instance 2 (default network)  
+cd ~/projects/opencouncil-feature-x
+./run.sh
+
+# Tasks server (default network)
+cd ~/projects/opencouncil-tasks
+# Ensure docker-compose.yml uses: name: opencouncil-net
+docker compose up
+```
+All three share `opencouncil-net` and can communicate.
+
+**Isolated Feature Testing (Paired Instances):**
+```bash
+# OpenCouncil instance
+cd ~/projects/opencouncil-feature-auth
+./run.sh --network feature-auth
+
+# Matching tasks instance
+cd ~/projects/opencouncil-tasks-feature-auth
+# Update docker-compose.yml to use: name: opencouncil-net-feature-auth
+docker compose up
+```
+This pair uses `opencouncil-net-feature-auth`, isolated from other instances.
+
+**Per-Worktree Configuration:**
+
+Create a `.env` file in your worktree:
+```bash
+cd ~/projects/opencouncil-feature-auth
+echo "NETWORK_NAME=feature-auth" >> .env
+./run.sh  # Automatically uses feature-auth network
+```
+
+### Environment Variables for Inter-Service Communication
+
+For proper bidirectional communication between OpenCouncil and the task server, configure these in your `.env` file:
 
 ```bash
 # Used by OpenCouncil to send requests to the task server

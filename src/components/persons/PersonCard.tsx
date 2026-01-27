@@ -1,23 +1,18 @@
 'use client'
-import { Person, Party } from '@prisma/client';
 import { useRouter } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
-import { useLocale } from 'next-intl';
 import { PersonBadge } from './PersonBadge';
 import { cn, filterActiveRoles } from '@/lib/utils';
-import { motion } from 'framer-motion';
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 
 interface PersonCardProps {
     item: PersonWithRelations;
     editable: boolean;
-    parties: Party[];
 }
 
-export default function PersonCard({ item: person, editable, parties }: PersonCardProps) {
+export default function PersonCard({ item: person, editable }: PersonCardProps) {
     const router = useRouter();
-    const locale = useLocale();
     const activeRoles = filterActiveRoles(person.roles);
 
     const handleClick = () => {

@@ -89,13 +89,20 @@ export function formatRelativeTime(date: Date, locale: string = 'el'): string {
 /**
  * Formats a date to a standard string representation
  * @param date - The date to format
+ * @param timezone - Optional timezone
  * @returns Formatted date string
  */
-export function formatDate(date: Date): string {
+export function formatDate(date: Date, timezone?: string): string {
+  const options: Intl.DateTimeFormatOptions = { dateStyle: 'long' };
+
+  if (timezone) {
+    options.timeZone = timezone;
+  }
+
   if (date instanceof Date) {
-    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(date);
+    return new Intl.DateTimeFormat('el-GR', options).format(date);
   } else if (typeof date === 'string') {
-    return new Intl.DateTimeFormat('el-GR', { dateStyle: 'long' }).format(new Date(date));
+    return new Intl.DateTimeFormat('el-GR', options).format(new Date(date));
   } else {
     throw new Error(`Invalid date: ${date}`);
   }

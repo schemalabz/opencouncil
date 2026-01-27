@@ -7,12 +7,12 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X, BookOpen, CheckCircle, SkipForward } from 'lucide-react';
+import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EditingGuideDialog } from './EditingGuideDialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { GuideButton } from './GuideButton';
 import { UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
 import { SpeakersOverviewSheet } from './transcript/SpeakersOverviewSheet';
 import { CompleteReviewDialog } from '@/components/reviews/CompleteReviewDialog';
@@ -24,22 +24,9 @@ export function EditingModeBar() {
     const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
     const t = useTranslations('editing');
-    const [showGuideHint, setShowGuideHint] = useState(false);
     const [showCompleteDialog, setShowCompleteDialog] = useState(false);
     const [isReviewCompleted, setIsReviewCompleted] = useState(false);
     const router = useRouter();
-
-    // Check localStorage on mount to see if user has seen the guide
-    useEffect(() => {
-        const hasSeenGuide = localStorage.getItem('editing-guide-seen');
-        if (!hasSeenGuide) {
-            // Show hint after a short delay for better UX
-            const timer = setTimeout(() => {
-                setShowGuideHint(true);
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
-    }, []);
 
     // Check if humanReview is already completed
     useEffect(() => {
@@ -66,17 +53,6 @@ export function EditingModeBar() {
     const handleExit = () => {
         updateOptions({ editable: false });
         toast({ title: t('toasts.exited'), description: t('toasts.exitedDescription') });
-    };
-
-    const dismissGuideHint = () => {
-        setShowGuideHint(false);
-        localStorage.setItem('editing-guide-seen', 'true');
-    };
-
-    const handleGuideOpen = () => {
-        if (showGuideHint) {
-            dismissGuideHint();
-        }
     };
 
     const goToNextUnknown = () => {
@@ -234,28 +210,15 @@ export function EditingModeBar() {
                         )}
 
                                         {/* Editing Guide */}
-                                        <Tooltip open={showGuideHint}>
-                                            <EditingGuideDialog onOpenChange={(open) => open && handleGuideOpen()}>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className={`flex items-center space-x-1 ${
-                                                            showGuideHint 
-                                                                ? 'ring-2 ring-blue-500 ring-offset-2 bg-blue-50 animate-pulse' 
-                                                                : ''
-                                                        }`}
-                                                    >
-                                                        <BookOpen className="h-4 w-4 mr-1" />
-                                                        <span className="hidden sm:inline">{t('actions.guide')}</span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                            </EditingGuideDialog>
-                                            <TooltipContent side="bottom" className="max-w-xs">
-                                                <p className="font-semibold">{t('guide.hint.title')}</p>
-                                                <p className="text-xs text-muted-foreground mt-1">{t('guide.hint.description')}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
+                                        <GuideButton
+                                            storageKey="editing-guide-seen"
+                                            DialogComponent={EditingGuideDialog}
+                                            label={t('actions.guide')}
+                                            hintTitle={t('guide.hint.title')}
+                                            hintDescription={t('guide.hint.description')}
+                                            ringClassName="ring-2 ring-blue-500 ring-offset-2 bg-blue-50 animate-pulse"
+                                            iconClassName="mr-1"
+                                        />
 
                                         {/* Exit Button */}
                                         <Button

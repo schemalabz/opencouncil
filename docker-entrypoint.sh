@@ -21,11 +21,14 @@ ORIGINAL_DIRECT_URL=$DIRECT_URL
 
 # Check if we're using the local or remote database
 if [ "$USE_LOCAL_DB" = "true" ]; then
+  # Use DB_PORT if provided, otherwise default to 5432
+  DB_PORT=${DB_PORT:-5432}
+  
   echo "🔧 Using LOCAL dockerized database"
   
   # Construct local database URLs
-  LOCAL_DATABASE_URL="postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}?sslmode=disable"
-  LOCAL_DIRECT_URL="postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}?sslmode=disable"
+  LOCAL_DATABASE_URL="postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:${DB_PORT}/${DATABASE_NAME}?sslmode=disable"
+  LOCAL_DIRECT_URL="postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@db:${DB_PORT}/${DATABASE_NAME}?sslmode=disable"
   
   # Override database URLs for local database
   export DATABASE_URL=$LOCAL_DATABASE_URL
@@ -40,14 +43,25 @@ else
   echo "⏩ Skipping database seeding for remote database"
 fi
 
+# Use configured ports if provided, otherwise defaults
+APP_PORT=${APP_PORT:-3000}
+PRISMA_PORT=${PRISMA_STUDIO_PORT:-5555}
+DB_PORT=${DB_PORT:-5432}
+
 # Start the application based on environment
 if [ "$APP_ENV" = "production" ]; then
-  echo "🏗️ Building and starting production server..."
+  if [ "$USE_LOCAL_DB" = "true" ]; then
+    echo "🗄️  Database running on port $DB_PORT"
+  fi
+  echo "🏗️ Building and starting production server on port $APP_PORT..."
   npm run production:build
-  npm run production:start
+  npx next start -p $APP_PORT
 else
-  echo "✨ Starting Prisma Studio in background..."
-  npm run prisma:studio &
-  echo "🔄 Starting development server with hot reload..."
-  npm run dev
+  if [ "$USE_LOCAL_DB" = "true" ]; then
+    echo "🗄️  Database running on port $DB_PORT"
+  fi
+  echo "✨ Starting Prisma Studio on port $PRISMA_PORT..."
+  npx prisma studio --port $PRISMA_PORT &
+  echo "🔄 Starting development server on port $APP_PORT with hot reload..."
+  npx next dev --turbo -p $APP_PORT
 fi

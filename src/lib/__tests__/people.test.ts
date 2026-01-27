@@ -112,12 +112,30 @@ describe('getPeopleForMeeting', () => {
     voicePrints: [],
   };
 
+  const mockMayor = {
+    id: 'person-6',
+    name: 'Mayor',
+    roles: [
+      {
+        id: 'role-6',
+        cityId: cityId,
+        partyId: null,
+        administrativeBodyId: null,
+        isHead: true,
+        startDate: null,
+        endDate: null,
+      },
+    ],
+    voicePrints: [],
+  };
+
   const allMockPeople = [
     mockCouncilMember,
     mockCommunityHead,
     mockCommunityMember,
     mockCommitteeMember,
     mockPersonNoAdminBody,
+    mockMayor,
   ];
 
   beforeEach(() => {
@@ -147,8 +165,14 @@ describe('getPeopleForMeeting', () => {
 
       // Filter based on administrative body type
       if (adminBody.type === 'council') {
-        // Council meetings: Include council members, people with no admin body, and community heads
+        // Council meetings: Include council members, people with no admin body, community heads, and mayors
         return allPeople.filter((person: any) => {
+          // Always include mayors (people with city-level roles)
+          const isMayor = person.roles.some(
+            (role: any) => role.cityId && !role.partyId && !role.administrativeBodyId
+          );
+          if (isMayor) return true;
+
           const hasCouncilRole = person.roles.some(
             (role: any) => role.administrativeBodyId === administrativeBodyId
           );
@@ -205,13 +229,14 @@ describe('getPeopleForMeeting', () => {
       });
     });
 
-    it('should include council members, people with no admin body, and community heads', async () => {
+    it('should include council members, people with no admin body, community heads, and mayors', async () => {
       const result = await getPeopleForMeeting(cityId, councilAdminBodyId);
 
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
       expect(result).toContainEqual(mockCouncilMember);
       expect(result).toContainEqual(mockCommunityHead);
       expect(result).toContainEqual(mockPersonNoAdminBody);
+      expect(result).toContainEqual(mockMayor);
     });
 
     it('should not include regular community members', async () => {
