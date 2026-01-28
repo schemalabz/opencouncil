@@ -23,11 +23,15 @@ import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
+import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
     // If subjectId is provided, find the subject in the context
     const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
@@ -91,6 +95,15 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 )}
                             </div>
                         </div>
+                        {isSuperAdmin && (
+                            <div className="flex-shrink-0">
+                                <DebugMetadataButton
+                                    data={subject}
+                                    title="Subject Metadata"
+                                    tooltip="View subject metadata"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
