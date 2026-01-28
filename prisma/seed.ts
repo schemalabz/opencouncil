@@ -656,6 +656,56 @@ async function seedSubjects(subjects: any[], meeting: any) {
     data: validSubjectData,
     skipDuplicates: true,
   });
+
+  // Seed speaker contributions after subjects are created
+  await seedSpeakerContributions(subjects);
+}
+
+/**
+ * Seed speaker contributions for subjects
+ */
+async function seedSpeakerContributions(subjects: any[]) {
+  const allContributions = subjects
+    .filter(subject => subject.contributions && subject.contributions.length > 0)
+    .flatMap(subject =>
+      subject.contributions.map((contribution: any) => ({
+        id: contribution.id,
+        text: contribution.text,
+        speakerId: contribution.speakerId,
+        subjectId: subject.id,
+      }))
+    );
+
+  // Validate uniqueness of [subjectId, speakerId] - duplicates indicate a bug in seed generation
+  // Note: Only check for duplicates when speakerId is non-null, since PostgreSQL's unique constraint
+  // allows multiple NULL values (NULL != NULL in SQL)
+  const seen = new Set<string>();
+  for (const c of allContributions) {
+    // Use loose equality to catch both null and undefined (missing property in seed data)
+    if (c.speakerId != null) {
+      const key = `${c.subjectId}:${c.speakerId}`;
+      if (seen.has(key)) {
+        throw new Error(
+          `Duplicate speaker contribution found: speaker ${c.speakerId} on subject ${c.subjectId}. ` +
+          `This violates @@unique([subjectId, speakerId]) - check seed data generation.`
+        );
+      }
+      seen.add(key);
+    }
+  }
+
+  if (allContributions.length > 0) {
+    console.log(`Creating ${allContributions.length} speaker contributions...`);
+    try {
+      await prisma.speakerContribution.createMany({
+        data: allContributions,
+        skipDuplicates: true,
+      });
+    } catch (error) {
+      console.error('Error creating speaker contributions:', error);
+      // Continue anyway, as this is not critical
+    }
+  }
 }
 
 /**

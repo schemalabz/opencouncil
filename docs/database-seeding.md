@@ -72,6 +72,7 @@ The seeding process follows a specific order to respect entity dependencies:
    - Utterances
    - Words
    - Subjects
+   - Speaker contributions
    - Highlights
    - Podcast specs
 
