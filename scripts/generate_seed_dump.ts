@@ -451,6 +451,16 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
                 id: true,
                 speakerSegmentId: true,
               }
+            },
+            // Include speaker contributions for ES indexing
+            contributions: {
+              select: {
+                id: true,
+                text: true,
+                speakerId: true,
+                createdAt: true,
+                updatedAt: true,
+              }
             }
           }
         },
