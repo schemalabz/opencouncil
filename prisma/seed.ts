@@ -3,6 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import axios from 'axios'
 import { env } from '@/env.mjs'
+import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 
 const prisma = new PrismaClient()
 
@@ -352,12 +353,12 @@ async function seedCities(cities: any[]) {
     name_municipality_en: city.name_municipality_en || city.name_en,
     logoImage: city.logoImage,
     timezone: city.timezone || 'Europe/Athens',
-    officialSupport: city.officialSupport || false,
-    status: city.status || 'pending',
-    authorityType: city.authorityType || 'municipality',
+    officialSupport: city.officialSupport ?? CITY_DEFAULTS.officialSupport,
+    status: city.status || CITY_DEFAULTS.status,
+    authorityType: city.authorityType || CITY_DEFAULTS.authorityType,
     wikipediaId: city.wikipediaId,
-    consultationsEnabled: city.id === 'athens' ? true : false, // Enable consultations for Athens
-    highlightCreationPermission: city.highlightCreationPermission || 'ADMINS_ONLY',
+    consultationsEnabled: city.id === 'athens' ? true : CITY_DEFAULTS.consultationsEnabled,
+    highlightCreationPermission: city.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
   }))
 
   await prisma.city.createMany({
