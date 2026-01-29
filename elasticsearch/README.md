@@ -206,6 +206,248 @@ The `elasticsearch/schema.json` file defines:
 
 PGSync setup, deployment, and sync operations are managed separately in the opencouncil-tasks repository. See the [PGSync Setup Guide](https://github.com/schemalabz/opencouncil-tasks/blob/main/docs/pgsync-setup.md).
 
+### Testing Schema Changes
+
+When making changes to `elasticsearch/schema.json` or `elasticsearch/views.sql`, use the E2E testing workflow to validate them locally before deploying.
+
+**What gets tested:**
+- `views.sql` creates valid PostgreSQL views
+- `schema.json` is valid and PGSync can parse it  
+- The views output matches what `schema.json` expects (columns, relationships)
+- Documents are correctly indexed to Elasticsearch
+- Live sync works (changes in DB appear in search results)
+- WAL monitoring detects the replication slot
+
+**How it works:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    opencouncil repo                         │
+│                                                             │
+│  elasticsearch/schema.json  ─┐                              │
+│  elasticsearch/views.sql    ─┼── Defines ES index structure │
+│  prisma/seed_data.json      ─┘   and data transformations   │
+│                                                             │
+│  ELASTICSEARCH_INDEX=subjects_test nix run .#dev            │
+│    ├── Local PostgreSQL (wal_level=logical)                 │
+│    └── Next.js App ───────────────────────────────┐         │
+└───────────────────────────────────────────────────│─────────┘
+                              │                     │
+         PGSync reads schema, │                     │ App queries
+         syncs via WAL        │                     │ test index
+                              ▼                     │
+┌─────────────────────────────────────────────────────────────┐
+│                  opencouncil-tasks repo                     │
+│                                                             │
+│  ./scripts/pgsync-test.sh --daemon                          │
+│    1. Creates views in DB (from opencouncil repo)           │
+│    2. Bootstraps initial data to ES                         │
+│    3. Runs PGSync daemon (continuous sync)                  │
+│                                                             │
+│  ./scripts/check-wal.sh  ─── WAL monitoring                 │
+└─────────────────────────────────────────────────────────────┘
+                              │                     │
+                              ▼                     │
+┌─────────────────────────────────────────────────────────────┐
+│              Elasticsearch (test index)                     │
+│                                                             │
+│  subjects_test  ◄─────────────────────────────────┘         │
+│    - Indexed seed data                                      │
+│    - Live sync from DB changes                              │
+│    - Queried by app at /search                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Setup (one-time)
+
+1. **Configure opencouncil-tasks `.env`:**
+
+   ```bash
+   # PostgreSQL - local Nix DB
+   # IMPORTANT: From inside Docker, "localhost" refers to the container, not your host.
+   # Use host.docker.internal (macOS/Windows) or 172.17.0.1 (Linux Docker bridge)
+   PG_URL=postgresql://opencouncil@host.docker.internal:5432/opencouncil
+   # Or on Linux: postgresql://opencouncil@172.17.0.1:5432/opencouncil
+   
+   # Elasticsearch
+   ELASTICSEARCH_URL=https://your-cluster.es.region.cloud:443
+   ELASTICSEARCH_API_KEY_ID=<id>
+   ELASTICSEARCH_API_KEY=<secret>
+   
+   # Path to opencouncil repo (relative to opencouncil-tasks)
+   OPENCOUNCIL_REPO=../opencouncil
+   ```
+
+#### Running E2E Tests
+
+**Terminal 1 (opencouncil):** Start local DB and app with test index
+
+```bash
+ELASTICSEARCH_INDEX=subjects_test nix run .#dev
+# Wait for seeding to complete (watch the TUI logs)
+```
+
+**Terminal 2 (opencouncil-tasks):** Start PGSync daemon
+
+```bash
+OPENCOUNCIL_REPO=../opencouncil ./scripts/pgsync-test.sh --daemon
+```
+
+Once PGSync completes the initial bootstrap, your app is ready. You can now:
+
+- Make changes to the local DB (via the app or `psql`)
+- PGSync syncs them to `subjects_test` in real-time
+- Search at `/search` uses the test index
+
+Press Ctrl+C in the PGSync terminal to stop. The Redis container is automatically cleaned up.
+
+#### Testing Live Sync (Important)
+
+**Bootstrap vs Live Sync behave differently.** Bootstrap reads directly from views where columns are already transformed. Live sync receives WAL events with original table column names, then must map them to view columns.
+
+Always test both:
+
+1. **Bootstrap test**: Initial indexing when PGSync starts (uses view data directly)
+2. **Live sync test**: Insert/update records after PGSync is running (uses WAL events)
+
+**Testing live sync for nested/child relationships:**
+
+When adding new nested fields (like `speaker_contributions`), the bootstrap may succeed even with an empty table. You must also test live sync by inserting data while PGSync is running.
+
+Key behaviors to understand:
+
+- **Child table changes may not auto-trigger parent re-sync**: When you insert into a child table (e.g., `SpeakerContribution`), PGSync detects the change but may not automatically re-index the parent document (`Subject`). You may need to update the parent record to trigger the full document re-sync.
+
+- **WAL events use base table column names**: If your view aliases `id` to `contribution_id`, the WAL event still sends `id`. The schema's `primary_key` must match what WAL sends, then use `transform.rename` to map to the desired Elasticsearch field name.
+
+**Example live sync test:**
+
+```bash
+# 1. Find a subject without contributions
+psql "$PSQL_URL" -c "SELECT s.id, s.name, p.id as person_id, p.name 
+  FROM \"Subject\" s 
+  JOIN \"Person\" p ON p.\"cityId\" = s.\"cityId\" 
+  WHERE NOT EXISTS (SELECT 1 FROM \"SpeakerContribution\" sc WHERE sc.\"subjectId\" = s.id) 
+  LIMIT 3;"
+
+# 2. Insert a contribution (replace IDs with actual values)
+psql "$PSQL_URL" -c "INSERT INTO \"SpeakerContribution\" (id, text, \"subjectId\", \"speakerId\", \"createdAt\", \"updatedAt\") 
+  VALUES ('test-contrib-1', 'Test contribution text.', '<SUBJECT_ID>', '<PERSON_ID>', NOW(), NOW());"
+
+# 3. Watch PGSync logs - if stuck at Db: [N] but Elasticsearch: [0], trigger parent update:
+psql "$PSQL_URL" -c "UPDATE \"Subject\" SET \"updatedAt\" = NOW() WHERE id = '<SUBJECT_ID>';"
+
+# 4. Verify in Elasticsearch
+curl -s "$ELASTICSEARCH_URL/subjects_test/_doc/<SUBJECT_ID>" \
+  -H "Authorization: ApiKey $ELASTICSEARCH_API_KEY" | jq '._source.speaker_contributions'
+```
+
+#### Testing WAL Monitoring
+
+With PGSync running in daemon mode, you can test the full WAL monitoring lifecycle: accumulation and drain. This helps understand how WAL behaves in production.
+
+**Understanding WAL behavior:** PGSync uses logical replication, which only processes changes to tables defined in its schema. However, PostgreSQL retains WAL files for *all* database changes until PGSync advances its bookmark by processing a change it cares about. This means unrelated table changes accumulate WAL that only drains when you modify a synced table.
+
+**Step 1: Start continuous WAL monitoring**
+
+Set up a loop that runs `check-wal.sh` every 10 seconds with low thresholds for testing:
+
+```bash
+# From opencouncil-tasks repo (in a new terminal)
+# Use low thresholds (warn at 5MB, critical at 10MB) to trigger alerts faster
+while true; do WAL_WARNING_THRESHOLD_GB=0.03 WAL_CRITICAL_THRESHOLD_GB=0.05 ./scripts/check-wal.sh; sleep 10; done
+```
+
+You should see output showing the healthy replication slot:
+
+```
+✓ Slot 'subjects_test' (logical) healthy: 0MB retained, status: reserved, active: true
+```
+
+**Step 2: Generate WAL with unrelated changes**
+
+While PGSync is still running, create a test table and insert data. Since this table isn't in PGSync's schema, changes accumulate WAL but PGSync ignores them:
+
+```bash
+# In opencouncil repo (nix develop shell)
+# Create a test table (not synced by PGSync)
+psql "$PSQL_URL" -c "CREATE TABLE IF NOT EXISTS wal_test (id bigserial primary key, payload text, ts timestamptz default now());"
+
+# Generate ~5MB of WAL (run multiple times to accumulate more)
+psql "$PSQL_URL" -c "INSERT INTO wal_test (payload) SELECT repeat(md5(random()::text), 10) FROM generate_series(1, 50000);"
+```
+
+Watch the monitoring output - WAL retained grows even though PGSync is running:
+
+```
+✓ Slot 'subjects_test' (logical) healthy: 5.2MB retained...
+⚠️  WARNING: Slot 'subjects_test' (logical) has 8.4MB WAL retained (threshold: 0.005GB)
+🚨 CRITICAL: Slot 'subjects_test' (logical) has 12.1MB WAL retained (threshold: 0.01GB)
+```
+
+**Step 3: Trigger WAL drain with a synced table change**
+
+Now make a change to a table PGSync *does* care about. This causes PGSync to process the change and advance its WAL bookmark:
+
+```bash
+# Update a Subject (synced by PGSync) - this triggers WAL drain
+psql "$PSQL_URL" -c "UPDATE \"Subject\" SET \"updatedAt\" = NOW() WHERE id = (SELECT id FROM \"Subject\" LIMIT 1);"
+```
+
+Or make a change through the app UI (e.g., add a meeting, or process agenda).
+
+Watch the monitoring output over the next few check cycles - WAL retained will gradually drop:
+
+```
+✓ Slot 'subjects_test' (logical) healthy: 12.1MB retained, status: reserved, active: false
+✓ Slot 'subjects_test' (logical) healthy: 8.4MB retained, status: reserved, active: false
+✓ Slot 'subjects_test' (logical) healthy: 0.8MB retained, status: reserved, active: false
+```
+
+> **Note:** WAL cleanup isn't instant. PostgreSQL releases WAL files during checkpoints, which happen periodically (default every 5 minutes or when WAL reaches a threshold). You may need to wait 30-60 seconds to see the full drain.
+
+**Step 4: Verify search sync**
+
+Check that the change appears in search results at `/search`, confirming the full pipeline works.
+
+**Cleanup:**
+
+```bash
+# Stop the monitoring loop (Ctrl+C)
+# Drop the test table
+psql "$PSQL_URL" -c "DROP TABLE IF EXISTS wal_test;"
+```
+
+For more details on WAL monitoring, thresholds, and production alerts, see the [PGSync Setup Guide](https://github.com/schemalabz/opencouncil-tasks/blob/main/docs/pgsync-setup.md#wal-monitoring-setup).
+
+#### Quick Validation (Views Only)
+
+For rapid iteration on view changes without running PGSync:
+
+```bash
+# Enter Nix dev shell (includes psql)
+nix develop
+
+# Create views against your database
+psql "$PSQL_URL" < elasticsearch/views.sql
+
+# Run validation queries
+psql "$PSQL_URL" < elasticsearch/validate-views.sql
+```
+
+#### Cleanup
+
+```bash
+# Delete the test index
+curl -X DELETE "$ELASTICSEARCH_URL/subjects_test" -H "Authorization: ApiKey ..."
+
+# Or use the cleanup flag for one-time bootstrap tests
+./scripts/pgsync-test.sh --cleanup
+
+# Reset local database and build cache (from opencouncil repo)
+nix run .#cleanup
+```
+
 ## Search Examples
 
 ### 1. Simple Text Search
@@ -451,6 +693,14 @@ Key features of this hybrid query:
    - Keep Elasticsearch version up to date
 
 ### FAQ
+
+**Q: Why do views keep original column names like `id` instead of aliasing to `contribution_id`?**  
+A: PGSync's live sync receives WAL events with the base table's original column names. If your view aliases `id` to `contribution_id`, but WAL sends `id`, PGSync fails to match the primary key. The solution:
+1. Keep the original column name in the view (e.g., `sc.id` not `sc.id AS contribution_id`)
+2. Set `primary_key` in schema.json to match the WAL column name (`["id"]`)
+3. Use `transform.rename` to map to the desired Elasticsearch field name (`"id": "contribution_id"`)
+
+This ensures bootstrap (reads from view) and live sync (reads from WAL) both work correctly.
 
 **Q: How is the speaker segments text concatenated?**  
 A: The `SubjectSpeakerSegmentSearchView` view concatenates all utterance texts within each speaker segment using `string_agg()`, ordered by timestamp. PGSync reads from this view and indexes the concatenated text.
