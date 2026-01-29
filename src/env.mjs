@@ -36,9 +36,10 @@ export const env = createEnv({
     TASK_API_URL: z.string().url(),
     TASK_API_KEY: z.string().min(1),
 
-    // Other
+    // Elasticsearch
     ELASTICSEARCH_URL: z.string().url(),
     ELASTICSEARCH_API_KEY: z.string().min(1),
+    ELASTICSEARCH_INDEX: z.string().default('subjects'), // Override for testing (e.g., 'subjects_test')
 
     // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
@@ -104,6 +105,7 @@ export const env = createEnv({
     TASK_API_KEY: process.env.TASK_API_KEY,
     ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
+    ELASTICSEARCH_INDEX: process.env.ELASTICSEARCH_INDEX,
     DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,

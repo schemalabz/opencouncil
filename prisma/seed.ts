@@ -656,6 +656,38 @@ async function seedSubjects(subjects: any[], meeting: any) {
     data: validSubjectData,
     skipDuplicates: true,
   });
+
+  // Seed speaker contributions after subjects are created
+  await seedSpeakerContributions(subjects);
+}
+
+/**
+ * Seed speaker contributions for subjects
+ */
+async function seedSpeakerContributions(subjects: any[]) {
+  const allContributions = subjects
+    .filter(subject => subject.contributions && subject.contributions.length > 0)
+    .flatMap(subject =>
+      subject.contributions.map((contribution: any) => ({
+        id: contribution.id,
+        text: contribution.text,
+        speakerId: contribution.speakerId,
+        subjectId: subject.id,
+      }))
+    );
+
+  if (allContributions.length > 0) {
+    console.log(`Creating ${allContributions.length} speaker contributions...`);
+    try {
+      await prisma.speakerContribution.createMany({
+        data: allContributions,
+        skipDuplicates: true,
+      });
+    } catch (error) {
+      console.error('Error creating speaker contributions:', error);
+      // Continue anyway, as this is not critical
+    }
+  }
 }
 
 /**
