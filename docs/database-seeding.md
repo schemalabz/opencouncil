@@ -13,7 +13,7 @@ The seeding process consists of two main components:
 The `generate-seed` script extracts a subset of data from an existing database to create seed data for development:
 
 ```bash
-npm run generate-seed -- --source=postgresql://user:pass@host:port/db --pairs=city1/meeting1,city2/latest
+npm run generate-seed -- --source=postgresql://user:pass@host:port/db --pairs=city1/meeting1 city2/latest
 ```
 
 ### Options
@@ -24,7 +24,7 @@ npm run generate-seed -- --source=postgresql://user:pass@host:port/db --pairs=ci
 
 Use the special value "latest" as meetingId to include the most recent meeting for a city:
 ```bash
-npm run generate-seed -- --source=postgresql://db-url --pairs=athens/latest,chania/latest
+npm run generate-seed -- --source=postgresql://db-url --pairs=athens/latest chania/latest
 ```
 
 ### Data Structure
@@ -105,3 +105,17 @@ The seeding process automatically creates test users with different permission l
 - **Read Only**: No administrative permissions
 
 In development mode, a floating panel appears for instant user switching without email authentication.
+
+## Resetting Local Database
+
+If you need to reset your local database and start fresh with a clean seeded database:
+
+```bash
+nix run .#cleanup
+```
+
+This command will:
+- Remove `.data/postgres` (all local database files)
+- Remove `.next` (Next.js build cache)
+
+You'll be prompted for confirmation before deletion. After cleanup, run `nix run .#dev` again to create a fresh database with seeded data.
