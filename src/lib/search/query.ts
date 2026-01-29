@@ -1,5 +1,6 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters } from './types';
+import { env } from '@/env.mjs';
 
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
@@ -126,7 +127,7 @@ export function buildSearchQuery(
     };
 
     return {
-        index: 'subjects',
+        index: env.ELASTICSEARCH_INDEX,
         size: request.config?.size || 10,
         from: request.config?.from || 0,
         track_total_hits: true,
