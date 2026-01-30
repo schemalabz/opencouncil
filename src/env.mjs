@@ -136,13 +136,16 @@ export const env = createEnv({
    * @see https://env.t3.gg/docs/customization#overriding-the-default-error-handler
    */
   onValidationError: (issues) => {
-    console.error("❌ Invalid environment variables:");
-    for (const issue of issues) {
-      const path = issue.path.join(".");
-      const message = issue.message;
-      console.error(`  - ${path}: ${message}`);
-    }
-    console.error("\nPlease fix them in your .env file and try again.");
-    process.exit(1);
+    const details = issues
+      .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    console.error(`❌ Invalid environment variables:\n${details}`);
+    throw new Error(`Invalid environment variables:\n${details}`);
   },
+
+  /**
+   * Skip validation during builds (e.g., in CI/Nix sandboxes where env vars aren't available).
+   * Set SKIP_ENV_VALIDATION=1 to skip.
+   */
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 }); 

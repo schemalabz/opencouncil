@@ -535,9 +535,478 @@ EOF
               exec process-compose -f "$pc_file" up
             '';
           };
+          opencouncil-prod = pkgs.buildNpmPackage {
+            pname = "opencouncil-prod";
+            version = "0.1.0";
+            src = ./.;
+
+            # impureEnvVars only works with fixed-output derivations, so we use
+            # builtins.getEnv (requires --impure flag) to bake NEXT_PUBLIC_* values
+            # into the derivation at evaluation time. This correctly changes the
+            # derivation hash when values change.
+
+            # This hash needs to be updated when package-lock.json changes
+            # Run: nix run nixpkgs#prefetch-npm-deps package-lock.json
+            npmDepsHash = "sha256-0gL2/o05Z8XXMzBpKsdiZMFftrMRb4bKsDD3uEJDX60=";
+
+            # Configure npm - ignore scripts during dependency installation
+            makeCacheWritable = true;
+            npmFlags = [ "--legacy-peer-deps" ];
+
+            # Don't run install scripts during npm dependency fetch
+            # We'll rebuild canvas properly later with all dependencies available
+            npmInstallFlags = [ "--ignore-scripts" ];
+
+            nativeBuildInputs = with pkgs; [
+              nodejs
+              nodePackages.prisma
+              prisma-engines
+              openssl
+              pkg-config
+              python3  # Required by node-gyp packages
+              # Dependencies for canvas package
+              cairo
+              pango
+              libjpeg
+              giflib
+              librsvg
+              pixman
+            ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
+              pkgs.util-linux
+            ]);
+
+            buildInputs = with pkgs; [
+              # Runtime dependencies for canvas
+              cairo
+              pango
+              libjpeg
+              giflib
+              pixman
+            ];
+
+            # Set up environment for Prisma and canvas
+            preBuild = ''
+              export HOME=$TMPDIR
+              export PRISMA_QUERY_ENGINE_LIBRARY="${pkgs.prisma-engines}/lib/libquery_engine.node"
+              export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
+              export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
+              export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
+
+              # Canvas package configuration - include all required pkgconfig paths
+              export PKG_CONFIG_PATH="${pkgs.cairo.dev}/lib/pkgconfig:${pkgs.pango.dev}/lib/pkgconfig:${pkgs.libjpeg.dev}/lib/pkgconfig:${pkgs.pixman}/lib/pkgconfig:${pkgs.giflib}/lib/pkgconfig:${pkgs.librsvg.dev}/lib/pkgconfig"
+              export LD_LIBRARY_PATH="${pkgs.cairo}/lib:${pkgs.pango}/lib:${pkgs.libjpeg}/lib:${pkgs.giflib}/lib:${pkgs.pixman}/lib:${pkgs.librsvg}/lib"
+
+              ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+                export LD_LIBRARY_PATH="${pkgs.util-linux.lib}/lib:$LD_LIBRARY_PATH"
+              ''}
+
+              # Skip env validation during build — most server-side secrets
+              # (API keys, etc.) aren't needed at build time.
+              export SKIP_ENV_VALIDATION=1
+              export SKIP_FULL_SITEMAP=true
+              export ELASTICSEARCH_URL=http://localhost:9200
+              export ELASTICSEARCH_API_KEY=dummy
+
+              # NOTE: The Nix sandbox blocks network access during the build phase,
+              # so database queries (Prisma) will fail silently. Pages that depend
+              # on DB data are pre-rendered empty and must be deleted in installPhase
+              # (see below) so Next.js regenerates them at runtime.
+
+              # NEXT_PUBLIC_* vars are inlined into client JS at build time by webpack.
+              # Without them, t3-env client-side validation crashes the browser
+              # (process.exit doesn't exist in browsers).
+              #
+              # Values are injected via builtins.getEnv at nix evaluation time,
+              # which requires the --impure flag:
+              #   set -a; source .env; set +a; nix build --impure .#opencouncil-prod
+              # In CI, export from GitHub secrets before nix build --impure.
+              #
+              # This correctly changes the derivation hash when values change.
+              # Fallback defaults ensure the build succeeds without --impure
+              # (maps won't render with the placeholder token).
+              export NEXT_PUBLIC_BASE_URL="${let v = builtins.getEnv "NEXT_PUBLIC_BASE_URL"; in if v != "" then v else "https://opencouncil.gr"}"
+              export NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="${let v = builtins.getEnv "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN"; in if v != "" then v else "pk.placeholder"}"
+              ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_PHONE"; in if v != "" then "export NEXT_PUBLIC_CONTACT_PHONE=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_PHONE not set"}
+              ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_EMAIL"; in if v != "" then "export NEXT_PUBLIC_CONTACT_EMAIL=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_EMAIL not set"}
+              ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_ADDRESS"; in if v != "" then "export NEXT_PUBLIC_CONTACT_ADDRESS=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_ADDRESS not set"}
+
+              # Run patch-package
+              npm run postinstall
+
+              # Now rebuild canvas with proper dependencies available
+              # (it was skipped during npm install due to --ignore-scripts)
+              npm rebuild canvas || echo "Canvas rebuild failed, continuing anyway..."
+
+              # Generate Prisma client
+              npx prisma generate
+            '';
+
+            # Build script runs npm run build
+            npmBuild = "npm run build";
+
+            installPhase = ''
+              mkdir -p $out
+
+              # Copy standalone server (shopt to include .next hidden dir)
+              shopt -s dotglob
+              cp -r .next/standalone/* $out/
+              shopt -u dotglob
+
+              # Copy static assets (not included in standalone output)
+              cp -r .next/static $out/.next/static
+
+              # Copy public folder
+              if [ -d public ]; then
+                cp -r public $out/public
+              fi
+
+              # Remove pre-rendered homepage — the Nix sandbox blocks DB access
+              # during build, so it's pre-rendered with empty data. Removing the
+              # files forces Next.js to generate the page on first runtime request
+              # with real DB data, then cache it via ISR (tag-based revalidation).
+              rm -f $out/.next/server/app/el.html $out/.next/server/app/el.rsc \
+                    $out/.next/server/app/el.meta \
+                    $out/.next/server/app/en.html $out/.next/server/app/en.rsc \
+                    $out/.next/server/app/en.meta
+              rm -f $out/.next/server/app/el/about.html $out/.next/server/app/el/about.rsc \
+                    $out/.next/server/app/el/about.meta \
+                    $out/.next/server/app/en/about.html $out/.next/server/app/en/about.rsc \
+                    $out/.next/server/app/en/about.meta
+
+              # Copy Prisma schema for migrations
+              mkdir -p $out/prisma
+              cp -r prisma/* $out/prisma/ || true
+
+              # Copy Prisma query engine for runtime use on NixOS.
+              # During build, prisma generate uses the engine via env vars,
+              # but at runtime the client needs it in a known location.
+              cp ${pkgs.prisma-engines}/lib/libquery_engine.node $out/prisma/
+
+              # Create start script. The Nix store is read-only; Next.js needs a writable
+              # .next/cache for ISR, image optimization, and response cache. We create a
+              # writable work dir (symlink store contents, real .next/cache) and run from there.
+              cat > $out/start.sh <<'STARTEOF'
+              #!/usr/bin/env bash
+              set -euo pipefail
+              APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+              WORK_DIR="''${OC_RUN_DIR:-/tmp/opencouncil-run-''$$}"
+              mkdir -p "$WORK_DIR/.next/cache"
+
+              for item in "$APP_DIR"/*; do
+                [ -e "$item" ] || continue
+                name="$(basename "$item")"
+                [ "$name" = ".next" ] && continue
+                if [ "$name" = "server.js" ]; then
+                  cp -f "$item" "$WORK_DIR/$name"
+                else
+                  ln -sfn "$item" "$WORK_DIR/$name"
+                fi
+              done
+              for item in "$APP_DIR/.next"/*; do
+                [ -e "$item" ] || continue
+                name="$(basename "$item")"
+                [ "$name" = "cache" ] && continue
+                if [ "$name" = "server" ]; then
+                  mkdir -p "$WORK_DIR/.next/server"
+                  for sub in "$APP_DIR/.next/server"/*; do
+                    [ -e "$sub" ] || continue
+                    subname="$(basename "$sub")"
+                    if [ "$subname" = "app" ]; then
+                      cp -r "$sub" "$WORK_DIR/.next/server/app"
+                      chmod -R u+w "$WORK_DIR/.next/server/app"
+                    else
+                      ln -sfn "$sub" "$WORK_DIR/.next/server/$subname"
+                    fi
+                  done
+                else
+                  ln -sfn "$item" "$WORK_DIR/.next/$name"
+                fi
+              done
+
+              export PRISMA_QUERY_ENGINE_LIBRARY="$WORK_DIR/prisma/libquery_engine.node"
+              cd "$WORK_DIR"
+              exec ${pkgs.nodejs}/bin/node server.js
+              STARTEOF
+              chmod +x $out/start.sh
+            '';
+
+            meta = {
+              description = "OpenCouncil production build";
+              platforms = systems;
+            };
+          };
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-docker oc-dev-app-local oc-cleanup;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-docker oc-dev-app-local oc-cleanup opencouncil-prod;
         });
+
+      nixosModules.opencouncil-preview = { config, lib, pkgs, ... }:
+        with lib;
+        let
+          cfg = config.services.opencouncil-preview;
+        in {
+          options.services.opencouncil-preview = {
+            enable = mkEnableOption "OpenCouncil preview deployments";
+
+            previewsDir = mkOption {
+              type = types.path;
+              default = "/var/lib/opencouncil-previews";
+              description = "Directory to store preview instances";
+            };
+
+            user = mkOption {
+              type = types.str;
+              default = "opencouncil";
+              description = "User to run preview services";
+            };
+
+            group = mkOption {
+              type = types.str;
+              default = "opencouncil";
+              description = "Group to run preview services";
+            };
+
+            databaseUrl = mkOption {
+              type = types.str;
+              description = "Database URL for previews (typically staging)";
+            };
+
+            basePort = mkOption {
+              type = types.int;
+              default = 3000;
+              description = "Base port for preview instances (PR number will be added)";
+            };
+
+            envFile = mkOption {
+              type = types.nullOr types.path;
+              default = null;
+              description = ''
+                Path to an environment file with shared runtime env vars
+                (API keys, storage config, etc.). Loaded by systemd EnvironmentFile=.
+              '';
+            };
+
+            previewDomain = mkOption {
+              type = types.str;
+              default = "preview.opencouncil.gr";
+              description = "Domain for preview subdomains (pr-N.<domain>)";
+            };
+          };
+
+          config = mkIf cfg.enable {
+            users.users.${cfg.user} = {
+              isSystemUser = true;
+              group = cfg.group;
+              home = cfg.previewsDir;
+              createHome = true;
+            };
+
+            users.groups.${cfg.group} = {};
+
+            # Template systemd service for preview instances.
+            # Instance name (%i) is the port number (basePort + PR number).
+            # Each PR has its own app at /var/lib/opencouncil-previews/pr-<N>/app
+            # (a symlink to the nix store path, created by opencouncil-preview-create).
+            systemd.services."opencouncil-preview@" = {
+              description = "OpenCouncil preview instance on port %i";
+              after = [ "network.target" ];
+
+              serviceConfig = {
+                Type = "simple";
+                User = cfg.user;
+                Group = cfg.group;
+                Environment = [
+                  "NODE_ENV=production"
+                  "PORT=%i"
+                  "DATABASE_URL=${cfg.databaseUrl}"
+                  "HOSTNAME=0.0.0.0"
+                ];
+                # Load shared env vars (API keys, storage config, etc.) from file
+                EnvironmentFile = mkIf (cfg.envFile != null) cfg.envFile;
+                ExecStart = let
+                  startScript = pkgs.writeShellScript "opencouncil-preview-start" ''
+                    set -euo pipefail
+                    PORT="$1"
+                    PR_NUM=$((PORT - ${toString cfg.basePort}))
+                    APP_DIR="${cfg.previewsDir}/pr-$PR_NUM/app"
+                    if [ ! -L "$APP_DIR" ] && [ ! -d "$APP_DIR" ]; then
+                      echo "Error: app not found at $APP_DIR" >&2
+                      exit 1
+                    fi
+
+                    # Set per-PR URLs at runtime
+                    export NEXT_PUBLIC_BASE_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
+                    # NEXTAUTH_URL is required for NextAuth to construct correct callback URLs
+                    # (e.g., magic link emails). Without this, it falls back to 0.0.0.0:PORT.
+                    export NEXTAUTH_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
+
+                    # Prisma query engine: built for NixOS, copied into the output by installPhase
+                    export PRISMA_QUERY_ENGINE_LIBRARY="$APP_DIR/prisma/libquery_engine.node"
+
+                    # Next.js needs a writable .next/cache directory for ISR and image optimization.
+                    # The nix store is read-only, so we create a writable working directory that
+                    # mirrors the store path but with a real .next/cache.
+                    WORK_DIR="${cfg.previewsDir}/pr-$PR_NUM/work"
+                    mkdir -p "$WORK_DIR/.next/cache"
+
+                    # Symlink everything from the store into the work dir.
+                    # server.js is COPIED (not symlinked) because it uses __dirname
+                    # and Node.js resolves symlinks, which would point back to the
+                    # read-only nix store instead of this writable work dir.
+                    for item in "$APP_DIR"/*; do
+                      name="$(basename "$item")"
+                      [ "$name" = ".next" ] && continue
+                      if [ "$name" = "server.js" ]; then
+                        cp -f "$item" "$WORK_DIR/$name"
+                      else
+                        ln -sfn "$item" "$WORK_DIR/$name"
+                      fi
+                    done
+
+                    # Symlink .next contents except cache
+                    mkdir -p "$WORK_DIR/.next"
+                    for item in "$APP_DIR/.next"/*; do
+                      name="$(basename "$item")"
+                      [ "$name" = "cache" ] && continue
+                      ln -sfn "$item" "$WORK_DIR/.next/$name"
+                    done
+
+                    cd "$WORK_DIR"
+                    exec ${pkgs.nodejs}/bin/node server.js
+                  '';
+                in "${startScript} %i";
+                Restart = "on-failure";
+                RestartSec = "5s";
+
+                # Security hardening
+                NoNewPrivileges = true;
+                PrivateTmp = true;
+                ProtectHome = true;
+                ReadWritePaths = [ cfg.previewsDir ];
+              };
+            };
+
+            environment.systemPackages = [
+              (pkgs.writeShellScriptBin "opencouncil-preview-create" ''
+                set -euo pipefail
+
+                if [ $# -lt 2 ]; then
+                  echo "Usage: opencouncil-preview-create <pr-number> <nix-store-path>" >&2
+                  exit 1
+                fi
+
+                pr_num="$1"
+                store_path="$2"
+                port=$((${toString cfg.basePort} + pr_num))
+                pr_dir="${cfg.previewsDir}/pr-$pr_num"
+
+                # Fetch the store path from Cachix (or other configured substituters) if not already local
+                if [ ! -d "$store_path" ]; then
+                  echo "Fetching $store_path from binary cache..."
+                  nix-store --realise "$store_path" || {
+                    echo "Error: could not fetch store path: $store_path" >&2
+                    exit 1
+                  }
+                fi
+
+                # Create per-PR directory and symlink to the build
+                mkdir -p "$pr_dir"
+                ln -sfn "$store_path" "$pr_dir/app"
+                chown -R ${cfg.user}:${cfg.group} "$pr_dir"
+
+                echo "Creating preview for PR #$pr_num on port $port"
+                echo "  App: $store_path"
+
+                # Stop existing service if running, then start fresh
+                systemctl stop "opencouncil-preview@$port" 2>/dev/null || true
+                systemctl start "opencouncil-preview@$port"
+
+                # Configure Caddy (if caddy-add-preview is available)
+                if command -v caddy-add-preview >/dev/null 2>&1; then
+                  sudo caddy-add-preview "$pr_num"
+                fi
+
+                echo ""
+                echo "✓ Preview created successfully"
+                echo "  Local: http://localhost:$port"
+                echo "  Public: https://pr-$pr_num.${cfg.previewDomain}"
+                echo "  Service: opencouncil-preview@$port"
+              '')
+
+              (pkgs.writeShellScriptBin "opencouncil-preview-destroy" ''
+                set -euo pipefail
+
+                if [ $# -ne 1 ]; then
+                  echo "Usage: opencouncil-preview-destroy <pr-number>" >&2
+                  exit 1
+                fi
+
+                pr_num="$1"
+                port=$((${toString cfg.basePort} + pr_num))
+                pr_dir="${cfg.previewsDir}/pr-$pr_num"
+
+                echo "Destroying preview for PR #$pr_num (port $port)"
+
+                # Stop systemd service
+                systemctl stop "opencouncil-preview@$port" || true
+
+                # Remove per-PR directory
+                if [ -d "$pr_dir" ]; then
+                  rm -rf "$pr_dir"
+                fi
+
+                # Remove Caddy config (if caddy-remove-preview is available)
+                if command -v caddy-remove-preview >/dev/null 2>&1; then
+                  sudo caddy-remove-preview "$pr_num"
+                fi
+
+                echo "✓ Preview destroyed"
+              '')
+
+              (pkgs.writeShellScriptBin "opencouncil-preview-logs" ''
+                set -euo pipefail
+
+                if [ $# -lt 1 ]; then
+                  echo "Usage: opencouncil-preview-logs <pr-number> [journalctl args...]" >&2
+                  echo "Example: opencouncil-preview-logs 123" >&2
+                  echo "Example: opencouncil-preview-logs 123 -n 50" >&2
+                  exit 1
+                fi
+
+                pr_num="$1"
+                shift
+                port=$((${toString cfg.basePort} + pr_num))
+
+                # Default to follow mode if no extra args given
+                if [ $# -eq 0 ]; then
+                  exec journalctl -u "opencouncil-preview@$port" -f
+                else
+                  exec journalctl -u "opencouncil-preview@$port" "$@"
+                fi
+              '')
+
+              (pkgs.writeShellScriptBin "opencouncil-preview-list" ''
+                set -euo pipefail
+
+                echo "Active preview instances:"
+                echo ""
+                systemctl list-units "opencouncil-preview@*" --all --no-pager
+                echo ""
+                echo "Deployed builds:"
+                for pr_dir in ${cfg.previewsDir}/pr-*; do
+                  if [ -d "$pr_dir" ]; then
+                    pr_name="$(basename "$pr_dir")"
+                    app_link="$pr_dir/app"
+                    if [ -L "$app_link" ]; then
+                      echo "  $pr_name → $(readlink "$app_link")"
+                    else
+                      echo "  $pr_name (no app symlink)"
+                    fi
+                  fi
+                done
+              '')
+            ];
+          };
+        };
 
       apps = forAllSystems (system: pkgs: {
         dev = {
@@ -561,6 +1030,27 @@ EOF
         cleanup = {
           type = "app";
           program = "${self.packages.${system}.oc-cleanup}/bin/oc-cleanup";
+        };
+        build = {
+          type = "app";
+          program = "${pkgs.writeShellScript "oc-build" ''
+            set -euo pipefail
+            echo "Building OpenCouncil production package..."
+            nix build .#opencouncil-prod "$@"
+            echo "Build complete. Output in ./result/"
+          ''}";
+        };
+        start = {
+          type = "app";
+          program = "${pkgs.writeShellScript "oc-start" ''
+            set -euo pipefail
+            if [ ! -d "./result" ]; then
+              echo "Error: No build found. Run 'nix run .#build' first." >&2
+              exit 1
+            fi
+            echo "Starting OpenCouncil production server..."
+            exec ./result/start.sh
+          ''}";
         };
       });
     };

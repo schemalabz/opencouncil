@@ -1,0 +1,237 @@
+name: Deploy PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+# Only allow one deployment per PR at a time
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
+
+jobs:
+  # Check for database migrations
+  check-migrations:
+    name: Check for Migrations
+    runs-on: ubuntu-latest
+    outputs:
+      has-migrations: ${{ steps.check.outputs.has-migrations }}
+      migration-override: ${{ steps.check.outputs.override }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for migration files
+        id: check
+        run: |
+          set -euo pipefail
+
+          # Check if PR body contains override flag
+          OVERRIDE="false"
+          if echo "${{ github.event.pull_request.body }}" | grep -qi "\[skip-migration-check\]"; then
+            OVERRIDE="true"
+            echo "override=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Migration check override detected in PR body"
+          fi
+
+          # Get changed files in prisma/migrations/
+          CHANGED_MIGRATIONS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^prisma/migrations/' || true)
+
+          if [ -n "$CHANGED_MIGRATIONS" ]; then
+            echo "has-migrations=true" >> $GITHUB_OUTPUT
+            echo "### ⚠️ Migration Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This PR contains database migration files:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$CHANGED_MIGRATIONS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            if [ "$OVERRIDE" = "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Override flag detected - deployment will proceed" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "❌ Preview deployment blocked" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "To override, add \`[skip-migration-check]\` to the PR description." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "has-migrations=false" >> $GITHUB_OUTPUT
+            echo "✅ No migrations detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Build and deploy preview
+  deploy:
+    name: Build and Deploy Preview
+    runs-on: ubuntu-latest
+    needs: check-migrations
+    # Skip if migrations detected without override
+    if: needs.check-migrations.outputs.has-migrations != 'true' || needs.check-migrations.outputs.migration-override == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: ${{ env.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          pushFilter: "opencouncil-prod"
+
+      - name: Build production package
+        env:
+          # NOTE: DATABASE_URL is not needed at build time — Nix sandbox blocks
+          # network access, so DB queries fail silently. Pages needing DB data
+          # are deleted from the build output and regenerated at runtime.
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr' }}
+          NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN }}
+          NEXT_PUBLIC_CONTACT_PHONE: ${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}
+          NEXT_PUBLIC_CONTACT_EMAIL: ${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}
+          NEXT_PUBLIC_CONTACT_ADDRESS: ${{ secrets.NEXT_PUBLIC_CONTACT_ADDRESS }}
+        run: |
+          echo "Building OpenCouncil production package..."
+          nix build --impure .#opencouncil-prod --print-build-logs
+
+      - name: Push to Cachix
+        run: |
+          echo "Pushing build to Cachix..."
+          cachix push ${{ env.CACHIX_CACHE_NAME }} ./result
+
+      - name: Get store path
+        id: store-path
+        run: |
+          STORE_PATH=$(readlink ./result)
+          echo "path=$STORE_PATH" >> $GITHUB_OUTPUT
+          echo "Store path: $STORE_PATH"
+
+      - name: Deploy to preview host
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_DEPLOY_SSH_KEY }}
+          PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
+          PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
+          STORE_PATH: ${{ steps.store-path.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((3000 + PR_NUM))
+
+          echo "Deploying preview for PR #$PR_NUM on port $PORT"
+
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PREVIEW_HOST" >> ~/.ssh/known_hosts
+
+          SSH_CMD="ssh -i ~/.ssh/deploy_key ${PREVIEW_USER}@${PREVIEW_HOST}"
+
+          # The droplet pulls the build from Cachix automatically (configured as a substituter).
+          # Just SSH in and create the preview — nix-store --realise is called by the create script.
+          echo "Creating/updating preview instance..."
+          $SSH_CMD "sudo opencouncil-preview-create $PR_NUM $STORE_PATH"
+
+          echo "### 🚀 Preview Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+          echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = `https://pr-${prNumber}.preview.opencouncil.gr`;
+            const commitSha = context.sha.substring(0, 7);
+
+            // Check if we already commented
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
+            );
+
+            const body = `## 🚀 Preview deployment ready!
+
+**Preview URL:** ${previewUrl}
+**Commit:** \`${commitSha}\`
+
+The preview will be automatically updated when you push new commits.
+It will be destroyed when this PR is closed or merged.
+
+---
+*This preview uses the staging database - any changes will affect other previews.*`;
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
+            }
+
+  # Post migration warning if blocked
+  migration-warning:
+    name: Post Migration Warning
+    runs-on: ubuntu-latest
+    needs: check-migrations
+    if: needs.check-migrations.outputs.has-migrations == 'true' && needs.check-migrations.outputs.migration-override != 'true'
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            const body = `## ⚠️ Preview deployment blocked
+
+This PR contains database migrations, which are not supported in preview deployments.
+
+**Why?** All preview instances share the staging database. Running migrations could break other previews or staging environment.
+
+**What to do:**
+1. Test migrations locally or in a dedicated environment
+2. If you're confident the migrations are safe, add \`[skip-migration-check]\` to the PR description to override this check
+3. Remember: overriding means the migration will run on the shared staging database
+
+**Migration files detected:**
+\`\`\`
+$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^prisma/migrations/' || echo "Unable to list files")
+\`\`\`
+
+---
+*To override this check, edit the PR description and add* \`[skip-migration-check]\` *anywhere in the text.*`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body,
+            });
