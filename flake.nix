@@ -31,6 +31,7 @@
               pkg-config
               prisma-engines
               process-compose
+              gh             # GitHub CLI for PR/issue management
               postgresql_16  # Provides psql CLI for interactive DB access
             ])
             ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
@@ -586,6 +587,7 @@ EOF
               pixman
               libpng
               glib
+              librsvg
             ];
 
             # Set up environment for Prisma and canvas
@@ -595,14 +597,6 @@ EOF
               export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
               export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
               export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
-
-              # Canvas package configuration - include all required pkgconfig paths
-              export PKG_CONFIG_PATH="${pkgs.cairo.dev}/lib/pkgconfig:${pkgs.pango.dev}/lib/pkgconfig:${pkgs.libjpeg.dev}/lib/pkgconfig:${pkgs.pixman}/lib/pkgconfig:${pkgs.giflib}/lib/pkgconfig:${pkgs.librsvg.dev}/lib/pkgconfig:${pkgs.libpng.dev}/lib/pkgconfig:${pkgs.glib.dev}/lib/pkgconfig"
-              export LD_LIBRARY_PATH="${pkgs.cairo}/lib:${pkgs.pango}/lib:${pkgs.libjpeg}/lib:${pkgs.giflib}/lib:${pkgs.pixman}/lib:${pkgs.librsvg}/lib:${pkgs.libpng}/lib:${pkgs.glib}/lib"
-
-              ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-                export LD_LIBRARY_PATH="${pkgs.util-linux.lib}/lib:$LD_LIBRARY_PATH"
-              ''}
 
               # Skip env validation during build — most server-side secrets
               # (API keys, etc.) aren't needed at build time.
@@ -639,7 +633,7 @@ EOF
 
               # Now rebuild canvas with proper dependencies available
               # (it was skipped during npm install due to --ignore-scripts)
-              npm rebuild canvas || echo "Canvas rebuild failed, continuing anyway..."
+              npm rebuild canvas
 
               # Generate Prisma client
               npx prisma generate
@@ -769,11 +763,6 @@ EOF
               description = "Group to run preview services";
             };
 
-            databaseUrl = mkOption {
-              type = types.str;
-              description = "Database URL for previews (typically staging)";
-            };
-
             basePort = mkOption {
               type = types.int;
               default = 3000;
@@ -794,6 +783,20 @@ EOF
               default = "preview.opencouncil.gr";
               description = "Domain for preview subdomains (pr-N.<domain>)";
             };
+
+            cachix = {
+              enable = mkEnableOption "Cachix binary cache";
+              cacheName = mkOption {
+                type = types.str;
+                default = "opencouncil";
+                description = "Cachix cache name";
+              };
+              publicKey = mkOption {
+                type = types.str;
+                default = "opencouncil.cachix.org-1:D6DC/9ZvVTQ8OJkdXM86jny5dQWjGofNq9p6XqeCWwI=";
+                description = "Cachix public key for signature verification";
+              };
+            };
           };
 
           config = mkIf cfg.enable {
@@ -806,6 +809,99 @@ EOF
             };
 
             users.groups.${cfg.group} = {};
+
+            # Networking
+            networking.firewall.allowedTCPPorts = [ 80 443 ];
+
+            # Nix settings
+            nix.settings.experimental-features = [ "nix-command" "flakes" ];
+            nix.settings.trusted-users = [ "root" cfg.user ];
+
+            # Cachix binary cache
+            nix.settings.substituters = mkIf cfg.cachix.enable [
+              "https://cache.nixos.org"
+              "https://${cfg.cachix.cacheName}.cachix.org"
+            ];
+            nix.settings.trusted-public-keys = mkIf cfg.cachix.enable [
+              "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+              cfg.cachix.publicKey
+            ];
+
+            # Automatic garbage collection
+            nix.gc = {
+              automatic = true;
+              dates = "weekly";
+              options = "--delete-older-than 30d";
+            };
+
+            # Caddy reverse proxy with automatic HTTPS
+            services.caddy = {
+              enable = true;
+
+              virtualHosts."${cfg.previewDomain}" = {
+                extraConfig = ''
+                  respond "OpenCouncil PR Preview Host - Active previews managed dynamically" 200
+                '';
+              };
+
+              extraConfig = ''
+                import /etc/caddy/conf.d/*
+              '';
+            };
+
+            # Create directory for Caddy drop-in configs
+            systemd.tmpfiles.rules = [
+              "d /etc/caddy/conf.d 0755 caddy caddy -"
+            ];
+
+            # Sudo rules for the deploy user
+            security.sudo.extraRules = [
+              {
+                users = [ cfg.user ];
+                commands = [
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl start opencouncil-preview@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl stop opencouncil-preview@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl enable opencouncil-preview@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl disable opencouncil-preview@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl status opencouncil-preview@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl reload caddy";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "/run/current-system/sw/bin/caddy-add-preview";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "/run/current-system/sw/bin/caddy-remove-preview";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "/run/current-system/sw/bin/opencouncil-preview-create";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "/run/current-system/sw/bin/opencouncil-preview-destroy";
+                    options = [ "NOPASSWD" ];
+                  }
+                ];
+              }
+            ];
 
             # Template systemd service for preview instances.
             # Instance name (%i) is the port number (basePort + PR number).
@@ -822,7 +918,6 @@ EOF
                 Environment = [
                   "NODE_ENV=production"
                   "PORT=%i"
-                  "DATABASE_URL=${cfg.databaseUrl}"
                   "HOSTNAME=0.0.0.0"
                 ];
                 # Load shared env vars (API keys, storage config, etc.) from file
@@ -891,6 +986,65 @@ EOF
             };
 
             environment.systemPackages = [
+              # Utility packages
+              pkgs.git
+              pkgs.cachix
+              pkgs.htop
+              pkgs.curl
+              pkgs.jq
+
+              # Caddy helper scripts
+              (pkgs.writeShellScriptBin "caddy-add-preview" ''
+                set -euo pipefail
+
+                if [ $# -ne 1 ]; then
+                  echo "Usage: caddy-add-preview <pr-number>" >&2
+                  exit 1
+                fi
+
+                pr_num="$1"
+                port=$((${toString cfg.basePort} + pr_num))
+                config_file="/etc/caddy/conf.d/pr-$pr_num.conf"
+
+                mkdir -p /etc/caddy/conf.d
+
+                cat > "$config_file" <<CADDYEOF
+pr-$pr_num.${cfg.previewDomain} {
+  reverse_proxy localhost:$port {
+    header_up Host {host}
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}
+CADDYEOF
+
+                echo "Added Caddy config for PR #$pr_num at $config_file"
+
+                systemctl reload caddy
+              '')
+
+              (pkgs.writeShellScriptBin "caddy-remove-preview" ''
+                set -euo pipefail
+
+                if [ $# -ne 1 ]; then
+                  echo "Usage: caddy-remove-preview <pr-number>" >&2
+                  exit 1
+                fi
+
+                pr_num="$1"
+                config_file="/etc/caddy/conf.d/pr-$pr_num.conf"
+
+                if [ -f "$config_file" ]; then
+                  rm "$config_file"
+                  echo "Removed Caddy config for PR #$pr_num"
+
+                  systemctl reload caddy
+                else
+                  echo "No Caddy config found for PR #$pr_num"
+                fi
+              '')
+
               (pkgs.writeShellScriptBin "opencouncil-preview-create" ''
                 set -euo pipefail
 
@@ -927,7 +1081,7 @@ EOF
 
                 # Configure Caddy (if caddy-add-preview is available)
                 if command -v caddy-add-preview >/dev/null 2>&1; then
-                  sudo caddy-add-preview "$pr_num"
+                  caddy-add-preview "$pr_num"
                 fi
 
                 echo ""
@@ -961,7 +1115,7 @@ EOF
 
                 # Remove Caddy config (if caddy-remove-preview is available)
                 if command -v caddy-remove-preview >/dev/null 2>&1; then
-                  sudo caddy-remove-preview "$pr_num"
+                  caddy-remove-preview "$pr_num"
                 fi
 
                 echo "✓ Preview destroyed"
