@@ -1,12 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
 @import 'react-quill/dist/quill.snow.css';
+
+/* 
+ * Local fonts are loaded via next/font/local in src/lib/fonts.ts
+ * and applied to the body via CSS variables:
+ * - --font-sans: Inter (primary UI font)
+ * - --font-roboto: Roboto (transcript text)
+ * - --font-roboto-mono: Roboto Mono (monospace/timestamps)
+ */
 
 @font-face {
   font-family: 'Relative Book Pro';
-  src: url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.woff2') format('woff2'),
-       url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.woff') format('woff'),
-       url('https://townhalls-gr.fra1.cdn.digitaloceanspaces.com/fonts/relative-book-pro.ttf') format('truetype');
+  src: url('/fonts/relative-book-pro.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -182,8 +186,13 @@ h2 {
 
 /* Transcript text styles */
 .transcript-text {
-  font-family: 'Roboto', sans-serif;
+  font-family: var(--font-roboto), 'Roboto', sans-serif;
   line-height: 1.5;
+}
+
+/* Monospace font utility */
+.font-mono-roboto {
+  font-family: var(--font-roboto-mono), 'Roboto Mono', monospace;
 }
 
 .largevideo {
