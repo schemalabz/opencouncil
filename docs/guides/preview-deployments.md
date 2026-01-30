@@ -9,8 +9,9 @@ GitHub Actions (on PR open/push)
   1. Detect prisma/migrations/ changes → block if found (override: [skip-migration-check] in PR body)
   2. nix build .#opencouncil-prod
   3. cachix push opencouncil ./result
-  4. SSH to droplet → nix build from cache → opencouncil-preview-create <pr>
-  5. Post preview URL as PR comment
+  4. SSH to droplet → nix-store --realise from cache → opencouncil-preview-create <pr>
+  5. Health check (curl preview URL, retry up to 10×)
+  6. Post preview URL + health status as PR comment
 
 GitHub Actions (on PR close)
   → SSH to droplet → opencouncil-preview-destroy <pr>
@@ -27,9 +28,8 @@ On the droplet, each PR maps to:
 | File | Purpose |
 |------|---------|
 | `flake.nix` → `opencouncil-prod` | `buildNpmPackage` producing a Next.js standalone build |
-| `flake.nix` → `nixosModules.opencouncil-preview` | NixOS module: systemd template service, user/group, management scripts |
-| `nix/preview-host.nix` | Host-level config: Caddy, sudo rules, helper scripts, garbage collection |
-| `.github/workflows/preview-deploy.yml` | Build + deploy on PR open/sync |
+| `flake.nix` → `nixosModules.opencouncil-preview` | Self-contained NixOS module: systemd service, Caddy, sudo rules, management scripts, garbage collection |
+| `.github/workflows/preview-deploy.yml` | Build + deploy on PR open/sync (includes health check) |
 | `.github/workflows/preview-cleanup.yml` | Teardown on PR close |
 
 ## Nix Build Details
@@ -53,45 +53,79 @@ The `opencouncil-prod` package in `flake.nix` uses `buildNpmPackage` with these 
 - Minimum: 2 GB RAM, 20 GB disk
 - DNS: `A preview → <ip>` and `A *.preview → <ip>` for `opencouncil.gr`
 
-### Configuration Files
+### Configuration
 
-The droplet needs three files in `/etc/nixos/`:
+The droplet consumes the NixOS module directly from the flake. You need two files in `/etc/nixos/`:
 
-1. **`opencouncil-preview-module.nix`** — Extracted from `flake.nix` `nixosModules.opencouncil-preview`. This is a standalone copy because the droplet uses traditional NixOS config, not flakes. Defines: `services.opencouncil-preview` options, systemd template service, user/group, management scripts (`opencouncil-preview-create`, `opencouncil-preview-destroy`, `opencouncil-preview-list`).
+**`/etc/nixos/flake.nix`** — points at the repo:
 
-2. **`preview-host.nix`** — From `nix/preview-host.nix` in this repo. Defines: Caddy setup, firewall rules, sudo rules for the deploy user, caddy helper scripts (`caddy-add-preview`, `caddy-remove-preview`), nix garbage collection.
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    opencouncil.url = "github:schemalabz/opencouncil";
+  };
 
-3. **`configuration.nix`** — Main NixOS config importing the above two and setting:
-   ```nix
-   {
-     imports = [
-       (modulesPath + "/virtualisation/digital-ocean-config.nix")
-       ./opencouncil-preview-module.nix
-       ./preview-host.nix
-     ];
+  outputs = { self, nixpkgs, opencouncil, ... }: {
+    nixosConfigurations.preview = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        (nixpkgs + "/nixos/modules/virtualisation/digital-ocean-config.nix")
+        opencouncil.nixosModules.opencouncil-preview
+        ./configuration.nix
+      ];
+    };
+  };
+}
+```
 
-     services.opencouncil-preview = {
-       enable = true;
-       databaseUrl = "postgresql://...your-staging-db...";
-       basePort = 3000;
-       envFile = "/var/lib/opencouncil-previews/.env";
-     };
+**`/etc/nixos/configuration.nix`** — host-specific settings only:
 
-     # Cachix binary cache
-     nix.settings.substituters = [
-       "https://cache.nixos.org"
-       "https://opencouncil.cachix.org"
-     ];
-     nix.settings.trusted-public-keys = [
-       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-       "opencouncil.cachix.org-1:D6DC/9ZvVTQ8OJkdXM86jny5dQWjGofNq9p6XqeCWwI="
-     ];
-     nix.settings.experimental-features = [ "nix-command" "flakes" ];
-     nix.settings.trusted-users = [ "root" "opencouncil" ];
-   }
-   ```
+```nix
+{ lib, ... }:
 
-After placing files, apply with `nixos-rebuild switch`.
+{
+  imports = lib.optional (builtins.pathExists ./do-userdata.nix) ./do-userdata.nix;
+
+  networking.hostName = "opencouncil-preview";
+
+  services.opencouncil-preview = {
+    enable = true;
+    envFile = "/var/lib/opencouncil-previews/.env";
+    cachix.enable = true;
+  };
+
+  services.openssh = {
+    enable = true;
+    settings.PasswordAuthentication = false;
+  };
+
+  users.users.root.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAA... you@host"
+  ];
+
+  system.stateVersion = "24.11";
+}
+```
+
+Apply with:
+```bash
+nixos-rebuild switch --flake /etc/nixos#preview
+```
+
+The module is self-contained — it includes Caddy, firewall rules, sudo rules, helper scripts, garbage collection, and Cachix configuration. No separate files to sync.
+
+### Updating the Module
+
+When `nixosModules.opencouncil-preview` changes in the repo, pull the update on the droplet:
+
+```bash
+# Update the opencouncil flake input to latest commit
+nix flake update opencouncil --flake /etc/nixos
+
+# Apply
+nixos-rebuild switch --flake /etc/nixos#preview
+```
 
 ### SSH Key for GitHub Actions
 
@@ -115,7 +149,6 @@ The app requires many env vars at runtime (API keys, storage config, etc.). Thes
 
 **Per-instance (set by the NixOS module automatically):**
 - `PORT` — `basePort + PR_NUMBER`
-- `DATABASE_URL` — from `services.opencouncil-preview.databaseUrl`
 - `NODE_ENV=production`
 - `HOSTNAME=0.0.0.0`
 - `NEXT_PUBLIC_BASE_URL` — `https://pr-<N>.preview.opencouncil.gr` (set by the start script)
@@ -123,7 +156,7 @@ The app requires many env vars at runtime (API keys, storage config, etc.). Thes
 
 **Shared (env file at `/var/lib/opencouncil-previews/.env`):**
 
-All other required env vars, shared across all previews. Create this file on the droplet:
+All secrets and shared env vars, including `DATABASE_URL`. This file is `chmod 600` and never ends up in the Nix store. Create it on the droplet:
 
 ```bash
 ssh root@<droplet-ip>
@@ -133,7 +166,8 @@ nano /var/lib/opencouncil-previews/.env
 Required contents (replace values with real staging credentials):
 
 ```env
-# Database (direct/non-pooled connection for Prisma migrate)
+# Database
+DATABASE_URL=postgresql://...
 DIRECT_URL=postgresql://...
 
 # Auth
@@ -180,7 +214,7 @@ The NixOS module loads this file via systemd `EnvironmentFile=`. Optional vars (
 | `CACHIX_AUTH_TOKEN` | Personal auth token from [app.cachix.org/personal-auth-tokens](https://app.cachix.org/personal-auth-tokens) |
 | `CACHIX_CACHE_NAME` | `opencouncil` |
 | `PREVIEW_DEPLOY_SSH_KEY` | SSH private key (full content including headers) |
-| `PREVIEW_HOST` | Droplet IP (e.g., `159.89.98.26`) |
+| `PREVIEW_HOST` | Droplet IP (e.g., `113.54.65.12`) |
 | `PREVIEW_USER` | `opencouncil` |
 
 ## Manual Management
@@ -232,7 +266,7 @@ cachix push opencouncil ./result
 ### 3. Deploy to droplet
 
 ```bash
-DROPLET=159.89.98.26
+DROPLET=<DROPLET-IP>
 
 # The create script automatically fetches the store path from Cachix
 ssh root@$DROPLET "sudo opencouncil-preview-create 999 $(readlink ./result)"
@@ -244,19 +278,7 @@ ssh root@$DROPLET "sudo opencouncil-preview-create 999 $(readlink ./result)"
 curl -sI https://pr-999.preview.opencouncil.gr | head -20
 ```
 
-### 5. Sync NixOS module (if flake.nix module changed)
-
-If you changed `nixosModules.opencouncil-preview` in `flake.nix`, sync it to the droplet:
-
-```bash
-# Extract the module from flake.nix (between nixosModules.opencouncil-preview and the closing)
-# and copy to the droplet, then rebuild:
-scp nix/preview-host.nix root@$DROPLET:/etc/nixos/preview-host.nix
-# For the module, extract it manually or use the Python script from the previous session
-ssh root@$DROPLET "nixos-rebuild switch"
-```
-
-### 6. Teardown
+### 5. Teardown
 
 ```bash
 ssh root@$DROPLET "sudo opencouncil-preview-destroy 999"
@@ -291,5 +313,4 @@ nix-collect-garbage -d   # remove old builds (also runs weekly via systemd timer
 
 - [Cachix Setup](./cachix-setup.md)
 - [GitHub Secrets Reference](../../.github/SECRETS.md)
-- `nix/preview-host.nix` — host-level NixOS config (Caddy, sudo, scripts)
-- `flake.nix` — production build package + NixOS module
+- `flake.nix` — production build package + self-contained NixOS module

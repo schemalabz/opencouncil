@@ -155,6 +155,24 @@ jobs:
           echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
           echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
 
+      - name: Health check
+        id: health-check
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          URL="https://pr-${PR_NUM}.preview.opencouncil.gr"
+          for i in $(seq 1 10); do
+            HTTP_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "status=healthy" >> $GITHUB_OUTPUT
+              echo "Preview is healthy (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE, retrying..."
+            sleep 3
+          done
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          echo "Preview did not return HTTP 200 after 10 attempts"
+
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
@@ -162,6 +180,7 @@ jobs:
             const prNumber = context.payload.pull_request.number;
             const previewUrl = 'https://pr-' + prNumber + '.preview.opencouncil.gr';
             const commitSha = context.sha.substring(0, 7);
+            const healthStatus = '${{ steps.health-check.outputs.status }}';
 
             // Check if we already commented
             const { data: comments } = await github.rest.issues.listComments({
@@ -174,12 +193,19 @@ jobs:
               comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
             );
 
-            const body = '## 🚀 Preview deployment ready!\n\n'
+            let body = '## 🚀 Preview deployment ready!\n\n'
               + '**Preview URL:** ' + previewUrl + '\n'
               + '**Commit:** `' + commitSha + '`\n\n'
               + 'The preview will be automatically updated when you push new commits.\n'
-              + 'It will be destroyed when this PR is closed or merged.\n\n'
-              + '---\n'
+              + 'It will be destroyed when this PR is closed or merged.\n\n';
+
+            if (healthStatus === 'unhealthy') {
+              body += '> ⚠️ **Health check failed** — the preview did not respond with HTTP 200 after deployment. '
+                + 'It may still be starting up, or there could be a runtime error. '
+                + 'Check the [workflow logs](' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + ') for details.\n\n';
+            }
+
+            body += '---\n'
               + '*This preview uses the staging database - any changes will affect other previews.*';
 
             if (botComment) {
