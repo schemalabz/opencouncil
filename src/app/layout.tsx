@@ -1,17 +1,11 @@
 import "./globals.css"
-import { Inter as FontSans } from "next/font/google"
 import { cn } from "../lib/utils"
 import React from "react"
 import PlausibleProvider from 'next-plausible'
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
-
-// Keep Inter as a fallback font
-const fontSans = FontSans({
-    subsets: ["latin"],
-    variable: "--font-sans",
-})
+import { inter, roboto, robotoMono } from "@/lib/fonts";
 
 export const metadata = {
     title: 'OpenCouncil',
@@ -68,7 +62,9 @@ export default async function RootLayout({
             <body
                 className={cn(
                     "min-h-screen bg-background font-sans antialiased",
-                    fontSans.variable
+                    inter.variable,
+                    roboto.variable,
+                    robotoMono.variable
                 )}
             >
                 <SessionProvider>
