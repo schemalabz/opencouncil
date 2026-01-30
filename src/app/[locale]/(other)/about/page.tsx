@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import About from "@/components/static/About"
 import { Metadata } from "next"
 import { env } from '@/env.mjs'
-import { getSupportedCitiesWithLogos } from '@/lib/db/cities'
+import { getSupportedCitiesWithLogosCached } from '@/lib/cache/queries'
 
 export async function generateMetadata(): Promise<Metadata> {
     const description = "Το OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά. Μάθετε περισσότερα για την αποστολή μας, την τεχνολογία μας και την ομάδα μας.";
@@ -59,6 +59,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AboutPage() {
-    const citiesWithLogos = await getSupportedCitiesWithLogos()
+    const citiesWithLogos = await getSupportedCitiesWithLogosCached().catch(error => {
+        console.error('Failed to fetch cities with logos:', error);
+        return [];
+    });
     return <About citiesWithLogos={citiesWithLogos} />
 }
