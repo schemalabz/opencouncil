@@ -142,9 +142,16 @@ const UtteranceC: React.FC<{
         const originalStart = localUtterance.startTimestamp;
         const originalEnd = localUtterance.endTimestamp;
         
-        // Check if timestamps changed
+        // Check what changed
+        const textChanged = editedText !== originalText;
         const timestampsChanged = editedStartTime !== originalStart || editedEndTime !== originalEnd;
-        
+
+        // Nothing changed - just close the editor
+        if (!textChanged && !timestampsChanged) {
+            setIsEditing(false);
+            return;
+        }
+
         // Optimistic update - immediate
         setLocalUtterance({ 
             ...localUtterance, 
@@ -170,10 +177,11 @@ const UtteranceC: React.FC<{
                 
                 // Update everything in context in one call
                 // This will automatically recalculate and update segment timestamps
-                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { 
+                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, {
                     text: editedText,
-                    startTimestamp: editedStartTime, 
-                    endTimestamp: editedEndTime 
+                    startTimestamp: editedStartTime,
+                    endTimestamp: editedEndTime,
+                    lastModifiedBy: finalUtterance.lastModifiedBy
                 });
                 
                 // Call onUpdate if provided (for future extensibility)
@@ -182,7 +190,7 @@ const UtteranceC: React.FC<{
                 setLocalUtterance(updatedUtterance);
                 
                 // Update just the text in context
-                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { text: editedText });
+                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { text: editedText, lastModifiedBy: updatedUtterance.lastModifiedBy });
                 
                 // Call onUpdate if provided (for future extensibility)
                 onUpdate?.(updatedUtterance);

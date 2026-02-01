@@ -1,10 +1,10 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback } from 'react';
-import { Person, Party, SpeakerTag } from '@prisma/client';
+import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
 import { deleteUtterance } from '@/lib/db/utterance';
-import { getTranscript, LightTranscript, Transcript } from '@/lib/db/transcript';
+import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
@@ -26,7 +26,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     addUtteranceToSegment: (segmentId: string) => Promise<string>;
     deleteUtterance: (utteranceId: string) => Promise<void>;
-    updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number }>) => void;
+    updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => void;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
     addHighlight: (highlight: HighlightWithUtterances) => void;
@@ -322,7 +322,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return segment;
             }));
         },
-        updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number }>) => {
+        updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
             setTranscript(prev => prev.map(segment => {
                 if (segment.id === segmentId) {
                     // Update the utterance
