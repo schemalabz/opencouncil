@@ -61,5 +61,10 @@
         "pause": "Παύση",
         "seekTo": "Μετάβαση",
         "transcript": "Απομαγνητοφώνηση"
+    },
+    "copySegment": {
+        "button": "Αντιγραφή τμήματος",
+        "segmentCopied": "Το τμήμα αντιγράφηκε",
+        "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
     }
 }

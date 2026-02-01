@@ -61,5 +61,10 @@
     "pause": "Pause",
     "seekTo": "Seek to",
     "transcript": "Transcript"
+  },
+  "copySegment": {
+    "button": "Copy segment",
+    "segmentCopied": "Segment copied",
+    "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
   }
 }
