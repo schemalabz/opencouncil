@@ -1,7 +1,7 @@
 name: Cleanup PR Preview
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
     branches: [main]
 
@@ -18,6 +18,7 @@ jobs:
   cleanup:
     name: Destroy Preview Instance
     runs-on: ubuntu-latest
+    environment: preview
     steps:
       - name: Cleanup preview deployment
         env:
@@ -39,7 +40,7 @@ jobs:
           ssh-keyscan -H "$PREVIEW_HOST" >> ~/.ssh/known_hosts
 
           # Cleanup via SSH — pass PR_NUM as a positional argument since
-          # the single-quoted heredoc prevents ${{ }} expansion on the remote.
+          # the single-quoted heredoc prevents expression expansion on the remote.
           ssh -i ~/.ssh/deploy_key "${PREVIEW_USER}@${PREVIEW_HOST}" bash -s "$PR_NUM" <<'CLEANUP_SCRIPT'
             set -euo pipefail
 
