@@ -1,6 +1,89 @@
 import { Party, Role } from "@prisma/client";
 
 /**
+ * Validation error type for role validation
+ */
+export type RoleValidationError = {
+  error: string;
+};
+
+/**
+ * Validates an array of roles against business rules.
+ * Supports both role patterns:
+ * - Pattern A: cityId always set (cityId as scope) - Recommended
+ * - Pattern B: cityId only for city-level roles (cityId as role type)
+ *
+ * Validation rules:
+ * 1. Cannot have both partyId and administrativeBodyId set
+ * 2. If cityId is set, it must match the expected cityId
+ * 3. City-level roles (no party/admin body) MUST have cityId
+ * 4. Party roles must reference valid parties for the city
+ * 5. Administrative body roles must reference valid admin bodies for the city
+ *
+ * @param roles Array of roles to validate
+ * @param cityId Expected city ID that roles should belong to
+ * @param validPartyIds Set of valid party IDs for the city
+ * @param validAdminBodyIds Set of valid administrative body IDs for the city
+ * @returns null if valid, or an error object if validation fails
+ */
+export function validateRoles(
+  roles: Array<{
+    cityId?: string | null;
+    partyId?: string | null;
+    administrativeBodyId?: string | null;
+  }>,
+  cityId: string,
+  validPartyIds: Set<string>,
+  validAdminBodyIds: Set<string>
+): RoleValidationError | null {
+  for (const role of roles) {
+    // Count entity types (excluding cityId from count)
+    const entityTypes = [role.partyId, role.administrativeBodyId].filter(Boolean).length;
+
+    // Rule 1: Cannot have multiple entity types (party + admin body)
+    if (entityTypes > 1) {
+      return {
+        error: 'Each role must be assigned to at most one entity type (party or administrative body, not both).'
+      };
+    }
+
+    // Rule 2: If cityId is set, it must match the current city
+    if (role.cityId && role.cityId !== cityId) {
+      return {
+        error: 'Role cityId must match the current city.'
+      };
+    }
+
+    // Rule 3: City-level roles (no party/admin body) MUST have cityId
+    if (entityTypes === 0 && !role.cityId) {
+      return {
+        error: 'City-level role must have cityId.'
+      };
+    }
+
+    // Rule 4: Validate party roles
+    if (role.partyId) {
+      if (!validPartyIds.has(role.partyId)) {
+        return {
+          error: 'Invalid party role assignment. Party must belong to the current city.'
+        };
+      }
+    }
+
+    // Rule 5: Validate administrative body roles
+    if (role.administrativeBodyId) {
+      if (!validAdminBodyIds.has(role.administrativeBodyId)) {
+        return {
+          error: 'Invalid administrative body role assignment. Administrative body must belong to the current city.'
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Checks if a role is active at a specific date.
  * @param role Role with startDate and endDate fields
  * @param date Date to check against
@@ -159,17 +242,26 @@ export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], dat
 }
 
 /**
- * Gets a single city role from a list of roles.
+ * Gets a single non-party role from a list of roles.
+ * If administrativeBodyId is provided, returns the admin body role.
+ * Otherwise, returns a city-level role (role with no party or admin body).
+ *
+ * NOTE: This function supports both role patterns:
+ * - Pattern A: cityId always set (cityId as scope)
+ * - Pattern B: cityId only for city-level roles
+ *
  * @param roles Array of roles with cityId field
  * @param date Date to check for active roles (defaults to current date)
  * @param administrativeBodyId Optional administrative body ID to filter by
- * @returns The first city role found, or null if none found
+ * @returns The first matching role found, or null if none found
  */
 export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
   const checkDate = date || new Date();
   const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
-  const cityRoles = filteredRoles.filter(role => role.cityId);
-  return cityRoles.length > 0 ? cityRoles[0] : null;
+  // If administrativeBodyId was provided, getNonPartyRoles already filtered for it
+  // If not provided, we want city-level roles (no admin body)
+  // In both cases, just return the first filtered role (no need to filter by cityId)
+  return filteredRoles.length > 0 ? filteredRoles[0] : null;
 }
 
 /**
