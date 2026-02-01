@@ -42,7 +42,7 @@ async function fetchSitemapData(): Promise<SitemapCity[]> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    if (!baseUrl) {
+    if (!baseUrl || process.env.SKIP_FULL_SITEMAP === 'true') {
         return []
     }
 

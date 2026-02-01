@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { FileInput, LayoutTemplate, UsersIcon, PhoneIcon, PrinterIcon, ShieldCheckIcon, Users2Icon, ClockIcon, RocketIcon, CheckCircle2Icon, Cuboid, ChevronDownIcon, LayoutTemplateIcon, RotateCcw, Gem, FileBadge2, Megaphone, DollarSignIcon, BadgeEuro } from "lucide-react"
-import { Inter } from 'next/font/google'
+import { inter } from '@/lib/fonts'
 import ContactFormPopup from './ContactFormPopup'
 import React from 'react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
@@ -22,7 +22,7 @@ import {
     getCombinedProcessingPrice
 } from '@/lib/pricing'
 
-const inter = Inter({ subsets: ['greek', 'latin'] })
+// Using shared local Inter font from @/lib/fonts
 
 const fadeInUp: Variants = {
     initial: { opacity: 0, y: 20 },
