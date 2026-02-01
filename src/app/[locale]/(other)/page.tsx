@@ -1,6 +1,6 @@
 import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
-import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityCached } from "@/lib/cache/queries";
+import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
 
 export default async function HomePage({
     params: { locale }
@@ -22,7 +22,7 @@ export default async function HomePage({
     // Fetch most recent meeting for supported cities in parallel to create citiesWithMeetings
     const citiesWithMeetings: LandingCity[] = await Promise.all(
         supportedCities.map(async city => {
-            const meetings = await getCouncilMeetingsForCityCached(city.id, { limit: 1 });
+            const meetings = await getCouncilMeetingsForCityPublicCached(city.id, { limit: 1 });
             
             return {
                 ...city,

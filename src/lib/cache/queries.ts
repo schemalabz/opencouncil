@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
@@ -69,6 +69,18 @@ export async function getCouncilMeetingsForCityCached(cityId: string, { limit }:
   return createCache(
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
     ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * Public (no-auth) version of getCouncilMeetingsForCityCached.
+ * Only returns released meetings. Safe for static pages (no headers() call).
+ */
+export async function getCouncilMeetingsForCityPublicCached(cityId: string, { limit }: { limit?: number } = {}) {
+  return createCache(
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit }),
+    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
@@ -143,6 +155,17 @@ export async function getAllCitiesMinimalCached() {
   return createCache(
     () => getAllCitiesMinimal(),
     ['cities', 'all'],
+    { tags: ['cities:all'] }
+  )();
+}
+
+/**
+ * Cached version of getSupportedCitiesWithLogos
+ */
+export async function getSupportedCitiesWithLogosCached() {
+  return createCache(
+    () => getSupportedCitiesWithLogos(),
+    ['cities', 'supported-with-logos'],
     { tags: ['cities:all'] }
   )();
 }

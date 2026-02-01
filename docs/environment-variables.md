@@ -39,6 +39,22 @@ const dbUrl = env.DATABASE_URL; // This is guaranteed to be a string.
 | `DATABASE_PASSWORD` | Password for the local PostgreSQL container. | No | - |
 | `DATABASE_NAME` | Database name for the local PostgreSQL container. | No | - |
 
+### Local DB configuration (for flake dev runner)
+These variables are used by the flake runner (`nix run .#dev`) to configure **local DB modes** (`--db=nix`, `--db=docker`).
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `OC_DB_USER` | Username for local DB modes. | No | `opencouncil` |
+| `OC_DB_PASSWORD` | Password for local DB modes. | No | `opencouncil` |
+| `OC_DB_NAME` | Database name for local DB modes. | No | `opencouncil` |
+| `OC_DB_PORT` | Port for local DB modes (if unset, the runner auto-selects a free port starting at 5432). | No | auto |
+| `OC_DB_DATA_DIR` | Data directory for the Nix-managed Postgres cluster. | No | `./.data/postgres` |
+| `OC_APP_PORT` | App port (if unset, the runner auto-selects a free port starting at 3000). | No | auto |
+| `OC_PRISMA_STUDIO_PORT` | Prisma Studio port (if unset, the runner auto-selects a free port starting at 5555). | No | auto |
+| `OC_DEV_DB_MODE` | Default DB mode for `nix run .#dev` (`nix`, `docker`, `remote`, `external`). | No | `nix` |
+| `OC_DEV_MIGRATE` | If `1`, run `npm run db:deploy` before starting the app in remote/external modes. | No | `0` |
+| `OC_DEV_STUDIO` | If `0`, disable Prisma Studio in the runner. | No | auto (enabled for local DB modes) |
+
 ### Database Connection
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
@@ -151,6 +167,10 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 | `DB_PORT` | Host port for the local PostgreSQL database. | No | `5432` (auto-detected) |
 
 **Note**: By default, the run script automatically detects if these ports are in use and finds the next available port. This makes it easy to run multiple instances simultaneously (e.g., with git worktrees) without manual configuration. You can override this by explicitly setting these variables or using command-line flags. See [Running Multiple Instances](./docker-usage.md#running-multiple-instances) for detailed usage examples.
+
+### Notes: Docker vs Nix local DB credentials
+- The `DATABASE_USER` / `DATABASE_PASSWORD` / `DATABASE_NAME` variables are primarily for the **Docker `run.sh`** flow.
+- The flake runner (`nix run .#dev`) uses **`OC_DB_*`** for local DB modes so your `.env` can remain remote-oriented without breaking local DB bootstraps.
 
 ## Development Features
 

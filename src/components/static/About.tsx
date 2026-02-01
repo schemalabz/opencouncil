@@ -86,8 +86,7 @@ function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) 
         >
             <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6">
                 <motion.p
-                    className="text-xs sm:text-sm md:text-base uppercase tracking-wide text-center px-4 text-muted-foreground"
-                    style={{ fontFamily: "'Roboto Mono', monospace" }}
+                    className="text-xs sm:text-sm md:text-base uppercase tracking-wide text-center px-4 text-muted-foreground font-mono-roboto"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.6 }}
@@ -215,8 +214,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                     >
                         <div className="px-4">
                             <div
-                                className="text-center mb-3 uppercase tracking-wide font-mono text-xs"
-                                style={{ fontFamily: "'Roboto Mono', monospace" }}
+                                className="text-center mb-3 uppercase tracking-wide font-mono text-xs font-mono-roboto"
                             >
                                 ΣΥΝΕΡΓΑΖΟΜΕΝΟΙ ΔΗΜΟΙ
                             </div>

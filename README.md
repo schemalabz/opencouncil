@@ -48,6 +48,7 @@ This is a [Next.js](https://nextjs.org/) web application:
 - Node.js 18+ and npm
 - PostgreSQL 14+ with the postgis extensions
 - Docker (optional, but recommended)
+- Nix (optional, recommended for the flake-based setup)
 
 ## Contributing
 
@@ -62,6 +63,17 @@ Copy the example environment file:
    cp .env.example .env
    ```
 Then edit the file to include your specific configuration values.
+
+#### Nix (Flakes) Setup
+
+OpenCouncil supports a flake-based dev environment (recommended on NixOS, supported on macOS/Linux).
+
+Enter the dev shell:
+```bash
+nix develop
+```
+
+Once you’re in the dev shell, follow the [Nix Usage Guide](./docs/nix-usage.md) for how to install Nix (if needed), run the dev runner, choose DB modes, and use the `process-compose` UI.
 
 #### Docker Setup (Recommended)
 
