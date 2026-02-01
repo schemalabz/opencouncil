@@ -1,7 +1,7 @@
 name: Deploy PR Preview
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
     branches: [main]
 
@@ -29,6 +29,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Check for migration files
@@ -76,11 +77,60 @@ jobs:
     name: Build and Deploy Preview
     runs-on: ubuntu-latest
     needs: check-migrations
+    environment: preview
     # Skip if migrations detected without override
     if: needs.check-migrations.outputs.has-migrations != 'true' || needs.check-migrations.outputs.migration-override == 'true'
     steps:
+      - name: Comment on PR (building)
+        id: pr-comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
+            );
+
+            const body = '## ⏳ Preview deployment in progress\n\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Status:** Building...\n\n'
+              + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
+              + '---\n'
+              + '*This preview uses the staging database - any changes will affect other previews.*';
+
+            let commentId;
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+              commentId = botComment.id;
+            } else {
+              const { data: newComment } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
+              commentId = newComment.id;
+            }
+            core.setOutput('comment-id', commentId);
+
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install Nix
         uses: cachix/install-nix-action@v26
@@ -122,6 +172,28 @@ jobs:
           STORE_PATH=$(readlink ./result)
           echo "path=$STORE_PATH" >> $GITHUB_OUTPUT
           echo "Store path: $STORE_PATH"
+
+      - name: Update PR comment (deploying)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentId = ${{ steps.pr-comment.outputs.comment-id }};
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+
+            const body = '## ⏳ Preview deployment in progress\n\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Status:** Build complete, deploying to preview host...\n\n'
+              + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
+              + '---\n'
+              + '*This preview uses the staging database - any changes will affect other previews.*';
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: body,
+            });
 
       - name: Deploy to preview host
         env:
@@ -173,25 +245,16 @@ jobs:
           echo "status=unhealthy" >> $GITHUB_OUTPUT
           echo "Preview did not return HTTP 200 after 10 attempts"
 
-      - name: Comment on PR
+      - name: Update PR comment (result)
         uses: actions/github-script@v7
         with:
           script: |
+            const commentId = ${{ steps.pr-comment.outputs.comment-id }};
             const prNumber = context.payload.pull_request.number;
             const previewUrl = 'https://pr-' + prNumber + '.preview.opencouncil.gr';
-            const commitSha = context.sha.substring(0, 7);
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const healthStatus = '${{ steps.health-check.outputs.status }}';
-
-            // Check if we already commented
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-            });
-
-            const botComment = comments.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
-            );
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
 
             let body = '## 🚀 Preview deployment ready!\n\n'
               + '**Preview URL:** ' + previewUrl + '\n'
@@ -202,29 +265,18 @@ jobs:
             if (healthStatus === 'unhealthy') {
               body += '> ⚠️ **Health check failed** — the preview did not respond with HTTP 200 after deployment. '
                 + 'It may still be starting up, or there could be a runtime error. '
-                + 'Check the [workflow logs](' + context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId + ') for details.\n\n';
+                + 'Check the [workflow logs](' + logsUrl + ') for details.\n\n';
             }
 
             body += '---\n'
               + '*This preview uses the staging database - any changes will affect other previews.*';
 
-            if (botComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: body,
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: body,
-              });
-            }
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: body,
+            });
 
   # Post migration warning if blocked
   migration-warning:
