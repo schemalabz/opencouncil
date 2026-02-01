@@ -258,10 +258,15 @@ export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], dat
 export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
   const checkDate = date || new Date();
   const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
-  // If administrativeBodyId was provided, getNonPartyRoles already filtered for it
-  // If not provided, we want city-level roles (no admin body)
-  // In both cases, just return the first filtered role (no need to filter by cityId)
-  return filteredRoles.length > 0 ? filteredRoles[0] : null;
+
+  if (administrativeBodyId) {
+    // If looking for a specific admin body role, return the first match
+    return filteredRoles.length > 0 ? filteredRoles[0] : null;
+  }
+
+  // Otherwise, we want city-level roles (no admin body)
+  const cityLevelRoles = filteredRoles.filter(role => !role.administrativeBodyId);
+  return cityLevelRoles.length > 0 ? cityLevelRoles[0] : null;
 }
 
 /**
