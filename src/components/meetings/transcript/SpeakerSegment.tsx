@@ -8,12 +8,13 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, FileJson, MessageSquarePlus } from "lucide-react";
+import { Plus, Trash2, FileJson, MessageSquarePlus, Copy } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { useToast } from '@/hooks/use-toast';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -175,6 +176,8 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
+    const { toast } = useToast();
+    const tCopy = useTranslations('transcript.copySegment');
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
 
@@ -229,6 +232,15 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
         if (memoizedData.speakerTag) {
             updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
         }
+    };
+
+    const handleCopySegment = () => {
+        const mainText = segment.utterances.map(u => u.text).join(' ');
+        const attribution = tCopy('copySourceAttribution');
+        const text = mainText ? `${mainText}\n\n${attribution}` : attribution;
+        navigator.clipboard.writeText(text).then(() => {
+            toast({ description: tCopy('segmentCopied') });
+        }).catch(console.error);
     };
 
     return (
@@ -333,6 +345,23 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p>View segment metadata</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
+                                        {!renderMock && (
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                        onClick={handleCopySegment}
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{tCopy('button')}</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         )}
