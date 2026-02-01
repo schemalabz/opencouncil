@@ -6,6 +6,7 @@ import { Role } from '@prisma/client'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { validateRoles } from '@/lib/utils/roles'
 
 export async function GET(request: Request, { params }: { params: { cityId: string } }) {
     const people = await getPeopleForCity(params.cityId);
@@ -39,42 +40,10 @@ export async function POST(request: Request, { params }: { params: { cityId: str
         const validPartyIds = new Set(parties.map(p => p.id));
         const validAdminBodyIds = new Set(adminBodies.map(a => a.id));
 
-        // Validate each role
-        for (const role of roles) {
-            // Validate city roles
-            if (role.cityId) {
-                if (role.cityId !== params.cityId) {
-                    return NextResponse.json({
-                        error: 'Invalid city role assignment. Role must be for the current city.'
-                    }, { status: 400 });
-                }
-            }
-
-            // Validate party roles
-            if (role.partyId) {
-                if (!validPartyIds.has(role.partyId)) {
-                    return NextResponse.json({
-                        error: 'Invalid party role assignment. Party must belong to the current city.'
-                    }, { status: 400 });
-                }
-            }
-
-            // Validate administrative body roles
-            if (role.administrativeBodyId) {
-                if (!validAdminBodyIds.has(role.administrativeBodyId)) {
-                    return NextResponse.json({
-                        error: 'Invalid administrative body role assignment. Administrative body must belong to the current city.'
-                    }, { status: 400 });
-                }
-            }
-
-            // Ensure only one type of role is assigned
-            const roleTypes = [role.cityId, role.partyId, role.administrativeBodyId].filter(Boolean).length;
-            if (roleTypes !== 1) {
-                return NextResponse.json({
-                    error: 'Each role must be assigned to exactly one entity (city, party, or administrative body).'
-                }, { status: 400 });
-            }
+        // Validate roles using shared helper
+        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds);
+        if (validationError) {
+            return NextResponse.json(validationError, { status: 400 });
         }
     } catch (error) {
         console.error('Error validating roles:', error);
