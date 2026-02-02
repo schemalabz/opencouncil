@@ -47,7 +47,6 @@ const formSchema = z.object({
     isHead: z.boolean().default(false),
     startDate: z.date().nullable(),
     endDate: z.date().nullable(),
-    noEndDate: z.boolean().default(true),
     type: z.enum(['city', 'party', 'administrativeBody']),
     partyId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
@@ -77,7 +76,6 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: editingRole?.isHead || false,
             startDate: editingRole?.startDate || null,
             endDate: editingRole?.endDate || null,
-            noEndDate: editingRole?.endDate ? false : true,
             type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : 'city',
             partyId: editingRole?.partyId || undefined,
             administrativeBodyId: editingRole?.administrativeBodyId || undefined,
@@ -97,7 +95,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name_en: values.name_en || null,
             isHead: values.isHead,
             startDate: values.startDate,
-            endDate: values.noEndDate ? null : values.endDate,
+            endDate: values.endDate,
             rank: editingRole?.rank ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -125,11 +123,11 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: false,
             startDate: null,
             endDate: null,
-            noEndDate: true,
             type: 'city',
             partyId: undefined,
             administrativeBodyId: undefined,
         })
+        setNoEndDate(true)
         setIsDialogOpen(false)
     }
 
@@ -140,7 +138,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     }
 
     const roleType = form.watch('type')
-    const noEndDate = form.watch('noEndDate')
+    const [noEndDate, setNoEndDate] = useState(!editingRole?.endDate)
 
     return (
         <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -159,11 +157,11 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 isHead: false,
                                 startDate: null,
                                 endDate: null,
-                                noEndDate: true,
                                 type: 'city',
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
                             })
+                            setNoEndDate(true)
                             setIsDialogOpen(true)
                         }}
                     >
@@ -401,7 +399,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 <Switch
                                                     checked={noEndDate}
                                                     onCheckedChange={(checked) => {
-                                                        form.setValue('noEndDate', checked)
+                                                        setNoEndDate(checked)
                                                         if (checked) field.onChange(null)
                                                     }}
                                                     aria-label={t('noEndDate')}
@@ -478,11 +476,11 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 isHead: role.isHead,
                                                 startDate: role.startDate,
                                                 endDate: role.endDate,
-                                                noEndDate: role.endDate ? false : true,
                                                 type: role.partyId ? 'party' : role.administrativeBodyId ? 'administrativeBody' : 'city',
                                                 partyId: role.partyId || undefined,
                                                 administrativeBodyId: role.administrativeBodyId || undefined,
                                             })
+                                            setNoEndDate(role.endDate ? false : true)
                                             setIsDialogOpen(true)
                                         }}
                                     >
