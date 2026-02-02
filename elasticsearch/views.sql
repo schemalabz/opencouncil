@@ -59,7 +59,7 @@ ORDER BY r."personId", pa."cityId", r."isHead" DESC, r."startDate" DESC NULLS LA
 CREATE OR REPLACE VIEW "SubjectSpeakerSegmentSearchView" AS
 SELECT
   sss."subjectId" AS subject_id,
-  ss.id AS segment_id,
+  ss.id,  -- Keep as `id` for WAL compatibility; renamed to segment_id in schema.json
   u.utterances_text AS text,
   sss.summary AS summary,
   sp.id AS speaker_person_id,
