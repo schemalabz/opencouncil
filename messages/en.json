@@ -250,7 +250,7 @@
         "present": "present",
         "from": "from",
         "until": "until",
-        "noEndDate": "No end date",
+        "noEndDate": "No end date"
     },
     "PersonCard": {
         "party": "Party",
