@@ -2,6 +2,3 @@ ARG POSTGIS_IMAGE=postgis/postgis:16-3.5
 
 # Use the PostGIS image as the base
 FROM ${POSTGIS_IMAGE}
-
-# Copy initialization scripts
-COPY ./docker-entrypoint-initdb.d/ /docker-entrypoint-initdb.d/
