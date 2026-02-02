@@ -342,7 +342,7 @@
           "table": "SubjectSpeakerSegmentSearchView",
           "schema": "public",
           "base_tables": ["SubjectSpeakerSegment", "SpeakerSegment", "SpeakerTag", "Person", "Party", "Role", "Utterance"],
-          "primary_key": ["segment_id"],
+          "primary_key": ["id"],
           "label": "speaker_segments",
           "relationship": {
             "variant": "object",
@@ -350,7 +350,7 @@
             "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
           },
           "columns": [
-            "segment_id",
+            "id",
             "text",
             "summary",
             "speaker_person_id",
@@ -359,7 +359,12 @@
             "speaker_party_id",
             "speaker_party_name",
             "speaker_party_name_en"
-          ]
+          ],
+          "transform": {
+            "rename": {
+              "id": "segment_id"
+            }
+          }
         },
         {
           "table": "SubjectSearchView",
