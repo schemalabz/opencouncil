@@ -250,7 +250,6 @@
         "present": "present",
         "from": "from",
         "until": "until",
-        "clearDate": "Clear",
         "noEndDate": "No end date",
         "noEndDateDescription": "Leave on for ongoing roles."
     },

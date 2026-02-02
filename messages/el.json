@@ -411,7 +411,6 @@
         "present": "σήμερα",
         "from": "από",
         "until": "έως",
-        "clearDate": "Καθαρισμός",
         "noEndDate": "Χωρίς ημερομηνία λήξης",
         "noEndDateDescription": "Αφήστε ενεργό για ρόλους σε ισχύ."
     },
