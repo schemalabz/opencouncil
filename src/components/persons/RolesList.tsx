@@ -388,7 +388,6 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                             mode="single"
                                                             selected={field.value || undefined}
                                                             onSelect={(date) => {
-                                                                form.setValue('noEndDate', false)
                                                                 field.onChange(date);
                                                                 setEndDateOpen(false);
                                                             }}
