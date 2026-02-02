@@ -47,6 +47,7 @@ const formSchema = z.object({
     isHead: z.boolean().default(false),
     startDate: z.date().nullable(),
     endDate: z.date().nullable(),
+    noEndDate: z.boolean().default(true),
     type: z.enum(['city', 'party', 'administrativeBody']),
     partyId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
@@ -76,6 +77,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: editingRole?.isHead || false,
             startDate: editingRole?.startDate || null,
             endDate: editingRole?.endDate || null,
+            noEndDate: editingRole?.endDate ? false : true,
             type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : 'city',
             partyId: editingRole?.partyId || undefined,
             administrativeBodyId: editingRole?.administrativeBodyId || undefined,
@@ -95,7 +97,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name_en: values.name_en || null,
             isHead: values.isHead,
             startDate: values.startDate,
-            endDate: values.endDate,
+            endDate: values.noEndDate ? null : values.endDate,
             rank: editingRole?.rank ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -128,6 +130,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     }
 
     const roleType = form.watch('type')
+    const noEndDate = form.watch('noEndDate')
 
     return (
         <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -347,39 +350,56 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col flex-1">
                                             <FormLabel>{t('endDate')}</FormLabel>
-                                            <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
-                                                <DialogTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                            type="button"
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full pl-3 text-left font-normal",
-                                                                !field.value && "text-muted-foreground"
-                                                            )}
-                                                        >
-                                                            {field.value ? (
-                                                                format(field.value, "PPP")
-                                                            ) : (
-                                                                <span>{t('pickDate')}</span>
-                                                            )}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </DialogTrigger>
-                                                <DialogContent className="p-0 w-auto">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value || undefined}
-                                                        onSelect={(date) => {
-                                                            field.onChange(date);
-                                                            setEndDateOpen(false);
-                                                        }}
-                                                        initialFocus
-                                                        className="rounded-md border"
-                                                    />
-                                                </DialogContent>
-                                            </Dialog>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <FormControl>
+                                                            <Button
+                                                                type="button"
+                                                                variant={"outline"}
+                                                                className={cn(
+                                                                    "w-full pl-3 text-left font-normal",
+                                                                    !field.value && "text-muted-foreground"
+                                                                )}
+                                                                disabled={noEndDate}
+                                                            >
+                                                                {field.value ? (
+                                                                    format(field.value, "PPP")
+                                                                ) : (
+                                                                    <span>{t('pickDate')}</span>
+                                                                )}
+                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="p-0 w-auto">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={field.value || undefined}
+                                                            onSelect={(date) => {
+                                                                form.setValue('noEndDate', false)
+                                                                field.onChange(date);
+                                                                setEndDateOpen(false);
+                                                            }}
+                                                            initialFocus
+                                                            className="rounded-md border"
+                                                        />
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                                <Switch
+                                                    checked={noEndDate}
+                                                    onCheckedChange={(checked) => {
+                                                        form.setValue('noEndDate', checked)
+                                                        if (checked) field.onChange(null)
+                                                    }}
+                                                    aria-label={t('noEndDate')}
+                                                />
+                                                <div className="leading-tight">
+                                                    <div className="font-medium text-foreground text-xs">{t('noEndDate')}</div>
+                                                </div>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -477,4 +497,4 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             </div>
         </div>
     )
-} 
+}

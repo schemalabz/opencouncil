@@ -410,7 +410,10 @@
         "head": "Επικεφαλής",
         "present": "σήμερα",
         "from": "από",
-        "until": "έως"
+        "until": "έως",
+        "clearDate": "Καθαρισμός",
+        "noEndDate": "Χωρίς ημερομηνία λήξης",
+        "noEndDateDescription": "Αφήστε ενεργό για ρόλους σε ισχύ."
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
