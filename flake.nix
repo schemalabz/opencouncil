@@ -653,9 +653,16 @@ EOF
               # Copy static assets (not included in standalone output)
               cp -r .next/static $out/.next/static
 
-              # Copy public folder
+              # Copy public assets into the standalone public dir (which may
+              # already exist from the standalone output). Use -n to avoid
+              # overwriting files Next.js already placed there.
               if [ -d public ]; then
-                cp -r public $out/public
+                cp -rn public/* $out/public/ 2>/dev/null || true
+              fi
+
+              # Copy modular i18n message files (not included in standalone output)
+              if [ -d messages ]; then
+                cp -r messages $out/messages
               fi
 
               # Remove pre-rendered homepage — the Nix sandbox blocks DB access
