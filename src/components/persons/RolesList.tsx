@@ -359,7 +359,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col flex-1">
                                             <FormLabel>{t('endDate')}</FormLabel>
-                                            <div className="flex items-center gap-2 mb-3">
+                                            <div className="flex items-center">
                                                 <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
                                                     <DialogTrigger asChild>
                                                         <FormControl>
@@ -395,7 +395,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                     </DialogContent>
                                                 </Dialog>
                                             </div>
-                                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-3">
                                                 <Switch
                                                     checked={isOngoing}
                                                     onCheckedChange={(checked) => {
