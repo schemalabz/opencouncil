@@ -127,7 +127,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             partyId: undefined,
             administrativeBodyId: undefined,
         })
-        setNoEndDate(true)
+        setIsOngoing(true)
         setIsDialogOpen(false)
     }
 
@@ -138,7 +138,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     }
 
     const roleType = form.watch('type')
-    const [noEndDate, setNoEndDate] = useState(!editingRole?.endDate)
+    const [isOngoing, setIsOngoing] = useState(!editingRole?.endDate)
 
     return (
         <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -161,7 +161,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
                             })
-                            setNoEndDate(true)
+                            setIsOngoing(true)
                             setIsDialogOpen(true)
                         }}
                     >
@@ -370,7 +370,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                                     "w-full pl-3 text-left font-normal",
                                                                     !field.value && "text-muted-foreground"
                                                                 )}
-                                                                disabled={noEndDate}
+                                                                disabled={isOngoing}
                                                             >
                                                                 {field.value ? (
                                                                     format(field.value, "PPP")
@@ -397,9 +397,9 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                             </div>
                                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                 <Switch
-                                                    checked={noEndDate}
+                                                    checked={isOngoing}
                                                     onCheckedChange={(checked) => {
-                                                        setNoEndDate(checked)
+                                                        setIsOngoing(checked)
                                                         if (checked) field.onChange(null)
                                                     }}
                                                     aria-label={t('noEndDate')}
@@ -480,7 +480,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 partyId: role.partyId || undefined,
                                                 administrativeBodyId: role.administrativeBodyId || undefined,
                                             })
-                                            setNoEndDate(role.endDate ? false : true)
+                                            setIsOngoing(role.endDate ? false : true)
                                             setIsDialogOpen(true)
                                         }}
                                     >
