@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
@@ -15,6 +15,7 @@ import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -180,7 +181,24 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const tCopy = useTranslations('transcript.copySegment');
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+
+    // Detect mobile viewport for initial collapsed state (SSR-safe)
+    const isMobile = useMediaQuery('(max-width: 767px)');
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [userHasInteracted, setUserHasInteracted] = useState(false);
+
+    // Set initial collapsed state based on viewport, but respect user interactions
+    useEffect(() => {
+        if (!userHasInteracted) {
+            setIsCollapsed(isMobile);
+        }
+    }, [isMobile, userHasInteracted]);
+
+    // Wrapper to track user interactions
+    const handleCollapseToggle = (newState: boolean) => {
+        setUserHasInteracted(true);
+        setIsCollapsed(newState);
+    };
 
     // Calculate the next unknown speaker label
     const nextUnknownLabel = useMemo(() => {
@@ -299,7 +317,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                 {/* Collapsed header (mobile only, shown when collapsed) */}
                                 {isCollapsed && (
                                     <button
-                                        onClick={() => setIsCollapsed(false)}
+                                        onClick={() => handleCollapseToggle(false)}
                                         className='sticky flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 border-b border-border/40'
                                         style={{ top: 'var(--banner-offset, 0px)' }}
                                     >
@@ -345,7 +363,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 md:hidden"
-                                                onClick={() => setIsCollapsed(true)}
+                                                onClick={() => handleCollapseToggle(true)}
                                             >
                                                 <ChevronUp className="h-4 w-4" />
                                             </Button>
