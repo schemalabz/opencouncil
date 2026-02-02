@@ -119,7 +119,17 @@ export default function RolesList({ personId, cityId, roles, parties, administra
 
         onUpdate(updatedRoles)
         setEditingRole(null)
-        form.reset()
+        form.reset({
+            name: "",
+            name_en: "",
+            isHead: false,
+            startDate: null,
+            endDate: null,
+            noEndDate: true,
+            type: 'city',
+            partyId: undefined,
+            administrativeBodyId: undefined,
+        })
         setIsDialogOpen(false)
     }
 
@@ -149,6 +159,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 isHead: false,
                                 startDate: null,
                                 endDate: null,
+                                noEndDate: true,
                                 type: 'city',
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
@@ -468,6 +479,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 isHead: role.isHead,
                                                 startDate: role.startDate,
                                                 endDate: role.endDate,
+                                                noEndDate: role.endDate ? false : true,
                                                 type: role.partyId ? 'party' : role.administrativeBodyId ? 'administrativeBody' : 'city',
                                                 partyId: role.partyId || undefined,
                                                 administrativeBodyId: role.administrativeBodyId || undefined,
