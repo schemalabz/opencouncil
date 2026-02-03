@@ -48,6 +48,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const [highlights, setHighlights] = useState(data.highlights);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
+    const highlightsMap = useMemo(() => new Map(highlights.map(h => [h.id, h])), [highlights]);
 
     // Helper function to recalculate segment timestamps based on utterances
     const recalculateSegmentTimestamps = useCallback((utterances: Array<{ startTimestamp: number; endTimestamp: number }>) => {
@@ -93,8 +94,8 @@ export function CouncilMeetingDataProvider({ children, data }: {
     }, []);
 
     const getHighlight = useCallback((highlightId: string) => {
-        return highlights.find(h => h.id === highlightId);
-    }, [highlights]);
+        return highlightsMap.get(highlightId);
+    }, [highlightsMap]);
 
     const contextValue = useMemo(() => ({
         ...data,
