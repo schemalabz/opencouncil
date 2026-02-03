@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -31,36 +32,8 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "City name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "City name (English) must be at least 2 characters.",
-    }),
-    name_municipality: z.string().min(2, {
-        message: "Municipality name must be at least 2 characters.",
-    }),
-    name_municipality_en: z.string().min(2, {
-        message: "Municipality name (English) must be at least 2 characters.",
-    }),
-    timezone: z.string().min(1, {
-        message: "Timezone is required.",
-    }),
-    logoImage: z.instanceof(File).optional(),
-    id: z.string().min(2, {
-        message: "ID must be at least 2 characters.",
-    }).regex(/^[a-z-]+$/, {
-        message: "ID must contain only lowercase letters a-z and dashes.",
-    }),
-    authorityType: z.enum(['municipality', 'region']),
-    officialSupport: z.boolean().default(false),
-    status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
-    supportsNotifications: z.boolean(),
-    consultationsEnabled: z.boolean(),
-    peopleOrdering: z.enum(['default', 'partyRank']).optional(),
-    highlightCreationPermission: z.enum(['ADMINS_ONLY', 'EVERYONE']).default('ADMINS_ONLY')
-})
+// Use shared schema from lib/schemas/city.ts
+const formSchema = cityFormSchema
 
 interface CityFormProps {
     city?: City
@@ -128,13 +101,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
-            authorityType: city?.authorityType || "municipality",
-            officialSupport: city?.officialSupport || false,
-            status: city?.status || 'pending',
-            supportsNotifications: city?.supportsNotifications || false,
-            consultationsEnabled: city?.consultationsEnabled || false,
-            peopleOrdering: city?.peopleOrdering || "default",
-            highlightCreationPermission: city?.highlightCreationPermission || 'ADMINS_ONLY'
+            authorityType: city?.authorityType || CITY_DEFAULTS.authorityType,
+            officialSupport: city?.officialSupport ?? CITY_DEFAULTS.officialSupport,
+            status: city?.status || CITY_DEFAULTS.status,
+            supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
+            consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
+            peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
+            highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission
         },
     })
 
@@ -166,9 +139,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('supportsNotifications', values.supportsNotifications.toString())
         formData.append('consultationsEnabled', values.consultationsEnabled.toString())
         formData.append('highlightCreationPermission', values.highlightCreationPermission)
-        if (values.peopleOrdering) {
-            formData.append('peopleOrdering', values.peopleOrdering)
-        }
+        formData.append('peopleOrdering', values.peopleOrdering)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }

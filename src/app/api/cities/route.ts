@@ -1,9 +1,10 @@
-"use server"
 import { NextResponse, NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createCity, getCities } from '@/lib/db/cities'
 import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
+import { createCityFormDataSchema } from '@/lib/zod-schemas/city'
+import { parseFormData } from '@/lib/api/form-data-parser'
 
 const getCitiesQuerySchema = z.object({
     includeUnlisted: z.string()
@@ -47,53 +48,43 @@ export async function POST(request: Request) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const formData = await request.formData()
-    const id = formData.get('id') as string
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_municipality = formData.get('name_municipality') as string
-    const name_municipality_en = formData.get('name_municipality_en') as string
-    const timezone = formData.get('timezone') as string
-    const logoImage = formData.get('logoImage') as File
-    const authorityType = formData.get('authorityType') as 'municipality' | 'region' || 'municipality'
-    const officialSupport = formData.get('officialSupport') === 'true'
-    const status = (formData.get('status') as 'pending' | 'unlisted' | 'listed') || 'pending'
-    const supportsNotifications = formData.get('supportsNotifications') === 'true'
-    const consultationsEnabled = formData.get('consultationsEnabled') === 'true'
-    const highlightCreationPermission = (formData.get('highlightCreationPermission') as 'ADMINS_ONLY' | 'EVERYONE') || 'ADMINS_ONLY'
-
-    if (!id || !name || !name_en || !name_municipality || !name_municipality_en || !timezone || !logoImage) {
-        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
     try {
-        const result = await uploadFile(logoImage, {
+        const formData = await request.formData();
+        const data = await parseFormData(formData, createCityFormDataSchema);
+
+        const result = await uploadFile(data.logoImage, {
             prefix: 'city-logos',
             useCdn: true
-        })
-        const logoImageUrl = result.url
+        });
+        const logoImageUrl = result.url;
 
         const city = await createCity({
-            id,
-            name,
-            name_en,
-            name_municipality,
-            name_municipality_en,
-            timezone,
+            id: data.id,
+            name: data.name,
+            name_en: data.name_en,
+            name_municipality: data.name_municipality,
+            name_municipality_en: data.name_municipality_en,
+            timezone: data.timezone,
             logoImage: logoImageUrl,
-            officialSupport,
-            status,
-            authorityType,
+            officialSupport: data.officialSupport,
+            status: data.status,
+            authorityType: data.authorityType,
             wikipediaId: null,
-            supportsNotifications,
-            consultationsEnabled,
-            peopleOrdering: 'default',
-            highlightCreationPermission
-        })
+            supportsNotifications: data.supportsNotifications,
+            consultationsEnabled: data.consultationsEnabled,
+            peopleOrdering: data.peopleOrdering,
+            highlightCreationPermission: data.highlightCreationPermission
+        });
 
-        return NextResponse.json(city)
+        return NextResponse.json(city);
     } catch (error) {
-        console.error('Error creating city:', error)
-        return NextResponse.json({ error: 'Failed to create city' }, { status: 500 })
+        if (error instanceof z.ZodError) {
+            return NextResponse.json(
+                { error: error.errors },
+                { status: 400 }
+            );
+        }
+        console.error('Error creating city:', error);
+        return NextResponse.json({ error: 'Failed to create city' }, { status: 500 });
     }
 }
