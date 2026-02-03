@@ -17,7 +17,7 @@ import { formatTimestamp } from "@/lib/utils";
 type AllocationOption = 'onlyMention' | 'skip' | 1 | 2 | 3 | 5;
 
 export default function Subjects() {
-    const { subjects, getSpeakerTag, getPerson, getParty, transcript } = useCouncilMeetingData();
+    const { subjects, getSpeakerTag, getPerson, getParty, getSpeakerSegmentById } = useCouncilMeetingData();
     const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
     const { seekTo } = useVideo();
     const { options } = useTranscriptOptions();
@@ -49,7 +49,7 @@ export default function Subjects() {
     };
 
     const handleSpeakerClick = (speakerSegmentId: string) => {
-        const segment = transcript.find(s => s.id === speakerSegmentId);
+        const segment = getSpeakerSegmentById(speakerSegmentId);
         if (segment) {
             seekTo(segment.startTimestamp);
         }
@@ -119,14 +119,14 @@ export default function Subjects() {
                                 <ul className="space-y-2">
                                     {subject.speakerSegments
                                         .sort((a, b) => {
-                                            const aTimestamp = transcript.find(s => s.id === a.speakerSegment.id)?.startTimestamp || 0;
-                                            const bTimestamp = transcript.find(s => s.id === b.speakerSegment.id)?.startTimestamp || 0;
+                                            const aTimestamp = getSpeakerSegmentById(a.speakerSegment.id)?.startTimestamp || 0;
+                                            const bTimestamp = getSpeakerSegmentById(b.speakerSegment.id)?.startTimestamp || 0;
                                             return aTimestamp - bTimestamp;
                                         })
                                         .map(segment => {
                                             const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
                                             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : null;
-                                            const segmentTimestamp = transcript.find(s => s.id === segment.speakerSegment.id)?.startTimestamp;
+                                            const segmentTimestamp = getSpeakerSegmentById(segment.speakerSegment.id)?.startTimestamp;
                                             return (
                                                 <li key={segment.id} className="text-sm">
                                                     <div onClick={() => handleSpeakerClick(segment.speakerSegment.id)} className="cursor-pointer flex items-center">

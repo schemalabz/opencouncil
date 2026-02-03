@@ -44,9 +44,14 @@ export const getMeetingData = async (cityId: string, meetingId: string): Promise
         statistics: await getStatisticsFor({ subjectId: subject.id }, ["person", "party"])
     })));
 
-    const speakerTags: SpeakerTag[] = Array.from(new Set(transcript.map((segment) => segment.speakerTag.id)))
-        .map(id => transcript.find(s => s.speakerTag.id === id)?.speakerTag)
-        .filter((tag): tag is NonNullable<typeof tag> => tag !== undefined);
+    // Extract unique speaker tags in O(n) using Map
+    const speakerTagsMap = new Map<string, SpeakerTag>();
+    for (const segment of transcript) {
+        if (!speakerTagsMap.has(segment.speakerTag.id)) {
+            speakerTagsMap.set(segment.speakerTag.id, segment.speakerTag);
+        }
+    }
+    const speakerTags = Array.from(speakerTagsMap.values());
 
     return { 
         meeting, 

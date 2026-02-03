@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
-import type { Utterance } from '@prisma/client';
 
 interface VotingUtterance {
     id: string;
@@ -39,7 +38,7 @@ interface VotingSectionProps {
 export function VotingSection({ subjectId }: VotingSectionProps) {
     const [votingUtterances, setVotingUtterances] = useState<VotingUtterance[] | null>(null);
     const [loading, setLoading] = useState(true);
-    const { transcript, meeting } = useCouncilMeetingData();
+    const { meeting, getSpeakerSegmentById } = useCouncilMeetingData();
     const t = useTranslations('Subject');
 
     useEffect(() => {
@@ -95,8 +94,7 @@ export function VotingSection({ subjectId }: VotingSectionProps) {
             </p>
             <div className="space-y-3">
                 {Array.from(utterancesBySegment.entries()).map(([segmentId, segmentVotingUtterances]) => {
-                    // Find the speaker segment in transcript
-                    const transcriptSegment = transcript.find(seg => seg.id === segmentId);
+                    const transcriptSegment = getSpeakerSegmentById(segmentId);
                     if (!transcriptSegment) return null;
 
                     const targetUtteranceIds = segmentVotingUtterances.map(u => u.id);

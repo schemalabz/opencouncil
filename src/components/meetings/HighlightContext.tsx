@@ -80,7 +80,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [lastClickedAction, setLastClickedAction] = useState<'add' | 'remove' | null>(null);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getSpeakerTag, getPerson, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
+  const { transcript, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
   const pathname = usePathname();
@@ -111,7 +111,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       highlight.highlightedUtterances.forEach(hu => {
         const utterance = utteranceMap.get(hu.utteranceId);
         if (utterance) {
-          const segment = transcript.find(s => s.id === utterance.speakerSegmentId);
+          const segment = getSpeakerSegmentById(utterance.speakerSegmentId);
           const speakerTag = segment ? getSpeakerTag(segment.speakerTagId) : null;
           const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
           const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
