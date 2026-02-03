@@ -303,8 +303,11 @@ model Utterance {
   words Word[]
   highlightedUtterances HighlightedUtterance[]
   podcastPartAudioUtterances PodcastPartAudioUtterance[]
-  @@index([speakerSegmentId, startTimestamp])
   utteranceEdits UtteranceEdit[]
+
+  @@index([speakerSegmentId, startTimestamp])
+  @@index([discussionSubjectId])
+  @@index([discussionStatus])
 }
 
 enum DiscussionStatus {
