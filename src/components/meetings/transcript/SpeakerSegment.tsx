@@ -8,7 +8,7 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Bot, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
@@ -442,10 +442,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                             Διαδικαστικό
                                                         </span>
                                                     )}
-                                                    <div className='flex items-center gap-1 whitespace-nowrap'>
-                                                        <Bot className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                                                        <span>Σύνοψη</span>
-                                                    </div>
+                                                        <AIGeneratedBadge className="text-[10px] sm:text-xs whitespace-nowrap" />
                                                 </div>
                                             </div>
                                         </div>
