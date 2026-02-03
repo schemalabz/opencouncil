@@ -105,49 +105,94 @@ export async function getStatisticsFor(
         }
     }
 
-    transcript = await prisma.speakerSegment.findMany({
-        where: {
-            id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
-            meetingId: meetingId,
-            cityId: cityId,
-            speakerTag: {
-                personId: personId,
-                // Remove party filtering from query - we'll filter in application code
-                // to ensure we only include segments from when person was actually affiliated with the party
+    // Determine what relations we actually need based on groupBy and filters
+    const needsTopicLabels = groupBy.includes("topic");
+
+    if (needsTopicLabels) {
+        // Load with topicLabels when grouping by topic
+        transcript = await prisma.speakerSegment.findMany({
+            where: {
+                id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
+                meetingId: meetingId,
+                cityId: cityId,
+                speakerTag: {
+                    personId: personId,
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined,
+                NOT: {
+                    summary: {
+                        type: "procedural"
+                    }
+                }
             },
-            meeting: administrativeBodyId ? {
-                administrativeBodyId: administrativeBodyId
-            } : undefined,
-            NOT: {
-                summary: {
-                    type: "procedural"
+            include: {
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        administrativeBody: true,
+                                        city: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                topicLabels: {
+                    include: {
+                        topic: true
+                    }
                 }
             }
-
-        },
-        include: {
-            speakerTag: {
-                include: {
-                    person: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    administrativeBody: true,
-                                    city: true
+        });
+    } else {
+        // Skip topicLabels when not grouping by topic - avoids unnecessary joins
+        const segments = await prisma.speakerSegment.findMany({
+            where: {
+                id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
+                meetingId: meetingId,
+                cityId: cityId,
+                speakerTag: {
+                    personId: personId,
+                },
+                meeting: administrativeBodyId ? {
+                    administrativeBodyId: administrativeBodyId
+                } : undefined,
+                NOT: {
+                    summary: {
+                        type: "procedural"
+                    }
+                }
+            },
+            include: {
+                speakerTag: {
+                    include: {
+                        person: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        administrativeBody: true,
+                                        city: true
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            },
-            topicLabels: {
-                include: {
-                    topic: true
-                }
             }
-        }
-    });
+        });
+        // Add empty topicLabels to satisfy the type
+        transcript = segments.map(seg => ({
+            ...seg,
+            topicLabels: []
+        }));
+    }
 
     // Filter by party in application code to ensure role was active at meeting time
     if (partyId) {
