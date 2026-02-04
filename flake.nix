@@ -78,6 +78,7 @@
             echo "Next steps:"
             echo "  - Start app + local DB (default): nix run .#dev"
             echo "  - Start app + remote DB (from .env): nix run .#dev -- --db=remote"
+            echo "  - Prisma Studio (uses DATABASE_URL from .env): nix run .#studio"
             echo "  - Reset local DB and build cache: nix run .#cleanup"
             echo "  - View logs: tail -200 .data/process-compose/app.log .data/process-compose/db.log"
             echo "  - Run psql: psql \"\$PSQL_URL\""
@@ -127,7 +128,9 @@ EOF
                 initdb -D "$data_dir" --username="$db_user" --auth=trust
               fi
 
-              socket_dir="$data_dir/socket"
+              # Use a short socket path under /tmp to avoid the 107-byte Unix socket limit
+              # (long repo paths like worktrees easily exceed it).
+              socket_dir="/tmp/oc-pg-$(echo "$data_dir" | md5sum | cut -c1-8)"
               mkdir -p "$socket_dir"
 
               # Logical replication settings (required for PGSync testing)
@@ -158,6 +161,41 @@ EOF
                 -c "max_wal_senders=4"
             '';
           };
+
+          # Shared port utilities used by oc-dev and oc-studio
+          oc-port-utils = pkgs.writeShellScriptBin "oc-port-utils" ''
+            is_port_in_use() {
+              local port="$1"
+              # Prefer ss (reliable on Linux, available in our runtimeInputs)
+              if command -v ss >/dev/null 2>&1; then
+                ss -ltn | grep -q ":$port " >/dev/null 2>&1
+                return $?
+              fi
+              # Cross-platform fallback: lsof
+              if command -v lsof >/dev/null 2>&1; then
+                lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1
+                return $?
+              fi
+              # Fallback: bash tcp check (may not be available in all shells)
+              (echo >"/dev/tcp/127.0.0.1/$port") >/dev/null 2>&1
+            }
+
+            find_available_port() {
+              local base_port="$1"
+              local max_attempts="''${2:-30}"
+              local port="$base_port"
+              local i
+              for ((i=0; i<max_attempts; i++)); do
+                if ! is_port_in_use "$port"; then
+                  echo "$port"
+                  return 0
+                fi
+                port=$((port + 1))
+              done
+              echo "$base_port"
+              return 1
+            }
+          '';
 
           dockerCli = if pkgs ? docker-client then pkgs.docker-client else pkgs.docker;
 
@@ -229,6 +267,87 @@ EOF
             '';
           };
 
+          oc-studio = pkgs.writeShellApplication {
+            name = "oc-studio";
+            runtimeInputs = [
+              oc-port-utils
+              pkgs.coreutils
+              pkgs.nodejs
+              pkgs.nodePackages.npm
+              pkgs.nodePackages.prisma
+              pkgs.lsof
+            ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
+              pkgs.iproute2
+            ]);
+            text = ''
+              set -euo pipefail
+
+              # shellcheck source=/dev/null
+              source "${oc-port-utils}/bin/oc-port-utils"
+
+              usage() {
+                cat <<'USAGE'
+Usage:
+  nix run .#studio -- [--db-url URL] [--port PORT]
+
+Runs Prisma Studio to inspect a database.
+
+Options:
+  --db-url URL    Database URL (defaults to DATABASE_URL from .env)
+  --port PORT     Port for Prisma Studio (default: auto-select from 5555)
+
+Examples:
+  nix run .#studio                           # Use DATABASE_URL from .env
+  nix run .#studio -- --db-url "postgresql://user:pass@host:5432/db"
+  nix run .#studio -- --port 5556
+USAGE
+              }
+
+              repo_root="$(pwd)"
+              db_url=""
+              studio_port=""
+
+              for arg in "$@"; do
+                case "$arg" in
+                  --db-url=*) db_url="''${arg#--db-url=}" ;;
+                  --port=*) studio_port="''${arg#--port=}" ;;
+                  --help|-h) usage; exit 0 ;;
+                  *)
+                    echo "Unknown argument: $arg" >&2
+                    usage
+                    exit 2
+                    ;;
+                esac
+              done
+
+              # Load .env if present and no explicit db_url provided
+              if [ -z "$db_url" ] && [ -f "$repo_root/.env" ]; then
+                set -a
+                # shellcheck source=/dev/null
+                . "$repo_root/.env"
+                set +a
+                db_url="''${DATABASE_URL:-}"
+              fi
+
+              if [ -z "$db_url" ]; then
+                echo "Error: No database URL provided." >&2
+                echo "Either set DATABASE_URL in .env or use --db-url=..." >&2
+                exit 2
+              fi
+
+              if [ -z "$studio_port" ]; then
+                studio_port="$(find_available_port 5555)"
+              fi
+
+              echo "Starting Prisma Studio on port $studio_port..."
+              echo "Database: ''${db_url%%@*}@***" # Hide credentials in output
+
+              cd "$repo_root"
+              export DATABASE_URL="$db_url"
+              exec npx prisma studio --port "$studio_port"
+            '';
+          };
+
           oc-cleanup = pkgs.writeShellApplication {
             name = "oc-cleanup";
             runtimeInputs = with pkgs; [
@@ -284,54 +403,27 @@ EOF
           oc-dev = pkgs.writeShellApplication {
             name = "oc-dev";
             runtimeInputs =
-              (with pkgs; [
-                coreutils
-                gnused
-                process-compose
-                lsof
-                nodejs
-                nodePackages.npm
+              [
+                oc-port-utils
+                pkgs.coreutils
+                pkgs.gnused
+                pkgs.process-compose
+                pkgs.lsof
+                pkgs.nodejs
+                pkgs.nodePackages.npm
+                pkgs.curl
                 oc-dev-db-nix
                 oc-dev-db-docker
                 oc-dev-app-local
-              ])
+              ]
               ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
                 pkgs.iproute2
               ]);
             text = ''
               set -euo pipefail
 
-              is_port_in_use() {
-                local port="$1"
-                # Prefer ss (reliable on Linux, available in our runtimeInputs)
-                if command -v ss >/dev/null 2>&1; then
-                  ss -ltn | grep -q ":$port " >/dev/null 2>&1
-                  return $?
-                fi
-                # Cross-platform fallback: lsof
-                if command -v lsof >/dev/null 2>&1; then
-                  lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1
-                  return $?
-                fi
-                # Fallback: bash tcp check (may not be available in all shells)
-                (echo >"/dev/tcp/127.0.0.1/$port") >/dev/null 2>&1
-              }
-
-              find_available_port() {
-                local base_port="$1"
-                local max_attempts="''${2:-30}"
-                local port="$base_port"
-                local i
-                for ((i=0; i<max_attempts; i++)); do
-                  if ! is_port_in_use "$port"; then
-                    echo "$port"
-                    return 0
-                  fi
-                  port=$((port + 1))
-                done
-                echo "$base_port"
-                return 1
-              }
+              # shellcheck source=/dev/null
+              source "${oc-port-utils}/bin/oc-port-utils"
 
               usage() {
                 cat <<'USAGE'
@@ -421,6 +513,19 @@ USAGE
               studio_port="''${OC_PRISMA_STUDIO_PORT:-''${PRISMA_STUDIO_PORT:-}}"
               if [ "$studio_enabled" = "1" ] && [ -z "$studio_port" ]; then
                 studio_port="$(find_available_port 5555)"
+              fi
+
+              # Check if TASK_API_URL is configured and reachable (non-blocking warning)
+              if [ -n "''${TASK_API_URL:-}" ]; then
+                echo "🔗 Task API configured: $TASK_API_URL"
+                if command -v curl >/dev/null 2>&1; then
+                  if curl -sf --connect-timeout 2 "$TASK_API_URL/health" >/dev/null 2>&1; then
+                    echo "   ✓ Task server is reachable"
+                  else
+                    echo "   ⚠ Task server not reachable (start it separately for E2E testing)"
+                  fi
+                fi
+                echo ""
               fi
 
               case "$db_mode" in
@@ -533,7 +638,8 @@ EOF
                   ;;
               esac
 
-              exec process-compose -f "$pc_file" up
+              pc_port="$(find_available_port 8080)"
+              exec process-compose -f "$pc_file" up --port "$pc_port"
             '';
           };
           opencouncil-prod = pkgs.buildNpmPackage {
@@ -741,7 +847,7 @@ EOF
             };
           };
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-docker oc-dev-app-local oc-cleanup opencouncil-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup opencouncil-prod;
         });
 
       nixosModules.opencouncil-preview = { config, lib, pkgs, ... }:
@@ -1196,6 +1302,10 @@ CADDYEOF
         cleanup = {
           type = "app";
           program = "${self.packages.${system}.oc-cleanup}/bin/oc-cleanup";
+        };
+        studio = {
+          type = "app";
+          program = "${self.packages.${system}.oc-studio}/bin/oc-studio";
         };
         build = {
           type = "app";
