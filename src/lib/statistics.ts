@@ -108,91 +108,47 @@ export async function getStatisticsFor(
     // Determine what relations we actually need based on groupBy and filters
     const needsTopicLabels = groupBy.includes("topic");
 
-    if (needsTopicLabels) {
-        // Load with topicLabels when grouping by topic
-        transcript = await prisma.speakerSegment.findMany({
-            where: {
-                id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
-                meetingId: meetingId,
-                cityId: cityId,
-                speakerTag: {
-                    personId: personId,
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined,
-                NOT: {
-                    summary: {
-                        type: "procedural"
-                    }
-                }
-            },
-            include: {
-                speakerTag: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        administrativeBody: true,
-                                        city: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                topicLabels: {
-                    include: {
-                        topic: true
-                    }
-                }
-            }
-        });
-    } else {
-        // Skip topicLabels when not grouping by topic - avoids unnecessary joins
-        const segments = await prisma.speakerSegment.findMany({
-            where: {
-                id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
-                meetingId: meetingId,
-                cityId: cityId,
-                speakerTag: {
-                    personId: personId,
-                },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined,
-                NOT: {
-                    summary: {
-                        type: "procedural"
-                    }
-                }
-            },
-            include: {
-                speakerTag: {
-                    include: {
-                        person: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        administrativeBody: true,
-                                        city: true
-                                    }
-                                }
-                            }
+    // Extract common query parts to avoid duplication
+    const where = {
+        id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
+        meetingId: meetingId,
+        cityId: cityId,
+        speakerTag: { personId: personId },
+        meeting: administrativeBodyId ? { administrativeBodyId } : undefined,
+        NOT: { summary: { type: "procedural" as const } }
+    };
+
+    const speakerTagInclude = {
+        include: {
+            person: {
+                include: {
+                    roles: {
+                        include: {
+                            party: true,
+                            administrativeBody: true,
+                            city: true
                         }
                     }
                 }
             }
-        });
-        // Add empty topicLabels to satisfy the type
-        transcript = segments.map(seg => ({
-            ...seg,
-            topicLabels: []
-        }));
-    }
+        }
+    };
+
+    // Conditionally include topicLabels only when grouping by topic
+    const segments = await prisma.speakerSegment.findMany({
+        where,
+        include: {
+            speakerTag: speakerTagInclude,
+            ...(needsTopicLabels && {
+                topicLabels: { include: { topic: true } }
+            })
+        }
+    });
+
+    // Add empty topicLabels to satisfy the type when not loaded
+    transcript = needsTopicLabels
+        ? segments
+        : segments.map(seg => ({ ...seg, topicLabels: [] }));
 
     // Filter by party in application code to ensure role was active at meeting time
     if (partyId) {
