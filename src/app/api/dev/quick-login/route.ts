@@ -42,9 +42,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Set the session cookie with the same name Next-Auth uses
+    // In dev, use port-specific cookie name to allow multiple instances
+    const port = process.env.APP_PORT || '3000'
     const cookieName = !IS_DEV
       ? '__Secure-authjs.session-token'
-      : 'authjs.session-token'
+      : `authjs.session-token-${port}`
 
     const response = NextResponse.json({ 
       success: true, 
