@@ -2,6 +2,12 @@
 import { Resend } from 'resend';
 import { env } from '@/env.mjs';
 
+interface Attachment {
+    filename: string;
+    content: Buffer | string;
+    contentType?: string;
+}
+
 interface EmailParams {
     from: string;
     to: string;
@@ -9,11 +15,12 @@ interface EmailParams {
     subject: string;
     html: string;
     text?: string;
+    attachments?: Attachment[];
 }
 
 export async function sendEmail(params: EmailParams) {
     const resend = new Resend(env.RESEND_API_KEY);
-    let { from, to, cc, subject, html, text } = params;
+    let { from, to, cc, subject, html, text, attachments } = params;
 
     // Development/preview email override: redirect all emails to a single address
     // Works in dev mode (NODE_ENV !== 'production') or preview deployments (IS_PREVIEW=true)
@@ -47,6 +54,7 @@ export async function sendEmail(params: EmailParams) {
             subject,
             html,
             text,
+            attachments,
         });
 
         if (result.error) {

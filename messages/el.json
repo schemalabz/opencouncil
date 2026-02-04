@@ -540,6 +540,12 @@
         "youtubeChannelUrl": "URL Κανάλι YouTube",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
         "youtubeChannelUrlDescription": "Εισάγετε το URL του καναλιού YouTube για αυτό το διοικητικό όργανο.",
+        "contactEmailPrimary": "Email Παραλήπτη (To)",
+        "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
+        "contactEmailPrimaryDescription": "Κύριο email παραλήπτη για αποστολή απομαγνητοφωνήσεων.",
+        "contactEmailsCC": "Κοινοποίηση (CC)",
+        "contactEmailsCCPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+        "contactEmailsCCDescription": "Επιπλέον emails κοινοποίησης (διαχωρισμένα με κόμμα).",
         "notificationBehavior": "Συμπεριφορά Ειδοποιήσεων",
         "notificationBehaviorDescription": "Επιλέξτε τη συμπεριφορά των ειδοποιήσεων για συνεδριάσεις αυτού του οργάνου.",
         "notificationBehaviorOptions": {
