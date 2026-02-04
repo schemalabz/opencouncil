@@ -19,7 +19,38 @@
 
       forAllSystems =
         f: nixpkgs.lib.genAttrs systems (system: f system (import nixpkgs { inherit system; }));
+
+      # Shared PostGIS 3.3.5 builder - used by dev packages and preview module
+      # This ensures both use the same locked version matching production
+      mkPostgis335 = pkgs: pkgs.postgresql_16.pkgs.postgis.overrideAttrs (old: rec {
+        version = "3.3.5";
+        src = pkgs.fetchurl {
+          url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
+          sha256 = "sha256-1w73FkGIHCIr55r32pbdpDI8T1+TWewbnBCFU53YQX8=";
+        };
+        doCheck = false;
+      });
+
+      mkPostgresCompat = pkgs: pkgs.postgresql_16.withPackages (_: [ (mkPostgis335 pkgs) ]);
+
+      # Shared Prisma environment setup (used by devShell, builds, and preview module)
+      # Returns a string of export statements for shell scripts
+      mkPrismaEnv = pkgs: ''
+        export PRISMA_QUERY_ENGINE_LIBRARY="${pkgs.prisma-engines}/lib/libquery_engine.node"
+        export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
+        export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
+        export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
+      '';
+
+      # Shared OpenSSL environment setup (used by devShell and preview module)
+      mkOpenSslEnv = pkgs: ''
+        export OPENSSL_DIR="${pkgs.openssl.dev}"
+        export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
+        export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
+      '';
     in {
+      # Export shared builders for use by nixosModules
+      lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv; };
       devShells = forAllSystems (_system: pkgs: {
         default = pkgs.mkShell {
           buildInputs =
@@ -43,16 +74,11 @@
             echo "Prisma engines path: ${pkgs.prisma-engines}"
 
             # OpenSSL configuration
-            export OPENSSL_DIR="${pkgs.openssl.dev}"
-            export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
-            export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
+            ${mkOpenSslEnv pkgs}
             export PKG_CONFIG_PATH="${pkgs.openssl.dev}/lib/pkgconfig"
 
             # Prisma engine binaries (important on NixOS; harmless elsewhere).
-            export PRISMA_QUERY_ENGINE_LIBRARY="${pkgs.prisma-engines}/lib/libquery_engine.node"
-            export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
-            export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
-            export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
+            ${mkPrismaEnv pkgs}
 
             # Native Node deps (e.g. `canvas`) may rely on system libraries like libuuid.
             # Ensure the Nix-provided libuuid is discoverable at runtime on Linux.
@@ -96,17 +122,8 @@
           # PostGIS 3.3.5 pinned to match production database version (default).
           # This ensures Prisma migrations work correctly (shadow database needs same version).
           # Use `--fast` flag to skip building from source and use pre-built binary cache.
-          postgis335 = pkgs.postgresql_16.pkgs.postgis.overrideAttrs (old: rec {
-            version = "3.3.5";
-            src = pkgs.fetchurl {
-              url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
-              sha256 = "sha256-1w73FkGIHCIr55r32pbdpDI8T1+TWewbnBCFU53YQX8=";
-            };
-            # Skip check phase - it fails due to docbook DTD mismatch with newer tooling
-            doCheck = false;
-          });
-
-          postgresCompat = pkgs.postgresql_16.withPackages (ps: [ postgis335 ]);
+          # Uses shared builder from flake lib to avoid duplication with nixosModules.
+          postgresCompat = mkPostgresCompat pkgs;
 
           # Shared script for starting PostgreSQL with PostGIS
           dbNixScript = ''
@@ -744,11 +761,7 @@ EOF
             # Set up environment for Prisma and canvas
             preBuild = ''
               export HOME=$TMPDIR
-              export PRISMA_QUERY_ENGINE_LIBRARY="${pkgs.prisma-engines}/lib/libquery_engine.node"
-              export PRISMA_SCHEMA_ENGINE_BINARY="${pkgs.prisma-engines}/bin/schema-engine"
-              export PRISMA_QUERY_ENGINE_BINARY="${pkgs.prisma-engines}/bin/query-engine"
-              export PRISMA_FMT_BINARY="${pkgs.prisma-engines}/bin/prisma-fmt"
-
+              ${mkPrismaEnv pkgs}
               # Skip env validation during build — most server-side secrets
               # (API keys, etc.) aren't needed at build time.
               export SKIP_ENV_VALIDATION=1
@@ -838,6 +851,22 @@ EOF
               # but at runtime the client needs it in a known location.
               cp ${pkgs.prisma-engines}/lib/libquery_engine.node $out/prisma/
 
+              # Bundle seed script with all dependencies (includes @/ path aliases)
+              # This creates a self-contained seed.mjs that can run without node_modules
+              echo "Bundling seed script..."
+              ${pkgs.esbuild}/bin/esbuild prisma/seed.ts \
+                --bundle \
+                --platform=node \
+                --format=esm \
+                --outfile=$out/prisma/seed.mjs \
+                --external:@prisma/client \
+                --loader:.ts=ts \
+                --tsconfig=tsconfig.json \
+                --define:process.env.SKIP_ENV_VALIDATION='"1"' || echo "Seed bundling failed, seeding may not work"
+
+              # Copy tsconfig for tsx fallback (if bundling fails)
+              cp tsconfig.json $out/ 2>/dev/null || true
+
               # Create start script. The Nix store is read-only; Next.js needs a writable
               # .next/cache for ISR, image optimization, and response cache. We create a
               # writable work dir (symlink store contents, real .next/cache) and run from there.
@@ -899,6 +928,11 @@ EOF
         with lib;
         let
           cfg = config.services.opencouncil-preview;
+
+          # Use shared builders from the flake
+          postgresCompat = self.lib.mkPostgresCompat pkgs;
+          prismaEnv = self.lib.mkPrismaEnv pkgs;
+          opensslEnv = self.lib.mkOpenSslEnv pkgs;
         in {
           options.services.opencouncil-preview = {
             enable = mkEnableOption "OpenCouncil preview deployments";
@@ -1037,6 +1071,19 @@ EOF
                     command = "${pkgs.systemd}/bin/systemctl status opencouncil-preview@*";
                     options = [ "NOPASSWD" ];
                   }
+                  # Per-PR PostgreSQL service (for migration PRs)
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl start opencouncil-preview-db@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl stop opencouncil-preview-db@*";
+                    options = [ "NOPASSWD" ];
+                  }
+                  {
+                    command = "${pkgs.systemd}/bin/systemctl status opencouncil-preview-db@*";
+                    options = [ "NOPASSWD" ];
+                  }
                   {
                     command = "${pkgs.systemd}/bin/systemctl reload caddy";
                     options = [ "NOPASSWD" ];
@@ -1060,6 +1107,68 @@ EOF
                 ];
               }
             ];
+
+            # Template systemd service for per-PR PostgreSQL instances (migration PRs only).
+            # Instance name (%i) is the PR number.
+            # Data stored at /var/lib/opencouncil-previews/pr-<N>/postgres/
+            systemd.services."opencouncil-preview-db@" = {
+              description = "PostgreSQL for OpenCouncil preview PR %i";
+              after = [ "network.target" ];
+
+              serviceConfig = {
+                Type = "simple";
+                User = cfg.user;
+                Group = cfg.group;
+                ExecStart = let
+                  startDbScript = pkgs.writeShellScript "opencouncil-preview-db-start" ''
+                    set -euo pipefail
+                    PR_NUM="$1"
+                    DB_PORT=$((5432 + PR_NUM))
+                    DATA_DIR="${cfg.previewsDir}/pr-$PR_NUM/postgres"
+                    DB_USER="opencouncil"
+                    DB_NAME="opencouncil"
+
+                    mkdir -p "$DATA_DIR"
+
+                    # Initialize cluster if needed
+                    if [ ! -f "$DATA_DIR/PG_VERSION" ]; then
+                      # Abort if dir is non-empty but lacks PG_VERSION (interrupted init)
+                      if [ -n "$(find "$DATA_DIR" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+                        echo "Error: non-empty data dir without PG_VERSION: $DATA_DIR" >&2
+                        echo "Delete it to reinitialize: rm -rf $DATA_DIR" >&2
+                        exit 2
+                      fi
+                      ${postgresCompat}/bin/initdb -D "$DATA_DIR" --username="$DB_USER" --auth=trust
+                    fi
+
+                    # Short socket path to avoid 107-byte Unix socket limit
+                    SOCKET_DIR="/tmp/oc-preview-pg-$PR_NUM"
+                    mkdir -p "$SOCKET_DIR"
+
+                    # Start, create DB if needed, stop (same pattern as dev dbNixScript)
+                    ${postgresCompat}/bin/pg_ctl -D "$DATA_DIR" \
+                      -o "-c port=$DB_PORT -c listen_addresses=127.0.0.1 -c unix_socket_directories=$SOCKET_DIR" \
+                      -w start
+                    ${postgresCompat}/bin/createdb -h 127.0.0.1 -p "$DB_PORT" -U "$DB_USER" \
+                      --maintenance-db=template1 "$DB_NAME" >/dev/null 2>&1 || true
+                    ${postgresCompat}/bin/pg_ctl -D "$DATA_DIR" -m fast -w stop
+
+                    # Run with reduced memory for preview instances (multiple may run concurrently)
+                    # shared_buffers=48MB, work_mem=4MB, max_connections=20
+                    exec ${postgresCompat}/bin/postgres -D "$DATA_DIR" \
+                      -c "port=$DB_PORT" \
+                      -c "listen_addresses=127.0.0.1" \
+                      -c "unix_socket_directories=$SOCKET_DIR" \
+                      -c "shared_buffers=48MB" \
+                      -c "work_mem=4MB" \
+                      -c "maintenance_work_mem=16MB" \
+                      -c "max_connections=20"
+                  '';
+                in "${startDbScript} %i";
+                Restart = "on-failure";
+                RestartSec = "5s";
+              };
+            };
 
             # Template systemd service for preview instances.
             # Instance name (%i) is the port number (basePort + PR number).
@@ -1085,11 +1194,21 @@ EOF
                     set -euo pipefail
                     PORT="$1"
                     PR_NUM=$((PORT - ${toString cfg.basePort}))
-                    APP_DIR="${cfg.previewsDir}/pr-$PR_NUM/app"
+                    PR_DIR="${cfg.previewsDir}/pr-$PR_NUM"
+                    APP_DIR="$PR_DIR/app"
                     if [ ! -L "$APP_DIR" ] && [ ! -d "$APP_DIR" ]; then
                       echo "Error: app not found at $APP_DIR" >&2
                       exit 1
                     fi
+
+                    # Check if this PR has an isolated database (migration PR)
+                    if [ -f "$PR_DIR/.has-local-db" ]; then
+                      DB_PORT=$(cat "$PR_DIR/.db-port")
+                      export DATABASE_URL="postgresql://opencouncil@127.0.0.1:$DB_PORT/opencouncil"
+                      export DIRECT_URL="$DATABASE_URL"
+                      echo "Using isolated database on port $DB_PORT"
+                    fi
+                    # Otherwise DATABASE_URL comes from EnvironmentFile (shared staging)
 
                     # Set per-PR URLs at runtime
                     export NEXT_PUBLIC_BASE_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
@@ -1103,7 +1222,7 @@ EOF
                     # Next.js needs a writable .next/cache directory for ISR and image optimization.
                     # The nix store is read-only, so we create a writable working directory that
                     # mirrors the store path but with a real .next/cache.
-                    WORK_DIR="${cfg.previewsDir}/pr-$PR_NUM/work"
+                    WORK_DIR="$PR_DIR/work"
                     mkdir -p "$WORK_DIR/.next/cache"
 
                     # Symlink everything from the store into the work dir.
@@ -1206,13 +1325,32 @@ CADDYEOF
               (pkgs.writeShellScriptBin "opencouncil-preview-create" ''
                 set -euo pipefail
 
+                usage() {
+                  echo "Usage: opencouncil-preview-create <pr-number> <nix-store-path> [--with-db]"
+                  echo ""
+                  echo "Options:"
+                  echo "  --with-db    Start an isolated PostgreSQL instance for this PR"
+                  echo "               (for PRs with database migrations)"
+                }
+
                 if [ $# -lt 2 ]; then
-                  echo "Usage: opencouncil-preview-create <pr-number> <nix-store-path>" >&2
+                  usage >&2
                   exit 1
                 fi
 
                 pr_num="$1"
                 store_path="$2"
+                with_db=false
+
+                shift 2
+                for arg in "$@"; do
+                  case "$arg" in
+                    --with-db) with_db=true ;;
+                    --help|-h) usage; exit 0 ;;
+                    *) echo "Unknown argument: $arg" >&2; usage >&2; exit 1 ;;
+                  esac
+                done
+
                 port=$((${toString cfg.basePort} + pr_num))
                 pr_dir="${cfg.previewsDir}/pr-$pr_num"
 
@@ -1233,7 +1371,67 @@ CADDYEOF
                 echo "Creating preview for PR #$pr_num on port $port"
                 echo "  App: $store_path"
 
-                # Stop existing service if running, then start fresh
+                # Handle isolated database for migration PRs
+                if [ "$with_db" = "true" ]; then
+                  echo ""
+                  echo "Setting up isolated database for PR #$pr_num..."
+
+                  db_port=$((5432 + pr_num))
+
+                  # Start PostgreSQL service for this PR
+                  systemctl start "opencouncil-preview-db@$pr_num"
+
+                  # Wait for postgres to be ready
+                  echo "Waiting for PostgreSQL on port $db_port..."
+                  for i in $(seq 1 30); do
+                    if ${postgresCompat}/bin/pg_isready -h 127.0.0.1 -p "$db_port" -U opencouncil >/dev/null 2>&1; then
+                      echo "PostgreSQL is ready"
+                      break
+                    fi
+                    if [ "$i" = "30" ]; then
+                      echo "Error: PostgreSQL did not become ready in time" >&2
+                      systemctl status "opencouncil-preview-db@$pr_num" --no-pager || true
+                      exit 1
+                    fi
+                    sleep 1
+                  done
+
+                  # Create PostGIS extension
+                  echo "Creating PostGIS extension..."
+                  ${postgresCompat}/bin/psql -h 127.0.0.1 -p "$db_port" -U opencouncil -d opencouncil \
+                    -c "CREATE EXTENSION IF NOT EXISTS postgis;" >/dev/null
+
+                  # Run migrations and seed
+                  cd "$store_path"
+                  ${prismaEnv}
+                  ${opensslEnv}
+                  export DATABASE_URL="postgresql://opencouncil@127.0.0.1:$db_port/opencouncil"
+                  export DIRECT_URL="$DATABASE_URL"
+                  export SKIP_ENV_VALIDATION=1
+                  # Add node to PATH so any shebangs work
+                  export PATH="${pkgs.nodejs}/bin:$PATH"
+
+                  echo "Running migrations..."
+                  ${pkgs.nodePackages.prisma}/bin/prisma migrate deploy
+
+                  echo "Seeding database..."
+                  # Use the pre-bundled seed script (created during build)
+                  if [ -f prisma/seed.mjs ]; then
+                    ${pkgs.nodejs}/bin/node prisma/seed.mjs
+                  else
+                    echo "Bundled seed not found, trying tsx..."
+                    ${pkgs.nodejs}/bin/npx --yes tsx prisma/seed.ts
+                  fi
+
+                  # Write marker files so app start script and destroy know about local DB
+                  touch "$pr_dir/.has-local-db"
+                  echo "$db_port" > "$pr_dir/.db-port"
+                  chown ${cfg.user}:${cfg.group} "$pr_dir/.has-local-db" "$pr_dir/.db-port"
+
+                  echo "✓ Isolated database ready on port $db_port (PostGIS 3.3.5)"
+                fi
+
+                # Stop existing app service if running, then start fresh
                 systemctl stop "opencouncil-preview@$port" 2>/dev/null || true
                 systemctl start "opencouncil-preview@$port"
 
@@ -1247,6 +1445,11 @@ CADDYEOF
                 echo "  Local: http://localhost:$port"
                 echo "  Public: https://pr-$pr_num.${cfg.previewDomain}"
                 echo "  Service: opencouncil-preview@$port"
+                if [ "$with_db" = "true" ]; then
+                  echo "  Database: isolated (port $db_port, PostGIS 3.3.5)"
+                else
+                  echo "  Database: shared staging"
+                fi
               '')
 
               (pkgs.writeShellScriptBin "opencouncil-preview-destroy" ''
@@ -1263,10 +1466,18 @@ CADDYEOF
 
                 echo "Destroying preview for PR #$pr_num (port $port)"
 
-                # Stop systemd service
+                # Stop app service
                 systemctl stop "opencouncil-preview@$port" || true
 
-                # Remove per-PR directory
+                # Stop and clean up isolated database if present
+                if [ -f "$pr_dir/.has-local-db" ]; then
+                  echo "Stopping isolated database..."
+                  systemctl stop "opencouncil-preview-db@$pr_num" || true
+                  # Clean up socket directory
+                  rm -rf "/tmp/oc-preview-pg-$pr_num"
+                fi
+
+                # Remove per-PR directory (includes postgres data)
                 if [ -d "$pr_dir" ]; then
                   rm -rf "$pr_dir"
                 fi

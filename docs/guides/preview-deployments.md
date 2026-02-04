@@ -286,9 +286,74 @@ ssh root@$DROPLET "sudo opencouncil-preview-destroy 999"
 
 ## Migration Handling
 
-All previews share the staging database. PRs with changes in `prisma/migrations/` are blocked by default — a PR comment explains why.
+PRs with database migrations are automatically deployed with **isolated databases**:
 
-To override: add `[skip-migration-check]` anywhere in the PR description, then re-run the workflow. The migration will run against the shared staging DB.
+- Each migration PR gets its own PostgreSQL instance (PostGIS 3.3.5)
+- Migrations are applied automatically, followed by seed data
+- The isolated DB is destroyed when the PR closes
+- Non-migration PRs continue to use the shared staging database
+
+### How It Works
+
+When `prisma/migrations/` changes are detected:
+1. The workflow passes `--with-db` to `opencouncil-preview-create`
+2. A dedicated PostgreSQL service starts (`opencouncil-preview-db@<pr-num>`)
+3. Migrations run via `prisma migrate deploy`, then `prisma db seed`
+4. The app connects to the isolated DB instead of staging
+
+### Resource Usage
+
+Each isolated database uses ~80-100MB RAM (tuned settings: `shared_buffers=48MB`). The 4GB droplet can comfortably handle 2-3 concurrent migration PRs.
+
+### Manual Testing (before CI)
+
+To test isolated DB deployment manually before merging workflow changes:
+
+```bash
+# 1. Update the NixOS module on the droplet
+ssh root@<droplet-ip>
+nix flake update opencouncil --flake /etc/nixos
+nixos-rebuild switch --flake /etc/nixos#preview
+
+# 2. Build your migration branch locally
+cd /path/to/opencouncil
+git checkout your-migration-branch
+set -a; source .env; set +a
+nix build --impure .#opencouncil-prod
+
+# 3. Push to Cachix
+cachix push opencouncil ./result
+
+# 4. Deploy with --with-db (use a test PR number like 9999)
+STORE_PATH=$(readlink ./result)
+ssh root@<droplet-ip> "sudo opencouncil-preview-create 9999 '$STORE_PATH' --with-db"
+
+# 5. Test the preview
+curl -I https://pr-9999.preview.opencouncil.gr
+
+# 6. Check logs if needed
+ssh root@<droplet-ip> "journalctl -u opencouncil-preview@12999 -n 50"
+ssh root@<droplet-ip> "journalctl -u opencouncil-preview-db@9999 -n 50"
+
+# 7. Clean up
+ssh root@<droplet-ip> "sudo opencouncil-preview-destroy 9999"
+```
+
+### Debugging
+
+```bash
+# Check DB service status
+systemctl status opencouncil-preview-db@<pr-num>
+
+# Check if isolated DB marker exists
+ls -la /var/lib/opencouncil-previews/pr-<num>/.has-local-db
+
+# Connect to isolated DB
+psql postgresql://opencouncil@127.0.0.1:$((5432 + PR_NUM))/opencouncil
+
+# View postgres data directory
+ls -la /var/lib/opencouncil-previews/pr-<num>/postgres/
+```
 
 ## Troubleshooting
 

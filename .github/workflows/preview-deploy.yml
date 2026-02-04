@@ -24,7 +24,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has-migrations: ${{ steps.check.outputs.has-migrations }}
-      migration-override: ${{ steps.check.outputs.override }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,42 +33,25 @@ jobs:
 
       - name: Check for migration files
         id: check
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -euo pipefail
-
-          # Check if PR body contains override flag
-          OVERRIDE="false"
-          if echo "$PR_BODY" | grep -qi "\[skip-migration-check\]"; then
-            OVERRIDE="true"
-            echo "override=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Migration check override detected in PR body"
-          fi
 
           # Get changed files in prisma/migrations/
           CHANGED_MIGRATIONS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^prisma/migrations/' || true)
 
           if [ -n "$CHANGED_MIGRATIONS" ]; then
             echo "has-migrations=true" >> $GITHUB_OUTPUT
-            echo "### ⚠️ Migration Detected" >> $GITHUB_STEP_SUMMARY
+            echo "### 🗄️ Migration Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "This PR contains database migration files:" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "$CHANGED_MIGRATIONS" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            if [ "$OVERRIDE" = "true" ]; then
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "✅ Override flag detected - deployment will proceed" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "❌ Preview deployment blocked" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "To override, add \`[skip-migration-check]\` to the PR description." >> $GITHUB_STEP_SUMMARY
-            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Preview will use an **isolated database** with seed data (PostGIS 3.3.5)" >> $GITHUB_STEP_SUMMARY
           else
             echo "has-migrations=false" >> $GITHUB_OUTPUT
-            echo "✅ No migrations detected" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Build and deploy preview
@@ -78,8 +60,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: check-migrations
     environment: preview
-    # Skip if migrations detected without override
-    if: needs.check-migrations.outputs.has-migrations != 'true' || needs.check-migrations.outputs.migration-override == 'true'
     steps:
       - name: Comment on PR (building)
         id: pr-comment
@@ -89,6 +69,7 @@ jobs:
             const prNumber = context.payload.pull_request.number;
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -100,12 +81,16 @@ jobs:
               comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
             );
 
+            const dbNote = hasMigrations
+              ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
+
             const body = '## ⏳ Preview deployment in progress\n\n'
               + '**Commit:** `' + commitSha + '`\n'
               + '**Status:** Building...\n\n'
               + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
               + '---\n'
-              + '*This preview uses the staging database - any changes will affect other previews.*';
+              + dbNote;
 
             let commentId;
             if (botComment) {
@@ -180,13 +165,22 @@ jobs:
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+
+            const dbNote = hasMigrations
+              ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            const statusMsg = hasMigrations
+              ? 'Build complete, deploying with isolated database...'
+              : 'Build complete, deploying to preview host...';
 
             const body = '## ⏳ Preview deployment in progress\n\n'
               + '**Commit:** `' + commitSha + '`\n'
-              + '**Status:** Build complete, deploying to preview host...\n\n'
+              + '**Status:** ' + statusMsg + '\n\n'
               + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
               + '---\n'
-              + '*This preview uses the staging database - any changes will affect other previews.*';
+              + dbNote;
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
@@ -201,6 +195,7 @@ jobs:
           PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
           PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
           STORE_PATH: ${{ steps.store-path.outputs.path }}
+          HAS_MIGRATIONS: ${{ needs.check-migrations.outputs.has-migrations }}
         run: |
           set -euo pipefail
 
@@ -217,15 +212,27 @@ jobs:
 
           SSH_CMD="ssh -i ~/.ssh/deploy_key ${PREVIEW_USER}@${PREVIEW_HOST}"
 
+          # Build deploy command with --with-db flag for migration PRs
+          DEPLOY_FLAGS=""
+          if [ "$HAS_MIGRATIONS" = "true" ]; then
+            DEPLOY_FLAGS="--with-db"
+            echo "🗄️ Migration detected - deploying with isolated database"
+          fi
+
           # The droplet pulls the build from Cachix automatically (configured as a substituter).
           # Just SSH in and create the preview — nix-store --realise is called by the create script.
           echo "Creating/updating preview instance..."
-          $SSH_CMD "sudo opencouncil-preview-create '$PR_NUM' '$STORE_PATH'"
+          $SSH_CMD "sudo opencouncil-preview-create '$PR_NUM' '$STORE_PATH' $DEPLOY_FLAGS"
 
           echo "### 🚀 Preview Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
           echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
+          if [ "$HAS_MIGRATIONS" = "true" ]; then
+            echo "Database: Isolated (PostGIS 3.3.5, seed data)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Database: Shared staging" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Health check
         id: health-check
@@ -255,10 +262,16 @@ jobs:
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const healthStatus = '${{ steps.health-check.outputs.status }}';
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+
+            const dbNote = hasMigrations
+              ? '*This preview uses an **isolated database** with seed data (migrations were applied).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
 
             let body = '## 🚀 Preview deployment ready!\n\n'
               + '**Preview URL:** ' + previewUrl + '\n'
-              + '**Commit:** `' + commitSha + '`\n\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n\n'
               + 'The preview will be automatically updated when you push new commits.\n'
               + 'It will be destroyed when this PR is closed or merged.\n\n';
 
@@ -268,42 +281,11 @@ jobs:
                 + 'Check the [workflow logs](' + logsUrl + ') for details.\n\n';
             }
 
-            body += '---\n'
-              + '*This preview uses the staging database - any changes will affect other previews.*';
+            body += '---\n' + dbNote;
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: commentId,
-              body: body,
-            });
-
-  # Post migration warning if blocked
-  migration-warning:
-    name: Post Migration Warning
-    runs-on: ubuntu-latest
-    needs: check-migrations
-    if: needs.check-migrations.outputs.has-migrations == 'true' && needs.check-migrations.outputs.migration-override != 'true'
-    steps:
-      - name: Comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const prNumber = context.payload.pull_request.number;
-
-            const body = '## ⚠️ Preview deployment blocked\n\n'
-              + 'This PR contains database migrations, which are not supported in preview deployments.\n\n'
-              + '**Why?** All preview instances share the staging database. Running migrations could break other previews or staging environment.\n\n'
-              + '**What to do:**\n'
-              + '1. Test migrations locally or in a dedicated environment\n'
-              + '2. If you\'re confident the migrations are safe, add `[skip-migration-check]` to the PR description to override this check\n'
-              + '3. Remember: overriding means the migration will run on the shared staging database\n\n'
-              + '---\n'
-              + '*To override this check, edit the PR description and add* `[skip-migration-check]` *anywhere in the text.*';
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
               body: body,
             });
