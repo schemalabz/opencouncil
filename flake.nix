@@ -90,32 +90,43 @@
 
       packages = forAllSystems (_system: pkgs:
         let
+          # Default postgres - uses nixpkgs PostGIS (fast, pre-built from binary cache)
           postgres = pkgs.postgresql_16.withPackages (ps: [ ps.postgis ]);
 
-          oc-dev-db-nix = pkgs.writeShellApplication {
-            name = "oc-dev-db-nix";
-            runtimeInputs = with pkgs; [
-              coreutils
-              postgres
-            ];
-            text = ''
-              set -euo pipefail
+          # PostGIS 3.3.5 pinned to match production database version (default).
+          # This ensures Prisma migrations work correctly (shadow database needs same version).
+          # Use `--fast` flag to skip building from source and use pre-built binary cache.
+          postgis335 = pkgs.postgresql_16.pkgs.postgis.overrideAttrs (old: rec {
+            version = "3.3.5";
+            src = pkgs.fetchurl {
+              url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
+              sha256 = "sha256-1w73FkGIHCIr55r32pbdpDI8T1+TWewbnBCFU53YQX8=";
+            };
+            # Skip check phase - it fails due to docbook DTD mismatch with newer tooling
+            doCheck = false;
+          });
 
-              repo_root="$(pwd)"
-              data_dir="''${OC_DB_DATA_DIR:-$repo_root/.data/postgres}"
-              port="''${OC_DB_PORT:-5432}"
-              # NOTE: In Nix-local DB mode, do NOT default to DATABASE_USER/NAME from .env.
-              # .env is commonly configured for a remote DB (e.g. user 'postgres'), and using it
-              # here can break a previously-initialized local cluster.
-              db_user="''${OC_DB_USER:-opencouncil}"
-              db_name="''${OC_DB_NAME:-opencouncil}"
+          postgresCompat = pkgs.postgresql_16.withPackages (ps: [ postgis335 ]);
 
-              mkdir -p "$data_dir"
+          # Shared script for starting PostgreSQL with PostGIS
+          dbNixScript = ''
+            set -euo pipefail
 
-              if [ ! -f "$data_dir/PG_VERSION" ]; then
-                # If initdb was interrupted previously, avoid cryptic initdb errors.
-                if [ -n "$(find "$data_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
-                  cat >&2 <<EOF
+            repo_root="$(pwd)"
+            data_dir="''${OC_DB_DATA_DIR:-$repo_root/.data/postgres}"
+            port="''${OC_DB_PORT:-5432}"
+            # NOTE: In Nix-local DB mode, do NOT default to DATABASE_USER/NAME from .env.
+            # .env is commonly configured for a remote DB (e.g. user 'postgres'), and using it
+            # here can break a previously-initialized local cluster.
+            db_user="''${OC_DB_USER:-opencouncil}"
+            db_name="''${OC_DB_NAME:-opencouncil}"
+
+            mkdir -p "$data_dir"
+
+            if [ ! -f "$data_dir/PG_VERSION" ]; then
+              # If initdb was interrupted previously, avoid cryptic initdb errors.
+              if [ -n "$(find "$data_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+                cat >&2 <<EOF
 Detected a non-empty Postgres data dir without PG_VERSION:
   $data_dir
 
@@ -123,43 +134,61 @@ To fix:
   - Delete it to re-init: rm -rf "$data_dir"
   - Or point to a fresh dir: OC_DB_DATA_DIR=... nix run .#dev
 EOF
-                  exit 2
-                fi
-                initdb -D "$data_dir" --username="$db_user" --auth=trust
+                exit 2
               fi
+              initdb -D "$data_dir" --username="$db_user" --auth=trust
+            fi
 
-              # Use a short socket path under /tmp to avoid the 107-byte Unix socket limit
-              # (long repo paths like worktrees easily exceed it).
-              socket_dir="/tmp/oc-pg-$(echo "$data_dir" | md5sum | cut -c1-8)"
-              mkdir -p "$socket_dir"
+            # Use a short socket path under /tmp to avoid the 107-byte Unix socket limit
+            # (long repo paths like worktrees easily exceed it).
+            socket_dir="/tmp/oc-pg-$(echo "$data_dir" | md5sum | cut -c1-8)"
+            mkdir -p "$socket_dir"
 
-              # Logical replication settings (required for PGSync testing)
-              # - wal_level=logical: enables logical decoding for CDC tools like PGSync
-              # - max_replication_slots: allows creating replication slots
-              # - max_wal_senders: allows replication connections
-              # - listen_addresses=0.0.0.0: allows Docker containers to connect to host DB
-              #
-              # shellcheck disable=SC2086
-              pg_ctl_opts="-c port=$port -c listen_addresses=0.0.0.0 -c unix_socket_directories=$socket_dir -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4"
+            # Logical replication settings (required for PGSync testing)
+            # - wal_level=logical: enables logical decoding for CDC tools like PGSync
+            # - max_replication_slots: allows creating replication slots
+            # - max_wal_senders: allows replication connections
+            # - listen_addresses=0.0.0.0: allows Docker containers to connect to host DB
+            #
+            # shellcheck disable=SC2086
+            pg_ctl_opts="-c port=$port -c listen_addresses=0.0.0.0 -c unix_socket_directories=$socket_dir -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4"
 
-              # Ensure the expected DB exists (handles cases where cluster exists but DB creation
-              # was interrupted in a previous run).
-              # shellcheck disable=SC2086
-              pg_ctl -D "$data_dir" -o "$pg_ctl_opts" -w start
-              # IMPORTANT: createdb connects to a "maintenance DB"; by default this can be the
-              # username (which may not exist yet). template1 is always present.
-              createdb -h 127.0.0.1 -p "$port" -U "$db_user" --maintenance-db=template1 "$db_name" >/dev/null 2>&1 || true
-              pg_ctl -D "$data_dir" -m fast -w stop
+            # Ensure the expected DB exists (handles cases where cluster exists but DB creation
+            # was interrupted in a previous run).
+            # shellcheck disable=SC2086
+            pg_ctl -D "$data_dir" -o "$pg_ctl_opts" -w start
+            # IMPORTANT: createdb connects to a "maintenance DB"; by default this can be the
+            # username (which may not exist yet). template1 is always present.
+            createdb -h 127.0.0.1 -p "$port" -U "$db_user" --maintenance-db=template1 "$db_name" >/dev/null 2>&1 || true
+            pg_ctl -D "$data_dir" -m fast -w stop
 
-              # shellcheck disable=SC2086
-              exec postgres -D "$data_dir" \
-                -c "port=$port" \
-                -c "listen_addresses=0.0.0.0" \
-                -c "unix_socket_directories=$socket_dir" \
-                -c "wal_level=logical" \
-                -c "max_replication_slots=4" \
-                -c "max_wal_senders=4"
-            '';
+            # shellcheck disable=SC2086
+            exec postgres -D "$data_dir" \
+              -c "port=$port" \
+              -c "listen_addresses=0.0.0.0" \
+              -c "unix_socket_directories=$socket_dir" \
+              -c "wal_level=logical" \
+              -c "max_replication_slots=4" \
+              -c "max_wal_senders=4"
+          '';
+
+          oc-dev-db-nix = pkgs.writeShellApplication {
+            name = "oc-dev-db-nix";
+            runtimeInputs = with pkgs; [
+              coreutils
+              postgres
+            ];
+            text = dbNixScript;
+          };
+
+          # Locked version with PostGIS 3.3.5 (matches production)
+          oc-dev-db-nix-locked = pkgs.writeShellApplication {
+            name = "oc-dev-db-nix-locked";
+            runtimeInputs = with pkgs; [
+              coreutils
+              postgresCompat
+            ];
+            text = dbNixScript;
           };
 
           # Shared port utilities used by oc-dev and oc-studio
@@ -253,12 +282,16 @@ EOF
                 sleep 0.2
               done
 
-              # Ensure PostGIS is available in the database.
-              psql "postgresql://$db_user@127.0.0.1:$port/$db_name?sslmode=disable" \
-                -v ON_ERROR_STOP=1 \
-                -c 'CREATE EXTENSION IF NOT EXISTS postgis;' >/dev/null
+              # In fast mode (--fast), pre-create PostGIS without a version so it uses whatever is available.
+              # This allows migrations with version-specific CREATE EXTENSION to be skipped (IF NOT EXISTS).
+              # In default mode (PostGIS 3.3.5), let migrations create the exact version.
+              if [ "''${OC_POSTGIS_LOCKED:-1}" != "1" ]; then
+                psql "postgresql://$db_user@127.0.0.1:$port/$db_name?sslmode=disable" \
+                  -v ON_ERROR_STOP=1 \
+                  -c 'CREATE EXTENSION IF NOT EXISTS postgis;' >/dev/null
+              fi
 
-              # Apply migrations, generate Prisma client, and seed (safe for dev/local).
+              # Apply migrations, generate Prisma client, and seed.
               (cd "$repo_root" && npm run db:deploy:seed)
 
               cd "$repo_root"
@@ -413,6 +446,7 @@ USAGE
                 pkgs.nodePackages.npm
                 pkgs.curl
                 oc-dev-db-nix
+                oc-dev-db-nix-locked
                 oc-dev-db-docker
                 oc-dev-app-local
               ]
@@ -428,7 +462,7 @@ USAGE
               usage() {
                 cat <<'USAGE'
 Usage:
-  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio]
+  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked]
 
 DB modes:
   --db=nix      Start Postgres+PostGIS via Nix + app (process-compose TUI) (default)
@@ -439,6 +473,7 @@ DB modes:
 Flags:
   --migrate     Run migrations (npm run db:deploy) before starting the app (remote/external only)
   --no-studio   Disable Prisma Studio process (enabled by default for local DB modes)
+  --fast        Use pre-built PostGIS from binary cache (faster first build, but may not match production)
 USAGE
               }
 
@@ -450,6 +485,7 @@ USAGE
               migrate="''${OC_DEV_MIGRATE:-0}"
               studio_override="''${OC_DEV_STUDIO:-}"
               studio_enabled=""
+              postgis_locked="''${OC_POSTGIS_LOCKED:-1}"
 
               for arg in "$@"; do
                 case "$arg" in
@@ -458,6 +494,7 @@ USAGE
                   --direct-url=*) direct_url="''${arg#--direct-url=}" ;;
                   --migrate) migrate="1" ;;
                   --no-studio) studio_override="0" ;;
+                  --fast) postgis_locked="0" ;;
                   --help|-h) usage; exit 0 ;;
                   *)
                     echo "Unknown argument: $arg" >&2
@@ -466,6 +503,14 @@ USAGE
                     ;;
                 esac
               done
+
+              # Select which DB command to use (default: PostGIS 3.3.5 matching production)
+              if [ "$postgis_locked" = "1" ]; then
+                oc_db_cmd="oc-dev-db-nix-locked"
+              else
+                oc_db_cmd="oc-dev-db-nix"
+                echo "Using pre-built PostGIS from binary cache (--fast mode, may not match production)"
+              fi
 
               repo_root="$(pwd)"
               if [ ! -f "$repo_root/package.json" ]; then
@@ -586,7 +631,7 @@ version: "0.5"
 processes:
   db:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; OC_DB_DATA_DIR=\"$data_dir\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" oc-dev-db-nix 2>&1 | tee -a \"$logs_dir/db.log\"'"
+    command: "bash -lc 'set -o pipefail; OC_DB_DATA_DIR=\"$data_dir\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" $oc_db_cmd 2>&1 | tee -a \"$logs_dir/db.log\"'"
   app:
     working_dir: "$repo_root"
     command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
@@ -847,7 +892,7 @@ EOF
             };
           };
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup opencouncil-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup opencouncil-prod;
         });
 
       nixosModules.opencouncil-preview = { config, lib, pkgs, ... }:
@@ -1289,6 +1334,12 @@ CADDYEOF
           type = "app";
           program = "${pkgs.writeShellScript "oc-dev-app" ''
             exec ${self.packages.${system}.oc-dev}/bin/oc-dev --db=remote "$@"
+          ''}";
+        };
+        dev-fast = {
+          type = "app";
+          program = "${pkgs.writeShellScript "oc-dev-fast" ''
+            exec ${self.packages.${system}.oc-dev}/bin/oc-dev --fast "$@"
           ''}";
         };
         dev-db-nix = {
