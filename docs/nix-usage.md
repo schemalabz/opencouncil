@@ -59,11 +59,45 @@ By default, the dev runner starts **Prisma Studio** for local DB modes (`--db=ni
 - Disable it: `nix run .#dev -- --no-studio`
 - Pin the port: `OC_PRISMA_STUDIO_PORT=5555 nix run .#dev`
 
+### Task Server (E2E Testing)
+
+For end-to-end testing with the [opencouncil-tasks](https://github.com/schemalabz/opencouncil-tasks) backend, run both services in separate terminals:
+
+**Terminal 1: OpenCouncil**
+```bash
+cd ~/projects/opencouncil
+nix run .#dev
+```
+
+**Terminal 2: opencouncil-tasks**
+```bash
+cd ~/projects/opencouncil-tasks
+nix develop
+npm run dev
+```
+
+**Configuration:**
+
+In your OpenCouncil `.env`, set:
+```bash
+TASK_API_URL=http://localhost:3005
+```
+
+The callback URL is automatically constructed from `NEXT_PUBLIC_BASE_URL` (typically `http://localhost:3000`) and sent with each task request.
+
+**Health check:**
+
+When `TASK_API_URL` is configured in `.env`, the dev runner will check if the task server is reachable on startup and show a warning if not:
+```
+🔗 Task API configured: http://localhost:3005
+   ⚠ Task server not reachable (start it separately for E2E testing)
+```
+
 ## Process Compose basics
 
 When you run `nix run .#dev`, you enter a `process-compose` terminal UI:
 
-- **What’s running**:
+- **What's running**:
   - `--db=remote`: `app` only
   - `--db=nix`: `db` + `app`
   - `--db=docker`: `db` + `app`
