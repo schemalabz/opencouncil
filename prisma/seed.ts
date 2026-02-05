@@ -1,7 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
-import axios from 'axios'
 import { env } from '@/env.mjs'
 import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 
@@ -300,8 +299,11 @@ async function getSeedData() {
   }
 
   // If no local file, download from URL
+  // Dynamic import to avoid bundling axios in production builds
+  // (preview deployments pre-download the seed data with curl)
   console.log(`Downloading seed data from: ${SEED_DATA_URL}`)
   try {
+    const axios = (await import('axios')).default
     const response = await axios.get(SEED_DATA_URL)
     const data = response.data
 
