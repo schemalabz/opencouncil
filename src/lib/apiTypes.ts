@@ -423,3 +423,47 @@ export interface GenerateVoiceprintResult {
     voiceprint: string; // Voiceprint embedding vector in base64
     duration: number; // Duration of the audio
 }
+
+/*
+ * Task: Poll Decisions (Diavgeia)
+ */
+
+export interface PollDecisionsRequest extends TaskRequest {
+    meetingDate: string; // ISO date "YYYY-MM-DD"
+    diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
+    diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
+    subjects: Array<{ subjectId: string; name: string }>;
+}
+
+export interface PollDecisionsMatch {
+    subjectId: string;
+    ada: string; // Diavgeia unique ID (e.g., "ΨΘ82ΩΡΦ-7ΑΙ")
+    decisionTitle: string; // Full title from Diavgeia
+    pdfUrl: string;
+    protocolNumber: string; // e.g., "231/2025"
+    issueDate: string; // ISO date when published on Diavgeia
+    matchConfidence: number; // 0-1 confidence score
+}
+
+export interface PollDecisionsResult {
+    matches: PollDecisionsMatch[];
+    unmatchedSubjects: Array<{ subjectId: string; name: string; reason: string }>;
+    ambiguousSubjects: Array<{
+        subjectId: string;
+        name: string;
+        candidates: Array<{
+            ada: string;
+            pdfUrl: string;
+            title: string;
+            similarity: number;
+        }>;
+    }>;
+    metadata?: {
+        diavgeiaUid: string;
+        query: object;
+        fetchedCount: number;
+        matchedCount: number;
+        unmatchedCount: number;
+        ambiguousCount: number;
+    };
+}

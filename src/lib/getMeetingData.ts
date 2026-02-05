@@ -1,4 +1,4 @@
-import { getCouncilMeeting } from '@/lib/db/meetings';
+import { getCouncilMeeting, CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -9,7 +9,7 @@ import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getBatchStatisticsForSubjects, Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
-import { CouncilMeeting, SpeakerTag } from '@prisma/client';
+import { SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
 
 const EMPTY_STATISTICS: Statistics = {
@@ -20,7 +20,7 @@ const EMPTY_STATISTICS: Statistics = {
 };
 
 export type MeetingDataCore = {
-    meeting: CouncilMeeting;
+    meeting: CouncilMeetingWithAdminBody;
     transcript: Transcript;
     city: CityWithGeometry;
     people: PersonWithRelations[];
