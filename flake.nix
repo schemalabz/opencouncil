@@ -1426,6 +1426,8 @@ CADDYEOF
                     ${pkgs.curl}/bin/curl -fsSL "$SEED_DATA_URL" -o "$SEED_DATA_PATH"
                   fi
                   export SEED_DATA_PATH
+                  # Set test city for creating dev admin users
+                  export DEV_TEST_CITY_ID="chania"
 
                   # Use the pre-bundled seed script (created during build)
                   if [ -f prisma/seed.mjs ]; then

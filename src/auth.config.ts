@@ -3,6 +3,7 @@ import type { NextAuthConfig } from "next-auth"
 import { AuthEmail } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
 import { env } from "./env.mjs"
+import { isTestUserEmail } from "./lib/dev/test-users"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -27,6 +28,14 @@ export default {
             const { identifier: to, provider, url, theme } = params
             const html = await renderReactEmailToHtml(AuthEmail({ url }))
 
+            // Redirect test user emails to DEV_EMAIL_OVERRIDE if set
+            // This allows testing different admin roles with a single real inbox
+            let emailTo = to
+            if (env.DEV_EMAIL_OVERRIDE && isTestUserEmail(to)) {
+                console.log(`[Auth] Redirecting test user email from ${to} to ${env.DEV_EMAIL_OVERRIDE}`)
+                emailTo = env.DEV_EMAIL_OVERRIDE
+            }
+
             const res = await fetch("https://api.resend.com/emails", {
                 method: "POST",
                 headers: {
@@ -35,7 +44,7 @@ export default {
                 },
                 body: JSON.stringify({
                     from: provider.from,
-                    to,
+                    to: emailTo,
                     subject: `Συνδεθείτε στο OpenCouncil`,
                     html,
                     text: `Συνδεθείτε στο OpenCouncil: ${url}`,
