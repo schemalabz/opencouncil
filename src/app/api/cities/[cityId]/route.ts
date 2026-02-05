@@ -70,6 +70,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
             ...(data.consultationsEnabled !== undefined && { consultationsEnabled: data.consultationsEnabled }),
             ...(data.peopleOrdering !== undefined && { peopleOrdering: data.peopleOrdering }),
             ...(data.highlightCreationPermission !== undefined && { highlightCreationPermission: data.highlightCreationPermission }),
+            ...(data.diavgeiaUid !== undefined && { diavgeiaUid: data.diavgeiaUid }),
         }
 
         // Only include admin-only fields if user is superadmin

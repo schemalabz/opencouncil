@@ -39,7 +39,8 @@ const formSchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'])
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']),
+    diavgeiaUnitId: z.string().optional().transform(val => val === '' ? undefined : val),
 })
 
 interface AdministrativeBody {
@@ -49,6 +50,7 @@ interface AdministrativeBody {
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
     notificationBehavior?: NotificationBehavior | null;
+    diavgeiaUnitId?: string | null;
 }
 
 interface AdministrativeBodiesListProps {
@@ -71,7 +73,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             name_en: editingBody?.name_en || "",
             type: editingBody?.type || "council",
             youtubeChannelUrl: editingBody?.youtubeChannelUrl || "",
-            notificationBehavior: editingBody?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
+            notificationBehavior: editingBody?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+            diavgeiaUnitId: editingBody?.diavgeiaUnitId || "",
         },
     })
 
@@ -101,7 +104,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     name_en: "",
                     type: "council",
                     youtubeChannelUrl: "",
-                    notificationBehavior: "NOTIFICATIONS_APPROVAL"
+                    notificationBehavior: "NOTIFICATIONS_APPROVAL",
+                    diavgeiaUnitId: "",
                 })
                 setIsDialogOpen(false)
             } else {
@@ -148,7 +152,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             name_en: "",
                             type: "council",
                             youtubeChannelUrl: "",
-                            notificationBehavior: "NOTIFICATIONS_APPROVAL"
+                            notificationBehavior: "NOTIFICATIONS_APPROVAL",
+                            diavgeiaUnitId: "",
                         })
                         setIsDialogOpen(true)
                     }}>
@@ -261,6 +266,25 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
+                            <FormField
+                                control={form.control}
+                                name="diavgeiaUnitId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('diavgeiaUnitId')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('diavgeiaUnitIdPlaceholder')}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('diavgeiaUnitIdDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? (
                                     <>
@@ -295,7 +319,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                             name_en: body.name_en,
                                             type: body.type,
                                             youtubeChannelUrl: body.youtubeChannelUrl || "",
-                                            notificationBehavior: body.notificationBehavior || "NOTIFICATIONS_APPROVAL"
+                                            notificationBehavior: body.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+                                            diavgeiaUnitId: body.diavgeiaUnitId || "",
                                         })
                                         setIsDialogOpen(true)
                                     }}

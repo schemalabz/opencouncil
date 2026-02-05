@@ -84,7 +84,8 @@ function subjectToSearchResult(
         location: null,
         topic: null,
         introducedBy: null,
-        discussedIn: null
+        discussedIn: null,
+        decision: null
     };
 
     // Create the search result

@@ -27,6 +27,9 @@ export const TASK_CONFIG = {
   generateVoiceprint: {
     requiredForPipeline: false,
   },
+  pollDecisions: {
+    requiredForPipeline: false,
+  },
 } as const;
 
 // Derive MeetingTaskType from the configuration

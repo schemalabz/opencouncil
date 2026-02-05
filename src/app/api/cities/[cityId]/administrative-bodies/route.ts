@@ -19,7 +19,8 @@ const bodySchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional()
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional(),
+    diavgeiaUnitId: z.string().optional().transform(val => val === '' ? undefined : val),
 });
 
 export async function GET(
@@ -57,7 +58,7 @@ export async function POST(
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = bodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, diavgeiaUnitId } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -66,6 +67,7 @@ export async function POST(
             cityId,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
             notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
+            diavgeiaUnitId: diavgeiaUnitId || null,
         });
 
         revalidateTag(`city:${cityId}:administrativeBodies`);

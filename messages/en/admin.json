@@ -72,7 +72,8 @@
       "addTopic": "Add Topic",
       "starting": "Starting...",
       "syncing": "Syncing...",
-      "process": "Process"
+      "process": "Process",
+      "manageDecisions": "Manage Decisions"
     },
     "forms": {
       "enterMediaUrl": "Enter Media URL",
@@ -157,7 +158,57 @@
         "title": "Error",
         "failedToInvalidateMeetingCache": "Failed to invalidate meeting cache",
         "failedToInvalidateCityCache": "Failed to invalidate city cache"
+      },
+      "pollDecisionsRequested": {
+        "title": "Poll decisions requested",
+        "description": "Diavgeia decision polling has been started."
+      },
+      "errorPollingDecisions": {
+        "title": "Error polling decisions"
+      },
+      "decisionLinked": {
+        "title": "Decision linked"
+      },
+      "decisionUnlinked": {
+        "title": "Decision unlinked"
+      },
+      "errorSavingDecision": {
+        "title": "Error saving decision"
+      },
+      "errorRemovingDecision": {
+        "title": "Error removing decision"
       }
+    },
+    "decisions": {
+      "title": "Manage Decisions (Diavgeia)",
+      "description": "Link Diavgeia decisions to meeting subjects. Use automatic polling or add manually.",
+      "noSubjects": "No subjects found for this meeting.",
+      "noDecision": "No decision",
+      "adaLabel": "ADA",
+      "adaPlaceholder": "e.g. 91ΥΔΩΡΦ-ΓΥ6",
+      "protocolNumberLabel": "Protocol Number",
+      "protocolNumberPlaceholder": "e.g. 261/2024",
+      "titleLabel": "Decision Title",
+      "titlePlaceholder": "Decision Title",
+      "pdfUrlLabel": "PDF URL",
+      "pdfUrlPlaceholder": "https://diavgeia.gov.gr/...",
+      "viewPdf": "View PDF",
+      "linked": "linked",
+      "poll": "Poll Diavgeia",
+      "pollUnlinked": "Poll unlinked ({count})",
+      "pollAll": "Poll all subjects",
+      "save": "Save",
+      "validation": {
+        "pdfUrlRequired": "PDF URL is required",
+        "pdfUrlInvalid": "Please enter a valid URL"
+      },
+      "sourceTask": "Added automatically",
+      "addManually": "Add manually",
+      "remove": "Remove",
+      "tabAll": "All",
+      "tabUnlinked": "Unlinked",
+      "allLinked": "All subjects have linked decisions.",
+      "pollDisabledNoConfig": "Configure Diavgeia UID in city settings to enable polling"
     }
   }
 }
