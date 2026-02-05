@@ -1186,6 +1186,7 @@ EOF
                 Group = cfg.group;
                 Environment = [
                   "NODE_ENV=production"
+                  "IS_PREVIEW=true"
                   "PORT=%i"
                   "HOSTNAME=0.0.0.0"
                 ];
