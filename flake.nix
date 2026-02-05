@@ -851,8 +851,9 @@ EOF
               # but at runtime the client needs it in a known location.
               cp ${pkgs.prisma-engines}/lib/libquery_engine.node $out/prisma/
 
-              # Bundle seed script with all dependencies (includes @/ path aliases)
-              # This creates a self-contained seed.mjs that can run without node_modules
+              # Bundle seed script with dependencies (includes @/ path aliases)
+              # Externals: @prisma/client (runtime), axios (dynamically imported, not needed
+              # in production since preview-create pre-downloads seed data with curl)
               echo "Bundling seed script..."
               ${pkgs.esbuild}/bin/esbuild prisma/seed.ts \
                 --bundle \
@@ -860,6 +861,7 @@ EOF
                 --format=esm \
                 --outfile=$out/prisma/seed.mjs \
                 --external:@prisma/client \
+                --external:axios \
                 --loader:.ts=ts \
                 --tsconfig=tsconfig.json \
                 --define:process.env.SKIP_ENV_VALIDATION='"1"' || echo "Seed bundling failed, seeding may not work"
@@ -1415,6 +1417,16 @@ CADDYEOF
                   ${pkgs.nodePackages.prisma}/bin/prisma migrate deploy
 
                   echo "Seeding database..."
+                  # Pre-download seed data so the seed script doesn't need axios
+                  # (axios is not bundled to avoid ESM/CommonJS compatibility issues)
+                  SEED_DATA_URL="https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json"
+                  SEED_DATA_PATH="$pr_dir/seed_data.json"
+                  if [ ! -f "$SEED_DATA_PATH" ]; then
+                    echo "Downloading seed data..."
+                    ${pkgs.curl}/bin/curl -fsSL "$SEED_DATA_URL" -o "$SEED_DATA_PATH"
+                  fi
+                  export SEED_DATA_PATH
+
                   # Use the pre-bundled seed script (created during build)
                   if [ -f prisma/seed.mjs ]; then
                     ${pkgs.nodejs}/bin/node prisma/seed.mjs
