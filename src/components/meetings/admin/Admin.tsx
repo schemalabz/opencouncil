@@ -19,6 +19,7 @@ import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Bell } from 'lucide-react';
+import { DecisionsPanel } from './DecisionsPanel';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
@@ -33,6 +34,7 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
+    const [decisionsDialogOpen, setDecisionsDialogOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -398,6 +400,13 @@ export default function AdminActions({
             </div>
         </div>
         <div className="mt-6">
+            <h3 className="text-lg font-semibold">{t('sections.decisions')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.decisionsSubtitle')}</p>
+            <Button variant="outline" onClick={() => setDecisionsDialogOpen(true)}>
+                {t('buttons.manageDecisions')}
+            </Button>
+        </div>
+        <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.meetingReleaseSubtitle')}</p>
             <div className="flex items-center space-x-2">
@@ -445,6 +454,8 @@ export default function AdminActions({
                 onCreateNotifications={handleCreateNotifications}
             />
         </div>
+
+        <DecisionsPanel open={decisionsDialogOpen} onOpenChange={setDecisionsDialogOpen} />
 
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.cacheManagement')}</h3>

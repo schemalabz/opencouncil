@@ -32,6 +32,9 @@ export const CITY_DEFAULTS = {
 // Helper to convert string to boolean (for FormData)
 const stringToBoolean = z.string().transform(val => val === 'true');
 
+// Helper to convert empty string to null (for optional nullable fields)
+const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
+
 // Base field definitions — validation and transformation only, no defaults.
 // Shared between frontend (baseCityFormSchema) and backend (baseCityFormDataSchema).
 const baseCityFields = {
@@ -60,7 +63,10 @@ const baseCityFields = {
 };
 
 // Base schema for frontend forms (React Hook Form) — uses booleans directly
-export const baseCityFormSchema = z.object(baseCityFields);
+export const baseCityFormSchema = z.object({
+  ...baseCityFields,
+  diavgeiaUid: z.string().optional(),
+});
 
 // Base schema for FormData (backend API routes) — transforms strings to booleans
 export const baseCityFormDataSchema = z.object({
@@ -69,6 +75,7 @@ export const baseCityFormDataSchema = z.object({
   officialSupport: stringToBoolean,
   supportsNotifications: stringToBoolean,
   consultationsEnabled: stringToBoolean,
+  diavgeiaUid: emptyStringToNull.optional(),
 });
 
 // Create schema for FormData (POST route)

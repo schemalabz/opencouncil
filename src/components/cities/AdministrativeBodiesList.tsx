@@ -49,7 +49,8 @@ const formSchema = z.object({
         const emailSchema = z.string().email();
         return emails.every(email => emailSchema.safeParse(email).success);
     }, { message: "All entries must be valid email addresses" }),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'])
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']),
+    diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
 })
 
 interface AdministrativeBody {
@@ -60,6 +61,7 @@ interface AdministrativeBody {
     youtubeChannelUrl?: string | null;
     contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
+    diavgeiaUnitIds?: string[];
 }
 
 interface AdministrativeBodiesListProps {
@@ -76,7 +78,8 @@ function getFormDefaults(body?: AdministrativeBody | null): z.infer<typeof formS
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
         contactEmailPrimary: body?.contactEmails?.[0] || "",
         contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
-        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
+        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+        diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
     };
 }
 
@@ -316,6 +319,25 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         </FormControl>
                                         <FormDescription>
                                             {t('notificationBehaviorDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="diavgeiaUnitIds"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('diavgeiaUnitIds')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('diavgeiaUnitIdsPlaceholder')}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('diavgeiaUnitIdsDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

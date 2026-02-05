@@ -58,6 +58,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         type: AdministrativeBodyType;
         youtubeChannelUrl?: string | null;
         notificationBehavior?: NotificationBehavior | null;
+        diavgeiaUnitIds?: string[];
     }>>([])
     const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
     const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
@@ -107,7 +108,8 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
             consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
             peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
-            highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission
+            highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
+            diavgeiaUid: city?.diavgeiaUid || '',
         },
     })
 
@@ -140,6 +142,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('consultationsEnabled', values.consultationsEnabled.toString())
         formData.append('highlightCreationPermission', values.highlightCreationPermission)
         formData.append('peopleOrdering', values.peopleOrdering)
+        formData.append('diavgeiaUid', values.diavgeiaUid || '')
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -428,6 +431,25 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                             onCheckedChange={field.onChange}
                                         />
                                     </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="diavgeiaUid"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('diavgeiaUid')}</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder={t('diavgeiaUidPlaceholder')}
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormDescription>
+                                        {t('diavgeiaUidDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
