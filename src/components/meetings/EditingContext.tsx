@@ -22,7 +22,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const { transcript, extractSpeakerSegment } = useCouncilMeetingData();
+    const { transcript, extractSpeakerSegment, getSpeakerSegmentById } = useCouncilMeetingData();
     const { toast } = useToast();
     const t = useTranslations('editing.toasts');
 
@@ -100,7 +100,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             const endUtteranceId = allUtterances[indices[indices.length - 1]].id;
 
             // Validate extraction leaves utterances before and after (A-B-A pattern)
-            const originalSegment = transcript.find(s => s.id === targetSegmentId);
+            const originalSegment = getSpeakerSegmentById(targetSegmentId);
             if (originalSegment) {
                 const totalUtterances = originalSegment.utterances.length;
                 const segmentStartIndex = originalSegment.utterances.findIndex(u => u.id === startUtteranceId);
