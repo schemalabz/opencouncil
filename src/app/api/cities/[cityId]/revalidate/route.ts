@@ -6,7 +6,7 @@ export async function POST(
     request: Request,
     { params }: { params: { cityId: string } }
 ) {
-    if (!isUserAuthorizedToEdit({})) {
+    if (!await isUserAuthorizedToEdit({})) {
         return NextResponse.json({ error: 'Unauthorized: Only super admins can revalidate city cache' }, { status: 401 });
     }
     
