@@ -135,20 +135,21 @@ export async function getStatisticsFor(
     };
 
     // Conditionally include topicLabels only when grouping by topic
-    const segments = await prisma.speakerSegment.findMany({
-        where,
-        include: {
-            speakerTag: speakerTagInclude,
-            ...(needsTopicLabels && {
+    if (needsTopicLabels) {
+        transcript = await prisma.speakerSegment.findMany({
+            where,
+            include: {
+                speakerTag: speakerTagInclude,
                 topicLabels: { include: { topic: true } }
-            })
-        }
-    });
-
-    // Add empty topicLabels to satisfy the type when not loaded
-    transcript = needsTopicLabels
-        ? segments
-        : segments.map(seg => ({ ...seg, topicLabels: [] }));
+            }
+        });
+    } else {
+        const segments = await prisma.speakerSegment.findMany({
+            where,
+            include: { speakerTag: speakerTagInclude }
+        });
+        transcript = segments.map(seg => ({ ...seg, topicLabels: [] }));
+    }
 
     // Filter by party in application code to ensure role was active at meeting time
     if (partyId) {
