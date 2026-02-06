@@ -632,3 +632,90 @@ export async function sendHumanReviewCompletedAdminAlert(data: {
         }],
     });
 }
+
+/**
+ * Send admin alert when a transcript is successfully sent to a municipality
+ */
+export async function sendTranscriptSentAdminAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    recipientEmails: string[];
+    administrativeBodyName: string;
+}): Promise<void> {
+    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+
+    await sendDiscordMessage({
+        embeds: [{
+            title: `📧 Transcript Sent - ${data.cityId}`,
+            description: `Transcript email sent for ${data.meetingId}`,
+            color: 0x2ecc71, // Green
+            fields: [
+                {
+                    name: 'Municipality',
+                    value: data.cityName,
+                    inline: true,
+                },
+                {
+                    name: 'Administrative Body',
+                    value: data.administrativeBodyName,
+                    inline: true,
+                },
+                {
+                    name: 'Meeting',
+                    value: data.meetingName,
+                    inline: false,
+                },
+                {
+                    name: data.recipientEmails.length > 1 ? 'Recipients' : 'Recipient',
+                    value: data.recipientEmails.join(', '),
+                    inline: false,
+                },
+                {
+                    name: 'View Meeting',
+                    value: `[Open in OpenCouncil](${meetingUrl})`,
+                    inline: false,
+                },
+            ],
+            timestamp: new Date().toISOString(),
+        }],
+    });
+}
+
+/**
+ * Send admin alert when transcript sending fails
+ */
+export async function sendTranscriptSendFailedAdminAlert(data: {
+    cityId: string;
+    meetingId: string;
+    error: string;
+}): Promise<void> {
+    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+
+    await sendDiscordMessage({
+        embeds: [{
+            title: `❌ Transcript Send Failed - ${data.cityId}`,
+            description: `Failed to send transcript for ${data.meetingId}`,
+            color: 0xff0000, // Red
+            fields: [
+                {
+                    name: 'Meeting',
+                    value: `${data.cityId}/${data.meetingId}`,
+                    inline: false,
+                },
+                {
+                    name: 'Error',
+                    value: data.error.substring(0, 1024), // Discord field value limit
+                    inline: false,
+                },
+                {
+                    name: 'View Meeting',
+                    value: `[Open in OpenCouncil](${meetingUrl})`,
+                    inline: false,
+                },
+            ],
+            timestamp: new Date().toISOString(),
+        }],
+    });
+}

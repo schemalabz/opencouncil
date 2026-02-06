@@ -24,6 +24,10 @@
       "label": "The calculated review time is not accurate",
       "placeholder": "Enter actual review time (e.g., 2h 30m)",
       "help": "This will be shown in reports for context, but won't replace the calculated time."
+    },
+    "sendTranscript": {
+      "label": "Send transcript to municipality",
+      "help": "The transcript will be automatically sent to: {emails}"
     }
   },
   "stats": {

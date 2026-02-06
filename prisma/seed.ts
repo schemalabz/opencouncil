@@ -3,6 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { env } from '@/env.mjs'
 import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
+import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
 
 const prisma = new PrismaClient()
 
@@ -271,6 +272,9 @@ async function main() {
 
     // Finally seed meetings and related data
     await seedMeetings(seedData.meetings)
+
+    // Seed task statuses for meetings based on their data state
+    await seedMeetingTaskStatuses(seedData.meetings)
 
     // Seed voiceprints after speaker segments are created
     await seedVoicePrints(seedData.persons)
@@ -1024,6 +1028,47 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
   } catch (error) {
     console.error('Error creating podcast specs:', error)
   }
+}
+
+/**
+ * Create task statuses for seeded meetings based on their data state.
+ * This ensures getMeetingStatus() works correctly in local dev.
+ */
+async function seedMeetingTaskStatuses(meetings: any[]) {
+  console.log(`Seeding task statuses for ${meetings.length} meetings...`)
+
+  let taskCount = 0;
+  // Set createdAt to 10 minutes ago so tasks can be immediately deleted from UI if needed
+  const createdAt = new Date(Date.now() - 10 * 60 * 1000);
+
+  for (const meeting of meetings) {
+    const hasUtterances = meeting.speakerSegments?.some(
+      (seg: any) => seg.utterances?.length > 0
+    );
+    const hasSummaries = meeting.speakerSegments?.some(
+      (seg: any) => seg.summary
+    );
+
+    // If meeting has processed data, mark all core tasks as succeeded
+    if (hasUtterances || hasSummaries) {
+      for (const taskType of CORE_PROCESSING_TASKS) {
+        await prisma.taskStatus.create({
+          data: {
+            type: taskType,
+            status: 'succeeded',
+            councilMeetingId: meeting.id,
+            cityId: meeting.cityId,
+            requestBody: JSON.stringify({ seeded: true }),
+            createdAt,
+            updatedAt: createdAt,
+          },
+        });
+        taskCount++;
+      }
+    }
+  }
+
+  console.log(`Created ${taskCount} task statuses`);
 }
 
 main()

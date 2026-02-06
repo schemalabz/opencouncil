@@ -19,6 +19,7 @@ const bodySchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
+    contactEmails: z.array(z.string().email()).optional().default([]),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional()
 });
 
@@ -57,7 +58,7 @@ export async function POST(
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = bodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -65,6 +66,7 @@ export async function POST(
             type,
             cityId,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
+            contactEmails: contactEmails || [],
             notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
         });
 

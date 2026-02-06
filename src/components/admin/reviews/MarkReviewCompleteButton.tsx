@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
-import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
+import { markHumanReviewComplete, getMeetingContactEmails } from '@/lib/tasks/humanReview';
 import { useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { SendTranscriptCheckbox } from '@/components/reviews/SendTranscriptCheckbox';
 
 interface MarkReviewCompleteButtonProps {
   cityId: string;
@@ -33,13 +34,35 @@ export function MarkReviewCompleteButton({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [contactEmails, setContactEmails] = useState<string[]>([]);
+  const [sendTranscript, setSendTranscript] = useState(false);
+  const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+
+  useEffect(() => {
+    if (showDialog) {
+      setIsLoadingEmails(true);
+      getMeetingContactEmails(cityId, meetingId)
+        .then((result) => {
+          setContactEmails(result.contactEmails);
+          // Default to true if contact emails exist, matching CompleteReviewDialog behavior
+          setSendTranscript(result.contactEmails.length > 0);
+        })
+        .catch(() => setContactEmails([]))
+        .finally(() => setIsLoadingEmails(false));
+    }
+  }, [showDialog, cityId, meetingId]);
 
   const handleMarkComplete = async () => {
     setError(null);
     setIsSubmitting(true);
     
     try {
-      await markHumanReviewComplete(cityId, meetingId);
+      await markHumanReviewComplete(
+        cityId,
+        meetingId,
+        undefined,
+        sendTranscript && contactEmails.length > 0
+      );
       
       // Close dialog
       setShowDialog(false);
@@ -68,7 +91,7 @@ export function MarkReviewCompleteButton({
     );
   }
 
-  const isLoading = isSubmitting || isPending;
+  const isLoading = isSubmitting || isPending || isLoadingEmails;
 
   return (
     <div className="space-y-2">
@@ -98,6 +121,11 @@ export function MarkReviewCompleteButton({
               This will mark the transcript review as complete. The meeting will be removed from the &quot;Needs Attention&quot; list and moved to completed reviews.
             </DialogDescription>
           </DialogHeader>
+          <SendTranscriptCheckbox
+            contactEmails={contactEmails}
+            checked={sendTranscript}
+            onCheckedChange={setSendTranscript}
+          />
           <DialogFooter>
             <Button 
               variant="outline" 

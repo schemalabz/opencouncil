@@ -538,6 +538,9 @@
         "youtubeChannelUrl": "URL Κανάλι YouTube",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
         "youtubeChannelUrlDescription": "Εισάγετε το URL του καναλιού YouTube για αυτό το διοικητικό όργανο.",
+        "contactEmails": "Email Επικοινωνίας",
+        "contactEmailsPlaceholder": "email1@municipality.gr, email2@municipality.gr",
+        "contactEmailsDescription": "Emails για αποστολή απομαγνητοφωνήσεων (διαχωρισμένα με κόμμα).",
         "notificationBehavior": "Συμπεριφορά Ειδοποιήσεων",
         "notificationBehaviorDescription": "Επιλέξτε τη συμπεριφορά των ειδοποιήσεων για συνεδριάσεις αυτού του οργάνου.",
         "notificationBehaviorOptions": {
