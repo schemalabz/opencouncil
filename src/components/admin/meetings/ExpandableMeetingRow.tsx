@@ -18,7 +18,7 @@ import {
     ListChecks
 } from "lucide-react";
 import { MeetingExportButtons } from "@/components/meetings/MeetingExportButtons";
-import { MeetingData } from "@/lib/getMeetingData";
+import { MeetingDataCore } from "@/lib/getMeetingData";
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row";
 import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
@@ -42,7 +42,7 @@ export function ExpandableMeetingRow({
     const subjectCount = meeting.subjects.length;
     const meetingDate = format(new Date(meeting.dateTime), "MMM dd, yyyy");
 
-    const fetchCompleteMeetingData = async (): Promise<MeetingData> => {
+    const fetchCompleteMeetingData = async (): Promise<MeetingDataCore> => {
         const response = await fetch(`/api/cities/${selectedCityId}/meetings/${meeting.id}`);
         if (!response.ok) {
             throw new Error('Failed to fetch meeting data');
