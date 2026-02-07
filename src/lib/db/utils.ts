@@ -107,6 +107,7 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
             speakerContributions: s.contributions.length > 0
                 ? s.contributions.map(c => ({
                     speakerId: c.speakerId,
+                    speakerName: c.speakerName ?? c.speaker?.name ?? null,
                     text: c.text
                 }))
                 : [], // Backend will handle empty contributions
@@ -249,6 +250,7 @@ export async function createSubjectsForMeeting(
                             speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
                                 ? contrib.speakerId
                                 : null,
+                            speakerName: contrib.speakerName,
                             text: contrib.text
                         }))
                     },

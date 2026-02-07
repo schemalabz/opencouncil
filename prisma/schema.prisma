@@ -479,8 +479,9 @@ model SpeakerContribution {
   subjectId String
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
-  speakerId String?  // personId (nullable for unidentified speakers)
-  speaker   Person?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  speakerId   String?  // personId (nullable for unidentified speakers)
+  speaker     Person?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  speakerName String?  // Display name for speakers without a person record
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
