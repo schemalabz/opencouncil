@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { getMeetingData } from '@/lib/getMeetingData';
+import { getMeetingDataCore } from '@/lib/getMeetingData';
 import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
@@ -33,8 +33,8 @@ export async function GET(
     request: Request,
     { params }: { params: { cityId: string; meetingId: string } }
 ) {
-    const data = await getMeetingData(params.cityId, params.meetingId);
-    return NextResponse.json({ ...data });
+    const data = await getMeetingDataCore(params.cityId, params.meetingId);
+    return NextResponse.json(data);
 }
 
 export async function PUT(

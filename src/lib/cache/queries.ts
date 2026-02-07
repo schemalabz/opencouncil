@@ -6,29 +6,37 @@ import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
-import { getMeetingData, MeetingData } from "@/lib/getMeetingData";
+import { getMeetingDataCore, MeetingData } from "@/lib/getMeetingData";
+import { getHighlightsForMeeting } from "@/lib/db/highlights";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
 
 /**
- * Cached version of getMeetingData that fetches and caches all data for a meeting.
- * User-specific highlight visibility is handled internally via getCurrentUser(),
- * and cache() is request-scoped so each user gets their own cached results.
+ * Cached version of getMeetingData that composes:
+ * 1. Core data (sub-queries individually cached inside getMeetingDataCore)
+ * 2. Fresh user-specific highlights (fetched per-request)
+ *
+ * Outer React cache() deduplicates within a single request (layout calls this 3x).
+ * Note: the transcript is NOT cached (too large for 2MB unstable_cache limit),
+ * but all other sub-queries are individually cached inside getMeetingDataCore.
  */
 export const getMeetingDataCached = cache(async (
   cityId: string,
   meetingId: string
 ): Promise<MeetingData | null> => {
   const startTime = performance.now();
-  console.log(`Fetching meeting data for`, cityId, meetingId);
 
   try {
-    const data = await getMeetingData(cityId, meetingId);
-    console.log(`Got meeting data in ${performance.now() - startTime}ms`);
-    return data;
+    const [core, highlights] = await Promise.all([
+      getMeetingDataCore(cityId, meetingId),
+      getHighlightsForMeeting(cityId, meetingId)
+    ]);
+    const ms = (performance.now() - startTime).toFixed(0);
+    console.log(`getMeetingDataCached ${cityId}/${meetingId} done in ${ms}ms (${highlights.length} highlights)`);
+    return { ...core, highlights };
   } catch (error) {
-    console.error(`Error fetching meeting data for ${cityId}/${meetingId}:`, error);
+    console.error(`getMeetingDataCached ${cityId}/${meetingId} ERROR:`, error);
     return null;
   }
 });
