@@ -130,6 +130,7 @@ export interface SpeakerSegment {
 
 export interface SpeakerContribution {
     speakerId: string | null;
+    speakerName: string | null;  // Display name for speakers without a person record
     text: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
 }
 

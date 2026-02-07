@@ -265,6 +265,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                 <div className="flex items-center gap-4">
                                                     {speaker ? (
                                                         <PersonBadge person={speaker} />
+                                                    ) : contribution.speakerName ? (
+                                                        <span className="text-sm font-medium">
+                                                            {contribution.speakerName}
+                                                        </span>
                                                     ) : (
                                                         <span className="text-sm text-muted-foreground italic">
                                                             {t("unknownSpeaker")}
