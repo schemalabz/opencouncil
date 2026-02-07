@@ -5,7 +5,7 @@ import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
 import { formatDate } from "date-fns";
 import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
-import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature, getMeetingMediaType } from "@/lib/utils";
+import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
@@ -43,12 +43,12 @@ export default function MeetingPage() {
 
     // Categorize subjects
     const beforeAgendaSubjects = useMemo(() =>
-        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'beforeAgenda')),
+        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'beforeAgenda' && s.agendaItemIndex === null)),
         [filteredSubjects]
     );
 
     const outOfAgendaSubjects = useMemo(() =>
-        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'outOfAgenda')),
+        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'outOfAgenda' && s.agendaItemIndex === null)),
         [filteredSubjects]
     );
 
@@ -123,11 +123,19 @@ export default function MeetingPage() {
                     subjects={beforeAgendaSubjects}
                 />
 
+                {beforeAgendaSubjects.length > 0 && outOfAgendaSubjects.length > 0 && (
+                    <div className="max-w-4xl mx-auto mt-10"><hr className="border-border" /></div>
+                )}
+
                 <SubjectSection
                     title="Εκτός ημερησίας θέματα"
                     explainerText="Τα εκτός ημερησίας θέματα είναι έκτακτα θέματα που δεν πρόλαβαν να ενταχτούν στην ημερήσια διάταξη της συνεδρίασης. Ψηφίζονται από το σώμα, πρώτα για το κατ'επείγον, και έπειτα για την ουσία του θέματος."
                     subjects={outOfAgendaSubjects}
                 />
+
+                {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && agendaSubjects.length > 0 && (
+                    <div className="max-w-4xl mx-auto mt-10"><hr className="border-border" /></div>
+                )}
 
                 <SubjectSection
                     title="Θέματα ημερησίας διάταξης"
@@ -145,8 +153,6 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
-    const meetingMediaType = getMeetingMediaType(meeting);
-
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
@@ -155,10 +161,6 @@ function MeetingInfo() {
                     <div className="flex items-center">
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {formatDate(new Date(meeting.dateTime), 'PPP', { locale: locale === 'el' ? el : enUS })}
-                    </div>
-                    <div className="flex items-center">
-                        <meetingMediaType.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                        {meetingMediaType.label}
                     </div>
 
                     {meeting.agendaUrl && (

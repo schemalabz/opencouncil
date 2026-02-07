@@ -7,7 +7,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, formatDate, getMeetingMediaType, IS_DEV } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, formatDate, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -102,18 +102,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     const isUpcoming = isFuture(meeting.dateTime);
     const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
     const isTodayWithoutVideo = isToday && !meeting.videoUrl;
-
-    const getMediaStatus = () => {
-        const meetingMediaType = getMeetingMediaType(meeting);
-        const Icon = meetingMediaType.icon;
-
-        return (
-            <div className="flex items-center gap-1">
-                <Icon className="w-4 h-4" />
-                <span>{meetingMediaType.label}</span>
-            </div>
-        );
-    };
 
     // Ensure we have subjects to display
     const hasSubjects = meeting.subjects.length > 0;
@@ -210,9 +198,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     ? formatDateTime(meeting.dateTime, cityTimezone)
                                     : formatDate(meeting.dateTime, cityTimezone)}
                                 </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                {getMediaStatus()}
                             </div>
                         </div>
 

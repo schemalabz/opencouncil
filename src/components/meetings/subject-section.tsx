@@ -8,7 +8,7 @@ import { HelpCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-const INITIAL_VISIBLE = 6;
+const INITIAL_VISIBLE = 3;
 
 interface SubjectSectionProps {
     title: string;

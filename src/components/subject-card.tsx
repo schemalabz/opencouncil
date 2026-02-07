@@ -34,6 +34,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     const router = useRouter();
     const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(false);
+    const [isCardHovered, setIsCardHovered] = useState(false);
 
     useEffect(() => {
         setIsLoading(false);
@@ -82,7 +83,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     };
 
     return (
-        <Link {...linkProps} onClick={handleClick}>
+        <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
             <Card disableHover={disableHover} className={cn(
                 "relative flex flex-col group/card hover:shadow-md transition-all duration-300",
                 fullWidth ? "w-full" : "w-full",
@@ -147,6 +148,8 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                     <div onClick={(e) => e.stopPropagation()} className="w-full">
                         <PersonAvatarList
                             users={fullDisplayedSpeakers}
+                            autoScroll
+                            isHovered={isCardHovered}
                         />
                     </div>
                     {showContext && (
