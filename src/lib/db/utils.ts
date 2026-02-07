@@ -70,11 +70,11 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     };
 }
 
-let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" => {
+let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {
     if (subject.agendaItemIndex) return subject.agendaItemIndex;
 
     if (!subject.nonAgendaReason) {
-        throw new Error(`Subject ${subject.name} (${subject.id}) has no agenda item index and no non-agenda reason`);
+        return null;
     }
 
     return subject.nonAgendaReason === "beforeAgenda" ? "BEFORE_AGENDA" : "OUT_OF_AGENDA";
@@ -86,7 +86,9 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
     return {
         ...baseRequest,
         requestedSubjects,
-        existingSubjects: existingSubjects.map(s => ({
+        existingSubjects: existingSubjects
+            .filter(s => s.agendaItemIndex || s.nonAgendaReason)
+            .map(s => ({
             name: s.name,
             description: s.description,
             introducedByPersonId: s.introducedBy?.id || null,
@@ -96,7 +98,7 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
                 text: s.location.text,
                 coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
             } : null,
-            agendaItemIndex: getAgendaItemIndex(s),
+            agendaItemIndex: getAgendaItemIndex(s)!,
             context: s.context ? {
                 text: s.context,
                 citationUrls: s.contextCitationUrls
