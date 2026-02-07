@@ -13,7 +13,7 @@ import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
-import { getMeetingMediaType } from '@/lib/utils';
+
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
 import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
@@ -119,12 +119,9 @@ export default async function CouncilMeetingPage({
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
 
-    const meetingMediaType = getMeetingMediaType(data.meeting);
-
     // Format meeting description to include more info
     const meetingDescription = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
-        meetingMediaType.label,
         `${data.subjects.length} θέματα`
     ].filter(Boolean).join(' · ');
 
