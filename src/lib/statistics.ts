@@ -164,6 +164,161 @@ export async function getStatisticsFor(
     return getStatisticsForTranscript(transcript, groupBy, meetingDate, utteranceDurationsBySegment);
 }
 
+/**
+ * Batch-fetch statistics for multiple subjects in 2-3 DB queries instead of N×2.
+ * Groups by ["person", "party"] (matching the meeting page usage).
+ */
+export async function getBatchStatisticsForSubjects(
+    subjectIds: string[]
+): Promise<Map<string, Statistics>> {
+    const result = new Map<string, Statistics>();
+    if (subjectIds.length === 0) return result;
+
+    // 1. Batch-fetch all utterances for all subjects (new system)
+    const allUtterances = await prisma.utterance.findMany({
+        where: {
+            discussionSubjectId: { in: subjectIds },
+            discussionStatus: 'SUBJECT_DISCUSSION'
+        },
+        select: {
+            discussionSubjectId: true,
+            speakerSegmentId: true,
+            startTimestamp: true,
+            endTimestamp: true
+        }
+    });
+
+    // Group utterances by subject
+    const utterancesBySubject = new Map<string, typeof allUtterances>();
+    for (const u of allUtterances) {
+        if (!u.discussionSubjectId) continue;
+        const list = utterancesBySubject.get(u.discussionSubjectId);
+        if (list) {
+            list.push(u);
+        } else {
+            utterancesBySubject.set(u.discussionSubjectId, [u]);
+        }
+    }
+
+    // Determine which subjects need old system fallback
+    const subjectsWithNewSystem = new Set(utterancesBySubject.keys());
+    const subjectsNeedingFallback = subjectIds.filter(id => !subjectsWithNewSystem.has(id));
+
+    // 2. Batch-fetch old system SubjectSpeakerSegment for remaining subjects
+    let oldSystemBySubject = new Map<string, string[]>();
+    if (subjectsNeedingFallback.length > 0) {
+        const subjectSpeakerSegments = await prisma.subjectSpeakerSegment.findMany({
+            where: { subjectId: { in: subjectsNeedingFallback } },
+            select: { subjectId: true, speakerSegmentId: true }
+        });
+        for (const sss of subjectSpeakerSegments) {
+            const list = oldSystemBySubject.get(sss.subjectId);
+            if (list) {
+                list.push(sss.speakerSegmentId);
+            } else {
+                oldSystemBySubject.set(sss.subjectId, [sss.speakerSegmentId]);
+            }
+        }
+    }
+
+    // Collect all unique speaker segment IDs we need to fetch
+    const allSegmentIds = new Set<string>();
+
+    // From new system: extract segment IDs from utterances
+    const utteranceDurationsBySubjectAndSegment = new Map<string, Map<string, number>>();
+    for (const [subjectId, utterances] of utterancesBySubject) {
+        const durMap = new Map<string, number>();
+        for (const u of utterances) {
+            const duration = Math.max(0, u.endTimestamp - u.startTimestamp);
+            durMap.set(u.speakerSegmentId, (durMap.get(u.speakerSegmentId) || 0) + duration);
+            allSegmentIds.add(u.speakerSegmentId);
+        }
+        utteranceDurationsBySubjectAndSegment.set(subjectId, durMap);
+    }
+
+    // From old system: add segment IDs
+    for (const segIds of oldSystemBySubject.values()) {
+        for (const id of segIds) {
+            allSegmentIds.add(id);
+        }
+    }
+
+    // 3. Single batch fetch for all speaker segments with person/party includes
+    if (allSegmentIds.size === 0) {
+        // All subjects have no data
+        for (const id of subjectIds) {
+            result.set(id, { ...EMPTY_STATISTICS });
+        }
+        return result;
+    }
+
+    const speakerTagInclude = {
+        include: {
+            person: {
+                include: {
+                    roles: {
+                        include: {
+                            party: true,
+                            administrativeBody: true,
+                            city: true
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    const segments = await prisma.speakerSegment.findMany({
+        where: {
+            id: { in: [...allSegmentIds] },
+            NOT: { summary: { type: "procedural" as const } }
+        },
+        include: { speakerTag: speakerTagInclude }
+    });
+
+    // Index segments by ID for fast lookup
+    const segmentById = new Map(segments.map(s => [s.id, s]));
+
+    // 4. Compute statistics per subject
+    const groupBy: ("person" | "party")[] = ["person", "party"];
+
+    for (const subjectId of subjectIds) {
+        const subjectUtteranceDurations = utteranceDurationsBySubjectAndSegment.get(subjectId);
+
+        if (subjectUtteranceDurations) {
+            // New system: use utterance-based durations
+            const segmentIds = [...subjectUtteranceDurations.keys()];
+            const subjectSegments = segmentIds
+                .map(id => segmentById.get(id))
+                .filter((s): s is NonNullable<typeof s> => s != null)
+                .map(seg => ({ ...seg, topicLabels: [] as never[] }));
+
+            result.set(subjectId, await getStatisticsForTranscript(
+                subjectSegments as SpeakerSegmentInfo[],
+                groupBy,
+                undefined,
+                subjectUtteranceDurations
+            ));
+        } else if (oldSystemBySubject.has(subjectId)) {
+            // Old system: use full segment durations
+            const segmentIds = oldSystemBySubject.get(subjectId)!;
+            const subjectSegments = segmentIds
+                .map(id => segmentById.get(id))
+                .filter((s): s is NonNullable<typeof s> => s != null)
+                .map(seg => ({ ...seg, topicLabels: [] as never[] }));
+
+            result.set(subjectId, await getStatisticsForTranscript(
+                subjectSegments as SpeakerSegmentInfo[],
+                groupBy
+            ));
+        } else {
+            result.set(subjectId, { ...EMPTY_STATISTICS });
+        }
+    }
+
+    return result;
+}
+
 function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
     if (segments.length === 0) {
         return segments;
