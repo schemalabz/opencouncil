@@ -342,7 +342,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                             { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', demo: { text: "Δείτε τo API", link: "/docs" } },
                             { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Άνοιξη 2025' },
                             { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
-                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Σύνδεση των θεμάτων που συζητούνται στις συνεδριάσεις με την ημερήσια διάταξη', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025/subjects/" } },
+                            { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Σύνδεση των θεμάτων που συζητούνται στις συνεδριάσεις με την ημερήσια διάταξη', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025" } },
                             { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber' },
                             { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Άνοιξη 2025' }
                         ].map((feature, index) => (

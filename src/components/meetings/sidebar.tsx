@@ -161,22 +161,6 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && (
                                 <>
-                                    <SidebarMenuItem className="pl-8">
-                                        <SidebarMenuButton
-                                            asChild
-                                            onClick={handleMenuItemClick}
-                                            isActive={activeItem === `/${city.id}/${meeting.id}/subjects`}
-                                        >
-                                            <Link
-                                                href={`/${city.id}/${meeting.id}/subjects`}
-                                                className={cn(
-                                                    activeItem === `/${city.id}/${meeting.id}/subjects` && "text-primary font-medium"
-                                                )}
-                                            >
-                                                <span className="text-sm font-bold">Όλα τα θέματα</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
                                     {chronologicalSubjects?.map((subject) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
                                             <SidebarMenuButton

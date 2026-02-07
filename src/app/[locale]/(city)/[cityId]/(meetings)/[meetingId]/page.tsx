@@ -1,42 +1,68 @@
 "use client"
-import Map from "@/components/map/map";
+import MapView from "@/components/map/map";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
-import { SubjectCards } from "@/components/meetings/subject-cards";
+import { SubjectSection } from "@/components/meetings/subject-section";
+import { TopicFilter } from "@/components/TopicFilter";
 import { formatDate } from "date-fns";
 import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
-import { sortSubjectsByImportance, subjectToMapFeature, getMeetingMediaType } from "@/lib/utils";
+import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature, getMeetingMediaType } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
-import { useEffect } from "react";
+import { useState, useMemo } from "react";
+import type { Topic } from "@prisma/client";
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
-    const hottestSubjects = sortSubjectsByImportance(subjects, 'importance')
-        .slice(0, Math.max(9, subjects.filter(s => s.hot).length));
-    const isOldVersion = subjects.length === 0;
+    const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+    const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
 
     // Convert all subjects with locations to map features
     const subjectFeatures = subjects
         .map(subjectToMapFeature)
         .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
 
-    // Debug logs to compare with MeetingCard sorting
-    useEffect(() => {
-        if (hottestSubjects.length > 0) {
-            const topThree = hottestSubjects.slice(0, Math.min(3, hottestSubjects.length));
-            console.log(`MeetingPage - top subjects: ${topThree.map(s =>
-                `${s.name}${s.hot ? ' (HOT)' : ''}${s.speakerSegments ? ` (${s.speakerSegments.length} segments)` : ''}`
-            ).join(', ')}`);
-        }
-    }, [hottestSubjects]);
+    // Extract unique topics from all subjects
+    const availableTopics = useMemo(() => {
+        const topicsMap = new Map<string, Topic>();
+        subjects.forEach(subject => {
+            if (subject.topic) {
+                topicsMap.set(subject.topic.id, subject.topic);
+            }
+        });
+        return Array.from(topicsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [subjects]);
+
+    // Filter by topic
+    const filteredSubjects = useMemo(() => {
+        if (!selectedTopicId) return subjects;
+        return subjects.filter(s => s.topic?.id === selectedTopicId);
+    }, [subjects, selectedTopicId]);
+
+    // Categorize subjects
+    const beforeAgendaSubjects = useMemo(() =>
+        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'beforeAgenda')),
+        [filteredSubjects]
+    );
+
+    const outOfAgendaSubjects = useMemo(() =>
+        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'outOfAgenda')),
+        [filteredSubjects]
+    );
+
+    const agendaSubjects = useMemo(() => {
+        const agenda = filteredSubjects.filter(s => s.agendaItemIndex !== null);
+        return agendaSortMode === 'agendaIndex'
+            ? sortSubjectsByAgendaIndex(agenda)
+            : sortSubjectsBySpeakingTime(agenda);
+    }, [filteredSubjects, agendaSortMode]);
 
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
-                <Map className="w-full h-full" features={[
+                <MapView className="w-full h-full" features={[
                     {
                         id: city.id,
                         geometry: city.geometry,
@@ -80,7 +106,37 @@ export default function MeetingPage() {
                     )
                 }
                 <HighlightCards subjects={subjects} />
-                <SubjectCards subjects={hottestSubjects} totalSubjects={subjects.length} />
+
+                {availableTopics.length > 0 && (
+                    <div className="max-w-4xl mx-auto mt-8">
+                        <TopicFilter
+                            topics={availableTopics}
+                            selectedTopicId={selectedTopicId}
+                            onSelectTopic={setSelectedTopicId}
+                        />
+                    </div>
+                )}
+
+                <SubjectSection
+                    title="Προ ημερησίας συζήτηση"
+                    explainerText="Η προ ημερησίας συζήτηση αποτελείται από ανακοινώσεις και ερωτήσεις του σώματος προς την Δημοτική Αρχή. Στην προ ημερησίας συζήτηση δεν λαμβάνονται αποφάσεις, και δεν υπάρχει ψηφοφορία."
+                    subjects={beforeAgendaSubjects}
+                />
+
+                <SubjectSection
+                    title="Εκτός ημερησίας θέματα"
+                    explainerText="Τα εκτός ημερησίας θέματα είναι έκτακτα θέματα που δεν πρόλαβαν να ενταχτούν στην ημερήσια διάταξη της συνεδρίασης. Ψηφίζονται από το σώμα, πρώτα για το κατ'επείγον, και έπειτα για την ουσία του θέματος."
+                    subjects={outOfAgendaSubjects}
+                />
+
+                <SubjectSection
+                    title="Θέματα ημερησίας διάταξης"
+                    explainerText="Τα θέματα της ημερησίας διάταξης συζητούνται και ψηφίζονται από το σώμα και αποτελούν το κύριο μέρος της συνεδρίασης."
+                    subjects={agendaSubjects}
+                    sortMode={agendaSortMode}
+                    onSortModeChange={setAgendaSortMode}
+                    showSortToggle
+                />
             </div>
         </div>
     )

@@ -5,14 +5,17 @@ import { SubjectWithRelations } from "@/lib/db/subject";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { ColorPercentageRing } from "./ui/color-percentage-ring";
 import Icon from "./icon";
-import { MapPin, ScrollText, Calendar } from "lucide-react";
+import { MapPin, ScrollText, Calendar, Loader2 } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { stripMarkdown } from "@/lib/formatters/markdown";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -28,6 +31,21 @@ interface SubjectCardProps {
 }
 
 export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        setIsLoading(false);
+    }, [pathname]);
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (openInNewTab) return; // let the Link handle it
+        e.preventDefault();
+        setIsLoading(true);
+        router.push(`/${city.id}/${meeting.id}/subjects/${subject.id}`);
+    };
+
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
         percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
@@ -64,13 +82,18 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     };
 
     return (
-        <Link {...linkProps}>
+        <Link {...linkProps} onClick={handleClick}>
             <Card disableHover={disableHover} className={cn(
-                "flex flex-col group/card hover:shadow-md transition-all duration-300",
+                "relative flex flex-col group/card hover:shadow-md transition-all duration-300",
                 fullWidth ? "w-full" : "w-full",
                 highlight?.muxPlaybackId ? "h-auto" : "h-[280px]",
                 disableHover ? "hover:shadow-none" : ""
             )}>
+                {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-20 rounded-lg">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                )}
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
                     {showContext && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 -mt-1 -mb-1">

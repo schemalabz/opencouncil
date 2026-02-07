@@ -221,6 +221,24 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
   });
 }
 
+export function sortSubjectsBySpeakingTime<T extends SortableSubject>(subjects: T[]): T[] {
+  return [...subjects].sort((a, b) => {
+    const aSeconds = a.statistics?.speakingSeconds ?? 0;
+    const bSeconds = b.statistics?.speakingSeconds ?? 0;
+    if (bSeconds !== aSeconds) return bSeconds - aSeconds;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function sortSubjectsByAgendaIndex<T extends SortableSubject>(subjects: T[]): T[] {
+  return [...subjects].sort((a, b) => {
+    const aIndex = a.agendaItemIndex ?? Infinity;
+    const bIndex = b.agendaItemIndex ?? Infinity;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 // Re-export calculateOfferTotals from the pricing module for backward compatibility
 export { calculateOfferTotals } from './pricing'
 
