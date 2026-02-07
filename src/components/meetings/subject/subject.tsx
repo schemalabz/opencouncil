@@ -87,10 +87,17 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </AutoScrollText>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 {topic && <TopicBadge topic={topic} size="compact" />}
-                                {agendaItemIndex && (
+                                {agendaItemIndex ? (
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                         <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
+                                    </>
+                                ) : subject.nonAgendaReason && (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-medium">
+                                            {subject.nonAgendaReason === 'beforeAgenda' ? "Προ ημερησίας" : "Εκτός ημερησίας"}
+                                        </span>
                                     </>
                                 )}
                             </div>
