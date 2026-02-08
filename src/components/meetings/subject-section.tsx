@@ -6,7 +6,6 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
 import { HelpCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 
 const INITIAL_VISIBLE = 3;
 
@@ -17,6 +16,7 @@ interface SubjectSectionProps {
     sortMode?: 'speakingTime' | 'agendaIndex';
     onSortModeChange?: (mode: 'speakingTime' | 'agendaIndex') => void;
     showSortToggle?: boolean;
+    className?: string;
 }
 
 export function SubjectSection({
@@ -26,6 +26,7 @@ export function SubjectSection({
     sortMode,
     onSortModeChange,
     showSortToggle,
+    className,
 }: SubjectSectionProps) {
     const { city, meeting, parties, people } = useCouncilMeetingData();
     const [showExplainer, setShowExplainer] = useState(false);
@@ -36,8 +37,13 @@ export function SubjectSection({
     const hasMore = subjects.length > INITIAL_VISIBLE;
     const visibleSubjects = showAll ? subjects : subjects.slice(0, INITIAL_VISIBLE);
 
+    // When few subjects, cards stack vertically; otherwise use multi-column grid
+    const cardGridClass = subjects.length <= 2
+        ? "flex flex-col gap-4 flex-1"
+        : "flex flex-wrap gap-4 flex-1 [&>*]:w-full [&>*]:sm:w-[calc(50%-0.5rem)] [&>*]:lg:w-[calc(33.333%-0.75rem)] [&>*]:lg:min-w-[calc(33.333%-0.75rem)]";
+
     return (
-        <section className="w-full max-w-4xl mx-auto mt-8">
+        <section className={cn("mt-8 flex flex-col", className ?? "w-full max-w-4xl mx-auto")}>
             <div className="flex flex-col gap-3 mb-5">
                 <div>
                     <div className="flex items-center gap-1.5">
@@ -83,22 +89,14 @@ export function SubjectSection({
                     )}
                 </div>
 
-                <AnimatePresence>
-                    {showExplainer && (
-                        <motion.p
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3 overflow-hidden"
-                        >
-                            {explainerText}
-                        </motion.p>
-                    )}
-                </AnimatePresence>
+                {showExplainer && (
+                    <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-3">
+                        {explainerText}
+                    </p>
+                )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className={cardGridClass}>
                 {visibleSubjects.map(subject => (
                     <SubjectCard
                         key={subject.id}
