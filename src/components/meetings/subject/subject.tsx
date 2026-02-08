@@ -206,7 +206,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         defaultOpen={true}
                     >
                         <div className="p-4 space-y-4">
-                            <div className="prose prose-sm max-w-none dark:prose-invert text-justify">
+                            <div className="text-justify">
                                 <FormattedTextDisplay
                                     text={description}
                                     meetingId={meeting.id}
