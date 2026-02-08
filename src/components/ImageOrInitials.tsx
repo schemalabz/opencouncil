@@ -23,19 +23,19 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
     return (
         <div
             style={{
-                width: `${width}px`,
-                height: `${height}px`,
+                width: '100%',
+                height: '100%',
                 borderRadius: square ? '4px' : '50%',
                 border: `2px solid ${color ?? '#ccc'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                fontSize: Math.min(width, height) * 0.4,
                 fontWeight: 'bold',
                 color: '#fff',
                 backgroundColor: '#ccc',
                 position: 'relative',
+                containerType: 'size',
             }}
         >
             {imageUrl ? (
@@ -48,7 +48,7 @@ export const ImageOrInitials: React.FC<ImageOrInitialsProps> = ({ imageUrl, widt
                     style={{ objectPosition: 'center center' }}
                 />
             ) : (
-                <div className="w-full h-full flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center text-[40cqmin]">
                     {name && displayInitials}
                 </div>
             )}

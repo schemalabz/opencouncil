@@ -207,7 +207,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 transition={{ duration: 0.5 }}
                             >
                             <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-40 lg:h-40 xl:w-48 xl:h-48 flex-shrink-0 overflow-hidden rounded-full">
-                                <div className="w-full h-full [&>div]:!border-0 [&>div]:!w-full [&>div]:!h-full">
+                                <div className="w-full h-full [&>div]:!border-0">
                                     <ImageOrInitials
                                         imageUrl={person.image}
                                         name={person.name}
