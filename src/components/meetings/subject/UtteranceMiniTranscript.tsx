@@ -240,7 +240,7 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
       <div className="text-xs text-muted-foreground p-3 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           {/* Mini Avatar */}
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 w-6 h-6">
             <div
               className="absolute inset-0 rounded-full opacity-20"
               style={{ backgroundColor: borderColor }}
