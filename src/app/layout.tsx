@@ -21,7 +21,7 @@ export const metadata = {
         url: 'https://opencouncil.gr',
         images: [
             {
-                url: '/landing-screenshot.png',
+                url: '/oc-theme.png',
                 width: 500,
                 height: 500,
                 alt: 'OpenCouncil Logo',
@@ -32,7 +32,7 @@ export const metadata = {
         card: 'summary_large_image',
         title: 'OpenCouncil',
         description: 'Ανοιχτή τοπική αυτοδιοίκηση',
-        images: ['/landing-screenshot.png'],
+        images: ['/oc-theme.png'],
     },
 }
 
