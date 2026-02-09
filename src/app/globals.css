@@ -147,10 +147,16 @@ blue: 164, 192, 225
   }
 }
 
-em:not(.prose em) {
+em {
   font-style: normal;
   color: hsl(var(--gradient-orange));
   white-space: nowrap;
+}
+
+.prose em {
+  font-style: italic;
+  color: inherit;
+  white-space: normal;
 }
 
 h2:not(.prose h2) {
