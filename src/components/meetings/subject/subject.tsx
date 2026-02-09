@@ -5,21 +5,21 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, Clock, ChevronDown, CheckSquare } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText, CheckSquare } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
-import { subjectToMapFeature, getPartyFromRoles } from "@/lib/utils";
+import { subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { DebugUtterances } from "./DebugUtterances";
 import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
+import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { useTranslations } from "next-intl";
@@ -259,48 +259,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                             </div>
                         ) : (
                             <>
-                                {contributions.map((contribution, index) => {
-                                    const speaker = contribution.speakerId
-                                        ? getPerson(contribution.speakerId)
-                                        : null;
-
-                                    return (
-                                        <div key={contribution.id}>
-                                            {index > 0 && <div className="border-t border-border" />}
-                                            <div className="p-4 space-y-4">
-                                                {/* Speaker Badge */}
-                                                <div className="flex items-center gap-4">
-                                                    {speaker ? (
-                                                        <PersonBadge person={speaker} />
-                                                    ) : contribution.speakerName ? (
-                                                        <span className="text-sm font-medium">
-                                                            {contribution.speakerName}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-sm text-muted-foreground italic">
-                                                            {t("unknownSpeaker")}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Formatted Text with References */}
-                                                <div className="text-sm text-muted-foreground text-justify">
-                                                    <FormattedTextDisplay
-                                                        text={contribution.text}
-                                                        meetingId={meeting.id}
-                                                        cityId={meeting.cityId}
-                                                        linkColor="black"
-                                                    />
-                                                </div>
-
-                                                {/* AI Generated Badge */}
-                                                <div className="flex justify-end">
-                                                    <AIGeneratedBadge />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                {contributions.map((contribution, index) => (
+                                    <div key={contribution.id}>
+                                        {index > 0 && <div className="border-t border-border" />}
+                                        <ContributionCard contribution={contribution} subjectId={subject.id} />
+                                    </div>
+                                ))}
                             </>
                         )
                     ) : (
