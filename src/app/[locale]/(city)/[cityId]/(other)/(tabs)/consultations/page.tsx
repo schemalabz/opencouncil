@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         : `Δεν υπάρχουν διαβουλεύσεις στον Δήμο ${city.name} αυτή τη στιγμή. Ελέγχετε ξανά σύντομα για νέες ευκαιρίες συμμετοχής.`;
 
     // Generate OG image URL for city
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}`;
 
     return {
         title: `Δημόσιες Διαβουλεύσεις | ${city.name} | OpenCouncil`,

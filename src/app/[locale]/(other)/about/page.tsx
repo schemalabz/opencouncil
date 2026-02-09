@@ -6,7 +6,7 @@ import { getSupportedCitiesWithLogosCached } from '@/lib/cache/queries'
 export async function generateMetadata(): Promise<Metadata> {
     const description = "Το OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά. Μάθετε περισσότερα για την αποστολή μας, την τεχνολογία μας και την ομάδα μας.";
 
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?pageType=about`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=about`;
 
     return {
         title: "Σχετικά με το OpenCouncil | Διαφάνεια στα Δημοτικά Συμβούλια",

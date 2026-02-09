@@ -74,7 +74,7 @@ export async function sendHighlightCompleteEmail({
         const formattedDuration = formatDuration(totalDuration);
 
         // Build the highlight URL (default to Greek locale)
-        const highlightUrl = `${env.NEXT_PUBLIC_BASE_URL}/el/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
+        const highlightUrl = `${env.NEXTAUTH_URL}/el/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
 
         // Prepare email data
         const userName = user.name || user.email.split('@')[0];

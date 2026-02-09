@@ -163,7 +163,7 @@ export const NotificationEmail = ({
                 >
                     Δεν θέλετε να λαμβάνετε ειδοποιήσεις;{' '}
                     <a
-                        href={`${process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/profile`}
+                        href={`${process.env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/profile`}
                         style={{ color: '#2563eb', textDecoration: 'underline' }}
                     >
                         Διαχειριστείτε τις προτιμήσεις σας

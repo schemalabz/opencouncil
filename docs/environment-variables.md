@@ -65,7 +65,7 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `NODE_ENV` | Environment (development/production/test). | No | `development` |
-| `NEXT_PUBLIC_BASE_URL` | Base URL of the application. | Yes | - |
+| `NEXTAUTH_URL` | Base URL of the application (used for callbacks, emails, etc.). | Yes | - |
 
 ### Authentication
 | Variable | Description | Required | Default |

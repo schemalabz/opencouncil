@@ -221,7 +221,7 @@ export default function AdminQrPage() {
                                             <Button 
                                                 variant="outline" 
                                                 size="sm"
-                                                onClick={() => handleCopy(`${process.env.NEXT_PUBLIC_BASE_URL}/qr/${c.code}`)}
+                                                onClick={() => handleCopy(`${window.location.origin}/qr/${c.code}`)}
                                             >
                                                 Copy Link
                                             </Button>

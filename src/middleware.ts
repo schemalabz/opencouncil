@@ -62,7 +62,7 @@ function handleChaniaSubdomain(req: NextRequest) {
     const path = url.pathname;
 
     // Create URL for the main domain
-    const mainSiteUrl = new URL(env.NEXT_PUBLIC_BASE_URL);
+    const mainSiteUrl = new URL(env.NEXTAUTH_URL);
 
     // Append original path to /chania
     if (path === '/') {

@@ -10,7 +10,7 @@ The QR Campaign system provides a lightweight way to manage dynamic redirects fo
 
 1. **Request Flow**: The middleware bypasses i18n routing for `/qr/*` paths, sending requests directly to the route handler
 2. **Database Lookup**: The route handler queries the `QrCampaign` table for an active campaign matching the code
-3. **URL Construction**: For relative URLs (e.g., `/chalandri`), it constructs an absolute URL using `NEXT_PUBLIC_BASE_URL`; external URLs are used as-is
+3. **URL Construction**: For relative URLs (e.g., `/chalandri`), it constructs an absolute URL using `NEXTAUTH_URL`; external URLs are used as-is
 4. **UTM Parameter Injection**: Appends analytics tracking parameters (`utm_source=qr`, `utm_medium=offline`, `utm_campaign=<code>`) to the destination URL
 5. **Redirect**: Returns an HTTP 307 redirect to the final destination URL
 6. **Analytics**: Users can track scans in analytics tool by filtering for UTM parameters
@@ -112,6 +112,6 @@ If you print 100 keyrings with QR codes for Chalandri municipality and 50 t-shir
 **See Also**
 
 - [Authentication Guide](./authentication.md) - Understanding admin authorization checks
-- [Environment Variables](../environment-variables.md) - Required configuration for `NEXT_PUBLIC_BASE_URL`
+- [Environment Variables](../environment-variables.md) - Required configuration for `NEXTAUTH_URL`
 - Database schema documentation - QrCampaign model details
 
