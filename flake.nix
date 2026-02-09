@@ -1213,6 +1213,14 @@ EOF
                     fi
                     # Otherwise DATABASE_URL comes from EnvironmentFile (shared staging)
 
+                    # Load per-preview env overrides (e.g., linked tasks preview)
+                    if [ -f "$PR_DIR/.env.local" ]; then
+                      echo "Loading per-preview env from .env.local"
+                      set -a
+                      . "$PR_DIR/.env.local"
+                      set +a
+                    fi
+
                     # Set per-PR URLs at runtime
                     export NEXT_PUBLIC_BASE_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
                     # NEXTAUTH_URL is required for NextAuth to construct correct callback URLs

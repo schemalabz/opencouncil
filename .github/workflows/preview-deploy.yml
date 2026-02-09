@@ -189,6 +189,24 @@ jobs:
               body: body,
             });
 
+      - name: Parse preview links from PR body
+        id: preview-links
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+
+            // Parse <!-- preview-link: tasks=N --> from PR body
+            const tasksMatch = prBody.match(/<!--\s*preview-link:\s*tasks=(\d+)\s*-->/i);
+            if (tasksMatch) {
+              const tasksPrNum = tasksMatch[1];
+              core.setOutput('tasks-pr', tasksPrNum);
+              console.log(`Found linked tasks preview: PR #${tasksPrNum}`);
+            } else {
+              core.setOutput('tasks-pr', '');
+              console.log('No linked tasks preview found in PR body');
+            }
+
       - name: Deploy to preview host
         env:
           SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_DEPLOY_SSH_KEY }}
@@ -196,6 +214,8 @@ jobs:
           PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
           STORE_PATH: ${{ steps.store-path.outputs.path }}
           HAS_MIGRATIONS: ${{ needs.check-migrations.outputs.has-migrations }}
+          LINKED_TASKS_PR: ${{ steps.preview-links.outputs.tasks-pr }}
+          PREVIEW_TASKS_API_KEY: ${{ secrets.PREVIEW_TASKS_API_KEY }}
         run: |
           set -euo pipefail
 
@@ -221,6 +241,17 @@ jobs:
 
           # The droplet pulls the build from Cachix automatically (configured as a substituter).
           # Just SSH in and create the preview — nix-store --realise is called by the create script.
+
+          # Write per-preview env overrides BEFORE create (so service picks them up on first start)
+          if [ -n "${LINKED_TASKS_PR:-}" ]; then
+            echo "🔗 Linking to tasks preview PR #$LINKED_TASKS_PR"
+            TASKS_URL="https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr"
+            TASKS_KEY="${PREVIEW_TASKS_API_KEY:-}"
+            $SSH_CMD "mkdir -p /var/lib/opencouncil-previews/pr-$PR_NUM"
+            $SSH_CMD "printf '%s\n' '# Linked tasks preview' 'TASK_API_URL=$TASKS_URL' 'TASK_API_KEY=$TASKS_KEY' > /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
+            $SSH_CMD "chmod 600 /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
+          fi
+
           echo "Creating/updating preview instance..."
           $SSH_CMD "sudo opencouncil-preview-create '$PR_NUM' '$STORE_PATH' $DEPLOY_FLAGS"
 
@@ -232,6 +263,9 @@ jobs:
             echo "Database: Isolated (PostGIS 3.3.5, seed data)" >> $GITHUB_STEP_SUMMARY
           else
             echo "Database: Shared staging" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${LINKED_TASKS_PR:-}" ]; then
+            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Health check
@@ -263,6 +297,7 @@ jobs:
             const healthStatus = '${{ steps.health-check.outputs.status }}';
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+            const linkedTasksPr = '${{ steps.preview-links.outputs.tasks-pr }}';
 
             const dbNote = hasMigrations
               ? '*This preview uses an **isolated database** with seed data (migrations were applied).*'
@@ -271,8 +306,13 @@ jobs:
             let body = '## 🚀 Preview deployment ready!\n\n'
               + '**Preview URL:** ' + previewUrl + '\n'
               + '**Commit:** `' + commitSha + '`\n'
-              + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n\n'
-              + 'The preview will be automatically updated when you push new commits.\n'
+              + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n';
+
+            if (linkedTasksPr) {
+              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.tasks.opencouncil.gr\n';
+            }
+
+            body += '\nThe preview will be automatically updated when you push new commits.\n'
               + 'It will be destroyed when this PR is closed or merged.\n\n';
 
             if (healthStatus === 'unhealthy') {
