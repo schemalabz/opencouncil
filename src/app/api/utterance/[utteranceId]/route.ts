@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { routing } from '@/i18n/routing';
+import { env } from '@/env.mjs';
 
 /**
  * Extracts locale from the Referer header
@@ -68,7 +69,7 @@ export async function GET(
             ? `/${locale}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
-        return NextResponse.redirect(new URL(redirectUrl, request.url));
+        return NextResponse.redirect(new URL(redirectUrl, env.NEXTAUTH_URL));
     } catch (error) {
         console.error('Error redirecting utterance:', error);
         return NextResponse.json(
