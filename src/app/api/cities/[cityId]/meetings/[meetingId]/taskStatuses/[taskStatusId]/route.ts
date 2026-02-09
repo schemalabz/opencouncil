@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
@@ -46,6 +47,8 @@ export async function DELETE(
     }
 
     await deleteTaskStatus(params.taskStatusId);
+
+    revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`);
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }

@@ -141,6 +141,9 @@ Multi-channel delivery in `src/lib/notifications/`:
 | Discord | Admin alerts | `src/lib/discord.ts` |
 | Mapbox | Interactive maps | `src/components/map/` |
 
+## Git Commit Rules
+- Never add `Co-Authored-By` lines for AI in commit messages
+
 ## Code Guidelines
 
 ### General Rules

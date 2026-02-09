@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ReviewSessionsBreakdown } from '../admin/reviews/ReviewSessionsBreakdown';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
-import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
+import { markHumanReviewComplete, getMeetingContactEmails } from '@/lib/tasks/humanReview';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from 'next-intl';
 import { Separator } from '@/components/ui/separator';
+import { SendTranscriptCheckbox } from './SendTranscriptCheckbox';
 
 interface CompleteReviewDialogProps {
   cityId: string;
@@ -43,19 +44,31 @@ export function CompleteReviewDialog({
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getMeetingReviewStats>> | null>(null);
   const [hasManualTime, setHasManualTime] = useState(false);
   const [manualTimeInput, setManualTimeInput] = useState('');
+  const [contactEmails, setContactEmails] = useState<string[]>([]);
+  const [administrativeBodyName, setAdministrativeBodyName] = useState<string | null>(null);
+  const [sendTranscript, setSendTranscript] = useState(true);
   const { toast } = useToast();
   const t = useTranslations('reviews.completeDialog');
 
   useEffect(() => {
     if (open) {
-      // Fetch stats when dialog opens - gets actual reviewer info from edit history
+      // Fetch stats and contact emails when dialog opens
       setIsLoading(true);
       setError(null);
-      getMeetingReviewStats({ cityId, meetingId })
-        .then(setStats)
+      Promise.all([
+        getMeetingReviewStats({ cityId, meetingId }),
+        getMeetingContactEmails(cityId, meetingId)
+      ])
+        .then(([statsResult, contactResult]) => {
+          setStats(statsResult);
+          setContactEmails(contactResult.contactEmails);
+          setAdministrativeBodyName(contactResult.administrativeBodyName);
+          // Default to true if contact emails exist
+          setSendTranscript(contactResult.contactEmails.length > 0);
+        })
         .catch((err) => {
-          console.error('Failed to fetch review stats:', err);
-          setError(err.message || 'Failed to load review stats');
+          console.error('Failed to fetch review data:', err);
+          setError(err.message || 'Failed to load review data');
         })
         .finally(() => setIsLoading(false));
     }
@@ -65,19 +78,25 @@ export function CompleteReviewDialog({
     setIsSubmitting(true);
     setError(null);
     try {
-      await markHumanReviewComplete(cityId, meetingId, hasManualTime ? manualTimeInput : undefined);
+      await markHumanReviewComplete(
+        cityId,
+        meetingId,
+        hasManualTime ? manualTimeInput : undefined,
+        sendTranscript && contactEmails.length > 0
+      );
       toast({
         title: t('toasts.success.title'),
         description: t('toasts.success.description'),
       });
       onOpenChange(false);
       onSuccess?.();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to mark review as complete:', err);
-      setError(err.message || t('toasts.error.description'));
+      const errorMessage = err instanceof Error ? err.message : t('toasts.error.description');
+      setError(errorMessage);
       toast({
         title: t('toasts.error.title'),
-        description: err.message || t('toasts.error.description'),
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -186,6 +205,14 @@ export function CompleteReviewDialog({
                   </div>
                 </>
               )}
+
+              <SendTranscriptCheckbox
+                contactEmails={contactEmails}
+                checked={sendTranscript}
+                onCheckedChange={setSendTranscript}
+                administrativeBodyName={administrativeBodyName}
+                separatorClassName="my-4"
+              />
             </>
           )}
         </div>

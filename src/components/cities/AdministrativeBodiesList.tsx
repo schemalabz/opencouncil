@@ -39,6 +39,12 @@ const formSchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
+    contactEmails: z.string().optional().refine(val => {
+        if (!val || val.trim() === '') return true;
+        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
+        const emailSchema = z.string().email();
+        return emails.every(email => emailSchema.safeParse(email).success);
+    }, { message: "All entries must be valid email addresses" }),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'])
 })
 
@@ -48,6 +54,7 @@ interface AdministrativeBody {
     name_en: string;
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
+    contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
 }
 
@@ -71,6 +78,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             name_en: editingBody?.name_en || "",
             type: editingBody?.type || "council",
             youtubeChannelUrl: editingBody?.youtubeChannelUrl || "",
+            contactEmails: editingBody?.contactEmails?.join(', ') || "",
             notificationBehavior: editingBody?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
         },
     })
@@ -85,12 +93,20 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         const method = editingBody ? 'PUT' : 'POST'
 
         try {
+            // Transform contactEmails string to array for API
+            const contactEmailsArray = values.contactEmails
+                ? values.contactEmails.split(',').map(e => e.trim()).filter(e => e !== '')
+                : [];
+
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(values),
+                body: JSON.stringify({
+                    ...values,
+                    contactEmails: contactEmailsArray,
+                }),
             })
 
             if (response.ok) {
@@ -101,6 +117,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     name_en: "",
                     type: "council",
                     youtubeChannelUrl: "",
+                    contactEmails: "",
                     notificationBehavior: "NOTIFICATIONS_APPROVAL"
                 })
                 setIsDialogOpen(false)
@@ -148,6 +165,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             name_en: "",
                             type: "council",
                             youtubeChannelUrl: "",
+                            contactEmails: "",
                             notificationBehavior: "NOTIFICATIONS_APPROVAL"
                         })
                         setIsDialogOpen(true)
@@ -227,6 +245,26 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             />
                             <FormField
                                 control={form.control}
+                                name="contactEmails"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('contactEmails')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('contactEmailsPlaceholder')}
+                                                type="text"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('contactEmailsDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
                                 name="notificationBehavior"
                                 render={({ field }) => (
                                     <FormItem>
@@ -295,6 +333,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                             name_en: body.name_en,
                                             type: body.type,
                                             youtubeChannelUrl: body.youtubeChannelUrl || "",
+                                            contactEmails: body.contactEmails?.join(', ') || "",
                                             notificationBehavior: body.notificationBehavior || "NOTIFICATIONS_APPROVAL"
                                         })
                                         setIsDialogOpen(true)
