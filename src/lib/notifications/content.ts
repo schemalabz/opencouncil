@@ -52,7 +52,7 @@ export async function generateEmailContent(notification: NotificationData): Prom
                 ...subject,
                 description: stripMarkdown(subject.description)
             })),
-            notificationUrl: `${env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`
+            notificationUrl: `${env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`
         })
     );
 
@@ -68,7 +68,7 @@ export async function generateSmsContent(notification: NotificationData): Promis
     const subjectCount = notification.subjects.length;
 
     const adminBody = notification.meeting.administrativeBody?.name || 'συνεδρίαση';
-    const notificationUrl = `${env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`;
+    const notificationUrl = `${env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`;
 
     const subjectNames =
         subjectCount > 3

@@ -151,6 +151,11 @@ Multi-channel delivery in `src/lib/notifications/`:
 - Never create markdown files after completing tasks (unless directly asked)
 - Use time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`)
 
+### Base URLs
+- **Server-side**: Use `env.NEXTAUTH_URL` for constructing URLs (e.g., callback URLs, API endpoints)
+- **Client-side**: Use `window.location.origin` in browser-only contexts (onClick handlers, etc.)
+- **Never use `NEXT_PUBLIC_*` for server-side URL construction** — these are baked in at build time and won't reflect runtime environment (breaks previews)
+
 ### Code Organization & DRY Principles
 
 **Import Organization**:

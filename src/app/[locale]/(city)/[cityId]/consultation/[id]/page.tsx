@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const description = `${isActive ? 'Ενεργή δημόσια διαβούλευση' : 'Δημόσια διαβούλευση που έχει λήξει'} για "${title}" στον Δήμο ${city.name}. ${chaptersCount > 0 ? `Περιλαμβάνει ${chaptersCount} κεφάλαια${geosetsCount > 0 ? ` και ${geosetsCount} γεωγραφικές περιοχές` : ''}.` : ''} Μάθετε περισσότερα και συμμετέχετε στη διαβούλευση.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&consultationId=${params.id}`;
 
     return {
         title: `${title} | ${city.name} | OpenCouncil`,
@@ -135,8 +135,8 @@ export default async function ConsultationPage({ params }: PageProps) {
 
     // Base URL for permalinks
     const baseUrl = `/${params.cityId}/consultation/${params.id}`;
-    const consultationUrl = new URL(baseUrl, env.NEXT_PUBLIC_BASE_URL);
-    const cityUrl = new URL(`/${params.cityId}`, env.NEXT_PUBLIC_BASE_URL);
+    const consultationUrl = new URL(baseUrl, env.NEXTAUTH_URL);
+    const cityUrl = new URL(`/${params.cityId}`, env.NEXTAUTH_URL);
 
 
     // Generate structured data for SEO

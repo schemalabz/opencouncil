@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         siteName: 'OpenCouncil',
         images: [
             {
-                url: `${env.NEXT_PUBLIC_BASE_URL}/api/og?pageType=chat`,
+                url: `${env.NEXTAUTH_URL}/api/og?pageType=chat`,
                 width: 1200,
                 height: 630,
                 alt: "OpenCouncil AI - Συνομιλήστε για τα Δημοτικά Συμβούλια",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
         card: 'summary_large_image',
         title: "OpenCouncil AI",
         description: "Συνομιλήστε με την τεχνητή νοημοσύνη για να μάθετε για δημοτικά συμβούλια και θέματα πολιτικής",
-        images: [`${env.NEXT_PUBLIC_BASE_URL}/api/og?pageType=chat`],
+        images: [`${env.NEXTAUTH_URL}/api/og?pageType=chat`],
         creator: '@opencouncil',
         site: '@opencouncil'
     },

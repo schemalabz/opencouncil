@@ -414,7 +414,7 @@ export default async function CommentsPage({ params }: PageProps) {
                 {/* Footer */}
                 <div className="mt-12 pt-6 border-t border-gray-200 text-xs text-gray-500">
                     <p>
-                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({env.NEXT_PUBLIC_BASE_URL}).
+                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({env.NEXTAUTH_URL}).
                         Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {env.NEXT_PUBLIC_CONTACT_PHONE}
                     </p>
                 </div>

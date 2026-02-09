@@ -786,7 +786,6 @@ EOF
               # This correctly changes the derivation hash when values change.
               # Fallback defaults ensure the build succeeds without --impure
               # (maps won't render with the placeholder token).
-              export NEXT_PUBLIC_BASE_URL="${let v = builtins.getEnv "NEXT_PUBLIC_BASE_URL"; in if v != "" then v else "https://opencouncil.gr"}"
               export NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="${let v = builtins.getEnv "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN"; in if v != "" then v else "pk.placeholder"}"
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_PHONE"; in if v != "" then "export NEXT_PUBLIC_CONTACT_PHONE=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_PHONE not set"}
               ${let v = builtins.getEnv "NEXT_PUBLIC_CONTACT_EMAIL"; in if v != "" then "export NEXT_PUBLIC_CONTACT_EMAIL=\"${v}\"" else "# NEXT_PUBLIC_CONTACT_EMAIL not set"}
@@ -1221,10 +1220,8 @@ EOF
                       set +a
                     fi
 
-                    # Set per-PR URLs at runtime
-                    export NEXT_PUBLIC_BASE_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
-                    # NEXTAUTH_URL is required for NextAuth to construct correct callback URLs
-                    # (e.g., magic link emails). Without this, it falls back to 0.0.0.0:PORT.
+                    # Set per-PR base URL at runtime
+                    # NEXTAUTH_URL is used for all URL construction (callback URLs, emails, etc.)
                     export NEXTAUTH_URL="https://pr-$PR_NUM.${cfg.previewDomain}"
 
                     # Prisma query engine: built for NixOS, copied into the output by installPhase

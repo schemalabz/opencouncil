@@ -18,6 +18,7 @@ export const env = createEnv({
     // Auth
     RESEND_API_KEY: z.string().min(1),
     NEXTAUTH_SECRET: z.string().min(1),
+    NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
 
@@ -73,7 +74,6 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    NEXT_PUBLIC_BASE_URL: z.string().url(),
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().min(1),
     NEXT_PUBLIC_CONTACT_PHONE: z.string().optional(),
     NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
@@ -92,6 +92,7 @@ export const env = createEnv({
     DATABASE_NAME: process.env.DATABASE_NAME,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -123,7 +124,6 @@ export const env = createEnv({
     DEV_EMAIL_OVERRIDE: process.env.DEV_EMAIL_OVERRIDE,
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,
-    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:
       process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
     NEXT_PUBLIC_CONTACT_PHONE: process.env.NEXT_PUBLIC_CONTACT_PHONE,

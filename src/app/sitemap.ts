@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 import prisma from '@/lib/db/prisma'
 import { env } from '@/env.mjs'
 
-const baseUrl = env.NEXT_PUBLIC_BASE_URL
+const baseUrl = env.NEXTAUTH_URL
 
 type SitemapCity = {
     id: string

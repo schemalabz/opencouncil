@@ -11,7 +11,7 @@ function appendUtmParams(urlString: string, code: string): string {
         // For relative URLs, construct full URL using configured base URL
         const fullUrl = isExternalUrl(urlString) 
             ? new URL(urlString)
-            : new URL(urlString, env.NEXT_PUBLIC_BASE_URL);
+            : new URL(urlString, env.NEXTAUTH_URL);
         
         if (!fullUrl.searchParams.has('utm_source')) fullUrl.searchParams.set('utm_source', 'qr');
         if (!fullUrl.searchParams.has('utm_medium')) fullUrl.searchParams.set('utm_medium', 'offline');
@@ -27,7 +27,7 @@ function appendUtmParams(urlString: string, code: string): string {
 export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
     const code = params.code;
     if (!code) {
-        return NextResponse.redirect(new URL('/', env.NEXT_PUBLIC_BASE_URL), 302);
+        return NextResponse.redirect(new URL('/', env.NEXTAUTH_URL), 302);
     }
 
     const campaign = await prisma.qrCampaign.findUnique({
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { code: string
     if (!campaign || !campaign.isActive) {
         // Fallback to homepage if not found/inactive
         const locale = 'el';
-        return NextResponse.redirect(new URL(`/${locale}`, env.NEXT_PUBLIC_BASE_URL), 302);
+        return NextResponse.redirect(new URL(`/${locale}`, env.NEXTAUTH_URL), 302);
     }
 
     const destination = appendUtmParams(campaign.url, code);

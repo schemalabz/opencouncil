@@ -83,7 +83,7 @@ In your OpenCouncil `.env`, set:
 TASK_API_URL=http://localhost:3005
 ```
 
-The callback URL is automatically constructed from `NEXT_PUBLIC_BASE_URL` (typically `http://localhost:3000`) and sent with each task request.
+The callback URL is automatically constructed from `NEXTAUTH_URL` (typically `http://localhost:3000`) and sent with each task request.
 
 **Health check:**
 

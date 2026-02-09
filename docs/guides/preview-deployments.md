@@ -151,8 +151,7 @@ The app requires many env vars at runtime (API keys, storage config, etc.). Thes
 - `PORT` — `basePort + PR_NUMBER`
 - `NODE_ENV=production`
 - `HOSTNAME=0.0.0.0`
-- `NEXT_PUBLIC_BASE_URL` — `https://pr-<N>.preview.opencouncil.gr` (set by the start script)
-- `NEXTAUTH_URL` — `https://pr-<N>.preview.opencouncil.gr` (required for NextAuth magic link callbacks)
+- `NEXTAUTH_URL` — `https://pr-<N>.preview.opencouncil.gr` (used for all URL construction: callbacks, emails, etc.)
 
 **Shared (env file at `/var/lib/opencouncil-previews/.env`):**
 
@@ -205,7 +204,7 @@ chmod 600 /var/lib/opencouncil-previews/.env
 
 The NixOS module loads this file via systemd `EnvironmentFile=`. Optional vars (Discord, Bird, Google Calendar, etc.) can be added to the same file — see `src/env.mjs` for the full list.
 
-**`NEXT_PUBLIC_*` note:** Most `NEXT_PUBLIC_BASE_URL` usage in this codebase is server-side (via the t3-env `env` object), so it works at runtime. The only edge case is client-side JavaScript (e.g., admin QR page), where the value is baked at build time. Since the build uses `SKIP_ENV_VALIDATION=1` without a base URL, these client-side references will be empty. For most preview testing this is acceptable.
+**Base URL note:** All base URL usage in this codebase now uses `NEXTAUTH_URL` (server-side, read at runtime), so previews work correctly without build-time URL injection. Client-side code that needs the base URL uses `window.location.origin` instead.
 
 ### GitHub Secrets
 

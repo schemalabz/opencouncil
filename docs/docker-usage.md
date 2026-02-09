@@ -355,7 +355,7 @@ For proper bidirectional communication between OpenCouncil and the task server, 
 TASK_API_URL=http://opencouncil-tasks-app-1:3005
 
 # Used to construct callback URLs that the task server uses to report task completion status back to OpenCouncil
-NEXT_PUBLIC_BASE_URL=http://opencouncil-app-dev-1:3000
+NEXTAUTH_URL=http://opencouncil-app-dev-1:3000
 ```
 
 The service names (`opencouncil-tasks-app-1` and `opencouncil-app-dev-1`) are derived from the respective project's `docker-compose.yml` files, and the ports correspond to the internal container ports.
