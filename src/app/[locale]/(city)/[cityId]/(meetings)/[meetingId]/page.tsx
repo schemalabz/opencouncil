@@ -118,7 +118,7 @@ export default function MeetingPage() {
                 )}
 
                 {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && (
-                    <div className="flex flex-col lg:flex-row lg:flex-wrap gap-x-8 max-w-4xl mx-auto">
+                    <div className={`max-w-4xl mx-auto ${beforeAgendaSubjects.length <= 1 && outOfAgendaSubjects.length <= 1 ? "flex flex-col lg:flex-row lg:flex-wrap gap-x-8" : "flex flex-col"}`}>
                         <SubjectSection
                             title="Προ ημερησίας συζήτηση"
                             explainerText="Η προ ημερησίας συζήτηση αποτελείται από ανακοινώσεις και ερωτήσεις του σώματος προς την Δημοτική Αρχή. Στην προ ημερησίας συζήτηση δεν λαμβάνονται αποφάσεις, και δεν υπάρχει ψηφοφορία."
