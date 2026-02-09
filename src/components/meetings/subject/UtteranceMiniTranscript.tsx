@@ -3,14 +3,14 @@
 import React, { memo } from "react";
 import { Utterance } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Clock, PlayCircle, PauseCircle, ArrowRight } from "lucide-react";
+import { Clock, ArrowRight } from "lucide-react";
 import { formatTimestamp } from "@/lib/formatters/time";
-import { useVideo } from "@/components/meetings/VideoProvider";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { ImageOrInitials } from "@/components/ImageOrInitials";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 
 /**
  * Builds smart display segments from multiple target utterances.
@@ -67,63 +67,6 @@ function buildSmartSegments(
 
   return { segments, hasMore };
 }
-
-// Separate component that uses useVideo - only this button re-renders on video updates
-const PlayPauseButton = memo(function PlayPauseButton({
-  startTimestamp,
-  endTimestamp
-}: {
-  startTimestamp: number;
-  endTimestamp: number;
-}) {
-  const { isPlaying, currentTime, seekToAndPlay, setIsPlaying } = useVideo();
-  const t = useTranslations("transcript.miniTranscript");
-
-  // Check if current time is within this utterance's range
-  const isWithinRange = currentTime >= startTimestamp && currentTime <= endTimestamp;
-
-  // Determine button state:
-  // - Playing + within range = Pause
-  // - Playing + outside range = Seek to
-  // - Not playing = Play
-  const isThisUtterancePlaying = isPlaying && isWithinRange;
-  const shouldShowSeek = isPlaying && !isWithinRange;
-
-  const handlePlayPause = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isThisUtterancePlaying) {
-      setIsPlaying(false);
-    } else {
-      seekToAndPlay(startTimestamp);
-    }
-  };
-
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handlePlayPause}
-      className="h-8 px-3 text-xs font-medium"
-    >
-      {isThisUtterancePlaying ? (
-        <>
-          <PauseCircle className="w-4 h-4 mr-1.5" />
-          {t("pause")}
-        </>
-      ) : shouldShowSeek ? (
-        <>
-          <PlayCircle className="w-4 h-4 mr-1.5" />
-          {t("seekTo")}
-        </>
-      ) : (
-        <>
-          <PlayCircle className="w-4 h-4 mr-1.5" />
-          {t("play")}
-        </>
-      )}
-    </Button>
-  );
-});
 
 // Segment represents a continuous range of utterances to display
 interface DisplaySegment {
@@ -277,6 +220,9 @@ export const UtteranceMiniTranscript = memo(function UtteranceMiniTranscript({
           <PlayPauseButton
             startTimestamp={firstTargetUtterance.startTimestamp}
             endTimestamp={firstTargetUtterance.endTimestamp}
+            showLabel
+            circleIcons
+            stopPropagation
           />
           <Button
             variant="outline"
