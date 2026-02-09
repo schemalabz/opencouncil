@@ -211,8 +211,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     <ImageOrInitials
                                         imageUrl={person.image}
                                         name={person.name}
-                                        width={96}
-                                        height={96}
+                                        width={192}
+                                        height={192}
                                     />
                                 </div>
                             </div>
