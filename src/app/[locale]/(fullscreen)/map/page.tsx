@@ -2,8 +2,7 @@
 import Map, { MapFeature } from "@/components/map/map";
 import { CityWithGeometry } from "@/lib/db/cities";
 import { useEffect, useState } from "react";
-import Icon from "@/components/icon";
-import { icons } from 'lucide-react';
+import Icon, { iconMap } from "@/components/icon";
 import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
 import { SubjectInfoSheet } from "@/components/map/SubjectInfoSheet";
@@ -300,9 +299,9 @@ export default function MapPage() {
                                 className="p-3 rounded-lg flex-shrink-0 shadow-sm flex items-center justify-center min-h-[80px] w-[60px]"
                                 style={{ backgroundColor: topicColor ? topicColor + "15" : "#f3f4f6" }}
                             >
-                                {topicIcon && (topicIcon in icons) ? (
+                                {topicIcon && (topicIcon in iconMap) ? (
                                     <Icon
-                                        name={topicIcon as keyof typeof icons}
+                                        name={topicIcon as keyof typeof iconMap}
                                         color={topicColor || "#6b7280"}
                                         size={24}
                                     />
