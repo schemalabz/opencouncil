@@ -46,11 +46,11 @@ export function SubjectSection({
         <section className={cn("mt-8 flex flex-col", className ?? "w-full max-w-4xl mx-auto")}>
             <div className="flex flex-col gap-3 mb-5">
                 <div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                         <h3 className="text-base sm:text-lg font-bold">{title}</h3>
                         <button
                             onClick={() => setShowExplainer(!showExplainer)}
-                            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                            className="text-muted-foreground hover:text-foreground transition-colors shrink-0 self-center"
                             aria-label="Τι σημαίνει αυτό;"
                         >
                             <HelpCircle className="w-3.5 h-3.5" />
