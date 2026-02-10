@@ -18,7 +18,8 @@ const bodySchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional()
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional(),
+    diavgeiaUnitId: z.string().optional().transform(val => val === '' ? undefined : val),
 });
 
 export async function PUT(
@@ -29,7 +30,7 @@ export async function PUT(
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
         const parsed = bodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, notificationBehavior } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, notificationBehavior, diavgeiaUnitId } = parsed;
 
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
@@ -37,6 +38,7 @@ export async function PUT(
             type,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
             notificationBehavior: notificationBehavior,
+            diavgeiaUnitId: diavgeiaUnitId || null,
         });
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`);

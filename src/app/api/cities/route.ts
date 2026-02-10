@@ -73,7 +73,8 @@ export async function POST(request: Request) {
             supportsNotifications: data.supportsNotifications,
             consultationsEnabled: data.consultationsEnabled,
             peopleOrdering: data.peopleOrdering,
-            highlightCreationPermission: data.highlightCreationPermission
+            highlightCreationPermission: data.highlightCreationPermission,
+            diavgeiaUid: data.diavgeiaUid || null,
         });
 
         return NextResponse.json(city);

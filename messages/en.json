@@ -85,6 +85,9 @@
         "supportsNotificationsDescription": "Enable email and SMS notifications for meetings in this city",
         "consultationsEnabled": "Enable Consultations",
         "consultationsEnabledDescription": "Enable the public consultations tab for this city",
+        "diavgeiaUid": "Diavgeia UID",
+        "diavgeiaUidPlaceholder": "e.g. 6253",
+        "diavgeiaUidDescription": "The organization UID on Diavgeia (diavgeia.gov.gr). Required for automatic decision polling.",
         "administrativeBodies": "Administrative Bodies",
         "CityMessageForm": {
             "sectionTitle": "City Message",
@@ -366,6 +369,43 @@
         "fixTranscript": "Automatic correction",
         "humanReview": "Human reviewed",
         "summarize": "Summarized"
+    },
+    "AdministrativeBodiesList": {
+        "addNew": "Add New",
+        "editBody": "Edit Body",
+        "addBody": "Add Body",
+        "namePlaceholder": "Body Name",
+        "nameDescription": "Enter the name of the administrative body.",
+        "nameEnPlaceholder": "Body Name (English)",
+        "nameEnDescription": "Enter the name of the administrative body in English.",
+        "type": "Type",
+        "selectType": "Select type",
+        "typeDescription": "Select the type of administrative body.",
+        "types": {
+            "council": "City Council",
+            "committee": "Municipal Committee",
+            "community": "Municipal Community"
+        },
+        "youtubeChannelUrl": "YouTube Channel URL",
+        "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
+        "youtubeChannelUrlDescription": "Enter the YouTube channel URL for this administrative body.",
+        "notificationBehavior": "Notification Behavior",
+        "notificationBehaviorDescription": "Choose the notification behavior for meetings of this body.",
+        "notificationBehaviorOptions": {
+            "disabled": "Disabled",
+            "auto": "Automatic",
+            "approval": "With Approval"
+        },
+        "diavgeiaUnitId": "Diavgeia Unit ID",
+        "diavgeiaUnitIdPlaceholder": "e.g. 81689",
+        "diavgeiaUnitIdDescription": "The unit ID on Diavgeia (for automatic decision retrieval).",
+        "submitting": "Submitting...",
+        "update": "Update",
+        "create": "Create",
+        "failedToSave": "Failed to save",
+        "unexpectedError": "An unexpected error occurred",
+        "confirmDelete": "Are you sure you want to delete this administrative body?",
+        "failedToDelete": "Failed to delete"
     },
     "PartyMemberRankingSheet": {
         "title": "Change Member Ordering",

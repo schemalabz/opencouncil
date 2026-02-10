@@ -6,6 +6,7 @@ import { handleFixTranscriptResult } from './fixTranscript';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleGenerateHighlightResult } from './generateHighlight';
+import { handlePollDecisionsResult } from './pollDecisions';
 
 // Task handler registry - maps task types to their result handlers
 export type TaskResultHandler = (taskId: string, result: any, options?: { force?: boolean }) => Promise<void>;
@@ -19,5 +20,6 @@ export const taskHandlers: Record<string, TaskResultHandler> = {
     processAgenda: handleProcessAgendaResult,
     generateVoiceprint: handleGenerateVoiceprintResult,
     generateHighlight: handleGenerateHighlightResult,
+    pollDecisions: handlePollDecisionsResult,
 };
 
