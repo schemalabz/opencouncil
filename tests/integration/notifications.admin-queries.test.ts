@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { getNotificationsGroupedByMeeting, MeetingNotificationStats } from '@/lib/db/notifications'
+import { getNotificationsGroupedByMeeting, deleteNotificationsForMeetings } from '@/lib/db/notifications'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -462,8 +462,11 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
             const user = await createUser('outofrange@example.com')
             await createNotificationPreference({ userId: user.id, cityId: city.id })
 
+            // Use a date within the default query range (last 30 days to +90 days)
+            const withinRangeDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
             const meeting = await createMeeting(city.id, {
                 id: 'out-of-range-meeting',
+                dateTime: withinRangeDate,
                 administrativeBodyId: body.id,
             })
 
@@ -477,6 +480,11 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
                 deliveryStatus: 'sent',
             })
 
+            // First verify we can find the notification on page 1
+            const page1Result = await getNotificationsGroupedByMeeting({ page: 1, pageSize: 10 })
+            expect(page1Result.pagination.total).toBe(1)
+
+            // Now verify page 100 returns empty but shows correct total
             const result = await getNotificationsGroupedByMeeting({ page: 100, pageSize: 10 })
             expect(result.meetings.length).toBe(0)
             expect(result.pagination.total).toBe(1)
@@ -553,6 +561,315 @@ describe('getNotificationsGroupedByMeeting - admin query layer', () => {
                 status: 'sent',
             })
             expect(city2Sent.meetings.length).toBe(1)
+        })
+    })
+})
+
+/**
+ * Tests for deleteNotificationsForMeetings function.
+ *
+ * These tests verify the delete functionality including:
+ * - Deleting all notifications for a meeting
+ * - Deleting only beforeMeeting notifications
+ * - Deleting only afterMeeting notifications
+ */
+describe('deleteNotificationsForMeetings - admin delete functionality', () => {
+    beforeAll(async () => {
+        await ensureTestDb()
+    })
+
+    beforeEach(async () => {
+        await resetDatabase(prisma as any)
+    })
+
+    /**
+     * Helper to create a notification with deliveries directly in the database.
+     */
+    async function createNotificationWithDeliveries(params: {
+        userId: string
+        cityId: string
+        meetingId: string
+        type: 'beforeMeeting' | 'afterMeeting'
+        deliveryStatus: 'pending' | 'sent' | 'failed'
+    }) {
+        const notification = await prisma.notification.create({
+            data: {
+                userId: params.userId,
+                cityId: params.cityId,
+                meetingId: params.meetingId,
+                type: params.type,
+            },
+        })
+
+        await prisma.notificationDelivery.create({
+            data: {
+                notificationId: notification.id,
+                medium: 'email',
+                status: params.deliveryStatus,
+                email: 'test@example.com',
+                body: 'Test notification',
+            },
+        })
+
+        return notification
+    }
+
+    describe('delete all notifications for a meeting', () => {
+        test('deletes all notifications when no type is specified', async () => {
+            const city = await createCity({ id: 'delete-all-city' })
+            const body = await createAdministrativeBody(city.id)
+            const user = await createUser('deleteall@example.com')
+            await createNotificationPreference({ userId: user.id, cityId: city.id })
+
+            const meeting = await createMeeting(city.id, {
+                id: 'delete-all-meeting',
+                administrativeBodyId: body.id,
+            })
+
+            await createSubject(meeting.id, city.id, { id: 'delete-all-subject' })
+
+            // Create both before and after notifications
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'afterMeeting',
+                deliveryStatus: 'sent',
+            })
+
+            // Verify we have 2 notifications
+            const beforeDelete = await prisma.notification.count({
+                where: { meetingId: meeting.id, cityId: city.id },
+            })
+            expect(beforeDelete).toBe(2)
+
+            // Delete all notifications for the meeting (no type filter)
+            const deletedCount = await deleteNotificationsForMeetings([
+                { meetingId: meeting.id, cityId: city.id },
+            ])
+
+            expect(deletedCount).toBe(2)
+
+            // Verify all notifications are deleted
+            const afterDelete = await prisma.notification.count({
+                where: { meetingId: meeting.id, cityId: city.id },
+            })
+            expect(afterDelete).toBe(0)
+        })
+    })
+
+    describe('delete by notification type', () => {
+        test('deletes only beforeMeeting notifications when type is specified', async () => {
+            const city = await createCity({ id: 'delete-before-city' })
+            const body = await createAdministrativeBody(city.id)
+            const user = await createUser('deletebefore@example.com')
+            await createNotificationPreference({ userId: user.id, cityId: city.id })
+
+            const meeting = await createMeeting(city.id, {
+                id: 'delete-before-meeting',
+                administrativeBodyId: body.id,
+            })
+
+            await createSubject(meeting.id, city.id, { id: 'delete-before-subject' })
+
+            // Create both before and after notifications
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'afterMeeting',
+                deliveryStatus: 'sent',
+            })
+
+            // Delete only beforeMeeting notifications
+            const deletedCount = await deleteNotificationsForMeetings(
+                [{ meetingId: meeting.id, cityId: city.id }],
+                'beforeMeeting'
+            )
+
+            expect(deletedCount).toBe(1)
+
+            // Verify only afterMeeting notification remains
+            const remaining = await prisma.notification.findMany({
+                where: { meetingId: meeting.id, cityId: city.id },
+            })
+            expect(remaining.length).toBe(1)
+            expect(remaining[0].type).toBe('afterMeeting')
+        })
+
+        test('deletes only afterMeeting notifications when type is specified', async () => {
+            const city = await createCity({ id: 'delete-after-city' })
+            const body = await createAdministrativeBody(city.id)
+            const user = await createUser('deleteafter@example.com')
+            await createNotificationPreference({ userId: user.id, cityId: city.id })
+
+            const meeting = await createMeeting(city.id, {
+                id: 'delete-after-meeting',
+                administrativeBodyId: body.id,
+            })
+
+            await createSubject(meeting.id, city.id, { id: 'delete-after-subject' })
+
+            // Create both before and after notifications
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'afterMeeting',
+                deliveryStatus: 'sent',
+            })
+
+            // Delete only afterMeeting notifications
+            const deletedCount = await deleteNotificationsForMeetings(
+                [{ meetingId: meeting.id, cityId: city.id }],
+                'afterMeeting'
+            )
+
+            expect(deletedCount).toBe(1)
+
+            // Verify only beforeMeeting notification remains
+            const remaining = await prisma.notification.findMany({
+                where: { meetingId: meeting.id, cityId: city.id },
+            })
+            expect(remaining.length).toBe(1)
+            expect(remaining[0].type).toBe('beforeMeeting')
+        })
+
+        test('returns 0 when deleting type that does not exist', async () => {
+            const city = await createCity({ id: 'delete-none-city' })
+            const body = await createAdministrativeBody(city.id)
+            const user = await createUser('deletenone@example.com')
+            await createNotificationPreference({ userId: user.id, cityId: city.id })
+
+            const meeting = await createMeeting(city.id, {
+                id: 'delete-none-meeting',
+                administrativeBodyId: body.id,
+            })
+
+            await createSubject(meeting.id, city.id, { id: 'delete-none-subject' })
+
+            // Create only beforeMeeting notification
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+
+            // Try to delete afterMeeting (which doesn't exist)
+            const deletedCount = await deleteNotificationsForMeetings(
+                [{ meetingId: meeting.id, cityId: city.id }],
+                'afterMeeting'
+            )
+
+            expect(deletedCount).toBe(0)
+
+            // Verify beforeMeeting notification still exists
+            const remaining = await prisma.notification.count({
+                where: { meetingId: meeting.id, cityId: city.id },
+            })
+            expect(remaining).toBe(1)
+        })
+    })
+
+    describe('bulk delete with type filter', () => {
+        test('deletes specific type across multiple meetings', async () => {
+            const city = await createCity({ id: 'bulk-delete-city' })
+            const body = await createAdministrativeBody(city.id)
+            const user = await createUser('bulkdelete@example.com')
+            await createNotificationPreference({ userId: user.id, cityId: city.id })
+
+            // Create two meetings
+            const meeting1 = await createMeeting(city.id, {
+                id: 'bulk-meeting-1',
+                administrativeBodyId: body.id,
+            })
+            const meeting2 = await createMeeting(city.id, {
+                id: 'bulk-meeting-2',
+                administrativeBodyId: body.id,
+            })
+
+            await createSubject(meeting1.id, city.id, { id: 'bulk-subject-1' })
+            await createSubject(meeting2.id, city.id, { id: 'bulk-subject-2' })
+
+            // Create before and after for both meetings
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting1.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting1.id,
+                type: 'afterMeeting',
+                deliveryStatus: 'sent',
+            })
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting2.id,
+                type: 'beforeMeeting',
+                deliveryStatus: 'pending',
+            })
+            await createNotificationWithDeliveries({
+                userId: user.id,
+                cityId: city.id,
+                meetingId: meeting2.id,
+                type: 'afterMeeting',
+                deliveryStatus: 'sent',
+            })
+
+            // Verify we have 4 notifications total
+            const beforeDelete = await prisma.notification.count({
+                where: { cityId: city.id },
+            })
+            expect(beforeDelete).toBe(4)
+
+            // Delete only beforeMeeting from both meetings
+            const deletedCount = await deleteNotificationsForMeetings(
+                [
+                    { meetingId: meeting1.id, cityId: city.id },
+                    { meetingId: meeting2.id, cityId: city.id },
+                ],
+                'beforeMeeting'
+            )
+
+            expect(deletedCount).toBe(2)
+
+            // Verify only afterMeeting notifications remain
+            const remaining = await prisma.notification.findMany({
+                where: { cityId: city.id },
+            })
+            expect(remaining.length).toBe(2)
+            expect(remaining.every(n => n.type === 'afterMeeting')).toBe(true)
         })
     })
 })

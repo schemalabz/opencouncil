@@ -4,6 +4,9 @@ module.exports = {
     testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup-integration.ts'],
     maxWorkers: 1,
+    // Prevent Jest from scanning large build directories
+    modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
+    testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     moduleNameMapper: {
         '^@/auth$': '<rootDir>/tests/mocks/auth.ts',
         '^@/env.mjs$': '<rootDir>/tests/mocks/env.ts',
