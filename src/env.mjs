@@ -64,6 +64,7 @@ export const env = createEnv({
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
     DEV_EMAIL_OVERRIDE: z.string().email().optional(),
+    SIMULATE_WHATSAPP_UNAVAILABLE: z.string().optional(),
     SEED_DATA_URL: z.string().url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
     SEED_DATA_PATH: z.string().default('./prisma/seed_data.json'),
   },
@@ -122,6 +123,7 @@ export const env = createEnv({
     GOOGLE_CALENDAR_ENABLED: process.env.GOOGLE_CALENDAR_ENABLED,
     DEV_TEST_CITY_ID: process.env.DEV_TEST_CITY_ID,
     DEV_EMAIL_OVERRIDE: process.env.DEV_EMAIL_OVERRIDE,
+    SIMULATE_WHATSAPP_UNAVAILABLE: process.env.SIMULATE_WHATSAPP_UNAVAILABLE,
     SEED_DATA_URL: process.env.SEED_DATA_URL,
     SEED_DATA_PATH: process.env.SEED_DATA_PATH,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN:
