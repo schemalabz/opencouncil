@@ -1318,15 +1318,18 @@ export async function getNotificationsForMeeting(
 
 /**
  * Delete all notifications for specified meetings (bulk delete)
+ * Optionally filter by notification type (beforeMeeting/afterMeeting)
  */
 export async function deleteNotificationsForMeetings(
-    meetingKeys: Array<{ meetingId: string; cityId: string }>
+    meetingKeys: Array<{ meetingId: string; cityId: string }>,
+    type?: 'beforeMeeting' | 'afterMeeting'
 ): Promise<number> {
     const result = await prisma.notification.deleteMany({
         where: {
             OR: meetingKeys.map(mk => ({
                 meetingId: mk.meetingId,
-                cityId: mk.cityId
+                cityId: mk.cityId,
+                ...(type && { type })
             }))
         }
     });

@@ -343,6 +343,7 @@ export default function AdminNotificationsPage() {
                                             onSelect={(checked) => handleSelectMeeting(meeting.meetingId, meeting.cityId, checked)}
                                             onReleasePending={handleReleasePending}
                                             isReleasing={releasingMeetings.has(key)}
+                                            onDataChange={() => fetchNotifications(pagination.page)}
                                         />
                                     );
                                 })}

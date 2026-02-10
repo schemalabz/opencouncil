@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
 import { el } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
 import { ExpandableTableRow } from "@/components/ui/expandable-table-row";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     Calendar,
     Building,
@@ -18,9 +26,11 @@ import {
     XCircle,
     Send,
     Loader2,
-    ExternalLink
+    ExternalLink,
+    Trash2
 } from "lucide-react";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 import { MeetingNotificationStats, NotificationStatusCounts } from "@/lib/db/notifications";
 import { createMeetingKey } from "./utils";
 
@@ -30,6 +40,7 @@ interface NotificationMeetingRowProps {
     onSelect: (checked: boolean) => void;
     onReleasePending: (meetingId: string, cityId: string) => Promise<void>;
     isReleasing: boolean;
+    onDataChange?: () => void;
 }
 
 // Type for notification data returned from API
@@ -165,11 +176,16 @@ export function NotificationMeetingRow({
     isSelected,
     onSelect,
     onReleasePending,
-    isReleasing
+    isReleasing,
+    onDataChange
 }: NotificationMeetingRowProps) {
     const [notifications, setNotifications] = useState<NotificationData[]>([]);
     const [loadingNotifications, setLoadingNotifications] = useState(false);
     const [hasLoadedNotifications, setHasLoadedNotifications] = useState(false);
+    const [deletingType, setDeletingType] = useState<'beforeMeeting' | 'afterMeeting' | null>(null);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [typeToDelete, setTypeToDelete] = useState<'beforeMeeting' | 'afterMeeting' | null>(null);
+    const { toast } = useToast();
 
     const meetingDate = format(new Date(meeting.meetingDate), "MMM dd, yyyy", { locale: el });
 
@@ -200,6 +216,55 @@ export function NotificationMeetingRow({
         await onReleasePending(meeting.meetingId, meeting.cityId);
     };
 
+    const handleDeleteType = async (type: 'beforeMeeting' | 'afterMeeting') => {
+        setDeletingType(type);
+        try {
+            const res = await fetch('/api/admin/notifications', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meetingKeys: [{ meetingId: meeting.meetingId, cityId: meeting.cityId }],
+                    type
+                })
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                toast({
+                    title: "Notifications deleted",
+                    description: `Deleted ${result.deletedCount} ${type === 'beforeMeeting' ? 'before' : 'after'} meeting notifications.`,
+                });
+                // Refresh the notifications list
+                setHasLoadedNotifications(false);
+                loadNotifications();
+                // Notify parent to refresh data
+                onDataChange?.();
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to delete notifications.",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting notifications:', error);
+            toast({
+                title: "Error",
+                description: "Failed to delete notifications.",
+                variant: "destructive"
+            });
+        } finally {
+            setDeletingType(null);
+            setShowDeleteDialog(false);
+            setTypeToDelete(null);
+        }
+    };
+
+    const openDeleteDialog = (type: 'beforeMeeting' | 'afterMeeting') => {
+        setTypeToDelete(type);
+        setShowDeleteDialog(true);
+    };
+
     // Group notifications by type for display
     const beforeNotifications = notifications.filter(n => n.type === 'beforeMeeting');
     const afterNotifications = notifications.filter(n => n.type === 'afterMeeting');
@@ -215,10 +280,28 @@ export function NotificationMeetingRow({
                     {/* Before Meeting Notifications */}
                     {beforeNotifications.length > 0 && (
                         <div>
-                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                Before Meeting
-                                <Badge variant="outline">{beforeNotifications.length}</Badge>
-                            </h4>
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                    Before Meeting
+                                    <Badge variant="outline">{beforeNotifications.length}</Badge>
+                                </h4>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => openDeleteDialog('beforeMeeting')}
+                                    disabled={deletingType !== null}
+                                >
+                                    {deletingType === 'beforeMeeting' ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Delete
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                                 {beforeNotifications.map((notification) => (
                                     <NotificationCard key={notification.id} notification={notification} />
@@ -230,10 +313,28 @@ export function NotificationMeetingRow({
                     {/* After Meeting Notifications */}
                     {afterNotifications.length > 0 && (
                         <div>
-                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                                After Meeting
-                                <Badge variant="outline">{afterNotifications.length}</Badge>
-                            </h4>
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                    After Meeting
+                                    <Badge variant="outline">{afterNotifications.length}</Badge>
+                                </h4>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => openDeleteDialog('afterMeeting')}
+                                    disabled={deletingType !== null}
+                                >
+                                    {deletingType === 'afterMeeting' ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Delete
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
                                 {afterNotifications.map((notification) => (
                                     <NotificationCard key={notification.id} notification={notification} />
@@ -253,6 +354,7 @@ export function NotificationMeetingRow({
     );
 
     return (
+        <>
         <ExpandableTableRow
             rowId={createMeetingKey(meeting.cityId, meeting.meetingId)}
             isSelected={isSelected}
@@ -329,5 +431,34 @@ export function NotificationMeetingRow({
                 )}
             </TableCell>
         </ExpandableTableRow>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                    <DialogTitle>Delete {typeToDelete === 'beforeMeeting' ? 'Before' : 'After'} Meeting Notifications</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to delete all {typeToDelete === 'beforeMeeting' ? 'before' : 'after'} meeting
+                        notifications for &quot;{meeting.meetingName}&quot;? This action cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        onClick={() => typeToDelete && handleDeleteType(typeToDelete)}
+                        disabled={deletingType !== null}
+                    >
+                        {deletingType ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : null}
+                        Delete
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }

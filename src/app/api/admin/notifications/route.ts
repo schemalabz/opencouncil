@@ -70,13 +70,15 @@ export async function GET(request: NextRequest) {
 /**
  * DELETE /api/admin/notifications
  * Bulk delete notifications for specified meetings
+ * Optionally filter by type (beforeMeeting/afterMeeting)
  */
 export async function DELETE(request: NextRequest) {
     await withUserAuthorizedToEdit({});
 
     const body = await request.json();
-    const { meetingKeys } = body as {
+    const { meetingKeys, type } = body as {
         meetingKeys: Array<{ meetingId: string; cityId: string }>;
+        type?: 'beforeMeeting' | 'afterMeeting';
     };
 
     if (!meetingKeys || !Array.isArray(meetingKeys) || meetingKeys.length === 0) {
@@ -86,7 +88,7 @@ export async function DELETE(request: NextRequest) {
         );
     }
 
-    const deletedCount = await deleteNotificationsForMeetings(meetingKeys);
+    const deletedCount = await deleteNotificationsForMeetings(meetingKeys, type);
 
     return NextResponse.json({
         success: true,
