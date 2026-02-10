@@ -756,11 +756,28 @@ export async function createNotificationsForMeeting(
             locationId: subject.locationId
         }));
 
+        // Build effective importance overrides:
+        // - If overrides are provided (manual creation), use them
+        // - Otherwise, use the subject's stored importance values
+        const effectiveOverrides: Record<string, {
+            topicImportance: 'doNotNotify' | 'normal' | 'high';
+            proximityImportance: 'none' | 'near' | 'wide';
+        }> = subjectImportanceOverrides || {};
+
+        if (!subjectImportanceOverrides) {
+            for (const subject of meeting.subjects) {
+                effectiveOverrides[subject.id] = {
+                    topicImportance: (subject.topicImportance as 'doNotNotify' | 'normal' | 'high') || 'normal',
+                    proximityImportance: (subject.proximityImportance as 'none' | 'near' | 'wide') || 'none'
+                };
+            }
+        }
+
         // Use shared matching logic to determine which users should be notified
         const userSubjectMatches = await matchUsersToSubjects(
             subjectsForMatching,
             usersWithPreferences,
-            subjectImportanceOverrides
+            effectiveOverrides
         );
 
         // Filter out users with no matching subjects
