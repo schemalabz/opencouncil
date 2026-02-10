@@ -1091,8 +1091,9 @@ export async function getNotificationsGroupedByMeeting(filters: {
         pageSize = 20
     } = filters;
 
-    // Default to last 30 days if no date range specified
-    const effectiveEndDate = endDate || new Date();
+    // Default to last 30 days for start date, and 90 days in the future for end date
+    // This ensures we show pending notifications for upcoming meetings (beforeMeeting notifications)
+    const effectiveEndDate = endDate || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
     const effectiveStartDate = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     // Build the where clause for notifications

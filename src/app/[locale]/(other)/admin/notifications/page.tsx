@@ -38,8 +38,9 @@ export default function AdminNotificationsPage() {
     });
 
     // Calculate date range from option
+    // Note: We only send startDate to the API, letting the backend use its default
+    // endDate (90 days in future) to ensure pending notifications for upcoming meetings are shown
     const getDateRange = (option: DateRangeOption): { startDate?: string; endDate?: string } => {
-        const endDate = new Date();
         let startDate: Date | undefined;
 
         switch (option) {
@@ -57,8 +58,9 @@ export default function AdminNotificationsPage() {
         }
 
         return {
-            startDate: startDate?.toISOString(),
-            endDate: endDate.toISOString()
+            startDate: startDate?.toISOString()
+            // endDate is not sent, allowing backend to use its default (+90 days)
+            // to include pending notifications for upcoming meetings
         };
     };
 
