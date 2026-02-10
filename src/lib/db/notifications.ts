@@ -247,7 +247,8 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     topicIds: string[];
 }): Promise<Result<NotificationPreference>> {
     const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
-    const session = await getServerSession();
+    // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
+    const session = seedUser ? null : await getServerSession();
 
     let userId: string;
     let isNewlyCreatedUser = false;
@@ -976,7 +977,7 @@ export async function getPendingDeliveries(notificationIds: string[]) {
 }
 
 /**
- * Get notifications for admin dashboard with filters
+ * Get notifications for admin dashboard with filters (legacy - kept for backwards compatibility)
  */
 export async function getNotificationsForAdmin(filters: {
     cityId?: string;
@@ -1036,6 +1037,323 @@ export async function getNotificationsForAdmin(filters: {
     }
 
     return notifications;
+}
+
+// Types for meeting-grouped notification stats
+export type NotificationStatusCounts = {
+    sent: number;
+    pending: number;
+    failed: number;
+    total: number;
+};
+
+export type MeetingNotificationStats = {
+    meetingId: string;
+    meetingName: string;
+    meetingDate: Date;
+    cityId: string;
+    cityName: string;
+    administrativeBodyName: string | null;
+    before: NotificationStatusCounts | null;
+    after: NotificationStatusCounts | null;
+};
+
+export type MeetingNotificationsGrouped = {
+    meetings: MeetingNotificationStats[];
+    pagination: {
+        total: number;
+        page: number;
+        pageSize: number;
+        totalPages: number;
+    };
+};
+
+/**
+ * Get notifications grouped by meeting for admin dashboard
+ * Returns paginated meetings with notification stats (before/after with status counts)
+ */
+export async function getNotificationsGroupedByMeeting(filters: {
+    cityId?: string;
+    status?: 'pending' | 'sent' | 'failed';
+    type?: 'beforeMeeting' | 'afterMeeting';
+    startDate?: Date;
+    endDate?: Date;
+    page?: number;
+    pageSize?: number;
+}): Promise<MeetingNotificationsGrouped> {
+    const {
+        cityId,
+        status,
+        type,
+        startDate,
+        endDate,
+        page = 1,
+        pageSize = 20
+    } = filters;
+
+    // Default to last 30 days if no date range specified
+    const effectiveEndDate = endDate || new Date();
+    const effectiveStartDate = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Build the where clause for notifications
+    const notificationWhere: Prisma.NotificationWhereInput = {
+        meeting: {
+            dateTime: {
+                gte: effectiveStartDate,
+                lte: effectiveEndDate
+            }
+        }
+    };
+
+    if (cityId) {
+        notificationWhere.cityId = cityId;
+    }
+
+    if (type) {
+        notificationWhere.type = type;
+    }
+
+    // If status filter is provided, filter to notifications that have at least one delivery with that status
+    if (status) {
+        notificationWhere.deliveries = {
+            some: {
+                status: status
+            }
+        };
+    }
+
+    // First, get all distinct meeting IDs that have notifications matching our filters
+    const notificationsWithMeetings = await prisma.notification.findMany({
+        where: notificationWhere,
+        select: {
+            meetingId: true,
+            cityId: true,
+            meeting: {
+                select: {
+                    dateTime: true
+                }
+            }
+        },
+        distinct: ['meetingId', 'cityId']
+    });
+
+    // Get unique meeting keys and sort by date descending
+    const meetingKeys = notificationsWithMeetings
+        .map(n => ({ meetingId: n.meetingId, cityId: n.cityId, dateTime: n.meeting.dateTime }))
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+
+    const totalMeetings = meetingKeys.length;
+    const totalPages = Math.ceil(totalMeetings / pageSize);
+
+    // Paginate the meeting keys
+    const paginatedMeetingKeys = meetingKeys.slice((page - 1) * pageSize, page * pageSize);
+
+    if (paginatedMeetingKeys.length === 0) {
+        return {
+            meetings: [],
+            pagination: {
+                total: 0,
+                page,
+                pageSize,
+                totalPages: 0
+            }
+        };
+    }
+
+    // Fetch full notification data for the paginated meetings
+    const notifications = await prisma.notification.findMany({
+        where: {
+            OR: paginatedMeetingKeys.map(mk => ({
+                meetingId: mk.meetingId,
+                cityId: mk.cityId
+            }))
+        },
+        include: {
+            city: {
+                select: {
+                    id: true,
+                    name: true,
+                    name_municipality: true
+                }
+            },
+            meeting: {
+                select: {
+                    id: true,
+                    name: true,
+                    dateTime: true,
+                    administrativeBody: {
+                        select: {
+                            name: true
+                        }
+                    }
+                }
+            },
+            deliveries: {
+                select: {
+                    status: true
+                }
+            }
+        }
+    });
+
+    // Group notifications by meeting and calculate stats
+    const meetingStatsMap = new Map<string, MeetingNotificationStats>();
+
+    for (const notification of notifications) {
+        const key = `${notification.cityId}-${notification.meetingId}`;
+
+        if (!meetingStatsMap.has(key)) {
+            meetingStatsMap.set(key, {
+                meetingId: notification.meetingId,
+                meetingName: notification.meeting.name,
+                meetingDate: notification.meeting.dateTime,
+                cityId: notification.cityId,
+                cityName: notification.city.name_municipality || notification.city.name,
+                administrativeBodyName: notification.meeting.administrativeBody?.name || null,
+                before: null,
+                after: null
+            });
+        }
+
+        const stats = meetingStatsMap.get(key)!;
+
+        // Determine the status of this notification based on its deliveries
+        // A notification is "pending" if any delivery is pending
+        // A notification is "failed" if any delivery failed and none are pending
+        // A notification is "sent" if all deliveries are sent
+        const deliveryStatuses = notification.deliveries.map(d => d.status);
+        let notificationStatus: 'sent' | 'pending' | 'failed';
+
+        if (deliveryStatuses.includes('pending')) {
+            notificationStatus = 'pending';
+        } else if (deliveryStatuses.includes('failed')) {
+            notificationStatus = 'failed';
+        } else {
+            notificationStatus = 'sent';
+        }
+
+        // Update the appropriate type stats
+        const typeKey = notification.type === 'beforeMeeting' ? 'before' : 'after';
+
+        if (!stats[typeKey]) {
+            stats[typeKey] = { sent: 0, pending: 0, failed: 0, total: 0 };
+        }
+
+        stats[typeKey]![notificationStatus]++;
+        stats[typeKey]!.total++;
+    }
+
+    // Convert map to array and sort by meeting date descending
+    const meetings = Array.from(meetingStatsMap.values())
+        .sort((a, b) => new Date(b.meetingDate).getTime() - new Date(a.meetingDate).getTime());
+
+    return {
+        meetings,
+        pagination: {
+            total: totalMeetings,
+            page,
+            pageSize,
+            totalPages
+        }
+    };
+}
+
+/**
+ * Get all notifications for a specific meeting (used when expanding a meeting row)
+ */
+export async function getNotificationsForMeeting(
+    meetingId: string,
+    cityId: string,
+    type?: 'beforeMeeting' | 'afterMeeting'
+) {
+    const whereClause: Prisma.NotificationWhereInput = {
+        meetingId,
+        cityId
+    };
+
+    if (type) {
+        whereClause.type = type;
+    }
+
+    return await prisma.notification.findMany({
+        where: whereClause,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    email: true,
+                    name: true
+                }
+            },
+            deliveries: {
+                select: {
+                    id: true,
+                    medium: true,
+                    status: true,
+                    email: true,
+                    phone: true,
+                    messageSentVia: true,
+                    sentAt: true,
+                    createdAt: true
+                }
+            },
+            subjects: {
+                select: {
+                    reason: true,
+                    subject: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
+}
+
+/**
+ * Delete all notifications for specified meetings (bulk delete)
+ */
+export async function deleteNotificationsForMeetings(
+    meetingKeys: Array<{ meetingId: string; cityId: string }>
+): Promise<number> {
+    const result = await prisma.notification.deleteMany({
+        where: {
+            OR: meetingKeys.map(mk => ({
+                meetingId: mk.meetingId,
+                cityId: mk.cityId
+            }))
+        }
+    });
+
+    return result.count;
+}
+
+/**
+ * Get all cities that have notifications (for filter dropdown)
+ */
+export async function getCitiesWithNotifications(): Promise<Array<{ id: string; name: string }>> {
+    const cities = await prisma.notification.findMany({
+        select: {
+            city: {
+                select: {
+                    id: true,
+                    name: true,
+                    name_municipality: true
+                }
+            }
+        },
+        distinct: ['cityId']
+    });
+
+    return cities.map(n => ({
+        id: n.city.id,
+        name: n.city.name_municipality || n.city.name
+    }));
 }
 
 /**
