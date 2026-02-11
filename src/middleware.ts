@@ -19,8 +19,16 @@ export default async function middleware(req: NextRequest) {
     const chaniaResponse = handleChaniaSubdomain(req);
     if (chaniaResponse) return chaniaResponse;
 
-    // Handle i18n first (skip for /qr/* paths to allow direct route handler)
+    // Legacy vanity URL: rewrite /t-shirt to /qr/t-shirt
+    // This allows managing the redirect destination from the QR campaign admin
     const pathname = req.nextUrl.pathname;
+    if (pathname === '/t-shirt') {
+        const url = req.nextUrl.clone();
+        url.pathname = '/qr/t-shirt';
+        return NextResponse.rewrite(url);
+    }
+
+    // Handle i18n first (skip for /qr/* paths to allow direct route handler)
     if (/^\/(?!api|_next|_vercel|qr\/|\..+).*/.test(pathname)) {
         const response = await i18nMiddleware(req);
         if (response) return response;
