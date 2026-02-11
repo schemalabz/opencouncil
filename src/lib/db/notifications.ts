@@ -1153,10 +1153,10 @@ export async function getNotificationsGroupedByMeeting(filters: {
         return {
             meetings: [],
             pagination: {
-                total: 0,
+                total: totalMeetings,
                 page,
                 pageSize,
-                totalPages: 0
+                totalPages
             }
         };
     }
