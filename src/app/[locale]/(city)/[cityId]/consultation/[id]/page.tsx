@@ -13,7 +13,9 @@ interface PageProps {
 
 async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
-        const response = await fetch(jsonUrl, { cache: 'no-store' });
+        // Resolve relative URLs (e.g. /regulation.json) against the app's base URL
+        const url = jsonUrl.startsWith('http') ? jsonUrl : `${env.NEXTAUTH_URL}${jsonUrl}`;
+        const response = await fetch(url, { cache: 'no-store' });
 
         if (!response.ok) {
             console.error(`Failed to fetch regulation data: ${response.status}`);

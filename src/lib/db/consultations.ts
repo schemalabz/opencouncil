@@ -195,11 +195,12 @@ async function validateEntityExists(
     }
 }
 
-// Helper function to fetch regulation data from URL
-async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
+// Fetch regulation data from URL (exported for use in page components)
+export async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
-        // Handle relative URLs by prepending the base URL
-        const url = jsonUrl.startsWith('http') ? jsonUrl : jsonUrl;
+        // Resolve relative URLs (e.g. /regulation.json) against the app's base URL
+        const { env } = await import('@/env.mjs');
+        const url = jsonUrl.startsWith('http') ? jsonUrl : `${env.NEXTAUTH_URL}${jsonUrl}`;
         const response = await fetch(url, { cache: 'no-store' });
 
         if (!response.ok) {
