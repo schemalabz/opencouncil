@@ -258,6 +258,8 @@ export default function ConsultationViewer({
             params.set('view', 'map');
             const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
             router.push(newUrl, { scroll: false });
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
@@ -296,17 +298,43 @@ export default function ConsultationViewer({
 
         // Navigate based on reference type
         if (referenceType === 'chapter' || referenceType === 'article') {
-            // Navigate to document section
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'document');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-            router.push(newUrl, { scroll: false });
+            if (currentView === 'document') {
+                // Already in document view - expand and scroll directly
+                // (router.push uses History.pushState which does NOT trigger hashchange)
+                const chapter = regulationData.regulation.find(item =>
+                    item.type === 'chapter' && item.id === referenceId
+                );
+                if (chapter) {
+                    expandChapter(referenceId);
+                } else {
+                    const parentChapterId = findChapterForArticle(referenceId);
+                    if (parentChapterId) {
+                        expandChapter(parentChapterId);
+                        expandArticle(referenceId);
+                    }
+                }
+                window.location.hash = `#${referenceId}`;
+                setTimeout(() => {
+                    const element = document.querySelector(`#${referenceId}`);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 200);
+            } else {
+                // Switch to document view - the useEffect will handle expansion/scroll on view change
+                const params = new URLSearchParams(window.location.search);
+                params.set('view', 'document');
+                const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
+                router.push(newUrl, { scroll: false });
+            }
         } else if (referenceType === 'geoset' || referenceType === 'geometry') {
             // Navigate to map view
             const params = new URLSearchParams(window.location.search);
             params.set('view', 'map');
             const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
             router.push(newUrl, { scroll: false });
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
