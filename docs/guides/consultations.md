@@ -149,6 +149,53 @@ sequenceDiagram
     * Template: [`src/lib/email/templates/consultation-comment.tsx`](../../src/lib/email/templates/consultation-comment.tsx) (React Email HTML template with entity permalink)
     * Sender: [`src/lib/email/consultation.ts`](../../src/lib/email/consultation.ts) (sends via Resend to contactEmail + ccEmails)
 
+## Scripts & Tooling
+
+Regulation JSON files are produced through a pipeline of scripts. Each consultation may use a different subset depending on the source material.
+
+### PDF-to-JSON Conversion
+
+[`scripts/convert-regulation-pdf.ts`](../../scripts/convert-regulation-pdf.ts)
+
+Converts a regulation PDF into a structured regulation JSON file using Claude AI. The script extracts text from the PDF, sends it to the Anthropic API with the regulation JSON schema as guidance, and validates the output against `json-schemas/regulation.schema.json`. Best suited for text-heavy regulations with chapters and articles.
+
+**Used by**: Scooter regulation — the source PDF contained the full legal text, chapter structure, and coordinate data embedded in textual definitions.
+
+### Coordinate Transformation
+
+[`scripts/transform-regulation-coordinates.ts`](../../scripts/transform-regulation-coordinates.ts)
+
+Transforms coordinates embedded in regulation JSON from GGRS87 (Greek Grid) projection to WGS84 (standard GeoJSON). Parses `textualDefinition` and `description` fields for coordinate patterns like `X: 123456, Y: 789012`, converts them using proj4, and writes GeoJSON Point geometries back into the file.
+
+**Used by**: Scooter regulation — the source PDF contained GGRS87 coordinates that needed transformation to WGS84 for Mapbox rendering.
+
+### Address Geocoding
+
+[`scripts/geocode-regulation-addresses.ts`](../../scripts/geocode-regulation-addresses.ts)
+
+Geocodes point geometries that have a `textualDefinition` (street address) but no `geojson` coordinates. Uses the Google Geocoding API scoped to Athens with bounds biasing. Validates that results fall within Athens municipality bounds. Produces a failures report for addresses that need manual coordinate entry via the admin geo-editor.
+
+**Options**: `--dry-run` (preview without API calls), `--force` (re-geocode existing), `--delay=N` (rate limiting in ms).
+
+**Used by**: Cooking oil regulation — the source PDF contained 210 street addresses/intersections that needed geocoding to map coordinates.
+
+### Consultation-Specific Generators
+
+Some consultations require a custom generator script when the source material isn't a structured PDF suitable for AI extraction (e.g., tabular address lists, data scraped from documents).
+
+[`scripts/generate-cooking-oil-regulation.ts`](../../scripts/generate-cooking-oil-regulation.ts)
+
+Generates the complete regulation JSON for the Athens cooking oil collection bin consultation. Contains all 210 addresses across 7 Municipal Communities (Δημοτικές Κοινότητες) extracted manually from the source PDF. Each community becomes a geoset with a distinct color, and each address becomes a point geometry.
+
+### Typical Pipeline
+
+| Step | Scooter Regulation | Cooking Oil Regulation |
+|------|-------------------|----------------------|
+| 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) |
+| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) |
+| 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) |
+| 4. Create DB record | Prisma seed | Admin consultations page |
+
 ## Business Rules & Assumptions
 
 ### Feature Gating
