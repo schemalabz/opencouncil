@@ -629,6 +629,24 @@ export default function ConsultationMap({
         console.log('📍 Updated selected locations:', locations.map(l => l.text));
     }, []);
 
+    // Apply a searched location's coordinates as the current geometry's point
+    const handleApplyLocationToGeometry = useCallback((coordinates: [number, number]) => {
+        if (!selectedGeometryForEdit) return;
+        try {
+            const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
+            saved[selectedGeometryForEdit] = {
+                type: 'Point',
+                coordinates: coordinates
+            };
+            localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(saved));
+            setSavedGeometries({ ...saved });
+            window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
+            console.log(`📍 Applied location to geometry ${selectedGeometryForEdit}:`, coordinates);
+        } catch (error) {
+            console.error('Error applying location to geometry:', error);
+        }
+    }, [selectedGeometryForEdit]);
+
     // Function to handle deleting saved geometry
     const handleDeleteSavedGeometry = (geometryId: string) => {
         try {
@@ -684,6 +702,7 @@ export default function ConsultationMap({
                     onSetDrawingMode={setDrawingMode}
                     onNavigateToLocation={handleNavigateToLocation}
                     onSelectedLocationsChange={handleSelectedLocationsChange}
+                    onApplyLocationToGeometry={handleApplyLocationToGeometry}
                     onClose={() => handleSelectGeometryForEdit(null)}
                 />
             )}
