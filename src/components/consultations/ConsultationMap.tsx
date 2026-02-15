@@ -341,12 +341,30 @@ export default function ConsultationMap({
         }
     }, []);
 
+    // Find the zoomable GeoJSON for a geometry by id
+    const findGeometryGeoJSON = useCallback((geometryId: string): GeoJSON.Geometry | null => {
+        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
+        if (!geometry) return null;
+
+        if (savedGeometries[geometry.id]) return savedGeometries[geometry.id];
+        if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) return geometry.geojson;
+        if (geometry.type === 'derived') return computeDerivedGeometry(geometry, geoSets);
+        return null;
+    }, [geoSets, savedGeometries]);
+
     const openDetailFromId = useCallback((id: string) => {
         // Check if it's a geoset
         const geoSet = geoSets.find(gs => gs.id === id);
         if (geoSet) {
             setDetailType('geoset');
             setDetailId(id);
+
+            // Zoom to the geoset's boundary polygon if it exists
+            const boundaryGeometry = geoSet.geometries.find(g => g.type === 'polygon');
+            if (boundaryGeometry) {
+                const geoJSON = findGeometryGeoJSON(boundaryGeometry.id);
+                if (geoJSON) setZoomGeometry(geoJSON);
+            }
             return;
         }
 
@@ -355,12 +373,16 @@ export default function ConsultationMap({
         if (geometry) {
             setDetailType('geometry');
             setDetailId(id);
+
+            // Zoom to the geometry
+            const geoJSON = findGeometryGeoJSON(id);
+            if (geoJSON) setZoomGeometry(geoJSON);
             return;
         }
 
         // If not found, close detail
         closeDetail();
-    }, [geoSets, closeDetail]);
+    }, [geoSets, closeDetail, findGeometryGeoJSON]);
 
     // Handle URL hash changes to open detail panels
     useEffect(() => {
@@ -400,6 +422,11 @@ export default function ConsultationMap({
     const handleMapFeatureClick = (feature: GeoJSON.Feature) => {
         if (feature.properties?.id) {
             openGeometryDetail(feature.properties.id);
+
+            // Zoom to the clicked feature's geometry
+            if (feature.geometry) {
+                setZoomGeometry(feature.geometry);
+            }
         }
     };
 
@@ -563,31 +590,11 @@ export default function ConsultationMap({
     // Function to handle geometry selection for editing with auto-zoom
     const handleSelectGeometryForEdit = (geometryId: string | null) => {
         setSelectedGeometryForEdit(geometryId);
-        
+
         if (geometryId) {
-            // Find the geometry to zoom to
-            const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
-            if (geometry) {
-                let geoJSON: GeoJSON.Geometry | null = null;
-                
-                // Check for saved geometry first
-                if (savedGeometries[geometry.id]) {
-                    geoJSON = savedGeometries[geometry.id];
-                }
-                // Otherwise use original geometry
-                else if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
-                    geoJSON = geometry.geojson;
-                }
-                // Handle derived geometries
-                else if (geometry.type === 'derived') {
-                    geoJSON = computeDerivedGeometry(geometry, geoSets);
-                }
-                
-                // Store geometry for zooming
-                if (geoJSON) {
-                    setZoomGeometry(geoJSON);
-                    console.log('🎯 Selected geometry for editing and zoom:', geometryId);
-                }
+            const geoJSON = findGeometryGeoJSON(geometryId);
+            if (geoJSON) {
+                setZoomGeometry(geoJSON);
             }
         }
     };
@@ -671,10 +678,7 @@ export default function ConsultationMap({
         }
     };
 
-    const zoomToGeometry = useMemo(() => {
-        if (!selectedGeometryForEdit) return null;
-        return zoomGeometry;
-    }, [selectedGeometryForEdit, zoomGeometry]);
+    const zoomToGeometry = zoomGeometry;
 
     return (
         <div className={cn("relative", className)}>
