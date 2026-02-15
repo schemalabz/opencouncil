@@ -258,6 +258,8 @@ export default function ConsultationViewer({
             params.set('view', 'map');
             const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
             router.push(newUrl, { scroll: false });
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
@@ -307,6 +309,8 @@ export default function ConsultationViewer({
             params.set('view', 'map');
             const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
             router.push(newUrl, { scroll: false });
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
