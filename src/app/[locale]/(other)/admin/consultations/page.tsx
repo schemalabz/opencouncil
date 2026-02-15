@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Upload, ExternalLink, Pencil, Check, X } from 'lucide-react';
 
 type CityOption = { id: string; name: string };
 
@@ -26,6 +27,11 @@ export default function AdminConsultationsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
+    const [editingUrlValue, setEditingUrlValue] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const jsonUrlInputRef = useRef<HTMLInputElement>(null);
 
     async function fetchConsultations() {
         try {
@@ -55,6 +61,50 @@ export default function AdminConsultationsPage() {
         fetchConsultations();
         fetchCities();
     }, []);
+
+    async function uploadJsonFile(file: File): Promise<string | null> {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Upload failed');
+        }
+
+        const data = await res.json();
+        return data.url;
+    }
+
+    async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.endsWith('.json')) {
+            setError('Please select a JSON file');
+            return;
+        }
+
+        setIsUploading(true);
+        setError(null);
+
+        try {
+            const url = await uploadJsonFile(file);
+            if (url && jsonUrlInputRef.current) {
+                jsonUrlInputRef.current.value = url;
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Upload failed');
+        } finally {
+            setIsUploading(false);
+            // Reset file input
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    }
 
     async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -106,6 +156,36 @@ export default function AdminConsultationsPage() {
             alert(`Error: ${data.error || 'Failed to update consultation'}`);
         }
         fetchConsultations();
+    }
+
+    async function handleUpdateUrl(id: string, newUrl: string) {
+        const res = await fetch(`/api/admin/consultations/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonUrl: newUrl })
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            alert(`Error: ${data.error || 'Failed to update URL'}`);
+        } else {
+            setEditingUrlId(null);
+            fetchConsultations();
+        }
+    }
+
+    async function handleUploadAndUpdateUrl(id: string, file: File) {
+        setIsUploading(true);
+        try {
+            const url = await uploadJsonFile(file);
+            if (url) {
+                await handleUpdateUrl(id, url);
+            }
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Upload failed');
+        } finally {
+            setIsUploading(false);
+        }
     }
 
     async function handleDelete(id: string) {
@@ -173,13 +253,36 @@ export default function AdminConsultationsPage() {
                         <div className="flex gap-4 items-end flex-wrap">
                             <div className="flex flex-col gap-2 flex-1 min-w-[20rem]">
                                 <Label htmlFor="jsonUrl">Regulation JSON URL</Label>
-                                <Input
-                                    id="jsonUrl"
-                                    name="jsonUrl"
-                                    placeholder="/regulation-cooking-oil.json or https://..."
-                                    required
-                                    disabled={isSubmitting}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        ref={jsonUrlInputRef}
+                                        id="jsonUrl"
+                                        name="jsonUrl"
+                                        placeholder="Upload a file or paste a URL..."
+                                        required
+                                        disabled={isSubmitting || isUploading}
+                                    />
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".json"
+                                        className="hidden"
+                                        onChange={handleFileUpload}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        disabled={isSubmitting || isUploading}
+                                        onClick={() => fileInputRef.current?.click()}
+                                        title="Upload JSON file to S3"
+                                    >
+                                        <Upload className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Upload a .json file to S3, or paste a URL directly.
+                                </p>
                             </div>
                             <div className="flex flex-col gap-2 w-48">
                                 <Label htmlFor="endDate">End Date</Label>
@@ -191,8 +294,8 @@ export default function AdminConsultationsPage() {
                                     disabled={isSubmitting}
                                 />
                             </div>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Creating...' : 'Create'}
+                            <Button type="submit" disabled={isSubmitting || isUploading}>
+                                {isUploading ? 'Uploading...' : isSubmitting ? 'Creating...' : 'Create'}
                             </Button>
                         </div>
                     </form>
@@ -218,6 +321,7 @@ export default function AdminConsultationsPage() {
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>City</TableHead>
+                                    <TableHead>JSON URL</TableHead>
                                     <TableHead>End Date</TableHead>
                                     <TableHead>Comments</TableHead>
                                     <TableHead className="text-center">Active</TableHead>
@@ -228,14 +332,81 @@ export default function AdminConsultationsPage() {
                                 {consultations.map((c) => (
                                     <TableRow key={c.id}>
                                         <TableCell>
-                                            <div>
-                                                <span className="font-medium">{c.name}</span>
-                                                <span className="block text-xs text-muted-foreground font-mono truncate max-w-xs">
-                                                    {c.jsonUrl}
-                                                </span>
-                                            </div>
+                                            <span className="font-medium">{c.name}</span>
                                         </TableCell>
                                         <TableCell className="text-sm">{c.city.name}</TableCell>
+                                        <TableCell className="text-sm max-w-xs">
+                                            {editingUrlId === c.id ? (
+                                                <div className="flex items-center gap-1">
+                                                    <Input
+                                                        value={editingUrlValue}
+                                                        onChange={(e) => setEditingUrlValue(e.target.value)}
+                                                        className="h-7 text-xs"
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0"
+                                                        onClick={() => handleUpdateUrl(c.id, editingUrlValue)}
+                                                    >
+                                                        <Check className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0"
+                                                        onClick={() => setEditingUrlId(null)}
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </Button>
+                                                    <input
+                                                        type="file"
+                                                        accept=".json"
+                                                        className="hidden"
+                                                        id={`upload-${c.id}`}
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleUploadAndUpdateUrl(c.id, file);
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0"
+                                                        disabled={isUploading}
+                                                        onClick={() => document.getElementById(`upload-${c.id}`)?.click()}
+                                                        title="Upload new JSON"
+                                                    >
+                                                        <Upload className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1 group">
+                                                    <a
+                                                        href={c.jsonUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-xs font-mono text-muted-foreground hover:text-foreground truncate max-w-[200px] inline-block"
+                                                        title={c.jsonUrl}
+                                                    >
+                                                        {c.jsonUrl}
+                                                    </a>
+                                                    <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        onClick={() => {
+                                                            setEditingUrlId(c.id);
+                                                            setEditingUrlValue(c.jsonUrl);
+                                                        }}
+                                                        title="Edit URL"
+                                                    >
+                                                        <Pencil className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
                                             {new Date(c.endDate).toLocaleDateString('en-US', {
                                                 year: 'numeric',

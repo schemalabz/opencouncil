@@ -25,6 +25,7 @@ The regulation JSON file is the core data source for each consultation. It follo
 - `contactEmail`, `ccEmails` — where citizen feedback emails are sent
 - `sources` — array of source documents (`{title, url, description?}`)
 - `definitions` — dictionary of terms that can be referenced via `{DEF:id}` in markdown
+- `defaultView` — initial view mode (`"map"` or `"document"`, defaults to `"document"`)
 - `defaultVisibleGeosets` — which geosets are visible on the map by default
 - `regulation` — array of `Chapter` and `GeoSet` items (the main content)
 
@@ -194,7 +195,43 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 | 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) |
 | 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) |
 | 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) |
-| 4. Create DB record | Prisma seed | Admin consultations page |
+| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload |
+| 5. Create DB record | Prisma seed | Admin consultations page |
+
+## Hosting Regulation JSON Files
+
+Regulation JSON files must be hosted at a publicly accessible URL. The URL is stored in `Consultation.jsonUrl` and fetched by the frontend at page load and by the API during comment validation.
+
+### Uploading via Admin Dashboard
+
+The admin consultations page (`/admin/consultations`) supports uploading and managing regulation JSON files:
+
+1. **New consultation**: In the "Create Consultation" form, either paste a URL directly into the "Regulation JSON URL" field, or click the upload button (↑) to upload a `.json` file to S3. The upload returns a public URL that auto-fills the field.
+
+2. **Update existing consultation**: In the consultations table, hover over the JSON URL column and click the pencil icon to enter edit mode. You can either paste a new URL or click the upload button to replace the file on S3.
+
+### Storage on DigitalOcean Spaces (S3)
+
+Files are uploaded via the `/api/upload` endpoint which:
+- Requires authentication (admin or authorized editor)
+- Generates a random UUID filename (preserving the `.json` extension)
+- Stores files under the `uploads/` prefix in the configured DO Spaces bucket
+- Sets `public-read` ACL so the URL is publicly accessible
+- Returns the full public URL (e.g., `https://{bucket}.{region}.digitaloceanspaces.com/uploads/{uuid}.json`)
+
+### Workflow for a New Consultation
+
+1. Generate the regulation JSON using the appropriate script (see [Scripts & Tooling](#scripts--tooling))
+2. Validate it against `json-schemas/regulation.schema.json`
+3. Go to `/admin/consultations` and create a new consultation:
+   - Upload the JSON file (or paste an already-hosted URL)
+   - Select the city, set name and end date
+4. After creation, use the admin geo-editor on the consultation map to draw any missing geometries
+5. Export the updated JSON from the geo-editor and re-upload it via the admin table's edit button
+
+### Local Development
+
+For local development, you can place regulation JSON files in the `public/` directory and use relative URLs (e.g., `/regulation-cooking-oil.json`). However, for production and shared environments, always use S3-hosted URLs so the files are accessible regardless of the deployment.
 
 ## Business Rules & Assumptions
 
