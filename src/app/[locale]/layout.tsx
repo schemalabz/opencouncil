@@ -7,6 +7,11 @@ import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import QuickLogin from "@/components/dev/QuickLogin";
 
+// Only import in development — excluded from production bundles entirely
+const MobilePreviewReporter = process.env.NODE_ENV === 'development'
+    ? require("@/components/dev/MobilePreviewReporter").default
+    : null;
+
 export function generateStaticParams() {
     return routing.locales.map((locale) => ({ locale }));
 }
@@ -31,6 +36,7 @@ export default async function LocaleLayout({
 
             <Toaster />
             <QuickLogin />
+            {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>
     );
 }
