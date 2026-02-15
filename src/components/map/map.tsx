@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
@@ -69,6 +69,7 @@ const Map = memo(function Map({
     const animationFrame = useRef<number | null>(null)
     const featuresRef = useRef(features)
     const isInitialized = useRef(false)
+    const [mapReady, setMapReady] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
@@ -387,6 +388,7 @@ const Map = memo(function Map({
         // Wait for map to load before initializing features
         map.current.on('load', () => {
             isInitialized.current = true;
+            setMapReady(true);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
@@ -974,7 +976,7 @@ const Map = memo(function Map({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry]);
+    }, [zoomToGeometry, mapReady]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
