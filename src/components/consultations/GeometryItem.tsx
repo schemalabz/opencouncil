@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Info, MessageCircle, AlertTriangle, Edit, Save, CheckCircle, Target, Trash2 } from "lucide-react";
+import { MessageCircle, AlertTriangle, Edit, Save, Target, Trash2 } from "lucide-react";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Geometry } from "./types";
 
@@ -62,19 +61,16 @@ export default function GeometryItem({
                     }}
                 />
             </div>
-            <Label
-                htmlFor={`geometry-${id}`}
-                className="text-xs flex-1 cursor-pointer flex items-center gap-1"
+            <button
+                onClick={() => onOpenDetail(id)}
+                className="text-xs flex-1 cursor-pointer text-left hover:text-primary transition-colors flex items-center gap-1"
+                title="Προβολή λεπτομερειών και σχολίων"
             >
                 {name}
                 {/* Status indicators */}
                 {hasLocalSave ? (
                     <div title="Έχει αποθηκευτεί τοπικά">
                         <Save className="h-3 w-3 text-blue-600" />
-                    </div>
-                ) : hasOriginalGeojson ? (
-                    <div title="Έχει πρωτότυπες συντεταγμένες">
-                        <CheckCircle className="h-3 w-3 text-green-600" />
                     </div>
                 ) : hasIncompleteData ? (
                     <div title="Η γεωμετρία δεν έχει συντεταγμένες">
@@ -86,8 +82,14 @@ export default function GeometryItem({
                         <Target className="h-3 w-3 text-blue-600" />
                     </div>
                 )}
-            </Label>
-            
+                {geometryCommentCount > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                        <MessageCircle className="h-2.5 w-2.5" />
+                        {geometryCommentCount}
+                    </span>
+                )}
+            </button>
+
             {/* Edit button - only show in editing mode for non-derived geometries */}
             {canEdit && onSelectForEdit && (
                 <Button
@@ -100,18 +102,6 @@ export default function GeometryItem({
                     <Edit className="h-2.5 w-2.5" />
                 </Button>
             )}
-            
-            <Button
-                onClick={() => onOpenDetail(id)}
-                variant="outline"
-                size="sm"
-                className="h-5 px-1.5 text-muted-foreground hover:text-foreground border-muted-foreground/30"
-                title="Προβολή λεπτομερειών και σχολίων"
-            >
-                <Info className="h-2.5 w-2.5 mr-0.5" />
-                <MessageCircle className="h-2.5 w-2.5 mr-0.5" />
-                <span className="text-xs">{geometryCommentCount}</span>
-            </Button>
 
             {/* Delete button - only show if there's a locally saved geometry */}
             {hasLocalSave && onDeleteSavedGeometry && (

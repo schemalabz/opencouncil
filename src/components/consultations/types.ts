@@ -100,7 +100,28 @@ export interface RegulationData {
     ccEmails?: string[]; // Additional emails to CC on comments (optional)
     sources: Source[]; // Array of source documents (required in schema)
     referenceFormat?: ReferenceFormat;
+    defaultView?: 'map' | 'document'; // Default view mode (defaults to 'document')
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
     definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
-} 
+}
+
+// Shared interface for current user across consultation components
+export interface CurrentUser {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    isSuperAdmin?: boolean;
+}
+
+// Shared interface for geoset data used across consultation components
+export interface GeoSetData {
+    id: string;
+    name: string;
+    description?: string;
+    color?: string;
+    geometries: Geometry[];
+}
+
+// Colors for search location pins on the map
+export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6']; 

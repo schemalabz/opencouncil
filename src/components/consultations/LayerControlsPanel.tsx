@@ -1,25 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Edit, Download, ChevronDown, ChevronUp, TriangleAlert } from "lucide-react";
+import { X, Edit, Download, MapPin, MessageCircle, ChevronRight, TriangleAlert, Search, Info } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
-import { Geometry } from "./types";
+import { RegulationData, CurrentUser, GeoSetData, SEARCH_COLORS } from './types';
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-import { RegulationData } from './types';
 import { CityWithGeometry } from '@/lib/db/cities';
-
-interface GeoSetData {
-    id: string;
-    name: string;
-    description?: string;
-    color?: string;
-    geometries: Geometry[];
-}
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-    isSuperAdmin?: boolean;
-}
+import { LocationSelector } from "@/components/onboarding/selectors/LocationSelector";
+import { Location } from "@/lib/types/onboarding";
 
 interface LayerControlsPanelProps {
     geoSets: GeoSetData[];
@@ -46,6 +35,12 @@ interface LayerControlsPanelProps {
     onToggleEditingMode?: (enabled: boolean) => void;
     onSelectGeometryForEdit?: (geometryId: string | null) => void;
     onDeleteSavedGeometry?: (geometryId: string) => void;
+    cityData?: CityWithGeometry | null;
+    onSearchLocation?: (location: Location) => void;
+    onRemoveSearchLocation?: (index: number) => void;
+    onNavigateToSearchLocation?: (location: Location, index: number) => void;
+    searchLocations?: Location[];
+    onShowInfo?: () => void;
 }
 
 export default function LayerControlsPanel({
@@ -72,16 +67,41 @@ export default function LayerControlsPanel({
     regulationData,
     onToggleEditingMode,
     onSelectGeometryForEdit,
-    onDeleteSavedGeometry
+    onDeleteSavedGeometry,
+    cityData,
+    onSearchLocation,
+    onRemoveSearchLocation,
+    onNavigateToSearchLocation,
+    searchLocations = [],
+    onShowInfo
 }: LayerControlsPanelProps) {
-    
+
+    const [showSearch, setShowSearch] = useState(false);
+
     // Use savedGeometries from props (now synced from ConsultationMap)
     const savedGeometriesData = savedGeometries || {};
-    
-    const containsInvalidGeoSets = geoSets.some(gs => 
+
+    const containsInvalidGeoSets = geoSets.some(gs =>
         gs.geometries.length > 0 && gs.geometries.every((g: any) => !g.geojson && g.type !== 'derived')
     );
-    
+
+    // Count comments per geoset
+    const getGeoSetCommentCount = (geoSetId: string) => {
+        if (!comments) return 0;
+        // Count direct geoset comments + geometry comments within this geoset
+        const geoSet = geoSets.find(gs => gs.id === geoSetId);
+        const geometryIds = geoSet?.geometries.map(g => g.id) || [];
+        return comments.filter(c =>
+            (c.entityType === 'GEOSET' && c.entityId === geoSetId) ||
+            (c.entityType === 'GEOMETRY' && geometryIds.includes(c.entityId))
+        ).length;
+    };
+
+    // Count point geometries (excluding boundary polygons)
+    const getPointCount = (geoSet: GeoSetData) => {
+        return geoSet.geometries.filter(g => g.type === 'point').length;
+    };
+
     // Export function to merge original data with saved geometries
     const handleExportJSON = () => {
         try {
@@ -89,11 +109,9 @@ export default function LayerControlsPanel({
                 console.error('No regulation data available for export');
                 return;
             }
-            
-            // Create a deep copy of the complete regulation data
+
             const exportData = JSON.parse(JSON.stringify(regulationData));
-            
-            // Merge in the saved geometries by updating the regulation items
+
             exportData.regulation.forEach((item: any) => {
                 if (item.type === 'geoset' && item.geometries) {
                     item.geometries.forEach((geometry: any) => {
@@ -103,8 +121,7 @@ export default function LayerControlsPanel({
                     });
                 }
             });
-            
-            // Create downloadable file with a more descriptive name
+
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -114,45 +131,41 @@ export default function LayerControlsPanel({
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
-            console.log('📥 Exported complete regulation JSON with merged geometries:', exportData);
         } catch (error) {
             console.error('Error exporting regulation JSON:', error);
         }
     };
 
-    return (
-        <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-96 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
-            <div className="p-4 flex-shrink-0">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-sm">Επίπεδα Χάρτη</h3>
-                    <Button
-                        onClick={onClose}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                    >
-                        <X className="h-3 w-3" />
-                    </Button>
-                </div>
-                
-                {/* Editing Mode Toggle - Only for super admins */}
-                {currentUser?.isSuperAdmin && onToggleEditingMode && (
-                    <div className="mb-4">
+    // Editing mode: show the full detailed layer controls
+    if (isEditingMode) {
+        return (
+            <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-96 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
+                <div className="p-4 flex-shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-sm">Επίπεδα Χάρτη</h3>
                         <Button
-                            onClick={() => onToggleEditingMode(!isEditingMode)}
-                            variant={isEditingMode ? "default" : "outline"}
+                            onClick={onClose}
+                            variant="ghost"
                             size="sm"
-                            className={`w-full gap-2 ${isEditingMode ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                            className="h-6 w-6 p-0"
                         >
-                            <Edit className="h-3 w-3" />
-                            {isEditingMode ? 'Τέλος Επεξεργασίας' : 'Λειτουργία Επεξεργασίας'}
+                            <X className="h-3 w-3" />
                         </Button>
-                        
-                        {/* Editing Controls - Only visible when editing */}
-                        {isEditingMode && (
+                    </div>
+
+                    {currentUser?.isSuperAdmin && onToggleEditingMode && (
+                        <div className="mb-4">
+                            <Button
+                                onClick={() => onToggleEditingMode(false)}
+                                variant="default"
+                                size="sm"
+                                className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
+                            >
+                                <Edit className="h-3 w-3" />
+                                Τέλος Επεξεργασίας
+                            </Button>
+
                             <div className="mt-3">
-                                {/* Export Button */}
                                 <Button
                                     onClick={handleExportJSON}
                                     variant="secondary"
@@ -163,7 +176,6 @@ export default function LayerControlsPanel({
                                     Εξαγωγή Regulation.json ({Object.keys(savedGeometriesData).length} νέες γεωμετρίες)
                                 </Button>
 
-                                {/* Message when no geometry selected */}
                                 {!selectedGeometryForEdit && (
                                     <div className="text-center py-3 mt-3 text-xs text-muted-foreground bg-muted/50 rounded-md">
                                         <div className="font-medium mb-1">Επιλέξτε γεωμετρία για επεξεργασία</div>
@@ -171,69 +183,207 @@ export default function LayerControlsPanel({
                                     </div>
                                 )}
                             </div>
-                        )}
+                        </div>
+                    )}
+                </div>
+
+                <div
+                    className="flex-1 px-4 overflow-y-auto overscroll-contain space-y-3"
+                    onWheel={(e) => e.stopPropagation()}
+                >
+                    {geoSets.map((geoSet, geoSetIndex) => {
+                        const color = geoSet.color || colors[geoSetIndex % colors.length];
+                        const checkboxState = getGeoSetCheckboxState(geoSet.id);
+                        const isExpanded = expandedGeoSets.has(geoSet.id);
+
+                        const hasInvalidGeometries = geoSet.geometries.length > 0 && geoSet.geometries.every(
+                            (g: any) => !g.geojson && g.type !== 'derived'
+                        );
+
+                        return (
+                            <GeoSetItem
+                                key={geoSet.id}
+                                id={geoSet.id}
+                                name={geoSet.name}
+                                description={geoSet.description}
+                                color={color}
+                                checkboxState={checkboxState}
+                                isExpanded={isExpanded}
+                                geometries={geoSet.geometries}
+                                enabledGeometries={enabledGeometries}
+                                onToggleGeoSet={onToggleGeoSet}
+                                onToggleExpansion={onToggleExpansion}
+                                onToggleGeometry={onToggleGeometry}
+                                onOpenGeoSetDetail={onOpenGeoSetDetail}
+                                onOpenGeometryDetail={onOpenGeometryDetail}
+                                contactEmail={contactEmail}
+                                comments={comments}
+                                consultationId={consultationId}
+                                cityId={cityId}
+                                hasInvalidGeometries={hasInvalidGeometries}
+                                isEditingMode={isEditingMode}
+                                selectedGeometryForEdit={selectedGeometryForEdit}
+                                savedGeometries={savedGeometriesData}
+                                onSelectGeometryForEdit={onSelectGeometryForEdit}
+                                onDeleteSavedGeometry={onDeleteSavedGeometry}
+                            />
+                        );
+                    })}
+                </div>
+
+                <div className="p-4 pt-3 border-t flex-shrink-0">
+                    <div className="text-xs text-muted-foreground">
+                        Σύνολο: {activeCount} στοιχεία ενεργά
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Normal mode: simplified community picker
+    return (
+        <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-80 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
+            <div className="p-4 pb-3 flex-shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-sm">Επιλέξτε Περιοχή</h3>
+                    <div className="flex items-center gap-1">
+                        {onShowInfo && (
+                            <Button
+                                onClick={onShowInfo}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                title="Πληροφορίες διαβούλευσης"
+                            >
+                                <Info className="h-3 w-3" />
+                            </Button>
+                        )}
+                        {currentUser?.isSuperAdmin && onToggleEditingMode && (
+                            <Button
+                                onClick={() => onToggleEditingMode(true)}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                title="Λειτουργία Επεξεργασίας"
+                            >
+                                <Edit className="h-3 w-3" />
+                            </Button>
+                        )}
+                        <Button
+                            onClick={onClose}
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Address search */}
+                {cityData && (showSearch || searchLocations.length > 0) ? (
+                    <div className="mb-2">
+                        <LocationSelector
+                            selectedLocations={searchLocations}
+                            onSelect={(location) => onSearchLocation?.(location)}
+                            onRemove={(index) => onRemoveSearchLocation?.(index)}
+                            city={cityData}
+                            hideSelectedList
+                        />
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => setShowSearch(true)}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 mb-2 text-sm text-muted-foreground bg-muted/50 hover:bg-muted/80 rounded-md transition-colors text-left"
+                    >
+                        <Search className="h-4 w-4 shrink-0" />
+                        <span>Αναζήτηση διεύθυνσης...</span>
+                    </button>
                 )}
-                {containsInvalidGeoSets && !isEditingMode && (
-                    <div className="mb-4 p-2 bg-yellow-100/50 border border-yellow-200/50 rounded-md text-xs text-yellow-800 flex items-start gap-2">
+
+                {containsInvalidGeoSets && (
+                    <div className="mb-2 p-2 bg-yellow-100/50 border border-yellow-200/50 rounded-md text-xs text-yellow-800 flex items-start gap-2">
                         <TriangleAlert className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                        <span><b>Βάζουμε τις περιοχές στον χάρτη, και αυτό είναι μια δουλειά που θέλει χρόνο</b>.
-                            Δεδομένου ότι αυτή η σελίδα δημιουργήθηκε σε μόλις 48 ώρες, κάτι έπρεπε να μείνει πίσω. 
-                            Μέχρι τότε, ορισμένες περιοχές ενδέχεται να μην είναι ορατές.</span>
+                        <span>Ορισμένες περιοχές ενδέχεται να μην είναι ακόμα ορατές στον χάρτη.</span>
                     </div>
                 )}
             </div>
 
             <div
-                className="flex-1 px-4 overflow-y-auto overscroll-contain space-y-3"
+                className="flex-1 px-4 pb-4 overflow-y-auto overscroll-contain space-y-1.5"
                 onWheel={(e) => e.stopPropagation()}
             >
+                {/* Selected search locations */}
+                {searchLocations.length > 0 && (
+                    <div className="space-y-1 pb-2 mb-1 border-b">
+                        <div className="text-xs font-medium text-muted-foreground px-1">
+                            Οι τοποθεσίες σας
+                        </div>
+                        {searchLocations.map((location, index) => {
+                            const pinColor = SEARCH_COLORS[index % SEARCH_COLORS.length];
+                            return (
+                                <div
+                                    key={`search-${index}`}
+                                    className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/60 transition-colors group"
+                                >
+                                    <button
+                                        onClick={() => onNavigateToSearchLocation?.(location, index)}
+                                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                                    >
+                                        <MapPin
+                                            className="h-3.5 w-3.5 shrink-0"
+                                            style={{ color: pinColor }}
+                                        />
+                                        <span className="text-sm truncate">{location.text}</span>
+                                    </button>
+                                    <button
+                                        onClick={() => onRemoveSearchLocation?.(index)}
+                                        className="h-5 w-5 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 hover:bg-muted transition-all shrink-0"
+                                    >
+                                        <X className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {geoSets.map((geoSet, geoSetIndex) => {
-                    // Use geoset's own color if available, otherwise fall back to colors array
                     const color = geoSet.color || colors[geoSetIndex % colors.length];
-                    const checkboxState = getGeoSetCheckboxState(geoSet.id);
-                    const isExpanded = expandedGeoSets.has(geoSet.id);
-                    
-                    const hasInvalidGeometries = geoSet.geometries.length > 0 && geoSet.geometries.every(
-                        (g: any) => !g.geojson && g.type !== 'derived'
-                    );
+                    const pointCount = getPointCount(geoSet);
+                    const commentCount = getGeoSetCommentCount(geoSet.id);
 
                     return (
-                        <GeoSetItem
+                        <button
                             key={geoSet.id}
-                            id={geoSet.id}
-                            name={geoSet.name}
-                            description={geoSet.description}
-                            color={color}
-                            checkboxState={checkboxState}
-                            isExpanded={isExpanded}
-                            geometries={geoSet.geometries}
-                            enabledGeometries={enabledGeometries}
-                            onToggleGeoSet={onToggleGeoSet}
-                            onToggleExpansion={onToggleExpansion}
-                            onToggleGeometry={onToggleGeometry}
-                            onOpenGeoSetDetail={onOpenGeoSetDetail}
-                            onOpenGeometryDetail={onOpenGeometryDetail}
-                            contactEmail={contactEmail}
-                            comments={comments}
-                            consultationId={consultationId}
-                            cityId={cityId}
-                            hasInvalidGeometries={hasInvalidGeometries}
-                            isEditingMode={isEditingMode}
-                            selectedGeometryForEdit={selectedGeometryForEdit}
-                            savedGeometries={savedGeometriesData}
-                            onSelectGeometryForEdit={onSelectGeometryForEdit}
-                            onDeleteSavedGeometry={onDeleteSavedGeometry}
-                        />
+                            onClick={() => onOpenGeoSetDetail(geoSet.id)}
+                            className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left group"
+                        >
+                            <div
+                                className="w-3 h-3 rounded-full shrink-0"
+                                style={{ backgroundColor: color, boxShadow: `0 0 0 2px white, 0 0 0 3px ${color}` }}
+                            />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium leading-tight">
+                                    {geoSet.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    {pointCount} προτεινόμενες θέσεις
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {commentCount > 0 && (
+                                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                        <MessageCircle className="h-3 w-3" />
+                                        {commentCount}
+                                    </span>
+                                )}
+                                <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+                            </div>
+                        </button>
                     );
                 })}
             </div>
-
-            <div className="p-4 pt-3 border-t flex-shrink-0">
-                <div className="text-xs text-muted-foreground">
-                    Σύνολο: {activeCount} στοιχεία ενεργά
-                </div>
-            </div>
         </div>
     );
-} 
+}

@@ -16,6 +16,7 @@ interface LocationSelectorProps {
     onRemove: (index: number) => void;
     city: CityWithGeometry;
     onLocationClick?: (location: Location) => void;
+    hideSelectedList?: boolean;
 }
 
 export function LocationSelector({
@@ -23,7 +24,8 @@ export function LocationSelector({
     onSelect,
     onRemove,
     city,
-    onLocationClick
+    onLocationClick,
+    hideSelectedList = false
 }: LocationSelectorProps) {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -224,7 +226,7 @@ export function LocationSelector({
                 )}
             </div>
 
-            {selectedLocations.length > 0 ? (
+            {!hideSelectedList && (selectedLocations.length > 0 ? (
                 <div className="mt-4">
                     <div className="text-sm font-medium text-gray-700 mb-2">Επιλεγμένες τοποθεσίες ({selectedLocations.length})</div>
                     <div className="grid grid-cols-1 gap-2">
@@ -262,7 +264,7 @@ export function LocationSelector({
                     <p className="text-gray-500 text-sm">Δεν έχετε επιλέξει τοποθεσίες ακόμα.</p>
                     <p className="text-gray-500 text-xs mt-1">Χρησιμοποιήστε την αναζήτηση για να προσθέσετε τοποθεσίες ενδιαφέροντος.</p>
                 </div>
-            )}
+            ))}
         </div>
     );
 } 

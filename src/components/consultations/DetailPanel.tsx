@@ -1,33 +1,31 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { AlertTriangle, Save } from "lucide-react";
+import { AlertTriangle, Save, ChevronLeft, MessageCircle, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
-import { Geometry, RegulationData, ReferenceFormat } from "./types";
+import { Geometry, RegulationData, ReferenceFormat, StaticGeometry, CurrentUser, GeoSetData } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { Location } from "@/lib/types/onboarding";
 
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
-
-interface GeoSetData {
-    id: string;
-    name: string;
-    description?: string;
-    color?: string;
-    geometries: Geometry[];
+// Compute distance between two [lng, lat] coordinates in meters (Haversine)
+function haversineDistance(a: [number, number], b: [number, number]): number {
+    const R = 6371000;
+    const dLat = (b[1] - a[1]) * Math.PI / 180;
+    const dLng = (b[0] - a[0]) * Math.PI / 180;
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLng = Math.sin(dLng / 2);
+    const h = sinDLat * sinDLat + Math.cos(a[1] * Math.PI / 180) * Math.cos(b[1] * Math.PI / 180) * sinDLng * sinDLng;
+    return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
 interface DetailPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    detailType: 'geoset' | 'geometry' | null;
+    detailType: 'geoset' | 'geometry' | 'search-location' | null;
     detailId: string | null;
     geoSets: GeoSetData[];
     baseUrl: string;
@@ -45,6 +43,8 @@ interface DetailPanelProps {
     isEditingMode?: boolean;
     selectedGeometryForEdit?: string | null;
     savedGeometries?: Record<string, any>;
+    // Search location context - the selected search location for the search-location detail view
+    searchLocation?: Location;
 }
 
 export default function DetailPanel({
@@ -66,7 +66,8 @@ export default function DetailPanel({
     cityId,
     isEditingMode = false,
     selectedGeometryForEdit,
-    savedGeometries
+    savedGeometries,
+    searchLocation
 }: DetailPanelProps) {
 
     // Find the current detail data
@@ -109,6 +110,12 @@ export default function DetailPanel({
     };
 
     const getTitleData = () => {
+        if (detailType === 'search-location' && searchLocation) {
+            return {
+                label: toGreekUppercase('Η τοποθεσία σας'),
+                title: searchLocation.text
+            };
+        }
         if (detailType === 'geoset' && currentGeoSet) {
             return {
                 label: toGreekUppercase('Σύνολο Περιοχών'),
@@ -124,8 +131,104 @@ export default function DetailPanel({
         return { label: '', title: '' };
     };
 
+    // Get coordinates for a geometry (from saved or original)
+    const getGeometryCoordinates = (geometry: Geometry): [number, number] | null => {
+        if (savedGeometries?.[geometry.id]) {
+            const saved = savedGeometries[geometry.id];
+            if (saved.type === 'Point') return saved.coordinates;
+        }
+        if (geometry.type !== 'derived' && 'geojson' in geometry) {
+            const geojson = (geometry as StaticGeometry).geojson;
+            if (geojson?.type === 'Point') return geojson.coordinates as [number, number];
+        }
+        return null;
+    };
+
+    // Get comment count for a specific entity
+    const getCommentCount = (entityType: string, entityId: string): number => {
+        if (!comments) return 0;
+        return comments.filter(c => c.entityType === entityType && c.entityId === entityId).length;
+    };
+
+    // Nearby points from ALL geoSets within 500m, sorted by distance to the search location
+    const NEARBY_DISTANCE_LIMIT = 500; // meters
+    const nearbyPoints = useMemo(() => {
+        if (!searchLocation) return [];
+
+        const allPoints: { geometry: Geometry; geoSetName: string; geoSetId: string; distance: number }[] = [];
+        geoSets.forEach(gs => {
+            gs.geometries.forEach(g => {
+                if (g.type === 'point') {
+                    const coords = getGeometryCoordinates(g);
+                    if (coords) {
+                        const dist = haversineDistance(searchLocation.coordinates, coords);
+                        if (dist <= NEARBY_DISTANCE_LIMIT) {
+                            allPoints.push({ geometry: g, geoSetName: gs.name, geoSetId: gs.id, distance: dist });
+                        }
+                    }
+                }
+            });
+        });
+
+        return allPoints.sort((a, b) => a.distance - b.distance);
+    }, [searchLocation, geoSets, savedGeometries]); // eslint-disable-line react-hooks/exhaustive-deps -- getGeometryCoordinates depends only on savedGeometries which is tracked
+
+    // Format distance for display
+    const formatDistance = (meters: number): string => {
+        if (meters < 1000) return `${Math.round(meters)}μ`;
+        return `${(meters / 1000).toFixed(1)}χλμ`;
+    };
+
+    // Reusable geometry list item button
+    const GeometryListItem = ({ geometry, onClick, subtitle, rightLabel }: {
+        geometry: Geometry;
+        onClick: () => void;
+        subtitle?: string;
+        rightLabel?: string;
+    }) => {
+        const commentCount = getCommentCount('GEOMETRY', geometry.id);
+        return (
+            <button
+                key={geometry.id}
+                onClick={onClick}
+                className="w-full flex items-center gap-3 p-2.5 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-left group"
+                title="Κάντε κλικ για λεπτομέρειες και σχόλια"
+            >
+                <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm leading-tight">
+                        {geometry.name}
+                    </div>
+                    {geometry.textualDefinition && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                            <MapPin className="h-3 w-3 inline mr-0.5 -mt-0.5" />
+                            {geometry.textualDefinition}
+                        </p>
+                    )}
+                    {subtitle && (
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">
+                            {subtitle}
+                        </p>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {rightLabel && (
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                            {rightLabel}
+                        </span>
+                    )}
+                    {commentCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <MessageCircle className="h-3 w-3" />
+                            {commentCount}
+                        </span>
+                    )}
+                </div>
+            </button>
+        );
+    };
+
     return (
-        <Sheet open={isOpen && !!detailType && !!detailId} onOpenChange={(open) => !open && onClose()}>
+        <Sheet open={isOpen && !!detailType && (!!detailId || detailType === 'search-location')} onOpenChange={(open) => !open && onClose()}>
             <SheetContent
                 side="right"
                 className={cn("w-96 max-w-[calc(100vw-2rem)] sm:max-w-md flex flex-col", className)}
@@ -141,7 +244,9 @@ export default function DetailPanel({
                                 {getTitleData().title}
                             </SheetTitle>
                         </div>
-                        <PermalinkButton href={`${baseUrl}?view=map#${detailId}`} />
+                        {detailType !== 'search-location' && detailId && (
+                            <PermalinkButton href={`${baseUrl}?view=map#${detailId}`} />
+                        )}
                     </div>
                 </SheetHeader>
 
@@ -150,6 +255,45 @@ export default function DetailPanel({
                     className="flex-1 overflow-y-auto overscroll-contain mt-4 pr-2"
                     onWheel={(e) => e.stopPropagation()}
                 >
+                    {/* Search Location Details - shows nearest points from ALL communities */}
+                    {detailType === 'search-location' && searchLocation && (
+                        <div className="space-y-4">
+                            {nearbyPoints.length > 0 ? (
+                                <>
+                                    <p className="text-sm text-muted-foreground">
+                                        Κοντινές θέσεις συλλογής σε ακτίνα {NEARBY_DISTANCE_LIMIT}μ.
+                                    </p>
+
+                                    <Separator />
+
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-3">
+                                            Κοντινές Θέσεις ({nearbyPoints.length})
+                                        </h4>
+                                        <div className="space-y-1.5">
+                                            {nearbyPoints.map(({ geometry, geoSetName, distance }) => (
+                                                <GeometryListItem
+                                                    key={geometry.id}
+                                                    geometry={geometry}
+                                                    onClick={() => onOpenGeometryDetail?.(geometry.id)}
+                                                    subtitle={geoSetName}
+                                                    rightLabel={formatDistance(distance)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-6">
+                                    <MapPin className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                                    <p className="text-sm text-muted-foreground">
+                                        Δεν βρέθηκαν θέσεις συλλογής σε ακτίνα {NEARBY_DISTANCE_LIMIT}μ.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* GeoSet Details */}
                     {currentGeoSet && (
                         <div className="space-y-4">
@@ -170,33 +314,18 @@ export default function DetailPanel({
 
                             <div>
                                 <h4 className="font-semibold text-sm mb-3">
-                                    Περιεχόμενες Περιοχές ({currentGeoSet.geometries.length})
+                                    Θέσεις ({currentGeoSet.geometries.filter(g => g.type === 'point').length})
                                 </h4>
-                                <div className="space-y-2">
-                                    {currentGeoSet.geometries.map((geometry) => (
-                                        <button
-                                            key={geometry.id}
-                                            onClick={() => onOpenGeometryDetail?.(geometry.id)}
-                                            className="w-full flex items-start gap-3 p-2 bg-muted/30 rounded-md hover:bg-muted/50 transition-colors text-left"
-                                            title="Κάντε κλικ για λεπτομέρειες"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-medium text-sm truncate">
-                                                    {geometry.name}
-                                                </div>
-                                                {geometry.description && (
-                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                                        {geometry.description}
-                                                    </p>
-                                                )}
-                                                {geometry.textualDefinition && (
-                                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 italic">
-                                                        {geometry.textualDefinition}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </button>
-                                    ))}
+                                <div className="space-y-1.5">
+                                    {currentGeoSet.geometries
+                                        .filter(g => g.type === 'point')
+                                        .map((geometry) => (
+                                            <GeometryListItem
+                                                key={geometry.id}
+                                                geometry={geometry}
+                                                onClick={() => onOpenGeometryDetail?.(geometry.id)}
+                                            />
+                                        ))}
                                 </div>
                             </div>
                         </div>
@@ -209,9 +338,10 @@ export default function DetailPanel({
                                 {currentGeometryGeoSet && (
                                     <button
                                         onClick={() => onOpenGeoSetDetail?.(currentGeometryGeoSet.id)}
-                                        className="text-xs text-left text-muted-foreground hover:text-foreground transition-colors mb-3"
+                                        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded hover:bg-muted/50"
                                     >
-                                        Μέρος του {currentGeometryGeoSet.name}
+                                        <ChevronLeft className="h-4 w-4" />
+                                        <span>{currentGeometryGeoSet.name}</span>
                                     </button>
                                 )}
                                 {currentGeometry.description && (
@@ -318,18 +448,20 @@ export default function DetailPanel({
                         </div>
                     )}
 
-                    {/* Comments Section */}
-                    <div className="mt-6">
-                        <CommentSection
-                            entityType={detailType === 'geoset' ? 'geoset' : 'geometry'}
-                            entityId={detailId!}
-                            entityTitle={currentGeoSet?.name || currentGeometry?.name || ''}
-                            contactEmail={regulationData?.contactEmail}
-                            comments={comments}
-                            consultationId={consultationId}
-                            cityId={cityId}
-                        />
-                    </div>
+                    {/* Comments Section - only for geoset/geometry views */}
+                    {detailType !== 'search-location' && detailId && (
+                        <div className="mt-6">
+                            <CommentSection
+                                entityType={detailType === 'geoset' ? 'geoset' : 'geometry'}
+                                entityId={detailId}
+                                entityTitle={currentGeoSet?.name || currentGeometry?.name || ''}
+                                contactEmail={regulationData?.contactEmail}
+                                comments={comments}
+                                consultationId={consultationId}
+                                cityId={cityId}
+                            />
+                        </div>
+                    )}
                 </div>
             </SheetContent>
         </Sheet>
