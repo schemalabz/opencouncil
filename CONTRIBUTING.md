@@ -152,3 +152,4 @@ Once your code and documentation changes are complete, you are ready to submit a
 3.  **Link to the Issue:** In the PR description, include the phrase `Closes #[issue_number]` to automatically link your PR to the GitHub Issue that it resolves.
 4.  **PR Description:** A good description is vital for reviewers. We have a dedicated AI co-pilot prompt ([`docs/prompts/pull-request-creation.prompt.md`](./docs/prompts/pull-request-creation.prompt.md)) to help you write a comprehensive one.
 5.  **Draft PRs:** If your work is still in progress but you'd like to get early feedback, please open a "Draft" Pull Request.
+6.  **Quality Check:** Before opening your PR, run `/pre-pr` in Claude Code to catch common issues (commit hygiene, code quality, production safety, build, tests).
