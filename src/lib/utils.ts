@@ -403,7 +403,7 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
     let minLat = Infinity, maxLat = -Infinity;
 
     // Check for supported geometry types
-    if (!['Point', 'Polygon', 'MultiPolygon'].includes(geometry.type)) {
+    if (!['Point', 'Polygon', 'MultiPolygon', 'GeometryCollection'].includes(geometry.type)) {
       console.warn(`[Location] Unsupported geometry type: ${geometry.type}, using default coordinates`);
       return DEFAULT_RETURN;
     }
@@ -418,16 +418,26 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
       });
     };
 
-    if (geometry.type === 'Polygon') {
-      processCoordinates(geometry.coordinates[0]);
-    } else if (geometry.type === 'MultiPolygon') {
-      geometry.coordinates.forEach((polygon: number[][][]) => {
-        processCoordinates(polygon[0]);
-      });
-    } else if (geometry.type === 'Point') {
-      const [lng, lat] = geometry.coordinates;
-      minLng = maxLng = lng;
-      minLat = maxLat = lat;
+    const processGeometry = (geom: any) => {
+      if (geom.type === 'Polygon') {
+        processCoordinates(geom.coordinates[0]);
+      } else if (geom.type === 'MultiPolygon') {
+        geom.coordinates.forEach((polygon: number[][][]) => {
+          processCoordinates(polygon[0]);
+        });
+      } else if (geom.type === 'Point') {
+        const [lng, lat] = geom.coordinates;
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      }
+    };
+
+    if (geometry.type === 'GeometryCollection') {
+      geometry.geometries.forEach(processGeometry);
+    } else {
+      processGeometry(geometry);
     }
 
     const bounds = {
