@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "postinstall": "patch-package",
-    "dev": "next dev --turbo",
-    "dev:fast": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo",
-    "dev:lan": "NEXT_TELEMETRY_DISABLED=1 next dev --turbo -H 0.0.0.0",
+    "dev": "next dev --turbo -H 0.0.0.0",
+    "dev:fast": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

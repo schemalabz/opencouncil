@@ -5,9 +5,11 @@ import { getMessages } from "next-intl/server";
 import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
-import QuickLogin from "@/components/dev/QuickLogin";
 
 // Only import in development — excluded from production bundles entirely
+const QuickLogin = process.env.NODE_ENV === 'development'
+    ? require("@/components/dev/QuickLogin").default
+    : null;
 const MobilePreviewReporter = process.env.NODE_ENV === 'development'
     ? require("@/components/dev/MobilePreviewReporter").default
     : null;
@@ -35,7 +37,7 @@ export default async function LocaleLayout({
             {children}
 
             <Toaster />
-            <QuickLogin />
+            {QuickLogin && <QuickLogin />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>
     );
