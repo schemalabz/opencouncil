@@ -41,6 +41,7 @@ interface LayerControlsPanelProps {
     onNavigateToSearchLocation?: (location: Location, index: number) => void;
     searchLocations?: Location[];
     onShowInfo?: () => void;
+    variant?: 'desktop' | 'mobile';
 }
 
 export default function LayerControlsPanel({
@@ -73,7 +74,8 @@ export default function LayerControlsPanel({
     onRemoveSearchLocation,
     onNavigateToSearchLocation,
     searchLocations = [],
-    onShowInfo
+    onShowInfo,
+    variant = 'desktop'
 }: LayerControlsPanelProps) {
 
     const [showSearch, setShowSearch] = useState(false);
@@ -241,8 +243,8 @@ export default function LayerControlsPanel({
     }
 
     // Normal mode: simplified community picker
-    return (
-        <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-80 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
+    const normalModeContent = (
+        <>
             <div className="p-4 pb-3 flex-shrink-0">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-sm">Επιλέξτε Περιοχή</h3>
@@ -269,14 +271,16 @@ export default function LayerControlsPanel({
                                 <Edit className="h-3 w-3" />
                             </Button>
                         )}
-                        <Button
-                            onClick={onClose}
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                        >
-                            <X className="h-3 w-3" />
-                        </Button>
+                        {variant === 'desktop' && (
+                            <Button
+                                onClick={onClose}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -384,6 +388,16 @@ export default function LayerControlsPanel({
                     );
                 })}
             </div>
+        </>
+    );
+
+    if (variant === 'mobile') {
+        return normalModeContent;
+    }
+
+    return (
+        <div className="absolute top-16 left-4 right-4 md:right-auto md:top-4 w-auto md:w-80 max-h-[calc(100vh-8rem)] shadow-lg z-20 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden flex flex-col">
+            {normalModeContent}
         </div>
     );
 }
