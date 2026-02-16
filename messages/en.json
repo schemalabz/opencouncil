@@ -454,7 +454,14 @@
             "wide": "Wide",
             "near": "Near",
             "none": "None"
-        }
+        },
+        "decision": "Decision",
+        "noDecision": "No decision linked yet",
+        "lastUpdated": "Last updated {time}",
+        "decisionTitle": "Title",
+        "protocolNumber": "Protocol Number",
+        "issueDate": "Issue Date",
+        "viewDecision": "View decision on Diavgeia"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

@@ -5,7 +5,7 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, CheckSquare } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -22,7 +22,8 @@ import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
-import { useTranslations } from "next-intl";
+import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
+import { useTranslations, useLocale } from "next-intl";
 import { useSession } from "next-auth/react";
 import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
@@ -30,6 +31,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
+    const locale = useLocale();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
@@ -91,6 +93,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                         <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
+                                        {subject.decision && (
+                                            <Landmark className="w-3 h-3 text-primary" />
+                                        )}
                                     </>
                                 ) : subject.nonAgendaReason && (
                                     <>
@@ -342,6 +347,79 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <VotingSection subjectId={subject.id} />
                 </CollapsibleCard>
+
+                {/* Decision Section */}
+                {agendaItemIndex != null && (
+                    <CollapsibleCard
+                        icon={<Landmark className="w-4 h-4" />}
+                        title={
+                            subject.decision ? (
+                                <span className="flex items-center gap-2">
+                                    {t("decision")}
+                                    <Badge variant="secondary" className="text-xs">
+                                        {subject.decision.ada ? `ΑΔΑ: ${subject.decision.ada}` : t("decision")}
+                                    </Badge>
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">{t("noDecision")}</span>
+                            )
+                        }
+                        defaultOpen={false}
+                    >
+                        {subject.decision ? (
+                            <div className="p-4 space-y-3">
+                                <table className="w-full text-sm">
+                                    <tbody>
+                                        {subject.decision.title && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
+                                                <td className="py-1.5">{subject.decision.title}</td>
+                                            </tr>
+                                        )}
+                                        {subject.decision.ada && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
+                                                <td className="py-1.5">{subject.decision.ada}</td>
+                                            </tr>
+                                        )}
+                                        {subject.decision.protocolNumber && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
+                                                <td className="py-1.5">{subject.decision.protocolNumber}</td>
+                                            </tr>
+                                        )}
+                                        {subject.decision.issueDate && (
+                                            <tr>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("issueDate")}</td>
+                                                <td className="py-1.5">{formatDate(new Date(subject.decision.issueDate))}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                                <div className="flex items-center justify-between pt-2 border-t border-border">
+                                    <a
+                                        href={subject.decision.pdfUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        {t("viewDecision")}
+                                    </a>
+                                    {subject.decision.updatedAt && (
+                                        <span className="text-xs text-muted-foreground">
+                                            {t("lastUpdated", { time: formatRelativeTime(new Date(subject.decision.updatedAt), locale) })}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-6 text-center">
+                                <p className="text-sm text-muted-foreground">{t("noDecision")}</p>
+                            </div>
+                        )}
+                    </CollapsibleCard>
+                )}
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
