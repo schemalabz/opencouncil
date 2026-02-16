@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { AlertTriangle, Save, ChevronLeft, MessageCircle, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
@@ -69,6 +70,7 @@ export default function DetailPanel({
     savedGeometries,
     searchLocation
 }: DetailPanelProps) {
+    const isMobile = useIsMobile();
 
     // Find the current detail data
     const currentGeoSet = detailType === 'geoset' ? geoSets.find(gs => gs.id === detailId) : null;
@@ -227,8 +229,262 @@ export default function DetailPanel({
         );
     };
 
+    const panelOpen = isOpen && !!detailType && (!!detailId || detailType === 'search-location');
+
+    const renderContent = () => (
+        <>
+            {/* Header */}
+            <div className={cn("pr-6 flex-shrink-0", isMobile && "px-4")}>
+                <div className="flex items-start justify-between group">
+                    <div className="flex-1">
+                        <div className="text-xs text-muted-foreground font-medium mb-1">
+                            {getTitleData().label}
+                        </div>
+                        <div className="text-left text-lg leading-tight font-semibold">
+                            {getTitleData().title}
+                        </div>
+                    </div>
+                    {detailType !== 'search-location' && detailId && (
+                        <PermalinkButton href={`${baseUrl}?view=map#${detailId}`} />
+                    )}
+                </div>
+            </div>
+
+            {/* Content */}
+            <div
+                className={cn("flex-1 overflow-y-auto overscroll-contain mt-4 pr-2", isMobile && "px-4")}
+                onWheel={(e) => e.stopPropagation()}
+            >
+                {/* Search Location Details - shows nearest points from ALL communities */}
+                {detailType === 'search-location' && searchLocation && (
+                    <div className="space-y-4">
+                        {nearbyPoints.length > 0 ? (
+                            <>
+                                <p className="text-sm text-muted-foreground">
+                                    Κοντινές θέσεις συλλογής σε ακτίνα {NEARBY_DISTANCE_LIMIT}μ.
+                                </p>
+
+                                <Separator />
+
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-3">
+                                        Κοντινές Θέσεις ({nearbyPoints.length})
+                                    </h4>
+                                    <div className="space-y-1.5">
+                                        {nearbyPoints.map(({ geometry, geoSetName, distance }) => (
+                                            <GeometryListItem
+                                                key={geometry.id}
+                                                geometry={geometry}
+                                                onClick={() => onOpenGeometryDetail?.(geometry.id)}
+                                                subtitle={geoSetName}
+                                                rightLabel={formatDistance(distance)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-center py-6">
+                                <MapPin className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                                <p className="text-sm text-muted-foreground">
+                                    Δεν βρέθηκαν θέσεις συλλογής σε ακτίνα {NEARBY_DISTANCE_LIMIT}μ.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* GeoSet Details */}
+                {currentGeoSet && (
+                    <div className="space-y-4">
+                        <div className="group">
+                            {currentGeoSet.description && (
+                                <MarkdownContent
+                                    content={currentGeoSet.description}
+                                    variant="muted"
+                                    className="text-sm"
+                                    referenceFormat={referenceFormat}
+                                    onReferenceClick={onReferenceClick}
+                                    regulationData={regulationData}
+                                />
+                            )}
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <h4 className="font-semibold text-sm mb-3">
+                                Θέσεις ({currentGeoSet.geometries.filter(g => g.type === 'point').length})
+                            </h4>
+                            <div className="space-y-1.5">
+                                {currentGeoSet.geometries
+                                    .filter(g => g.type === 'point')
+                                    .map((geometry) => (
+                                        <GeometryListItem
+                                            key={geometry.id}
+                                            geometry={geometry}
+                                            onClick={() => onOpenGeometryDetail?.(geometry.id)}
+                                        />
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Geometry Details */}
+                {currentGeometry && (
+                    <div className="space-y-4">
+                        <div className="group">
+                            {currentGeometryGeoSet && (
+                                <button
+                                    onClick={() => onOpenGeoSetDetail?.(currentGeometryGeoSet.id)}
+                                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3 -ml-1 px-1 py-0.5 rounded hover:bg-muted/50"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                    <span>{currentGeometryGeoSet.name}</span>
+                                </button>
+                            )}
+                            {currentGeometry.description && (
+                                <div className="mb-3">
+                                    <h4 className="font-semibold text-sm mb-2">Περιγραφή</h4>
+                                    <MarkdownContent
+                                        content={currentGeometry.description}
+                                        variant="muted"
+                                        className="text-sm"
+                                        referenceFormat={referenceFormat}
+                                        onReferenceClick={onReferenceClick}
+                                        regulationData={regulationData}
+                                    />
+                                </div>
+                            )}
+                            {currentGeometry.textualDefinition && (
+                                <div>
+                                    <h4 className="font-semibold text-sm mb-2">Γεωγραφικός Προσδιορισμός</h4>
+                                    <MarkdownContent
+                                        content={currentGeometry.textualDefinition}
+                                        variant="muted"
+                                        className="text-sm"
+                                        referenceFormat={referenceFormat}
+                                        onReferenceClick={onReferenceClick}
+                                        regulationData={regulationData}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Geometric Information */}
+                        <Separator />
+                        <div>
+                            <h4 className="font-semibold text-sm mb-2">Πληροφορίες Γεωμετρίας</h4>
+                            <div className="text-xs text-muted-foreground space-y-1">
+                                <div>Τύπος: {getGeometryTypeLabel(currentGeometry.type)}</div>
+
+                                {/* Show saved geometry information */}
+                                {savedGeometries?.[currentGeometry.id] && (
+                                    <div className="flex items-center gap-1 text-blue-600 bg-blue-50 p-2 rounded-md">
+                                        <Save className="h-3 w-3" />
+                                        <span className="text-xs">Έχει αποθηκευτεί τοπικά νέα γεωμετρία</span>
+                                    </div>
+                                )}
+
+                                {/* Show error for incomplete non-derived geometries */}
+                                {currentGeometry.type !== 'derived' && (!('geojson' in currentGeometry) || !currentGeometry.geojson) && !savedGeometries?.[currentGeometry.id] && (
+                                    <div className="flex items-center gap-1 text-yellow-600 bg-yellow-50 p-2 rounded-md">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        <span className="text-xs">Η γεωμετρία δεν έχει συντεταγμένες και δεν εμφανίζεται στον χάρτη</span>
+                                    </div>
+                                )}
+
+                                {currentGeometry.type === 'derived' ? (
+                                    <>
+                                        <div>Μέθοδος: {currentGeometry.derivedFrom.operation === 'buffer' ? 'Ζώνη Buffer' : 'Αφαίρεση'}</div>
+                                        {currentGeometry.derivedFrom.operation === 'buffer' && (
+                                            <>
+                                                <div>Πηγή: {currentGeometry.derivedFrom.sourceGeoSetId}</div>
+                                                <div>Ακτίνα: {currentGeometry.derivedFrom.radius} {currentGeometry.derivedFrom.units || 'meters'}</div>
+                                            </>
+                                        )}
+                                        {currentGeometry.derivedFrom.operation === 'difference' && (
+                                            <>
+                                                <div>Βάση: {currentGeometry.derivedFrom.baseGeoSetId}</div>
+                                                <div>Αφαίρεση: {currentGeometry.derivedFrom.subtractGeoSetIds.join(', ')}</div>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Show saved geometry data if available */}
+                                        {savedGeometries?.[currentGeometry.id] ? (
+                                            <>
+                                                {savedGeometries?.[currentGeometry.id].type === 'Point' && (
+                                                    <div>
+                                                        Συντεταγμένες (τοπικά): {savedGeometries?.[currentGeometry.id].coordinates[1].toFixed(6)}, {savedGeometries?.[currentGeometry.id].coordinates[0].toFixed(6)}
+                                                    </div>
+                                                )}
+                                                {savedGeometries?.[currentGeometry.id].type === 'Polygon' && (
+                                                    <div>
+                                                        Σημεία (τοπικά): {savedGeometries?.[currentGeometry.id].coordinates[0]?.length - 1 || 0} vertices
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Point' && (
+                                                    <div>
+                                                        Συντεταγμένες: {currentGeometry.geojson.coordinates[1].toFixed(6)}, {currentGeometry.geojson.coordinates[0].toFixed(6)}
+                                                    </div>
+                                                )}
+                                                {'geojson' in currentGeometry && currentGeometry.geojson && currentGeometry.geojson.type === 'Polygon' && (
+                                                    <div>
+                                                        Σημεία: {currentGeometry.geojson.coordinates[0]?.length - 1 || 0} vertices
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Comments Section - only for geoset/geometry views */}
+                {detailType !== 'search-location' && detailId && (
+                    <div className="mt-6">
+                        <CommentSection
+                            entityType={detailType === 'geoset' ? 'geoset' : 'geometry'}
+                            entityId={detailId}
+                            entityTitle={currentGeoSet?.name || currentGeometry?.name || ''}
+                            contactEmail={regulationData?.contactEmail}
+                            comments={comments}
+                            consultationId={consultationId}
+                            cityId={cityId}
+                        />
+                    </div>
+                )}
+            </div>
+        </>
+    );
+
+    if (isMobile) {
+        return (
+            <Drawer
+                open={panelOpen}
+                onOpenChange={(open) => !open && onClose()}
+                modal={false}
+                shouldScaleBackground={false}
+            >
+                <DrawerContent hideOverlay className={cn("max-h-[45vh] flex flex-col", className)}>
+                    <DrawerTitle className="sr-only">{getTitleData().title}</DrawerTitle>
+                    <DrawerDescription className="sr-only">Λεπτομέρειες</DrawerDescription>
+                    {renderContent()}
+                </DrawerContent>
+            </Drawer>
+        );
+    }
+
     return (
-        <Sheet open={isOpen && !!detailType && (!!detailId || detailType === 'search-location')} onOpenChange={(open) => !open && onClose()}>
+        <Sheet open={panelOpen} onOpenChange={(open) => !open && onClose()}>
             <SheetContent
                 side="right"
                 className={cn("w-96 max-w-[calc(100vw-2rem)] sm:max-w-md flex flex-col", className)}
@@ -466,4 +722,4 @@ export default function DetailPanel({
             </SheetContent>
         </Sheet>
     );
-} 
+}
