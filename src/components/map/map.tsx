@@ -38,6 +38,7 @@ interface MapProps {
     drawingMode?: 'point' | 'polygon'
     selectedGeometryForEdit?: string | null
     zoomToGeometry?: GeoJSON.Geometry | null
+    zoomPadding?: number | { top: number; bottom: number; left: number; right: number }
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
@@ -62,7 +63,8 @@ const Map = memo(function Map({
     showStreetLabels = false,
     drawingMode = 'point',
     selectedGeometryForEdit = null,
-    zoomToGeometry
+    zoomToGeometry,
+    zoomPadding
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
@@ -951,16 +953,14 @@ const Map = memo(function Map({
             const performZoom = (geometry: GeoJSON.Geometry) => {
                 try {
                     const bounds = calculateGeometryBounds(geometry);
+                    const padding = zoomPadding ?? 100;
 
                     if (bounds.bounds) {
-                        // Add some padding around the geometry
-                        const padding = 100; // pixels
-
                         map.current?.fitBounds([
                             [bounds.bounds.minLng, bounds.bounds.minLat],
                             [bounds.bounds.maxLng, bounds.bounds.maxLat]
                         ], {
-                            padding: padding,
+                            padding,
                             maxZoom: 17
                         });
                     } else {
@@ -969,7 +969,8 @@ const Map = memo(function Map({
                             const coordinates = geometry.coordinates as [number, number];
                             map.current?.easeTo({
                                 center: coordinates,
-                                zoom: 16
+                                zoom: 16,
+                                padding
                             });
                         }
                     }
@@ -981,7 +982,7 @@ const Map = memo(function Map({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry, mapReady]);
+    }, [zoomToGeometry, zoomPadding, mapReady]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
@@ -999,6 +1000,7 @@ const Map = memo(function Map({
         prevProps.drawingMode === nextProps.drawingMode &&
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
+        prevProps.zoomPadding === nextProps.zoomPadding &&
         JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
     );
 })

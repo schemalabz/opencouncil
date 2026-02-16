@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MapPin, Map, FileText, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Credenza, CredenzaContent, CredenzaHeader, CredenzaTitle, CredenzaDescription, CredenzaBody } from "@/components/ui/credenza";
 import ConsultationHeader from "./ConsultationHeader";
 import ConsultationMap from "./ConsultationMap";
 import ConsultationDocument from "./ConsultationDocument";
@@ -68,6 +68,9 @@ export default function ConsultationViewer({
     // Track whether the map summary card has been dismissed
     // Don't show by default if URL has a hash (direct link to a community)
     const [showMapSummary, setShowMapSummary] = useState(true);
+
+    // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
+    const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
 
     // Hide welcome dialog if URL has a hash on mount (direct link)
     useEffect(() => {
@@ -356,105 +359,109 @@ export default function ConsultationViewer({
                             consultationId={consultationId}
                             cityId={cityId}
                             onShowInfo={() => setShowMapSummary(true)}
+                            onDrawerStateChange={setMapDrawerOpen}
                         />
                     </div>
 
                     {/* Welcome dialog */}
-                    <Dialog open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
-                        <DialogContent className="max-w-xl">
+                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
+                        <CredenzaContent className="max-w-xl">
                             {/* Logos */}
-                            <div className="flex items-center justify-center gap-4 pt-1">
-                                {cityLogoUrl && (
-                                    <div className="relative h-12 w-12 shrink-0">
+                            <CredenzaBody>
+                                <div className="flex items-center justify-center gap-4 pt-1">
+                                    {cityLogoUrl && (
+                                        <div className="relative h-12 w-12 shrink-0">
+                                            <Image
+                                                src={cityLogoUrl}
+                                                alt={cityName ? `Λογότυπο ${cityName}` : 'Λογότυπο Δήμου'}
+                                                fill
+                                                className="object-contain"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="relative h-10 w-10 shrink-0">
                                         <Image
-                                            src={cityLogoUrl}
-                                            alt={cityName ? `Λογότυπο ${cityName}` : 'Λογότυπο Δήμου'}
+                                            src="/logo.png"
+                                            alt="OpenCouncil"
                                             fill
                                             className="object-contain"
                                         />
                                     </div>
-                                )}
-                                <div className="relative h-10 w-10 shrink-0">
-                                    <Image
-                                        src="/logo.png"
-                                        alt="OpenCouncil"
-                                        fill
-                                        className="object-contain"
-                                    />
                                 </div>
-                            </div>
 
-                            <DialogHeader className="text-center sm:text-center">
-                                <div className="text-lg font-bold tracking-wide">
-                                    ΔΙΑΒΟΥΛΕΥΣΗ
-                                </div>
-                                <DialogTitle className="text-sm font-normal text-muted-foreground leading-tight">
-                                    {regulationData?.title}
-                                </DialogTitle>
-                                <DialogDescription className="sr-only">
-                                    Περίληψη διαβούλευσης
-                                </DialogDescription>
-                            </DialogHeader>
-                            {regulationData?.summary && (
-                                <div className="max-h-52 overflow-y-auto -mx-1 px-1">
-                                    <MarkdownContent
-                                        content={regulationData.summary}
-                                        variant="muted"
-                                        className="text-sm"
-                                        referenceFormat={regulationData.referenceFormat}
-                                        onReferenceClick={(id) => {
-                                            setShowMapSummary(false);
-                                            handleReferenceClick(id);
-                                        }}
-                                        regulationData={regulationData}
-                                    />
-                                </div>
-                            )}
-                            <div className="flex flex-col gap-2 pt-1">
-                                <Button
-                                    onClick={() => setShowMapSummary(false)}
-                                    className="w-full"
-                                >
-                                    <MapPin className="h-4 w-4 mr-2" />
-                                    Βρείτε την περιοχή σας
-                                </Button>
-                                <div className="flex gap-2">
+                                <CredenzaHeader className="text-center sm:text-center">
+                                    <div className="text-lg font-bold tracking-wide">
+                                        ΔΙΑΒΟΥΛΕΥΣΗ
+                                    </div>
+                                    <CredenzaTitle className="text-sm font-normal text-muted-foreground leading-tight">
+                                        {regulationData?.title}
+                                    </CredenzaTitle>
+                                    <CredenzaDescription className="sr-only">
+                                        Περίληψη διαβούλευσης
+                                    </CredenzaDescription>
+                                </CredenzaHeader>
+                                {regulationData?.summary && (
+                                    <div className="max-h-52 overflow-y-auto -mx-1 px-1">
+                                        <MarkdownContent
+                                            content={regulationData.summary}
+                                            variant="muted"
+                                            className="text-sm"
+                                            referenceFormat={regulationData.referenceFormat}
+                                            onReferenceClick={(id) => {
+                                                setShowMapSummary(false);
+                                                handleReferenceClick(id);
+                                            }}
+                                            regulationData={regulationData}
+                                        />
+                                    </div>
+                                )}
+                                <div className="flex flex-col gap-2 pt-1">
                                     <Button
-                                        onClick={() => {
-                                            setShowMapSummary(false);
-                                            toggleView();
-                                        }}
-                                        variant="outline"
-                                        className="flex-1"
+                                        onClick={() => setShowMapSummary(false)}
+                                        className="w-full"
                                     >
-                                        <FileText className="h-4 w-4 mr-1.5" />
-                                        Κείμενο
+                                        <MapPin className="h-4 w-4 mr-2" />
+                                        Βρείτε την περιοχή σας
                                     </Button>
-                                    {comments.length > 0 && (
+                                    <div className="flex gap-2">
                                         <Button
                                             onClick={() => {
                                                 setShowMapSummary(false);
-                                                setCommentsSheetOpen(true);
+                                                toggleView();
                                             }}
                                             variant="outline"
-                                            className="flex-1 text-muted-foreground"
+                                            className="flex-1"
                                         >
-                                            <MessageSquare className="h-4 w-4 mr-1.5" />
-                                            {comments.length} σχόλια
+                                            <FileText className="h-4 w-4 mr-1.5" />
+                                            Κείμενο
                                         </Button>
-                                    )}
+                                        {comments.length > 0 && (
+                                            <Button
+                                                onClick={() => {
+                                                    setShowMapSummary(false);
+                                                    setCommentsSheetOpen(true);
+                                                }}
+                                                variant="outline"
+                                                className="flex-1 text-muted-foreground"
+                                            >
+                                                <MessageSquare className="h-4 w-4 mr-1.5" />
+                                                {comments.length} σχόλια
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center pt-1 border-t">
-                                Σχολιάστε και εκφράστε τη γνώμη σας -- τα σχόλια αποστέλλονται απευθείας στον Δήμο ως επίσημες παρατηρήσεις.
-                            </p>
-                        </DialogContent>
-                    </Dialog>
+                                <p className="text-xs text-muted-foreground text-center pt-1 border-t">
+                                    Σχολιάστε και εκφράστε τη γνώμη σας -- τα σχόλια αποστέλλονται απευθείας στον Δήμο ως επίσημες παρατηρήσεις.
+                                </p>
+                            </CredenzaBody>
+                        </CredenzaContent>
+                    </Credenza>
 
                     {/* Floating action button for view toggle */}
                     <ViewToggleButton
                         currentView={currentView}
                         onToggle={toggleView}
+                        drawerOpen={mapDrawerOpen}
                     />
                 </div>
             );

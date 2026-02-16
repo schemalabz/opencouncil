@@ -12,6 +12,8 @@ import EditingToolsPanel from "./EditingToolsPanel";
 import { CheckboxState } from "./GeoSetItem";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Location } from "@/lib/types/onboarding";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 
 interface ConsultationMapProps {
     className?: string;
@@ -24,6 +26,7 @@ interface ConsultationMapProps {
     consultationId?: string;
     cityId?: string;
     onShowInfo?: () => void;
+    onDrawerStateChange?: (isOpen: boolean) => void;
 }
 
 // Generate distinct colors for different geosets
@@ -205,10 +208,12 @@ export default function ConsultationMap({
     currentUser,
     consultationId,
     cityId,
-    onShowInfo
+    onShowInfo,
+    onDrawerStateChange
 }: ConsultationMapProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const isMobile = useIsMobile();
 
     const [isControlsOpen, setIsControlsOpen] = useState(true);
     const [enabledGeoSets, setEnabledGeoSets] = useState<Set<string>>(new Set());
@@ -239,6 +244,12 @@ export default function ConsultationMap({
 
     // Ref to prevent hash handler from overriding search-location detail mode
     const isInSearchLocationMode = useRef(false);
+
+    // Report drawer state to parent (for ViewToggleButton positioning)
+    useEffect(() => {
+        const anyDrawerOpen = isControlsOpen || detailType !== null;
+        onDrawerStateChange?.(anyDrawerOpen);
+    }, [isControlsOpen, detailType, onDrawerStateChange]);
 
     // Load saved geometries from localStorage on mount and when editing mode changes
     useEffect(() => {
@@ -424,6 +435,7 @@ export default function ConsultationMap({
     // Functions to manage detail panel
     const openGeoSetDetail = (geoSetId: string) => {
         isInSearchLocationMode.current = false;
+        if (isMobile) setIsControlsOpen(false);
         setDetailType('geoset');
         setDetailId(geoSetId);
         setSelectedSearchLocationIndex(null);
@@ -433,6 +445,7 @@ export default function ConsultationMap({
 
     const openGeometryDetail = (geometryId: string) => {
         isInSearchLocationMode.current = false;
+        if (isMobile) setIsControlsOpen(false);
         setDetailType('geometry');
         setDetailId(geometryId);
         setSelectedSearchLocationIndex(null);
@@ -442,6 +455,7 @@ export default function ConsultationMap({
 
     const openSearchLocationDetail = (location: Location, locationIndex: number) => {
         isInSearchLocationMode.current = true;
+        if (isMobile) setIsControlsOpen(false);
         setDetailType('search-location');
         setDetailId(`search-location-${locationIndex}`);
         setSelectedSearchLocationIndex(locationIndex);
@@ -778,6 +792,12 @@ export default function ConsultationMap({
 
     const zoomToGeometry = zoomGeometry;
 
+    // On mobile, offset zoom target upward to account for bottom sheet covering ~40% of screen
+    const anyDrawerOpen = isControlsOpen || detailType !== null;
+    const mapZoomPadding = isMobile && anyDrawerOpen
+        ? { top: 60, bottom: Math.round(window.innerHeight * 0.35), left: 40, right: 40 }
+        : 100;
+
     return (
         <div className={cn("relative", className)}>
             {/* Map */}
@@ -793,6 +813,7 @@ export default function ConsultationMap({
                 drawingMode={drawingMode}
                 selectedGeometryForEdit={selectedGeometryForEdit}
                 zoomToGeometry={zoomToGeometry}
+                zoomPadding={mapZoomPadding}
             />
 
             {/* Editing Tools Panel */}
@@ -820,7 +841,81 @@ export default function ConsultationMap({
             )}
 
             {/* Layer Controls Panel */}
-            {isControlsOpen && geoSets.length > 0 && (
+            {isMobile && geoSets.length > 0 ? (
+                <Drawer
+                    open={isControlsOpen}
+                    onOpenChange={setIsControlsOpen}
+                    modal={false}
+                    shouldScaleBackground={false}
+                >
+                    <DrawerContent hideOverlay className="max-h-[45vh] flex flex-col">
+                        <DrawerTitle className="sr-only">Επιλέξτε Περιοχή</DrawerTitle>
+                        <DrawerDescription className="sr-only">Επίπεδα χάρτη</DrawerDescription>
+                        <LayerControlsPanel
+                            variant="mobile"
+                            geoSets={geoSets}
+                            colors={GEOSET_COLORS}
+                            enabledGeometries={enabledGeometries}
+                            expandedGeoSets={expandedGeoSets}
+                            activeCount={mapFeatures.length}
+                            onClose={() => setIsControlsOpen(false)}
+                            onToggleGeoSet={toggleGeoSet}
+                            onToggleExpansion={toggleGeoSetExpansion}
+                            onToggleGeometry={toggleGeometry}
+                            getGeoSetCheckboxState={getGeoSetCheckboxState}
+                            onOpenGeoSetDetail={openGeoSetDetail}
+                            onOpenGeometryDetail={openGeometryDetail}
+                            contactEmail={regulationData?.contactEmail}
+                            comments={comments}
+                            consultationId={consultationId}
+                            cityId={cityId}
+                            currentUser={currentUser}
+                            isEditingMode={isEditingMode}
+                            selectedGeometryForEdit={selectedGeometryForEdit}
+                            savedGeometries={savedGeometries}
+                            regulationData={regulationData}
+                            onToggleEditingMode={(enabled: boolean) => {
+                                setIsEditingMode(enabled);
+                                if (!enabled) {
+                                    setSelectedGeometryForEdit(null);
+                                    setSelectedLocations([]);
+                                }
+                            }}
+                            onSelectGeometryForEdit={handleSelectGeometryForEdit}
+                            onDeleteSavedGeometry={handleDeleteSavedGeometry}
+                            cityData={cityData}
+                            searchLocations={searchLocations}
+                            onNavigateToSearchLocation={(location, index) => {
+                                openSearchLocationDetail(location, index);
+                                const pointGeometry: GeoJSON.Geometry = {
+                                    type: 'Point',
+                                    coordinates: location.coordinates
+                                };
+                                setZoomGeometry(pointGeometry);
+                            }}
+                            onSearchLocation={(location) => {
+                                const newIndex = searchLocations.length;
+                                setSearchLocations(prev => [...prev, location]);
+                                openSearchLocationDetail(location, newIndex);
+                                const pointGeometry: GeoJSON.Geometry = {
+                                    type: 'Point',
+                                    coordinates: location.coordinates
+                                };
+                                setZoomGeometry(pointGeometry);
+                            }}
+                            onRemoveSearchLocation={(index) => {
+                                setSearchLocations(prev => prev.filter((_, i) => i !== index));
+                                if (selectedSearchLocationIndex === index) {
+                                    closeDetail();
+                                } else if (selectedSearchLocationIndex !== null && selectedSearchLocationIndex > index) {
+                                    setSelectedSearchLocationIndex(selectedSearchLocationIndex - 1);
+                                }
+                            }}
+                            onShowInfo={onShowInfo}
+                        />
+                    </DrawerContent>
+                </Drawer>
+            ) : isControlsOpen && geoSets.length > 0 && (
                 <LayerControlsPanel
                     geoSets={geoSets}
                     colors={GEOSET_COLORS}
@@ -847,7 +942,6 @@ export default function ConsultationMap({
                         setIsEditingMode(enabled);
                         if (!enabled) {
                             setSelectedGeometryForEdit(null);
-                            // Clear selected locations when exiting editing mode
                             setSelectedLocations([]);
                         }
                     }}
@@ -856,9 +950,7 @@ export default function ConsultationMap({
                     cityData={cityData}
                     searchLocations={searchLocations}
                     onNavigateToSearchLocation={(location, index) => {
-                        // Open detail panel for this search location showing nearest points
                         openSearchLocationDetail(location, index);
-                        // Zoom to the clicked location at street level
                         const pointGeometry: GeoJSON.Geometry = {
                             type: 'Point',
                             coordinates: location.coordinates
@@ -866,11 +958,9 @@ export default function ConsultationMap({
                         setZoomGeometry(pointGeometry);
                     }}
                     onSearchLocation={(location) => {
-                        // Add to search locations list and open its detail panel
                         const newIndex = searchLocations.length;
                         setSearchLocations(prev => [...prev, location]);
                         openSearchLocationDetail(location, newIndex);
-                        // Zoom to the searched point at street level
                         const pointGeometry: GeoJSON.Geometry = {
                             type: 'Point',
                             coordinates: location.coordinates
@@ -879,11 +969,9 @@ export default function ConsultationMap({
                     }}
                     onRemoveSearchLocation={(index) => {
                         setSearchLocations(prev => prev.filter((_, i) => i !== index));
-                        // If we removed the currently viewed search location, close the detail
                         if (selectedSearchLocationIndex === index) {
                             closeDetail();
                         } else if (selectedSearchLocationIndex !== null && selectedSearchLocationIndex > index) {
-                            // Adjust index if we removed one before it
                             setSelectedSearchLocationIndex(selectedSearchLocationIndex - 1);
                         }
                     }}

@@ -272,6 +272,15 @@ For local development, you can place regulation JSON files in the `public/` dire
 9. Export produces a complete updated `regulation.json` merging local edits with original data
 10. Only super-administrators can access editing mode (via a small edit icon in the community picker header)
 
+### Mobile Experience
+1. On mobile (<768px), overlay panels render as bottom sheet drawers (via vaul) instead of side sheets / dialogs — providing a native iOS-style feel
+2. The welcome dialog uses Credenza (Dialog on desktop, Drawer on mobile) for automatic switching
+3. DetailPanel, CommentsOverviewSheet, and LayerControlsPanel use an inline `if (isMobile)` pattern: `Sheet` on desktop, `Drawer` on mobile
+4. Non-modal drawers (`DetailPanel`, `LayerControlsPanel`) keep the map interactive behind the sheet; modal drawers (`CommentsOverviewSheet`) block interaction
+5. Only one bottom sheet is open at a time — opening a detail panel auto-closes the layer controls
+6. Map zoom padding shifts content upward on mobile when a drawer is open so geometries aren't hidden behind the bottom sheet
+7. The `ViewToggleButton` FAB repositions above any open drawer to avoid overlap
+
 ### Navigation
 1. URL hash anchors (`#chapter-1`, `#article-3`, `#geoset-prohibited_areas`) enable deep linking to specific entities
 2. `{REF:id}` links in markdown content navigate to the referenced entity, switching between document and map views as needed
