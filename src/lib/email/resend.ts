@@ -28,14 +28,23 @@ export async function sendEmail(params: EmailParams) {
         // Redirect email to dev address
         to = devEmailOverride;
         cc = undefined; // Clear CC to avoid sending to real addresses
-        
+
         // Modify subject to include original recipient
         subject = `[DEV → ${originalTo}] ${subject}`;
-        
+
+        // Prepend a dev banner to the email body showing original recipients
+        const ccList = originalCc ? (Array.isArray(originalCc) ? originalCc.join(', ') : originalCc) : 'none';
+        const devBanner = `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:12px 16px;margin-bottom:16px;font-family:monospace;font-size:13px;color:#92400e;">
+            <strong>🔧 Dev Email Override</strong><br/>
+            <strong>To:</strong> ${originalTo}<br/>
+            <strong>CC:</strong> ${ccList}
+        </div>`;
+        html = devBanner + html;
+
         // Log for debugging
         console.log(`📧 Dev mode: Redirecting email from "${originalTo}" to "${devEmailOverride}"`);
         if (originalCc) {
-            console.log(`   Original CC: ${originalCc}`);
+            console.log(`   Original CC: ${Array.isArray(originalCc) ? originalCc.join(', ') : originalCc}`);
         }
     }
 
