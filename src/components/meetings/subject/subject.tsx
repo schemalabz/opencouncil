@@ -5,7 +5,7 @@ import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink } from "lucide-react";
+import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2 } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -13,7 +13,7 @@ import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { DebugUtterances } from "./DebugUtterances";
@@ -24,6 +24,7 @@ import { VotingSection } from "./VotingSection";
 import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { useTranslations, useLocale } from "next-intl";
+import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSession } from "next-auth/react";
 import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
@@ -34,6 +35,16 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const locale = useLocale();
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+    const [isFetchingDecision, setIsFetchingDecision] = useState(false);
+    const [localDecision, setLocalDecision] = useState<{
+        ada: string | null;
+        protocolNumber: string | null;
+        title: string | null;
+        pdfUrl: string;
+        issueDate: string | null;
+        updatedAt: string | null;
+    } | null>(null);
+    const [lastSearchedAt, setLastSearchedAt] = useState<string | null>(null);
 
     // If subjectId is provided, find the subject in the context
     const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
@@ -74,6 +85,52 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         return feature ? [feature] : [];
     }, [subject, location]);
 
+    // The effective decision: local override (from polling) or server-rendered
+    const decision = localDecision || subject.decision;
+
+    // Fetch last poll time on mount when there's no decision
+    useEffect(() => {
+        if (agendaItemIndex != null && !subject.decision) {
+            getLastPollTimeForMeeting(meeting.id, meeting.cityId).then(setLastSearchedAt);
+        }
+    }, [agendaItemIndex, subject.decision, meeting.id, meeting.cityId]);
+
+    const handleFetchDecision = useCallback(async () => {
+        setIsFetchingDecision(true);
+        try {
+            const result = await requestPollDecisionForSubject(subject.id);
+
+            // Poll for task completion
+            const taskUrl = `/api/cities/${result.cityId}/meetings/${result.meetingId}/taskStatuses/${result.taskId}`;
+            for (let i = 0; i < 30; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                try {
+                    const response = await fetch(taskUrl);
+                    if (response.ok) {
+                        const taskStatus = await response.json();
+                        if (taskStatus.status === 'succeeded' || taskStatus.status === 'failed') {
+                            break;
+                        }
+                    }
+                } catch {
+                    // Continue polling on network errors
+                }
+            }
+
+            // Fetch the decision (may or may not exist after polling)
+            const fetched = await getDecisionForSubject(subject.id);
+            if (fetched) {
+                setLocalDecision(fetched);
+            }
+            setLastSearchedAt(new Date().toISOString());
+        } catch {
+            // Still update the timestamp on error
+            setLastSearchedAt(new Date().toISOString());
+        } finally {
+            setIsFetchingDecision(false);
+        }
+    }, [subject.id]);
+
     return (
         <div className="min-h-screen bg-background">
             {/* Sticky Header */}
@@ -93,8 +150,21 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                         <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
-                                        {subject.decision && (
-                                            <Landmark className="w-3 h-3 text-primary" />
+                                        {decision && (
+                                            <a
+                                                href="#decision"
+                                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    history.replaceState(null, '', '#decision');
+                                                    window.dispatchEvent(new HashChangeEvent('hashchange'));
+                                                }}
+                                            >
+                                                <Landmark className="w-3 h-3" />
+                                                {decision.protocolNumber && (
+                                                    <span className="font-medium">{decision.protocolNumber}</span>
+                                                )}
+                                            </a>
                                         )}
                                     </>
                                 ) : subject.nonAgendaReason && (
@@ -351,54 +421,54 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {/* Decision Section */}
                 {agendaItemIndex != null && (
                     <CollapsibleCard
+                        id="decision"
                         icon={<Landmark className="w-4 h-4" />}
                         title={
-                            subject.decision ? (
+                            decision ? (
                                 <span className="flex items-center gap-2">
                                     {t("decision")}
                                     <Badge variant="secondary" className="text-xs">
-                                        {subject.decision.ada ? `ΑΔΑ: ${subject.decision.ada}` : t("decision")}
+                                        {decision.ada ? `ΑΔΑ: ${decision.ada}` : t("decision")}
                                     </Badge>
                                 </span>
                             ) : (
                                 <span className="text-muted-foreground">{t("noDecision")}</span>
                             )
                         }
-                        defaultOpen={false}
                     >
-                        {subject.decision ? (
+                        {decision ? (
                             <div className="p-4 space-y-3">
                                 <table className="w-full text-sm">
                                     <tbody>
-                                        {subject.decision.title && (
+                                        {decision.title && (
                                             <tr>
                                                 <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
-                                                <td className="py-1.5">{subject.decision.title}</td>
+                                                <td className="py-1.5">{decision.title}</td>
                                             </tr>
                                         )}
-                                        {subject.decision.ada && (
+                                        {decision.ada && (
                                             <tr>
                                                 <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
-                                                <td className="py-1.5">{subject.decision.ada}</td>
+                                                <td className="py-1.5">{decision.ada}</td>
                                             </tr>
                                         )}
-                                        {subject.decision.protocolNumber && (
+                                        {decision.protocolNumber && (
                                             <tr>
                                                 <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
-                                                <td className="py-1.5">{subject.decision.protocolNumber}</td>
+                                                <td className="py-1.5">{decision.protocolNumber}</td>
                                             </tr>
                                         )}
-                                        {subject.decision.issueDate && (
+                                        {decision.issueDate && (
                                             <tr>
                                                 <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("issueDate")}</td>
-                                                <td className="py-1.5">{formatDate(new Date(subject.decision.issueDate))}</td>
+                                                <td className="py-1.5">{formatDate(new Date(decision.issueDate))}</td>
                                             </tr>
                                         )}
                                     </tbody>
                                 </table>
                                 <div className="flex items-center justify-between pt-2 border-t border-border">
                                     <a
-                                        href={subject.decision.pdfUrl}
+                                        href={decision.pdfUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
@@ -406,16 +476,36 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         <ExternalLink className="w-3.5 h-3.5" />
                                         {t("viewDecision")}
                                     </a>
-                                    {subject.decision.updatedAt && (
+                                    {decision.updatedAt && (
                                         <span className="text-xs text-muted-foreground">
-                                            {t("lastUpdated", { time: formatRelativeTime(new Date(subject.decision.updatedAt), locale) })}
+                                            {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
                                         </span>
                                     )}
                                 </div>
                             </div>
                         ) : (
-                            <div className="p-6 text-center">
-                                <p className="text-sm text-muted-foreground">{t("noDecision")}</p>
+                            <div className="p-6 text-center space-y-3">
+                                <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
+                                {isFetchingDecision ? (
+                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {t("searchingDecision")}
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleFetchDecision}
+                                    >
+                                        <Landmark className="w-4 h-4 mr-2" />
+                                        {t("fetchDecision")}
+                                    </Button>
+                                )}
+                                {lastSearchedAt && !isFetchingDecision && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                                    </p>
+                                )}
                             </div>
                         )}
                     </CollapsibleCard>
