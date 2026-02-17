@@ -417,7 +417,9 @@
         "searchItems": "Αναζητήστε συνεδριάσεις",
         "item": "συνεδρίαση",
         "addItem": "Προσθήκη Συνεδρίασης",
-        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil."
+        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil.",
+        "previous": "Προηγούμενο",
+        "next": "Επόμενο"
     },
     "Profile": {
         "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",

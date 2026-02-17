@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
-import { getCouncilMeetingsCountForCity } from '@/lib/db/meetings';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
 import { RegulationData } from '@/components/consultations/types';
 import prisma from '@/lib/db/prisma';
@@ -244,9 +243,8 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
 // City OG Image
 const CityOGImage = async (cityId: string) => {
     // Fetch only the data we need in parallel
-    const [city, meetingsCount, counts] = await Promise.all([
+    const [city, counts] = await Promise.all([
         getCity(cityId),
-        getCouncilMeetingsCountForCity(cityId),
         prisma.$transaction([
             prisma.person.count({ where: { cityId } }),
             prisma.party.count({ where: { cityId } })
@@ -256,6 +254,7 @@ const CityOGImage = async (cityId: string) => {
     if (!city) return null;
 
     const [peopleCount, partiesCount] = counts;
+    const meetingsCount = city._count.councilMeetings;
 
     return (
         <Container>
