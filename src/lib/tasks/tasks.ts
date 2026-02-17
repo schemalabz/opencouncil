@@ -277,8 +277,9 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 function shouldRevalidateForTaskType(taskType: MeetingTaskType): boolean {
     // Only revalidate for tasks that affect meeting data that would be displayed in lists
     const revalidationTaskTypes = [
-        'summarize', 
+        'summarize',
         'processAgenda',
+        'pollDecisions',
     ];
     return revalidationTaskTypes.includes(taskType);
 }

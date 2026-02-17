@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, upsertDecision, deleteDecision } from '@/lib/db/decisions';
 import prisma from '@/lib/db/prisma';
+import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 
 export async function GET(
@@ -61,6 +62,7 @@ export async function PUT(
         issueDate: parsed.issueDate ? new Date(parsed.issueDate) : undefined,
         createdById: userId, // Track who manually added this decision
     });
+    revalidateTag(`city:${params.cityId}:meetings`);
     return NextResponse.json(decision);
 }
 
@@ -94,5 +96,6 @@ export async function DELETE(
     }
 
     await deleteDecision(subjectId);
+    revalidateTag(`city:${params.cityId}:meetings`);
     return NextResponse.json({ success: true });
 }

@@ -61,6 +61,9 @@ export const env = createEnv({
     GOOGLE_CALENDAR_ID: z.string().optional(),
     GOOGLE_CALENDAR_ENABLED: z.string().optional(),
 
+    // Cron Jobs
+    CRON_SECRET: z.string().min(1).optional(),
+
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
     DEV_EMAIL_OVERRIDE: z.string().email().optional(),
@@ -121,6 +124,7 @@ export const env = createEnv({
     GOOGLE_CALENDAR_REFRESH_TOKEN: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
     GOOGLE_CALENDAR_ID: process.env.GOOGLE_CALENDAR_ID,
     GOOGLE_CALENDAR_ENABLED: process.env.GOOGLE_CALENDAR_ENABLED,
+    CRON_SECRET: process.env.CRON_SECRET,
     DEV_TEST_CITY_ID: process.env.DEV_TEST_CITY_ID,
     DEV_EMAIL_OVERRIDE: process.env.DEV_EMAIL_OVERRIDE,
     SIMULATE_WHATSAPP_UNAVAILABLE: process.env.SIMULATE_WHATSAPP_UNAVAILABLE,
