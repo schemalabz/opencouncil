@@ -365,7 +365,8 @@
         "transcribe": "Transcribed",
         "fixTranscript": "Automatic correction",
         "humanReview": "Human reviewed",
-        "summarize": "Summarized"
+        "summarize": "Summarized",
+        "transcriptSent": "Transcript sent"
     },
     "PartyMemberRankingSheet": {
         "title": "Change Member Ordering",

@@ -519,7 +519,8 @@
         "transcribe": "Απομαγνητοφωνημένη",
         "fixTranscript": "Αυτόματη Διόρθωση",
         "humanReview": "Αξιολογημένη από άνθρωπο",
-        "summarize": "Summarized"
+        "summarize": "Summarized",
+        "transcriptSent": "Απομαγνητοφώνηση απεστάλη"
     },
     "AdministrativeBodiesList": {
         "addNew": "Προσθήκη Νέου",

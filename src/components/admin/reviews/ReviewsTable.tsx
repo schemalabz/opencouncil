@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/sheet';
 import { ReviewSessionsBreakdown } from './ReviewSessionsBreakdown';
 import { MarkReviewCompleteButton } from './MarkReviewCompleteButton';
+import { SendTranscriptButton } from './SendTranscriptButton';
 
 interface ReviewsTableProps {
   reviews: ReviewListItem[];
@@ -81,6 +82,20 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
             <TableHead>Admin Body</TableHead>
             <TableHead>Meeting</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead className="w-16 text-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help">📤</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Transcript Sent - Shows whether the transcript has been emailed to the municipality.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </TableHead>
             <TableHead>
               <div className="flex items-center gap-1">
                 Progress
@@ -143,7 +158,13 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
                   </Badge>
                 )}
               </TableCell>
-              
+
+              <TableCell className="w-16 text-center">
+                {review.transcriptSent && (
+                  <CheckCircle className="h-3 w-3 text-green-600 inline-block" />
+                )}
+              </TableCell>
+
               <TableCell>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -363,7 +384,14 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
               isCompleted={selectedReviewDetail.status === 'completed'}
               onSuccess={handleCloseDetail}
             />
-            
+
+            <SendTranscriptButton
+              cityId={selectedReviewDetail.cityId}
+              meetingId={selectedReviewDetail.meetingId}
+              isTranscriptSent={selectedReviewDetail.transcriptSent}
+              onSuccess={handleCloseDetail}
+            />
+
             <Link href={`/${selectedReviewDetail.cityId}/${selectedReviewDetail.meetingId}/transcript`}>
               <Button variant="outline" className="w-full">
                 <ExternalLink className="h-4 w-4 mr-2" />

@@ -8,6 +8,7 @@ import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
 import { sendTranscriptSentAdminAlert, sendTranscriptSendFailedAdminAlert } from '@/lib/discord';
 import { env } from '@/env.mjs';
 import { formatDate } from '@/lib/formatters/time';
+import { revalidateTag } from 'next/cache';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 export interface SendTranscriptResult {
@@ -68,7 +69,7 @@ export async function sendTranscriptToMunicipality(
         const filename = `${cityId}_council_meeting_${meetingId}.docx`;
 
         // Build transcript URL (links to the /transcript page)
-        const transcriptUrl = `${env.NEXT_PUBLIC_BASE_URL}/${cityId}/${meetingId}/transcript`;
+        const transcriptUrl = `${env.NEXTAUTH_URL}/${cityId}/${meetingId}/transcript`;
 
         // Render email template
         const administrativeBodyName = meeting.administrativeBody?.name || meeting.city.name_municipality;
@@ -107,6 +108,23 @@ export async function sendTranscriptToMunicipality(
             console.error(`[sendTranscript] ${error}`);
             await sendTranscriptSendFailedAdminAlert({ cityId, meetingId, error });
             return { success: false, error };
+        }
+
+        // Record successful send as a virtual task status
+        await prisma.taskStatus.create({
+            data: {
+                type: 'transcriptSent',
+                status: 'succeeded',
+                requestBody: JSON.stringify({ recipientEmails: contactEmails }),
+                councilMeeting: { connect: { cityId_id: { cityId, id: meetingId } } },
+            },
+        });
+
+        // Invalidate meeting status cache so the UI reflects the new task
+        try {
+            revalidateTag(`city:${cityId}:meetings`);
+        } catch (error) {
+            console.error(`[sendTranscript] Failed to revalidate cache for city ${cityId}:`, error);
         }
 
         // Send success Discord alert

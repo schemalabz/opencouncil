@@ -35,7 +35,7 @@ const whereClause = {
 
   /** Match succeeded task statuses for review tracking */
   reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
-    type: { in: ['transcribe', 'fixTranscript', 'humanReview'] },
+    type: { in: ['transcribe', 'fixTranscript', 'humanReview', 'transcriptSent'] },
     status: 'succeeded'
   }),
 };
@@ -154,6 +154,7 @@ export interface ReviewListItem {
   lastEditAt: Date | null;
   meetingDurationMs: number;
   reviewDurationMs: number | null;
+  transcriptSent: boolean;
 }
 
 /**
@@ -184,6 +185,16 @@ function isUserEdit(edit: UtteranceWithEdits['utteranceEdits'][0]): boolean {
  */
 function getUtteranceDurationSeconds(utterance: Pick<UtteranceWithEdits, 'startTimestamp' | 'endTimestamp'>): number {
   return utterance.endTimestamp - utterance.startTimestamp;
+}
+
+/**
+ * Check if a task type has a succeeded status in a list of task statuses
+ */
+function hasSucceededTask(
+  taskStatuses: Array<{ type: string; status: string }>,
+  type: string
+): boolean {
+  return taskStatuses.some(t => t.type === type && t.status === 'succeeded');
 }
 
 /**
@@ -700,6 +711,7 @@ function getEmptyAggregatedMeetingStats(): AggregatedMeetingStats {
     lastEditAt: null,
     meetingDurationMs: 0,
     reviewDurationMs: null,
+    transcriptSent: false,
   };
 }
 
@@ -943,14 +955,15 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       continue;
     }
 
-    const hasTranscribe = m.taskStatuses.some(t => t.type === 'transcribe' && t.status === 'succeeded');
+    const hasTranscribe = hasSucceededTask(m.taskStatuses, 'transcribe');
 
     // Skip meetings without transcribe (shouldn't happen due to DB filter, but safety check)
     if (!hasTranscribe) {
       continue;
     }
 
-    const hasHumanReview = m.taskStatuses.some(t => t.type === 'humanReview' && t.status === 'succeeded');
+    const hasHumanReview = hasSucceededTask(m.taskStatuses, 'humanReview');
+    const hasTranscriptSent = hasSucceededTask(m.taskStatuses, 'transcriptSent');
     const status = determineReviewStatus(hasTranscribe, hasHumanReview, stats.reviewedUtterances);
 
     const reviewDurationMs = stats.lastEditAt && m.dateTime
@@ -967,6 +980,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       status,
       ...stats,
       reviewDurationMs,
+      transcriptSent: hasTranscriptSent,
     });
   }
 
@@ -1080,12 +1094,9 @@ export async function getReviewProgressForMeeting(
   const stats = await getAggregatedMeetingStats(meetingId);
 
   // Check task statuses
-  const hasTranscribe = meetingRecord.taskStatuses.some(
-    t => t.type === 'transcribe' && t.status === 'succeeded'
-  );
-  const hasHumanReview = meetingRecord.taskStatuses.some(
-    t => t.type === 'humanReview' && t.status === 'succeeded'
-  );
+  const hasTranscribe = hasSucceededTask(meetingRecord.taskStatuses, 'transcribe');
+  const hasHumanReview = hasSucceededTask(meetingRecord.taskStatuses, 'humanReview');
+  const hasTranscriptSent = hasSucceededTask(meetingRecord.taskStatuses, 'transcriptSent');
 
   if (!hasTranscribe) {
     return null;
@@ -1139,6 +1150,7 @@ export async function getReviewProgressForMeeting(
     lastEditAt: stats.lastEditAt,
     meetingDurationMs: stats.meetingDurationMs,
     reviewDurationMs,
+    transcriptSent: hasTranscriptSent,
     // Session data
     ...sessionData,
   };

@@ -174,8 +174,22 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p className="max-w-xs">
-                                                        Human Review Status - Shows whether the meeting transcript has been manually reviewed and corrected by a human. 
+                                                        Human Review Status - Shows whether the meeting transcript has been manually reviewed and corrected by a human.
                                                         Green checkmark indicates human review is complete.
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableHead>
+                                    <TableHead className="w-16 text-center">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="cursor-help">📤</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="max-w-xs">
+                                                        Transcript Sent - Shows whether the transcript has been emailed to the municipality.
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>

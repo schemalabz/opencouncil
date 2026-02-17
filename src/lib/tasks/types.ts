@@ -12,6 +12,9 @@ export const TASK_CONFIG = {
   humanReview: {
     requiredForPipeline: true,
   },
+  transcriptSent: {
+    requiredForPipeline: true,
+  },
   summarize: {
     requiredForPipeline: true,
   },
