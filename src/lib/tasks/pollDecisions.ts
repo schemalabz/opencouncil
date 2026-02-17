@@ -86,6 +86,72 @@ export async function pollDecisionsForMeeting(
     return startTask('pollDecisions', body, councilMeetingId, cityId);
 }
 
+/**
+ * Polls decisions for recent meetings across all cities with Diavgeia configured.
+ * Called by the cron endpoint. Finds meetings from the last 90 days that still have
+ * subjects without linked decisions, and dispatches pollDecisions tasks for them.
+ * Limits to 10 meetings per invocation.
+ */
+export async function pollDecisionsForRecentMeetings() {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Find meetings from the last 90 days in cities with diavgeiaUid,
+    // that have at least one subject with agendaItemIndex but no decision
+    const meetings = await prisma.councilMeeting.findMany({
+        where: {
+            dateTime: { gte: ninetyDaysAgo },
+            city: {
+                diavgeiaUid: { not: null },
+            },
+            subjects: {
+                some: {
+                    agendaItemIndex: { not: null },
+                    decision: null,
+                },
+            },
+        },
+        select: {
+            id: true,
+            cityId: true,
+        },
+        orderBy: { dateTime: 'desc' },
+        take: 10,
+    });
+
+    const results: Array<{ cityId: string; meetingId: string; status: string }> = [];
+
+    for (const meeting of meetings) {
+        try {
+            // Only poll for subjects that don't have a decision yet
+            const unlinkedSubjects = await prisma.subject.findMany({
+                where: {
+                    councilMeetingId: meeting.id,
+                    cityId: meeting.cityId,
+                    agendaItemIndex: { not: null },
+                    decision: null,
+                },
+                select: { id: true },
+            });
+
+            if (unlinkedSubjects.length === 0) continue;
+
+            await pollDecisionsForMeeting(
+                meeting.cityId,
+                meeting.id,
+                unlinkedSubjects.map(s => s.id)
+            );
+
+            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: 'started' });
+        } catch (error) {
+            console.error(`Failed to poll decisions for meeting ${meeting.cityId}/${meeting.id}:`, error);
+            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `error: ${(error as Error).message}` });
+        }
+    }
+
+    return { meetingsProcessed: results.length, results };
+}
+
 export async function handlePollDecisionsResult(taskId: string, result: PollDecisionsResult) {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
