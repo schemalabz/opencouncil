@@ -112,21 +112,47 @@ The `pollDecisions` task can be triggered automatically to fetch decisions from 
 **What it does:**
 1. Finds meetings from the last 90 days in cities that have `diavgeiaUid` configured
 2. Filters to meetings that still have subjects with no linked decision
-3. Dispatches `pollDecisions` tasks to the backend task server for up to 10 meetings per invocation
-4. Only polls for subjects that don't already have a decision
+3. Applies progressive backoff based on previous polling history (see below)
+4. Dispatches `pollDecisions` tasks to the backend task server for up to 10 meetings per invocation
+5. Only polls for subjects that don't already have a decision
+
+**Progressive backoff:**
+Some subjects may never have decisions on Diavgeia, so the cron uses time-based backoff to avoid polling forever. It derives the first and last poll dates from existing `TaskStatus` records (type `pollDecisions`, status `succeeded`) for each meeting:
+
+| Days since first poll | Minimum interval between polls |
+|-----------------------|-------------------------------|
+| 0–7 (week 1)         | None (every cron run)         |
+| 7–14 (week 2)        | 2 days                        |
+| 14–21 (week 3)       | 3 days                        |
+| 21+ (week 4+)        | 7 days                        |
+| 90+                   | Automatic polling stops        |
+
+With the cron running 2x/day, this means ~14 polls in week 1, ~3-4 in week 2, ~2-3 in week 3, then ~1/week.
+
+After automatic polling stops, users can still manually fetch decisions from the subject page. The backoff schedule is defined as `BACKOFF_SCHEDULE` at the top of `pollDecisions.ts` and is easy to adjust.
+
+**Polling stats:**
+To fine-tune the backoff schedule, use the stats endpoint:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-decisions-stats
+```
+
+This returns per-decision data showing: when Diavgeia published it, when the cron found it, how many poll attempts it took, and the delay between the meeting date and publication. Use the summary stats (average/median discovery delay, publish delay) to decide if the schedule needs tuning.
 
 **Setup:**
 1. Set the `CRON_SECRET` environment variable (generate with `openssl rand -base64 32`)
 2. Configure an external cron scheduler (e.g., Vercel Cron, GitHub Actions, or a simple crontab) to call the endpoint periodically:
 
 ```bash
-# Example: poll every 6 hours
-0 */6 * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-decisions
+# Poll every 12 hours (2x/day)
+0 0,12 * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-decisions
 ```
 
 **Key files:**
 - `src/app/api/cron/poll-decisions/route.ts` — Cron API route
-- `src/lib/tasks/pollDecisions.ts` — `pollDecisionsForRecentMeetings()` (cron logic), `pollDecisionsForMeeting()` (core logic shared with admin UI and cron)
+- `src/app/api/cron/poll-decisions-stats/route.ts` — Polling effectiveness stats
+- `src/lib/tasks/pollDecisions.ts` — `pollDecisionsForRecentMeetings()` (cron logic), `getPollingStats()` (stats), `pollDecisionsForMeeting()` (core logic shared with admin UI and cron)
 
 **Prerequisites per city:**
 - City must have `diavgeiaUid` set (configured in city settings)
