@@ -132,6 +132,7 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 |----------|-------------|----------|---------|
 | `TASK_API_URL` | URL for the background task processing API. | Yes | - |
 | `TASK_API_KEY` | API key for task processing API. | Yes | - |
+| `CRON_SECRET` | Bearer token for authenticating cron job endpoints (e.g., `/api/cron/poll-decisions`). Generate with `openssl rand -base64 32`. | No | - |
 
 ### Google Calendar Integration
 | Variable | Description | Required | Default |
