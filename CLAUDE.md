@@ -217,6 +217,17 @@ The condition must use `process.env.NODE_ENV === 'development'` directly (not vi
 3. Extract duplicates to shared utilities
 4. Ensure all imports are at the top of files
 
+### Git Workflow
+
+**Commit organization on feature branches**:
+When working on a branch with existing commits, new changes must be categorized:
+- **Fixup commits** (`fixup! <original commit message>`): Changes that modify, improve, or clean up code introduced by an existing commit on the branch. Use the `fixup!` prefix with the exact original commit message so `git rebase -i --autosquash` can squash them automatically.
+- **New commits**: Genuinely new functionality that doesn't belong to any existing commit.
+
+Before creating commits, run `git log --oneline main..HEAD` to understand the branch's commit structure and decide which changes are fixups vs new commits. Stage files selectively to keep each commit focused.
+
+After all commits are created, run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash main` to fold fixup commits into their targets.
+
 **Build Verification**:
 - **Always run `npm run build` after completing changes** to verify TypeScript compiles and catch errors early
 - This closes the feedback loop quickly - don't wait for the user to discover build failures
