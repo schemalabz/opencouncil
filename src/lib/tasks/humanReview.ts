@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { checkTaskIdempotency } from './tasks';
 import { revalidateTag } from 'next/cache';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
 import { sendHumanReviewCompletedAdminAlert } from '@/lib/discord';
@@ -48,19 +49,9 @@ export async function markHumanReviewComplete(
 ) {
     await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
     
-    // If one already exists, return it
-    const existing = await prisma.taskStatus.findFirst({
-        where: { 
-            cityId, 
-            councilMeetingId: meetingId, 
-            type: 'humanReview', 
-            status: 'succeeded' 
-        },
-        orderBy: [{ version: 'desc' }, { createdAt: 'desc' }]
-    });
-    
-    if (existing) {
-        return existing;
+    const idempotency = await checkTaskIdempotency('humanReview', cityId, meetingId);
+    if (!idempotency.proceed && idempotency.existingTask) {
+        return idempotency.existingTask;
     }
 
     // Get actual reviewer stats from the meeting's edit history

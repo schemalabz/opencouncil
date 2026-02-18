@@ -10,6 +10,7 @@ import { env } from '@/env.mjs';
 import { formatDate } from '@/lib/formatters/time';
 import { revalidateTag } from 'next/cache';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { checkTaskIdempotency } from './tasks';
 
 export interface SendTranscriptResult {
     success: boolean;
@@ -30,6 +31,12 @@ export async function sendTranscriptToMunicipality(
 ): Promise<SendTranscriptResult> {
     try {
         await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
+
+        const idempotency = await checkTaskIdempotency('transcriptSent', cityId, meetingId);
+        if (!idempotency.proceed) {
+            console.log(`[sendTranscript] Transcript already sent for ${cityId}/${meetingId}, skipping`);
+            return { success: true, skipped: true };
+        }
 
         // Fetch meeting with administrative body to get contact email
         const meeting = await prisma.councilMeeting.findUnique({
