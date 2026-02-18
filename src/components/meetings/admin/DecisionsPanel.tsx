@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X } from 'lucide-react';
+import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock } from 'lucide-react';
 import { DecisionWithSource } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
@@ -73,9 +73,13 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
             setEditState({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
             setFormErrors({});
             setFilterTab('all');
+            setPollingStatus(null);
             fetchDecisions();
+            getPollingHistoryForMeeting(meeting.cityId, meeting.id)
+                .then(setPollingStatus)
+                .catch(() => { /* silent */ });
         }
-    }, [open, fetchDecisions]);
+    }, [open, fetchDecisions, meeting.cityId, meeting.id]);
 
     const validateForm = (): boolean => {
         const errors: FormErrors = {};
@@ -258,6 +262,39 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </Button>
                     </div>
                 </div>
+
+                {/* Polling Status */}
+                {pollingStatus && pollingStatus.totalPolls > 0 && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                            Polled {pollingStatus.totalPolls} {pollingStatus.totalPolls === 1 ? 'time' : 'times'}
+                        </span>
+                        {pollingStatus.firstPollAt && (
+                            <>
+                                <span>&middot;</span>
+                                <span>started {new Date(pollingStatus.firstPollAt).toLocaleDateString()}</span>
+                            </>
+                        )}
+                        {pollingStatus.currentTierLabel && (
+                            <>
+                                <span>&middot;</span>
+                                <span>{pollingStatus.currentTierLabel}</span>
+                            </>
+                        )}
+                        {pollingStatus.nextPollEligible ? (
+                            <>
+                                <span>&middot;</span>
+                                <span>Next auto-poll: {new Date(pollingStatus.nextPollEligible).toLocaleDateString()}</span>
+                            </>
+                        ) : pollingStatus.currentTierLabel?.startsWith('Stopped') ? (
+                            <>
+                                <span>&middot;</span>
+                                <span>Automatic polling stopped</span>
+                            </>
+                        ) : null}
+                    </div>
+                )}
 
                 {/* Subjects List */}
                 <div className="space-y-1 py-2">
