@@ -80,7 +80,7 @@ export default function SourcesList({
 
                 {/* Contact Email */}
                 <div className="pt-3 border-t">
-                    <h4 className="font-medium text-sm text-muted-foreground mb-2">Επικοινωνία με το Δήμο</h4>
+                    <h4 className="font-medium text-sm text-muted-foreground mb-2">Επικοινωνία με τον δήμο</h4>
                     <p className="text-xs text-muted-foreground">
                         Μπορείτε να συμμετέχετε στη διαβούλευση είτε μέσω αυτής της εφαρμογής, είτε στέλνοντας απευθείας email στην παρακάτω διεύθυνση. Αυτή η εφαρμογή προωθεί αυτόματα όλα τα σχόλια που υποβάλλονται σε αυτό το email.
                     </p>
@@ -112,7 +112,7 @@ export default function SourcesList({
                 <div className="pt-3 border-t">
                     <h4 className="font-medium text-sm text-muted-foreground mb-2">Σχετικά με την εφαρμογή</h4>
                     <p className="text-xs text-muted-foreground">
-                        Αυτή η εφαρμογή αναπτύχθηκε από την <a href="/about" className="text-blue-600 hover:underline">OpenCouncil</a> και δεν σχετίζεται ούτε υποστηρίζεται από το Δήμο Αθηναίων.
+                        Αυτή η εφαρμογή αναπτύχθηκε από την <a href="/about" className="text-blue-600 hover:underline">OpenCouncil</a> και δεν σχετίζεται ούτε υποστηρίζεται από τον δήμο Αθηναίων.
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
                         Για τεχνική υποστήριξη ή απορίες σχετικά με την εφαρμογή, μπορείτε να επικοινωνήσετε απευθείας μαζί μας:

@@ -266,7 +266,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
                         {[
                             { icon: Scroll, title: 'Γρήγορα, αναζητήσιμες απομαγνητοφωνήσεις', description: 'Ακριβείς, ψηφιακές απομαγνητοφωνήσεις των συλλογικών οργάνων του δήμου (Δημοτικά Συμβούλια, Επιτροπές, Κοινότητες) διαθέσιμες σε όλους σε ώρες, όχι σε μέρες και εβδομάδες.' },
-                            { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε το δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
+                            { icon: Eye, title: 'Tο έργο σας, ορατό', description: 'Κάντε τις συνεδριάσεις του δημοτικού συμβουλίου κατανοητές και προσβάσιμες στους δημότες σας. Εξασφαλίστε μεγαλύτερη διαφάνεια, και τοποθετήστε τον δήμο σας στην πρωτοπορία της έξυπνης διακυβέρνησης.' },
                             { icon: Megaphone, title: 'Συμμετοχικότητα στο σήμερα', description: 'Φέρτε τα δημοτικά συμβούλια του δήμου σας εκεί που οι πολίτες ήδη περνάνε το χρόνο τους: στο WhatsApp και στα Social Media. Επιτρέψτε τους να ενημερωθούν για τα θέματα της γειτονιάς τους άμεσα και απλά.' },
                         ].map((feature, index) => (
                             <motion.div
@@ -307,7 +307,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                         <Link href="/chania">
                             <span className="relative z-10 flex items-center gap-2">
                                 <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                                <span className="hidden sm:inline">Δείτε το OpenCouncil για το Δήμο Χανίων</span>
+                                <span className="hidden sm:inline">Δείτε το OpenCouncil για τον δήμο Χανίων</span>
                                 <span className="sm:hidden">Δήμος Χανίων</span>
                             </span>
                             <motion.div
@@ -341,7 +341,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                             { icon: Github, title: 'Ανοιχτός κώδικας', description: 'Διαφανής ανάπτυξη, συνεχής βελτίωση. Ελαστική άδεια GPL v3 που επιτρέπει την εμπορική χρήση.', demo: { text: "Διαβάστε περισσότερα", link: "https://schemalabs.substack.com/p/opensource" } },
                             { icon: Database, title: 'Ανοιχτά Δεδομένα', description: 'Όλα τα δεδομένα, διαθέσιμα δημόσια μέσω ενός ανοιχτού API χωρίς αυθεντικοποίηση.', demo: { text: "Δείτε τo API", link: "/docs" } },
                             { icon: Globe, title: 'Πολύγλωσσο', description: 'Υποστήριξη πολλαπλών γλωσσών για την εξυπηρέτηση πολυπολιτισμικών πόλεων.', releaseDate: 'Άνοιξη 2025' },
-                            { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες.' },
+                            { icon: Zap, title: 'Άμεση Ενσωμάτωση', description: 'Συνδέστε το OpenCouncil στον δήμο σας σε λίγες ώρες, όχι μήνες.' },
                             { icon: Scroll, title: 'Σύνδεση με την ημερήσια διάταξη', description: 'Σύνδεση των θεμάτων που συζητούνται στις συνεδριάσεις με την ημερήσια διάταξη', demo: { text: "Δείτε ένα παράδειγμα", link: "/chania/jun25_2025" } },
                             { icon: Mail, title: 'Προσωποποιημένα μηνύματα', description: 'Ενημερώστε τους πολίτες για τα θέματα του δημοτικού συμβουλίου που τους αφορούν, με φυσικό τρόπο, μέσα από το WhatsApp και το Viber' },
                             { icon: Vote, title: 'Διαβούλευση στα social', description: 'Κάντε γρήγορες διαβουλεύσεις για τα θέματα του δημοτικού συμβουλίου, στο WhatsApp, στο Viber και στα Social', releaseDate: 'Άνοιξη 2025' }
