@@ -2,13 +2,61 @@
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
-import { MeetingTaskType } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG } from '@/lib/tasks/types';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskStartedAdminAlert, sendTaskCompletedAdminAlert, sendTaskFailedAdminAlert } from '@/lib/discord';
-import { Prisma } from '@prisma/client';
+import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers } from './registry';
+
+export interface TaskIdempotencyResult {
+    proceed: boolean;
+    existingTask: TaskStatus | null;
+    blockedReason?: 'already_succeeded' | 'already_running';
+}
+
+export async function checkTaskIdempotency(
+    taskType: MeetingTaskType,
+    cityId: string,
+    councilMeetingId: string,
+    options: { force?: boolean } = {}
+): Promise<TaskIdempotencyResult> {
+    if (options.force) {
+        return { proceed: true, existingTask: null };
+    }
+
+    // Check for already-succeeded task
+    const succeededTask = await prisma.taskStatus.findFirst({
+        where: {
+            councilMeetingId,
+            cityId,
+            type: taskType,
+            status: 'succeeded',
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    if (succeededTask) {
+        return { proceed: false, existingTask: succeededTask, blockedReason: 'already_succeeded' };
+    }
+
+    // Check for currently running task
+    const runningTask = await prisma.taskStatus.findFirst({
+        where: {
+            councilMeetingId,
+            cityId,
+            type: taskType,
+            status: { notIn: ['failed', 'succeeded'] },
+        },
+    });
+
+    if (runningTask) {
+        return { proceed: false, existingTask: runningTask, blockedReason: 'already_running' };
+    }
+
+    return { proceed: true, existingTask: null };
+}
 
 export interface TaskVersionsFilter {
     taskTypes: MeetingTaskType[];
@@ -33,18 +81,17 @@ const taskStatusWithMeetingInclude = {
 } satisfies Prisma.TaskStatusInclude;
 
 export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
-    // Check for existing running task
-    const existingTask = await prisma.taskStatus.findFirst({
-        where: {
-            councilMeetingId,
-            cityId,
-            type: taskType,
-            status: { notIn: ['failed', 'succeeded'] }
+    // Only enforce idempotency for core pipeline tasks — non-pipeline tasks
+    // (generateHighlight, splitMediaFile, etc.) can legitimately run multiple times
+    if (TASK_CONFIG[taskType].requiredForPipeline) {
+        const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options);
+        if (!idempotency.proceed) {
+            throw new Error(
+                idempotency.blockedReason === 'already_succeeded'
+                    ? `A ${taskType} task has already succeeded for this council meeting`
+                    : `A ${taskType} task is already running for this council meeting`
+            );
         }
-    });
-
-    if (existingTask && !options.force) {
-        //throw new Error('A task of this type is already running for this council meeting');
     }
 
     // Create new task in database
