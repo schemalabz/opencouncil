@@ -384,7 +384,7 @@ export default function CommentSection({
                                         <div className="bg-muted/50 p-4 rounded-lg">
                                             <p className="text-xs text-muted-foreground leading-relaxed">
                                                 <strong className="font-medium text-foreground">Πώς λειτουργεί:</strong> To σχόλιο σας θα είναι <span className="text-foreground font-medium">δημόσια ορατό</span> με το όνομα σας (<span className="text-foreground font-medium">{session.user.name}</span>), και θα σταλεί στο
-                                                email του δήμου με εσάς σε CC, οπότε και θα μοιραστούμε τη διεύθυνση email σας και το όνομα σας με το δήμο. Θα μπορείτε να διαγράψετε το σχόλιο σας, αλλά όχι το email που θα έχει ήδη σταλεί στο δήμο.
+                                                email του δήμου με εσάς σε CC, οπότε και θα μοιραστούμε τη διεύθυνση email σας και το όνομα σας με τον δήμο. Θα μπορείτε να διαγράψετε το σχόλιο σας, αλλά όχι το email που θα έχει ήδη σταλεί στον δήμο.
                                                 <br />
                                                 <span className="text-orange-600 mt-1 block">
                                                     Αν εκπροσωπείτε κάποιο φορέα, μπορείτε να κάνετε καινούργιο λογαριασμό για τον οργανισμό σας.
@@ -404,7 +404,7 @@ export default function CommentSection({
                                                         <span>Υποβολή...</span>
                                                     </>
                                                 ) : (
-                                                    <span className="whitespace-nowrap">Δημοσιεύση και αποστολή στο δήμο</span>
+                                                    <span className="whitespace-nowrap">Δημοσιεύση και αποστολή στον δήμο</span>
                                                 )}
                                             </Button>
                                         </div>
