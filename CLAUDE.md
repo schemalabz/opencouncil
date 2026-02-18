@@ -2,10 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Environment
+
+This project uses [Nix](https://nixos.org/) to manage development dependencies. All shell commands (`npm`, `npx`, `node`, etc.) must be run inside the Nix development shell.
+
+**Prefix all commands with `nix develop --command`**, for example:
+```bash
+nix develop --command npm run build
+nix develop --command npx tsc --noEmit
+```
+
+If you open an interactive shell session first (`nix develop`), subsequent commands in that session don't need the prefix.
+
 ## Build Commands
 
 ### Development
-- `npm run dev` - Start development server with Turbo
+- `npm run dev` - Start development server with Turbo, bound to 0.0.0.0 for mobile preview
 - `npm run dev:fast` - Dev server with increased memory and telemetry disabled
 - `npm run build` - Production build
 - `npm run start` - Start production server
@@ -150,6 +162,15 @@ Multi-channel delivery in `src/lib/notifications/`:
 - Avoid unnecessary try/catch blocks
 - Never create markdown files after completing tasks (unless directly asked)
 - Use time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`)
+
+### Dev-Only Components
+Components in `src/components/dev/` must **never** be imported with a static `import` in production code paths. Use conditional `require()` to ensure they are excluded from production bundles:
+```typescript
+const QuickLogin = process.env.NODE_ENV === 'development'
+    ? require("@/components/dev/QuickLogin").default
+    : null;
+```
+The condition must use `process.env.NODE_ENV === 'development'` directly (not via a variable) so the bundler can eliminate the dead branch at build time. See `src/app/[locale]/layout.tsx` for the pattern.
 
 ### Base URLs
 - **Server-side**: Use `env.NEXTAUTH_URL` for constructing URLs (e.g., callback URLs, API endpoints)

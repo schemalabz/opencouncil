@@ -93,6 +93,16 @@ When `TASK_API_URL` is configured in `.env`, the dev runner will check if the ta
    ⚠ Task server not reachable (start it separately for E2E testing)
 ```
 
+### Mobile Preview (QR code for phone testing)
+
+The dev server binds to `0.0.0.0` by default, making it accessible from other devices on the same Wi-Fi. Click the **QR button** next to the DEV panel (bottom-right) to see a QR code encoding the LAN URL for the current page.
+
+Scan the QR code with your phone and the page loads. Connected devices appear in real time (device name, browser, viewport size, current path).
+
+To disable LAN binding: `nix run .#dev -- --no-lan`
+
+**NixOS firewall:** The dev runner automatically opens the app port via `iptables` (prompts for sudo once) and closes it on exit.
+
 ## Process Compose basics
 
 When you run `nix run .#dev`, you enter a `process-compose` terminal UI:

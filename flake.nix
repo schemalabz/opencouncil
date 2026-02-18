@@ -313,7 +313,13 @@ EOF
 
               cd "$repo_root"
               export APP_PORT="$app_port"
-              exec npm run dev -- -p "$app_port"
+              if [ "''${OC_LAN:-1}" = "1" ]; then
+                lan_flag="-H 0.0.0.0"
+              else
+                lan_flag="-H 127.0.0.1"
+              fi
+              # shellcheck disable=SC2086
+              exec npm run dev -- -p "$app_port" $lan_flag
             '';
           };
 
@@ -479,7 +485,7 @@ USAGE
               usage() {
                 cat <<'USAGE'
 Usage:
-  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked]
+  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked] [--no-lan]
 
 DB modes:
   --db=nix      Start Postgres+PostGIS via Nix + app (process-compose TUI) (default)
@@ -491,6 +497,7 @@ Flags:
   --migrate     Run migrations (npm run db:deploy) before starting the app (remote/external only)
   --no-studio   Disable Prisma Studio process (enabled by default for local DB modes)
   --fast        Use pre-built PostGIS from binary cache (faster first build, but may not match production)
+  --no-lan      Bind dev server to localhost only (default: binds to 0.0.0.0 for mobile preview)
 USAGE
               }
 
@@ -503,6 +510,7 @@ USAGE
               studio_override="''${OC_DEV_STUDIO:-}"
               studio_enabled=""
               postgis_locked="''${OC_POSTGIS_LOCKED:-1}"
+              lan_enabled="''${OC_LAN:-1}"
 
               for arg in "$@"; do
                 case "$arg" in
@@ -512,6 +520,7 @@ USAGE
                   --migrate) migrate="1" ;;
                   --no-studio) studio_override="0" ;;
                   --fast) postgis_locked="0" ;;
+                  --no-lan) lan_enabled="0" ;;
                   --help|-h) usage; exit 0 ;;
                   *)
                     echo "Unknown argument: $arg" >&2
@@ -590,6 +599,13 @@ USAGE
                 echo ""
               fi
 
+              # Compute LAN host flag for Next.js dev server
+              if [ "$lan_enabled" = "1" ]; then
+                lan_host_flag="-H 0.0.0.0"
+              else
+                lan_host_flag="-H 127.0.0.1"
+              fi
+
               case "$db_mode" in
                 remote)
                   cat >"$pc_file" <<EOF
@@ -597,7 +613,7 @@ version: "0.5"
 processes:
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -617,7 +633,7 @@ version: "0.5"
 processes:
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; export DATABASE_URL=\"$db_url\"; export DIRECT_URL=\"$direct_url\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; export APP_PORT=\"$app_port\"; export DATABASE_URL=\"$db_url\"; export DIRECT_URL=\"$direct_url\"; if [ \"$migrate\" = \"1\" ]; then npm run db:deploy; fi; npm run dev -- -p \"$app_port\" $lan_host_flag 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -651,7 +667,7 @@ processes:
     command: "bash -lc 'set -o pipefail; OC_DB_DATA_DIR=\"$data_dir\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" $oc_db_cmd 2>&1 | tee -a \"$logs_dir/db.log\"'"
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -683,7 +699,7 @@ processes:
     command: "bash -lc 'set -o pipefail; OC_DB_PORT=\"$db_port\" oc-dev-db-docker 2>&1 | tee -a \"$logs_dir/db.log\"'"
   app:
     working_dir: "$repo_root"
-    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
+    command: "bash -lc 'set -o pipefail; DATABASE_URL=\"$db_url_local\" DIRECT_URL=\"$db_url_local\" OC_APP_PORT=\"$app_port\" APP_PORT=\"$app_port\" OC_DB_PORT=\"$db_port\" OC_DB_USER=\"$db_user\" OC_DB_NAME=\"$db_name\" OC_DB_PASSWORD=\"$db_password\" OC_LAN=\"$lan_enabled\" oc-dev-app-local 2>&1 | tee -a \"$logs_dir/app.log\"'"
 EOF
                   if [ "$studio_enabled" = "1" ]; then
                     cat >>"$pc_file" <<EOF
@@ -701,7 +717,22 @@ EOF
               esac
 
               pc_port="$(find_available_port 8080)"
-              exec process-compose -f "$pc_file" up --port "$pc_port"
+
+              # On Linux with --lan, open the firewall port automatically and
+              # clean it up when the dev runner exits.
+              if [ "$lan_enabled" = "1" ] && command -v iptables >/dev/null 2>&1 \
+                && ! sudo -n iptables -C INPUT -p tcp --dport "$app_port" -j ACCEPT 2>/dev/null; then
+                echo ""
+                echo "Opening firewall port $app_port so your phone can reach the dev server."
+                echo "(sudo is needed to add a temporary iptables rule — it will be removed on exit)"
+                echo ""
+                sudo iptables -I INPUT -p tcp --dport "$app_port" -j ACCEPT
+                echo "Opened firewall port $app_port for LAN access"
+                trap 'sudo iptables -D INPUT -p tcp --dport "$app_port" -j ACCEPT 2>/dev/null; echo "Closed firewall port $app_port"' EXIT
+                process-compose -f "$pc_file" up --port "$pc_port"
+              else
+                exec process-compose -f "$pc_file" up --port "$pc_port"
+              fi
             '';
           };
           opencouncil-prod = pkgs.buildNpmPackage {

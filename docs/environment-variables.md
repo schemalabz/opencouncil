@@ -196,6 +196,7 @@ When `NODE_ENV=development`:
 - Debug information is shown in the UI
 - Mock data can be toggled in the chat interface
 - QuickLogin tool is available for testing different user permission levels
+- Mobile Preview QR code available next to the DEV panel for phone testing (see [Nix Usage Guide](nix-usage.md#mobile-preview-qr-code-for-phone-testing))
 - Email override is available via `DEV_EMAIL_OVERRIDE` to intercept all outgoing emails
 
 ### Email Testing in Development
