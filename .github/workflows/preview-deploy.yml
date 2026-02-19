@@ -18,12 +18,12 @@ env:
   CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
 
 jobs:
-  # Check for database migrations
-  check-migrations:
-    name: Check for Migrations
+  # Pre-flight checks (fast, run before expensive nix build)
+  preflight:
+    name: Pre-flight Checks
     runs-on: ubuntu-latest
     outputs:
-      has-migrations: ${{ steps.check.outputs.has-migrations }}
+      has-migrations: ${{ steps.check-migrations.outputs.has-migrations }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check for migration files
-        id: check
+        id: check-migrations
         run: |
           set -euo pipefail
 
@@ -54,11 +54,25 @@ jobs:
             echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
           fi
 
+      - name: Check npmDepsHash freshness
+        run: |
+          set -euo pipefail
+
+          LOCKFILE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package-lock.json$' || true)
+          HASH_CHANGED=$(git diff origin/${{ github.base_ref }}...HEAD -- flake.nix | grep 'npmDepsHash' || true)
+
+          if [ -n "$LOCKFILE_CHANGED" ] && [ -z "$HASH_CHANGED" ]; then
+            echo "::error::package-lock.json was modified but npmDepsHash in flake.nix was not updated. Run: nix run nixpkgs#prefetch-npm-deps package-lock.json"
+            exit 1
+          fi
+
+          echo "✅ npmDepsHash check passed" >> $GITHUB_STEP_SUMMARY
+
   # Build and deploy preview
   deploy:
     name: Build and Deploy Preview
     runs-on: ubuntu-latest
-    needs: check-migrations
+    needs: preflight
     environment: preview
     steps:
       - name: Comment on PR (building)
@@ -69,7 +83,7 @@ jobs:
             const prNumber = context.payload.pull_request.number;
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
-            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+            const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -165,7 +179,7 @@ jobs:
             const commentId = ${{ steps.pr-comment.outputs.comment-id }};
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
-            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+            const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
 
             const dbNote = hasMigrations
               ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
@@ -213,7 +227,7 @@ jobs:
           PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
           PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
           STORE_PATH: ${{ steps.store-path.outputs.path }}
-          HAS_MIGRATIONS: ${{ needs.check-migrations.outputs.has-migrations }}
+          HAS_MIGRATIONS: ${{ needs.preflight.outputs.has-migrations }}
           LINKED_TASKS_PR: ${{ steps.preview-links.outputs.tasks-pr }}
           PREVIEW_TASKS_API_KEY: ${{ secrets.PREVIEW_TASKS_API_KEY }}
         run: |
@@ -296,7 +310,7 @@ jobs:
             const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
             const healthStatus = '${{ steps.health-check.outputs.status }}';
             const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
-            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+            const hasMigrations = '${{ needs.preflight.outputs.has-migrations }}' === 'true';
             const linkedTasksPr = '${{ steps.preview-links.outputs.tasks-pr }}';
 
             const dbNote = hasMigrations

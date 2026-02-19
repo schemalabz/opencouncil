@@ -76,7 +76,26 @@ Using the standards from `CLAUDE.md` "Dev-Only Components" section:
 
 If no dev files were touched and no new packages added, mark this check as **N/A**.
 
-## Check 4: Build & Lint
+## Check 4: Nix Build Readiness
+
+If `package-lock.json` was changed in this branch but `flake.nix`'s `npmDepsHash` line was not, the preview deployment **will fail**. Check this before wasting time on a full build:
+
+```bash
+git diff --name-only $(git merge-base HEAD $BASE)..HEAD | grep -q '^package-lock.json$' && \
+  ! git diff $(git merge-base HEAD $BASE)..HEAD -- flake.nix | grep -q 'npmDepsHash' && \
+  echo "FAIL: package-lock.json changed but npmDepsHash not updated" || \
+  echo "PASS"
+```
+
+If this fails, regenerate the hash and update `flake.nix`:
+
+```bash
+nix develop --command nix run nixpkgs#prefetch-npm-deps package-lock.json
+```
+
+If `package-lock.json` was not changed, mark as **N/A**.
+
+## Check 5: Build & Lint
 
 Run the build and lint commands. Use `nix develop --command` prefix as required by the project.
 
@@ -92,7 +111,7 @@ For lint output, only flag warnings/errors from **changed files**. Ignore pre-ex
 
 If the build fails, this is an automatic **FAIL** — report the error and stop further checks.
 
-## Check 5: Tests
+## Check 6: Tests
 
 ```bash
 nix develop --command npm test
@@ -113,6 +132,7 @@ Present results as a summary table, then details.
 | Commit Hygiene       | PASS / FAIL / WARN  |
 | Code Quality         | PASS / FAIL / WARN  |
 | Production Safety    | PASS / FAIL / N/A   |
+| Nix Build Readiness  | PASS / FAIL / N/A   |
 | Build & Lint         | PASS / FAIL         |
 | Tests                | PASS / FAIL / WARN  |
 ```
