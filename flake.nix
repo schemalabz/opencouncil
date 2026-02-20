@@ -100,6 +100,23 @@
 
             echo ""
             echo "Inside OpenCouncil Nix dev shell"
+
+            # Show which database .env is pointing at
+            if [ -n "''${DATABASE_URL:-}" ]; then
+              # Parse DATABASE_URL: postgresql://user:pass@host:port/dbname?params
+              db_display="''${DATABASE_URL#*@}"  # strip user:pass@
+              db_display="''${db_display%%\?*}"   # strip ?params
+              db_host="''${db_display%%/*}"       # host:port
+              db_name="''${db_display#*/}"        # dbname
+              if [ "$db_host" = "127.0.0.1:5432" ] || [ "$db_host" = "localhost:5432" ] || [ "$db_host" = "127.0.0.1" ] || [ "$db_host" = "localhost" ]; then
+                echo "  DB: $db_name @ $db_host (local)"
+              else
+                echo -e "  DB: \033[1;33m$db_name @ $db_host (REMOTE)\033[0m"
+              fi
+            else
+              echo "  DB: not set (DATABASE_URL missing from .env)"
+            fi
+
             echo ""
             echo "Next steps:"
             echo "  - Start app + local DB (default): nix run .#dev"
