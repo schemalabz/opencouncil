@@ -2,7 +2,11 @@
   "utterance": {
     "editing": {
       "saveShortcut": "Αποθήκευση (Enter)",
-      "cancelShortcut": "Ακύρωση (Escape)"
+      "cancelShortcut": "Ακύρωση (Escape)",
+      "timestamps": "Χρονοσήμανση",
+      "useCurrent": "Χρήση Τρέχουσας",
+      "setStartTime": "Ορισμός στην τρέχουσα ώρα βίντεο ([)",
+      "setEndTime": "Ορισμός στην τρέχουσα ώρα βίντεο (])"
     },
     "contextMenu": {
       "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
@@ -21,7 +25,11 @@
       "highlightCreatedDescription": "Το στιγμιότυπο ξεκίνησε με αυτή τη φράση. Προσθέστε περισσότερες φράσεις για να δημιουργήσετε το στιγμιότυπό σας.",
       "error": "Σφάλμα",
       "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά.",
-      "editError": "Αποτυχία αποθήκευσης αλλαγών. Παρακαλώ δοκιμάστε ξανά."
+      "editError": "Αποτυχία αποθήκευσης αλλαγών. Παρακαλώ δοκιμάστε ξανά.",
+      "deleteUtterance": "Διαγραφή φράσης;",
+      "deleteUtteranceDescription": "Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
+      "utteranceDeletedSuccessfully": "Η φράση διαγράφηκε επιτυχώς",
+      "deleteError": "Αποτυχία διαγραφής φράσης"
     },
     "common": {
       "error": "Σφάλμα"
@@ -34,5 +42,29 @@
     "play": "Αναπαραγωγή",
     "previousClip": "Προηγούμενο κλιπ",
     "nextClip": "Επόμενο κλιπ"
-  }
+  },
+    "unverifiedBanner": {
+        "title": "Αυτόματη απομαγνητοφώνηση",
+        "description": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί εντός 48 ωρών από τη συνεδρίαση."
+    },
+    "emptySegment": {
+        "noUtterances": "Δεν υπάρχουν φράσεις σε αυτό το τμήμα",
+        "addUtterance": "Προσθήκη Φράσης",
+        "adding": "Προσθήκη..."
+    },
+    "addUtterance": {
+        "button": "Προσθήκη φράσης",
+        "tooltip": "Προσθήκη νέας φράσης στο τέλος αυτού του τμήματος"
+    },
+    "miniTranscript": {
+        "play": "Αναπαραγωγή",
+        "pause": "Παύση",
+        "seekTo": "Μετάβαση",
+        "transcript": "Απομαγνητοφώνηση"
+    },
+    "copySegment": {
+        "button": "Αντιγραφή τμήματος",
+        "segmentCopied": "Το τμήμα αντιγράφηκε",
+        "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
+    }
 }

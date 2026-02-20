@@ -4,9 +4,12 @@ import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import { cn, normalizeText } from '@/lib/utils';
+import { PaginationParams } from '@/lib/db/types';
 import { Badge } from './ui/badge';
 import { MultiSelectDropdown } from './ui/multi-select-dropdown';
 import { Button } from './ui/button';
+import { updateFilterURL } from '@/lib/utils/filterURL';
+import { Pagination } from './ui/pagination';
 
 export interface BaseListProps {
     layout?: 'grid' | 'list' | 'carousel';
@@ -30,6 +33,8 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     filter?: (selectedValues: F[], item: T) => boolean;
     allText?: string;
     showSearch?: boolean;
+    defaultFilterValues?: F[];
+    pagination?: Omit<PaginationParams, 'totalPages'>;
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -49,7 +54,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     showSearch = true,
     layout = 'grid',
     carouselItemWidth = 300,
-    carouselGap = 16
+    carouselGap = 16,
+    defaultFilterValues,
+    pagination
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -62,12 +69,22 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
 
+    // Sync local search state with URL on browser back/forward navigation
+    useEffect(() => {
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (urlSearchQuery !== localSearchQuery) {
+            setLocalSearchQuery(urlSearchQuery);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
     // Convert filter labels to values
+    // If no filters in URL, use defaultFilterValues if provided, otherwise all values
     const selectedFilters = selectedFilterLabels.length > 0
         ? selectedFilterLabels.map(label =>
             filterAvailableValues.find(f => f.label === label)?.value
         ).filter((value): value is F => value !== undefined)
-        : filterAvailableValues.map(f => f.value);
+        : (defaultFilterValues || filterAvailableValues.map(f => f.value));
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
@@ -120,9 +137,30 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
+    // Client-side pagination
+    const totalPages = pagination
+        ? Math.ceil(filteredItems.length / pagination.pageSize)
+        : 1;
+
+    // Clamp currentPage to valid range
+    const currentPage = pagination
+        ? Math.max(1, Math.min(pagination.currentPage, totalPages))
+        : 1;
+
+    const paginatedItems = pagination
+        ? filteredItems.slice(
+            (currentPage - 1) * pagination.pageSize,
+            currentPage * pagination.pageSize
+        )
+        : filteredItems;
+
     // Debounced URL update for search
     useEffect(() => {
         if (!showSearch) return;
+
+        // Avoid overriding pagination/filter URL changes when the search value didn't change.
+        const urlSearchQuery = searchParams.get('search') || '';
+        if (localSearchQuery === urlSearchQuery) return;
 
         const timeoutId = setTimeout(() => {
             const params = new URLSearchParams(searchParams.toString());
@@ -131,6 +169,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             } else {
                 params.delete('search');
             }
+            params.delete('page'); // Reset to page 1 on search
             router.replace(`?${params.toString()}`);
         }, 300); // 300ms debounce delay
 
@@ -144,20 +183,17 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     };
 
     const handleFilterChange = (selectedValues: F[]) => {
+        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams, router);
+    };
+
+    const handlePageChange = (newPage: number) => {
         const params = new URLSearchParams(searchParams.toString());
-
-        // If all filters are selected or no filters are selected, remove the filter parameter
-        if (selectedValues.length === filterAvailableValues.length || selectedValues.length === 0) {
-            params.delete('filters');
+        if (newPage > 1) {
+            params.set('page', newPage.toString());
         } else {
-            // Convert values to labels for URL
-            const selectedLabels = selectedValues
-                .map(value => filterAvailableValues.find(f => f.value === value)?.label)
-                .filter((label): label is string => label !== undefined);
-            params.set('filters', selectedLabels.join(','));
+            params.delete('page');
         }
-
-        router.replace(`?${params.toString()}`);
+        router.push(`?${params.toString()}`);
     };
 
     return (
@@ -222,7 +258,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {filteredItems.map((item) => (
+                        {paginatedItems.map((item) => (
                             <div
                                 key={item.id}
                                 className={carouselItemClasses}
@@ -239,6 +275,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>
+            )}
+
+            {pagination && totalPages > 1 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pagination.pageSize}
+                    onPageChange={handlePageChange}
+                    labels={{ previous: t('previous'), next: t('next') }}
+                />
             )}
         </div>
     );

@@ -45,13 +45,20 @@ export async function getTranscript(meetingId: string, cityId: string, {
     },
     include: {
       speakerTag: true,
-      utterances: true,
+      utterances: {
+        orderBy: {
+          startTimestamp: 'asc'
+        }
+      },
       topicLabels: {
         include: {
           topic: true
         }
       },
       summary: true
+    },
+    orderBy: {
+      startTimestamp: 'asc'
     }
   });
 

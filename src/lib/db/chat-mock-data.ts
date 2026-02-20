@@ -78,11 +78,13 @@ function subjectToSearchResult(
     // Create a base subject with relations
     const subjectWithRelations: SubjectWithRelations = {
         ...subject,
+        contributions: [],
         speakerSegments: [],
         highlights: [],
         location: null,
         topic: null,
-        introducedBy: null
+        introducedBy: null,
+        discussedIn: null
     };
 
     // Create the search result

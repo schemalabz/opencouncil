@@ -4,163 +4,197 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Bell, Send, Filter, Loader2, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Mail, MessageSquare, Clock, CheckCircle2, XCircle, MapPin, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { el } from 'date-fns/locale';
-import Link from 'next/link';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { NotificationMapDialog } from '@/components/admin/NotificationMapDialog';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Bell, Filter, Loader2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { NotificationMeetingRow } from '@/components/admin/notifications/NotificationMeetingRow';
+import { NotificationBulkActions } from '@/components/admin/notifications/NotificationBulkActions';
+import { releaseNotificationsForMeeting, createMeetingKey } from '@/components/admin/notifications/utils';
+import { MeetingNotificationStats } from '@/lib/db/notifications';
+import { useToast } from '@/hooks/use-toast';
+
+type DateRangeOption = '7days' | '30days' | '90days' | 'all';
 
 export default function AdminNotificationsPage() {
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [meetings, setMeetings] = useState<MeetingNotificationStats[]>([]);
+    const [cities, setCities] = useState<Array<{ id: string; name: string }>>([]);
     const [loading, setLoading] = useState(true);
-    const [releasing, setReleasing] = useState<string[]>([]);
-    const [resendingDeliveries, setResendingDeliveries] = useState<Set<string>>(new Set());
-    const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
-    const [deletingNotifications, setDeletingNotifications] = useState<Set<string>>(new Set());
-    const [mapDialogOpen, setMapDialogOpen] = useState(false);
-    const [selectedMeeting, setSelectedMeeting] = useState<{ id: string; cityId: string; name: string } | null>(null);
+    const [releasingMeetings, setReleasingMeetings] = useState<Set<string>>(new Set());
+    const [selectedMeetingKeys, setSelectedMeetingKeys] = useState<Set<string>>(new Set());
+    const { toast } = useToast();
+
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        total: 0,
+        page: 1,
+        pageSize: 20,
+        totalPages: 0
+    });
+
+    // Filter state
     const [filters, setFilters] = useState({
         cityId: 'all',
         status: 'all',
-        type: 'all'
+        dateRange: '30days' as DateRangeOption
     });
 
-    const fetchNotifications = useCallback(async () => {
+    // Calculate date range from option
+    // Note: We only send startDate to the API, letting the backend use its default
+    // endDate (90 days in future) to ensure pending notifications for upcoming meetings are shown
+    const getDateRange = (option: DateRangeOption): { startDate?: string; endDate?: string } => {
+        let startDate: Date | undefined;
+
+        switch (option) {
+            case '7days':
+                startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30days':
+                startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            case '90days':
+                startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+                break;
+            case 'all':
+                return {};
+        }
+
+        return {
+            startDate: startDate?.toISOString()
+            // endDate is not sent, allowing backend to use its default (+90 days)
+            // to include pending notifications for upcoming meetings
+        };
+    };
+
+    // Fetch cities for filter dropdown
+    const fetchCities = useCallback(async () => {
+        try {
+            const res = await fetch('/api/admin/notifications?getCities=true');
+            const data = await res.json();
+            setCities(data.cities || []);
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+        }
+    }, []);
+
+    // Fetch notifications
+    const fetchNotifications = useCallback(async (page: number = 1) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            if (filters.cityId && filters.cityId !== 'all') params.append('cityId', filters.cityId);
-            if (filters.status && filters.status !== 'all') params.append('status', filters.status);
-            if (filters.type && filters.type !== 'all') params.append('type', filters.type);
+            params.append('page', page.toString());
+            params.append('pageSize', pagination.pageSize.toString());
+
+            if (filters.cityId && filters.cityId !== 'all') {
+                params.append('cityId', filters.cityId);
+            }
+            if (filters.status && filters.status !== 'all') {
+                params.append('status', filters.status);
+            }
+
+            const { startDate, endDate } = getDateRange(filters.dateRange);
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
 
             const res = await fetch(`/api/admin/notifications?${params}`);
             const data = await res.json();
-            setNotifications(data.notifications || []);
+
+            setMeetings(data.meetings || []);
+            setPagination(data.pagination || { total: 0, page: 1, pageSize: 20, totalPages: 0 });
         } catch (error) {
             console.error('Error fetching notifications:', error);
+            toast({
+                title: 'Error',
+                description: 'Failed to fetch notifications.',
+                variant: 'destructive'
+            });
         } finally {
             setLoading(false);
         }
+    }, [filters, pagination.pageSize, toast]);
+
+    // Initial load
+    useEffect(() => {
+        fetchCities();
+    }, [fetchCities]);
+
+    useEffect(() => {
+        fetchNotifications(1);
+        // Clear selection when filters change
+        setSelectedMeetingKeys(new Set());
     }, [filters]);
 
-    // Fetch notifications
-    useEffect(() => {
-        fetchNotifications();
-    }, [fetchNotifications]);
+    // Handle page change
+    const handlePageChange = (newPage: number) => {
+        fetchNotifications(newPage);
+        setSelectedMeetingKeys(new Set());
+    };
 
-    const releaseNotifications = async (notificationIds: string[]) => {
-        setReleasing(notificationIds);
+    // Handle release pending for a single meeting
+    const handleReleasePending = async (meetingId: string, cityId: string) => {
+        const key = createMeetingKey(cityId, meetingId);
+        setReleasingMeetings(prev => new Set(prev).add(key));
+
         try {
-            const res = await fetch('/api/admin/notifications/release', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notificationIds })
-            });
-
-            const result = await res.json();
+            const result = await releaseNotificationsForMeeting(meetingId, cityId);
 
             if (result.success) {
-                alert(`Successfully sent: ${result.emailsSent} emails, ${result.messagesSent} messages`);
-                fetchNotifications();
+                toast({
+                    title: 'Notifications released',
+                    description: `Sent ${result.emailsSent} emails and ${result.messagesSent} messages.`,
+                });
+                fetchNotifications(pagination.page);
             } else {
-                alert('Failed to release notifications');
+                toast({
+                    title: 'Error',
+                    description: result.error || 'Failed to release notifications.',
+                    variant: 'destructive'
+                });
             }
         } catch (error) {
             console.error('Error releasing notifications:', error);
-            alert('Error releasing notifications');
+            toast({
+                title: 'Error',
+                description: 'Failed to release notifications.',
+                variant: 'destructive'
+            });
         } finally {
-            setReleasing([]);
+            setReleasingMeetings(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(key);
+                return newSet;
+            });
         }
     };
 
-    const toggleNotification = (notificationId: string) => {
-        setExpandedNotifications(prev => {
+    // Handle selection
+    const handleSelectMeeting = (meetingId: string, cityId: string, checked: boolean) => {
+        const key = createMeetingKey(cityId, meetingId);
+        setSelectedMeetingKeys(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(notificationId)) {
-                newSet.delete(notificationId);
+            if (checked) {
+                newSet.add(key);
             } else {
-                newSet.add(notificationId);
+                newSet.delete(key);
             }
             return newSet;
         });
     };
 
-    const getDeliveryIcon = (medium: string) => {
-        return medium === 'email' ? Mail : MessageSquare;
-    };
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'sent':
-                return CheckCircle2;
-            case 'failed':
-                return XCircle;
-            default:
-                return Clock;
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            const allKeys = meetings.map(m => createMeetingKey(m.cityId, m.meetingId));
+            setSelectedMeetingKeys(new Set(allKeys));
+        } else {
+            setSelectedMeetingKeys(new Set());
         }
     };
 
-    // Group notifications by meeting
-    const groupedNotifications = notifications.reduce((acc, notification) => {
-        const key = `${notification.meeting.id}`;
-        if (!acc[key]) {
-            acc[key] = {
-                meeting: notification.meeting,
-                city: notification.city,
-                notifications: []
-            };
-        }
-        acc[key].notifications.push(notification);
-        return acc;
-    }, {} as Record<string, any>);
+    const isAllSelected = meetings.length > 0 && selectedMeetingKeys.size === meetings.length;
+    const isPartiallySelected = selectedMeetingKeys.size > 0 && selectedMeetingKeys.size < meetings.length;
 
-    const getPendingCount = (notifications: any[]) => {
-        return notifications.filter(n => n.deliveries.some((d: any) => d.status === 'pending')).length;
-    };
-
-    const getPendingNotificationIds = (notifications: any[]) => {
-        return notifications
-            .filter(n => n.deliveries.some((d: any) => d.status === 'pending'))
-            .map(n => n.id);
-    };
-
-    const openMapDialog = (meeting: any, city: any) => {
-        setSelectedMeeting({
-            id: meeting.id,
-            cityId: city.id,
-            name: meeting.name,
-        });
-        setMapDialogOpen(true);
-    };
-
-    const deleteNotification = async (notificationId: string) => {
-        if (!confirm('Are you sure you want to delete this notification? This action cannot be undone.')) {
-            return;
-        }
-
-        setDeletingNotifications(prev => new Set(prev).add(notificationId));
-        try {
-            const res = await fetch(`/api/admin/notifications/${notificationId}`, {
-                method: 'DELETE'
-            });
-
-            if (res.ok) {
-                fetchNotifications();
-            } else {
-                alert('Failed to delete notification');
-            }
-        } catch (error) {
-            console.error('Error deleting notification:', error);
-            alert('Error deleting notification');
-        } finally {
-            setDeletingNotifications(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(notificationId);
-                return newSet;
-            });
-        }
+    // Handle action complete (refresh data)
+    const handleActionComplete = () => {
+        fetchNotifications(pagination.page);
+        setSelectedMeetingKeys(new Set());
     };
 
     return (
@@ -172,6 +206,14 @@ export default function AdminNotificationsPage() {
                         Manage notification delivery for all cities
                     </p>
                 </div>
+                <Button
+                    onClick={() => fetchNotifications(pagination.page)}
+                    variant="outline"
+                    disabled={loading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
+                </Button>
             </div>
 
             {/* Filters */}
@@ -185,8 +227,31 @@ export default function AdminNotificationsPage() {
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
+                            <label className="text-sm font-medium mb-2 block">City</label>
+                            <Select
+                                value={filters.cityId}
+                                onValueChange={(value) => setFilters({ ...filters, cityId: value })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All cities" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All cities</SelectItem>
+                                    {cities.map((city) => (
+                                        <SelectItem key={city.id} value={city.id}>
+                                            {city.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div>
                             <label className="text-sm font-medium mb-2 block">Status</label>
-                            <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+                            <Select
+                                value={filters.status}
+                                onValueChange={(value) => setFilters({ ...filters, status: value })}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="All statuses" />
                                 </SelectTrigger>
@@ -200,34 +265,51 @@ export default function AdminNotificationsPage() {
                         </div>
 
                         <div>
-                            <label className="text-sm font-medium mb-2 block">Type</label>
-                            <Select value={filters.type} onValueChange={(value) => setFilters({ ...filters, type: value })}>
+                            <label className="text-sm font-medium mb-2 block">Date Range</label>
+                            <Select
+                                value={filters.dateRange}
+                                onValueChange={(value) => setFilters({ ...filters, dateRange: value as DateRangeOption })}
+                            >
                                 <SelectTrigger>
-                                    <SelectValue placeholder="All types" />
+                                    <SelectValue placeholder="Select range" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All types</SelectItem>
-                                    <SelectItem value="beforeMeeting">Before Meeting</SelectItem>
-                                    <SelectItem value="afterMeeting">After Meeting</SelectItem>
+                                    <SelectItem value="7days">Last 7 days</SelectItem>
+                                    <SelectItem value="30days">Last 30 days</SelectItem>
+                                    <SelectItem value="90days">Last 90 days</SelectItem>
+                                    <SelectItem value="all">All time</SelectItem>
                                 </SelectContent>
                             </Select>
-                        </div>
-
-                        <div className="flex items-end">
-                            <Button onClick={fetchNotifications} variant="outline" className="w-full">
-                                Apply Filters
-                            </Button>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Notifications List */}
+            {/* Bulk Actions */}
+            <div className="flex items-center justify-between">
+                <NotificationBulkActions
+                    selectedMeetingKeys={selectedMeetingKeys}
+                    meetings={meetings}
+                    onSelectAll={handleSelectAll}
+                    isAllSelected={isAllSelected}
+                    isPartiallySelected={isPartiallySelected}
+                    onActionComplete={handleActionComplete}
+                />
+
+                {/* Pagination Info */}
+                {!loading && pagination.total > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                        Showing {meetings.length} of {pagination.total} meetings
+                    </div>
+                )}
+            </div>
+
+            {/* Notifications Table */}
             {loading ? (
                 <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                 </div>
-            ) : Object.keys(groupedNotifications).length === 0 ? (
+            ) : meetings.length === 0 ? (
                 <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                         <Bell className="h-12 w-12 text-gray-400 mb-4" />
@@ -236,196 +318,67 @@ export default function AdminNotificationsPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-4">
-                    {Object.values(groupedNotifications).map((group: any) => {
-                        const pendingCount = getPendingCount(group.notifications);
-                        const pendingIds = getPendingNotificationIds(group.notifications);
-
-                        return (
-                            <Card key={group.meeting.id}>
-                                <CardHeader>
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <CardTitle>{group.meeting.name}</CardTitle>
-                                            <CardDescription>
-                                                {group.city.name_municipality} • {group.meeting.administrativeBody?.name || 'No administrative body'} •
-                                                {' '}{format(new Date(group.meeting.dateTime), 'PPP', { locale: el })}
-                                            </CardDescription>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                onClick={() => openMapDialog(group.meeting, group.city)}
-                                                variant="outline"
-                                                size="sm"
-                                            >
-                                                <MapPin className="mr-2 h-4 w-4" />
-                                                View Map
-                                            </Button>
-                                            {pendingCount > 0 && (
-                                                <Button
-                                                    onClick={() => releaseNotifications(pendingIds)}
-                                                    disabled={releasing.length > 0}
-                                                    size="sm"
-                                                >
-                                                    {releasing.some(id => pendingIds.includes(id)) ? (
-                                                        <>
-                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                            Releasing...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Send className="mr-2 h-4 w-4" />
-                                                            Release {pendingCount} Pending
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-3">
-                                        {group.notifications.map((notification: any) => {
-                                            const isExpanded = expandedNotifications.has(notification.id);
-                                            const deliveryStatus = notification.deliveries[0]?.status || 'unknown';
-                                            const statusColors = {
-                                                pending: 'bg-yellow-100 text-yellow-800',
-                                                sent: 'bg-green-100 text-green-800',
-                                                failed: 'bg-red-100 text-red-800'
-                                            };
-
-                                            return (
-                                                <Collapsible
-                                                    key={notification.id}
-                                                    open={isExpanded}
-                                                    onOpenChange={() => toggleNotification(notification.id)}
-                                                >
-                                                    <div className="border rounded-lg bg-gray-50">
-                                                        <CollapsibleTrigger asChild>
-                                                            <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-100 transition-colors">
-                                                                <div className="flex-1">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="font-medium">{notification.user.name || notification.user.email}</span>
-                                                                        <Badge variant="outline">
-                                                                            {notification.type === 'beforeMeeting' ? 'Before' : 'After'}
-                                                                        </Badge>
-                                                                        <Badge className={statusColors[deliveryStatus as keyof typeof statusColors]}>
-                                                                            {deliveryStatus}
-                                                                        </Badge>
-                                                                    </div>
-                                                                    <div className="text-sm text-gray-600">
-                                                                        {notification.subjects.length} subjects •
-                                                                        {' '}{notification.deliveries.length} deliveries
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Link
-                                                                        href={`/el/notifications/${notification.id}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="gap-1"
-                                                                        >
-                                                                            <ExternalLink className="h-3 w-3" />
-                                                                            View
-                                                                        </Button>
-                                                                    </Link>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            deleteNotification(notification.id);
-                                                                        }}
-                                                                        disabled={deletingNotifications.has(notification.id)}
-                                                                    >
-                                                                        {deletingNotifications.has(notification.id) ? (
-                                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                                        ) : (
-                                                                            <Trash2 className="h-3 w-3" />
-                                                                        )}
-                                                                    </Button>
-                                                                    {isExpanded ? (
-                                                                        <ChevronUp className="h-4 w-4 text-gray-500" />
-                                                                    ) : (
-                                                                        <ChevronDown className="h-4 w-4 text-gray-500" />
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </CollapsibleTrigger>
-
-                                                        <CollapsibleContent>
-                                                            <div className="border-t p-4 space-y-3 bg-white">
-                                                                <h5 className="text-sm font-semibold text-gray-700">Deliveries</h5>
-                                                                {notification.deliveries.map((delivery: any) => {
-                                                                    const DeliveryIcon = getDeliveryIcon(delivery.medium);
-                                                                    const StatusIcon = getStatusIcon(delivery.status);
-                                                                    const isResending = resendingDeliveries.has(delivery.id);
-
-                                                                    return (
-                                                                        <div key={delivery.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded border">
-                                                                            <DeliveryIcon className="h-5 w-5 text-gray-600 mt-0.5" />
-                                                                            <div className="flex-1 space-y-1">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-sm font-medium capitalize">
-                                                                                        {delivery.medium}
-                                                                                        {delivery.messageSentVia && ` (${delivery.messageSentVia})`}
-                                                                                    </span>
-                                                                                    <Badge
-                                                                                        variant="outline"
-                                                                                        className={statusColors[delivery.status as keyof typeof statusColors]}
-                                                                                    >
-                                                                                        <StatusIcon className="h-3 w-3 mr-1" />
-                                                                                        {delivery.status}
-                                                                                    </Badge>
-                                                                                </div>
-                                                                                <div className="text-xs text-gray-600">
-                                                                                    {delivery.email && <div>To: {delivery.email}</div>}
-                                                                                    {delivery.phone && <div>To: {delivery.phone}</div>}
-                                                                                </div>
-                                                                                <div className="text-xs text-gray-500 flex items-center gap-1">
-                                                                                    <Clock className="h-3 w-3" />
-                                                                                    Created: {format(new Date(delivery.createdAt), 'PPp', { locale: el })}
-                                                                                </div>
-                                                                                {delivery.sentAt && (
-                                                                                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                                                                                        <CheckCircle2 className="h-3 w-3" />
-                                                                                        Sent: {format(new Date(delivery.sentAt), 'PPp', { locale: el })}
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </CollapsibleContent>
-                                                    </div>
-                                                </Collapsible>
-                                            );
-                                        })}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
+                <Card>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-12"></TableHead>
+                                    <TableHead className="w-12"></TableHead>
+                                    <TableHead>Meeting</TableHead>
+                                    <TableHead className="w-32">Before</TableHead>
+                                    <TableHead className="w-32">After</TableHead>
+                                    <TableHead className="w-20 text-center">Total</TableHead>
+                                    <TableHead className="w-32">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {meetings.map((meeting) => {
+                                    const key = createMeetingKey(meeting.cityId, meeting.meetingId);
+                                    return (
+                                        <NotificationMeetingRow
+                                            key={key}
+                                            meeting={meeting}
+                                            isSelected={selectedMeetingKeys.has(key)}
+                                            onSelect={(checked) => handleSelectMeeting(meeting.meetingId, meeting.cityId, checked)}
+                                            onReleasePending={handleReleasePending}
+                                            isReleasing={releasingMeetings.has(key)}
+                                            onDataChange={() => fetchNotifications(pagination.page)}
+                                        />
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
             )}
 
-            {selectedMeeting && (
-                <NotificationMapDialog
-                    open={mapDialogOpen}
-                    onOpenChange={setMapDialogOpen}
-                    meetingId={selectedMeeting.id}
-                    cityId={selectedMeeting.cityId}
-                    meetingName={selectedMeeting.name}
-                />
+            {/* Pagination Controls */}
+            {!loading && pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page - 1)}
+                        disabled={pagination.page <= 1}
+                    >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(pagination.page + 1)}
+                        disabled={pagination.page >= pagination.totalPages}
+                    >
+                        Next
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                </div>
             )}
         </div>
     );
 }
-

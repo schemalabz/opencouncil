@@ -1,6 +1,6 @@
 "use server";
 import { notFound } from 'next/navigation';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
@@ -13,12 +13,13 @@ import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/cache';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
-import { getMeetingState } from '@/lib/utils';
+
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
 import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
 import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
+import { HighlightCreationPermission } from '@prisma/client';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -102,6 +103,9 @@ export default async function CouncilMeetingPage({
     children: React.ReactNode
 }) {
 
+    const currentUser = await getCurrentUser();
+    const editable = await isUserAuthorizedToEdit({ cityId });
+
     const data = await getMeetingDataCached(cityId, meetingId);
 
     if (!data || !data.city) {
@@ -110,20 +114,24 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
-    const editable = await isUserAuthorizedToEdit({ cityId: data.meeting.cityId });
-
-    const meetingState = getMeetingState(data.meeting);
+    const highlightCreationAllowed = editable || (
+        !!currentUser &&
+        data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
+    );
 
     // Format meeting description to include more info
     const meetingDescription = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
-        meetingState.label,
         `${data.subjects.length} θέματα`
     ].filter(Boolean).join(' · ');
 
     return (
         <ShareProvider>
-            <CouncilMeetingWrapper meetingData={data} editable={editable}>
+            <CouncilMeetingWrapper 
+                meetingData={data} 
+                editable={editable}
+                canCreateHighlights={highlightCreationAllowed}
+            >
                 <HighlightProvider>
                     <SidebarProvider>
                         <NavigationEvents />

@@ -172,7 +172,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
 
             <section className="mb-8 print:break-inside-avoid-page">
                 <h3 className="text-2xl font-semibold mb-4">Επεξήγηση</h3>
-                <p className="mb-4">Αυτή η προσφορά αφορά κατά βάση δύο υπηρεσίες. Την εισαγωγή δημοσίων συνεδριάσεων (π.χ. {isRegion ? 'περιφερειακών' : 'δημοτικών'} συμβουλίων) στη πλατφόρμα του OpenCouncil, και την δυνατότητα ελεύθερης χρήσης της πλατφόρμας OpenCouncil από {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'} {isRegion ? 'της περιφέρειας' : 'του δήμου'} κατά τη διάρκεια της περιόδου παροχής υπηρεσιών.</p>
+                <p className="mb-4">Αυτή η προσφορά αφορά κατά βάση δύο υπηρεσίες. Την εισαγωγή δημοσίων συνεδριάσεων (π.χ. {isRegion ? 'περιφερειακών' : 'δημοτικών'} συμβουλίων) στη πλατφόρμα του OpenCouncil, και την δυνατότητα ελεύθερης χρήσης της πλατφόρμας OpenCouncil από {isRegion ? 'την περιφέρεια' : 'τον δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'} {isRegion ? 'της περιφέρειας' : 'του δήμου'} κατά τη διάρκεια της περιόδου παροχής υπηρεσιών.</p>
                 <div className="grid md:grid-cols-2 gap-4 print:gap-6">
 
                     <ModuleCard
@@ -245,7 +245,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Πρόσβαση σε στατιστικά σχετικά με τους χρόνους ομιλίας των παρατάξεων και των ομιλητών, καθώς και για τα θέματα που συζητούνται, για κάθε συνεδρίαση αλλά και για {isRegion ? 'την περιφέρεια' : 'το δήμο'} συνολικά.</span>
+                                <span>Πρόσβαση σε στατιστικά σχετικά με τους χρόνους ομιλίας των παρατάξεων και των ομιλητών, καθώς και για τα θέματα που συζητούνται, για κάθε συνεδρίαση αλλά και για {isRegion ? 'την περιφέρεια' : 'τον δήμο'} συνολικά.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -265,7 +265,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                                <span>Διαθεσιμότητα για όλους. Η πλατφόρμα προορίζεται για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'} {isRegion ? 'της' : 'του'}, όμως δεσμευόμαστε να μην κάνουμε ελέγχους ή περιορισμούς για την πρόσβαση στην πλατφόρμα.</span>
+                                <span>Διαθεσιμότητα για όλους. Η πλατφόρμα προορίζεται για {isRegion ? 'την περιφέρεια' : 'τον δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'} {isRegion ? 'της' : 'του'}, όμως δεσμευόμαστε να μην κάνουμε ελέγχους ή περιορισμούς για την πρόσβαση στην πλατφόρμα.</span>
                             </li>
                             <li className="flex items-start gap-2">
                                 <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -345,7 +345,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                     </li>
                     <li className="flex items-start gap-2">
                         <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
-                        <span>Μπορούμε να δουλέψουμε μαζί σας για τη χρήση κάποιου subdomain {isRegion ? 'της περιφέρειας' : 'του δήμου'}, όμως η πλατφόρμα του opencouncil για {isRegion ? 'την περιφέρεια' : 'το δήμο'} θα είναι διαθέσιμη και στο <a href="https://opencouncil.gr" className="underline">opencouncil.gr</a>.</span>
+                        <span>Μπορούμε να δουλέψουμε μαζί σας για τη χρήση κάποιου subdomain {isRegion ? 'της περιφέρειας' : 'του δήμου'}, όμως η πλατφόρμα του opencouncil για {isRegion ? 'την περιφέρεια' : 'τον δήμο'} θα είναι διαθέσιμη και στο <a href="https://opencouncil.gr" className="underline">opencouncil.gr</a>.</span>
                     </li>
                     <li className="flex items-start gap-2">
                         <CheckSquare className="w-5 h-5 mt-0.5 shrink-0" />
@@ -378,7 +378,7 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <h3 className="text-2xl font-semibold mb-4">Συμμετοχή σε πιλοτικές λειτουργίες</h3>
                 <p className="mb-4">
                     <em>Εφόσων και όταν το επιθυμείτε, θα έχετε τη δυνατότητα να ενεργοποιήσετε τις ακόλουθες πιλοτικές λειτουργίες του OpenCouncil</em> κατά τη διάρκεια της περιόδου παροχής υπηρεσιών.
-                    Αυτές οι λειτουργίες θα αναπτυχθούν σε συνεργασία με {isRegion ? 'την περιφέρεια' : 'το δήμο'}, και θα προσαρμοστούν στις ανάγκες {isRegion ? 'της' : 'του'}.
+                    Αυτές οι λειτουργίες θα αναπτυχθούν σε συνεργασία με {isRegion ? 'την περιφέρεια' : 'τον δήμο'}, και θα προσαρμοστούν στις ανάγκες {isRegion ? 'της' : 'του'}.
                     Οι λειτουργίες αυτές δεν είναι εγγυημένες αλλά θα παρέχονται κατόπιν προηγούμενης συνεννόησης. Η συμμετοχή στις πιλοτικές λειτουργίες θα είναι δωρεάν,
                     με τους περιορισμούς που περιγράφονται παρκάτω.
                 </p>
@@ -448,11 +448,11 @@ export default function OfferLetter({ offer }: { offer: Offer }) {
                 <ul className="grid md:grid-cols-2 gap-4 print:gap-6">
                     <li className="flex items-center">
                         <Phone className="w-5 h-5 mr-2" />
-                        <span>Άμεση τηλεφωνική υποστήριξη για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τα μέλη των συμβουλίων</span>
+                        <span>Άμεση τηλεφωνική υποστήριξη για {isRegion ? 'την περιφέρεια' : 'τον δήμο'} και τα μέλη των συμβουλίων</span>
                     </li>
                     <li className="flex items-center">
                         <Mail className="w-5 h-5 mr-2" />
-                        <span>Τεχνική υποστήριξη μέσω email για {isRegion ? 'την περιφέρεια' : 'το δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'}</span>
+                        <span>Τεχνική υποστήριξη μέσω email για {isRegion ? 'την περιφέρεια' : 'τον δήμο'} και τους {isRegion ? 'πολίτες' : 'δημότες'}</span>
                     </li>
                     <li className="flex items-center">
                         <Database className="w-5 h-5 mr-2" />

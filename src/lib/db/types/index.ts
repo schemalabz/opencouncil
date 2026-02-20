@@ -16,6 +16,13 @@ import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
 // Re-export db types
 export * from './roles';
 
+// Pagination
+export interface PaginationParams {
+    currentPage: number;
+    totalPages: number;
+    pageSize: number;
+}
+
 // Meeting with all related data
 export type MeetingWithAllData = CouncilMeetingWithAdminBodyAndSubjects & {
     speakerSegments: SegmentWithRelations[];

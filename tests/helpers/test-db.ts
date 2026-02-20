@@ -31,7 +31,7 @@ function ensureTestEnvVars() {
         DEV_TEST_CITY_ID: 'testcity',
         SEED_DATA_URL: 'https://example.com/seed.json',
         SEED_DATA_PATH: './prisma/seed_data.json',
-        NEXT_PUBLIC_BASE_URL: 'https://example.com',
+        NEXTAUTH_URL: 'https://example.com',
         NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: 'test-mapbox-token',
     }
     for (const [k, v] of Object.entries(defaults)) {

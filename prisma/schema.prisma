@@ -31,6 +31,7 @@ model City {
   supportsNotifications Boolean @default(false)
   consultationsEnabled Boolean @default(false)
   peopleOrdering PeopleOrdering @default(default)
+  highlightCreationPermission HighlightCreationPermission @default(ADMINS_ONLY)
 
   parties        Party[]
   persons        Person[]
@@ -68,6 +69,11 @@ enum CityStatus {
 enum PeopleOrdering {
   default
   partyRank
+}
+
+enum HighlightCreationPermission {
+  EVERYONE
+  ADMINS_ONLY
 }
 
 enum AdministrativeBodyType {
@@ -131,7 +137,7 @@ model Person {
   name_short String
   name_short_en String
   image     String?
-  
+
   roles Role[]
 
   activeFrom DateTime?
@@ -148,6 +154,7 @@ model Person {
 
   administrators Administers[]
   subjectsIntroduced Subject[]
+  speakerContributions SpeakerContribution[]
 
   @@index([cityId])
 }
@@ -288,11 +295,26 @@ model Utterance {
   uncertain Boolean @default(false)
   lastModifiedBy LastModifiedBy?
 
+  // Discussion status tracking (from summarize task)
+  discussionStatus DiscussionStatus?
+  discussionSubject Subject? @relation(fields: [discussionSubjectId], references: [id], onDelete: SetNull)
+  discussionSubjectId String?
+
   words Word[]
   highlightedUtterances HighlightedUtterance[]
   podcastPartAudioUtterances PodcastPartAudioUtterance[]
-  @@index([speakerSegmentId, startTimestamp])
   utteranceEdits UtteranceEdit[]
+
+  @@index([speakerSegmentId, startTimestamp])
+  @@index([discussionSubjectId])
+  @@index([discussionStatus])
+}
+
+enum DiscussionStatus {
+  ATTENDANCE
+  SUBJECT_DISCUSSION
+  VOTE
+  OTHER
 }
 
 enum LastModifiedBy {
@@ -387,14 +409,30 @@ model Subject {
 
   location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
   highlights Highlight[]
-  speakerSegments SubjectSpeakerSegment[]
+
+  // Keep both for backward compatibility during transition
+  speakerSegments SubjectSpeakerSegment[] // OLD - will deprecate
+  contributions   SpeakerContribution[]    // NEW
 
   context String?
   contextCitationUrls String[]
 
+  // NEW: Notification importance fields
+  topicImportance     String? // 'doNotNotify' | 'normal' | 'high'
+  proximityImportance String? // 'none' | 'near' | 'wide'
+
   notifications NotificationSubject[]
 
+  // Utterances tagged with this subject during discussion
+  discussionUtterances Utterance[]
+
+  // Reference to primary subject if this was discussed as part of a group
+  discussedInId String?
+  discussedIn Subject? @relation("GroupedSubjects", fields: [discussedInId], references: [id], onDelete: SetNull)
+  groupedSubjects Subject[] @relation("GroupedSubjects")
+
   @@index([cityId, councilMeetingId])
+  @@index([discussedInId])
 }
 
 enum NonAgendaReason {
@@ -434,6 +472,25 @@ model SubjectSpeakerSegment {
   updatedAt DateTime @updatedAt
 }
 
+model SpeakerContribution {
+  id        String   @id @default(cuid())
+  text      String   @db.Text // Markdown with REF:TYPE:ID links
+
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  speakerId   String?  // personId (nullable for unidentified speakers)
+  speaker     Person?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  speakerName String?  // Display name for speakers without a person record
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([subjectId, speakerId])
+  @@index([subjectId])
+  @@index([speakerId])
+}
+
 model Highlight {
   id        String   @id  @default(cuid())
   name      String
@@ -444,6 +501,9 @@ model Highlight {
   meeting   CouncilMeeting @relation(fields: [meetingId, cityId], references: [id, cityId], onDelete: Cascade)
   meetingId String
   cityId String
+
+  createdBy   User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
 
   highlightedUtterances HighlightedUtterance[]
   
@@ -456,6 +516,7 @@ model Highlight {
   isShowcased Boolean @default(false)
 
   @@index([meetingId, cityId])
+  @@index([cityId, createdById])
 }
 
 model HighlightedUtterance {
@@ -574,6 +635,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   utteranceEdits UtteranceEdit[]
+  highlights Highlight[]
 }
  
 model Account {

@@ -4,17 +4,6 @@ import prisma from "./db/prisma";
 import { PersonWithRelations } from "./db/people";
 import { getPartyFromRoles } from "./utils";
 
-export type TopicStatistics = Required<Pick<Statistics, 'topics'>> & Omit<Statistics, 'topics'>;
-export type PartyStatistics = Required<Pick<Statistics, 'parties'>> & Omit<Statistics, 'parties'>;
-export type PersonStatistics = Required<Pick<Statistics, 'people'>> & Omit<Statistics, 'people'>;
-
-export type StatisticsOfPerson = TopicStatistics;
-export type StatisticsOfCity = TopicStatistics & PartyStatistics & PersonStatistics;
-export type StatisticsOfParty = TopicStatistics & PersonStatistics;
-export type StatisticsOfTopic = PersonStatistics & PartyStatistics;
-export type StatisticsOfCouncilMeeting = TopicStatistics & PartyStatistics & PersonStatistics;
-
-
 export interface Stat<T> {
     item: T;
     speakingSeconds: number;
@@ -26,6 +15,15 @@ export interface Statistics {
     parties?: Stat<Party>[]
     people?: Stat<PersonWithRelations>[]
 }
+
+// Empty statistics constant to avoid duplication
+const EMPTY_STATISTICS: Statistics = {
+    speakingSeconds: 0,
+    people: [],
+    parties: [],
+    topics: []
+};
+
 type SpeakerSegmentInfo = SpeakerSegment & {
     speakerTag: {
         person: PersonWithRelations | null;
@@ -58,56 +56,100 @@ export async function getStatisticsFor(
         meetingDate = meeting?.dateTime;
     }
 
-    transcript = await prisma.speakerSegment.findMany({
-        where: {
-            meetingId: meetingId,
-            cityId: cityId,
-            speakerTag: {
-                personId: personId,
-                // Remove party filtering from query - we'll filter in application code
-                // to ensure we only include segments from when person was actually affiliated with the party
+    // If filtering by subjectId, calculate statistics from utterances directly
+    // instead of entire speaker segments to get accurate time
+    let speakerSegmentIds: string[] | undefined;
+    let utteranceDurationsBySegment: Map<string, number> | undefined;
+
+    // BACKWARD COMPATIBILITY: Support both new and old subject statistics systems
+    // - New system (preferred): Uses Utterance.discussionSubjectId for granular time tracking
+    // - Old system (fallback): Uses SubjectSpeakerSegment join table for legacy subjects
+    if (subjectId) {
+        // Try new system: Query utterances with discussionSubjectId
+        const utterances = await prisma.utterance.findMany({
+            where: {
+                discussionSubjectId: subjectId,
+                discussionStatus: 'SUBJECT_DISCUSSION'
             },
-            subjects: subjectId ? {
-                // TODO: this is somewhat incorrect, as a speaker segment can have multiple subjects.
-                //       We should probably use the highlighted utterances instead.
-                some: {
-                    subjectId: subjectId
-                }
-            } : undefined,
-            meeting: administrativeBodyId ? {
-                administrativeBodyId: administrativeBodyId
-            } : undefined,
-            NOT: {
-                summary: {
-                    type: "procedural"
-                }
+            select: {
+                speakerSegmentId: true,
+                startTimestamp: true,
+                endTimestamp: true
+            }
+        });
+
+        if (utterances.length > 0) {
+            // NEW SYSTEM: Use granular utterance-based calculation
+            utteranceDurationsBySegment = new Map();
+            for (const utterance of utterances) {
+                const duration = Math.max(0, utterance.endTimestamp - utterance.startTimestamp);
+                const currentDuration = utteranceDurationsBySegment.get(utterance.speakerSegmentId) || 0;
+                utteranceDurationsBySegment.set(utterance.speakerSegmentId, currentDuration + duration);
+            }
+            speakerSegmentIds = [...new Set(utterances.map(u => u.speakerSegmentId))];
+        } else {
+            // OLD SYSTEM: Fall back to SubjectSpeakerSegment relation
+            const subjectSpeakerSegments = await prisma.subjectSpeakerSegment.findMany({
+                where: { subjectId },
+                select: { speakerSegmentId: true }
+            });
+
+            if (subjectSpeakerSegments.length === 0) {
+                // Subject exists but has no speaker data in either system
+                return EMPTY_STATISTICS;
             }
 
-        },
+            speakerSegmentIds = subjectSpeakerSegments.map(s => s.speakerSegmentId);
+            // Leave utteranceDurationsBySegment as undefined
+            // This triggers full segment duration calculation in getStatisticsForTranscript
+        }
+    }
+
+    // Determine what relations we actually need based on groupBy and filters
+    const needsTopicLabels = groupBy.includes("topic");
+
+    // Extract common query parts to avoid duplication
+    const where = {
+        id: speakerSegmentIds ? { in: speakerSegmentIds } : undefined,
+        meetingId: meetingId,
+        cityId: cityId,
+        speakerTag: { personId: personId },
+        meeting: administrativeBodyId ? { administrativeBodyId } : undefined,
+        NOT: { summary: { type: "procedural" as const } }
+    };
+
+    const speakerTagInclude = {
         include: {
-            speakerTag: {
+            person: {
                 include: {
-                    person: {
+                    roles: {
                         include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    administrativeBody: true,
-                                    city: true
-                                }
-                            }
+                            party: true,
+                            administrativeBody: true,
+                            city: true
                         }
                     }
                 }
-            },
-            summary: true,
-            topicLabels: {
-                include: {
-                    topic: true
-                }
             }
         }
-    });
+    };
+
+    // Conditionally include topicLabels only when grouping by topic
+    if (needsTopicLabels) {
+        transcript = await prisma.speakerSegment.findMany({
+            where,
+            include: {
+                speakerTag: speakerTagInclude,
+                topicLabels: { include: { topic: true } }
+            }
+        });
+    } else {
+        const segments = await prisma.speakerSegment.findMany({
+            where,
+            include: { speakerTag: speakerTagInclude }
+        });
+        transcript = segments.map(seg => ({ ...seg, topicLabels: [] }));
+    }
 
     // Filter by party in application code to ensure role was active at meeting time
     if (partyId) {
@@ -119,7 +161,7 @@ export async function getStatisticsFor(
         });
     }
 
-    return getStatisticsForTranscript(transcript, groupBy, meetingDate);
+    return getStatisticsForTranscript(transcript, groupBy, meetingDate, utteranceDurationsBySegment);
 }
 
 function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSegmentInfo[] {
@@ -150,7 +192,12 @@ function joinAdjacentSpeakerSegments(segments: SpeakerSegmentInfo[]): SpeakerSeg
     return joinedSegments;
 }
 
-export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[], groupBy: ("person" | "topic" | "party")[], meetingDate?: Date): Promise<Statistics> {
+export async function getStatisticsForTranscript(
+    transcript: SpeakerSegmentInfo[],
+    groupBy: ("person" | "topic" | "party")[],
+    meetingDate?: Date,
+    utteranceDurationsBySegment?: Map<string, number>
+): Promise<Statistics> {
     const statistics: Statistics = {
         speakingSeconds: 0
     };
@@ -166,7 +213,12 @@ export async function getStatisticsForTranscript(transcript: SpeakerSegmentInfo[
     }
 
     transcript.forEach(segment => {
-        const segmentDuration = Math.max(0, segment.endTimestamp - segment.startTimestamp);
+        // Use utterance durations if provided (for subject filtering),
+        // otherwise use full segment duration
+        const segmentDuration = utteranceDurationsBySegment
+            ? (utteranceDurationsBySegment.get(segment.id) || 0)
+            : Math.max(0, segment.endTimestamp - segment.startTimestamp);
+
         statistics.speakingSeconds += segmentDuration;
 
         // Handle person statistics

@@ -49,6 +49,7 @@ response.txt
 *.oc.geojson
 *.geojson
 scripts/hydrate.sh
+scripts/nuke_db.sh
 scripts/clear_advisory_locks.sh
 
 *.csv
@@ -57,3 +58,8 @@ scripts/clear_advisory_locks.sh
 
 # Logs
 logs/
+
+# Nix / local dev artifacts
+.data/
+result
+result-*

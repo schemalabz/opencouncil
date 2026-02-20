@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: { cityId: string } 
     const description = `Λίστα όλων των δημοτικών συμβούλων και αντιδημάρχων | ${city.name}. ${peopleCount} συμβούλους από ${partiesCount} κόμματα και παρατάξεις, τα προφίλ τους και τη δραστηριότητά τους στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&pageType=people`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&pageType=people`;
 
     return {
         title: `Δημοτικοί Σύμβουλοι | ${city.name} | OpenCouncil`,

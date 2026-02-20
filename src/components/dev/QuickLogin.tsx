@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { 
@@ -19,6 +19,7 @@ import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
 import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
 import { IS_DEV } from '@/lib/utils'
+import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 
 // Get predefined test users from shared definition
 const PREDEFINED_USERS = getTestUsersForDisplay()
@@ -33,6 +34,7 @@ export default function QuickLogin() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { isVisible, isLoaded, hide } = useQuickLoginVisibility()
+  const barRef = useRef<HTMLDivElement>(null)
 
   // Check if test users exist when dialog opens
   useEffect(() => {
@@ -168,25 +170,23 @@ export default function QuickLogin() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <div className="fixed bottom-4 right-4 z-50">
-        <div className="relative">
+      <div ref={barRef} className="fixed bottom-4 right-4 z-50">
+        <div className="relative flex items-stretch bg-red-600 text-white rounded-md shadow-lg text-sm">
+          <MobilePreviewButton barRef={barRef} />
+          <div className="w-px bg-red-400/40 my-1.5" />
           <DialogTrigger asChild>
-            <Button 
-              className="bg-red-600 hover:bg-red-700 text-white shadow-lg pr-8"
-              size="sm"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              <span className="text-xs bg-red-800 px-2 py-1 rounded mr-2">DEV</span>
-              Quick Login
-            </Button>
+            <button className="flex items-center gap-2 px-3 py-1.5 hover:bg-red-700/50 transition-colors rounded-r-md">
+              <span className="text-[10px] font-bold bg-red-800 px-1.5 py-0.5 rounded">DEV</span>
+              <span className="text-xs">Quick Login</span>
+            </button>
           </DialogTrigger>
-          <Button
+          <button
             onClick={handleHide}
-            className="absolute -top-2 -right-2 bg-red-800 hover:bg-red-900 text-white shadow-lg h-6 w-6 p-0 rounded-full border-2 border-white"
-            title="Hide Quick Login tool"
+            className="absolute -top-2 -right-2 bg-red-800 hover:bg-red-900 text-white shadow-lg h-5 w-5 p-0 rounded-full border-2 border-white flex items-center justify-center"
+            title="Hide DEV panel"
           >
-            <EyeOff className="h-3 w-3" />
-          </Button>
+            <EyeOff className="h-2.5 w-2.5" />
+          </button>
         </div>
       </div>
       
@@ -311,8 +311,9 @@ export default function QuickLogin() {
               {message}
             </div>
           )}
+
         </div>
       </DialogContent>
     </Dialog>
   )
-} 
+}

@@ -5,6 +5,9 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import { useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
+import { useUrlParams } from "@/hooks/useUrlParams";
 
 interface ReviewFiltersProps {
   show: 'needsAttention' | 'all' | 'completed';
@@ -39,6 +42,24 @@ export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProp
 
   const handleReviewerChange = (value: string) => {
     updateFilter('reviewerId', value);
+  const { updateParam, isPending } = useUrlParams();
+
+  const handleShowChange = (value: string) => {
+    // Remove the filter if it's the default value
+    if (value === 'needsAttention') {
+      updateParam('show', null);
+    } else {
+      updateParam('show', value);
+    }
+  };
+
+  const handleReviewerChange = (value: string) => {
+    // Remove the filter if it's the default value
+    if (value === 'all-reviewers') {
+      updateParam('reviewerId', null);
+    } else {
+      updateParam('reviewerId', value);
+    }
   };
 
   return (
@@ -77,6 +98,7 @@ export function ReviewFilters({ show, reviewerId, reviewers }: ReviewFiltersProp
           </SelectContent>
         </Select>
       </div>
+
 
       {isPending && (
         <div className="flex items-end pb-2">

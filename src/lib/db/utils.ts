@@ -1,27 +1,33 @@
 "use server"
 
 import { getTranscript } from "./transcript";
-import { getPeopleForCity } from "./people";
+import { getPeopleForCity, getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeeting } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, TranscribeRequest, Subject } from "../apiTypes";
 import prisma from "./prisma";
-import { getSubjectsForMeeting } from "./subject";
+import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
-import { getPartyFromRoles, getSingleCityRole } from "../utils";
+import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
-    const people = await getPeopleForCity(cityId);
+    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
+
+    if (!councilMeeting) {
+        throw new Error('Council meeting not found');
+    }
+
+    // Get relevant people based on meeting's administrative body
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();
     const city = await getCity(cityId);
-    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
 
-    if (!city || !councilMeeting) {
-        throw new Error('City or council meeting not found');
+    if (!city) {
+        throw new Error('City not found');
     }
 
     return {
@@ -33,8 +39,9 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
             return {
                 speakerName: person?.name || speakerTag.label,
                 speakerParty: party?.name || null,
-                speakerRole: getSingleCityRole(person?.roles || [], councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined)?.name || null,
+                speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
                 speakerSegmentId: segment.id,
+                speakerId: person?.id || null, // NEW: personId from voiceprint match
                 text: segment.utterances.map(u => u.text).join(' '),
                 utterances: segment.utterances.map(u => ({
                     text: u.text,
@@ -46,16 +53,16 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         }),
         topicLabels: topics.map(t => t.name),
         cityName: city.name,
+        administrativeBodyName: councilMeeting.administrativeBody?.name || null,
         partiesWithPeople: parties.map(p => ({
             name: p.name,
             people: people.filter(person => {
                 const party = getPartyFromRoles(person.roles, councilMeeting.dateTime);
                 return party?.id === p.id;
             }).map((person) => {
-                const cityRole = getSingleCityRole(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId || undefined);
                 return {
                     name: person.name,
-                    role: cityRole?.name || ''
+                    role: getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId)
                 }
             })
         })),
@@ -63,11 +70,11 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     };
 }
 
-let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" => {
+let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {
     if (subject.agendaItemIndex) return subject.agendaItemIndex;
 
     if (!subject.nonAgendaReason) {
-        throw new Error(`Subject ${subject.name} (${subject.id}) has no agenda item index and no non-agenda reason`);
+        return null;
     }
 
     return subject.nonAgendaReason === "beforeAgenda" ? "BEFORE_AGENDA" : "OUT_OF_AGENDA";
@@ -79,9 +86,11 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
     return {
         ...baseRequest,
         requestedSubjects,
-        existingSubjects: existingSubjects.map(s => ({
-            ...s,
-            highlightedUtteranceIds: [],
+        existingSubjects: existingSubjects
+            .filter(s => s.agendaItemIndex || s.nonAgendaReason)
+            .map(s => ({
+            name: s.name,
+            description: s.description,
             introducedByPersonId: s.introducedBy?.id || null,
             topicLabel: s.topic?.name || null,
             location: s.location && s.location.coordinates ? {
@@ -89,11 +98,22 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
                 text: s.location.text,
                 coordinates: [[s.location.coordinates.x, s.location.coordinates.y]]
             } : null,
-            agendaItemIndex: getAgendaItemIndex(s),
+            agendaItemIndex: getAgendaItemIndex(s)!,
             context: s.context ? {
                 text: s.context,
                 citationUrls: s.contextCitationUrls
-            } : null
+            } : null,
+            // NEW: Include contributions (preferred) or fallback to empty array
+            speakerContributions: s.contributions.length > 0
+                ? s.contributions.map(c => ({
+                    speakerId: c.speakerId,
+                    speakerName: c.speakerName ?? c.speaker?.name ?? null,
+                    text: c.text
+                }))
+                : [], // Backend will handle empty contributions
+            // NEW: Include importance fields if they exist
+            topicImportance: (s.topicImportance as any) || 'normal',
+            proximityImportance: (s.proximityImportance as any) || 'none'
         })),
         additionalInstructions
     };
@@ -116,53 +136,57 @@ export async function createSubjectsForMeeting(
     subjects: Subject[],
     cityId: string,
     councilMeetingId: string,
-) {
+): Promise<Map<string, string>> {
     const topics = await prisma.topic.findMany();
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
-    const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeetingId, cityId);
+    // Map to store API subject identifiers (ID or name) to database subject IDs
+    const subjectIdMap = new Map<string, string>();
 
-    // Collect all person IDs we need to validate
-    const personIdsToCheck = subjects
-        .filter(subject => subject.introducedByPersonId)
-        .map(subject => subject.introducedByPersonId)
+    // Validate persons exist for contributions
+    const speakerIds = subjects
+        .flatMap(s => s.speakerContributions.map(c => c.speakerId))
         .filter(Boolean) as string[];
 
-    // Check if all person IDs exist
-    const existingPersons = personIdsToCheck.length > 0
+    const existingPersons = speakerIds.length > 0
         ? await prisma.person.findMany({
-            where: {
-                id: { in: personIdsToCheck },
-                cityId // Also ensure the person belongs to the correct city
-            },
+            where: { id: { in: speakerIds }, cityId },
             select: { id: true }
         })
         : [];
 
-    const existingPersonIds = new Set(existingPersons.map(p => p.id));
+    const validSpeakerIds = new Set(existingPersons.map(p => p.id));
+
+    // Validate introducedBy persons
+    const personIdsToCheck = subjects
+        .map(s => s.introducedByPersonId)
+        .filter(Boolean) as string[];
+
+    const existingIntroducers = personIdsToCheck.length > 0
+        ? await prisma.person.findMany({
+            where: { id: { in: personIdsToCheck }, cityId },
+            select: { id: true }
+        })
+        : [];
+
+    const existingIntroducerIds = new Set(existingIntroducers.map(p => p.id));
 
     await prisma.$transaction(async (prisma) => {
-        // Delete old highlights and subjects for this meeting
+        // Delete old highlights and subjects
         await prisma.highlight.deleteMany({
-            where: {
-                meetingId: councilMeetingId,
-                cityId
-            }
+            where: { meetingId: councilMeetingId, cityId }
         });
         await prisma.subject.deleteMany({
-            where: {
-                councilMeetingId,
-                cityId
-            }
+            where: { councilMeetingId, cityId }
         });
 
-        // Create new subjects and highlights
         for (const subject of subjects) {
-            // Create location if provided
+            // Create location (unchanged)
             let locationId: string | undefined;
             if (subject.location) {
-                // Create location using raw SQL since PostGIS geometry is unsupported in Prisma
-                const cuid = await prisma.$queryRaw<[{ cuid: string }]>`SELECT gen_random_uuid()::text as cuid`;
+                const cuid = await prisma.$queryRaw<[{ cuid: string }]>`
+                    SELECT gen_random_uuid()::text as cuid
+                `;
                 const result = await prisma.$queryRaw<[{ id: string }]>`
                     INSERT INTO "Location" (id, type, text, coordinates)
                     VALUES (
@@ -170,78 +194,127 @@ export async function createSubjectsForMeeting(
                         ${subject.location.type}::"LocationType",
                         ${subject.location.text}::text,
                         ST_GeomFromGeoJSON(${JSON.stringify({
-                    type: subject.location.type === 'point' ? 'Point' :
-                        subject.location.type === 'lineString' ? 'LineString' : 'Polygon',
-                    coordinates: subject.location.coordinates[0]
-                })})
+                            type: subject.location.type === 'point' ? 'Point' :
+                                  subject.location.type === 'lineString' ? 'LineString' : 'Polygon',
+                            coordinates: subject.location.coordinates[0]
+                        })})
                     )
                     RETURNING id
                 `;
                 locationId = result[0].id;
             }
 
-            // Filter out invalid speaker segments
-            const validSpeakerSegments = subject.speakerSegments.filter(segment => {
-                if (!segment.speakerSegmentId) {
-                    console.warn(`Warning: Found speaker segment with missing ID in subject "${subject.name}"`);
-                    return false;
-                }
-                if (!availableSpeakerSegmentIds.includes(segment.speakerSegmentId)) {
-                    console.log(`Speaker segment ${segment.speakerSegmentId} does not exist -- ignoring`);
-                    return false;
-                }
-                return true;
-            });
+            // Validate introducedBy
+            const validIntroducedBy = subject.introducedByPersonId &&
+                existingIntroducerIds.has(subject.introducedByPersonId)
+                    ? subject.introducedByPersonId
+                    : undefined;
 
-            // Validate that person exists before connecting
-            const validIntroducedByPersonId = subject.introducedByPersonId &&
-                existingPersonIds.has(subject.introducedByPersonId) ?
-                subject.introducedByPersonId : undefined;
-
-            if (subject.introducedByPersonId && !validIntroducedByPersonId) {
-                console.warn(`Warning: Person with ID ${subject.introducedByPersonId} not found for subject "${subject.name}" - skipping person connection`);
+            if (subject.introducedByPersonId && !validIntroducedBy) {
+                console.warn(`Person ${subject.introducedByPersonId} not found for subject "${subject.name}"`);
             }
 
-            console.log(`Creating subject "${subject.name}" with ${validSpeakerSegments.length} speaker segments -- introduced by ${validIntroducedByPersonId || 'none'}`);
+            // Create subject with contributions
+            console.log(`Creating subject "${subject.name}" with ${subject.speakerContributions.length} contributions`);
+
             const createdSubject = await prisma.subject.create({
                 data: {
                     name: subject.name,
                     description: subject.description,
-                    councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
+                    councilMeeting: {
+                        connect: { cityId_id: { cityId, id: councilMeetingId } }
+                    },
                     location: locationId ? { connect: { id: locationId } } : undefined,
-                    topic: subject.topicLabel && topicsByName[subject.topicLabel] ?
-                        { connect: { id: topicsByName[subject.topicLabel].id } } :
-                        undefined,
-                    agendaItemIndex: typeof subject.agendaItemIndex === "number" ? subject.agendaItemIndex : undefined,
-                    nonAgendaReason: subject.agendaItemIndex === "BEFORE_AGENDA" ? "beforeAgenda" : "outOfAgenda",
-                    introducedBy: validIntroducedByPersonId ?
-                        { connect: { id: validIntroducedByPersonId } } :
-                        undefined,
-                    speakerSegments: validSpeakerSegments.length > 0 ? {
-                        create: validSpeakerSegments.map(segment => ({
-                            speakerSegment: { connect: { id: segment.speakerSegmentId } },
-                            summary: segment.summary
+                    topic: subject.topicLabel && topicsByName[subject.topicLabel]
+                        ? { connect: { id: topicsByName[subject.topicLabel].id } }
+                        : undefined,
+                    agendaItemIndex: typeof subject.agendaItemIndex === 'number'
+                        ? subject.agendaItemIndex
+                        : undefined,
+                    nonAgendaReason: subject.agendaItemIndex === 'BEFORE_AGENDA'
+                        ? 'beforeAgenda'
+                        : subject.agendaItemIndex === 'OUT_OF_AGENDA'
+                            ? 'outOfAgenda'
+                            : undefined,
+                    introducedBy: validIntroducedBy
+                        ? { connect: { id: validIntroducedBy } }
+                        : undefined,
+
+                    // NEW: Add importance fields
+                    topicImportance: subject.topicImportance,
+                    proximityImportance: subject.proximityImportance,
+
+                    // NEW: Create contributions
+                    contributions: {
+                        create: subject.speakerContributions.map(contrib => ({
+                            speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
+                                ? contrib.speakerId
+                                : null,
+                            speakerName: contrib.speakerName,
+                            text: contrib.text
                         }))
-                    } : undefined,
+                    },
+
+                    // Keep context unchanged
                     context: subject.context?.text,
                     contextCitationUrls: subject.context?.citationUrls
                 }
             });
 
-            const highlight = await prisma.highlight.create({
-                data: {
-                    name: subject.name,
-                    meeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
-                    subject: { connect: { id: createdSubject.id } }
-                }
-            });
+            // Map API subject identifier to database ID for utterance discussion status mapping
+            // Use subject.id if provided by API, otherwise use subject.name
+            const apiIdentifier = subject.id || subject.name;
+            subjectIdMap.set(apiIdentifier, createdSubject.id);
 
-            await prisma.highlightedUtterance.createMany({
-                data: subject.highlightedUtteranceIds.filter(id => id).map(utteranceId => ({
-                    utteranceId: utteranceId,
-                    highlightId: highlight.id
-                }))
-            });
+            // Extract utterance IDs from contribution references for highlight
+            const utteranceIds = extractUtteranceIdsFromContributions(
+                subject.speakerContributions
+            );
+
+            // Create highlight with extracted utterances
+            if (utteranceIds.length > 0) {
+                const highlight = await prisma.highlight.create({
+                    data: {
+                        name: subject.name,
+                        meeting: {
+                            connect: { cityId_id: { cityId, id: councilMeetingId } }
+                        },
+                        subject: { connect: { id: createdSubject.id } }
+                    }
+                });
+
+                await prisma.highlightedUtterance.createMany({
+                    data: utteranceIds.map(utteranceId => ({
+                        utteranceId,
+                        highlightId: highlight.id
+                    }))
+                });
+            }
         }
     }, { timeout: 60000 });
+
+    // Pass 2: Update subjects with discussedIn references
+    // This must happen after all subjects are created so we can map API IDs to DB IDs
+    const subjectsWithDiscussedIn = subjects.filter(s => s.discussedIn);
+
+    if (subjectsWithDiscussedIn.length > 0) {
+        for (const subject of subjectsWithDiscussedIn) {
+            const apiIdentifier = subject.id || subject.name;
+            const subjectDbId = subjectIdMap.get(apiIdentifier);
+            const primarySubjectDbId = subjectIdMap.get(subject.discussedIn!);
+
+            if (subjectDbId && primarySubjectDbId) {
+                await prisma.subject.update({
+                    where: { id: subjectDbId },
+                    data: {
+                        discussedIn: { connect: { id: primarySubjectDbId } }
+                    }
+                });
+            } else {
+                console.warn(`Could not link subject "${subject.name}" to primary subject "${subject.discussedIn}"`);
+            }
+        }
+    }
+
+    return subjectIdMap;
 }

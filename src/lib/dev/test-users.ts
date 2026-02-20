@@ -5,13 +5,19 @@
 
 
 // Define test user emails in one place
+// These are fake emails - set DEV_EMAIL_OVERRIDE to receive login links at a real address
 const TEST_USER_EMAILS = {
-  SUPER_ADMIN: 'dev-superadmin@test.com',
-  CITY_ADMIN: 'dev-city@test.com',
-  PARTY_ADMIN: 'dev-party@test.com', 
-  PERSON_ADMIN: 'dev-person@test.com',
-  READ_ONLY: 'dev-readonly@test.com'
+  SUPER_ADMIN: 'superadmin@test.com',
+  CITY_ADMIN: 'city@test.com',
+  PARTY_ADMIN: 'party@test.com',
+  PERSON_ADMIN: 'person@test.com',
+  READ_ONLY: 'readonly@test.com'
 } as const
+
+// Check if an email is a test user email
+export function isTestUserEmail(email: string): boolean {
+  return Object.values(TEST_USER_EMAILS).includes(email as typeof TEST_USER_EMAILS[keyof typeof TEST_USER_EMAILS])
+}
 
 // Test user definitions for seeding and QuickLogin
 export const TEST_USERS = [

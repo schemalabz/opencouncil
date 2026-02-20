@@ -1,4 +1,7 @@
 {
+    "Common": {
+        "allTopics": "All Topics"
+    },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
         "subtitle": "The information contained may have errors.",
@@ -73,6 +76,16 @@
         "defaultOrdering": "Default (Alphabetical)",
         "partyRankOrdering": "Party Ranking",
         "peopleOrderingDescription": "Choose how people are ordered on the people page. Party Ranking orders by party power and custom party rankings.",
+        "highlightCreationPermission": "Highlight Creation Permission",
+        "selectHighlightCreationPermission": "Select who can create highlights",
+        "highlightCreationAdminsOnly": "Admins Only",
+        "highlightCreationEveryone": "Everyone",
+        "highlightCreationPermissionDescription": "Control who can create highlights for this city",
+        "supportsNotifications": "Enable Notifications",
+        "supportsNotificationsDescription": "Enable email and SMS notifications for meetings in this city",
+        "consultationsEnabled": "Enable Consultations",
+        "consultationsEnabledDescription": "Enable the public consultations tab for this city",
+        "administrativeBodies": "Administrative Bodies",
         "CityMessageForm": {
             "sectionTitle": "City Message",
             "toggle": "Toggle city message",
@@ -218,20 +231,6 @@
         "activeUntil": "Member until",
         "active": "Member"
     },
-    "Statistics": {
-        "topicsList": "Topics List",
-        "topSpeakers": "Speakers with longest speaking times (minutes)",
-        "minutes": "Minutes",
-        "speakingTime": "Speaking Time",
-        "occurrences": "Occurrences",
-        "topic": "Topic",
-        "speaker": "Speaker",
-        "noDataAvailable": "No data available",
-        "loading": "Loading...",
-        "totalSpeakingTime": "Total Speaking Time",
-        "totalMinutes": "Total speaking minutes",
-        "allTopics": "All Topics"
-    },
     "OfferForm": {
         "respondToName": "Responsible Person Name",
         "respondToNameDescription": "The name of the person responsible for the offer",
@@ -320,13 +319,11 @@
         "activeFrom": "Active From",
         "activeTo": "Active To",
         "searchForPerson": "Search in transcripts related to this member",
-        "statistics": "Member Statistics",
         "searchItems": "Search members",
         "activeUntil": "Member until",
         "active": "Member",
         "from": "from",
         "until": "until",
-        "loadingStatistics": "Loading statistics...",
         "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
@@ -341,13 +338,11 @@
         "deleteParty": "Delete Party",
         "partyDeleted": "Party {name} was deleted",
         "searchInParty": "Search in statements from {partyName}",
-        "statistics": "Party Statistics",
         "items": "{count, plural, =0 {No parties} =1 {1 party} other {# parties}}",
         "searchItems": "Search parties",
         "item": "party",
         "addItem": "Add Party",
         "noItems": "There are no parties in OpenCouncil.",
-        "loadingStatistics": "Loading statistics...",
         "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
@@ -358,8 +353,8 @@
         "breadcrumbHome": "Home",
         "tabPeople": "People",
         "tabPeopleShort": "Members",
-        "tabStatistics": "Statistics",
-        "tabStatisticsShort": "Stats"
+        "tabSegments": "Statements",
+        "tabSegmentsShort": "Statements"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",
@@ -394,5 +389,46 @@
         "error": "Error",
         "saveError": "Failed to save rankings. Please try again.",
         "resetError": "Failed to reset rankings. Please try again."
+    },
+    "Subject": {
+        "agendaItem": "Subject #{index}",
+        "parties": "Parties",
+        "minutes": "minutes",
+        "speakers": "{count, plural, =1 {1 speaker} other {# speakers}}",
+        "noDiscussionFound": "No discussion found on this subject",
+        "introducer": "Introducer",
+        "summary": "Summary",
+        "statements": "Statements",
+        "statementsCount": "{count, plural, =1 {1 statement} other {# statements}}",
+        "noContributions": "No speaker contributions",
+        "unknownSpeaker": "Unknown speaker",
+        "noStatements": "No speaker statements",
+        "transcript": "Transcript",
+        "noSummary": "No automatic summary available for this statement",
+        "viewMap": "View map",
+        "adminDetails": "Admin details",
+        "notificationImportance": "Notification importance",
+        "notificationImportanceDescription": "This information determines which users will be notified about this subject based on their preferences.",
+        "topicImportanceLabel": "Topic Importance",
+        "proximityImportanceLabel": "Proximity Importance",
+        "topicImportance": {
+            "high": "High",
+            "normal": "Normal",
+            "none": "None"
+        },
+        "proximityImportance": {
+            "wide": "Wide",
+            "near": "Near",
+            "none": "None"
+        }
+    },
+    "CouncilMeeting": {
+        "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
+        "searchItems": "Search meetings",
+        "item": "meeting",
+        "addItem": "Add Meeting",
+        "noItems": "There are no meetings in OpenCouncil.",
+        "previous": "Previous",
+        "next": "Next"
     }
 }

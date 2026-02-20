@@ -14,6 +14,13 @@ import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 
+// Helper function to switch name order (reverses word order for display)
+const switchOrder = (name: string | undefined) => {
+    if (!name) return null;
+    const parts = name.split(' ');
+    return parts.length > 1 ? parts.reverse().join(' ') : name;
+};
+
 interface PersonDisplayProps {
     person?: PersonWithRelations;
     speakerTag?: SpeakerTag;
@@ -41,24 +48,18 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
 
     const imageSize = imageSizes[size];
 
-    const switchOrder = (name: string | undefined) => {
-        if (!name) return null;
-        const parts = name.split(' ');
-        return parts.length > 1 ? parts.reverse().join(' ') : name;
-    };
-
     const nameTextSize = size === 'lg' || size === 'xl' ? 'text-lg' : 'text-base';
     const roleTextSize = size === 'sm' ? 'text-xs' : 'text-sm';
 
     return (
-        <div className="flex items-center gap-3 w-full">
+        <div className="flex items-center gap-3 w-full min-w-0">
             <div
                 className={cn(
                     "relative shrink-0",
-                    size === 'sm' && "w-10 h-10",
-                    size === 'md' && "w-12 h-12",
-                    size === 'lg' && "w-16 h-16",
-                    size === 'xl' && "w-24 h-24",
+                    size === 'sm' && "w-8 h-8 sm:w-10 sm:h-10",
+                    size === 'md' && "w-10 h-10 sm:w-12 sm:h-12",
+                    size === 'lg' && "w-12 h-12 sm:w-16 sm:h-16",
+                    size === 'xl' && "w-16 h-16 sm:w-24 sm:h-24",
                     !editable && "cursor-pointer"
                 )}
                 onClick={onClick}
@@ -86,28 +87,28 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
             </div>
             {!short && (
                 <div className="flex flex-col justify-center min-w-0 flex-1">
-                    <div className={cn("font-medium text-foreground break-words", nameTextSize)}>
+                    <div className={cn("font-medium text-foreground truncate sm:whitespace-normal sm:break-words", nameTextSize, size === 'sm' && "text-sm sm:text-base")}>
                         {person ? (
                             preferFullName ? person.name : switchOrder(person.name)
                         ) : (
                             speakerTag?.label
                         )}
                         {editable && segmentCount !== undefined && (
-                            <span className="ml-2 text-muted-foreground font-normal">
+                            <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
                                 ({segmentCount} {segmentCount === 1 ? 'segment' : 'segments'})
                             </span>
                         )}
                     </div>
 
                     {/* Display roles using RoleDisplay component */}
-                    <div className="mt-1.5">
+                    <div className="mt-0.5 sm:mt-1.5">
                         <RoleDisplay
                             roles={activeRoles}
                             size={size === 'sm' ? 'sm' : 'md'}
-                            layout="inline"
-                            showIcons={true}
+                            layout="compact"
+                            showIcons={false}
                             borderless={true}
-                            className={roleTextSize}
+                            className={cn(roleTextSize, "text-[10px] sm:text-xs")}
                         />
                     </div>
                 </div>
@@ -123,6 +124,7 @@ interface PersonBadgeProps extends PersonDisplayProps {
     onLabelChange?: (label: string) => void;
     availablePeople?: PersonWithRelations[];
     nextUnknownLabel?: string;
+    variant?: 'default' | 'inline';
 }
 
 function PersonBadge({
@@ -140,6 +142,7 @@ function PersonBadge({
     nextUnknownLabel,
     preferFullName = false,
     size = 'md',
+    variant = 'default',
 }: PersonBadgeProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -167,10 +170,32 @@ function PersonBadge({
         }
     };
 
+    // Inline variant - minimal display with just party dot and name
+    if (variant === 'inline') {
+        const party = person ? getPartyFromRoles(person.roles) : null;
+        return (
+            <div className={cn("flex items-center gap-2.5 min-w-0", className)}>
+                {party && (
+                    <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: party.colorHex }}
+                    />
+                )}
+                <span className="text-sm font-medium truncate">
+                    {person ? (
+                        preferFullName ? person.name : switchOrder(person.name)
+                    ) : (
+                        speakerTag?.label
+                    )}
+                </span>
+            </div>
+        );
+    }
+
     const badge = (
         <div
             className={cn(
-                "relative flex items-center gap-2 rounded-lg p-2",
+                "relative flex items-center gap-2 rounded-lg p-1.5 sm:p-2 min-w-0",
                 withBorder && "border",
                 isSelected && "bg-accent",
                 editable && "cursor-pointer hover:bg-accent/50",
@@ -199,13 +224,13 @@ function PersonBadge({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 h-8 w-8 ml-auto"
+                    className="shrink-0 h-6 w-6 sm:h-8 sm:w-8 ml-auto"
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsOpen(true);
                     }}
                 >
-                    <Edit2 className="h-4 w-4" />
+                    <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
             )}
         </div>

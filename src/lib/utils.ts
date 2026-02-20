@@ -1,4 +1,3 @@
-import { Offer, Party, Role, Subject, Topic } from "@prisma/client";
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Statistics } from "./statistics";
@@ -6,6 +5,7 @@ import { SubjectWithRelations } from "./db/subject";
 // @ts-ignore
 import { default as greekKlitiki } from "greek-name-klitiki";
 import { Transcript } from "./db/transcript";
+import { VideoIcon, AudioLines, FileText, Ban, LucideIcon } from "lucide-react";
 
 // Export time formatters from the new location
 export {
@@ -17,6 +17,22 @@ export {
   formatDateTime,
   formatDateRange
 } from './formatters/time';
+
+// Export role utilities from the new location
+export {
+  isRoleActive,
+  isRoleActiveAt,
+  filterActiveRoles,
+  filterInactiveRoles,
+  getDateRangeFromRoles,
+  getActivePartyRole,
+  getPartyFromRoles,
+  getNonPartyRoles,
+  getSingleCityRole,
+  hasCityLevelRole,
+  getActiveRoleCondition,
+  getRoleNameForPerson
+} from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -88,12 +104,21 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 
 // Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts
 
-export function sortSubjectsByImportance<T extends Subject & {
-  topic?: Topic | null,
-  statistics?: Statistics,
-  // Make the type more flexible for different speaker segment structures
-  speakerSegments?: any[]
-}>(
+/**
+ * Minimal interface for subjects that can be sorted by importance.
+ * Only declares the fields actually used by the sorting logic.
+ * Any type matching this structure can be sorted.
+ */
+interface SortableSubject {
+  name: string;
+  hot: boolean;
+  // Optional fields used for advanced sorting
+  statistics?: Statistics;
+  speakerSegments?: any[];
+  agendaItemIndex?: number | null;
+}
+
+export function sortSubjectsByImportance<T extends SortableSubject>(
   subjects: T[],
   orderBy: 'importance' | 'appearance' = 'importance'
 ) {
@@ -196,6 +221,24 @@ export function sortSubjectsByImportance<T extends Subject & {
   });
 }
 
+export function sortSubjectsBySpeakingTime<T extends SortableSubject>(subjects: T[]): T[] {
+  return [...subjects].sort((a, b) => {
+    const aSeconds = a.statistics?.speakingSeconds ?? 0;
+    const bSeconds = b.statistics?.speakingSeconds ?? 0;
+    if (bSeconds !== aSeconds) return bSeconds - aSeconds;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function sortSubjectsByAgendaIndex<T extends SortableSubject>(subjects: T[]): T[] {
+  return [...subjects].sort((a, b) => {
+    const aIndex = a.agendaItemIndex ?? Infinity;
+    const bIndex = b.agendaItemIndex ?? Infinity;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 // Re-export calculateOfferTotals from the pricing module for backward compatibility
 export { calculateOfferTotals } from './pricing'
 
@@ -241,104 +284,6 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
   return joinedSegments;
 }
 
-
-
-
-export function filterActiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
-  return roles.filter(isRoleActive);
-}
-
-export function filterInactiveRoles<T extends { startDate: Date | null, endDate: Date | null }>(roles: T[]): T[] {
-  return roles.filter(role => !isRoleActive(role));
-}
-
-export function isRoleActiveAt(role: { startDate: Date | null, endDate: Date | null }, date: Date): boolean {
-  // Both dates null = active
-  if (!role.startDate && !role.endDate) return true;
-
-  // Only start date set - active if date is after start
-  if (role.startDate && !role.endDate) {
-    return role.startDate <= date;
-  }
-
-  // Only end date set - active if date is before end
-  if (!role.startDate && role.endDate) {
-    return role.endDate > date;
-  }
-
-  // Both dates set - active if date is within range
-  if (role.startDate && role.endDate) {
-    return role.startDate <= date && role.endDate > date;
-  }
-
-  return false;
-}
-
-export function isRoleActive(role: { startDate: Date | null, endDate: Date | null }): boolean {
-  const now = new Date();
-  return isRoleActiveAt(role, now);
-}
-
-/**
- * Finds the first active party role from a list of roles.
- * @param roles Array of roles with party relations
- * @param partyId Optional party ID to filter by
- * @param date Date to check for active roles (defaults to current date)
- * @returns The first active party role, or null if none found
- */
-export function getActivePartyRole<T extends Role & { partyId?: string | null }>(
-  roles: T[],
-  partyId?: string,
-  date?: Date
-): T | null {
-  const checkDate = date || new Date();
-
-  // Filter roles that are active at the specified date
-  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
-
-  // Find the first role that has a party (and matches partyId if provided)
-  if (partyId) {
-    return activeRoles.find(role => role.partyId === partyId) || null;
-  }
-  return activeRoles.find(role => role.partyId) || null;
-}
-
-/**
- * Extracts party affiliation from a list of roles at a specific date.
- * @param roles Array of roles with party relations
- * @param date Date to check for active roles (defaults to current date)
- * @returns The party from the first active party role, or null if none found
- */
-export function getPartyFromRoles(
-  roles: (Role & { party?: Party | null })[],
-  date?: Date): Party | null {
-  const checkDate = date || new Date();
-
-  // Filter roles that are active at the specified date
-  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
-
-  // Find the first role that has a party
-  const activePartyRole = activeRoles.find(role => role.party);
-
-  return activePartyRole?.party || null;
-}
-
-export function getNonPartyRoles(roles: (Role & { party?: Party | null })[], date?: Date, administrativeBodyId?: string): Role[] {
-  const checkDate = date || new Date();
-  let filteredRoles = roles.filter(role => !role.partyId).filter(role => isRoleActiveAt(role, checkDate));
-  if (administrativeBodyId) {
-    filteredRoles = filteredRoles.filter(role => role.administrativeBodyId && role.administrativeBodyId === administrativeBodyId);
-  }
-  return filteredRoles;
-}
-
-export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], date?: Date, administrativeBodyId?: string): Role | null {
-  const checkDate = date || new Date();
-  const filteredRoles = getNonPartyRoles(roles, checkDate, administrativeBodyId);
-  const cityRoles = filteredRoles.filter(role => role.cityId);
-  return cityRoles.length > 0 ? cityRoles[0] : null;
-}
-
 export function normalizeText(text: string): string {
   if (!text) return '';
 
@@ -361,18 +306,22 @@ export function normalizeText(text: string): string {
     .replace(/ΰ/g, 'υ');
 }
 
-export function getMeetingState(meeting: {
+/**
+ * Get media type information for a meeting
+ * Returns the type of media available with label and icon component
+ */
+export function getMeetingMediaType(meeting: {
   videoUrl?: string | null;
   audioUrl?: string | null;
   muxPlaybackId?: string | null;
   agendaUrl?: string | null;
   subjects?: any[];
-}): { label: string; icon: string } {
+}): { label: string; icon: LucideIcon } {
   // Video state - if there's a video and mux playback id
   if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
     return {
       label: "Bίντεο",
-      icon: "video"
+      icon: VideoIcon
     };
   }
 
@@ -380,7 +329,7 @@ export function getMeetingState(meeting: {
   if (meeting.audioUrl && meeting.muxPlaybackId) {
     return {
       label: "Ήχος",
-      icon: "audio"
+      icon: AudioLines
     };
   }
 
@@ -388,14 +337,14 @@ export function getMeetingState(meeting: {
   if (meeting.agendaUrl && meeting.subjects && meeting.subjects.length > 0 && !meeting.muxPlaybackId) {
     return {
       label: "Διάταξη",
-      icon: "fileText"
+      icon: FileText
     };
   }
 
   // Empty state - default case
   return {
     label: "Κενή",
-    icon: "ban"
+    icon: Ban
   };
 }
 
@@ -498,20 +447,4 @@ export function calculateGeometryBounds(geometry: any): GeometryBounds {
     console.error('[Location] Error calculating geometry bounds:', error);
     return DEFAULT_RETURN;
   }
-}
-
-export function getActiveRoleCondition(date: Date = new Date()) {
-  return [
-    // Both dates are null (ongoing role)
-    { startDate: null, endDate: null },
-    // Only start date is set and it's in the past
-    { startDate: { lte: date }, endDate: null },
-    // Only end date is set and it's in the future
-    { startDate: null, endDate: { gt: date } },
-    // Both dates are set and current time is within range
-    {
-      startDate: { lte: date },
-      endDate: { gt: date }
-    }
-  ];
 }

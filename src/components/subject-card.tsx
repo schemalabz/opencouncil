@@ -1,17 +1,18 @@
-import { City, CouncilMeeting, Party, Subject, Topic } from "@prisma/client";
+import { City, CouncilMeeting, Party } from "@prisma/client";
 import { Statistics } from "@/lib/statistics";
-import { useCouncilMeetingData } from "./meetings/CouncilMeetingDataContext";
 import { SubjectWithRelations } from "@/lib/db/subject";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ColorPercentageRing } from "./ui/color-percentage-ring";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import Icon from "./icon";
-import { MapPin, ScrollText, Calendar } from "lucide-react";
+import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
+import { stripMarkdown } from "@/lib/formatters/markdown";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 interface SubjectCardProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -27,14 +28,25 @@ interface SubjectCardProps {
 }
 
 export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
-    const colorPercentages = subject.statistics?.parties?.map(p => ({
-        color: p.item.colorHex,
-        percentage: p.speakingSeconds / subject.statistics!.speakingSeconds * 100
-    })) || [];
+    const router = useRouter();
+    const pathname = usePathname();
+    const [isLoading, setIsLoading] = useState(false);
+    const [isCardHovered, setIsCardHovered] = useState(false);
 
-    // Get top 5 speakers by speaking time
-    const topSpeakers = subject.statistics?.people
-        ?.sort((a, b) => b.speakingSeconds - a.speakingSeconds)
+    useEffect(() => {
+        setIsLoading(false);
+    }, [pathname]);
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (openInNewTab) return; // let the Link handle it
+        e.preventDefault();
+        setIsLoading(true);
+        router.push(`/${city.id}/${meeting.id}/subjects/${subject.id}`);
+    };
+
+    // Get top 5 speakers by speaking time (spread to avoid mutating shared data)
+    const topSpeakers = [...(subject.statistics?.people ?? [])]
+        .sort((a, b) => b.speakingSeconds - a.speakingSeconds)
         .slice(0, 5)
         .map(p => ({
             ...p.item,
@@ -56,20 +68,35 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
         .map(s => persons.find(p => p.id === s.id))
         .filter((p): p is PersonWithRelations => p !== undefined);
 
+    const totalMinutes = subject.statistics?.speakingSeconds
+        ? Math.round(subject.statistics.speakingSeconds / 60)
+        : 0;
+
+    const speakerCount = subject.statistics?.people?.length
+        || subject.contributions?.length
+        || subject.speakerSegments?.length
+        || 0;
+
     const linkProps = {
         href: `/${city.id}/${meeting.id}/subjects/${subject.id}`,
-        className: "block hover:no-underline",
+        className: "block hover:no-underline flex-1",
         ...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })
     };
 
     return (
-        <Link {...linkProps}>
+        <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
             <Card disableHover={disableHover} className={cn(
-                "flex flex-col group/card hover:shadow-md transition-all duration-300",
-                fullWidth ? "w-full" : "w-full",
-                highlight?.muxPlaybackId ? "h-auto" : "h-[280px]",
+                "relative group/card hover:shadow-md transition-all duration-300 w-full h-full",
                 disableHover ? "hover:shadow-none" : ""
             )}>
+                {isLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-20 rounded-lg">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    </div>
+                )}
+                <div className="flex flex-col h-full">
+
+                {/* Header: topic icon + title + meta */}
                 <CardHeader className="flex flex-col gap-1.5 pb-2">
                     {showContext && (
                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground/70 -mt-1 -mb-1">
@@ -104,6 +131,8 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                     </div>
                 </CardHeader>
+
+                {/* Content: description + highlight */}
                 <CardContent className="flex-1 pb-2 max-w-full overflow-hidden">
                     {highlight?.muxPlaybackId && (
                         <div className="mb-4" onClick={(e) => e.stopPropagation()}>
@@ -116,13 +145,45 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                     )}
                     {subject.description && (
-                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{subject.description}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground line-clamp-4 sm:line-clamp-5 group-hover/card:text-muted-foreground/80 transition-colors duration-300">{stripMarkdown(subject.description)}</div>
                     )}
                 </CardContent>
-                <CardFooter className="pt-0 mt-auto flex flex-col h-[52px]">
+
+                {/* Footer: stats + speakers */}
+                <CardFooter className="pt-0 mt-auto flex flex-col gap-2">
+                    {/* Stats row: time, speakers, party dots */}
+                    {totalMinutes > 0 && (
+                        <div className="flex items-center gap-3 w-full text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{totalMinutes} λεπτά</span>
+                            </div>
+                            {speakerCount > 0 && (
+                                <div className="flex items-center gap-1">
+                                    <MessageSquare className="w-3 h-3" />
+                                    <span>{speakerCount}</span>
+                                </div>
+                            )}
+                            {subject.statistics?.parties && subject.statistics.parties.length > 0 && (
+                                <div className="flex items-center gap-1 ml-auto">
+                                    {subject.statistics.parties.map(p => (
+                                        <div
+                                            key={p.item.id}
+                                            className="w-2.5 h-2.5 rounded-full"
+                                            style={{ backgroundColor: p.item.colorHex }}
+                                            title={p.item.name}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {/* Speaker avatars */}
                     <div onClick={(e) => e.stopPropagation()} className="w-full">
                         <PersonAvatarList
                             users={fullDisplayedSpeakers}
+                            autoScroll
+                            isHovered={isCardHovered}
                         />
                     </div>
                     {showContext && (
@@ -134,6 +195,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         </div>
                     )}
                 </CardFooter>
+                </div>
             </Card>
         </Link>
     );

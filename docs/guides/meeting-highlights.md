@@ -130,6 +130,7 @@ The enhanced highlight system provides an intuitive multi-page interface for cre
 2. **Content Editing**: 
    - User is in editing mode on the transcript page; `HighlightModeBar` appears
    - Click utterances in transcript to add/remove from highlight
+   - **Range Selection**: Click an utterance, then Shift+Click another to select/deselect all utterances in between
    - Visual feedback: selected utterances are bold/underlined; amber overlays on the timeline
    - Real-time statistics update (duration, speaker count, utterance count)
    - Navigation controls: Previous/Next clip within the timeline controls (shows "Clip X/Y")
@@ -228,7 +229,8 @@ This categorization provides better organization and helps users understand the 
     *   `HighlightDialog`: `src/components/meetings/HighlightDialog.tsx` (create/edit dialog)
     *   `HighlightPreview`: `src/components/meetings/HighlightPreview.tsx` (content preview)
     *   `HighlightPreviewDialog`: `src/components/meetings/HighlightPreviewDialog.tsx` (dedicated preview dialog with video/text preview and generation options)
-    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, and preview button)
+    *   `HighlightModeBar`: `src/components/meetings/HighlightModeBar.tsx` (streamlined editing interface with statistics, save/reset/exit, preview button, and guide)
+    *   `HighlightGuideDialog`: `src/components/meetings/HighlightGuideDialog.tsx` (in-app user guide for highlights)
     *   `Utterance`: `src/components/meetings/transcript/Utterance.tsx` (enhanced with highlight selection and context menu creation)
     *   `TranscriptControls`: `src/components/meetings/TranscriptControls.tsx` (timeline visualization with clip navigation)
 *   **State Management**:

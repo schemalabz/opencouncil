@@ -9,6 +9,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { City } from '@prisma/client';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters, filterPersonByAdministrativeBodies } from '@/lib/utils/administrativeBodies';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -39,25 +40,15 @@ export default function CityPeople({
         return sortPeople(allPeople, partiesWithPersons, city?.peopleOrdering);
     }, [allPeople, partiesWithPersons, city?.peopleOrdering]);
 
-    const peopleAdministrativeBodies = [
-        ...Array.from(new Map(
-            allPeople
-                .flatMap(person => person.roles
-                    .filter(role => role.administrativeBody)
-                    .map(role => [
-                        role.administrativeBody!.id,
-                        {
-                            value: role.administrativeBody!.id,
-                            label: role.administrativeBody!.name
-                        }
-                    ])
-                )
-        ).values()),
-        ...(allPeople.some(person => person.roles.some(role => !role.administrativeBody)) ? [{
-            value: null,
-            label: "Χωρίς διοικητικό όργανο"
-        }] : [])
-    ];
+    const peopleAdministrativeBodies = useMemo(() =>
+        getAdministrativeBodiesForPeople(allPeople),
+        [allPeople]
+    );
+
+    const defaultFilterValues = useMemo(() =>
+        getDefaultAdministrativeBodyFilters(peopleAdministrativeBodies),
+        [peopleAdministrativeBodies]
+    );
 
     return (
         <List
@@ -68,13 +59,10 @@ export default function CityPeople({
             formProps={{ cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={peopleAdministrativeBodies}
-            filter={(selectedValues, person) =>
-                selectedValues.length === 0 ||
-                (selectedValues.includes(null) && !person.roles.some(role => role.administrativeBody)) ||
-                person.roles.some(role =>
-                    role.administrativeBody && selectedValues.includes(role.administrativeBody.id)
-                )
+            filter={(selectedValues, person) => 
+                filterPersonByAdministrativeBodies(person, selectedValues)
             }
+            defaultFilterValues={defaultFilterValues}
             smColumns={1}
             mdColumns={2}
             lgColumns={3}

@@ -175,6 +175,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             <OfficialSupportBadge
                                 officialSupport={city.officialSupport}
                                 authorityType={city.authorityType}
+                                cityId={city.id}
                                 className="mt-2"
                                 size="md"
                             />

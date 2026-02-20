@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { OnboardingPageContent } from "@/components/onboarding/OnboardingPageContent";
 import { OnboardingStage } from '@/lib/types/onboarding';
 import { Suspense } from "react";
-import { getCity, getCitiesWithGeometry } from "@/lib/db/cities";
+import { getCity } from "@/lib/db/cities";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -16,7 +16,7 @@ interface PageProps {
 
 export default async function PetitionSignupPage({ params }: PageProps) {
     // Fetch city data with geometry at the server level
-    const city = await getCity(params.cityId);
+    const city = await getCity(params.cityId, { includeGeometry: true });
     
     if (!city) {
         // Handle city not found
@@ -28,12 +28,6 @@ export default async function PetitionSignupPage({ params }: PageProps) {
         redirect(`/${params.cityId}/notifications`);
     }
 
-    // Get city with geometry
-    const [cityWithGeometry] = await getCitiesWithGeometry([city]);
-    if (!cityWithGeometry) {
-        return <div>Error loading city data</div>;
-    }
-
     return (
         <Suspense fallback={
             <div className="flex items-center justify-center min-h-screen">
@@ -43,7 +37,7 @@ export default async function PetitionSignupPage({ params }: PageProps) {
             <OnboardingPageContent 
                 initialStage={OnboardingStage.PETITION_INFO} 
                 cityId={params.cityId}
-                city={cityWithGeometry}
+                city={city}
             />
         </Suspense>
     );

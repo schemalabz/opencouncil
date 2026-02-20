@@ -7,13 +7,14 @@ import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar } from "lucide-react";
+import { Clock, Users, Star, Edit, Trash, Download, ArrowLeft, Calendar, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { HighlightVideo } from './HighlightVideo';
 import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { HighlightPreview } from "./HighlightPreview";
 import { useHighlight } from "./HighlightContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
+import { downloadFile } from "@/lib/export/meetings";
 
 interface HighlightViewProps {
   highlight: HighlightWithUtterances;
@@ -25,9 +26,14 @@ export function HighlightView({ highlight }: HighlightViewProps) {
   const { meeting, subjects, removeHighlight, updateHighlight } = useCouncilMeetingData();
   const { calculateHighlightData } = useHighlight();
   const { options } = useTranscriptOptions();
-  const canEdit = options.editsAllowed;
+  const canCreateHighlights = options.canCreateHighlights;
+  const canEditCity = options.editsAllowed;
   const [latestPendingTask, setLatestPendingTask] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const t = useTranslations('highlights');
+
+  // Only show creator for city editors (they can see all highlights)
+  const creatorName = canEditCity ? highlight.createdBy?.name : null;
 
   const highlightData = calculateHighlightData(highlight);
 
@@ -100,30 +106,6 @@ export function HighlightView({ highlight }: HighlightViewProps) {
     }
   };
 
-  const handleGenerateVideo = async () => {
-    try {
-      const res = await fetch(`/api/tasks/generate-highlight`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ highlightId: highlight.id })
-      });
-      if (!res.ok) throw new Error('Failed to start generation');
-      const task = await res.json();
-      toast({
-        title: t('common.success'),
-        description: t('toasts.generationStarted'),
-        variant: "default",
-      });
-      setLatestPendingTask(task.id);
-    } catch (error) {
-      console.error('Failed to generate video:', error);
-      toast({
-        title: t('common.error'),
-        description: t('toasts.generationError'),
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleToggleShowcase = async () => {
     try {
@@ -147,6 +129,35 @@ export function HighlightView({ highlight }: HighlightViewProps) {
         description: t('toasts.showcaseError'),
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!highlight.videoUrl) return;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(highlight.videoUrl);
+      if (!response.ok) throw new Error('Failed to fetch video');
+      
+      const blob = await response.blob();
+      const fileName = `${meeting.cityId}_${meeting.id}_${highlight.name || 'highlight'}.mp4`;
+      downloadFile(blob, fileName);
+      
+      toast({
+        title: t('common.success'),
+        description: t('toasts.downloadStarted'),
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Failed to download video:', error);
+      toast({
+        title: t('common.error'),
+        description: t('toasts.downloadError'),
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -199,16 +210,22 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                   <Calendar className="h-4 w-4" />
                   <span>{t('highlightView.lastUpdated', { relativeTime: formatRelativeTime(highlight.updatedAt, locale) })}</span>
                 </div>
+                {creatorName && (
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    <span>{creatorName}</span>
+                  </div>
+                )}
               </div>
             </div>
             
-            {canEdit && (
+            {canCreateHighlights && (
               <div className="flex items-center space-x-2">
                 <Button size="sm" onClick={handleEditContent}>
                   <Edit className="h-4 w-4 mr-2" />
                   {t('details.editContent')}
                 </Button>
-                {highlight.muxPlaybackId && (
+                {canEditCity && highlight.muxPlaybackId && (
                   <Button
                     size="sm" 
                     variant="outline"
@@ -218,31 +235,23 @@ export function HighlightView({ highlight }: HighlightViewProps) {
                     <Star className="h-4 w-4" />
                   </Button>
                 )}
-                {highlight.videoUrl ? (
-                  <a
-                    href={highlight.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="outline" size="sm">
-                      <Download className="h-4 w-4 mr-2" />
-                      {t('details.download')}
-                    </Button>
-                  </a>
-                ) : (
+                {highlight.videoUrl && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleGenerateVideo}
-                    disabled={!!latestPendingTask}
+                    onClick={handleDownload}
+                    disabled={isDownloading}
                   >
-                    {latestPendingTask ? (
+                    {isDownloading ? (
                       <>
                         <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        {t('highlightView.generating')}
+                        {t('details.downloading')}
                       </>
                     ) : (
-                      t('highlightView.generateVideo')
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        {t('details.download')}
+                      </>
                     )}
                   </Button>
                 )}

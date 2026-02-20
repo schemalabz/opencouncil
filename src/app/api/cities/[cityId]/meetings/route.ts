@@ -95,7 +95,7 @@ export async function POST(
                 }
 
                 // Build description with agenda URL and meeting link
-                const meetingUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/${cityId}/${meetingId}`;
+                const meetingUrl = `${process.env.NEXTAUTH_URL}/${cityId}/${meetingId}`;
                 const descriptionParts: string[] = [];
                 
                 if (meeting.agendaUrl) {

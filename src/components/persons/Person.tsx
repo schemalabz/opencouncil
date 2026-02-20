@@ -6,13 +6,12 @@ import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Search, ExternalLink, FileText, User, TrendingUp, Clock } from "lucide-react";
+import { Search, ExternalLink, FileText, Clock } from "lucide-react";
 import { Input } from '../ui/input';
 import { useState, useEffect, useMemo } from 'react';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
-import { Statistics as StatisticsType } from "@/lib/statistics";
-import { Statistics } from '../Statistics';
+import { Statistics } from "@/lib/statistics";
 import { getLatestSegmentsForSpeaker, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '@/components/search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
@@ -24,13 +23,15 @@ import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { RoleDisplay } from './RoleDisplay';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
+import { useSession } from 'next-auth/react';
+import { DebugMetadataButton } from '../ui/debug-metadata-button';
 
 export default function PersonC({ city, person, parties, administrativeBodies, statistics }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
-    statistics: StatisticsType
+    statistics: Statistics
 }) {
     const t = useTranslations('Person');
     const router = useRouter();
@@ -42,6 +43,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
     // Filter administrative bodies to only include those related to the person
     const personRelatedAdminBodies = useMemo(() =>
@@ -52,9 +55,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
     // Filter topics to only show ones relevant to this person based on statistics
     const relevantTopics = useMemo(() => {
-        if (!statistics.topics) return [];
+        if (!statistics?.topics) return [];
         return statistics.topics.map(t => t.item).sort((a, b) => a.name.localeCompare(b.name));
-    }, [statistics.topics]);
+    }, [statistics?.topics]);
 
     // Check if person is an independent council member
     const isIndependentCouncilMember = useMemo(() => {
@@ -196,19 +199,20 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
 
                     {/* Hero Section */}
                     <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
-                        <motion.div
-                            className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5 }}
-                        >
+                        <div className="flex items-start justify-between gap-4">
+                            <motion.div
+                                className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 flex-1"
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.5 }}
+                            >
                             <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-40 lg:h-40 xl:w-48 xl:h-48 flex-shrink-0 overflow-hidden rounded-full">
-                                <div className="w-full h-full [&>div]:!border-0 [&>div]:!w-full [&>div]:!h-full">
+                                <div className="w-full h-full [&>div]:!border-0">
                                     <ImageOrInitials
                                         imageUrl={person.image}
                                         name={person.name}
-                                        width={96}
-                                        height={96}
+                                        width={192}
+                                        height={192}
                                     />
                                 </div>
                             </div>
@@ -261,7 +265,17 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     </motion.a>
                                 )}
                             </div>
-                        </motion.div>
+                            </motion.div>
+                            {isSuperAdmin && (
+                                <div className="flex-shrink-0">
+                                    <DebugMetadataButton
+                                        data={person}
+                                        title="Person Metadata"
+                                        tooltip="View person metadata"
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         {canEdit && (
                             <motion.div
@@ -315,27 +329,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             person={person}
                         />
                     )}
-
-                    {/* Statistics Section */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
-                    >
-                        <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp className="h-5 w-5 text-primary" />
-                            <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
-                        </div>
-                        <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
-                            <Statistics
-                                type="person"
-                                id={person.id}
-                                cityId={city.id}
-                                administrativeBodyId={selectedAdminBodyId}
-                                emptyStateMessage={t('noStatisticsAvailable')}
-                            />
-                        </div>
-                    </motion.div>
 
                     {/* History Section - only show if there are inactive roles */}
                     {filterInactiveRoles(person.roles).length > 0 && (

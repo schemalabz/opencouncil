@@ -1,8 +1,8 @@
 import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
 import { getCityMessage } from "@/lib/db/cityMessages";
-import { getCouncilMeetingsForCity, getCouncilMeetingsCountForCity } from "@/lib/db/meetings";
+import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
@@ -12,9 +12,14 @@ import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
 
 /**
- * Cached version of getMeetingData that fetches and caches all data for a meeting
+ * Cached version of getMeetingData that fetches and caches all data for a meeting.
+ * User-specific highlight visibility is handled internally via getCurrentUser(),
+ * and cache() is request-scoped so each user gets their own cached results.
  */
-export const getMeetingDataCached = cache(async (cityId: string, meetingId: string): Promise<MeetingData | null> => {
+export const getMeetingDataCached = cache(async (
+  cityId: string,
+  meetingId: string
+): Promise<MeetingData | null> => {
   const startTime = performance.now();
   console.log(`Fetching meeting data for`, cityId, meetingId);
 
@@ -56,14 +61,26 @@ export async function getCityCached(cityId: string) {
 /**
  * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
  */
-export async function getCouncilMeetingsForCityCached(cityId: string, { limit }: { limit?: number } = {}) {
+export async function getCouncilMeetingsForCityCached(cityId: string, { limit, page, pageSize = 12 }: { limit?: number; page?: number; pageSize?: number } = {}) {
   // Check if the user is authorized to edit the city
   // This happens OUTSIDE the cached function to avoid using headers() inside cache
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
 
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', limit ? `limit:${limit}` : 'all'],
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit, page, pageSize }),
+    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all')],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * Public (no-auth) version of getCouncilMeetingsForCityCached.
+ * Only returns released meetings. Safe for static pages (no headers() call).
+ */
+export async function getCouncilMeetingsForCityPublicCached(cityId: string, { limit }: { limit?: number } = {}) {
+  return createCache(
+    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit }),
+    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
@@ -79,16 +96,6 @@ export async function getMeetingStatusCached(cityId: string, meetingId: string) 
   )();
 }
 
-/** 
- * Cached version of getCouncilMeetingsCountForCity that fetches and caches the count of all meetings for a city
- */
-export async function getCouncilMeetingsCountForCityCached(cityId: string) {
-  return createCache(
-    () => getCouncilMeetingsCountForCity(cityId),
-    ['city', cityId, 'meetings', 'count'],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
-  )();
-}
 
 /**
  * Cached version of getPartiesForCity that fetches and caches all parties for a city
@@ -138,6 +145,17 @@ export async function getAllCitiesMinimalCached() {
   return createCache(
     () => getAllCitiesMinimal(),
     ['cities', 'all'],
+    { tags: ['cities:all'] }
+  )();
+}
+
+/**
+ * Cached version of getSupportedCitiesWithLogos
+ */
+export async function getSupportedCitiesWithLogosCached() {
+  return createCache(
+    () => getSupportedCitiesWithLogos(),
+    ['cities', 'supported-with-logos'],
     { tags: ['cities:all'] }
   )();
 }

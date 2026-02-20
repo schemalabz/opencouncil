@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -22,6 +23,7 @@ import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
@@ -30,33 +32,8 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "City name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "City name (English) must be at least 2 characters.",
-    }),
-    name_municipality: z.string().min(2, {
-        message: "Municipality name must be at least 2 characters.",
-    }),
-    name_municipality_en: z.string().min(2, {
-        message: "Municipality name (English) must be at least 2 characters.",
-    }),
-    timezone: z.string().min(1, {
-        message: "Timezone is required.",
-    }),
-    logoImage: z.instanceof(File).optional(),
-    id: z.string().min(2, {
-        message: "ID must be at least 2 characters.",
-    }).regex(/^[a-z-]+$/, {
-        message: "ID must contain only lowercase letters a-z and dashes.",
-    }),
-    authorityType: z.enum(['municipality', 'region']),
-    officialSupport: z.boolean().default(false),
-    status: z.enum(['pending', 'unlisted', 'listed']).default('pending'),
-    peopleOrdering: z.enum(['default', 'partyRank']).optional()
-})
+// Use shared schema from lib/schemas/city.ts
+const formSchema = cityFormSchema
 
 interface CityFormProps {
     city?: City
@@ -124,10 +101,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             name_municipality_en: city?.name_municipality_en || "",
             timezone: city?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             id: city?.id || "",
-            authorityType: city?.authorityType || "municipality",
-            officialSupport: city?.officialSupport || false,
-            status: city?.status || 'pending',
-            peopleOrdering: city?.peopleOrdering || "default"
+            authorityType: city?.authorityType || CITY_DEFAULTS.authorityType,
+            officialSupport: city?.officialSupport ?? CITY_DEFAULTS.officialSupport,
+            status: city?.status || CITY_DEFAULTS.status,
+            supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
+            consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
+            peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
+            highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission
         },
     })
 
@@ -156,9 +136,10 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('authorityType', values.authorityType)
         formData.append('officialSupport', values.officialSupport.toString())
         formData.append('status', values.status)
-        if (values.peopleOrdering) {
-            formData.append('peopleOrdering', values.peopleOrdering)
-        }
+        formData.append('supportsNotifications', values.supportsNotifications.toString())
+        formData.append('consultationsEnabled', values.consultationsEnabled.toString())
+        formData.append('highlightCreationPermission', values.highlightCreationPermission)
+        formData.append('peopleOrdering', values.peopleOrdering)
         if (logoImage) {
             formData.append('logoImage', logoImage)
         }
@@ -406,6 +387,50 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="supportsNotifications"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('supportsNotifications')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('supportsNotificationsDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="consultationsEnabled"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">
+                                            {t('consultationsEnabled')}
+                                        </FormLabel>
+                                        <FormDescription>
+                                            {t('consultationsEnabledDescription')}
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
                     </CollapsibleContent>
                 </Collapsible>
                 {isSuperAdmin && (
@@ -472,6 +497,30 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                                         </Select>
                                         <FormDescription>
                                             {t('statusDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="highlightCreationPermission"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('highlightCreationPermission')}</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder={t('selectHighlightCreationPermission')} />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="ADMINS_ONLY">{t('highlightCreationAdminsOnly')}</SelectItem>
+                                                <SelectItem value="EVERYONE">{t('highlightCreationEveryone')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            {t('highlightCreationPermissionDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

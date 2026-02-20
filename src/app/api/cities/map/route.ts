@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getCitiesWithGeometry } from '@/lib/db/cities'
+import { attachGeometryToCities } from '@/lib/db/cities'
 import prisma from '@/lib/db/prisma'
 
 // Enable caching - revalidate every 1 hour
@@ -26,6 +26,7 @@ export async function GET() {
                 supportsNotifications: true,
                 consultationsEnabled: true,
                 peopleOrdering: true,
+                highlightCreationPermission: true,
                 _count: {
                     select: {
                         councilMeetings: true
@@ -42,7 +43,7 @@ export async function GET() {
         });
 
         // Enrich with geometry data
-        const citiesWithGeometry = await getCitiesWithGeometry(cities);
+        const citiesWithGeometry = await attachGeometryToCities(cities);
 
         return NextResponse.json(citiesWithGeometry);
     } catch (error) {

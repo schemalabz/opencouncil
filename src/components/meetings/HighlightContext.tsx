@@ -77,9 +77,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
+  const [lastClickedAction, setLastClickedAction] = useState<'add' | 'remove' | null>(null);
   
   // Get transcript and speaker data from CouncilMeetingDataContext
-  const { transcript, getSpeakerTag, getPerson, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
+  const { transcript, getSpeakerTag, getPerson, getSpeakerSegmentById, meeting, addHighlight, updateHighlight } = useCouncilMeetingData();
   const { currentTime, seekTo, isPlaying, setIsPlaying, seekToAndPlay } = useVideo();
   const router = useRouter();
   const pathname = usePathname();
@@ -110,7 +111,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       highlight.highlightedUtterances.forEach(hu => {
         const utterance = utteranceMap.get(hu.utteranceId);
         if (utterance) {
-          const segment = transcript.find(s => s.id === utterance.speakerSegmentId);
+          const segment = getSpeakerSegmentById(utterance.speakerSegmentId);
           const speakerTag = segment ? getSpeakerTag(segment.speakerTagId) : null;
           const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
           const speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
@@ -312,6 +313,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     // Store the original highlight for reset functionality
     setOriginalHighlight(highlight);
     setIsDirty(false); // Start with clean state
+    // Clear range selection anchor
+    setLastClickedUtteranceId(null);
+    setLastClickedAction(null);
     
     // Auto-navigate to transcript page with highlight parameter if not already there
     const expectedPath = `/${highlight.cityId}/${highlight.meetingId}/transcript`;
@@ -335,73 +339,81 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
   const updateHighlightUtterances = useCallback((utteranceId: string, action: 'add' | 'remove', modifiers?: { shift: boolean }) => {
     if (!editingHighlight || isEditingDisabled) return;
     
-    if (action === 'remove') {
-      // Remove utterance from highlight
+    // Determine the effective action:
+    // - If Shift is pressed and we have an anchor, use the anchor's action
+    // - Otherwise, use the action passed in (and set it as the new anchor action)
+    const effectiveAction = (modifiers?.shift && lastClickedUtteranceId && lastClickedAction) 
+      ? lastClickedAction 
+      : action;
+    
+    // Determine which utterances to operate on
+    let utteranceIds: string[];
+    if (modifiers?.shift && lastClickedUtteranceId) {
+      // Range operation with Shift modifier - use the anchor action for the entire range
+      utteranceIds = calculateUtteranceRange(allUtterances, lastClickedUtteranceId, utteranceId);
+    } else {
+      // Single operation - this becomes the new anchor
+      utteranceIds = [utteranceId];
+      setLastClickedUtteranceId(utteranceId);
+      setLastClickedAction(action);
+    }
+    
+    if (effectiveAction === 'remove') {
+      // Remove utterances from highlight
       const updatedHighlight = {
         ...editingHighlight,
         highlightedUtterances: editingHighlight.highlightedUtterances.filter(
-          hu => hu.utteranceId !== utteranceId
+          hu => !utteranceIds.includes(hu.utteranceId)
         )
       };
       
       setEditingHighlight(updatedHighlight);
       setIsDirty(true);
-      return;
-    }
-    
-    // Action is 'add' - determine which utterances to add
-    let utteranceIdsToAdd: string[];
-    
-    if (modifiers?.shift && lastClickedUtteranceId) {
-      // Range selection with Shift modifier
-      utteranceIdsToAdd = calculateUtteranceRange(allUtterances, lastClickedUtteranceId, utteranceId);
     } else {
-      // Single selection
-      utteranceIdsToAdd = [utteranceId];
-    }
-    
-    // Update last clicked for future range selections
-    setLastClickedUtteranceId(utteranceId);
-    
-    // Filter out already highlighted utterances and create new highlighted utterance objects
-    const now = new Date();
-    const newHighlightedUtterances = utteranceIdsToAdd
-      .filter(id => !editingHighlight.highlightedUtterances.some(hu => hu.utteranceId === id))
-      .map(id => {
-        const utterance = utteranceMap.get(id);
-        if (!utterance) return null;
-        
-        return {
-          id: `temp-${Date.now()}-${Math.random()}`,
-          utteranceId: id,
-          highlightId: editingHighlight.id,
-          createdAt: now,
-          updatedAt: now,
-          utterance: utterance
-        };
-      })
-      .filter((hu): hu is NonNullable<typeof hu> => hu !== null);
-    
-    // Only update if we have new utterances to add
-    if (newHighlightedUtterances.length > 0) {
-      const updatedHighlight = {
-        ...editingHighlight,
-        highlightedUtterances: [
-          ...editingHighlight.highlightedUtterances,
-          ...newHighlightedUtterances
-        ]
-      };
+      // Add utterances to highlight
+      // Filter out already highlighted utterances and create new highlighted utterance objects
+      const now = new Date();
+      const newHighlightedUtterances = utteranceIds
+        .filter(id => !editingHighlight.highlightedUtterances.some(hu => hu.utteranceId === id))
+        .map(id => {
+          const utterance = utteranceMap.get(id);
+          if (!utterance) return null;
+          
+          return {
+            id: `temp-${Date.now()}-${Math.random()}`,
+            utteranceId: id,
+            highlightId: editingHighlight.id,
+            createdAt: now,
+            updatedAt: now,
+            utterance: utterance
+          };
+        })
+        .filter((hu): hu is NonNullable<typeof hu> => hu !== null);
       
-      setEditingHighlight(updatedHighlight);
-      setIsDirty(true);
+      // Only update if we have new utterances to add
+      if (newHighlightedUtterances.length > 0) {
+        const updatedHighlight = {
+          ...editingHighlight,
+          highlightedUtterances: [
+            ...editingHighlight.highlightedUtterances,
+            ...newHighlightedUtterances
+          ]
+        };
+
+        setEditingHighlight(updatedHighlight);
+        setIsDirty(true);
+      }
     }
-  }, [editingHighlight, utteranceMap, isEditingDisabled, setEditingHighlight, setIsDirty, lastClickedUtteranceId, allUtterances]);
+  }, [editingHighlight, utteranceMap, isEditingDisabled, setEditingHighlight, setIsDirty, lastClickedUtteranceId, lastClickedAction, allUtterances]);
 
   // Reset to original state - discard all changes
   const resetToOriginal = () => {
     if (originalHighlight) {
       setEditingHighlight(originalHighlight);
       setIsDirty(false);
+      // Clear range selection anchor
+      setLastClickedUtteranceId(null);
+      setLastClickedAction(null);
     }
   };
 
@@ -416,6 +428,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(false);
     setPreviewMode(false);
     setIsPlaying(false); // Stop video playback
+    // Clear range selection anchor
+    setLastClickedUtteranceId(null);
+    setLastClickedAction(null);
     router.push(`/${cityId}/${meetingId}/highlights`);
   }, [editingHighlight, router, setIsPlaying]);
 
@@ -431,6 +446,9 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     setIsDirty(false);
     setPreviewMode(false);
     setIsPlaying(false); // Stop video playback
+    // Clear range selection anchor
+    setLastClickedUtteranceId(null);
+    setLastClickedAction(null);
     router.push(`/${cityId}/${meetingId}/highlights/${highlightId}`);
   }, [editingHighlight, router, setIsPlaying]);
 

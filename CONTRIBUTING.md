@@ -9,6 +9,46 @@ To get started with development, you'll need to set up the project on your local
 > [!TIP]
 > Please follow the [Development Setup guide in our README.md](./README.md#development-setup) to get your environment up and running.
 
+### Working with Multiple Features Simultaneously
+
+When collaborating with AI co-pilots on multiple features or bug fixes in parallel, git worktrees provide an efficient workflow. Each worktree is a separate working directory linked to the same repository, allowing you to work on multiple branches without switching contexts.
+
+```bash
+# Create a new branch from main and set up a worktree for it
+git worktree add -b feature-branch-name ../opencouncil-feature-name main
+
+# Open a new terminal/IDE window in the worktree directory
+# Then start the development environment
+cd ../opencouncil-feature-name
+./run.sh  # Automatically uses available ports (e.g., 3001, 5556, 5433)
+```
+
+Our Docker setup automatically detects if ports are in use and allocates the next available ports, making it seamless to run multiple instances simultaneously. Open each worktree in a separate terminal or IDE window to work on multiple features in parallel. This allows you to:
+- Keep your main development environment running while testing features in isolation
+- Work with AI co-pilots on multiple issues concurrently in different windows
+- Quickly switch between different features without stopping and restarting services
+
+#### Cleaning Up After Feature Completion
+
+Once your feature is complete and merged, clean up the worktree to free up disk space and keep your workspace organized. Each worktree creates its own set of Docker containers, so you need to clean those up first.
+
+```bash
+# 1. Clean up Docker resources from inside the worktree
+cd ../opencouncil-feature-name
+./run.sh --clean
+
+# 2. Navigate back and remove the worktree
+cd ../opencouncil
+git worktree remove ../opencouncil-feature-name
+
+# 3. Delete the branch if it's been merged
+git branch -d feature-branch-name
+```
+
+The `./run.sh --clean` command automatically detects and cleans up all Docker resources (containers, volumes, networks) specific to that worktree, ensuring nothing is left behind. The command works safely even if containers aren't currently running.
+
+For more details on Docker configuration, see [`docs/docker-usage.md`](./docs/docker-usage.md).
+
 ## Contributor Workflow
 
 Our development methodology is founded on a **co-creation partnership** between human contributors and AI. The human provides the creative leadership and strategic direction; the AI acts as a thinking partner and a powerful co-creator, automating the heavy lifting of planning and coding. **This process is supported by a series of dedicated AI co-pilots, each guided [by a prompt that can be found in our repository](/docs/prompts/)**.
@@ -112,3 +152,4 @@ Once your code and documentation changes are complete, you are ready to submit a
 3.  **Link to the Issue:** In the PR description, include the phrase `Closes #[issue_number]` to automatically link your PR to the GitHub Issue that it resolves.
 4.  **PR Description:** A good description is vital for reviewers. We have a dedicated AI co-pilot prompt ([`docs/prompts/pull-request-creation.prompt.md`](./docs/prompts/pull-request-creation.prompt.md)) to help you write a comprehensive one.
 5.  **Draft PRs:** If your work is still in progress but you'd like to get early feedback, please open a "Draft" Pull Request.
+6.  **Quality Check:** Before opening your PR, run `/pre-pr` in Claude Code to catch common issues (commit hygiene, code quality, production safety, build, tests).

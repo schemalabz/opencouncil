@@ -1,0 +1,84 @@
+name: Cleanup PR Preview
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+# Ensure only one cleanup runs at a time per PR
+concurrency:
+  group: preview-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Destroy Preview Instance
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - name: Cleanup preview deployment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_DEPLOY_SSH_KEY }}
+          PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
+          PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
+        run: |
+          set -euo pipefail
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((3000 + PR_NUM))
+
+          echo "Cleaning up preview for PR #$PR_NUM (port $PORT)"
+
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PREVIEW_HOST" >> ~/.ssh/known_hosts
+
+          # Cleanup via SSH — pass PR_NUM as a positional argument since
+          # the single-quoted heredoc prevents expression expansion on the remote.
+          ssh -i ~/.ssh/deploy_key "${PREVIEW_USER}@${PREVIEW_HOST}" bash -s "$PR_NUM" <<'CLEANUP_SCRIPT'
+            set -euo pipefail
+
+            PR_NUM="$1"
+
+            echo "Destroying preview instance for PR #$PR_NUM..."
+            sudo opencouncil-preview-destroy "$PR_NUM" || {
+              echo "Warning: Failed to destroy preview cleanly"
+              exit 0
+            }
+
+            echo "✓ Preview cleaned up successfully"
+          CLEANUP_SCRIPT
+
+          echo "### 🧹 Preview Cleaned Up" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Preview for PR #$PR_NUM has been destroyed" >> $GITHUB_STEP_SUMMARY
+          echo "- Systemd service stopped and disabled" >> $GITHUB_STEP_SUMMARY
+          echo "- Caddy configuration removed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+
+            const body = '## 🧹 Preview deployment cleaned up\n\n'
+              + 'The preview instance for this PR has been destroyed.\n\n'
+              + '**Removed:**\n'
+              + '- Preview service (port ' + (3000 + prNumber) + ')\n'
+              + '- Caddy reverse proxy configuration\n'
+              + '- All preview-specific resources\n\n'
+              + '---\n'
+              + '*Automatic cleanup on PR close*';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body,
+            });

@@ -110,6 +110,35 @@
           "text": { "type": "text", "analyzer": "greek" },
           "summary": { "type": "text", "analyzer": "greek" }
         }
+      },
+      "speaker_contributions": {
+        "type": "nested",
+        "properties": {
+          "contribution_id": { "type": "keyword" },
+          "speaker_person_id": { "type": "keyword" },
+          "speaker_person_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_person_name_en": {
+            "type": "text",
+            "analyzer": "standard",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_party_id": { "type": "keyword" },
+          "speaker_party_name": {
+            "type": "text",
+            "analyzer": "greek",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "speaker_party_name_en": {
+            "type": "text",
+            "analyzer": "standard",
+            "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } }
+          },
+          "text": { "type": "text", "analyzer": "greek" }
+        }
       }
     },
     "nodes": {
@@ -118,7 +147,6 @@
       "columns": [
         "id",
         "name",
-        "description",
         "cityId",
         "councilMeetingId",
         "topicId",
@@ -314,7 +342,7 @@
           "table": "SubjectSpeakerSegmentSearchView",
           "schema": "public",
           "base_tables": ["SubjectSpeakerSegment", "SpeakerSegment", "SpeakerTag", "Person", "Party", "Role", "Utterance"],
-          "primary_key": ["segment_id"],
+          "primary_key": ["id"],
           "label": "speaker_segments",
           "relationship": {
             "variant": "object",
@@ -322,7 +350,7 @@
             "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
           },
           "columns": [
-            "segment_id",
+            "id",
             "text",
             "summary",
             "speaker_person_id",
@@ -331,7 +359,52 @@
             "speaker_party_id",
             "speaker_party_name",
             "speaker_party_name_en"
-          ]
+          ],
+          "transform": {
+            "rename": {
+              "id": "segment_id"
+            }
+          }
+        },
+        {
+          "table": "SubjectSearchView",
+          "schema": "public",
+          "base_tables": ["Subject"],
+          "primary_key": ["id"],
+          "columns": ["description"],
+          "label": "description",
+          "relationship": {
+            "variant": "scalar",
+            "type": "one_to_one",
+            "foreign_key": { "parent": ["id"], "child": ["id"] }
+          }
+        },
+        {
+          "table": "SpeakerContributionSearchView",
+          "schema": "public",
+          "base_tables": ["SpeakerContribution", "Person", "Party", "Role"],
+          "primary_key": ["id"],
+          "label": "speaker_contributions",
+          "relationship": {
+            "variant": "object",
+            "type": "one_to_many",
+            "foreign_key": { "parent": ["id"], "child": ["subject_id"] }
+          },
+          "columns": [
+            "id",
+            "text",
+            "speaker_person_id",
+            "speaker_person_name",
+            "speaker_person_name_en",
+            "speaker_party_id",
+            "speaker_party_name",
+            "speaker_party_name_en"
+          ],
+          "transform": {
+            "rename": {
+              "id": "contribution_id"
+            }
+          }
         }
       ]
     }

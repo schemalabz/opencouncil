@@ -1,4 +1,7 @@
 {
+    "Common": {
+        "allTopics": "Όλα τα θέματα"
+    },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
         "withVideo": "Βίντεο",
@@ -80,6 +83,10 @@
         "statusPending": "Εκκρεμής",
         "statusUnlisted": "Μη Καταχωρημένη",
         "statusListed": "Καταχωρημένη",
+        "supportsNotifications": "Υποστήριξη Ειδοποιήσεων",
+        "supportsNotificationsDescription": "Ενεργοποίηση εγγραφής και διαχείρισης ειδοποιήσεων για τους πολίτες.",
+        "consultationsEnabled": "Ενεργοποίηση Διαβουλεύσεων",
+        "consultationsEnabledDescription": "Ενεργοποίηση της καρτέλας δημόσιων διαβουλεύσεων για αυτήν την πόλη",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",
@@ -88,6 +95,11 @@
         "defaultOrdering": "Προεπιλογή (Αλφαβητική)",
         "partyRankOrdering": "Κατάταξη Παράταξης",
         "peopleOrderingDescription": "Επιλέξτε πώς θα ταξινομούνται τα πρόσωπα στη σελίδα προσώπων. Η Κατάταξη Παράταξης ταξινομεί με βάση τη δύναμη της παράταξης και τις προσαρμοσμένες κατατάξεις των παρατάξεων.",
+        "highlightCreationPermission": "Δικαίωμα Δημιουργίας Στιγμιοτύπων",
+        "selectHighlightCreationPermission": "Επιλέξτε ποιος μπορεί να δημιουργήσει στιγμιότυπα",
+        "highlightCreationAdminsOnly": "Μόνο Διαχειριστές",
+        "highlightCreationEveryone": "Όλοι",
+        "highlightCreationPermissionDescription": "Ελέγξτε ποιος μπορεί να δημιουργήσει στιγμιότυπα για αυτήν την πόλη",
         "CityMessageForm": {
             "sectionTitle": "Μήνυμα Πόλης",
             "toggle": "Εναλλαγή μηνύματος πόλης",
@@ -226,7 +238,7 @@
             },
             "immediateIntegration": {
                 "title": "Άμεση Ενσωμάτωση",
-                "description": "Συνδέστε το OpenCouncil στο δήμο σας σε λίγες ώρες, όχι μήνες."
+                "description": "Συνδέστε το OpenCouncil στον δήμο σας σε λίγες ώρες, όχι μήνες."
             },
             "enhancedAccessibility": {
                 "title": "Βελτιωμένη Προσβασιμότητα",
@@ -302,19 +314,16 @@
         "activeFrom": "Ενεργός από",
         "activeTo": "Ενεργός έως",
         "searchForPerson": "Αναζήτηση στα πρακτικά που αφορούν το μέλος",
-        "statistics": "Στατιστικά Μέλους",
         "searchItems": "Αναζητήστε μέλη",
         "activeUntil": "Μέλος έως",
         "active": "Μέλος",
         "from": "από",
         "until": "έως",
         "item": "μέλος",
-        "loadingStatistics": "Φόρτωση στατιστικών...",
         "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
         "loading": "Φόρτωση...",
         "loadMore": "Περισσότερα",
-        "noStatisticsAvailable": "Δεν υπάρχουν διαθέσιμα στατιστικά για αυτό το μέλος.",
         "recentSegments": "Πρόσφατες τοποθετήσεις",
         "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα"
     },
@@ -327,13 +336,11 @@
         "deleteParty": "Διαγραφή Παράταξης",
         "partyDeleted": "Η παράταξη {name} διαγράφηκε",
         "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
-        "statistics": "Στατιστικά Παράταξης",
         "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
         "searchItems": "Αναζητήστε παρατάξεις",
         "item": "παράταξη",
         "addItem": "Προσθήκη Παράταξης",
         "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil.",
-        "loadingStatistics": "Φόρτωση στατιστικών...",
         "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
         "loading": "Φόρτωση...",
@@ -344,8 +351,8 @@
         "breadcrumbHome": "Αρχική",
         "tabPeople": "Πρόσωπα",
         "tabPeopleShort": "Μέλη",
-        "tabStatistics": "Στατιστικά",
-        "tabStatisticsShort": "Στατ."
+        "tabSegments": "Τοποθετήσεις",
+        "tabSegmentsShort": "Τοποθετήσεις"
     },
     "PersonForm": {
         "personNamePlaceholder": "Όνομα Μέλους",
@@ -405,19 +412,14 @@
         "from": "από",
         "until": "έως"
     },
-    "Statistics": {
-        "totalMinutes": "λεπτά ομιλίας",
-        "topicsList": "Θέματα",
-        "topSpeakers": "Κορυφαίοι Ομιλητές",
-        "minutes": "λεπτά",
-        "allTopics": "Όλα τα θέματα"
-    },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
         "searchItems": "Αναζητήστε συνεδριάσεις",
         "item": "συνεδρίαση",
         "addItem": "Προσθήκη Συνεδρίασης",
-        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil."
+        "noItems": "Δεν υπάρχουν συνεδριάσεις στο OpenCouncil.",
+        "previous": "Προηγούμενο",
+        "next": "Επόμενο"
     },
     "Profile": {
         "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",
@@ -585,6 +587,42 @@
         "error": "Σφάλμα",
         "saveError": "Αποτυχία αποθήκευσης της κατάταξης. Παρακαλώ δοκιμάστε ξανά.",
         "resetError": "Αποτυχία επαναφοράς της κατάταξης. Παρακαλώ δοκιμάστε ξανά."
+    },
+    "Subject": {
+        "agendaItem": "Θέμα #{index}",
+        "parties": "Παρατάξεις",
+        "minutes": "λεπτά",
+        "speakers": "{count, plural, =1 {1 ομιλητής} other {# ομιλητές}}",
+        "noDiscussionFound": "Δεν βρέθηκε συζήτηση επί του θέματος",
+        "introducer": "Εισηγητής",
+        "summary": "Σύνοψη",
+        "statements": "Τοποθετήσεις",
+        "statementsCount": "{count, plural, =1 {1 τοποθέτηση} other {# τοποθετήσεις}}",
+        "noContributions": "Δεν υπάρχουν συνεισφορές ομιλητών",
+        "unknownSpeaker": "Άγνωστος ομιλητής",
+        "noStatements": "Δεν υπάρχουν τοποθετήσεις ομιλητών",
+        "transcript": "Απομαγνητοφώνηση",
+        "noSummary": "Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση",
+        "viewMap": "Προβολή χάρτη",
+        "adminDetails": "Διαχειριστικά στοιχεία",
+        "notificationImportance": "Σημασία ειδοποιήσεων",
+        "notificationImportanceDescription": "Αυτές οι πληροφορίες καθορίζουν ποιοι χρήστες θα ειδοποιηθούν για αυτό το θέμα με βάση τις προτιμήσεις τους.",
+        "topicImportanceLabel": "Σημασία Θέματος",
+        "proximityImportanceLabel": "Σημασία Εγγύτητας",
+        "topicImportance": {
+            "high": "Υψηλή",
+            "normal": "Κανονική",
+            "none": "Καμία"
+        },
+        "proximityImportance": {
+            "wide": "Ευρεία",
+            "near": "Κοντινή",
+            "none": "Καμία"
+        },
+        "voting": "Ψηφοφορία",
+        "votingDisclaimer": "Το OpenCouncil δεν εξάγει ακόμα τις ψηφοφορίες των θεμάτων -- όμως η σχετική συζήτηση της ψηφοφορίας εμφανίζεται παρακάτω",
+        "noVotingUtterances": "Δεν βρέθηκε ψηφοφορία για αυτό το θέμα",
+        "groupedDiscussion": "Συζήτηση μαζί με άλλα θέματα",
+        "groupedDiscussionDescription": "Αυτό το θέμα φαίνεται να συζητήθηκε και να ψηφίστηκε μαζί με άλλα θέματα. Δείτε την συζήτηση στο:"
     }
 }
-

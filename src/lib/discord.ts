@@ -66,7 +66,7 @@ export async function sendMeetingCreatedAdminAlert(data: {
     meetingId: string;
     cityId: string;
 }): Promise<void> {
-    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+    const meetingUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}`;
 
     await sendDiscordMessage({
         embeds: [{
@@ -122,7 +122,7 @@ export async function sendTaskStartedAdminAlert(data: {
     cityId: string;
     meetingId: string;
 }): Promise<void> {
-    const adminUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}/admin`;
+    const adminUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}/admin`;
 
     await sendDiscordMessage({
         embeds: [{
@@ -172,7 +172,7 @@ export async function sendTaskCompletedAdminAlert(data: {
     cityId: string;
     meetingId: string;
 }): Promise<void> {
-    const adminUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}/admin`;
+    const adminUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}/admin`;
 
     await sendDiscordMessage({
         embeds: [{
@@ -223,7 +223,7 @@ export async function sendTaskFailedAdminAlert(data: {
     meetingId: string;
     error?: string;
 }): Promise<void> {
-    const adminUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}/admin`;
+    const adminUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}/admin`;
 
     await sendDiscordMessage({
         embeds: [{
@@ -395,8 +395,8 @@ export async function sendNotificationsCreatedAdminAlert(data: {
     meetingId: string;
     autoSend: boolean;
 }): Promise<void> {
-    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
-    const adminNotificationsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/notifications`;
+    const meetingUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}`;
+    const adminNotificationsUrl = `${env.NEXTAUTH_URL}/admin/notifications`;
 
     await sendDiscordMessage({
         embeds: [{
@@ -459,7 +459,7 @@ export async function sendNotificationsSentAdminAlert(data: {
         return;
     }
 
-    const adminNotificationsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/notifications`;
+    const adminNotificationsUrl = `${env.NEXTAUTH_URL}/admin/notifications`;
     const color = data.failed > 0 ? 0xe74c3c : 0x2ecc71; // Red if failures, green if all success
 
     await sendDiscordMessage({
@@ -516,6 +516,8 @@ export async function sendHumanReviewCompletedAdminAlert(data: {
 }): Promise<void> {
     const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
     const adminReviewsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/reviews`;
+    const meetingUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}`;
+    const adminReviewsUrl = `${env.NEXTAUTH_URL}/admin/reviews`;
 
     const primaryReviewTime = formatDurationMs(data.estimatedReviewTimeMs);
     const totalReviewTime = formatDurationMs(data.totalReviewTimeMs);

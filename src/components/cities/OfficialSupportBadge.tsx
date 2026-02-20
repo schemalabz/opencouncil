@@ -7,6 +7,7 @@ type AuthorityType = 'municipality' | 'region';
 interface OfficialSupportBadgeProps {
     officialSupport: boolean;
     authorityType: AuthorityType;
+    cityId?: string;
     className?: string;
     size?: 'sm' | 'md' | 'lg';
 }
@@ -14,6 +15,7 @@ interface OfficialSupportBadgeProps {
 export function OfficialSupportBadge({
     officialSupport,
     authorityType,
+    cityId,
     className,
     size = 'md'
 }: OfficialSupportBadgeProps) {
@@ -30,6 +32,11 @@ export function OfficialSupportBadge({
     };
 
     const getSupportText = () => {
+        // Hardcoded text for Athens
+        if (officialSupport && cityId === 'athens') {
+            return 'Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.';
+        }
+
         const entityText = authorityType === 'municipality' ? 'του δήμου' : 'της περιφέρειας';
         return officialSupport
             ? `Με την υποστήριξη ${entityText}`

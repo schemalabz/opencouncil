@@ -12,7 +12,7 @@ const revalidateSchema = z.object({
 });
 
 export async function POST(request: Request) {
-    if (!isUserAuthorizedToEdit({})) {
+    if (!await isUserAuthorizedToEdit({})) {
         return NextResponse.json({ error: 'Unauthorized: Only super admins can revalidate cache' }, { status: 401 });
     }
 

@@ -37,8 +37,8 @@ export default async function PetitionPage() {
                     </div>
 
                     <p className="text-base sm:text-lg text-muted-foreground text-left leading-relaxed">
-                        Μπορείτε να μας βοηθήσετε να φέρουμε το δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
-                        όνομά σας όταν μιλήσουμε με το δήμο, ως δημότη που θα ήθελε να έχει το OpenCouncil στο δήμο του.
+                        Μπορείτε να μας βοηθήσετε να φέρουμε τον δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
+                        όνομά σας όταν μιλήσουμε με τον δήμο, ως δημότη που θα ήθελε να έχει το OpenCouncil στον δήμο του.
                     </p>
                 </div>
 

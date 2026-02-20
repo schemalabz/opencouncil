@@ -18,8 +18,7 @@ import {
     MapPin,
     Building2
 } from 'lucide-react';
-import Icon from '@/components/icon';
-import { icons } from 'lucide-react';
+import Icon, { iconMap } from '@/components/icon';
 import { motion } from 'framer-motion';
 
 interface SubjectInfoSheetProps {
@@ -105,13 +104,13 @@ export function SubjectInfoSheet({
                             <div className="flex items-center gap-2">
                                 {topicName && (
                                     <div className="flex items-center gap-2">
-                                        {topicIcon && (topicIcon in icons) && (
+                                        {topicIcon && (topicIcon in iconMap) && (
                                             <div
                                                 className="p-1.5 rounded-lg shadow-sm"
                                                 style={{ backgroundColor: topicColor ? topicColor + "15" : "#f3f4f6" }}
                                             >
                                                 <Icon
-                                                    name={topicIcon as keyof typeof icons}
+                                                    name={topicIcon as keyof typeof iconMap}
                                                     color={topicColor || "#6b7280"}
                                                     size={16}
                                                 />

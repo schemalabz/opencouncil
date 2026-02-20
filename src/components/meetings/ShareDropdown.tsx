@@ -12,12 +12,13 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Loader2 } from "lucide-react";
+import { CheckCircle, CopyIcon, Share, ExternalLink, FileDown, LinkIcon, Eye, Loader2, Instagram } from "lucide-react";
 import { useVideo } from './VideoProvider';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
+import { downloadFile } from '@/lib/export/meetings';
 
 
 interface ShareDropdownProps {
@@ -33,6 +34,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [ogImageUrl, setOgImageUrl] = useState('');
     const [imageLoading, setImageLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
+    const [downloading, setDownloading] = useState<string | null>(null);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
@@ -48,14 +50,19 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
         // Generate OG image URL based on current path
         const baseUrl = window.location.origin;
-        let ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        let ogUrl: string;
 
-        // Add specific parameters based on current path
+        // For subject pages, include subjectId in the API request
         if (pathname.includes('/subjects/')) {
             const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
             if (subjectId) {
                 ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}&subjectId=${subjectId}`;
+            } else {
+                ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
             }
+        } else {
+            // For meeting pages, use the API route
+            ogUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
         }
 
         setOgImageUrl(ogUrl);
@@ -113,6 +120,45 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
         navigator.clipboard.writeText(getShareableUrl());
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 3000);
+    };
+
+    const downloadImage = async (variant: 'story' | 'feed' | 'default') => {
+        const baseUrl = window.location.origin;
+        let imageUrl = `${baseUrl}/api/og?cityId=${cityId}&meetingId=${meetingId}`;
+        
+        // Add subjectId if on a subject page
+        if (pathname.includes('/subjects/')) {
+            const subjectId = pathname.split('/subjects/')[1]?.split('/')[0];
+            if (subjectId) {
+                imageUrl += `&subjectId=${subjectId}`;
+            }
+        }
+        
+        // Add variant parameter if not default
+        if (variant !== 'default') {
+            imageUrl += `&variant=${variant}`;
+        }
+
+        setDownloading(variant);
+        
+        try {
+            const response = await fetch(imageUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch image');
+            }
+            
+            const blob = await response.blob();
+            
+            // Set filename based on variant
+            const variantName = variant === 'story' ? 'story' : variant === 'feed' ? 'feed' : 'og';
+            const fileName = `meeting-${variantName}-${meetingId}.png`;
+            
+            downloadFile(blob, fileName);
+        } catch (error) {
+            console.error('Error downloading image:', error);
+        } finally {
+            setDownloading(null);
+        }
     };
 
     // Determine what's being shared based on the current path
@@ -236,6 +282,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
                 {ogImageUrl && (
                     <>
+                        <DropdownMenuSeparator />
                         <div className="p-3">
                             <div className="rounded-lg border overflow-hidden bg-muted/50">
                                 <div className="aspect-[1200/630] relative bg-muted/30">
@@ -272,6 +319,40 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                                         <span>Προεπισκόπηση κοινοποίησης</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {ogImageUrl && !pathname.includes('/subjects/') && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <div className="p-3">
+                            <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                                Εξαγωγή Προεπισκόπησης ως Εικόνα
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { type: 'story' as const, icon: Instagram, label: 'Story', ratio: '9:16' },
+                                    { type: 'feed' as const, icon: FileDown, label: 'Post', ratio: '1:1' }
+                                ].map(({ type, icon: Icon, label, ratio }) => (
+                                    <Button
+                                        key={type}
+                                        onClick={() => downloadImage(type)}
+                                        disabled={downloading !== null}
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 flex items-center gap-1.5"
+                                    >
+                                        {downloading === type ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                            <Icon className="w-3 h-3" />
+                                        )}
+                                        <span className="text-xs">{label}</span>
+                                        <span className="text-[10px] text-muted-foreground">({ratio})</span>
+                                    </Button>
+                                ))}
                             </div>
                         </div>
                     </>

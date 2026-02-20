@@ -59,6 +59,16 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
         id: 'SPEED_DOWN',
         description: 'Decrease playback speed',
         keys: ['ArrowDown']
+    },
+    SKIP_BACKWARD: {
+        id: 'SKIP_BACKWARD',
+        description: 'Skip backward by interval',
+        keys: ['Shift+ArrowLeft']
+    },
+    SKIP_FORWARD: {
+        id: 'SKIP_FORWARD',
+        description: 'Skip forward by interval',
+        keys: ['Shift+ArrowRight']
     }
 };
 

@@ -1,31 +1,32 @@
 'use client';
 import { useTranslations } from 'next-intl';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
-import { City, Party, Person, Role, AdministrativeBody } from '@prisma/client';
-import Image from 'next/image';
+import { City, Person, Role, AdministrativeBody } from '@prisma/client';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search, Users, TrendingUp } from "lucide-react";
+import { Search, Users, FileText } from "lucide-react";
 import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
-import { Statistics } from '../Statistics';
 import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
+import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters, filterPersonByAdministrativeBodies } from '@/lib/utils/administrativeBodies';
+import { updateFilterURL } from '@/lib/utils/filterURL';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole } from '@/lib/utils';
+import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
+import { MultiSelectDropdown } from '../ui/multi-select-dropdown';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -36,15 +37,57 @@ function PartyMembersTab({
     city,
     party,
     people,
-    canEdit
+    canEdit,
+    administrativeBodies
 }: {
     city: City,
     party: PartyWithPersons,
     people: PersonWithRelations[],
-    canEdit: boolean
+    canEdit: boolean,
+    administrativeBodies: AdministrativeBody[]
 }) {
     const t = useTranslations('Party');
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
+
+    // Get administrative bodies that party members belong to
+    const partyMembers = useMemo(() =>
+        people.filter(person =>
+            person.roles.some(role => role.partyId === party.id)
+        ),
+        [people, party.id]
+    );
+
+    const partyAdministrativeBodies = useMemo(() =>
+        getAdministrativeBodiesForPeople(partyMembers),
+        [partyMembers]
+    );
+
+    const defaultFilterValues = useMemo(() =>
+        getDefaultAdministrativeBodyFilters(partyAdministrativeBodies, true),
+        [partyAdministrativeBodies]
+    );
+
+    // Get filter values from URL or use default
+    const selectedAdminBodyIds = useMemo<(string | null)[]>(() => {
+        const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+        return selectedFilterLabels.length > 0
+            ? selectedFilterLabels.map(label =>
+                partyAdministrativeBodies.find(f => f.label === label)?.value
+            ).filter((value): value is string | null => value !== undefined)
+            : (defaultFilterValues ?? []);
+    }, [searchParams, partyAdministrativeBodies, defaultFilterValues]);
+
+    // Handle filter change
+    const handleAdminBodyFilterChange = (selectedValues: (string | null)[]) => {
+        updateFilterURL(selectedValues, partyAdministrativeBodies, defaultFilterValues, searchParams, router);
+    };
+
+    // Filter people based on selected administrative bodies
+    const filterByAdminBody = useCallback((person: PersonWithRelations) => {
+        return filterPersonByAdministrativeBodies(person, selectedAdminBodyIds);
+    }, [selectedAdminBodyIds]);
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
@@ -52,9 +95,9 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 isRoleActive(role)
-            )
+            ) && filterByAdminBody(person)
         ),
-        [people, party.id]);
+        [people, party.id, filterByAdminBody]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
@@ -62,12 +105,29 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 !isRoleActive(role)
-            )
+            ) && filterByAdminBody(person)
         ),
-        [people, party.id]);
+        [people, party.id, filterByAdminBody]);
 
     return (
         <div className="space-y-8">
+            {/* Administrative Body Filter - only show if there's more than one */}
+            {partyAdministrativeBodies.length > 1 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <MultiSelectDropdown
+                        options={partyAdministrativeBodies}
+                        defaultValues={selectedAdminBodyIds}
+                        onChange={handleAdminBodyFilterChange}
+                        className="w-full sm:w-[300px]"
+                        allText="Όλα τα όργανα"
+                    />
+                </motion.div>
+            )}
+
             {/* Current Members Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -106,7 +166,6 @@ function PartyMembersTab({
                                 key={person.id}
                                 item={person}
                                 editable={canEdit}
-                                parties={[party]}
                             />
                         ))}
                 </div>
@@ -156,15 +215,11 @@ function PartyMembersTab({
                                             </div>
                                         </Link>
                                         <span className="text-xs text-muted-foreground text-right flex-shrink-0">
-                                            {formatDateRange(
-                                                new Date(Math.min(...person.roles
-                                                    .filter(role => role.partyId === party.id && role.startDate)
-                                                    .map(role => role.startDate ? new Date(role.startDate).getTime() : Infinity))),
-                                                new Date(Math.max(...person.roles
-                                                    .filter(role => role.partyId === party.id && role.endDate)
-                                                    .map(role => role.endDate ? new Date(role.endDate).getTime() : 0))),
-                                                t
-                                            )}
+                                            {(() => {
+                                                const partyRoles = person.roles.filter(role => role.partyId === party.id);
+                                                const { startDate, endDate } = getDateRangeFromRoles(partyRoles);
+                                                return formatDateRange(startDate, endDate, t);
+                                            })()}
                                         </span>
                                     </div>
                                 </motion.div>
@@ -176,8 +231,8 @@ function PartyMembersTab({
     );
 }
 
-// Statistics and Segments Tab Component
-function StatisticsAndSegmentsTab({
+// Segments Tab Component
+function SegmentsTab({
     city,
     party,
     administrativeBodies,
@@ -233,27 +288,6 @@ function StatisticsAndSegmentsTab({
                     onSelectAdminBody={onSelectAdminBody}
                 />
             )}
-
-            {/* Statistics Section */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-            >
-                <div className="flex items-center gap-2 mb-4">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg sm:text-xl font-semibold">{t('statistics')}</h2>
-                </div>
-                <div className="bg-card rounded-lg border shadow-sm p-4 sm:p-6 min-h-[300px] relative">
-                    <Statistics
-                        type="party"
-                        id={party.id}
-                        cityId={city.id}
-                        color={party.colorHex}
-                        administrativeBodyId={selectedAdminBodyId}
-                    />
-                </div>
-            </motion.div>
 
             {/* Recent Segments Section */}
             <motion.div
@@ -567,10 +601,10 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                     <span className="hidden xs:inline">{t('tabPeople')}</span>
                                     <span className="xs:hidden">{t('tabPeopleShort')}</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="statistics" className="text-xs sm:text-sm py-2 px-3">
-                                    <TrendingUp className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden sm:inline">{t('tabStatistics')}</span>
-                                    <span className="sm:hidden">{t('tabStatisticsShort')}</span>
+                                <TabsTrigger value="segments" className="text-xs sm:text-sm py-2 px-3">
+                                    <FileText className="h-4 w-4 mr-1 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('tabSegments')}</span>
+                                    <span className="sm:hidden">{t('tabSegmentsShort')}</span>
                                 </TabsTrigger>
                             </TabsList>
                         </div>
@@ -581,11 +615,12 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                 party={party}
                                 people={persons}
                                 canEdit={canEdit}
+                                administrativeBodies={administrativeBodies}
                             />
                         </TabsContent>
 
-                        <TabsContent value="statistics" className="mt-6">
-                            <StatisticsAndSegmentsTab
+                        <TabsContent value="segments" className="mt-6">
+                            <SegmentsTab
                                 city={city}
                                 party={party}
                                 administrativeBodies={partyRelatedAdminBodies}

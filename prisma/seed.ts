@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 import * as path from 'path'
-import axios from 'axios'
 import { env } from '@/env.mjs'
+import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 
 const prisma = new PrismaClient()
 
@@ -299,8 +299,11 @@ async function getSeedData() {
   }
 
   // If no local file, download from URL
+  // Dynamic import to avoid bundling axios in production builds
+  // (preview deployments pre-download the seed data with curl)
   console.log(`Downloading seed data from: ${SEED_DATA_URL}`)
   try {
+    const axios = (await import('axios')).default
     const response = await axios.get(SEED_DATA_URL)
     const data = response.data
 
@@ -352,11 +355,12 @@ async function seedCities(cities: any[]) {
     name_municipality_en: city.name_municipality_en || city.name_en,
     logoImage: city.logoImage,
     timezone: city.timezone || 'Europe/Athens',
-    officialSupport: city.officialSupport || false,
-    status: city.status || 'pending',
-    authorityType: city.authorityType || 'municipality',
+    officialSupport: city.officialSupport ?? CITY_DEFAULTS.officialSupport,
+    status: city.status || CITY_DEFAULTS.status,
+    authorityType: city.authorityType || CITY_DEFAULTS.authorityType,
     wikipediaId: city.wikipediaId,
-    consultationsEnabled: city.id === 'athens' ? true : false, // Enable consultations for Athens
+    consultationsEnabled: city.id === 'athens' ? true : CITY_DEFAULTS.consultationsEnabled,
+    highlightCreationPermission: city.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
   }))
 
   await prisma.city.createMany({
@@ -655,6 +659,56 @@ async function seedSubjects(subjects: any[], meeting: any) {
     data: validSubjectData,
     skipDuplicates: true,
   });
+
+  // Seed speaker contributions after subjects are created
+  await seedSpeakerContributions(subjects);
+}
+
+/**
+ * Seed speaker contributions for subjects
+ */
+async function seedSpeakerContributions(subjects: any[]) {
+  const allContributions = subjects
+    .filter(subject => subject.contributions && subject.contributions.length > 0)
+    .flatMap(subject =>
+      subject.contributions.map((contribution: any) => ({
+        id: contribution.id,
+        text: contribution.text,
+        speakerId: contribution.speakerId,
+        subjectId: subject.id,
+      }))
+    );
+
+  // Validate uniqueness of [subjectId, speakerId] - duplicates indicate a bug in seed generation
+  // Note: Only check for duplicates when speakerId is non-null, since PostgreSQL's unique constraint
+  // allows multiple NULL values (NULL != NULL in SQL)
+  const seen = new Set<string>();
+  for (const c of allContributions) {
+    // Use loose equality to catch both null and undefined (missing property in seed data)
+    if (c.speakerId != null) {
+      const key = `${c.subjectId}:${c.speakerId}`;
+      if (seen.has(key)) {
+        throw new Error(
+          `Duplicate speaker contribution found: speaker ${c.speakerId} on subject ${c.subjectId}. ` +
+          `This violates @@unique([subjectId, speakerId]) - check seed data generation.`
+        );
+      }
+      seen.add(key);
+    }
+  }
+
+  if (allContributions.length > 0) {
+    console.log(`Creating ${allContributions.length} speaker contributions...`);
+    try {
+      await prisma.speakerContribution.createMany({
+        data: allContributions,
+        skipDuplicates: true,
+      });
+    } catch (error) {
+      console.error('Error creating speaker contributions:', error);
+      // Continue anyway, as this is not critical
+    }
+  }
 }
 
 /**

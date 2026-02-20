@@ -27,6 +27,91 @@ function checkCredentials(channelId: string | undefined, serviceName: string): {
     return { configured: true };
 }
 
+const BIRD_TERMINAL_STATUSES = ['delivered', 'delivery_failed', 'sending_failed', 'rejected', 'skipped'] as const;
+
+const POLL_MAX_ATTEMPTS = 5;
+const POLL_INTERVAL_MS = 2000;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch current status of a Bird message via the list endpoint
+ */
+async function getMessageStatus(channelId: string, messageId: string): Promise<string | null> {
+    try {
+        const response = await fetch(
+            `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/channels/${channelId}/messages?id=${messageId}`,
+            {
+                headers: {
+                    'Authorization': `AccessKey ${env.BIRD_API_KEY}`,
+                }
+            }
+        );
+
+        if (!response.ok) {
+            console.error(`Bird GET message status error: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        const results = data.results;
+        if (Array.isArray(results) && results.length > 0) {
+            return results[0].status ?? null;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching Bird message status:', error);
+        return null;
+    }
+}
+
+/**
+ * Poll Bird API until message reaches a terminal status or timeout.
+ * Returns the terminal status string, or null if polling timed out.
+ */
+async function pollForDeliveryStatus(
+    channelId: string,
+    messageId: string
+): Promise<string | null> {
+    for (let attempt = 1; attempt <= POLL_MAX_ATTEMPTS; attempt++) {
+        await sleep(POLL_INTERVAL_MS);
+
+        const status = await getMessageStatus(channelId, messageId);
+        console.log(`Bird message ${messageId} poll ${attempt}/${POLL_MAX_ATTEMPTS}: status=${status}`);
+
+        if (status && (BIRD_TERMINAL_STATUSES as readonly string[]).includes(status)) {
+            return status;
+        }
+    }
+
+    console.log(`Bird message ${messageId} polling timed out after ${POLL_MAX_ATTEMPTS} attempts`);
+    return null;
+}
+
+/**
+ * Check polling result and return success/failure for WhatsApp delivery.
+ * Called after a successful Bird POST to determine actual delivery outcome.
+ */
+function resolveDeliveryResult(
+    finalStatus: string | null,
+    phoneNumber: string
+): { success: boolean; error?: string } {
+    if (finalStatus === 'delivered') {
+        return { success: true };
+    }
+
+    if (finalStatus === 'delivery_failed' || finalStatus === 'sending_failed' || finalStatus === 'rejected' || finalStatus === 'skipped') {
+        console.log(`WhatsApp delivery failed for ${phoneNumber}: status=${finalStatus}`);
+        return { success: false, error: `WhatsApp delivery status: ${finalStatus}` };
+    }
+
+    // Timeout (null) — optimistic, same as previous behavior
+    console.log(`WhatsApp delivery status unknown for ${phoneNumber}, treating as success`);
+    return { success: true };
+}
+
 /**
  * Make Bird API request with error handling
  */
@@ -34,7 +119,7 @@ async function makeBirdRequest(
     url: string,
     payload: unknown,
     logPrefix: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -55,8 +140,6 @@ async function makeBirdRequest(
         console.log(`${logPrefix} sent via Bird:`, result);
 
         // Check for immediate failure in response body even if status is 2xx
-        // Bird returns 202 Accepted, which means it's queued.
-        // We consider this a success for now, but we should eventually use webhooks for real delivery status.
         if (result.status === 'failed' || result.status === 'rejected') {
             return {
                 success: false,
@@ -64,7 +147,7 @@ async function makeBirdRequest(
             };
         }
 
-        return { success: true };
+        return { success: true, messageId: result.id };
     } catch (error) {
         console.error(`Error ${logPrefix.toLowerCase()}:`, error);
         return {
@@ -82,6 +165,13 @@ export async function sendWhatsAppMessage(
     notificationType: 'beforeMeeting' | 'afterMeeting',
     params: WhatsAppTemplateParams
 ): Promise<{ success: boolean; error?: string }> {
+    console.log(`WhatsApp send to ${phoneNumber} (SIMULATE_WHATSAPP_UNAVAILABLE=${process.env.SIMULATE_WHATSAPP_UNAVAILABLE ? 'true' : 'false'})`);
+
+    if (process.env.SIMULATE_WHATSAPP_UNAVAILABLE) {
+        console.log(`[Simulated] WhatsApp unavailable for ${phoneNumber}, will fall back to SMS`);
+        return { success: false, error: 'Simulated: WhatsApp unavailable' };
+    }
+
     const credentialsCheck = checkCredentials(env.BIRD_WHATSAPP_CHANNEL_ID, 'WhatsApp');
     if (!credentialsCheck.configured) {
         console.error('Bird WhatsApp credentials not configured');
@@ -139,11 +229,18 @@ export async function sendWhatsAppMessage(
         }
     };
 
-    return makeBirdRequest(
+    const result = await makeBirdRequest(
         `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/channels/${env.BIRD_WHATSAPP_CHANNEL_ID}/messages`,
         payload,
         'WhatsApp message'
     );
+
+    if (!result.success || !result.messageId) {
+        return { success: result.success, error: result.error };
+    }
+
+    const finalStatus = await pollForDeliveryStatus(env.BIRD_WHATSAPP_CHANNEL_ID!, result.messageId);
+    return resolveDeliveryResult(finalStatus, phoneNumber);
 }
 
 /**
@@ -190,6 +287,11 @@ export async function sendWelcomeWhatsAppMessage(
     userName: string,
     cityName: string
 ): Promise<{ success: boolean; error?: string }> {
+    if (process.env.SIMULATE_WHATSAPP_UNAVAILABLE) {
+        console.log(`[Simulated] WhatsApp unavailable for ${phoneNumber}, will fall back to SMS`);
+        return { success: false, error: 'Simulated: WhatsApp unavailable' };
+    }
+
     const credentialsCheck = checkCredentials(env.BIRD_WHATSAPP_CHANNEL_ID, 'WhatsApp');
     if (!credentialsCheck.configured) {
         console.error('Bird WhatsApp credentials not configured');
@@ -232,11 +334,18 @@ export async function sendWelcomeWhatsAppMessage(
 
     console.log('Bird WhatsApp welcome message request:', JSON.stringify(payload, null, 2));
 
-    return makeBirdRequest(
+    const result = await makeBirdRequest(
         `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/channels/${env.BIRD_WHATSAPP_CHANNEL_ID}/messages`,
         payload,
         'WhatsApp welcome message'
     );
+
+    if (!result.success || !result.messageId) {
+        return { success: result.success, error: result.error };
+    }
+
+    const finalStatus = await pollForDeliveryStatus(env.BIRD_WHATSAPP_CHANNEL_ID!, result.messageId);
+    return resolveDeliveryResult(finalStatus, phoneNumber);
 }
 
 /**

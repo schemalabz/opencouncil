@@ -37,7 +37,7 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
     };
 
     return (
-        <section className="relative min-h-[70vh] flex items-start justify-center overflow-hidden w-full">
+        <section className="relative min-h-[70vh] flex items-start justify-center overflow-hidden w-full pb-20">
             <motion.div
                 style={{ opacity, y }}
                 variants={container}

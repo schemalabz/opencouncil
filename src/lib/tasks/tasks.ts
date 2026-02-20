@@ -10,6 +10,15 @@ import { Prisma } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers } from './registry';
 
+export interface TaskVersionsFilter {
+    taskTypes: MeetingTaskType[];
+    dateFrom?: Date;
+    dateTo?: Date;
+    cityIds?: string[];
+    versionMin?: number;
+    versionMax?: number;
+}
+
 const taskStatusWithMeetingInclude = {
     councilMeeting: {
         select: {
@@ -50,7 +59,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     });
 
     // Prepare callback URL
-    const callbackUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
+    const callbackUrl = `${env.NEXTAUTH_URL}/api/cities/${cityId}/meetings/${councilMeetingId}/taskStatuses/${newTask.id}`;
     console.log(`Callback URL: ${callbackUrl}`);
 
     // Add callback URL to request body
@@ -159,7 +168,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     }
                 }
             } catch (error) {
-                console.error(`Error processing result for task ${taskId}: ${error}`);
+                console.error(`Error processing result for task ${taskId}:`, error);
                 await prisma.taskStatus.update({
                     where: { id: taskId },
                     data: { status: 'failed', version: update.version }
@@ -206,8 +215,12 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             error: update.error,
         });
     } else if (update.status === 'processing') {
-        await prisma.taskStatus.update({
-            where: { id: taskId },
+        // Use updateMany with WHERE clause to atomically prevent overwriting terminal states
+        await prisma.taskStatus.updateMany({
+            where: { 
+                id: taskId,
+                status: { notIn: ['succeeded', 'failed'] }
+            },
             data: { status: 'pending', stage: update.stage, percentComplete: update.progressPercent, version: update.version }
         });
     }
@@ -266,20 +279,53 @@ export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): 
     return highestVersions;
 }
 
-export const getTaskVersionsForMeetings = async (taskTypes: MeetingTaskType[]): Promise<Record<string, any>[]> => {
+export const getTaskVersionsForMeetings = async (filters: TaskVersionsFilter): Promise<Record<string, any>[]> => {
     await withUserAuthorizedToEdit({});
-    // Get all meetings
+
+    // Build meeting where clause
+    const meetingWhere: Prisma.CouncilMeetingWhereInput = {
+        city: {
+            status: { not: 'pending' }
+        }
+    };
+
+    if (filters.dateFrom || filters.dateTo) {
+        meetingWhere.dateTime = {};
+        if (filters.dateFrom) {
+            meetingWhere.dateTime.gte = filters.dateFrom;
+        }
+        if (filters.dateTo) {
+            meetingWhere.dateTime.lte = filters.dateTo;
+        }
+    }
+
+    if (filters.cityIds && filters.cityIds.length > 0) {
+        meetingWhere.cityId = { in: filters.cityIds };
+    }
+
+    // Build task status where clause
+    const taskStatusWhere: Prisma.TaskStatusWhereInput = {
+        type: { in: filters.taskTypes },
+        status: "succeeded"
+    };
+
+    if (filters.versionMin !== undefined || filters.versionMax !== undefined) {
+        taskStatusWhere.version = {};
+        if (filters.versionMin !== undefined) {
+            taskStatusWhere.version.gte = filters.versionMin;
+        }
+        if (filters.versionMax !== undefined) {
+            taskStatusWhere.version.lte = filters.versionMax;
+        }
+    }
+
     const meetings = await prisma.councilMeeting.findMany({
         select: {
             id: true,
             cityId: true,
+            dateTime: true,
             taskStatuses: {
-                where: {
-                    type: {
-                        in: taskTypes
-                    },
-                    status: "success" // Only get completed tasks
-                },
+                where: taskStatusWhere,
                 select: {
                     type: true,
                     version: true
@@ -289,22 +335,20 @@ export const getTaskVersionsForMeetings = async (taskTypes: MeetingTaskType[]): 
                 }
             }
         },
-        where: {
-            city: {
-                status: { not: 'pending' }
-            }
-        }
+        where: meetingWhere,
+        orderBy: { dateTime: 'desc' }
     });
 
     // Transform into desired format
     return meetings.map(meeting => {
         const result: Record<string, any> = {
             cityId: meeting.cityId,
-            meetingId: meeting.id
+            meetingId: meeting.id,
+            dateTime: meeting.dateTime
         };
 
         // Add version for each task type
-        taskTypes.forEach(taskType => {
+        filters.taskTypes.forEach(taskType => {
             const taskStatus = meeting.taskStatuses.find(t => t.type === taskType);
             result[taskType] = taskStatus?.version ?? null;
         });
@@ -313,17 +357,24 @@ export const getTaskVersionsForMeetings = async (taskTypes: MeetingTaskType[]): 
     });
 };
 
-export const getTaskVersionsGroupedByCity = async (taskTypes: MeetingTaskType[]): Promise<Record<string, any>> => {
+export const getTaskVersionsGroupedByCity = async (filters: TaskVersionsFilter): Promise<Record<string, any>> => {
     await withUserAuthorizedToEdit({});
 
     // Get all meetings with their task versions
-    const meetingsWithVersions = await getTaskVersionsForMeetings(taskTypes);
+    const meetingsWithVersions = await getTaskVersionsForMeetings(filters);
+
+    // Build city where clause
+    const cityWhere: Prisma.CityWhereInput = {
+        status: { not: 'pending' }
+    };
+
+    if (filters.cityIds && filters.cityIds.length > 0) {
+        cityWhere.id = { in: filters.cityIds };
+    }
 
     // Get city information
     const cities = await prisma.city.findMany({
-        where: {
-            status: { not: 'pending' }
-        },
+        where: cityWhere,
         select: {
             id: true,
             name: true,
@@ -355,4 +406,13 @@ export const getTaskVersionsGroupedByCity = async (taskTypes: MeetingTaskType[])
     });
 
     return groupedByCity;
+};
+
+export const getAvailableCities = async (): Promise<{ id: string; name: string; name_en: string }[]> => {
+    await withUserAuthorizedToEdit({});
+    return prisma.city.findMany({
+        where: { status: { not: 'pending' } },
+        select: { id: true, name: true, name_en: true },
+        orderBy: { name_en: 'asc' }
+    });
 };

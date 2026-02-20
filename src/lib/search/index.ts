@@ -150,7 +150,27 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                         }
                     }
                 },
-                highlights: true
+                contributions: {
+                    include: {
+                        speaker: {
+                            include: {
+                                roles: {
+                                    include: {
+                                        party: true,
+                                        city: true,
+                                        administrativeBody: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                highlights: true,
+                discussedIn: {
+                    include: {
+                        topic: true
+                    }
+                }
             }
         });
 

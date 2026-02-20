@@ -7,7 +7,7 @@ import { env } from '@/env.mjs';
 export async function generateMetadata(): Promise<Metadata> {
     const description = "Αναζητήστε στα δημοτικά συμβούλια του OpenCouncil. Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων, στατιστικά και πολλά άλλα χρησιμοποιώντας την έξυπνη αναζήτηση του OpenCouncil.";
 
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?pageType=search`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=search`;
 
     return {
         title: "Αναζήτηση | OpenCouncil",

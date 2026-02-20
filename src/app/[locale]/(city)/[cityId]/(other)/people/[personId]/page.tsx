@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: { locale: string, p
     const description = `Προφίλ του προσώπου ${person.name} ${roleDescription} | ${city.name} | Στατιστικά συμμετοχής, τοποθετήσεις, δραστηριότητα στο δημοτικό συμβούλιο.`;
 
     // Generate OG image URL
-    const ogImageUrl = `${env.NEXT_PUBLIC_BASE_URL}/api/og?cityId=${params.cityId}&personId=${params.personId}`;
+    const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?cityId=${params.cityId}&personId=${params.personId}`;
 
     return {
         title: `${person.name} | ${city.name} | OpenCouncil`,
@@ -92,7 +92,7 @@ export default async function PersonPage({ params }: { params: { locale: string,
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic', 'person', 'party'])
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic'])
     ]);
 
     if (!person || !city) {

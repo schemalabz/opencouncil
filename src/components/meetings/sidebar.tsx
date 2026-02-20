@@ -1,5 +1,5 @@
 "use client"
-import { LayoutDashboard, FileText, Share2, BarChart2, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star, Map, Bolt } from "lucide-react"
+import { LayoutDashboard, FileText, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star, Map, Bolt } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -32,6 +32,7 @@ export default function MeetingSidebar() {
     const [activeItem, setActiveItem] = useState(pathname)
     const { options } = useTranscriptOptions()
     const canEdit = options.editsAllowed
+    const canCreateHighlights = options.canCreateHighlights
 
     // Sort subjects by appearance (chronological) for the sidebar
     const chronologicalSubjects = useMemo(() => {
@@ -98,11 +99,11 @@ export default function MeetingSidebar() {
             icon: Mic,
             url: `/${city.id}/${meeting.id}/transcript`
         },
-        {
-            title: "Στατιστικά",
-            icon: BarChart2,
-            url: `/${city.id}/${meeting.id}/statistics`
-        },
+        ...(canCreateHighlights ? [{
+            title: "Στιγμιότυπα",
+            icon: Star,
+            url: `/${city.id}/${meeting.id}/highlights`
+        }] : []),
         {
             title: "Ρυθμίσεις",
             icon: Settings,
@@ -112,13 +113,7 @@ export default function MeetingSidebar() {
             title: "Διαχείριση",
             icon: Bolt,
             url: `/${city.id}/${meeting.id}/admin`
-        },
-        {
-            title: "Highlights",
-            icon: Star,
-            url: `/${city.id}/${meeting.id}/highlights`
-        },
-        ] : [])
+        }] : [])
     ]
 
     return (
@@ -166,22 +161,6 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && (
                                 <>
-                                    <SidebarMenuItem className="pl-8">
-                                        <SidebarMenuButton
-                                            asChild
-                                            onClick={handleMenuItemClick}
-                                            isActive={activeItem === `/${city.id}/${meeting.id}/subjects`}
-                                        >
-                                            <Link
-                                                href={`/${city.id}/${meeting.id}/subjects`}
-                                                className={cn(
-                                                    activeItem === `/${city.id}/${meeting.id}/subjects` && "text-primary font-medium"
-                                                )}
-                                            >
-                                                <span className="text-sm font-bold">Όλα τα θέματα</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
                                     {chronologicalSubjects?.map((subject) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
                                             <SidebarMenuButton

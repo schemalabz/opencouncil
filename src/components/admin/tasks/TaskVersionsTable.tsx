@@ -18,12 +18,14 @@ import {
 } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatDate } from "@/lib/formatters/time";
 
 type TaskVersion = number | null;
 
 interface Meeting {
     meetingId: string;
     cityId: string;
+    dateTime: string | null;
     [key: string]: any; // For task versions like transcribe, processAgenda, summarize
 }
 
@@ -119,6 +121,7 @@ export default function TaskVersionsTable({
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Meeting ID</TableHead>
+                                            <TableHead>Date</TableHead>
                                             {taskTypes.map(taskType => (
                                                 <TableHead key={taskType}>{taskType}</TableHead>
                                             ))}
@@ -129,6 +132,11 @@ export default function TaskVersionsTable({
                                             <TableRow key={meeting.meetingId}>
                                                 <TableCell className="font-mono text-xs">
                                                     {meeting.meetingId}
+                                                </TableCell>
+                                                <TableCell className="text-sm whitespace-nowrap">
+                                                    {meeting.dateTime
+                                                        ? formatDate(new Date(meeting.dateTime))
+                                                        : "—"}
                                                 </TableCell>
                                                 {taskTypes.map(taskType => (
                                                     <TableCell key={taskType}>

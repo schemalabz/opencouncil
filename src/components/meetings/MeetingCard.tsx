@@ -1,13 +1,13 @@
 'use client'
-import { CouncilMeeting, Subject, Topic } from '@prisma/client';
+import { CouncilMeeting, Subject, Topic, AdministrativeBody } from '@prisma/client';
 import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
-import { CalendarIcon, Clock, FileIcon, Loader2, VideoIcon, AudioLines, FileText, Ban, ChevronRight } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, getMeetingState, IS_DEV } from '@/lib/utils';
+import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
+import { sortSubjectsByImportance, formatDateTime, formatDate, IS_DEV } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -26,7 +26,8 @@ interface MeetingCardProps {
         subjects: (Subject & {
             topic?: Topic | null,
             speakerSegments?: any[] // Using any for flexibility with the structure
-        })[]
+        })[],
+        administrativeBody?: AdministrativeBody | null
     };
     editable: boolean;
     mostRecent?: boolean;
@@ -65,7 +66,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
-    // Since data comes from the backend as ordered by hot status already (due to db query order),
+    // Since data comes from the backend as ordered by hot status already (due to db query order),d
     // we maintain that order but use our utility for consistency
     const sortedSubjects = useMemo(() => {
         const result = sortSubjectsByImportance(meeting.subjects, 'importance');
@@ -101,27 +102,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     const isUpcoming = isFuture(meeting.dateTime);
     const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
     const isTodayWithoutVideo = isToday && !meeting.videoUrl;
-
-    const getMediaIcon = () => {
-        if (meeting.videoUrl) return <VideoIcon className="w-4 h-4" />;
-        if (meeting.audioUrl) return <AudioLines className="w-4 h-4" />;
-        if (meeting.agendaUrl) return <FileText className="w-4 h-4" />;
-        return <Ban className="w-4 h-4" />;
-    };
-
-    const getMediaStatus = () => {
-        const meetingState = getMeetingState(meeting);
-
-        return (
-            <div className="flex items-center gap-1">
-                {meetingState.icon === "video" && <VideoIcon className="w-4 h-4" />}
-                {meetingState.icon === "audio" && <AudioLines className="w-4 h-4" />}
-                {meetingState.icon === "fileText" && <FileText className="w-4 h-4" />}
-                {meetingState.icon === "ban" && <Ban className="w-4 h-4" />}
-                <span>{meetingState.label}</span>
-            </div>
-        );
-    };
 
     // Ensure we have subjects to display
     const hasSubjects = meeting.subjects.length > 0;
@@ -206,17 +186,18 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                         {/* Meeting metadata - more compact */}
                         <div className="mt-1 mb-1 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+                            {meeting.administrativeBody && (
+                                <div className="flex items-center gap-1">
+                                    <Building className="w-3.5 h-3.5 text-muted-foreground/70" />
+                                    <span>{meeting.administrativeBody.name}</span>
+                                </div>
+                            )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
                                 <span>{(isUpcoming || isToday)
-                                    ? (cityTimezone
-                                        ? formatDateTime(meeting.dateTime, cityTimezone)
-                                        : format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: locale === 'el' ? el : enUS }))
-                                    : format(meeting.dateTime, 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS })}
+                                    ? formatDateTime(meeting.dateTime, cityTimezone)
+                                    : formatDate(meeting.dateTime, cityTimezone)}
                                 </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                {getMediaStatus()}
                             </div>
                         </div>
 

@@ -4,19 +4,34 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
-import { Play, FileText, MapPin, ScrollText, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Play, FileText, MapPin, ScrollText, CheckSquare } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
-import { subjectToMapFeature, getPartyFromRoles } from "@/lib/utils";
+import { subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useMemo } from "react";
+import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
+import { CollapsibleCard } from "@/components/ui/collapsible-card";
+import { DebugUtterances } from "./DebugUtterances";
+import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
+import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
+import { ContributionCard } from "./ContributionCard";
+import { VotingSection } from "./VotingSection";
+import { AutoScrollText } from "@/components/ui/auto-scroll-text";
+import { useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
+import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
+    const t = useTranslations("Subject");
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
     // If subjectId is provided, find the subject in the context
     const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
@@ -26,7 +41,22 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         notFound();
     }
 
-    const { topic, location, description, name, speakerSegments, agendaItemIndex, introducedBy } = subject;
+    const {
+        topic,
+        location,
+        description,
+        name,
+        speakerSegments,
+        agendaItemIndex,
+        introducedBy,
+        contributions,
+        topicImportance,
+        proximityImportance,
+        discussedIn
+    } = subject;
+
+    // Use contributions if available, fallback to speaker segments
+    const hasContributions = contributions && contributions.length > 0;
 
     const colorPercentages = subject.statistics?.parties?.map(p => ({
         color: p.item.colorHex,
@@ -46,87 +76,157 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         <div className="min-h-screen bg-background">
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-                <div className="max-w-4xl mx-auto px-3 py-3 md:px-4 md:py-4">
+                <div className="max-w-4xl mx-auto px-3 py-3.5 md:px-4 md:py-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded-full shrink-0" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={topic?.icon as any || "Hash"} color={topic?.colorHex || "#9ca3af"} size={16} />
+                        <div className="p-2.5 rounded-full shrink-0" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
+                            <Icon name={topic?.icon as any || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
                         </div>
                         <div className="flex-grow min-w-0">
-                            <h1 className="text-lg font-semibold truncate">{name}</h1>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>{totalMinutes} λεπτά</span>
-                                {agendaItemIndex && (
+                            <AutoScrollText className="mb-1.5">
+                                <h1 className="text-xl font-semibold leading-tight">{name}</h1>
+                            </AutoScrollText>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                {topic && <TopicBadge topic={topic} size="compact" />}
+                                {agendaItemIndex ? (
                                     <>
-                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
-                                        <span>Θέμα #{agendaItemIndex}</span>
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
+                                    </>
+                                ) : subject.nonAgendaReason && (
+                                    <>
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                                        <span className="font-medium">
+                                            {subject.nonAgendaReason === 'beforeAgenda' ? "Προ ημερησίας" : "Εκτός ημερησίας"}
+                                        </span>
                                     </>
                                 )}
                             </div>
                         </div>
+                        {isSuperAdmin && (
+                            <div className="flex-shrink-0">
+                                <DebugMetadataButton
+                                    data={subject}
+                                    title="Subject Metadata"
+                                    tooltip="View subject metadata"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
-                {/* Overview Section */}
-                <div className="bg-card p-6 rounded-lg">
-                    <div className="flex flex-col md:flex-row gap-6">
-                        {/* Left Column - Color Ring */}
-                        <div className="flex-shrink-0 flex items-center justify-center md:self-center">
-                            <ColorPercentageRing
-                                data={colorPercentages}
-                                size={96}
-                                thickness={12}
-                            >
-                                <div className="flex flex-col items-center">
-                                    <div className="text-2xl font-medium">
-                                        {totalMinutes}
+                {/* Quick Stats Section */}
+                <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+                    {/* Parties Card */}
+                    <div className="flex-grow rounded-lg shadow-sm overflow-hidden">
+                        <div
+                            className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
+                            style={{ borderRadius: "0.5rem" }}
+                        >
+                            <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+                                <h3 className="text-sm font-semibold mb-2">{t("parties")}</h3>
+                                {totalMinutes === 0 ? (
+                                    <div className="py-6 text-center">
+                                        <p className="text-sm text-muted-foreground">
+                                            {t("noDiscussionFound")}
+                                        </p>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        λεπτά
-                                    </div>
-                                </div>
-                            </ColorPercentageRing>
-                        </div>
-
-                        {/* Right Column - Content */}
-                        <div className="flex-grow min-w-0 space-y-4">
-                            <div className="space-y-3">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {topic && <TopicBadge topic={topic} />}
-                                    {location && (
-                                        <div className="inline-flex items-center gap-1.5 text-sm bg-muted/50 px-2.5 py-1 rounded-md">
-                                            <MapPin className="w-3.5 h-3.5 shrink-0" />
-                                            <span className="truncate">{location.text}</span>
+                                ) : (
+                                    <div className="flex items-start gap-3">
+                                        {/* Color Ring */}
+                                        <div className="flex-shrink-0">
+                                            <ColorPercentageRing
+                                                data={colorPercentages}
+                                                size={80}
+                                                thickness={10}
+                                            >
+                                                <div className="flex flex-col items-center">
+                                                    <div className="text-xl font-semibold">
+                                                        {totalMinutes}
+                                                    </div>
+                                                    <div className="text-[10px] text-muted-foreground">
+                                                        {t("minutes")}
+                                                    </div>
+                                                </div>
+                                            </ColorPercentageRing>
                                         </div>
-                                    )}
-                                </div>
-                                {description && (
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+
+                                        {/* Party Breakdown + Speaker Count */}
+                                        <div className="flex-grow min-w-0 space-y-2">
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                                                {subject.statistics?.parties?.map((p) => (
+                                                    <div key={p.item.id} className="flex items-center gap-1.5 text-xs">
+                                                        <div
+                                                            className="w-3 h-3 rounded-sm shrink-0"
+                                                            style={{ backgroundColor: p.item.colorHex }}
+                                                        />
+                                                        <span className="font-medium">{p.item.name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span>{t("speakers", { count: subject.statistics?.people?.length || (hasContributions ? contributions.length : speakerSegments?.length || 0) })}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            {introducedBy && (
-                                <div className="pt-4 border-t">
-                                    <div className="text-sm font-medium text-muted-foreground mb-2">Εισηγητής</div>
-                                    <PersonBadge
-                                        person={introducedBy}
-                                    />
-                                </div>
-                            )}
                         </div>
                     </div>
+
+                    {/* Introducer Card */}
+                    {introducedBy && (
+                        <div className="shrink-0 rounded-lg shadow-sm overflow-hidden md:max-w-[66%]">
+                            <div
+                                className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
+                                style={{ borderRadius: "0.5rem" }}
+                            >
+                                <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
+                                    <h3 className="text-sm font-semibold mb-2">{t("introducer")}</h3>
+                                    <PersonBadge person={introducedBy} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Location Section */}
-                {location && (
-                    <div className="bg-card rounded-lg overflow-hidden">
-                        <div className="p-4 border-b">
-                            <h3 className="text-base font-semibold">Τοποθεσία</h3>
-                            <p className="text-sm text-muted-foreground mt-1">{location.text}</p>
+                {/* Grouped Discussion Notice */}
+                {discussedIn && (
+                    <GroupedDiscussionNotice primarySubject={discussedIn} />
+                )}
+
+                {/* Summary Section (Collapsible - Open by default) */}
+                {description && (
+                    <CollapsibleCard
+                        icon={<FileText className="w-4 h-4" />}
+                        title={t("summary")}
+                        defaultOpen={true}
+                    >
+                        <div className="p-4 space-y-4">
+                            <div className="text-justify">
+                                <FormattedTextDisplay
+                                    text={description}
+                                    meetingId={meeting.id}
+                                    cityId={meeting.cityId}
+                                    linkColor="black"
+                                />
+                            </div>
+                            <div className="flex justify-end">
+                                <AIGeneratedBadge />
+                            </div>
                         </div>
+                    </CollapsibleCard>
+                )}
+
+                {/* Location & Map Section (Collapsible) */}
+                {location && (
+                    <CollapsibleCard
+                        icon={<MapPin className="w-4 h-4" />}
+                        title={location.text}
+                    >
                         <div className="h-[300px] w-full">
                             <Map
                                 center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
@@ -135,7 +235,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 animateRotation={false}
                             />
                         </div>
-                    </div>
+                    </CollapsibleCard>
                 )}
 
                 {/* Context Section */}
@@ -143,79 +243,138 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     <SubjectContext subject={subject} />
                 )}
 
-                {/* Speaker Segments Section */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Τοποθετήσεις Ομιλητών</h3>
-                        <div className="text-sm text-muted-foreground">
-                            {speakerSegments?.length || 0} τοποθετήσεις
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        {(!speakerSegments || speakerSegments.length === 0) ? (
-                            <div className="bg-card rounded-lg p-8 text-center">
-                                <p className="text-sm text-muted-foreground">Δεν υπάρχουν τοποθετήσεις ομιλητών</p>
+                {/* Speaker Contributions OR Speaker Segments */}
+                <CollapsibleCard
+                    icon={<ScrollText className="w-4 h-4" />}
+                    title={`${t("statements")} (${hasContributions ? contributions.length : speakerSegments?.length || 0})`}
+                    defaultOpen={true}
+                >
+                    {hasContributions ? (
+                        /* NEW: Render Contributions */
+                        contributions.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    {t("noStatements")}
+                                </p>
                             </div>
                         ) : (
-                            speakerSegments.map(segment => {
-                                const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
-                                const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                                const party = person ? getPartyFromRoles(person.roles) : null;
-                                if (!speakerTag) return null;
-
-                                const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
-                                const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`
-
-                                return (
-                                    <div
-                                        key={segment.speakerSegmentId}
-                                        className="group bg-card hover:bg-card/80 transition-colors rounded-lg border shadow-sm"
-                                    >
-                                        <div className="p-4">
-                                            <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                                <PersonBadge
-                                                    person={person}
-                                                    speakerTag={speakerTag}
-                                                />
-                                                <div className="flex gap-2 md:ml-auto">
-                                                    <Button
-                                                        onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                    >
-                                                        <Play className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        asChild
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="transition-colors hover:bg-primary hover:text-primary-foreground"
-                                                    >
-                                                        <Link href={transcriptUrl}>
-                                                            <FileText className="h-4 w-4 mr-1.5" />
-                                                            Απομαγνητοφώνηση
-                                                        </Link>
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            {segment.summary ? (
-                                                <div className="mt-4 pl-4 border-l-2 border-muted">
-                                                    <p className="text-sm text-muted-foreground leading-relaxed">{segment.summary}</p>
-                                                </div>
-                                            ) : (
-                                                <p className="text-center text-sm mt-6 text-muted-foreground italic">
-                                                    Δεν υπάρχει αυτόματη σύνοψη για αυτή τη τοποθέτηση
-                                                </p>
-                                            )}
-                                        </div>
+                            <>
+                                {contributions.map((contribution, index) => (
+                                    <div key={contribution.id}>
+                                        {index > 0 && <div className="border-t border-border" />}
+                                        <ContributionCard contribution={contribution} subjectId={subject.id} />
                                     </div>
-                                );
-                            })
-                        )}
-                    </div>
-                </div>
+                                ))}
+                            </>
+                        )
+                    ) : (
+                        /* FALLBACK: Render Speaker Segments (old format) */
+                        (!speakerSegments || speakerSegments.length === 0) ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                    {t("noStatements")}
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {speakerSegments.map((segment, index) => {
+                                    const speakerTag = getSpeakerTag(segment.speakerSegment.speakerTagId);
+                                    const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
+                                    if (!speakerTag) return null;
+
+                                    const timeParam = `t=${Math.floor(segment.speakerSegment.startTimestamp)}`;
+                                    const transcriptUrl = `/${meeting.cityId}/${meeting.id}/transcript?${timeParam}`;
+
+                                    return (
+                                        <div key={segment.speakerSegmentId}>
+                                            {index > 0 && <div className="border-t border-border" />}
+                                            <div className="p-4">
+                                                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                                                    <PersonBadge
+                                                        person={person}
+                                                        speakerTag={speakerTag}
+                                                    />
+                                                    <div className="flex gap-2 md:ml-auto">
+                                                        <Button
+                                                            onClick={() => seekToAndPlay(segment.speakerSegment.startTimestamp)}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
+                                                        >
+                                                            <Play className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            asChild
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="transition-colors hover:bg-primary hover:text-primary-foreground"
+                                                        >
+                                                            <Link href={transcriptUrl}>
+                                                                <FileText className="h-4 w-4 mr-1.5" />
+                                                                {t("transcript")}
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                {segment.summary ? (
+                                                    <div className="mt-4 pl-4 border-l-2 border-muted">
+                                                        <p className="text-sm text-muted-foreground leading-relaxed">{segment.summary}</p>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-center text-sm mt-6 text-muted-foreground italic">
+                                                        {t("noSummary")}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )
+                    )}
+                </CollapsibleCard>
+
+                {/* Voting Section */}
+                <CollapsibleCard
+                    icon={<CheckSquare className="w-4 h-4" />}
+                    title={t("voting")}
+                    defaultOpen={false}
+                >
+                    <VotingSection subjectId={subject.id} />
+                </CollapsibleCard>
+
+                {/* Admin Section */}
+                {(topicImportance || proximityImportance) && (
+                    <CollapsibleCard
+                        icon={<ScrollText className="w-4 h-4" />}
+                        title={t("adminDetails")}
+                    >
+                        <div className="p-4 space-y-4">
+                            {/* Notification Importance */}
+                            <div className="space-y-2">
+                                <div className="text-sm font-medium">{t("notificationImportance")}</div>
+                                <p className="text-xs text-muted-foreground">
+                                    {t("notificationImportanceDescription")}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {topicImportance && (
+                                        <Badge variant="secondary">
+                                            {t("topicImportanceLabel")}: {t(`topicImportance.${topicImportance}`)}
+                                        </Badge>
+                                    )}
+                                    {proximityImportance && (
+                                        <Badge variant="secondary">
+                                            {t("proximityImportanceLabel")}: {t(`proximityImportance.${proximityImportance}`)}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Debug Utterances - Superadmin only */}
+                            <DebugUtterances subjectId={subject.id} />
+                        </div>
+                    </CollapsibleCard>
+                )}
             </div>
         </div>
     );

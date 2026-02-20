@@ -3,17 +3,39 @@ import {
     Subject,
     SubjectSpeakerSegment,
     SpeakerSegment,
+    SpeakerContribution,
     Highlight,
     Location,
     Topic,
     City,
     CouncilMeeting,
+    Prisma,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
 import { getPeopleForCity } from './people';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
+import { extractUtteranceIds } from '@/lib/utils/references';
+import { roleWithRelationsInclude } from './types/roles';
+
+// Shared include blocks for Subject queries
+const contributionsInclude = {
+    include: {
+        speaker: {
+            include: {
+                roles: roleWithRelationsInclude
+            },
+        },
+    },
+    orderBy: { createdAt: 'asc' as const },
+} satisfies Prisma.SpeakerContributionFindManyArgs;
+
+const introducedByInclude = {
+    include: {
+        roles: roleWithRelationsInclude
+    },
+} satisfies Prisma.PersonDefaultArgs;
 
 // Type for location with coordinates
 export type LocationWithCoordinates = Location & {
@@ -24,6 +46,10 @@ export type LocationWithCoordinates = Location & {
 };
 
 export type SubjectWithRelations = Subject & {
+    contributions: (SpeakerContribution & {
+        speaker: PersonWithRelations | null;
+    })[];
+    // Keep speakerSegments for backward compatibility during transition
     speakerSegments: (SubjectSpeakerSegment & {
         speakerSegment: SpeakerSegment;
     })[];
@@ -31,6 +57,7 @@ export type SubjectWithRelations = Subject & {
     location: LocationWithCoordinates | null;
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
+    discussedIn: (Subject & { topic: Topic | null }) | null;
 };
 
 export type SubjectOgData = {
@@ -45,6 +72,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
     try {
         const subjects = await prisma.subject.findMany({
             include: {
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -53,15 +81,10 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 highlights: true,
                 location: true,
                 topic: true,
-                introducedBy: {
+                introducedBy: introducedByInclude,
+                discussedIn: {
                     include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
+                        topic: true,
                     },
                 },
             },
@@ -82,6 +105,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 councilMeetingId,
             },
             include: {
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -92,20 +116,15 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                         },
                     },
                 },
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
+                introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,
                 topic: true,
+                discussedIn: {
+                    include: {
+                        topic: true,
+                    },
+                },
             },
         });
 
@@ -149,6 +168,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 id: subjectId,
             },
             include: {
+                contributions: contributionsInclude,
                 speakerSegments: {
                     include: {
                         speakerSegment: true,
@@ -159,20 +179,15 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                         },
                     },
                 },
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true,
-                            },
-                        },
-                    },
-                },
+                introducedBy: introducedByInclude,
                 highlights: true,
                 location: true,
                 topic: true,
+                discussedIn: {
+                    include: {
+                        topic: true,
+                    },
+                },
             },
         });
 
@@ -234,4 +249,69 @@ export async function getSubjectDataForOG(
         console.error('Error fetching subject data for OG:', error);
         return null;
     }
+}
+
+/**
+ * Extract utterance IDs from contribution references for highlight creation
+ * @param contributions - Array of speaker contributions
+ * @returns Deduplicated array of utterance IDs
+ */
+export function extractUtteranceIdsFromContributions(
+    contributions: { text: string }[]
+): string[] {
+    const allIds: string[] = [];
+    for (const contribution of contributions) {
+        const ids = extractUtteranceIds(contribution.text);
+        allIds.push(...ids);
+    }
+    return [...new Set(allIds)]; // Deduplicate
+}
+
+/**
+ * Get all utterances tagged with a subject for debugging
+ * Only accessible to superadmins
+ */
+export async function getUtterancesForSubject(subjectId: string) {
+    const { getCurrentUser } = await import('@/lib/auth');
+    const user = await getCurrentUser();
+
+    // Only superadmins can access debug data
+    if (!user?.isSuperAdmin) {
+        return null;
+    }
+
+    const utterances = await prisma.utterance.findMany({
+        where: {
+            discussionSubjectId: subjectId,
+            discussionStatus: {
+                in: ['SUBJECT_DISCUSSION', 'VOTE']
+            }
+        },
+        select: {
+            id: true,
+            text: true,
+            startTimestamp: true,
+            endTimestamp: true,
+            discussionStatus: true,
+            speakerSegment: {
+                select: {
+                    speakerTag: {
+                        select: {
+                            label: true,
+                            person: {
+                                select: {
+                                    name: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: {
+            startTimestamp: 'asc'
+        }
+    });
+
+    return utterances;
 }

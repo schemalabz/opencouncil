@@ -1,4 +1,4 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Briefcase } from 'lucide-react';
 import { SiX, SiInstagram, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
 import { LandingPageData, SubstackPost } from '@/lib/db/landing';
 import TimeAgo from 'react-timeago';
@@ -7,6 +7,7 @@ import greekStrings from 'react-timeago/lib/language-strings/el';
 // @ts-ignore
 import buildFormatter from 'react-timeago/lib/formatters/buildFormatter';
 import { cn } from '@/lib/utils';
+import { HIRING_CONFIG } from '@/lib/features/config';
 
 const formatter = buildFormatter(greekStrings);
 
@@ -40,8 +41,13 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
 
             {/* Content container to ensure links are clickable */}
             <div className="relative flex items-center z-10">
-                {/* Substack badge */}
-                {latestPost && (
+                {/* Hiring badge (when enabled) or Substack badge */}
+                {HIRING_CONFIG.enabled ? (
+                    <>
+                        <HiringBadge className="hidden sm:flex" />
+                        <HiringBadge className="flex sm:hidden" mobile />
+                    </>
+                ) : latestPost && (
                     <SubstackBadge
                         post={latestPost}
                         className="hidden sm:flex"
@@ -50,7 +56,7 @@ export function HeaderBar({ latestPost, className }: HeaderBarProps) {
 
                 {/* Social icons */}
                 <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-0.5 sm:gap-1 py-0.5 sm:py-1 sm:pl-1 sm:pr-2">
-                    {latestPost && (
+                    {!HIRING_CONFIG.enabled && latestPost && (
                          <div className="sm:hidden">
                             <SocialIcon
                                 href={latestPost.url}
@@ -97,6 +103,41 @@ function SocialIcon({ href, icon, ...props }: { href: string; icon: React.ReactN
         >
             <div className="flex items-center justify-center w-full h-full text-muted-foreground group-hover:text-foreground transition-colors">
                 {icon}
+            </div>
+        </a>
+    );
+}
+
+// Subcomponent for Hiring badge
+interface HiringBadgeProps {
+    className?: string;
+    mobile?: boolean;
+}
+
+function HiringBadge({ className, mobile = false }: HiringBadgeProps) {
+    return (
+        <a
+            href={HIRING_CONFIG.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+                "group flex items-center gap-2 py-1.5 px-3 text-sm no-underline hover:no-underline",
+                "transition-all hover:bg-white/10 rounded-full",
+                className
+            )}
+        >
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <Briefcase className="size-3.5 flex-shrink-0 text-[hsl(var(--orange))]" />
+                {!mobile && <span className="text-xs text-muted-foreground">·</span>}
+                <div className="flex items-center gap-1 overflow-hidden">
+                    <span className={cn(
+                        "truncate text-[hsl(var(--orange))] font-medium",
+                        mobile && "text-xs"
+                    )}>
+                        {mobile ? "Προσλαμβάνουμε" : HIRING_CONFIG.text}
+                    </span>
+                    <ArrowUpRight className="size-3 flex-shrink-0 text-[hsl(var(--orange))] transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
             </div>
         </a>
     );

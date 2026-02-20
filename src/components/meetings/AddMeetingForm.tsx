@@ -25,6 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, parse, setHours, setMinutes } from "date-fns"
 import InputWithDerivatives from "../InputWithDerivatives"
 import { LinkOrDrop } from "../ui/link-or-drop"
+import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting } from '@prisma/client'
 import { useToast } from "@/hooks/use-toast"
 // @ts-ignore
@@ -298,6 +299,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                             } : undefined}
                                         />
                                     </FormControl>
+                                    <YouTubePreview url={field.value || ""} />
                                     <FormDescription>
                                         {t('meetingVideoDescription')}
                                     </FormDescription>

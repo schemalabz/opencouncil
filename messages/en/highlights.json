@@ -65,6 +65,7 @@
     "editContent": "Edit Content",
     "toggleShowcase": "Toggle Showcase",
     "download": "Download",
+    "downloading": "Downloading...",
     "delete": "Delete",
     "backToHighlights": "Back to Highlights",
     "generating": "Generating video...",
@@ -96,11 +97,13 @@
     "highlightUpdated": "Highlight updated successfully.",
     "highlightDeleted": "Highlight deleted successfully.",
     "deleteError": "Failed to delete highlight. Please try again.",
-    "generationStarted": "Video generation started. This may take a few minutes.",
+    "generationStarted": "Video generation started. This may take a few minutes. You'll receive an email when it's ready.",
     "generationError": "Failed to generate video. Please try again.",
     "showcaseAdded": "Highlight added to showcase.",
     "showcaseRemoved": "Highlight removed from showcase.",
     "showcaseError": "Failed to toggle showcase status. Please try again.",
+    "downloadStarted": "Download started successfully.",
+    "downloadError": "Failed to download video. Please try again.",
     "saveFailed": "Save failed",
     "saveFailedDescription": "Please resolve issues and try again."
   },
@@ -127,7 +130,8 @@
     "saveNow": "Save now",
     "resetChanges": "Reset changes",
     "openPreview": "Open preview",
-    "exitEditingMode": "Exit editing mode"
+    "exitEditingMode": "Exit editing mode",
+    "guide": "Guide"
   },
   "reset": {
     "confirmReset": "Are you sure you want to reset all changes? This cannot be undone.",
@@ -175,9 +179,113 @@
     "lastUpdated": "Last updated {relativeTime}",
     "generating": "Generating...",
     "generateVideo": "Generate Video",
-    "generatingVideo": "Generating highlight video... This may take a few minutes.",
+    "generatingVideo": "Generating highlight video... This may take a few minutes. You'll receive an email when complete.",
     "contentAndVideo": "Content & Video",
     "contentPreview": "Content Preview",
     "video": "Video"
+  },
+  "guide": {
+    "title": "Highlights Guide",
+    "description": "Learn how to create and manage video highlights from meeting transcripts",
+    "hint": {
+      "title": "New to highlights?",
+      "description": "Click here for a quick guide on creating and managing highlights"
+    },
+    "tabs": {
+      "quickStart": "Quick Start",
+      "selection": "Selection",
+      "preview": "Preview & Generate",
+      "visualGuide": "Visual Guide"
+    },
+    "quickStart": {
+      "whatIsIt": {
+        "title": "What are Highlights?",
+        "description": "Highlights let you select specific moments from a meeting transcript and combine them into a shareable video clip. You can add captions, speaker overlays, and choose between landscape or portrait formats for social media."
+      },
+      "workflow": {
+        "title": "Basic Workflow",
+        "step1": "Create a new highlight using the button in the header or from the highlights list",
+        "step2": "Click on utterances (or Click and Shift+Click for ranges) in the transcript to add or remove them from your highlight",
+        "step3": "Use Preview to review your selection and configure video generation options",
+        "step4": "Generate your video and share it"
+      },
+      "creationMethods": {
+        "title": "Ways to Create a Highlight",
+        "headerButton": "Click the 'Create Highlight' button in the meeting header",
+        "contextMenu": "Right-click any utterance and select 'Start Highlight from here'",
+        "listButton": "Click '+ Add Highlight' in the highlights list"
+      }
+    },
+    "selection": {
+      "adding": {
+        "title": "Adding & Removing Utterances",
+        "clickToAdd": "Add utterance to highlight",
+        "clickToRemove": "Remove utterance from highlight",
+        "clickBadge": "Click",
+        "selectRange": "Select a range of utterances",
+        "selectRangeBadge": "Click and Shift+Click",
+        "deselectRange": "Remove a range of utterances",
+        "deselectRangeBadge": "Click and Shift+Click"
+      },
+      "navigation": {
+        "title": "Navigating Clips",
+        "subtitle": "These options are available on the timeline",
+        "previousClip": "Jump to previous selected clip",
+        "previousButton": "Previous",
+        "nextClip": "Jump to next selected clip",
+        "nextButton": "Next"
+      },
+      "saving": {
+        "title": "Saving Changes",
+        "subtitle": "These options are available in the mode bar",
+        "saveNow": "Save current changes",
+        "saveButton": "Save (dropdown)",
+        "reset": "Discard unsaved changes",
+        "resetButton": "Reset",
+        "autoSave": "Auto-saves before generating video",
+        "autoSaveBadge": "Automatic"
+      }
+    },
+    "previewTab": {
+      "openPreview": {
+        "question": "How do I preview my highlight?",
+        "answer": "Click the 'Preview' button in the mode bar. This opens a dialog where you can watch your selected clips play through in sequence and see a text preview of the content."
+      },
+      "aspectRatio": {
+        "question": "What video formats are available?",
+        "answer": "Choose between Default (16:9) for standard landscape video, or Social Media (9:16) for portrait format optimized for TikTok, Instagram Stories, and YouTube Shorts."
+      },
+      "contentOptions": {
+        "question": "What content options can I configure?",
+        "answer": "You can enable Captions (text overlay of spoken content) and Speaker Overlays (visual identification of who is speaking during their segments). Note: These options are only visible in the final generated video, not in the preview."
+      },
+      "generate": {
+        "question": "How do I generate the video?",
+        "answer": "Click 'Generate Video' in the preview dialog. The system will auto-save your changes, then create the video. You'll receive an email when it's ready, or you can track progress on the highlight's page."
+      },
+      "editDetails": {
+        "question": "How do I change the highlight name or connect a subject?",
+        "answer": "Click the edit icon next to the highlight name in the mode bar. This opens a dialog where you can update the name and optionally connect the highlight to a meeting subject for better organization."
+      }
+    },
+    "visual": {
+      "selected": {
+        "title": "Selected Utterances",
+        "description": "Utterances included in your highlight are shown with bold text and an underline. Click them again to remove them from the highlight.",
+        "example": "This utterance is selected"
+      },
+      "timeline": {
+        "title": "Timeline Overlay",
+        "description": "Selected clips appear as amber bars on the timeline above the video player. Click these bars to navigate directly to that clip in the video."
+      },
+      "unsaved": {
+        "title": "Unsaved Changes Indicator",
+        "description": "A small red dot appears next to the highlight name when you have unsaved changes. Use Save from the dropdown menu to persist your changes."
+      },
+      "modeBar": {
+        "title": "Mode Bar",
+        "description": "The amber bar at the top indicates you're in highlight editing mode. It shows real-time statistics (duration, speaker count, utterance count) and provides access to all editing controls."
+      }
+    }
   }
 }

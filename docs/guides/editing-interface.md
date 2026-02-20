@@ -10,17 +10,29 @@ The system divides editing into distinct categories and modes:
 
 1.  **Editing Mode Lifecycle**:
     *   **Activation**: Users enter "Editing Mode" via the `EditButton` in the global header. This activates `options.editable` in the `TranscriptOptionsContext`.
-    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls (Playback Speed, Next Unknown Speaker, Speakers Overview, Editing Guide, Exit).
+    *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls:
+        *   **Playback Speed**: Adjust video playback speed (0.5x - 2.0x)
+        *   **Skip Interval**: Configure time skip interval for Shift+Arrow navigation (2-30 seconds, default 5s)
+        *   **Next Unknown Speaker**: Jump to next segment with unidentified speaker
+        *   **Speakers Overview**: View statistics and navigate by speaker
+        *   **Complete Review**: Mark transcript review as complete
+        *   **Editing Guide**: Access keyboard shortcuts and workflow documentation
+        *   **Exit**: Return to read-only mode
     *   **Exclusivity**: Editing Mode is mutually exclusive with **Highlight Mode**. Users cannot create highlights while editing the transcript, and vice versa.
 
 2.  **Text Content Editing** (in Editing Mode):
     *   Handled by the `Utterance` component in the transcript view.
     *   Users edit text directly inline. Browser-native spellcheck is enabled.
+    *   **Timestamp Editing**: While editing an utterance, users can adjust start/end timestamps:
+        *   Set timestamps to current video time using clock icon buttons or keyboard shortcuts (`Shift+[` for start, `Shift+]` for end)
+        *   Timestamp changes are displayed in real-time in the editing UI
+        *   **Important**: Timestamp changes are saved only when the utterance edit is saved (via Enter key or Save button), not immediately when clicking the clock icon
+        *   After saving, parent segment timestamps automatically recalculate based on contained utterances
     *   **Visual Feedback**:
         *   **User Edited**: Distinguished by a **green underline** (`decoration-green-500`), making human verification immediately visible.
         *   **AI Corrected**: Distinguished by a **blue underline** (`decoration-blue-500`) for automated fixes.
     *   **Optimistic Updates**: Changes are reflected immediately in the UI while saving to the backend in the background, ensuring a responsive editing experience.
-    *   Updates are sent to the backend via the `editUtterance` server action.
+    *   Updates are sent to the backend via the `editUtterance` and `updateUtteranceTimestamps` server actions.
     *   **History Tracking**: Critical for auditability, every text change is logged in the `UtteranceEdit` table.
 
 3.  **Structural Editing**:
@@ -33,12 +45,21 @@ The system divides editing into distinct categories and modes:
 
 4.  **Segment Management**:
     *   **Creation**: Users can create new empty speaker segments either after an existing segment or before the very first segment.
+    *   **Adding Utterances to Empty Segments**:
+        *   **Main UI (Primary Method)**: When editing mode is active and a segment has no utterances, an empty state UI is automatically displayed with a prominent "Add Utterance" button. Clicking this button:
+            *   Creates a new empty utterance with timestamps calculated from the segment boundaries
+            *   Start timestamp = segment start (or after the last utterance if segment is not empty)
+            *   Duration = 1 second
+            *   Immediately enables inline editing so the user can type the utterance text
+            *   Uses the unified `addUtteranceToSegment` backend function
+        *   **Adding to Non-Empty Segments**: A small inline "+" button appears at the end of each segment's text on hover, allowing users to naturally add new utterances at the end.
+        *   **Advanced Method (Super Admin)**: The `SpeakerSegmentMetadataDialog` provides JSON-level editing for batch operations and complex edits.
     *   **Metadata Inspection**: Super Admins can view detailed metadata via the `SpeakerSegmentMetadataDialog`.
     *   **Advanced Editing**: The system supports complex segment updates via 
     `updateSpeakerSegmentData`, accessible through the metadata dialog. This allows:
         *   Batch updates of utterances (text, timestamps).
-        *   **Adding Utterances**: Users can click "Add Empty Utterance" to append a new 
-        placeholder utterance to the segment's JSON data. The backend recognizes these via 
+        *   **Adding Multiple Utterances**: Users can click "Add Empty Utterance" to append new 
+        placeholder utterances to the segment's JSON data. The backend recognizes these via 
         temporary IDs (`temp_...`) and creates actual records.
         *   Deleting utterances (by removing them from the JSON array).
         *   Automatic recalculation of segment boundaries.
@@ -48,7 +69,14 @@ The system divides editing into distinct categories and modes:
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
 6.  **Interaction Enhancements**:
-    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`.
+    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`. Key shortcuts include:
+        *   **Utterance Navigation**: Arrow keys to jump between utterances
+        *   **Time-based Navigation**: `Shift+Arrow` keys to skip forward/backward by configurable interval (2-30s) - useful for manual transcription and reviewing audio
+        *   **Playback Control**: Space for play/pause, Up/Down arrows for speed adjustment
+        *   **While Editing Utterances**: When actively editing utterance text, all Shift-based shortcuts continue to work:
+            *   Video control (`Shift+Space` for play/pause)
+            *   Time-based navigation (`Shift+Arrow` keys for skip forward/backward)
+            *   Timestamp setting (`Shift+[` and `Shift+]` to set start/end timestamps to current video time)
     *   **Selection Mode**: Managed via `EditingContext`. Supports **Shift+Click** for range selection (selecting multiple sequential utterances) and **Ctrl+Click** for toggling individual selections.
     *   **Speakers Overview**: A dedicated sheet (`SpeakersOverviewSheet`) provides real-time statistics (duration, segment count) and navigation for every speaker in the meeting.
     *   **In-App Guide**: A comprehensive `EditingGuideDialog` provides immediate access to shortcuts and workflow instructions.
@@ -60,10 +88,17 @@ The system divides editing into distinct categories and modes:
 | **Playback** | `Space` | Play / Pause |
 | | `ArrowLeft` | Seek to previous utterance |
 | | `ArrowRight` | Seek to next utterance |
+| | `Shift + ArrowLeft` | Skip backward by interval (2-30s, configurable) |
+| | `Shift + ArrowRight` | Skip forward by interval (2-30s, configurable) |
 | | `ArrowUp` | Increase Playback Speed |
 | | `ArrowDown` | Decrease Playback Speed |
-| **Editing** | `Enter` | Edit active utterance / Save & Close |
+| **Text Editing** | `Enter` | Edit active utterance / Save & Close |
 | | `Escape` | Cancel text edit |
+| **While Editing Utterance** | `Shift + Space` | Play / Pause (works in text editor) |
+| | `Shift + ArrowLeft` | Skip backward (works in text editor) |
+| | `Shift + ArrowRight` | Skip forward (works in text editor) |
+| | `Shift + [` | Set start timestamp to current video time |
+| | `Shift + ]` | Set end timestamp to current video time |
 | **Selection** | `Shift + Click` | Select Range of Utterances |
 | | `Ctrl + Click` | Toggle Selection of Utterance |
 | | `e` | Extract selected utterances to new segment |
@@ -104,6 +139,15 @@ sequenceDiagram
     Backend->>Database: CREATE SpeakerTag & SpeakerSegment
     Backend-->>Frontend: Return new Segment
 
+    %% Add Utterance to Segment Flow
+    User->>Frontend: Clicks "Add Utterance" (empty segment or hover button)
+    Frontend->>Backend: addUtteranceToSegment(segmentId)
+    Backend->>Backend: Calculate timestamps (segment start if empty, after last utterance otherwise)
+    Backend->>Database: CREATE Utterance with calculated timestamps
+    Backend->>Database: UPDATE Segment end timestamp if needed
+    Backend-->>Frontend: Return updated Segment with new Utterance
+    Frontend->>Frontend: Automatically enter edit mode on new utterance
+
     %% Extraction Flow
     User->>Frontend: Selects utterances (Shift+Click)
     User->>Frontend: Presses 'e' or clicks "Extract Segment"
@@ -137,6 +181,7 @@ sequenceDiagram
     *   `TranscriptControls`: [`src/components/meetings/TranscriptControls.tsx`](../../src/components/meetings/TranscriptControls.tsx) (Video player and clip navigation)
     *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx) (Inline editing, visual state)
     *   `PersonBadge`: [`src/components/persons/PersonBadge.tsx`](../../src/components/persons/PersonBadge.tsx) (Speaker autocomplete and assignment)
+    *   `SpeakerSegment`: [`src/components/meetings/transcript/SpeakerSegment.tsx`](../../src/components/meetings/transcript/SpeakerSegment.tsx) (Displays empty state UI with "Add Utterance" button via `EmptySegmentState` component)
 
 *   **State & Context**:
     *   `TranscriptOptionsContext`: [`src/components/meetings/options/OptionsContext.tsx`](../../src/components/meetings/options/OptionsContext.tsx) (Manages `editable` state)
@@ -149,7 +194,8 @@ sequenceDiagram
     *   `moveUtterancesToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts)
     *   `extractSpeakerSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles extracting utterance ranges into new segments)
     *   `createEmptySpeakerSegmentBefore/After`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles creating new segments with "New speaker segment" tag)
-    *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion, and timestamp recalculation)
+    *   `addUtteranceToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Unified function for adding utterances to any segment - handles both empty and non-empty cases with automatic timestamp calculation)
+    *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion via temp IDs, and timestamp recalculation - used for advanced editing)
 
 **Business Rules & Assumptions**
 
@@ -159,6 +205,14 @@ sequenceDiagram
 *   **Segment Creation**:
     *   Creating a segment *after* an existing one sets its start time to the previous segment's end time (+0.01s).
     *   Creating a segment *before* the first segment is only possible if there is available time (start > 0). It defaults to a small duration before the first segment's start.
+*   **Adding Utterances to Segments**:
+    *   Available for both empty and non-empty segments via `addUtteranceToSegment`.
+    *   Timestamps are automatically calculated:
+        *   **Empty segment**: `start = segment.startTimestamp`, `duration = min(1 second, segment duration)`
+        *   **Non-empty segment**: `start = last utterance's end timestamp`, `duration = 1 second`
+        *   If the new utterance extends beyond the segment's end, the segment's `endTimestamp` is automatically updated.
+        *   `end = start + duration`
+    *   After creation, the utterance is immediately editable inline (frontend automatically focuses the new utterance).
 *   **Complex Segment Edits**: When updating a whole segment via `updateSpeakerSegmentData`, at least one utterance must remain. Timestamps must be valid (start < end).
     *   New utterances added via the JSON editor use temporary IDs (starting with `temp_`) which are detected by the backend and replaced with real DB records.
 *   **Edit Attribution**: All text edits must be attributed to either a specific `User` or a `task`.

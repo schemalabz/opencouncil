@@ -1,0 +1,331 @@
+name: Deploy PR Preview
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+# Only allow one deployment per PR at a time
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CACHIX_CACHE_NAME: ${{ secrets.CACHIX_CACHE_NAME || 'opencouncil' }}
+
+jobs:
+  # Check for database migrations
+  check-migrations:
+    name: Check for Migrations
+    runs-on: ubuntu-latest
+    outputs:
+      has-migrations: ${{ steps.check.outputs.has-migrations }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Check for migration files
+        id: check
+        run: |
+          set -euo pipefail
+
+          # Get changed files in prisma/migrations/
+          CHANGED_MIGRATIONS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^prisma/migrations/' || true)
+
+          if [ -n "$CHANGED_MIGRATIONS" ]; then
+            echo "has-migrations=true" >> $GITHUB_OUTPUT
+            echo "### 🗄️ Migration Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "This PR contains database migration files:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$CHANGED_MIGRATIONS" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Preview will use an **isolated database** with seed data (PostGIS 3.3.5)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has-migrations=false" >> $GITHUB_OUTPUT
+            echo "✅ No migrations detected - preview will use shared staging database" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Build and deploy preview
+  deploy:
+    name: Build and Deploy Preview
+    runs-on: ubuntu-latest
+    needs: check-migrations
+    environment: preview
+    steps:
+      - name: Comment on PR (building)
+        id: pr-comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('Preview deployment')
+            );
+
+            const dbNote = hasMigrations
+              ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            const body = '## ⏳ Preview deployment in progress\n\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Status:** Building...\n\n'
+              + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
+              + '---\n'
+              + dbNote;
+
+            let commentId;
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+              commentId = botComment.id;
+            } else {
+              const { data: newComment } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
+              commentId = newComment.id;
+            }
+            core.setOutput('comment-id', commentId);
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@v14
+        with:
+          name: ${{ env.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          pushFilter: "opencouncil-prod"
+
+      - name: Build production package
+        env:
+          # NOTE: DATABASE_URL is not needed at build time — Nix sandbox blocks
+          # network access, so DB queries fail silently. Pages needing DB data
+          # are deleted from the build output and regenerated at runtime.
+          # NEXTAUTH_URL is set at runtime by the preview service, not at build time.
+          NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN }}
+          NEXT_PUBLIC_CONTACT_PHONE: ${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}
+          NEXT_PUBLIC_CONTACT_EMAIL: ${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}
+          NEXT_PUBLIC_CONTACT_ADDRESS: ${{ secrets.NEXT_PUBLIC_CONTACT_ADDRESS }}
+        run: |
+          echo "Building OpenCouncil production package..."
+          nix build --impure .#opencouncil-prod --print-build-logs
+
+      - name: Push to Cachix
+        run: |
+          echo "Pushing build to Cachix..."
+          cachix push ${{ env.CACHIX_CACHE_NAME }} ./result
+
+      - name: Get store path
+        id: store-path
+        run: |
+          STORE_PATH=$(readlink ./result)
+          echo "path=$STORE_PATH" >> $GITHUB_OUTPUT
+          echo "Store path: $STORE_PATH"
+
+      - name: Update PR comment (deploying)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentId = ${{ steps.pr-comment.outputs.comment-id }};
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+
+            const dbNote = hasMigrations
+              ? '*This preview will use an **isolated database** with seed data (migrations detected).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            const statusMsg = hasMigrations
+              ? 'Build complete, deploying with isolated database...'
+              : 'Build complete, deploying to preview host...';
+
+            const body = '## ⏳ Preview deployment in progress\n\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Status:** ' + statusMsg + '\n\n'
+              + 'Follow along in the [workflow logs](' + logsUrl + ').\n\n'
+              + '---\n'
+              + dbNote;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: body,
+            });
+
+      - name: Parse preview links from PR body
+        id: preview-links
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+
+            // Parse <!-- preview-link: tasks=N --> from PR body
+            const tasksMatch = prBody.match(/<!--\s*preview-link:\s*tasks=(\d+)\s*-->/i);
+            if (tasksMatch) {
+              const tasksPrNum = tasksMatch[1];
+              core.setOutput('tasks-pr', tasksPrNum);
+              console.log(`Found linked tasks preview: PR #${tasksPrNum}`);
+            } else {
+              core.setOutput('tasks-pr', '');
+              console.log('No linked tasks preview found in PR body');
+            }
+
+      - name: Deploy to preview host
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PREVIEW_DEPLOY_SSH_KEY }}
+          PREVIEW_HOST: ${{ secrets.PREVIEW_HOST }}
+          PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
+          STORE_PATH: ${{ steps.store-path.outputs.path }}
+          HAS_MIGRATIONS: ${{ needs.check-migrations.outputs.has-migrations }}
+          LINKED_TASKS_PR: ${{ steps.preview-links.outputs.tasks-pr }}
+          PREVIEW_TASKS_API_KEY: ${{ secrets.PREVIEW_TASKS_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          PR_NUM="${{ github.event.pull_request.number }}"
+          PORT=$((3000 + PR_NUM))
+
+          echo "Deploying preview for PR #$PR_NUM on port $PORT"
+
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$PREVIEW_HOST" >> ~/.ssh/known_hosts
+
+          SSH_CMD="ssh -i ~/.ssh/deploy_key ${PREVIEW_USER}@${PREVIEW_HOST}"
+
+          # Build deploy command with --with-db flag for migration PRs
+          DEPLOY_FLAGS=""
+          if [ "$HAS_MIGRATIONS" = "true" ]; then
+            DEPLOY_FLAGS="--with-db"
+            echo "🗄️ Migration detected - deploying with isolated database"
+          fi
+
+          # The droplet pulls the build from Cachix automatically (configured as a substituter).
+          # Just SSH in and create the preview — nix-store --realise is called by the create script.
+
+          # Write per-preview env overrides BEFORE create (so service picks them up on first start)
+          if [ -n "${LINKED_TASKS_PR:-}" ]; then
+            echo "🔗 Linking to tasks preview PR #$LINKED_TASKS_PR"
+            TASKS_URL="https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr"
+            TASKS_KEY="${PREVIEW_TASKS_API_KEY:-}"
+            $SSH_CMD "mkdir -p /var/lib/opencouncil-previews/pr-$PR_NUM"
+            $SSH_CMD "printf '%s\n' '# Linked tasks preview' 'TASK_API_URL=$TASKS_URL' 'TASK_API_KEY=$TASKS_KEY' > /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
+            $SSH_CMD "chmod 600 /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
+          fi
+
+          echo "Creating/updating preview instance..."
+          $SSH_CMD "sudo opencouncil-preview-create '$PR_NUM' '$STORE_PATH' $DEPLOY_FLAGS"
+
+          echo "### 🚀 Preview Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Preview URL: https://pr-$PR_NUM.preview.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+          echo "Port: $PORT" >> $GITHUB_STEP_SUMMARY
+          if [ "$HAS_MIGRATIONS" = "true" ]; then
+            echo "Database: Isolated (PostGIS 3.3.5, seed data)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Database: Shared staging" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${LINKED_TASKS_PR:-}" ]; then
+            echo "Tasks API: https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Health check
+        id: health-check
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          URL="https://pr-${PR_NUM}.preview.opencouncil.gr"
+          for i in $(seq 1 10); do
+            HTTP_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 10 "$URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "status=healthy" >> $GITHUB_OUTPUT
+              echo "Preview is healthy (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $HTTP_CODE, retrying..."
+            sleep 3
+          done
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          echo "Preview did not return HTTP 200 after 10 attempts"
+
+      - name: Update PR comment (result)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentId = ${{ steps.pr-comment.outputs.comment-id }};
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = 'https://pr-' + prNumber + '.preview.opencouncil.gr';
+            const commitSha = context.payload.pull_request.head.sha.substring(0, 7);
+            const healthStatus = '${{ steps.health-check.outputs.status }}';
+            const logsUrl = context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const hasMigrations = '${{ needs.check-migrations.outputs.has-migrations }}' === 'true';
+            const linkedTasksPr = '${{ steps.preview-links.outputs.tasks-pr }}';
+
+            const dbNote = hasMigrations
+              ? '*This preview uses an **isolated database** with seed data (migrations were applied).*'
+              : '*This preview uses the staging database - any changes will affect other previews.*';
+
+            let body = '## 🚀 Preview deployment ready!\n\n'
+              + '**Preview URL:** ' + previewUrl + '\n'
+              + '**Commit:** `' + commitSha + '`\n'
+              + '**Database:** ' + (hasMigrations ? 'Isolated (PostGIS 3.3.5, seed data)' : 'Shared staging') + '\n';
+
+            if (linkedTasksPr) {
+              body += '**Tasks API:** https://pr-' + linkedTasksPr + '.tasks.opencouncil.gr\n';
+            }
+
+            body += '\nThe preview will be automatically updated when you push new commits.\n'
+              + 'It will be destroyed when this PR is closed or merged.\n\n';
+
+            if (healthStatus === 'unhealthy') {
+              body += '> ⚠️ **Health check failed** — the preview did not respond with HTTP 200 after deployment. '
+                + 'It may still be starting up, or there could be a runtime error. '
+                + 'Check the [workflow logs](' + logsUrl + ') for details.\n\n';
+            }
+
+            body += '---\n' + dbNote;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: body,
+            });
