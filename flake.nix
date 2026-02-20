@@ -6,9 +6,10 @@
     # We pin via flake.lock, but choose a channel that contains Prisma 5.22.x
     # so NixOS can use nixpkgs-provided Prisma engines without version mismatches.
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, nixpkgs-unstable }:
     let
       systems = [
         "x86_64-linux"
@@ -18,7 +19,13 @@
       ];
 
       forAllSystems =
-        f: nixpkgs.lib.genAttrs systems (system: f system (import nixpkgs { inherit system; }));
+        f: nixpkgs.lib.genAttrs systems (system: f system
+          (import nixpkgs { inherit system; })
+          (import nixpkgs-unstable {
+            inherit system;
+            config.allowUnfreePredicate = pkg:
+              builtins.elem (nixpkgs-unstable.lib.getName pkg) [ "ngrok" ];
+          }));
 
       # Shared PostGIS 3.3.5 builder - used by dev packages and preview module
       # This ensures both use the same locked version matching production
@@ -51,7 +58,7 @@
     in {
       # Export shared builders for use by nixosModules
       lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv; };
-      devShells = forAllSystems (_system: pkgs: {
+      devShells = forAllSystems (_system: pkgs: _pkgs-unstable: {
         default = pkgs.mkShell {
           buildInputs =
             (with pkgs; [
@@ -131,7 +138,7 @@
         };
       });
 
-      packages = forAllSystems (_system: pkgs:
+      packages = forAllSystems (_system: pkgs: pkgs-unstable:
         let
           # Default postgres - uses nixpkgs PostGIS (fast, pre-built from binary cache)
           postgres = pkgs.postgresql_16.withPackages (ps: [ ps.postgis ]);
@@ -485,6 +492,8 @@ USAGE
                 pkgs.nodejs
                 pkgs.nodePackages.npm
                 pkgs.curl
+                pkgs-unstable.ngrok
+                pkgs.jq
                 oc-dev-db-nix
                 oc-dev-db-nix-locked
                 oc-dev-db-docker
@@ -502,7 +511,7 @@ USAGE
               usage() {
                 cat <<'USAGE'
 Usage:
-  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked] [--no-lan]
+  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked] [--no-lan] [--preview-tasks=N]
 
 DB modes:
   --db=nix      Start Postgres+PostGIS via Nix + app (process-compose TUI) (default)
@@ -511,10 +520,11 @@ DB modes:
   --db=docker   Start Docker PostGIS + app (requires Docker)
 
 Flags:
-  --migrate     Run migrations (npm run db:deploy) before starting the app (remote/external only)
-  --no-studio   Disable Prisma Studio process (enabled by default for local DB modes)
-  --fast        Use pre-built PostGIS from binary cache (faster first build, but may not match production)
-  --no-lan      Bind dev server to localhost only (default: binds to 0.0.0.0 for mobile preview)
+  --migrate        Run migrations (npm run db:deploy) before starting the app (remote/external only)
+  --no-studio      Disable Prisma Studio process (enabled by default for local DB modes)
+  --fast           Use pre-built PostGIS from binary cache (faster first build, but may not match production)
+  --no-lan         Bind dev server to localhost only (default: binds to 0.0.0.0 for mobile preview)
+  --preview-tasks=N  Connect to opencouncil-tasks preview for PR #N (starts ngrok tunnel for callbacks)
 USAGE
               }
 
@@ -528,6 +538,7 @@ USAGE
               studio_enabled=""
               postgis_locked="''${OC_POSTGIS_LOCKED:-1}"
               lan_enabled="''${OC_LAN:-1}"
+              tasks_preview_pr="''${OC_PREVIEW_TASKS:-}"
 
               for arg in "$@"; do
                 case "$arg" in
@@ -538,6 +549,7 @@ USAGE
                   --no-studio) studio_override="0" ;;
                   --fast) postgis_locked="0" ;;
                   --no-lan) lan_enabled="0" ;;
+                  --preview-tasks=*) tasks_preview_pr="''${arg#--preview-tasks=}" ;;
                   --help|-h) usage; exit 0 ;;
                   *)
                     echo "Unknown argument: $arg" >&2
@@ -603,16 +615,96 @@ USAGE
                 studio_port="$(find_available_port 5555)"
               fi
 
-              # Check if TASK_API_URL is configured and reachable (non-blocking warning)
-              if [ -n "''${TASK_API_URL:-}" ]; then
-                echo "🔗 Task API configured: $TASK_API_URL"
-                if command -v curl >/dev/null 2>&1; then
-                  if curl -sf --connect-timeout 2 "$TASK_API_URL/health" >/dev/null 2>&1; then
-                    echo "   ✓ Task server is reachable"
+              # Check task API health and optionally validate API key.
+              # Usage: check_task_api <url> <strict>
+              #   strict=1: exit on failure (for --preview-tasks)
+              #   strict=0: warn on failure (for .env TASK_API_URL)
+              check_task_api() {
+                local url="$1" strict="$2"
+                local health_json auth_ok
+
+                # Health check (with auth header if TASK_API_KEY is set)
+                health_json=$(curl -sf --connect-timeout 5 \
+                  ''${TASK_API_KEY:+-H "Authorization: Bearer $TASK_API_KEY"} \
+                  "$url/health" 2>/dev/null) || {
+                  if [ "$strict" = "1" ]; then
+                    echo "  ✗ Not reachable at $url" >&2
+                    exit 1
                   else
                     echo "   ⚠ Task server not reachable (start it separately for E2E testing)"
+                    return 1
+                  fi
+                }
+                echo "   ✓ Task server is reachable"
+
+                # Validate API key if one was sent
+                if [ -n "''${TASK_API_KEY:-}" ]; then
+                  auth_ok=$(echo "$health_json" | jq -r '.authenticated' 2>/dev/null || true)
+                  if [ "$auth_ok" = "true" ]; then
+                    echo "   ✓ API key accepted"
+                  elif [ "$auth_ok" = "false" ]; then
+                    if [ "$strict" = "1" ]; then
+                      echo "  ✗ TASK_API_KEY is not valid for this server." >&2
+                      echo "  Check the token in your .env matches the server." >&2
+                      exit 1
+                    else
+                      echo "   ⚠ TASK_API_KEY is not valid for this server"
+                    fi
                   fi
                 fi
+              }
+
+              # --preview-tasks: connect to a remote tasks preview and start ngrok for callbacks
+              ngrok_pid=""
+              if [ -n "$tasks_preview_pr" ]; then
+                tasks_preview_url="https://pr-''${tasks_preview_pr}.tasks.opencouncil.gr"
+                export TASK_API_URL="$tasks_preview_url"
+                if [ -z "''${TASK_API_KEY:-}" ]; then
+                  echo "  ✗ TASK_API_KEY is not set. Set it in .env or export it." >&2
+                  echo "  The tasks preview server requires a valid API token." >&2
+                  exit 1
+                fi
+
+                echo "🔗 Connecting to tasks preview PR #$tasks_preview_pr..."
+                check_task_api "$tasks_preview_url" 1
+
+                # Start ngrok tunnel so the remote tasks server can POST callbacks to localhost
+                echo "  Starting ngrok tunnel for localhost:$app_port..."
+                ngrok http "$app_port" --log=stdout > "$logs_dir/ngrok.log" 2>&1 &
+                ngrok_pid=$!
+
+                # Wait for ngrok to assign a public URL
+                ngrok_url=""
+                for _i in $(seq 1 30); do
+                  ngrok_url=$(curl -sf http://localhost:4040/api/tunnels 2>/dev/null \
+                    | jq -r '.tunnels[] | select(.proto == "https") | .public_url' 2>/dev/null || true)
+                  if [ -n "$ngrok_url" ] && [ "$ngrok_url" != "null" ]; then
+                    break
+                  fi
+                  sleep 0.5
+                done
+
+                if [ -z "$ngrok_url" ] || [ "$ngrok_url" = "null" ]; then
+                  echo "  ✗ Failed to start ngrok tunnel." >&2
+                  echo "  Check $logs_dir/ngrok.log" >&2
+                  echo "  If first run: ngrok config add-authtoken <TOKEN>" >&2
+                  kill "$ngrok_pid" 2>/dev/null || true
+                  exit 1
+                fi
+
+                export NEXTAUTH_URL="$ngrok_url"
+                echo "  ✓ Tunnel active: $ngrok_url → localhost:$app_port"
+                echo ""
+                echo "  Tasks API:  $tasks_preview_url"
+                echo "  Callbacks:  $ngrok_url"
+                echo "  Ngrok logs: $logs_dir/ngrok.log"
+                echo ""
+              fi
+
+              # Check if TASK_API_URL is configured and reachable (non-blocking warning)
+              if [ -z "$tasks_preview_pr" ] && [ -n "''${TASK_API_URL:-}" ]; then
+                echo "🔗 Task API configured: $TASK_API_URL"
+                check_task_api "$TASK_API_URL" 0 || true
                 echo ""
               fi
 
@@ -735,8 +827,13 @@ EOF
 
               pc_port="$(find_available_port 8080)"
 
-              # On Linux with --lan, open the firewall port automatically and
-              # clean it up when the dev runner exits.
+              # Determine if we need cleanup on exit (firewall rule and/or ngrok).
+              # When cleanup is needed we run process-compose without exec so the
+              # trap fires after it exits. Otherwise we exec for a cleaner process tree.
+              needs_cleanup=false
+              cleanup_cmds=""
+
+              # On Linux with --lan, open the firewall port automatically.
               if [ "$lan_enabled" = "1" ] && command -v iptables >/dev/null 2>&1 \
                 && ! sudo -n iptables -C INPUT -p tcp --dport "$app_port" -j ACCEPT 2>/dev/null; then
                 echo ""
@@ -745,7 +842,24 @@ EOF
                 echo ""
                 sudo iptables -I INPUT -p tcp --dport "$app_port" -j ACCEPT
                 echo "Opened firewall port $app_port for LAN access"
-                trap 'sudo iptables -D INPUT -p tcp --dport "$app_port" -j ACCEPT 2>/dev/null; echo "Closed firewall port $app_port"' EXIT
+                needs_cleanup=true
+                cleanup_cmds="sudo iptables -D INPUT -p tcp --dport \"$app_port\" -j ACCEPT 2>/dev/null; echo \"Closed firewall port $app_port\";"
+              fi
+
+              # If ngrok is running, ensure it gets cleaned up on exit.
+              if [ -n "$ngrok_pid" ]; then
+                needs_cleanup=true
+                cleanup_cmds="''${cleanup_cmds}kill $ngrok_pid 2>/dev/null || true; echo \"Stopped ngrok tunnel\";"
+              fi
+
+              # Brief pause so startup messages are readable before TUI takes over
+              echo "Starting process-compose..."
+              sleep 5
+
+              if [ "$needs_cleanup" = "true" ]; then
+                cleanup_cmds="''${cleanup_cmds}rm -rf \"$tmp_dir\";"
+                # shellcheck disable=SC2064 # Intentional: expand commands now, not at signal time
+                trap "$cleanup_cmds" EXIT
                 process-compose -f "$pc_file" up --port "$pc_port"
               else
                 exec process-compose -f "$pc_file" up --port "$pc_port"
@@ -1604,7 +1718,7 @@ CADDYEOF
           };
         };
 
-      apps = forAllSystems (system: pkgs: {
+      apps = forAllSystems (system: pkgs: _pkgs-unstable: {
         dev = {
           type = "app";
           program = "${self.packages.${system}.oc-dev}/bin/oc-dev";
