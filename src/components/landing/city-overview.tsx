@@ -103,21 +103,21 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                         <Users className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city._count.persons} Πρόσωπα`,
                         "Δείτε όλα τα πρόσωπα",
-                        `/${city.id}?tab=members`,
+                        `/${city.id}/people`,
                         0
                     )}
                     {statCard(
                         <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city._count.parties} Παρατάξεις`,
                         "Δείτε όλες τις παρατάξεις",
-                        `/${city.id}?tab=parties`,
+                        `/${city.id}/parties`,
                         1
                     )}
                     {statCard(
                         <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />,
                         `${city._count.councilMeetings || 0} Συνεδριάσεις`,
                         "Δείτε όλες τις συνεδριάσεις",
-                        `/${city.id}?tab=meetings`,
+                        `/${city.id}`,
                         2
                     )}
                 </div>
