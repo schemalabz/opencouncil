@@ -176,12 +176,14 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                         {/* Meeting title */}
                         <div className="pb-1">
-                            <motion.h3
-                                className="text-xl sm:text-2xl text-foreground/90 line-clamp-2 tracking-tight"
-                                animate={{ color: isHovered ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}
+                            <h3
+                                className={cn(
+                                    "text-xl sm:text-2xl text-foreground/90 line-clamp-2 tracking-tight transition-colors duration-200",
+                                    isHovered ? "text-primary" : ""
+                                )}
                             >
                                 {meeting.name}
-                            </motion.h3>
+                            </h3>
                         </div>
 
                         {/* Meeting metadata - more compact */}
@@ -210,37 +212,10 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                             {sortedSubjects.slice(0, 3).map((subject) => (
                                                 <div
                                                     key={subject.id}
-                                                    className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer"
-                                                    style={{
-                                                        transform: 'none',
-                                                        transition: 'none',
-                                                        animation: 'none',
-                                                        willChange: 'auto'
-                                                    }}
+                                                    className="flex items-center gap-3 py-1.5 rounded-md hover:bg-accent/10 cursor-pointer transition-colors"
                                                 >
-                                                    {/* Extremely aggressive approach to preventing animations */}
-                                                    <div
-                                                        style={{
-                                                            transform: 'none',
-                                                            transition: 'none',
-                                                            animation: 'none',
-                                                            userSelect: 'none',
-                                                            pointerEvents: 'none',
-                                                            willChange: 'auto'
-                                                        }}
-                                                        className="w-full"
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                transform: 'none',
-                                                                transition: 'none',
-                                                                animation: 'none',
-                                                                pointerEvents: 'auto',
-                                                                willChange: 'auto'
-                                                            }}
-                                                        >
-                                                            <SubjectBadge subject={subject} />
-                                                        </div>
+                                                    <div className="w-full">
+                                                        <SubjectBadge subject={subject} />
                                                     </div>
                                                 </div>
                                             ))}
@@ -248,16 +223,10 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                                         {remainingSubjectsCount > 0 && (
                                             <div
-                                                className="flex items-center justify-between py-1.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/10 cursor-pointer"
-                                                style={{
-                                                    transform: 'none',
-                                                    transition: 'none',
-                                                    animation: 'none',
-                                                    willChange: 'auto'
-                                                }}
+                                                className="flex items-center justify-between py-1.5 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/10 cursor-pointer transition-colors"
                                             >
                                                 <span>{t('moreSubjects', { count: remainingSubjectsCount })}</span>
-                                                <ChevronRight className="w-3.5 h-3.5" style={{ transform: 'none' }} />
+                                                <ChevronRight className="w-3.5 h-3.5" />
                                             </div>
                                         )}
                                     </>
