@@ -78,6 +78,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>City</TableHead>
             <TableHead>Admin Body</TableHead>
             <TableHead>Meeting</TableHead>
             <TableHead>Status</TableHead>
@@ -109,6 +110,7 @@ export function ReviewsTable({ reviews }: ReviewsTableProps) {
           {reviews.map((review) => {
             return (
             <TableRow key={`${review.cityId}-${review.meetingId}`}>
+              <TableCell className="font-medium">{review.cityName}</TableCell>
               <TableCell className="font-medium">
                 <div>
                   <div>{review.administrativeBodyName ?? "Χωρίς διοικητικό όργανο"}</div>

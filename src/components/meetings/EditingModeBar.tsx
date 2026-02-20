@@ -7,6 +7,7 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Edit, Gauge, UserRoundSearch, X, BookOpen, CheckCircle } from 'lucide-react';
 import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -24,9 +25,27 @@ export function EditingModeBar() {
     const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
     const t = useTranslations('editing');
+    const [showGuideHint, setShowGuideHint] = useState(false);
     const [showCompleteDialog, setShowCompleteDialog] = useState(false);
     const [isReviewCompleted, setIsReviewCompleted] = useState(false);
     const router = useRouter();
+
+    // Check if humanReview is already completed
+    useEffect(() => {
+        const checkReviewStatus = async () => {
+            try {
+                const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/status`);
+                if (response.ok) {
+                    const status = await response.json();
+                    setIsReviewCompleted(status.tasks?.humanReview === true);
+                }
+            } catch (error) {
+                console.error('Failed to fetch meeting status:', error);
+            }
+        };
+
+        checkReviewStatus();
+    }, [meeting.cityId, meeting.id]);
 
     // Check if humanReview is already completed
     useEffect(() => {

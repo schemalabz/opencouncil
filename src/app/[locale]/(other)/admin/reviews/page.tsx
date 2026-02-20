@@ -1,3 +1,11 @@
+import { getMeetingsNeedingReview, getReviewers } from '@/lib/db/reviews';
+import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
+import { ReviewFilters } from '@/components/admin/reviews/ReviewFilters';
+
+interface PageProps {
+  searchParams: { 
+    show?: 'needsAttention' | 'all' | 'completed';
+    reviewerId?: string;
 import { getMeetingsNeedingReview, getReviewers, type ReviewListItem } from '@/lib/db/reviews';
 import { getMeetingUploadMetrics } from '@/lib/db/meetings';
 import { ReviewsTable } from '@/components/admin/reviews/ReviewsTable';
@@ -50,6 +58,16 @@ function calculateReviewMetrics(reviews: ReviewListItem[]) {
 }
 
 export default async function ReviewsPage({ searchParams }: PageProps) {
+  const { show = 'needsAttention', reviewerId } = searchParams;
+  
+  const [reviews, reviewers] = await Promise.all([
+    getMeetingsNeedingReview({ show, reviewerId }),
+    getReviewers()
+  ]);
+  
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <div className="mb-8">
   const { show = 'needsAttention', reviewerId, last30Days } = searchParams;
   const last30DaysBool = last30Days !== 'false';
 
@@ -79,6 +97,9 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
           Track and manage human review progress on meeting transcripts
         </p>
       </div>
+      
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <ReviewFilters 
 
       {/* Review Volume Chart - Not affected by 30-day filter */}
       <div className="mb-6">
@@ -138,6 +159,7 @@ export default async function ReviewsPage({ searchParams }: PageProps) {
           reviewers={reviewers}
         />
       </div>
+      
 
       <ReviewsTable reviews={reviews} />
     </div>

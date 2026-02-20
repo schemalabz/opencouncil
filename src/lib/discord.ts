@@ -514,6 +514,8 @@ export async function sendHumanReviewCompletedAdminAlert(data: {
     reviewEfficiency: number;
     manualReviewTime?: string;
 }): Promise<void> {
+    const meetingUrl = `${env.NEXT_PUBLIC_BASE_URL}/${data.cityId}/${data.meetingId}`;
+    const adminReviewsUrl = `${env.NEXT_PUBLIC_BASE_URL}/admin/reviews`;
     const meetingUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}`;
     const adminReviewsUrl = `${env.NEXTAUTH_URL}/admin/reviews`;
 

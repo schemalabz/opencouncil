@@ -367,6 +367,13 @@
         "humanReview": "Human reviewed",
         "summarize": "Summarized"
     },
+    "RSS": {
+        "title": "Latest Updates - {city}",
+        "description": "Updates for {municipality}",
+        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "subjects": "Subjects",
+        "noSubjects": "No subjects listed",
+        "cityNotFound": "City not found"
     "PartyMemberRankingSheet": {
         "title": "Change Member Ordering",
         "description": "Drag and drop members to reorder them. The order will be saved as rankings.",

@@ -24,6 +24,7 @@ const whereClause = {
   utterancesByMeeting: ({ cityId, meetingId }: MeetingId): Prisma.UtteranceWhereInput => ({
     speakerSegment: { meetingId, cityId },
   }),
+  
 
   /** Match user edits by meeting */
   userEditsByMeeting: ({ cityId, meetingId }: MeetingId): Prisma.UtteranceEditWhereInput => ({
@@ -32,6 +33,10 @@ const whereClause = {
       speakerSegment: { meetingId, cityId },
     },
   }),
+  
+  /** Match succeeded task statuses for review tracking */
+  reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
+    type: { in: ['fixTranscript', 'humanReview'] },
 
   /** Match succeeded task statuses for review tracking */
   reviewTaskStatuses: (): Prisma.TaskStatusWhereInput => ({
@@ -46,6 +51,7 @@ const whereClause = {
 const selectPattern = {
   /** User info for reviewers */
   user: { id: true, name: true, email: true } as const,
+  
 
   /** City name */
   cityName: { name: true } as const,
@@ -64,6 +70,7 @@ const includePattern = {
       orderBy: { createdAt: 'desc' as const }
     }
   }),
+  
 
   /** Utterances with user edits for session calculation */
   utterancesForSessions: () => ({
@@ -190,6 +197,22 @@ function getUtteranceDurationSeconds(utterance: Pick<UtteranceWithEdits, 'startT
  * Determine review status based on task completion and progress
  */
 function determineReviewStatus(
+  hasFixTranscript: boolean,
+  hasHumanReview: boolean,
+  reviewedUtterances: number
+): ReviewStatus {
+  if (!hasFixTranscript) {
+    throw new Error('Cannot determine status for meeting without fixTranscript');
+  }
+  
+  if (hasHumanReview) {
+    return 'completed';
+  }
+  
+  if (reviewedUtterances === 0) {
+    return 'needsReview';
+  }
+  
   hasTranscribe: boolean,
   hasHumanReview: boolean,
   reviewedUtterances: number
@@ -250,6 +273,14 @@ const REVIEW_TIME_CONFIG = {
   // 1.5 = 50% slower (recommended - allows time to read, think)
   // 2.0 = twice as slow (very careful review)
   REVIEW_SPEED_MULTIPLIER: 1.5,
+  
+  // Maximum "excess time" before we consider it a break (in minutes)
+  // This is time beyond the expected review duration
+  MAX_EXCESS_TIME_MINUTES: 10,
+  
+  // Time to add at the end of each session (wrap-up time)
+  SESSION_BUFFER_MINUTES: 2,
+  
 
   // Maximum "excess time" before we consider it a break (in minutes)
   // This is time beyond the expected review duration
@@ -303,6 +334,14 @@ function buildSession(
   const sessionEdits = editedUtterances.slice(startIdx, endIdx + 1);
   const startTime = sessionEdits[0].firstEditTime;
   const endTime = sessionEdits[sessionEdits.length - 1].firstEditTime;
+  
+  // Calculate session duration (time from first to last edit + buffer)
+  const sessionDurationMs = endTime.getTime() - startTime.getTime();
+  const bufferMs = REVIEW_TIME_CONFIG.SESSION_BUFFER_MINUTES * 60 * 1000;
+  
+  // Count unique utterances
+  const utteranceIndices = new Set(sessionEdits.map(e => e.utteranceIndex));
+  
 
   // Calculate session duration (time from first to last edit + buffer)
   const sessionDurationMs = endTime.getTime() - startTime.getTime();
@@ -315,6 +354,7 @@ function buildSession(
   const sessionUtterances = sessionEdits.map(e => e.utterance);
   const meetingStartTimestamp = Math.min(...sessionUtterances.map(u => u.startTimestamp));
   const meetingEndTimestamp = Math.max(...sessionUtterances.map(u => u.endTimestamp));
+  
 
   return {
     startTime,
@@ -345,6 +385,10 @@ function calculateReviewTime(
 ): { totalTimeMs: number; sessions: ReviewSession[] } {
   // Collect edited utterances with timestamps
   const editedUtterances: EditedUtterance[] = [];
+  
+  for (let i = 0; i < allUtterances.length; i++) {
+    const utterance = allUtterances[i];
+    
 
   for (let i = 0; i < allUtterances.length; i++) {
     const utterance = allUtterances[i];
@@ -353,6 +397,7 @@ function calculateReviewTime(
     const reviewerEditsOnThis = utterance.utteranceEdits
       .filter(e => isUserEdit(e) && e.user?.id === reviewerId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    
 
     if (reviewerEditsOnThis.length > 0) {
       const firstEdit = reviewerEditsOnThis[0];
@@ -365,6 +410,11 @@ function calculateReviewTime(
       });
     }
   }
+  
+  if (editedUtterances.length === 0) {
+    return { totalTimeMs: 0, sessions: [] };
+  }
+  
 
   if (editedUtterances.length === 0) {
     return { totalTimeMs: 0, sessions: [] };
@@ -385,12 +435,29 @@ function calculateReviewTime(
       reviewerName: edited.reviewerName,
       reviewerEmail: edited.reviewerEmail,
     };
+    
 
     return {
       totalTimeMs: singleEditTimeMs,
       sessions: [session]
     };
   }
+  
+  // Sort edited utterances by EDIT TIME (chronologically)
+  // This ensures session times flow forward even if reviewer jumped around
+  editedUtterances.sort((a, b) => a.firstEditTime.getTime() - b.firstEditTime.getTime());
+  
+  // Detect sessions by analyzing gaps between consecutive edits
+  const sessions: ReviewSession[] = [];
+  let sessionStartIdx = 0;
+  
+  for (let i = 1; i < editedUtterances.length; i++) {
+    const prevEdited = editedUtterances[i - 1];
+    const currentEdited = editedUtterances[i];
+    
+    // Calculate time gap between edits (chronologically)
+    const timeGapMs = currentEdited.firstEditTime.getTime() - prevEdited.firstEditTime.getTime();
+    
 
   // Sort edited utterances by EDIT TIME (chronologically)
   // This ensures session times flow forward even if reviewer jumped around
@@ -411,12 +478,21 @@ function calculateReviewTime(
     const minPos = Math.min(prevEdited.utteranceIndex, currentEdited.utteranceIndex);
     const maxPos = Math.max(prevEdited.utteranceIndex, currentEdited.utteranceIndex);
     const utterancesBetween = allUtterances.slice(minPos + 1, maxPos + 1);
+    
 
     // Calculate total audio duration of utterances between edits
     const audioDurationSeconds = utterancesBetween.reduce(
       (sum, u) => sum + getUtteranceDurationSeconds(u),
       0
     );
+    
+    // Expected review time = audio duration × speed multiplier
+    const expectedReviewTimeMs = audioDurationSeconds * 1000 * REVIEW_TIME_CONFIG.REVIEW_SPEED_MULTIPLIER;
+    
+    // Excess time = time beyond what we'd expect for reviewing the utterances
+    const excessTimeMs = timeGapMs - expectedReviewTimeMs;
+    const maxExcessMs = REVIEW_TIME_CONFIG.MAX_EXCESS_TIME_MINUTES * 60 * 1000;
+    
 
     // Expected review time = audio duration × speed multiplier
     const expectedReviewTimeMs = audioDurationSeconds * 1000 * REVIEW_TIME_CONFIG.REVIEW_SPEED_MULTIPLIER;
@@ -430,11 +506,13 @@ function calculateReviewTime(
       // Save the completed session
       const session = buildSession(editedUtterances, sessionStartIdx, i - 1, reviewerId);
       sessions.push(session);
+      
 
       // Start new session
       sessionStartIdx = i;
     }
   }
+  
 
   // Add the final session
   const lastSession = buildSession(
@@ -444,6 +522,10 @@ function calculateReviewTime(
     reviewerId
   );
   sessions.push(lastSession);
+  
+  // Calculate total time across all sessions
+  const totalTimeMs = sessions.reduce((sum, session) => sum + session.durationMs, 0);
+  
 
   // Calculate total time across all sessions
   const totalTimeMs = sessions.reduce((sum, session) => sum + session.durationMs, 0);
@@ -461,6 +543,11 @@ function calculateUnifiedReviewSessions(
   allUtterances: UtteranceWithEdits[]
 ): UnifiedReviewSession[] {
   const allSessions: UnifiedReviewSession[] = [];
+  
+  // Calculate sessions for each reviewer
+  for (const reviewer of allReviewers) {
+    const { sessions } = calculateReviewTime(reviewer.userId, allUtterances);
+    
 
   // Calculate sessions for each reviewer
   for (const reviewer of allReviewers) {
@@ -474,6 +561,10 @@ function calculateUnifiedReviewSessions(
       });
     }
   }
+  
+  // Sort all sessions chronologically
+  allSessions.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+  
 
   // Sort all sessions chronologically
   allSessions.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
@@ -509,12 +600,24 @@ function calculateSessionData(
     primaryReviewerId,
     allUtterances
   );
+  
 
   // Derive primary reviewer stats from unified sessions
   const primaryReviewerSessions = unifiedReviewSessions.filter(
     s => s.isPrimaryReviewer
   );
   const estimatedReviewTimeMs = primaryReviewerSessions.reduce(
+    (sum, session) => sum + session.durationMs, 
+    0
+  );
+  const reviewSessions = primaryReviewerSessions.length;
+  
+  // Calculate total review time from all reviewers
+  const totalReviewTimeMs = unifiedReviewSessions.reduce(
+    (sum, session) => sum + session.durationMs, 
+    0
+  );
+  
     (sum, session) => sum + session.durationMs,
     0
   );
@@ -530,6 +633,11 @@ function calculateSessionData(
   const reviewEfficiency = meetingDurationMs > 0 && estimatedReviewTimeMs > 0
     ? estimatedReviewTimeMs / meetingDurationMs
     : null;
+  
+  const totalReviewEfficiency = meetingDurationMs > 0 && totalReviewTimeMs > 0
+    ? totalReviewTimeMs / meetingDurationMs
+    : null;
+  
 
   const totalReviewEfficiency = meetingDurationMs > 0 && totalReviewTimeMs > 0
     ? totalReviewTimeMs / meetingDurationMs
@@ -553,6 +661,7 @@ function calculateSessionData(
 //
 // STAGE 1: DATABASE FILTERING (Prisma WHERE conditions)
 //   - Reduces dataset before fetching from database
+//   - Filters by task status (fixTranscript, humanReview)
 //   - Filters by task status (transcribe, humanReview)
 //   - Filters meetings where user has made ANY edits (for reviewer filter)
 //   - More efficient: Less data transferred and processed
@@ -563,6 +672,9 @@ function calculateSessionData(
 //   - Excludes meetings that don't meet final criteria
 //
 // FILTER OPTIONS:
+//   show: 'needsAttention' (default) - Has fixTranscript, no humanReview
+//         'all' - Has fixTranscript (any humanReview status)
+//         'completed' - Has both fixTranscript AND humanReview
 //   show: 'needsAttention' (default) - Has transcribe, no humanReview
 //         'all' - Has transcribe (any humanReview status)
 //         'completed' - Has both transcribe AND humanReview
@@ -588,6 +700,10 @@ export interface ReviewFilterOptions {
  * Build database where conditions for review status filtering
  */
 function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.CouncilMeetingWhereInput {
+  const hasFixTranscript = {
+    taskStatuses: {
+      some: {
+        type: 'fixTranscript' as const,
   const hasTranscribe = {
     taskStatuses: {
       some: {
@@ -608,6 +724,10 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
 
   switch (show) {
     case 'needsAttention':
+      // Has fixTranscript but NOT humanReview
+      return {
+        AND: [
+          hasFixTranscript,
       // Has transcribe but NOT humanReview
       return {
         AND: [
@@ -617,6 +737,10 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
       };
 
     case 'completed':
+      // Has both fixTranscript AND humanReview
+      return {
+        AND: [
+          hasFixTranscript,
       // Has both transcribe AND humanReview
       return {
         AND: [
@@ -627,6 +751,8 @@ function buildStatusWhereConditions(show: ReviewFilterOptions['show']): Prisma.C
 
     case 'all':
     default:
+      // Just needs fixTranscript (includes all statuses)
+      return hasFixTranscript;
       // Just needs transcribe (includes all statuses)
       return hasTranscribe;
   }
@@ -662,6 +788,7 @@ function combineWhereConditions(
 ): Prisma.CouncilMeetingWhereInput {
   if (conditions.length === 0) return {};
   if (conditions.length === 1) return conditions[0];
+  
 
   return { AND: conditions };
 }
@@ -673,6 +800,7 @@ function combineWhereConditions(
  */
 async function getAggregatedMeetingStats(
   meeting: MeetingId
+): Promise<Omit<ReviewListItem, 'meetingId' | 'cityId' | 'cityName' | 'meetingName' | 'meetingDate' | 'status'>> {
 ): Promise<AggregatedMeetingStats> {
   const map = await getAggregatedMeetingStatsBatch([meeting]);
   return map.get(getMeetingMapKey(meeting)) ?? getEmptyAggregatedMeetingStats();
@@ -680,6 +808,7 @@ async function getAggregatedMeetingStats(
 
 type AggregatedMeetingStats = Omit<
   ReviewListItem,
+  'meetingId' | 'cityId' | 'cityName' | 'meetingName' | 'meetingDate' | 'status'
   'meetingId' | 'cityId' | 'cityName' | 'administrativeBodyName' | 'meetingName' | 'meetingDate' | 'status'
 >;
 
@@ -898,6 +1027,14 @@ async function getAggregatedMeetingStatsBatch(
  * Optimized for list views - uses aggregations, no session detection
  */
 export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}): Promise<ReviewListItem[]> {
+  const { show = 'needsAttention', reviewerId } = filters;
+  
+  // Build database filter conditions
+  const conditions: Prisma.CouncilMeetingWhereInput[] = [];
+  
+  // Add status filter
+  conditions.push(buildStatusWhereConditions(show));
+  
   const { show = 'needsAttention', reviewerId, last30Days = false } = filters;
 
   // Build database filter conditions
@@ -915,6 +1052,10 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   if (reviewerId) {
     conditions.push(buildReviewerWhereConditions(reviewerId));
   }
+  
+  // Combine all conditions
+  const whereConditions = combineWhereConditions(conditions);
+  
 
   // Combine all conditions
   const whereConditions = combineWhereConditions(conditions);
@@ -928,6 +1069,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
     }
   });
 
+  // Note: DB filtering already ensures the correct fixTranscript/humanReview constraints
   // Note: DB filtering already ensures the correct transcribe/humanReview constraints
   // based on `show`. We only inspect taskStatuses here to determine `completed` vs not
   // for `show === 'all'`.
@@ -943,6 +1085,8 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       continue;
     }
 
+    const hasHumanReview = m.taskStatuses.some(t => t.type === 'humanReview' && t.status === 'succeeded');
+    const status = determineReviewStatus(true, hasHumanReview, stats.reviewedUtterances);
     const hasTranscribe = m.taskStatuses.some(t => t.type === 'transcribe' && t.status === 'succeeded');
 
     // Skip meetings without transcribe (shouldn't happen due to DB filter, but safety check)
@@ -981,6 +1125,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
   const baseNeedsAttentionWhere: Prisma.CouncilMeetingWhereInput = buildStatusWhereConditions('needsAttention');
 
   const [needsReview, inProgress] = await Promise.all([
+    // Needs review = has fixTranscript, no humanReview, and NO user edits
     // Needs review = has transcribe, no humanReview, and NO user edits
     prisma.councilMeeting.count({
       where: {
@@ -1004,6 +1149,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
         ],
       },
     }),
+    // In progress = has fixTranscript, no humanReview, and HAS user edits
     // In progress = has transcribe, no humanReview, and HAS user edits
     prisma.councilMeeting.count({
       where: {
@@ -1026,6 +1172,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
       },
     }),
   ]);
+  
 
   // Get completed reviews
   const now = new Date();
@@ -1033,6 +1180,7 @@ export async function getReviewStats(): Promise<ReviewStats> {
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay()); // Start of this week (Sunday)
   startOfWeek.setHours(0, 0, 0, 0);
+  
 
   const completedReviews = await prisma.taskStatus.findMany({
     where: {
@@ -1043,6 +1191,13 @@ export async function getReviewStats(): Promise<ReviewStats> {
       }
     }
   });
+  
+  const completedToday = completedReviews.filter(
+    t => t.createdAt >= startOfToday
+  ).length;
+  
+  const completedThisWeek = completedReviews.length;
+  
 
   const completedToday = completedReviews.filter(
     t => t.createdAt >= startOfToday
@@ -1080,6 +1235,8 @@ export async function getReviewProgressForMeeting(
   const stats = await getAggregatedMeetingStats(meetingId);
 
   // Check task statuses
+  const hasFixTranscript = meetingRecord.taskStatuses.some(
+    t => t.type === 'fixTranscript' && t.status === 'succeeded'
   const hasTranscribe = meetingRecord.taskStatuses.some(
     t => t.type === 'transcribe' && t.status === 'succeeded'
   );
@@ -1087,12 +1244,14 @@ export async function getReviewProgressForMeeting(
     t => t.type === 'humanReview' && t.status === 'succeeded'
   );
 
+  if (!hasFixTranscript) {
   if (!hasTranscribe) {
     return null;
   }
 
   // Determine status
   const status = determineReviewStatus(
+    hasFixTranscript,
     hasTranscribe,
     hasHumanReview,
     stats.reviewedUtterances
@@ -1178,6 +1337,7 @@ export async function getReviewers(): Promise<Array<{ id: string; name: string |
 export async function getMeetingReviewStats(meetingId: MeetingId) {
   // Use the existing calculateReviewProgress which already identifies reviewers
   const progress = await getReviewProgressForMeeting(meetingId);
+  
 
   if (!progress) {
     throw new Error('Meeting not found');
