@@ -203,6 +203,15 @@ export function ExpandableMeetingRow({
                 </div>
             </TableCell>
 
+            {/* Transcript Sent Status */}
+            <TableCell className="w-16 text-center">
+                <div className="flex items-center justify-center">
+                    {meetingStatus?.tasks.transcriptSent && (
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                    )}
+                </div>
+            </TableCell>
+
             {/* Subjects Count */}
             <TableCell className="w-24">
                 {subjectCount > 0 ? (

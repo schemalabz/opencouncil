@@ -39,6 +39,16 @@ const formSchema = z.object({
         }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
+    contactEmailPrimary: z.union([
+        z.string().email({ message: "Must be a valid email address" }),
+        z.literal('')
+    ]).optional().transform(val => val === '' ? undefined : val),
+    contactEmailsCC: z.string().optional().refine(val => {
+        if (!val || val.trim() === '') return true;
+        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
+        const emailSchema = z.string().email();
+        return emails.every(email => emailSchema.safeParse(email).success);
+    }, { message: "All entries must be valid email addresses" }),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'])
 })
 
@@ -48,6 +58,7 @@ interface AdministrativeBody {
     name_en: string;
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
+    contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
 }
 
@@ -55,6 +66,18 @@ interface AdministrativeBodiesListProps {
     cityId: string;
     bodies: AdministrativeBody[];
     onUpdate: () => void;
+}
+
+function getFormDefaults(body?: AdministrativeBody | null): z.infer<typeof formSchema> {
+    return {
+        name: body?.name || "",
+        name_en: body?.name_en || "",
+        type: body?.type || "council",
+        youtubeChannelUrl: body?.youtubeChannelUrl || "",
+        contactEmailPrimary: body?.contactEmails?.[0] || "",
+        contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
+        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
+    };
 }
 
 export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: AdministrativeBodiesListProps) {
@@ -66,13 +89,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
-            name: editingBody?.name || "",
-            name_en: editingBody?.name_en || "",
-            type: editingBody?.type || "council",
-            youtubeChannelUrl: editingBody?.youtubeChannelUrl || "",
-            notificationBehavior: editingBody?.notificationBehavior || "NOTIFICATIONS_APPROVAL"
-        },
+        defaultValues: getFormDefaults(editingBody),
     })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -85,24 +102,33 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         const method = editingBody ? 'PUT' : 'POST'
 
         try {
+            // Combine primary + CC emails into a single array for API
+            const contactEmailsArray: string[] = [];
+            if (values.contactEmailPrimary) {
+                contactEmailsArray.push(values.contactEmailPrimary);
+            }
+            if (values.contactEmailsCC) {
+                const ccEmails = values.contactEmailsCC.split(',').map(e => e.trim()).filter(e => e !== '');
+                contactEmailsArray.push(...ccEmails);
+            }
+
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(values),
+                body: JSON.stringify({
+                    ...values,
+                    contactEmailPrimary: undefined,
+                    contactEmailsCC: undefined,
+                    contactEmails: contactEmailsArray,
+                }),
             })
 
             if (response.ok) {
                 onUpdate()
                 setEditingBody(null)
-                form.reset({
-                    name: "",
-                    name_en: "",
-                    type: "council",
-                    youtubeChannelUrl: "",
-                    notificationBehavior: "NOTIFICATIONS_APPROVAL"
-                })
+                form.reset(getFormDefaults())
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
@@ -143,13 +169,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                     <Button onClick={(e) => {
                         e.preventDefault();
                         setEditingBody(null)
-                        form.reset({
-                            name: "",
-                            name_en: "",
-                            type: "council",
-                            youtubeChannelUrl: "",
-                            notificationBehavior: "NOTIFICATIONS_APPROVAL"
-                        })
+                        form.reset(getFormDefaults())
                         setIsDialogOpen(true)
                     }}>
                         {t('addNew')}
@@ -227,6 +247,46 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             />
                             <FormField
                                 control={form.control}
+                                name="contactEmailPrimary"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('contactEmailPrimary')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('contactEmailPrimaryPlaceholder')}
+                                                type="email"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('contactEmailPrimaryDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="contactEmailsCC"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('contactEmailsCC')}</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                {...field}
+                                                placeholder={t('contactEmailsCCPlaceholder')}
+                                                type="text"
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('contactEmailsCCDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
                                 name="notificationBehavior"
                                 render={({ field }) => (
                                     <FormItem>
@@ -290,13 +350,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     onClick={(e) => {
                                         e.preventDefault();
                                         setEditingBody(body)
-                                        form.reset({
-                                            name: body.name,
-                                            name_en: body.name_en,
-                                            type: body.type,
-                                            youtubeChannelUrl: body.youtubeChannelUrl || "",
-                                            notificationBehavior: body.notificationBehavior || "NOTIFICATIONS_APPROVAL"
-                                        })
+                                        form.reset(getFormDefaults(body))
                                         setIsDialogOpen(true)
                                     }}
                                 >

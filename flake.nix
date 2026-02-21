@@ -764,7 +764,7 @@ EOF
 
             # This hash needs to be updated when package-lock.json changes
             # Run: nix run nixpkgs#prefetch-npm-deps package-lock.json
-            npmDepsHash = "sha256-o4qn/DeM8d2NL1w11DciyE6xtR7pIcQEZ6zfiSlhHjk=";
+            npmDepsHash = "sha256-xOVigx2aidN3wD3uwRjaltdwI1CTh/PTOhkxgF48LqA=";
 
             # Configure npm - ignore scripts during dependency installation
             makeCacheWritable = true;

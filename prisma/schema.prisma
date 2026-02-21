@@ -95,6 +95,7 @@ model AdministrativeBody {
   type      AdministrativeBodyType
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
   youtubeChannelUrl String?
+  contactEmails String[] @default([]) // Emails for receiving transcripts
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
