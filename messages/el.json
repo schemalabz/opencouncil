@@ -87,6 +87,9 @@
         "supportsNotificationsDescription": "Ενεργοποίηση εγγραφής και διαχείρισης ειδοποιήσεων για τους πολίτες.",
         "consultationsEnabled": "Ενεργοποίηση Διαβουλεύσεων",
         "consultationsEnabledDescription": "Ενεργοποίηση της καρτέλας δημόσιων διαβουλεύσεων για αυτήν την πόλη",
+        "diavgeiaUid": "Diavgeia UID",
+        "diavgeiaUidPlaceholder": "π.χ. 6253",
+        "diavgeiaUidDescription": "Το UID του οργανισμού στη Διαύγεια (diavgeia.gov.gr). Απαιτείται για αυτόματη ανάκτηση αποφάσεων.",
         "administrativeBodies": "Διοικητικά Όργανα",
         "municipality": "Δήμος",
         "region": "Περιφέρεια",
@@ -554,6 +557,9 @@
             "auto": "Αυτόματες",
             "approval": "Με Έγκριση"
         },
+        "diavgeiaUnitIds": "IDs Μονάδων Διαύγειας",
+        "diavgeiaUnitIdsPlaceholder": "π.χ. 81689, 81690",
+        "diavgeiaUnitIdsDescription": "IDs μονάδων στη Διαύγεια, χωρισμένα με κόμμα (για αυτόματη ανάκτηση αποφάσεων).",
         "submitting": "Αποθήκευση...",
         "update": "Ενημέρωση",
         "create": "Δημιουργία",
@@ -613,6 +619,17 @@
         "votingDisclaimer": "Το OpenCouncil δεν εξάγει ακόμα τις ψηφοφορίες των θεμάτων -- όμως η σχετική συζήτηση της ψηφοφορίας εμφανίζεται παρακάτω",
         "noVotingUtterances": "Δεν βρέθηκε ψηφοφορία για αυτό το θέμα",
         "groupedDiscussion": "Συζήτηση μαζί με άλλα θέματα",
-        "groupedDiscussionDescription": "Αυτό το θέμα φαίνεται να συζητήθηκε και να ψηφίστηκε μαζί με άλλα θέματα. Δείτε την συζήτηση στο:"
+        "groupedDiscussionDescription": "Αυτό το θέμα φαίνεται να συζητήθηκε και να ψηφίστηκε μαζί με άλλα θέματα. Δείτε την συζήτηση στο:",
+        "decision": "Απόφαση",
+        "noDecision": "Δεν έχει συνδεθεί απόφαση",
+        "noDecisionDescription": "Δεν έχει συνδεθεί ακόμα απόφαση από τη Διαύγεια σε αυτό το θέμα.",
+        "fetchDecision": "Αναζήτηση στη Διαύγεια",
+        "searchingDecision": "Αναζήτηση στη Διαύγεια...",
+        "lastSearched": "Τελευταία αναζήτηση {time}",
+        "lastUpdated": "Τελευταία ενημέρωση {time}",
+        "decisionTitle": "Τίτλος",
+        "protocolNumber": "Αριθμός Πρωτοκόλλου",
+        "issueDate": "Ημερομηνία Έκδοσης",
+        "viewDecision": "Προβολή απόφασης στη Διαύγεια"
     }
 }

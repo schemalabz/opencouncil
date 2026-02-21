@@ -166,6 +166,7 @@ export async function search(request: SearchRequest): Promise<SearchResponse> {
                     }
                 },
                 highlights: true,
+                decision: true,
                 discussedIn: {
                     include: {
                         topic: true

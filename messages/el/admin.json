@@ -56,6 +56,8 @@
       "cacheManagementSubtitle": "Εξαναγκασμός ανανέωσης των δεδομένων cache για άμεση προβολή αλλαγών.",
       "podcastSpecs": "Podcast Specs",
       "podcastSpecsSubtitle": "Διαχείριση προδιαγραφών δημιουργίας podcast για αυτή τη συνεδρίαση.",
+      "decisions": "Αποφάσεις",
+      "decisionsSubtitle": "Σύνδεση αποφάσεων Διαύγειας με θέματα συνεδρίασης.",
       "export": "Εξαγωγή",
       "exportSubtitle": "Λήψη δεδομένων συνεδρίασης σε διάφορες μορφές."
     },
@@ -72,7 +74,8 @@
       "addTopic": "Προσθήκη Θέματος",
       "starting": "Ξεκινάει...",
       "syncing": "Συγχρονισμός...",
-      "process": "Επεξεργασία"
+      "process": "Επεξεργασία",
+      "manageDecisions": "Διαχείριση Αποφάσεων"
     },
     "forms": {
       "enterMediaUrl": "Εισάγετε URL Μέσου",
@@ -157,7 +160,49 @@
         "title": "Σφάλμα",
         "failedToInvalidateMeetingCache": "Αποτυχία ακύρωσης cache συνεδρίασης",
         "failedToInvalidateCityCache": "Αποτυχία ακύρωσης cache πόλης"
+      },
+      "decisionLinked": {
+        "title": "Η απόφαση συνδέθηκε"
+      },
+      "decisionUnlinked": {
+        "title": "Η απόφαση αποσυνδέθηκε"
+      },
+      "errorSavingDecision": {
+        "title": "Σφάλμα αποθήκευσης απόφασης"
+      },
+      "errorRemovingDecision": {
+        "title": "Σφάλμα αφαίρεσης απόφασης"
       }
+    },
+    "decisions": {
+      "title": "Διαχείριση Αποφάσεων (Διαύγεια)",
+      "description": "Σύνδεση αποφάσεων Διαύγειας με θέματα συνεδρίασης. Χρησιμοποιήστε αυτόματη ανάκτηση ή προσθέστε χειροκίνητα.",
+      "noSubjects": "Δεν βρέθηκαν θέματα για αυτή τη συνεδρίαση.",
+      "noDecision": "Χωρίς απόφαση",
+      "adaLabel": "ΑΔΑ",
+      "adaPlaceholder": "π.χ. 91ΥΔΩΡΦ-ΓΥ6",
+      "protocolNumberLabel": "Αριθμός Πρωτοκόλλου",
+      "protocolNumberPlaceholder": "π.χ. 261/2024",
+      "titleLabel": "Τίτλος Απόφασης",
+      "titlePlaceholder": "Τίτλος Απόφασης",
+      "pdfUrlLabel": "URL PDF",
+      "pdfUrlPlaceholder": "https://diavgeia.gov.gr/...",
+      "viewPdf": "Προβολή PDF",
+      "linked": "συνδεδεμένα",
+      "save": "Αποθήκευση",
+      "validation": {
+        "pdfUrlRequired": "Το URL PDF είναι υποχρεωτικό",
+        "pdfUrlInvalid": "Παρακαλώ εισάγετε ένα έγκυρο URL"
+      },
+      "sourceTask": "Προστέθηκε αυτόματα",
+      "addManually": "Χειροκίνητη προσθήκη",
+      "remove": "Αφαίρεση",
+      "tabAll": "Όλα",
+      "tabUnlinked": "Χωρίς σύνδεση",
+      "allLinked": "Όλα τα θέματα έχουν συνδεδεμένες αποφάσεις.",
+      "pollButton": "Ανάκτηση από Διαύγεια",
+      "pollRequested": "Ξεκίνησε η ανάκτηση αποφάσεων",
+      "pollError": "Αποτυχία εκκίνησης ανάκτησης"
     }
   }
 }

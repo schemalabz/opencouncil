@@ -11,9 +11,11 @@ import {
 
 interface CollapsibleCardProps {
   icon?: React.ReactNode
-  title: string
+  title: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
+  /** When set, the card gets an anchor id and auto-opens when the URL hash matches */
+  id?: string
   className?: string
 }
 
@@ -25,13 +27,33 @@ export function CollapsibleCard({
   title,
   children,
   defaultOpen = false,
+  id,
   className,
 }: CollapsibleCardProps) {
   const [open, setOpen] = React.useState(defaultOpen)
 
+  // Auto-open and scroll when URL hash matches this card's id.
+  // Scroll is delayed so the card can expand before the browser calculates position.
+  React.useEffect(() => {
+    if (!id) return
+
+    const openAndScroll = () => {
+      if (window.location.hash === `#${id}`) {
+        setOpen(true)
+        setTimeout(() => {
+          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 200)
+      }
+    }
+
+    openAndScroll()
+    window.addEventListener('hashchange', openAndScroll)
+    return () => window.removeEventListener('hashchange', openAndScroll)
+  }, [id])
+
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className={cn("group rounded-lg shadow-sm overflow-hidden", className)}>
+      <div id={id} className={cn("group rounded-lg shadow-sm overflow-hidden", className)}>
         <div
           className={cn(
             "w-full h-full rounded-lg p-[1.5px] transition-all duration-300 bg-gradient-to-r",

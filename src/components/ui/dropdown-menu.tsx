@@ -66,14 +66,11 @@ const DropdownMenuContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(
   (
-    { className, sideOffset = 4, onPointerDown, onPointerDownOutside, onCloseAutoFocus, ...props },
+    { className, sideOffset = 4, onPointerDown, onPointerDownOutside, onCloseAutoFocus, onFocus, ...props },
     ref,
   ) => {
-    const isCloseFromMouse = React.useRef<boolean>(false);
-
     const handlePointerDown = React.useCallback(
       (e: PointerDownEvent) => {
-        isCloseFromMouse.current = true;
         onPointerDown?.(e);
       },
       [onPointerDown],
@@ -81,7 +78,6 @@ const DropdownMenuContent = React.forwardRef<
 
     const handlePointerDownOutside = React.useCallback(
       (e: PointerDownOutsideEvent) => {
-        isCloseFromMouse.current = true;
         onPointerDownOutside?.(e);
       },
       [onPointerDownOutside],
@@ -89,18 +85,22 @@ const DropdownMenuContent = React.forwardRef<
 
     const handleCloseAutoFocus = React.useCallback(
       (e: Event) => {
-        if (onCloseAutoFocus) {
-          return onCloseAutoFocus(e);
-        }
-
-        if (!isCloseFromMouse.current) {
-          return;
-        }
-
+        // Prevent default focus restoration to avoid conflicts with parent focus scopes (Sheet/Dialog)
+        // This is critical to prevent "too much recursion" errors
         e.preventDefault();
-        isCloseFromMouse.current = false;
+        e.stopPropagation();
+        onCloseAutoFocus?.(e);
       },
       [onCloseAutoFocus],
+    );
+
+    const handleFocus = React.useCallback(
+      (e: React.FocusEvent<HTMLDivElement>) => {
+        // Stop propagation to prevent focus events from reaching parent focus scopes
+        e.stopPropagation();
+        onFocus?.(e);
+      },
+      [onFocus],
     );
 
     return (
@@ -115,6 +115,7 @@ const DropdownMenuContent = React.forwardRef<
           onPointerDown={handlePointerDown}
           onPointerDownOutside={handlePointerDownOutside}
           onCloseAutoFocus={handleCloseAutoFocus}
+          onFocus={handleFocus}
           {...props}
         />
       </DropdownMenuPrimitive.Portal>

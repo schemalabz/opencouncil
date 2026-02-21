@@ -7,11 +7,12 @@ This document outlines the architecture and workflow for handling asynchronous t
 
 1. [High-Level Overview](#1-high-level-overview)
 2. [Component Descriptions](#2-component-descriptions)
-3. [The Lifecycle of a Task](#3-the-lifecycle-of-a-task)
-4. [Task Handler Registry Pattern](#4-task-handler-registry-pattern)
-5. [Task Reprocessing](#5-task-reprocessing)
-6. [Error Handling](#6-error-handling)
-7. [Adding a New Task](#7-adding-a-new-task)
+3. [Automated Task Initiation (Cron)](#3-automated-task-initiation-cron)
+4. [The Lifecycle of a Task](#4-the-lifecycle-of-a-task)
+5. [Task Handler Registry Pattern](#5-task-handler-registry-pattern)
+6. [Task Reprocessing](#6-task-reprocessing)
+7. [Error Handling](#7-error-handling)
+8. [Adding a New Task](#8-adding-a-new-task)
 
 ## 1. High-Level Overview
 
@@ -97,10 +98,77 @@ graph TD;
     -   `version`: A version number for the task, allowing for reprocessing.
     -   ...and other relevant fields.
 
-## 3. The Lifecycle of a Task
+## 3. Automated Task Initiation (Cron)
+
+Some tasks are initiated automatically on a schedule rather than by a user action. These use cron-triggered API routes that authenticate via a shared secret (`CRON_SECRET`).
+
+### Diavgeia Decision Polling
+
+The `pollDecisions` task can be triggered automatically to fetch decisions from [Diavgeia](https://diavgeia.gov.gr) (the Greek government transparency portal) for recent council meetings.
+
+**Endpoint:** `GET /api/cron/poll-decisions`
+**Authentication:** `Authorization: Bearer <CRON_SECRET>`
+
+**What it does:**
+1. Finds meetings from the last 90 days in cities that have `diavgeiaUid` configured
+2. Filters to meetings that still have subjects with no linked decision
+3. Applies progressive backoff based on previous polling history (see below)
+4. Dispatches `pollDecisions` tasks to the backend task server for up to 10 meetings per invocation
+5. Only polls for subjects that don't already have a decision
+
+**Progressive backoff:**
+Some subjects may never have decisions on Diavgeia, so the cron uses time-based backoff to avoid polling forever. It derives the first and last poll dates from existing `TaskStatus` records (type `pollDecisions`, status `succeeded`) for each meeting:
+
+| Days since first poll | Minimum interval between polls |
+|-----------------------|-------------------------------|
+| 0–7 (week 1)         | None (every cron run)         |
+| 7–14 (week 2)        | 2 days                        |
+| 14–21 (week 3)       | 3 days                        |
+| 21+ (week 4+)        | 7 days                        |
+| 90+                   | Automatic polling stops        |
+
+With the cron running 2x/day, this means ~14 polls in week 1, ~3-4 in week 2, ~2-3 in week 3, then ~1/week.
+
+After automatic polling stops, users can still manually fetch decisions from the subject page. The backoff schedule is defined as `BACKOFF_SCHEDULE` at the top of `pollDecisions.ts` and is easy to adjust.
+
+**Polling stats:**
+To fine-tune the backoff schedule, use the stats endpoint:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-decisions-stats
+```
+
+This returns per-decision data showing: when Diavgeia published it, when the cron found it, how many poll attempts it took, and the delay between the meeting date and publication. Use the summary stats (average/median discovery delay, publish delay) to decide if the schedule needs tuning.
+
+**Setup:**
+1. Set the `CRON_SECRET` environment variable (generate with `openssl rand -base64 32`)
+2. Configure an external cron scheduler (e.g., Vercel Cron, GitHub Actions, or a simple crontab) to call the endpoint periodically:
+
+```bash
+# Poll every 12 hours (2x/day)
+0 0,12 * * * curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-domain.com/api/cron/poll-decisions
+```
+
+**Key files:**
+- `src/app/api/cron/poll-decisions/route.ts` — Cron API route
+- `src/app/api/cron/poll-decisions-stats/route.ts` — Polling effectiveness stats
+- `src/lib/tasks/pollDecisions.ts` — `pollDecisionsForRecentMeetings()` (cron logic), `getPollingStats()` (stats), `pollDecisionsForMeeting()` (core logic shared with admin UI and cron)
+
+**Prerequisites per city:**
+- City must have `diavgeiaUid` set (configured in city settings)
+- Optionally, administrative bodies can have `diavgeiaUnitIds` for more precise matching
+
+### Adding New Cron Tasks
+
+To add a new cron-triggered task:
+1. Create a new API route under `src/app/api/cron/<task-name>/route.ts`
+2. Authenticate with `CRON_SECRET` (see the poll-decisions route for the pattern)
+3. Call `startTask()` for each unit of work — the rest of the task lifecycle (execution, callbacks, result handling) follows the standard flow described below
+
+## 4. The Lifecycle of a Task
 
 1.  **Initiation:**
-    -   A user action in the Next.js application triggers the `startTask` function.
+    -   A user action (or cron job) in the Next.js application triggers the `startTask` function.
     -   A new entry is created in the `TaskStatus` table with a status of `"pending"`.
     -   A `POST` request is sent to the backend task server's corresponding endpoint (e.g., `/transcribe`). The request body includes the task parameters and a `callbackUrl`.
 
@@ -119,7 +187,7 @@ graph TD;
     -   The `handleTaskUpdate` function updates the corresponding `TaskStatus` record in the database.
     -   If the task was successful, a task-specific result handler (e.g., `handleTranscribeResult`) is called to process the results.
 
-## 4. Task Handler Registry Pattern
+## 5. Task Handler Registry Pattern
 
 To maintain clean, scalable code, the system uses a centralized task handler registry. This pattern is defined in `src/lib/tasks/registry.ts`:
 
@@ -149,7 +217,7 @@ async function handleTaskResult(
 
 The optional `options` parameter allows handlers to accept flags like `force` for special processing modes (see Task Reprocessing section).
 
-## 5. Task Reprocessing
+## 6. Task Reprocessing
 
 A key feature of the task architecture is the ability to reprocess the results of a task without having to re-run the entire task on the backend server. This is made possible by storing the complete `responseBody` from the task server in the `TaskStatus` table.
 
@@ -210,14 +278,14 @@ The `TaskStatus` component (`src/components/meetings/admin/TaskStatus.tsx`) prov
 
 This approach provides clear feedback, prevents user confusion, and handles both idempotent and non-idempotent tasks appropriately.
 
-## 6. Error Handling
+## 7. Error Handling
 
 -   If the initial `fetch` call from the Next.js app to the task server fails, the task status is immediately set to `"failed"`.
 -   If the task fails on the backend server, it reports the `"error"` status back to the Next.js app.
 -   There is no automatic retry mechanism. Failed tasks can be reprocessed using the TaskStatus UI component.
 -   Result processing errors are caught and logged, with the task status updated to `"failed"` and Discord alerts sent to admins.
 
-## 7. Adding a New Task
+## 8. Adding a New Task
 
 Thanks to the task handler registry pattern, adding a new task type is straightforward. Follow these steps:
 

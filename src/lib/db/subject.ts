@@ -4,6 +4,7 @@ import {
     SubjectSpeakerSegment,
     SpeakerSegment,
     SpeakerContribution,
+    Decision,
     Highlight,
     Location,
     Topic,
@@ -58,6 +59,7 @@ export type SubjectWithRelations = Subject & {
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
+    decision: Decision | null;
 };
 
 export type SubjectOgData = {
@@ -82,6 +84,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 location: true,
                 topic: true,
                 introducedBy: introducedByInclude,
+                decision: true,
                 discussedIn: {
                     include: {
                         topic: true,
@@ -120,6 +123,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 highlights: true,
                 location: true,
                 topic: true,
+                decision: true,
                 discussedIn: {
                     include: {
                         topic: true,
@@ -183,6 +187,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 highlights: true,
                 location: true,
                 topic: true,
+                decision: true,
                 discussedIn: {
                     include: {
                         topic: true,

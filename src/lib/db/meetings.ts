@@ -5,7 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 
-type CouncilMeetingWithAdminBody = CouncilMeeting & {
+export type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
 }
 

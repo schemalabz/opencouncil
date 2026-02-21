@@ -35,6 +35,12 @@ If you open an interactive shell session first (`nix develop`), subsequent comma
 - `npm run prisma:migrate:reset` - Reset database and re-run migrations
 - `npx prisma db seed` - Seed database with sample data
 
+**IMPORTANT**: When making schema changes, always use `--create-only` to generate the migration file without applying it:
+```
+npx prisma migrate dev --name <migration_name> --create-only
+```
+This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
+
 ### Utility Scripts
 - `npm run lint` - Run ESLint
 - `npm run email` - Test municipality email sending
@@ -89,6 +95,12 @@ src/
 - Store shared Prisma types in `src/lib/db/types/{entity}.ts`
 - Re-export from `src/lib/db/types/index.ts`
 - Import from `@/lib/db/types` to prevent circular dependencies
+
+**CRITICAL - Before Creating New Types**:
+- **Always check if the type already exists** before defining a new one
+- When a function returns a type you need, follow the import chain to find its definition
+- If the type exists but isn't exported, export it rather than duplicating
+- Example: If `getCouncilMeeting()` returns `CouncilMeetingWithAdminBody`, check `src/lib/db/meetings.ts` for that type definition before creating your own
 
 ### Authentication Patterns
 
@@ -204,6 +216,24 @@ The condition must use `process.env.NODE_ENV === 'development'` directly (not vi
 2. Check if logic exists in multiple places
 3. Extract duplicates to shared utilities
 4. Ensure all imports are at the top of files
+
+### Git Workflow
+
+**Commit organization on feature branches**:
+When working on a branch with existing commits, new changes must be categorized:
+- **Fixup commits** (`fixup! <original commit message>`): Changes that modify, improve, or clean up code introduced by an existing commit on the branch. Use the `fixup!` prefix with the exact original commit message so `git rebase -i --autosquash` can squash them automatically.
+- **New commits**: Genuinely new functionality that doesn't belong to any existing commit.
+
+Before creating commits, run `git log --oneline main..HEAD` to understand the branch's commit structure and decide which changes are fixups vs new commits. Stage files selectively to keep each commit focused.
+
+After all commits are created, run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash main` to fold fixup commits into their targets.
+
+**Build Verification**:
+- **Always run `npm run build` after completing changes** to verify TypeScript compiles and catch errors early
+- This closes the feedback loop quickly - don't wait for the user to discover build failures
+- For schema changes: run `npm run prisma:generate` before building
+- Quick TypeScript check without full build: `npx tsc --noEmit`
+- **Full stack verification**: Run `nix run .#dev` to verify the app starts with a fresh local DB (includes running migrations)
 
 ### TypeScript
 - Strict mode is enabled
