@@ -6,7 +6,7 @@ const mockUtils = {
   getRequestOnTranscriptRequestBody: jest.fn(),
   getSummarizeRequestBody: jest.fn(),
   getAvailableSpeakerSegmentIds: jest.fn(),
-  createSubjectsForMeeting: jest.fn()
+  saveSubjectsForMeeting: jest.fn()
 };
 
 // Mock implementation of util functions
@@ -17,7 +17,7 @@ const {
   getRequestOnTranscriptRequestBody, 
   getSummarizeRequestBody,
   getAvailableSpeakerSegmentIds,
-  createSubjectsForMeeting
+  saveSubjectsForMeeting
 } = mockUtils;
 
 // Create a mock for prisma
@@ -60,7 +60,7 @@ describe('DB Utils', () => {
     
     getAvailableSpeakerSegmentIds.mockResolvedValue(['segment-1', 'segment-2']);
     
-    createSubjectsForMeeting.mockResolvedValue(undefined);
+    saveSubjectsForMeeting.mockResolvedValue(undefined);
   });
 
   describe('getRequestOnTranscriptRequestBody', () => {
@@ -93,7 +93,7 @@ describe('DB Utils', () => {
     });
   });
 
-  describe('createSubjectsForMeeting', () => {
+  describe('saveSubjectsForMeeting', () => {
     it('should be called with correct parameters', async () => {
       const subjects = [
         {
@@ -109,10 +109,10 @@ describe('DB Utils', () => {
         }
       ];
       
-      await createSubjectsForMeeting(subjects as any, 'city-1', 'meeting-1');
+      await saveSubjectsForMeeting(subjects as any, 'city-1', 'meeting-1');
       
       // Verify parameters were passed correctly
-      expect(createSubjectsForMeeting).toHaveBeenCalledWith(subjects, 'city-1', 'meeting-1');
+      expect(saveSubjectsForMeeting).toHaveBeenCalledWith(subjects, 'city-1', 'meeting-1');
     });
   });
 });

@@ -3,7 +3,7 @@
 import { ProcessAgendaRequest, ProcessAgendaResult } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { createSubjectsForMeeting } from "../db/utils";
+import { saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 import { getAllTopics } from "../db/topics";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
@@ -45,6 +45,11 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
     if (councilMeeting.subjects.length > 0) {
         if (force) {
             console.log(`Deleting existing subjects for meeting ${councilMeetingId}`);
+            // Delete subject-linked highlights before subjects to avoid orphans
+            // (saveSubjectsForMeeting only cleans up highlights for subjects it processes)
+            await prisma.highlight.deleteMany({
+                where: { meetingId: councilMeetingId, cityId, subjectId: { not: null } }
+            });
             await prisma.subject.deleteMany({
                 where: {
                     councilMeetingId,
@@ -108,7 +113,7 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
         throw new Error('Task not found');
     }
 
-    await createSubjectsForMeeting(
+    await saveSubjectsForMeeting(
         response.subjects,
         task.councilMeeting.cityId,
         task.councilMeeting.id
