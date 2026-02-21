@@ -1,5 +1,6 @@
 import { getCities } from "@/lib/db/cities";
 import { getCouncilMeetingsForCity, CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
+import { getDecisionCountsForCity, MeetingDecisionCounts } from "@/lib/db/decisions";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import CitySelector from "@/components/admin/people/city-selector";
 import Meetings from "@/components/admin/meetings/Meetings";
@@ -16,8 +17,12 @@ export default async function AdminMeetingsPage({ searchParams }: PageProps) {
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 
     let meetings: CouncilMeetingWithAdminBodyAndSubjects[] = [];
+    let decisionCounts: MeetingDecisionCounts = {};
     if (selectedCityId) {
-        meetings = await getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true });
+        [meetings, decisionCounts] = await Promise.all([
+            getCouncilMeetingsForCity(selectedCityId, { includeUnreleased: true }),
+            getDecisionCountsForCity(selectedCityId),
+        ]);
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -34,10 +39,11 @@ export default async function AdminMeetingsPage({ searchParams }: PageProps) {
                 </div>
             </div>
 
-            <Meetings 
-                meetings={meetings} 
-                currentCityName={currentCityName} 
+            <Meetings
+                meetings={meetings}
+                currentCityName={currentCityName}
                 selectedCityId={selectedCityId}
+                decisionCounts={decisionCounts}
             />
         </div>
     );
