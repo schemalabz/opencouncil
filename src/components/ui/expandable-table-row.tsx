@@ -9,18 +9,21 @@ import { ChevronRight, ChevronDown } from "lucide-react";
 interface ExpandableTableRowProps {
   // Data
   rowId: string | number;
-  
+
   // Selection (optional)
   isSelected?: boolean;
   onSelect?: (checked: boolean) => void;
-  
+
   // Content
   children: React.ReactNode; // TableCell components
   expandedContent: React.ReactNode;
-  
+
+  // Callbacks
+  onExpand?: () => void;
+
   // Styling
   className?: string;
-  
+
   // Accessibility
   ariaLabel?: string;
 }
@@ -31,14 +34,19 @@ export function ExpandableTableRow({
   onSelect,
   children,
   expandedContent,
+  onExpand,
   className,
   ariaLabel
 }: ExpandableTableRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpanded = useCallback(() => {
-    setIsExpanded(!isExpanded);
-  }, [isExpanded]);
+    const willExpand = !isExpanded;
+    setIsExpanded(willExpand);
+    if (willExpand) {
+      onExpand?.();
+    }
+  }, [isExpanded, onExpand]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
