@@ -11,6 +11,30 @@ import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills
 // Import the native subject OG image generator for reuse
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
+const ALLOWED_HOSTS = [
+  "opencouncil.gr",
+  "api.opencouncil.gr",
+  "cdn.opencouncil.gr"
+];
+
+function isPrivateIP(hostname: string) {
+  return (
+    hostname === "localhost" ||
+    hostname.startsWith("127.") ||
+    hostname.startsWith("10.") ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("172.16.") ||
+    hostname.startsWith("172.17.") ||
+    hostname.startsWith("172.18.") ||
+    hostname.startsWith("172.19.") ||
+    hostname.startsWith("172.2") || // covers 172.20–172.29
+    hostname.startsWith("172.30.") ||
+    hostname.startsWith("172.31.") ||
+    hostname === "0.0.0.0" ||
+    hostname === "169.254.169.254"
+  );
+}
+
 // Meeting OG Image (Landscape - 1200x630)
 const MeetingOGImage = async (cityId: string, meetingId: string) => {
     const data = await getMeetingDataForOG(cityId, meetingId);
@@ -400,15 +424,42 @@ const CityOGImage = async (cityId: string) => {
 // Consultation OG Image
 const ConsultationOGImage = async (cityId: string, consultationId: string) => {
     // Helper function to fetch regulation data
-    const fetchRegulationData = async (jsonUrl: string): Promise<RegulationData | null> => {
-        try {
-            const response = await fetch(jsonUrl, { cache: 'no-store' });
-            if (!response.ok) return null;
-            return await response.json();
-        } catch (error) {
-            console.error('Error fetching regulation data:', error);
-            return null;
+    const fetchRegulationData = async (
+      jsonUrl: string
+    ): Promise<RegulationData | null> => {
+      try {
+        const url = new URL(jsonUrl);
+    
+        // allow ONLY https
+        if (url.protocol !== "https:") {
+          console.warn("Blocked non-https URL:", jsonUrl);
+          return null;
         }
+    
+        // block localhost / private networks
+        if (isPrivateIP(url.hostname)) {
+          console.warn("Blocked private host:", jsonUrl);
+          return null;
+        }
+    
+        // allowlist domains
+        if (!ALLOWED_HOSTS.includes(url.hostname)) {
+          console.warn("Blocked external host:", jsonUrl);
+          return null;
+        }
+    
+        const response = await fetch(url.toString(), {
+          cache: "no-store",
+          redirect: "error" // prevents redirect SSRF bypass
+        });
+    
+        if (!response.ok) return null;
+    
+        return await response.json();
+      } catch (error) {
+        console.error("Error fetching regulation data:", error);
+        return null;
+      }
     };
 
     // Fetch consultation data with city info and comment count
