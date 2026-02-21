@@ -2,6 +2,7 @@ import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getCityCached } from "@/lib/cache";
+import { notFound } from "next/navigation";
 
 export default async function CityInnerLayout({
     children,
@@ -12,7 +13,7 @@ export default async function CityInnerLayout({
 }) {
 
     const city = await getCityCached(cityId);
-    if (!city) return null;
+    if (!city) notFound();
 
     // Build the path elements
     const pathElements: PathElement[] = [
