@@ -1295,12 +1295,32 @@ EOF
                       fi
                     done
 
-                    # Symlink .next contents except cache
+                    # Symlink .next contents except cache and server/app.
+                    # server/app must be writable so Next.js ISR can update
+                    # pre-rendered pages (otherwise build-time data is served forever).
                     mkdir -p "$WORK_DIR/.next"
                     for item in "$APP_DIR/.next"/*; do
                       name="$(basename "$item")"
                       [ "$name" = "cache" ] && continue
-                      ln -sfn "$item" "$WORK_DIR/.next/$name"
+                      if [ "$name" = "server" ]; then
+                        # Remove old symlink from previous script version (upgrade path)
+                        [ -L "$WORK_DIR/.next/server" ] && rm -f "$WORK_DIR/.next/server"
+                        mkdir -p "$WORK_DIR/.next/server"
+                        for sitem in "$APP_DIR/.next/server"/*; do
+                          sname="$(basename "$sitem")"
+                          if [ "$sname" = "app" ]; then
+                            # Remove stale copy from previous deployment, then copy fresh.
+                            # Must chmod after cp since nix store files are read-only.
+                            rm -rf "$WORK_DIR/.next/server/app"
+                            cp -r "$sitem" "$WORK_DIR/.next/server/app"
+                            chmod -R u+w "$WORK_DIR/.next/server/app"
+                          else
+                            ln -sfn "$sitem" "$WORK_DIR/.next/server/$sname"
+                          fi
+                        done
+                      else
+                        ln -sfn "$item" "$WORK_DIR/.next/$name"
+                      fi
                     done
 
                     cd "$WORK_DIR"

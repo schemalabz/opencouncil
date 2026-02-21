@@ -11,14 +11,8 @@ import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
 import MarkdownContent from "./MarkdownContent";
-import { RegulationData, ReferenceFormat } from "./types";
+import { RegulationData, ReferenceFormat, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;

@@ -1,18 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { ChevronDown, ChevronRight, Info, MessageCircle, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageCircle, TriangleAlert } from "lucide-react";
 import GeometryItem from "./GeometryItem";
 import CommentSection from "./CommentSection";
 import { Geometry } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
 
 export type CheckboxState = 'checked' | 'indeterminate' | 'unchecked';
 
@@ -106,26 +99,22 @@ export default function GeoSetItem({
                         </div>
                     )}
                 </div>
-                <Label
-                    htmlFor={`geoset-${id}`}
-                    className="text-sm font-medium flex-1 cursor-pointer"
-                >
-                    {name}
-                </Label>
-                {hasInvalidGeometries && (
-                    <TriangleAlert className="h-4 w-4 text-yellow-500" />
-                )}
-                <Button
+                <button
                     onClick={() => onOpenGeoSetDetail(id)}
-                    variant="outline"
-                    size="sm"
-                    className="h-6 px-2 text-muted-foreground hover:text-foreground border-muted-foreground/30"
+                    className="text-sm font-medium flex-1 cursor-pointer text-left hover:text-primary transition-colors flex items-center gap-1"
                     title="Προβολή λεπτομερειών και σχολίων"
                 >
-                    <Info className="h-3 w-3 mr-1" />
-                    <MessageCircle className="h-3 w-3 mr-1" />
-                    <span className="text-xs">{geosetCommentCount}</span>
-                </Button>
+                    {name}
+                    {hasInvalidGeometries && (
+                        <TriangleAlert className="h-4 w-4 text-yellow-500" />
+                    )}
+                    {geosetCommentCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <MessageCircle className="h-3 w-3" />
+                            {geosetCommentCount}
+                        </span>
+                    )}
+                </button>
                 {hasGeometries && (
                     <Button
                         onClick={() => onToggleExpansion(id)}

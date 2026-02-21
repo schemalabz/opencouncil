@@ -1,21 +1,20 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { MapPin, Map, FileText, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Credenza, CredenzaContent, CredenzaHeader, CredenzaTitle, CredenzaDescription, CredenzaBody } from "@/components/ui/credenza";
 import ConsultationHeader from "./ConsultationHeader";
 import ConsultationMap from "./ConsultationMap";
 import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
+import MarkdownContent from "./MarkdownContent";
 
-import { RegulationData } from "./types";
+import { RegulationData, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
 
 type ViewMode = 'map' | 'document';
 
@@ -36,6 +35,8 @@ interface ConsultationViewerProps {
     currentUser?: CurrentUser;
     consultationId: string;
     cityId: string;
+    cityName?: string;
+    cityLogoUrl?: string | null;
 }
 
 export default function ConsultationViewer({
@@ -45,13 +46,17 @@ export default function ConsultationViewer({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    cityName,
+    cityLogoUrl
 }: ConsultationViewerProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Default to document view, unless URL specifies map
-    const [currentView, setCurrentView] = useState<ViewMode>('document');
+    const defaultView = regulationData?.defaultView || 'document';
+
+    // Default to the regulation's defaultView, unless URL specifies otherwise
+    const [currentView, setCurrentView] = useState<ViewMode>(defaultView);
 
     // Track which chapters and articles are expanded
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
@@ -60,24 +65,38 @@ export default function ConsultationViewer({
     // Track comments overview sheet state
     const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
 
+    // Track whether the map summary card has been dismissed
+    // Don't show by default if URL has a hash (direct link to a community)
+    const [showMapSummary, setShowMapSummary] = useState(true);
+
+    // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
+    const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
+
+    // Hide welcome dialog if URL has a hash on mount (direct link)
+    useEffect(() => {
+        if (window.location.hash) {
+            setShowMapSummary(false);
+        }
+    }, []);
+
     // Update view based on URL on mount and when search params change
     useEffect(() => {
         const viewParam = searchParams.get('view');
         if (viewParam === 'map' || viewParam === 'document') {
             setCurrentView(viewParam as ViewMode);
         } else {
-            // Default to document view and update URL if no view param exists
-            setCurrentView('document');
+            // Use the regulation's default view and update URL
+            setCurrentView(defaultView);
             if (typeof window !== 'undefined') {
                 const params = new URLSearchParams(window.location.search);
                 if (!params.has('view')) {
-                    params.set('view', 'document');
+                    params.set('view', defaultView);
                     const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
                     router.replace(newUrl, { scroll: false });
                 }
             }
         }
-    }, [searchParams, router]);
+    }, [searchParams, router, defaultView]);
 
     // Helper functions for managing expansion state
     const expandChapter = (chapterId: string) => {
@@ -258,6 +277,8 @@ export default function ConsultationViewer({
             params.set('view', 'map');
             const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
             router.push(newUrl, { scroll: false });
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
@@ -302,11 +323,19 @@ export default function ConsultationViewer({
             const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
             router.push(newUrl, { scroll: false });
         } else if (referenceType === 'geoset' || referenceType === 'geometry') {
-            // Navigate to map view
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'map');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-            router.push(newUrl, { scroll: false });
+            if (currentView === 'map') {
+                // Already in map view - directly set hash to trigger ConsultationMap's hashchange handler
+                // (router.push uses History.pushState which does NOT trigger hashchange)
+                window.location.hash = referenceId;
+            } else {
+                // Switch to map view first - ConsultationMap will handle the hash on mount
+                const params = new URLSearchParams(window.location.search);
+                params.set('view', 'map');
+                const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
+                router.push(newUrl, { scroll: false });
+            }
+            // Scroll to top so the full-screen map is visible
+            window.scrollTo(0, 0);
         }
     };
 
@@ -329,13 +358,110 @@ export default function ConsultationViewer({
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onShowInfo={() => setShowMapSummary(true)}
+                            onDrawerStateChange={setMapDrawerOpen}
                         />
                     </div>
+
+                    {/* Welcome dialog */}
+                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
+                        <CredenzaContent className="max-w-xl">
+                            {/* Logos */}
+                            <CredenzaBody>
+                                <div className="flex items-center justify-center gap-4 pt-1">
+                                    {cityLogoUrl && (
+                                        <div className="relative h-12 w-12 shrink-0">
+                                            <Image
+                                                src={cityLogoUrl}
+                                                alt={cityName ? `Λογότυπο ${cityName}` : 'Λογότυπο Δήμου'}
+                                                fill
+                                                className="object-contain"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="relative h-10 w-10 shrink-0">
+                                        <Image
+                                            src="/logo.png"
+                                            alt="OpenCouncil"
+                                            fill
+                                            className="object-contain"
+                                        />
+                                    </div>
+                                </div>
+
+                                <CredenzaHeader className="text-center sm:text-center">
+                                    <div className="text-lg font-bold tracking-wide">
+                                        ΔΙΑΒΟΥΛΕΥΣΗ
+                                    </div>
+                                    <CredenzaTitle className="text-sm font-normal text-muted-foreground leading-tight">
+                                        {regulationData?.title}
+                                    </CredenzaTitle>
+                                    <CredenzaDescription className="sr-only">
+                                        Περίληψη διαβούλευσης
+                                    </CredenzaDescription>
+                                </CredenzaHeader>
+                                {regulationData?.summary && (
+                                    <div className="max-h-52 overflow-y-auto -mx-1 px-1">
+                                        <MarkdownContent
+                                            content={regulationData.summary}
+                                            variant="muted"
+                                            className="text-sm"
+                                            referenceFormat={regulationData.referenceFormat}
+                                            onReferenceClick={(id) => {
+                                                setShowMapSummary(false);
+                                                handleReferenceClick(id);
+                                            }}
+                                            regulationData={regulationData}
+                                        />
+                                    </div>
+                                )}
+                                <div className="flex flex-col gap-2 pt-1">
+                                    <Button
+                                        onClick={() => setShowMapSummary(false)}
+                                        className="w-full"
+                                    >
+                                        <MapPin className="h-4 w-4 mr-2" />
+                                        Βρείτε την περιοχή σας
+                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => {
+                                                setShowMapSummary(false);
+                                                toggleView();
+                                            }}
+                                            variant="outline"
+                                            className="flex-1"
+                                        >
+                                            <FileText className="h-4 w-4 mr-1.5" />
+                                            Κείμενο
+                                        </Button>
+                                        {comments.length > 0 && (
+                                            <Button
+                                                onClick={() => {
+                                                    setShowMapSummary(false);
+                                                    setCommentsSheetOpen(true);
+                                                }}
+                                                variant="outline"
+                                                className="flex-1 text-muted-foreground"
+                                            >
+                                                <MessageSquare className="h-4 w-4 mr-1.5" />
+                                                {comments.length} σχόλια
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center pt-1 border-t">
+                                    Σχολιάστε και εκφράστε τη γνώμη σας -- τα σχόλια αποστέλλονται απευθείας στον Δήμο ως επίσημες παρατηρήσεις.
+                                </p>
+                            </CredenzaBody>
+                        </CredenzaContent>
+                    </Credenza>
 
                     {/* Floating action button for view toggle */}
                     <ViewToggleButton
                         currentView={currentView}
                         onToggle={toggleView}
+                        drawerOpen={mapDrawerOpen}
                     />
                 </div>
             );

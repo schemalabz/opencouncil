@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
@@ -34,9 +34,11 @@ interface MapProps {
     onFeatureClick?: (feature: GeoJSON.Feature) => void
     renderPopup?: (feature: GeoJSON.Feature) => React.ReactNode
     editingMode?: boolean
+    showStreetLabels?: boolean
     drawingMode?: 'point' | 'polygon'
     selectedGeometryForEdit?: string | null
     zoomToGeometry?: GeoJSON.Geometry | null
+    zoomPadding?: number | { top: number; bottom: number; left: number; right: number }
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
@@ -58,9 +60,11 @@ const Map = memo(function Map({
     onFeatureClick,
     renderPopup,
     editingMode = false,
+    showStreetLabels = false,
     drawingMode = 'point',
     selectedGeometryForEdit = null,
-    zoomToGeometry
+    zoomToGeometry,
+    zoomPadding
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
@@ -69,6 +73,7 @@ const Map = memo(function Map({
     const animationFrame = useRef<number | null>(null)
     const featuresRef = useRef(features)
     const isInitialized = useRef(false)
+    const [mapReady, setMapReady] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
@@ -262,9 +267,19 @@ const Map = memo(function Map({
         }
     }, []);
 
-    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
-        if (e.features && e.features.length > 0 && onFeatureClick) {
-            onFeatureClick(e.features[0]);
+    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent) => {
+        if (!map.current || !onFeatureClick) return;
+
+        // Query both layers but prioritize points over polygons
+        const pointFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-points'] });
+        if (pointFeatures.length > 0) {
+            onFeatureClick(pointFeatures[0]);
+            return;
+        }
+
+        const fillFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-fills'] });
+        if (fillFeatures.length > 0) {
+            onFeatureClick(fillFeatures[0]);
         }
     }, [onFeatureClick]);
 
@@ -387,6 +402,7 @@ const Map = memo(function Map({
         // Wait for map to load before initializing features
         map.current.on('load', () => {
             isInitialized.current = true;
+            setMapReady(true);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
@@ -441,24 +457,37 @@ const Map = memo(function Map({
                 }
             });
 
+            // Polygon labels (e.g. community names) - centered, prominent
             map.current?.addLayer({
                 'id': 'feature-labels',
                 'type': 'symbol',
                 'source': 'features',
-                'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from labels
+                'filter': ['!=', ['geometry-type'], 'Point'],
                 'layout': {
                     'text-field': ['get', 'label'],
-                    'text-size': 12,
-                    'text-anchor': 'left',
-                    'text-offset': [1, 0],
-                    'text-padding': 5,
-                    'text-optional': true,
-                    'text-max-width': 24
+                    'text-size': [
+                        'interpolate', ['linear'], ['zoom'],
+                        11, 13,
+                        14, 16,
+                        17, 12
+                    ],
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-anchor': 'center',
+                    'text-offset': [0, 0],
+                    'text-padding': 8,
+                    'text-optional': false,
+                    'text-max-width': 10,
+                    'text-allow-overlap': true
                 },
                 'paint': {
-                    'text-color': '#000000',
+                    'text-color': '#1e3a5f',
                     'text-halo-color': '#ffffff',
-                    'text-halo-width': 2
+                    'text-halo-width': 2.5,
+                    'text-opacity': [
+                        'interpolate', ['linear'], ['zoom'],
+                        16, 1,
+                        17, 0.3
+                    ]
                 }
             });
 
@@ -478,10 +507,73 @@ const Map = memo(function Map({
                 }
             });
 
-            // Add event listeners
+            // Point labels layer - show address/name labels when zoomed in
+            map.current?.addLayer({
+                'id': 'feature-point-labels',
+                'type': 'symbol',
+                'source': 'features',
+                'filter': ['all',
+                    ['==', ['geometry-type'], 'Point'],
+                    ['!=', ['get', 'alwaysShowLabel'], true]
+                ],
+                'minzoom': 14,
+                'layout': {
+                    'text-field': ['get', 'label'],
+                    'text-size': [
+                        'interpolate', ['linear'], ['zoom'],
+                        14, 10,
+                        17, 13
+                    ],
+                    'text-anchor': 'top',
+                    'text-offset': [0, 0.8],
+                    'text-padding': 3,
+                    'text-optional': true,
+                    'text-max-width': 16,
+                    'text-allow-overlap': false
+                },
+                'paint': {
+                    'text-color': '#1f2937',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 1.5,
+                    'text-opacity': [
+                        'step', ['zoom'],
+                        0,     // hidden below zoom 15
+                        15, 1  // fully visible at zoom 15+
+                    ]
+                }
+            });
+
+            // Always-visible point labels (e.g. search pins)
+            map.current?.addLayer({
+                'id': 'feature-pinned-labels',
+                'type': 'symbol',
+                'source': 'features',
+                'filter': ['all',
+                    ['==', ['geometry-type'], 'Point'],
+                    ['==', ['get', 'alwaysShowLabel'], true]
+                ],
+                'layout': {
+                    'text-field': ['get', 'label'],
+                    'text-size': 12,
+                    'text-anchor': 'top',
+                    'text-offset': [0, 1],
+                    'text-padding': 2,
+                    'text-optional': false,
+                    'text-max-width': 18,
+                    'text-allow-overlap': true,
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold']
+                },
+                'paint': {
+                    'text-color': '#991b1b',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 2
+                }
+            });
+
+            // Add click listener on the whole map (not per-layer)
+            // The handler queries features and prioritizes points over polygons
             if (onFeatureClick) {
-                map.current?.on('click', 'feature-fills', handleMapFeatureClick);
-                map.current?.on('click', 'feature-points', handleMapFeatureClick);
+                map.current?.on('click', handleMapFeatureClick);
             }
 
             map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
@@ -556,11 +648,12 @@ const Map = memo(function Map({
         }
     }, [zoom]);
 
-    // Handle editing mode - add/remove street name layers
+    // Handle street labels - show in editing mode or when explicitly enabled
+    const shouldShowStreetLabels = editingMode || showStreetLabels;
     useEffect(() => {
         if (!map.current || !isInitialized.current) return;
 
-        if (editingMode) {
+        if (shouldShowStreetLabels) {
             // Add street data source if it doesn't exist
             if (!map.current.getSource('mapbox-streets')) {
                 map.current.addSource('mapbox-streets', {
@@ -707,96 +800,15 @@ const Map = memo(function Map({
                 });
             }
 
-            // Add place labels (enhanced to show more types)
-            if (!map.current.getLayer('place-labels')) {
-                map.current.addLayer({
-                    'id': 'place-labels',
-                    'type': 'symbol',
-                    'source': 'mapbox-streets',
-                    'source-layer': 'place_label',
-                    'layout': {
-                        'text-field': ['get', 'name'],
-                        'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                        'text-size': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            10, 11,
-                            16, 14
-                        ],
-                        'text-anchor': 'center'
-                    },
-                    'paint': {
-                        'text-color': '#333333',
-                        'text-halo-color': '#ffffff',
-                        'text-halo-width': 2,
-                        'text-opacity': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            10, 0.8,
-                            16, 1
-                        ]
-                    },
-                    'filter': [
-                        'all',
-                        ['has', 'name'],
-                        ['in', 'type', 'neighbourhood', 'suburb', 'hamlet', 'village', 'locality']
-                    ]
-                });
-            }
-
-            // Add POI labels for landmarks
-            if (!map.current.getLayer('poi-labels')) {
-                map.current.addLayer({
-                    'id': 'poi-labels',
-                    'type': 'symbol',
-                    'source': 'mapbox-streets',
-                    'source-layer': 'poi_label',
-                    'layout': {
-                        'text-field': ['get', 'name'],
-                        'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
-                        'text-size': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            14, 10,
-                            18, 12
-                        ],
-                        'text-anchor': 'top',
-                        'text-offset': [0, 0.5],
-                        'icon-image': ['get', 'maki'],
-                        'icon-size': 0.8
-                    },
-                    'paint': {
-                        'text-color': '#555555',
-                        'text-halo-color': '#ffffff',
-                        'text-halo-width': 1,
-                        'text-opacity': [
-                            'interpolate',
-                            ['linear'],
-                            ['zoom'],
-                            14, 0.7,
-                            18, 1
-                        ]
-                    },
-                    'filter': [
-                        'all',
-                        ['has', 'name'],
-                        ['in', 'class', 'park', 'education', 'medical', 'shopping', 'lodging']
-                    ],
-                    'minzoom': 14
-                });
-            }
+            // Note: place-labels and poi-labels intentionally omitted
+            // Our community polygon labels serve the same purpose without noise
 
         } else {
-            // Remove all street and place layers when exiting editing mode
+            // Remove all street layers when disabling
             const layersToRemove = [
                 'major-street-labels',
                 'street-labels',
-                'minor-road-labels',
-                'place-labels',
-                'poi-labels'
+                'minor-road-labels'
             ];
 
             layersToRemove.forEach(layerId => {
@@ -810,7 +822,7 @@ const Map = memo(function Map({
                 map.current.removeSource('mapbox-streets');
             }
         }
-    }, [editingMode]);
+    }, [shouldShowStreetLabels, mapReady]);
 
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
@@ -941,29 +953,25 @@ const Map = memo(function Map({
             const performZoom = (geometry: GeoJSON.Geometry) => {
                 try {
                     const bounds = calculateGeometryBounds(geometry);
+                    const padding = zoomPadding ?? 100;
 
                     if (bounds.bounds) {
-                        // Add some padding around the geometry
-                        const padding = 100; // pixels
-
                         map.current?.fitBounds([
                             [bounds.bounds.minLng, bounds.bounds.minLat],
                             [bounds.bounds.maxLng, bounds.bounds.maxLat]
                         ], {
-                            padding: padding,
-                            maxZoom: 16 // Don't zoom in too much for small geometries
+                            padding,
+                            maxZoom: 17
                         });
-
-                        console.log('🔍 Zoomed to geometry bounds:', bounds);
                     } else {
-                        // For single points, just center on them
+                        // For single points, zoom in close enough to show address labels
                         if (geometry.type === 'Point') {
                             const coordinates = geometry.coordinates as [number, number];
                             map.current?.easeTo({
                                 center: coordinates,
-                                zoom: 15
+                                zoom: 16,
+                                padding
                             });
-                            console.log('🔍 Centered on point:', coordinates);
                         }
                     }
                 } catch (error) {
@@ -974,7 +982,7 @@ const Map = memo(function Map({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry]);
+    }, [zoomToGeometry, zoomPadding, mapReady]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
@@ -988,9 +996,11 @@ const Map = memo(function Map({
         prevProps.animateRotation === nextProps.animateRotation &&
         prevProps.pitch === nextProps.pitch &&
         prevProps.editingMode === nextProps.editingMode &&
+        prevProps.showStreetLabels === nextProps.showStreetLabels &&
         prevProps.drawingMode === nextProps.drawingMode &&
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
+        prevProps.zoomPadding === nextProps.zoomPadding &&
         JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
     );
 })
