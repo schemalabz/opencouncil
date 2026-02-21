@@ -84,10 +84,10 @@ export function MeetingExportButtons({
   const isDisabled = disabled || isExportingDocx || isExportingAudio;
 
   return (
-    <div className="space-y-2 sm:space-y-0 sm:space-x-2 sm:flex">
+    <div className="flex flex-col gap-2">
       <Button
         onClick={handleExportDocx}
-        className="w-full sm:w-auto"
+        className="w-full"
         disabled={isDisabled}
       >
         {isExportingDocx ? (
@@ -98,10 +98,10 @@ export function MeetingExportButtons({
         <span>Εξαγωγή σε DOCX</span>
       </Button>
       
-      <div className="w-full sm:w-auto">
+      <div className="w-full">
         <Button
           onClick={handleExportAudio}
-          className="w-full sm:w-auto"
+          className="w-full"
           disabled={isDisabled}
           variant="outline"
         >
