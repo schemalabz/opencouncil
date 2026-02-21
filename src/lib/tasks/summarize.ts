@@ -8,8 +8,7 @@ import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
-import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody } from "../db/utils";
-import { createSubjectsForMeeting } from "../db/utils";
+import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string) {
@@ -113,8 +112,8 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // With batching, this should complete quickly (< 10 seconds)
     await prisma.$transaction(operations);
 
-    // Create subjects and get mapping from API subject IDs/names to database IDs
-    const subjectNameToIdMap = await createSubjectsForMeeting(
+    // Save subjects: matches by agendaItemIndex to preserve existing IDs (avoids ES orphans)
+    const subjectNameToIdMap = await saveSubjectsForMeeting(
         response.subjects,
         councilMeeting.cityId,
         councilMeeting.id
