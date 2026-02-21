@@ -7,6 +7,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
+import { MeetingDecisionCounts } from "@/lib/db/decisions";
 import { AdministrativeBodyFilter } from "@/components/AdministrativeBodyFilter";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
@@ -16,9 +17,10 @@ interface MeetingsProps {
     meetings: CouncilMeetingWithAdminBodyAndSubjects[];
     currentCityName: string;
     selectedCityId: string;
+    decisionCounts: MeetingDecisionCounts;
 }
 
-export default function Meetings({ meetings, currentCityName, selectedCityId }: MeetingsProps) {
+export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts }: MeetingsProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [selectedMeetingIds, setSelectedMeetingIds] = useState<Set<string>>(new Set());
@@ -196,6 +198,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
                                         </TooltipProvider>
                                     </TableHead>
                                     <TableHead>Subjects</TableHead>
+                                    <TableHead>Decisions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -206,6 +209,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId }: 
                                         selectedCityId={selectedCityId}
                                         isSelected={selectedMeetingIds.has(meeting.id)}
                                         onSelect={(checked: boolean) => handleSelectMeeting(meeting.id, checked)}
+                                        decisionCounts={decisionCounts[meeting.id]}
                                     />
                                 ))}
                             </TableBody>
