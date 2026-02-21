@@ -117,7 +117,17 @@ export default function RolesList({ personId, cityId, roles, parties, administra
 
         onUpdate(updatedRoles)
         setEditingRole(null)
-        form.reset()
+        form.reset({
+            name: "",
+            name_en: "",
+            isHead: false,
+            startDate: null,
+            endDate: null,
+            type: 'city',
+            partyId: undefined,
+            administrativeBodyId: undefined,
+        })
+        setIsOngoing(true)
         setIsDialogOpen(false)
     }
 
@@ -128,6 +138,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     }
 
     const roleType = form.watch('type')
+    const [isOngoing, setIsOngoing] = useState(!editingRole?.endDate)
 
     return (
         <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
@@ -150,6 +161,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
                             })
+                            setIsOngoing(true)
                             setIsDialogOpen(true)
                         }}
                     >
@@ -347,39 +359,55 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                     render={({ field }) => (
                                         <FormItem className="flex flex-col flex-1">
                                             <FormLabel>{t('endDate')}</FormLabel>
-                                            <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
-                                                <DialogTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                            type="button"
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full pl-3 text-left font-normal",
-                                                                !field.value && "text-muted-foreground"
-                                                            )}
-                                                        >
-                                                            {field.value ? (
-                                                                format(field.value, "PPP")
-                                                            ) : (
-                                                                <span>{t('pickDate')}</span>
-                                                            )}
-                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                        </Button>
-                                                    </FormControl>
-                                                </DialogTrigger>
-                                                <DialogContent className="p-0 w-auto">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value || undefined}
-                                                        onSelect={(date) => {
-                                                            field.onChange(date);
-                                                            setEndDateOpen(false);
-                                                        }}
-                                                        initialFocus
-                                                        className="rounded-md border"
-                                                    />
-                                                </DialogContent>
-                                            </Dialog>
+                                            <div className="flex items-center">
+                                                <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
+                                                    <DialogTrigger asChild>
+                                                        <FormControl>
+                                                            <Button
+                                                                type="button"
+                                                                variant={"outline"}
+                                                                className={cn(
+                                                                    "w-full pl-3 text-left font-normal",
+                                                                    !field.value && "text-muted-foreground"
+                                                                )}
+                                                                disabled={isOngoing}
+                                                            >
+                                                                {field.value ? (
+                                                                    format(field.value, "PPP")
+                                                                ) : (
+                                                                    <span>{t('pickDate')}</span>
+                                                                )}
+                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                            </Button>
+                                                        </FormControl>
+                                                    </DialogTrigger>
+                                                    <DialogContent className="p-0 w-auto">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={field.value || undefined}
+                                                            onSelect={(date) => {
+                                                                field.onChange(date);
+                                                                setEndDateOpen(false);
+                                                            }}
+                                                            initialFocus
+                                                            className="rounded-md border"
+                                                        />
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-3">
+                                                <Switch
+                                                    checked={isOngoing}
+                                                    onCheckedChange={(checked) => {
+                                                        setIsOngoing(checked)
+                                                        if (checked) field.onChange(null)
+                                                    }}
+                                                    aria-label={t('noEndDate')}
+                                                />
+                                                <div className="leading-tight">
+                                                    <div className="font-medium text-foreground text-xs">{t('noEndDate')}</div>
+                                                </div>
+                                            </div>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -452,6 +480,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 partyId: role.partyId || undefined,
                                                 administrativeBodyId: role.administrativeBodyId || undefined,
                                             })
+                                            setIsOngoing(role.endDate ? false : true)
                                             setIsDialogOpen(true)
                                         }}
                                     >
@@ -477,4 +506,4 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             </div>
         </div>
     )
-} 
+}
