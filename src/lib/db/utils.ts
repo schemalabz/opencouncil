@@ -132,7 +132,19 @@ export async function getAvailableSpeakerSegmentIds(councilMeetingId: string, ci
     return speakerSegments.map(s => s.id);
 }
 
-export async function createSubjectsForMeeting(
+/**
+ * Save subjects for a meeting using upsert semantics: matches incoming subjects
+ * to existing ones by numeric agendaItemIndex and updates in-place (preserving
+ * database IDs). Subjects with BEFORE_AGENDA/OUT_OF_AGENDA are always replaced
+ * (old non-agenda subjects deleted, new ones created). Unmatched existing
+ * subjects with numeric agendaItemIndex are left untouched — their data and
+ * highlights are preserved.
+ *
+ * When no existing subjects are present (first run), this behaves as a pure
+ * create. This preserves subject IDs that are indexed in Elasticsearch (via
+ * PGSync), preventing orphaned records on re-summarize.
+ */
+export async function saveSubjectsForMeeting(
     subjects: Subject[],
     cityId: string,
     councilMeetingId: string,
@@ -140,7 +152,6 @@ export async function createSubjectsForMeeting(
     const topics = await prisma.topic.findMany();
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
-    // Map to store API subject identifiers (ID or name) to database subject IDs
     const subjectIdMap = new Map<string, string>();
 
     // Validate persons exist for contributions
@@ -171,17 +182,163 @@ export async function createSubjectsForMeeting(
 
     const existingIntroducerIds = new Set(existingIntroducers.map(p => p.id));
 
-    await prisma.$transaction(async (prisma) => {
-        // Delete old highlights and subjects
-        await prisma.highlight.deleteMany({
-            where: { meetingId: councilMeetingId, cityId }
-        });
-        await prisma.subject.deleteMany({
-            where: { councilMeetingId, cityId }
-        });
+    // Fetch existing subjects for matching
+    const existingSubjects = await prisma.subject.findMany({
+        where: { councilMeetingId, cityId },
+        select: { id: true, agendaItemIndex: true, nonAgendaReason: true }
+    });
 
-        for (const subject of subjects) {
-            // Create location (unchanged)
+    // Build match map: existing subjects indexed by numeric agendaItemIndex
+    const existingByAgendaIndex = new Map<number, { id: string }>();
+    for (const existing of existingSubjects) {
+        if (existing.agendaItemIndex !== null) {
+            existingByAgendaIndex.set(existing.agendaItemIndex, existing);
+        }
+    }
+
+    // Categorize incoming subjects
+    const toUpdate: { incoming: Subject; existingId: string }[] = [];
+    const toCreate: Subject[] = [];
+
+    for (const subject of subjects) {
+        if (typeof subject.agendaItemIndex === 'number' && existingByAgendaIndex.has(subject.agendaItemIndex)) {
+            const existing = existingByAgendaIndex.get(subject.agendaItemIndex)!;
+            toUpdate.push({ incoming: subject, existingId: existing.id });
+        } else {
+            toCreate.push(subject);
+        }
+    }
+
+    // Delete old BEFORE_AGENDA/OUT_OF_AGENDA subjects before creating new ones.
+    // These can't be matched by agendaItemIndex (they have null), so without
+    // cleanup they'd accumulate on every re-run.
+    const nonAgendaSubjectIds = existingSubjects
+        .filter(s => s.nonAgendaReason !== null)
+        .map(s => s.id);
+
+    console.log(`saveSubjectsForMeeting: ${toUpdate.length} to update, ${toCreate.length} to create, ${nonAgendaSubjectIds.length} non-agenda to replace, ${existingSubjects.length - toUpdate.length - nonAgendaSubjectIds.length} existing kept`);
+
+    await prisma.$transaction(async (prisma) => {
+        // Delete highlights only for subjects being updated or replaced (not unmatched ones)
+        const subjectIdsBeingProcessed = [
+            ...toUpdate.map(u => u.existingId),
+            ...nonAgendaSubjectIds,
+        ];
+        if (subjectIdsBeingProcessed.length > 0) {
+            await prisma.highlight.deleteMany({
+                where: { meetingId: councilMeetingId, cityId, subjectId: { in: subjectIdsBeingProcessed } }
+            });
+        }
+
+        // Delete old non-agenda subjects (will be recreated from incoming data)
+        if (nonAgendaSubjectIds.length > 0) {
+            await prisma.subject.deleteMany({
+                where: { id: { in: nonAgendaSubjectIds } }
+            });
+        }
+
+        // Update matched subjects in-place
+        for (const { incoming, existingId } of toUpdate) {
+            let locationId: string | undefined;
+            if (incoming.location) {
+                const cuid = await prisma.$queryRaw<[{ cuid: string }]>`
+                    SELECT gen_random_uuid()::text as cuid
+                `;
+                const result = await prisma.$queryRaw<[{ id: string }]>`
+                    INSERT INTO "Location" (id, type, text, coordinates)
+                    VALUES (
+                        ${cuid[0].cuid}::text,
+                        ${incoming.location.type}::"LocationType",
+                        ${incoming.location.text}::text,
+                        ST_GeomFromGeoJSON(${JSON.stringify({
+                            type: incoming.location.type === 'point' ? 'Point' :
+                                  incoming.location.type === 'lineString' ? 'LineString' : 'Polygon',
+                            coordinates: incoming.location.coordinates[0]
+                        })})
+                    )
+                    RETURNING id
+                `;
+                locationId = result[0].id;
+            }
+
+            const validIntroducedBy = incoming.introducedByPersonId &&
+                existingIntroducerIds.has(incoming.introducedByPersonId)
+                    ? incoming.introducedByPersonId
+                    : undefined;
+
+            if (incoming.introducedByPersonId && !validIntroducedBy) {
+                console.warn(`Person ${incoming.introducedByPersonId} not found for subject "${incoming.name}"`);
+            }
+
+            const topicId = incoming.topicLabel && topicsByName[incoming.topicLabel]
+                ? topicsByName[incoming.topicLabel].id
+                : null;
+
+            console.log(`Updating subject "${incoming.name}" (${existingId}) with ${incoming.speakerContributions.length} contributions`);
+
+            // Update the subject record in-place (preserving ID)
+            await prisma.subject.update({
+                where: { id: existingId },
+                data: {
+                    name: incoming.name,
+                    description: incoming.description,
+                    topicId,
+                    locationId: locationId ?? null,
+                    personId: validIntroducedBy ?? null,
+                    topicImportance: incoming.topicImportance,
+                    proximityImportance: incoming.proximityImportance,
+                    context: incoming.context?.text ?? null,
+                    contextCitationUrls: incoming.context?.citationUrls ?? [],
+                    // Clear discussedIn — will be re-established in pass 2
+                    discussedInId: null,
+                }
+            });
+
+            // Delete old contributions and create new ones
+            await prisma.speakerContribution.deleteMany({
+                where: { subjectId: existingId }
+            });
+
+            if (incoming.speakerContributions.length > 0) {
+                await prisma.speakerContribution.createMany({
+                    data: incoming.speakerContributions.map(contrib => ({
+                        subjectId: existingId,
+                        speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
+                            ? contrib.speakerId
+                            : null,
+                        speakerName: contrib.speakerName,
+                        text: contrib.text
+                    }))
+                });
+            }
+
+            const apiIdentifier = incoming.id || incoming.name;
+            subjectIdMap.set(apiIdentifier, existingId);
+
+            // Create highlight with extracted utterances
+            const utteranceIds = extractUtteranceIdsFromContributions(incoming.speakerContributions);
+            if (utteranceIds.length > 0) {
+                const highlight = await prisma.highlight.create({
+                    data: {
+                        name: incoming.name,
+                        meeting: {
+                            connect: { cityId_id: { cityId, id: councilMeetingId } }
+                        },
+                        subject: { connect: { id: existingId } }
+                    }
+                });
+
+                await prisma.highlightedUtterance.createMany({
+                    data: utteranceIds.map(utteranceId => ({
+                        utteranceId,
+                        highlightId: highlight.id
+                    }))
+                });
+            }
+        }
+
+        // Create new subjects (BEFORE_AGENDA, OUT_OF_AGENDA, or unmatched numeric)
+        for (const subject of toCreate) {
             let locationId: string | undefined;
             if (subject.location) {
                 const cuid = await prisma.$queryRaw<[{ cuid: string }]>`
@@ -204,7 +361,6 @@ export async function createSubjectsForMeeting(
                 locationId = result[0].id;
             }
 
-            // Validate introducedBy
             const validIntroducedBy = subject.introducedByPersonId &&
                 existingIntroducerIds.has(subject.introducedByPersonId)
                     ? subject.introducedByPersonId
@@ -214,7 +370,6 @@ export async function createSubjectsForMeeting(
                 console.warn(`Person ${subject.introducedByPersonId} not found for subject "${subject.name}"`);
             }
 
-            // Create subject with contributions
             console.log(`Creating subject "${subject.name}" with ${subject.speakerContributions.length} contributions`);
 
             const createdSubject = await prisma.subject.create({
@@ -239,12 +394,8 @@ export async function createSubjectsForMeeting(
                     introducedBy: validIntroducedBy
                         ? { connect: { id: validIntroducedBy } }
                         : undefined,
-
-                    // NEW: Add importance fields
                     topicImportance: subject.topicImportance,
                     proximityImportance: subject.proximityImportance,
-
-                    // NEW: Create contributions
                     contributions: {
                         create: subject.speakerContributions.map(contrib => ({
                             speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
@@ -254,24 +405,18 @@ export async function createSubjectsForMeeting(
                             text: contrib.text
                         }))
                     },
-
-                    // Keep context unchanged
                     context: subject.context?.text,
                     contextCitationUrls: subject.context?.citationUrls
                 }
             });
 
-            // Map API subject identifier to database ID for utterance discussion status mapping
-            // Use subject.id if provided by API, otherwise use subject.name
             const apiIdentifier = subject.id || subject.name;
             subjectIdMap.set(apiIdentifier, createdSubject.id);
 
-            // Extract utterance IDs from contribution references for highlight
             const utteranceIds = extractUtteranceIdsFromContributions(
                 subject.speakerContributions
             );
 
-            // Create highlight with extracted utterances
             if (utteranceIds.length > 0) {
                 const highlight = await prisma.highlight.create({
                     data: {
