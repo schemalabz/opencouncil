@@ -1,8 +1,9 @@
+'use client';
 import { Subject, Topic, Party, Person } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import Icon from "./icon";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { stripMarkdown } from "@/lib/formatters/markdown";
 import {
     Popover,
