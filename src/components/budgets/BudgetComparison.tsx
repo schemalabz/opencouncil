@@ -187,8 +187,8 @@ export function BudgetComparison({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+          <ChartContainer config={chartConfig}>
+            <ResponsiveContainer width="100%" height={400}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="category" 
