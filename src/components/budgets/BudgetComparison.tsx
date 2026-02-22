@@ -222,6 +222,7 @@ export function BudgetComparison({
                 />
               ))}
             </BarChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
