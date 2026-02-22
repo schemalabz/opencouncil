@@ -424,5 +424,22 @@
         "noItems": "There are no meetings in OpenCouncil.",
         "previous": "Previous",
         "next": "Next"
+    },
+    "Budgets": {
+        "comparisonTitle": "Municipal Budget Comparison",
+        "comparisonDescription": "Compare budget allocations across Greek municipalities",
+        "viewMode": "View Mode",
+        "absolute": "Total Amount",
+        "perCapita": "Per Capita",
+        "totalExpenditure": "Total Expenditure",
+        "population": "Population",
+        "categoryComparison": "Budget Category Comparison",
+        "categoryComparisonDescriptionAbsolute": "Total spending by category across municipalities",
+        "categoryComparisonDescriptionPerCapita": "Per-capita spending by category for comparable analysis",
+        "selectMunicipalities": "Select Municipalities",
+        "selectMunicipalitiesDescription": "Click to add or remove municipalities from the comparison",
+        "selectionHint": "Select 2-5 municipalities for meaningful comparison",
+        "note": "Note",
+        "mockDataDisclaimer": "This is a prototype using mock data based on realistic Greek municipal budget structures. Actual implementation will process real PDF documents from all 332 Greek municipalities."
     }
 }
