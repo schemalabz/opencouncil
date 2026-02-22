@@ -57,8 +57,10 @@ function generateBudgetCategories(
 ): BudgetCategory[] {
   const categories: BudgetCategory[] = [];
 
+  const v = () => 1 + (Math.random() * variance - variance / 2);
+
   // Personnel costs (largest category)
-  const personnelAmount = baseAmount * 0.45 * (1 + (Math.random() * variance - variance / 2));
+  const personnelAmount = baseAmount * 0.45 * v();
   categories.push({
     id: "cat-personnel",
     code: "60",
@@ -68,7 +70,7 @@ function generateBudgetCategories(
   });
 
   // Third party services
-  const servicesAmount = baseAmount * 0.2 * (1 + (Math.random() * variance - variance / 2));
+  const servicesAmount = baseAmount * 0.2 * v();
   categories.push({
     id: "cat-services",
     code: "62",
@@ -78,7 +80,7 @@ function generateBudgetCategories(
   });
 
   // Public works and investments
-  const worksAmount = baseAmount * 0.15 * (1 + (Math.random() * variance - variance / 2));
+  const worksAmount = baseAmount * 0.15 * v();
   categories.push({
     id: "cat-works",
     code: "73",
@@ -88,7 +90,7 @@ function generateBudgetCategories(
   });
 
   // Supply procurement
-  const suppliesAmount = baseAmount * 0.1 * (1 + (Math.random() * variance - variance / 2));
+  const suppliesAmount = baseAmount * 0.1 * v();
   categories.push({
     id: "cat-supplies",
     code: "66",
@@ -97,8 +99,8 @@ function generateBudgetCategories(
     amount: suppliesAmount,
   });
 
-  // Other expenses
-  const otherAmount = baseAmount * 0.1 * (1 + (Math.random() * variance - variance / 2));
+  // Other expenses — remainder so all categories sum exactly to baseAmount
+  const otherAmount = baseAmount - personnelAmount - servicesAmount - worksAmount - suppliesAmount;
   categories.push({
     id: "cat-other",
     code: "65",
