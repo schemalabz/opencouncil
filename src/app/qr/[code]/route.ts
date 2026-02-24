@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { env } from '@/env.mjs';
-
-function isExternalUrl(url: string): boolean {
-    return url.startsWith('http://') || url.startsWith('https://');
-}
-
-function appendUtmParams(urlString: string, code: string): string {
-    try {
-        // For relative URLs, construct full URL using configured base URL
-        const fullUrl = isExternalUrl(urlString) 
-            ? new URL(urlString)
-            : new URL(urlString, env.NEXTAUTH_URL);
-        
-        if (!fullUrl.searchParams.has('utm_source')) fullUrl.searchParams.set('utm_source', 'qr');
-        if (!fullUrl.searchParams.has('utm_medium')) fullUrl.searchParams.set('utm_medium', 'offline');
-        if (!fullUrl.searchParams.has('utm_campaign')) fullUrl.searchParams.set('utm_campaign', code);
-        
-        // Always return full URL (NextResponse.redirect requires absolute URLs)
-        return fullUrl.toString();
-    } catch {
-        return urlString;
-    }
-}
+import { appendUtmParams } from '@/lib/utils/qr';
 
 export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
     const code = params.code;
@@ -41,9 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { code: string
         return NextResponse.redirect(new URL(`/${locale}`, env.NEXTAUTH_URL), 302);
     }
 
-    const destination = appendUtmParams(campaign.url, code);
+    const destination = appendUtmParams(campaign.url, code, req.nextUrl.searchParams);
 
     return NextResponse.redirect(destination, 307);
 }
-
-

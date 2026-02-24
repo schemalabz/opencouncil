@@ -11,7 +11,7 @@ The QR Campaign system provides a lightweight way to manage dynamic redirects fo
 1. **Request Flow**: The middleware bypasses i18n routing for `/qr/*` paths, sending requests directly to the route handler
 2. **Database Lookup**: The route handler queries the `QrCampaign` table for an active campaign matching the code
 3. **URL Construction**: For relative URLs (e.g., `/chalandri`), it constructs an absolute URL using `NEXTAUTH_URL`; external URLs are used as-is
-4. **UTM Parameter Injection**: Appends analytics tracking parameters (`utm_source=qr`, `utm_medium=offline`, `utm_campaign=<code>`) to the destination URL
+4. **UTM Parameter Injection**: Forwards any query parameters from the incoming request URL, then applies defaults (`utm_source=qr`, `utm_medium=offline`, `utm_campaign=<code>`) for any UTM params not already present
 5. **Redirect**: Returns an HTTP 307 redirect to the final destination URL
 6. **Analytics**: Users can track scans in analytics tool by filtering for UTM parameters
 
@@ -36,7 +36,7 @@ sequenceDiagram
     RouteHandler->>DB: SELECT * FROM QrCampaign WHERE code='keyring' AND isActive=true
     DB-->>RouteHandler: Return campaign { url: '/chalandri', isActive: true }
     RouteHandler->>RouteHandler: Construct full URL with configured base URL
-    RouteHandler->>RouteHandler: Append UTM params (utm_source=qr, utm_medium=offline, utm_campaign=keyring)
+    RouteHandler->>RouteHandler: Forward incoming query params, then apply UTM defaults
     RouteHandler-->>Browser: 307 Redirect to https://opencouncil.gr/chalandri?utm_source=qr&utm_medium=offline&utm_campaign=keyring
     Browser->>Plausible: Track pageview with UTM params
     Browser->>User: Display destination page
@@ -62,7 +62,7 @@ sequenceDiagram
 
 ### Utilities
 - `isExternalUrl()` - Helper to detect URLs starting with `http://` or `https://`
-- `appendUtmParams()` - Helper to inject UTM parameters into URLs (handles both relative and absolute URLs)
+- `appendUtmParams()` - Helper to inject UTM parameters into URLs (forwards incoming request params, then applies defaults; handles both relative and absolute URLs)
 
 **Business Rules & Assumptions**
 
@@ -70,7 +70,7 @@ sequenceDiagram
 2. **Active Status**: Only active campaigns (`isActive=true`) will redirect; inactive campaigns fall back to homepage
 3. **Authorization**: All admin operations require superadmin access (checked via `withUserAuthorizedToEdit({})`)
 4. **URL Flexibility**: Campaigns support both relative URLs (e.g., `/chalandri`) and absolute URLs (e.g., `https://example.com`)
-5. **UTM Preservation**: If destination URL already has UTM parameters, they are not overwritten
+5. **UTM Preservation**: If destination URL already has UTM parameters, they are not overwritten. Incoming request query params take priority over defaults but not over destination URL params
 6. **Case Sensitivity**: Campaign codes are case-sensitive (e.g., `keyring` ≠ `Keyring`)
 7. **No Locale Handling**: QR redirects bypass locale detection; destination URLs must include locale if needed (e.g., `/el/chalandri` not `/chalandri`)
 8. **Immutable Short URLs**: Once a QR code is printed, the short URL is fixed; only the destination can be changed via the admin panel
@@ -108,6 +108,25 @@ If you print 100 keyrings with QR codes for Chalandri municipality and 50 t-shir
 - **Keyring campaign**: `/qr/keyring` → filter Plausible by `utm_campaign=keyring` to see total scans
 - **T-shirt campaign**: `/qr/t-shirt` → filter Plausible by `utm_campaign=t-shirt` to see total scans
 - **All QR traffic**: Filter by `utm_source=qr` to see combined performance
+
+### Per-Poster Tracking
+
+For campaigns where you print multiple posters and want to track which individual poster was scanned, use the [toolkit](https://github.com/schemalabz/toolkit) with the QR redirect URL as the base URL instead of the final destination. See the toolkit's README for full usage instructions.
+
+**How it works**: Each poster's QR code points to `/qr/<code>` with additional query params (e.g. `utm_content=01`). The redirect handler forwards those params through to the destination URL, preserving per-poster tracking while keeping the dynamic redirect capability.
+
+**Example flow** for a campaign with code `zografou25` pointing to `/el/zografou`:
+
+- **Poster 01 QR** → `https://opencouncil.gr/qr/zografou25?utm_source=qr&utm_medium=poster&utm_campaign=zografou25&utm_content=01`
+- **Poster 02 QR** → `https://opencouncil.gr/qr/zografou25?utm_source=qr&utm_medium=poster&utm_campaign=zografou25&utm_content=02`
+
+When scanned, poster 01 redirects to:
+`https://opencouncil.gr/el/zografou?utm_source=qr&utm_medium=poster&utm_campaign=zografou25&utm_content=01`
+
+**Key benefits**:
+- **Dynamic destination**: Change where all posters redirect by updating the campaign in admin — no reprinting needed
+- **Individual tracking**: Filter by `utm_content` in Plausible to see which specific poster was scanned
+- **Medium distinction**: `utm_medium=poster` (from toolkit) distinguishes poster scans from other QR scans (`utm_medium=offline`)
 
 **See Also**
 
