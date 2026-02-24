@@ -28,6 +28,7 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 - 📊 **Subject Analysis**: Automatic categorization of discussion subjects
 - 📢 **Notification System**: Personalized updates for citizens
 - 🎥 [**Meeting Highlights**](./docs/guides/meeting-highlights.md): Create and share custom video clips from council meeting moments, with automatic generation and editing capabilities
+- 📜 **Diavgeia Integration**: Link council decisions with their official publications on [Diavgeia](https://diavgeia.gov.gr/), Greece's government transparency portal
 - 🌐 **Open Data**: All data available through a public API
 - 🔐 **Role-Based Access**: Granular permissions for different user types
 - 🤖 **AI Chat Assistant**: Ask questions about council meetings
