@@ -33,8 +33,23 @@ export async function GET(
     request: Request,
     { params }: { params: { cityId: string; meetingId: string } }
 ) {
-    const data = await getMeetingData(params.cityId, params.meetingId);
-    return NextResponse.json({ ...data });
+    try {
+        const data = await getMeetingData(params.cityId, params.meetingId);
+        return NextResponse.json({ ...data });
+    } catch (error) {
+        // TODO: Brittle string match — refactor getMeetingData to return null instead of throwing
+        if (error instanceof Error && error.message === 'Required data not found') {
+            return NextResponse.json(
+                { error: 'Meeting not found' },
+                { status: 404 }
+            );
+        }
+        console.error('Failed to fetch meeting:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch meeting' },
+            { status: 500 }
+        );
+    }
 }
 
 export async function PUT(

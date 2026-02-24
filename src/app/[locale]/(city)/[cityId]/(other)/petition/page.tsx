@@ -3,7 +3,7 @@ import { OnboardingPageContent } from "@/components/onboarding/OnboardingPageCon
 import { OnboardingStage } from '@/lib/types/onboarding';
 import { Suspense } from "react";
 import { getCity } from "@/lib/db/cities";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
     title: "Υποστήριξη Δήμου | OpenCouncil",
@@ -19,8 +19,7 @@ export default async function PetitionSignupPage({ params }: PageProps) {
     const city = await getCity(params.cityId, { includeGeometry: true });
     
     if (!city) {
-        // Handle city not found
-        return <div>City not found</div>;
+        notFound();
     }
 
     if (city.supportsNotifications) {
