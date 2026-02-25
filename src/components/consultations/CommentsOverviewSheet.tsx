@@ -7,7 +7,7 @@ import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Heart, MessageSquare, ChevronDown, Clock, TrendingUp, ChevronUp } from "lucide-react";
+import { MessageSquare, ChevronDown, Clock, TrendingUp, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { el } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -365,157 +365,10 @@ export default function CommentsOverviewSheet({
                 className="w-96 max-w-[calc(100vw-2rem)] sm:max-w-md flex flex-col"
                 overlayClassName="bg-black/20"
             >
-                <SheetHeader className="pr-6 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <div className="text-xs text-muted-foreground font-medium mb-1">
-                                ΣΧΟΛΙΑ
-                            </div>
-                            <SheetTitle className="text-left text-lg">
-                                {totalCount} σχόλια συνολικά
-                            </SheetTitle>
-                        </div>
-                    </div>
+                <SheetHeader className="sr-only">
+                    <SheetTitle>{totalCount} σχόλια συνολικά</SheetTitle>
                 </SheetHeader>
-
-                {/* Sort Controls */}
-                <div className="flex gap-2 mb-4 flex-shrink-0">
-                    <Button
-                        variant={sortBy === 'recent' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSortBy('recent')}
-                        className="flex items-center gap-1"
-                    >
-                        <Clock className="h-3 w-3" />
-                        Πρόσφατα
-                    </Button>
-                    <Button
-                        variant={sortBy === 'liked' ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSortBy('liked')}
-                        className="flex items-center gap-1"
-                    >
-                        <TrendingUp className="h-3 w-3" />
-                        Δημοφιλή
-                    </Button>
-                </div>
-
-                {/* Comments List */}
-                <div className="flex-1 overflow-y-auto overscroll-contain space-y-6">
-                    {sortedComments.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                            <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p>Δεν υπάρχουν σχόλια ακόμα</p>
-                        </div>
-                    ) : (
-                        sortedComments.map((comment, index) => (
-                            <div key={comment.id} className="space-y-3">
-                                {/* Reference Box */}
-                                <div
-                                    onClick={(e) => handleReferenceClick(e, comment)}
-                                    className="bg-muted/30 border border-muted/50 rounded-md p-2 cursor-pointer hover:bg-muted/50 transition-colors"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-xs">
-                                            {getEntityTypeLabel(comment.entityType)}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground font-medium">
-                                            {getEntityTitle(comment)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Comment */}
-                                <div className="flex items-start gap-3 p-3 bg-background border border-border rounded-lg">
-                                    {/* Upvote Section */}
-                                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={cn(
-                                                "h-6 w-6 p-0",
-                                                comment.hasUserUpvoted ? "text-[hsl(var(--orange))]" : "text-muted-foreground"
-                                            )}
-                                            onClick={(e) => handleUpvote(e, comment.id)}
-                                            disabled={!session || upvoting === comment.id}
-                                        >
-                                            {upvoting === comment.id ? (
-                                                <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
-                                            ) : (
-                                                <ChevronUp className="h-4 w-4" />
-                                            )}
-                                        </Button>
-                                        <span className={cn(
-                                            "text-xs font-medium",
-                                            comment.hasUserUpvoted ? "text-[hsl(var(--orange))]" : "text-muted-foreground"
-                                        )}>
-                                            {comment.upvoteCount || 0}
-                                        </span>
-                                    </div>
-
-                                    {/* Comment Content */}
-                                    <div className="flex-1 min-w-0 space-y-2">
-                                        <div
-                                            className="cursor-pointer hover:bg-muted/20 transition-colors rounded p-2 -m-2"
-                                            onClick={() => handleCommentClick(comment)}
-                                        >
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className="font-medium text-sm">
-                                                    {comment.user?.name || 'Ανώνυμος'}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDistanceToNow(new Date(comment.createdAt), {
-                                                        addSuffix: true,
-                                                        locale: el
-                                                    })}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className={cn(
-                                                    "prose prose-sm max-w-none text-sm",
-                                                    !expandedComments.has(comment.id) && isCommentTruncated(comment.body) && "line-clamp-4"
-                                                )}
-                                                dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
-                                            />
-                                        </div>
-
-                                        {/* Show More/Less Button */}
-                                        {isCommentTruncated(comment.body) && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleCommentExpansion(comment.id);
-                                                }}
-                                                className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                            >
-                                                <div className="flex items-center gap-1">
-                                                    {expandedComments.has(comment.id) ? (
-                                                        <>
-                                                            <ChevronUp className="h-3 w-3" />
-                                                            <span>Εμφάνιση λιγότερων</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <ChevronDown className="h-3 w-3" />
-                                                            <span>Εμφάνιση περισσότερων</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Separator between comments */}
-                                {index < sortedComments.length - 1 && (
-                                    <Separator className="my-2" />
-                                )}
-                            </div>
-                        ))
-                    )}
-                </div>
+                {renderContent()}
             </SheetContent>
         </Sheet>
     );
