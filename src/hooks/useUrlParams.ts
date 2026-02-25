@@ -15,7 +15,7 @@ export function useUrlParams() {
 
   const updateParam = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams);
-    
+
     if (value === null) {
       params.delete(key);
     } else {
@@ -27,8 +27,25 @@ export function useUrlParams() {
     });
   };
 
+  const updateParams = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams);
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    }
+
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
+
   return {
     updateParam,
+    updateParams,
     isPending,
     searchParams
   };

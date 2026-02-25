@@ -8,10 +8,15 @@ export const metadata: Metadata = {
   description: 'Monitor Diavgeia decision polling and backoff schedule',
 };
 
-export default async function DiavgeiaAdminPage() {
+export default async function DiavgeiaAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cityId?: string; councilMeetingId?: string }>;
+}) {
   await withUserAuthorizedToEdit({});
 
-  const stats = await getPollingStats();
+  const { cityId, councilMeetingId } = await searchParams;
+  const stats = await getPollingStats(cityId, councilMeetingId);
 
   return (
     <div className="container mx-auto py-6">
@@ -23,7 +28,13 @@ export default async function DiavgeiaAdminPage() {
           </p>
         </div>
 
-        <PollingStats stats={stats} />
+        <PollingStats
+          stats={stats}
+          pollCities={stats.pollCities}
+          cityFilter={cityId}
+          pollMeetings={stats.pollMeetings}
+          meetingFilter={councilMeetingId}
+        />
       </div>
     </div>
   );
