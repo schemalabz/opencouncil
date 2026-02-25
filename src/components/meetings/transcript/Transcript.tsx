@@ -29,7 +29,7 @@ export default function Transcript() {
     const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const { setCurrentScrollInterval, currentTime } = useVideo();
-    const { enterEditMode } = useHighlight();
+    const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
@@ -94,13 +94,13 @@ export default function Transcript() {
     // Handle highlight editing initialization from URL
     useEffect(() => {
         const highlightId = searchParams.get('highlight');
-        if (highlightId) {
+        if (highlightId && highlightId !== editingHighlight?.id) {
             const highlight = getHighlight(highlightId);
             if (highlight) {
                 enterEditMode(highlight);
             }
         }
-    }, [searchParams, getHighlight, enterEditMode]);
+    }, [searchParams, getHighlight, enterEditMode, editingHighlight?.id]);
 
     const debouncedSetCurrentScrollInterval = useMemo(
         () => debounce(setCurrentScrollInterval, 500),
