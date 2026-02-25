@@ -3,7 +3,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { MapFeature } from '@/components/map/map';
-import { calculateGeometryBounds } from '@/lib/utils';
+import { calculateGeometryBounds } from '@/lib/geo';
 import Map from '@/components/map/map';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
