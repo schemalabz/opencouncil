@@ -324,10 +324,10 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     // Check if we're already on the transcript page
     if (pathname === expectedPath) {
       // We're on transcript page, just add/update the highlight parameter
-      router.replace(`${expectedPath}?highlight=${highlight.id}`);
+      router.replace(`${expectedPath}?highlight=${highlight.id}`, { scroll: false });
     } else if (!pathname.includes('/transcript')) {
       // We're not on transcript page, navigate to it with highlight parameter
-      router.push(expectedUrl);
+      router.push(expectedUrl, { scroll: false });
     }
   }, [setEditingHighlight, setOriginalHighlight, setIsDirty, router, pathname]);
 
