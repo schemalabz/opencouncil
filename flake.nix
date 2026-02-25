@@ -511,7 +511,7 @@ USAGE
               usage() {
                 cat <<'USAGE'
 Usage:
-  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked] [--no-lan] [--preview-tasks=N]
+  nix run .#dev -- [--db=remote|external|nix|docker] [--db-url URL] [--direct-url URL] [--migrate] [--no-studio] [--locked] [--no-lan] [--preview-tasks=N] [--preview-db=N]
 
 DB modes:
   --db=nix      Start Postgres+PostGIS via Nix + app (process-compose TUI) (default)
@@ -525,6 +525,7 @@ Flags:
   --fast           Use pre-built PostGIS from binary cache (faster first build, but may not match production)
   --no-lan         Bind dev server to localhost only (default: binds to 0.0.0.0 for mobile preview)
   --preview-tasks=N  Connect to opencouncil-tasks preview for PR #N (starts ngrok tunnel for callbacks)
+  --preview-db=N     Connect to the database used by opencouncil preview PR #N (requires OC_PREVIEW_SSH)
 USAGE
               }
 
@@ -539,6 +540,7 @@ USAGE
               postgis_locked="''${OC_POSTGIS_LOCKED:-1}"
               lan_enabled="''${OC_LAN:-1}"
               tasks_preview_pr="''${OC_PREVIEW_TASKS:-}"
+              preview_db_pr=""
 
               for arg in "$@"; do
                 case "$arg" in
@@ -550,6 +552,7 @@ USAGE
                   --fast) postgis_locked="0" ;;
                   --no-lan) lan_enabled="0" ;;
                   --preview-tasks=*) tasks_preview_pr="''${arg#--preview-tasks=}" ;;
+                  --preview-db=*) preview_db_pr="''${arg#--preview-db=}" ;;
                   --help|-h) usage; exit 0 ;;
                   *)
                     echo "Unknown argument: $arg" >&2
@@ -701,6 +704,94 @@ USAGE
                 echo ""
               fi
 
+              # --preview-db=N: connect to the database used by opencouncil preview PR #N
+              ssh_tunnel_pid=""
+              if [ -n "$preview_db_pr" ]; then
+                if [ -z "''${OC_PREVIEW_SSH:-}" ]; then
+                  echo "  ✗ OC_PREVIEW_SSH is not set." >&2
+                  echo "  Set it to the SSH target for the preview server:" >&2
+                  echo "    export OC_PREVIEW_SSH=root@159.89.98.26" >&2
+                  echo "  Or add to .env: OC_PREVIEW_SSH=root@159.89.98.26" >&2
+                  exit 1
+                fi
+
+                echo "🗄️  Connecting to preview database for PR #$preview_db_pr..."
+
+                # Validate SSH connectivity
+                if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$OC_PREVIEW_SSH" true 2>/dev/null; then
+                  echo "  ✗ Cannot connect to $OC_PREVIEW_SSH" >&2
+                  echo "  Check that your SSH key is in the server's authorized_keys" >&2
+                  exit 1
+                fi
+                echo "   ✓ SSH connection OK"
+
+                # Detect DB type: isolated (has .has-local-db marker) vs shared staging
+                preview_base_dir="/var/lib/opencouncil-previews"
+                # shellcheck disable=SC2029 # Intentional: expand variables locally before sending to server
+                if ssh "$OC_PREVIEW_SSH" "test -f $preview_base_dir/pr-$preview_db_pr/.has-local-db" 2>/dev/null; then
+                  # Isolated DB: tunnel to the per-PR postgres
+                  preview_db_port=$((5432 + preview_db_pr))
+
+                  # Verify the DB service is running
+                  # shellcheck disable=SC2029
+                  if ! ssh "$OC_PREVIEW_SSH" "systemctl is-active opencouncil-preview-db@$preview_db_pr" >/dev/null 2>&1; then
+                    echo "  ✗ Isolated database service is not running on the server." >&2
+                    echo "  Start it with: ssh $OC_PREVIEW_SSH systemctl start opencouncil-preview-db@$preview_db_pr" >&2
+                    exit 1
+                  fi
+
+                  echo "   ✓ Isolated database detected (port $preview_db_port)"
+
+                  # Check port is free before opening tunnel
+                  if is_port_in_use "$preview_db_port"; then
+                    echo "  ✗ Local port $preview_db_port is already in use." >&2
+                    echo "  Kill the existing process (e.g., a leftover SSH tunnel) and retry." >&2
+                    exit 1
+                  fi
+
+                  # Open SSH tunnel in background
+                  ssh -N -L "$preview_db_port:127.0.0.1:$preview_db_port" "$OC_PREVIEW_SSH" &
+                  ssh_tunnel_pid=$!
+
+                  # Wait for tunnel to bind the local port
+                  for _i in $(seq 1 10); do
+                    if is_port_in_use "$preview_db_port"; then
+                      break
+                    fi
+                    sleep 0.5
+                  done
+                  if ! is_port_in_use "$preview_db_port"; then
+                    echo "  ✗ SSH tunnel failed to bind port $preview_db_port." >&2
+                    kill "$ssh_tunnel_pid" 2>/dev/null || true
+                    exit 1
+                  fi
+
+                  echo "   ✓ SSH tunnel active: localhost:$preview_db_port → 127.0.0.1:$preview_db_port"
+
+                  db_url="postgresql://opencouncil@localhost:$preview_db_port/opencouncil"
+                  direct_url="$db_url"
+                  echo "   Database: $db_url"
+                else
+                  # Shared staging DB: read DATABASE_URL from server's .env
+                  echo "   ✓ Shared staging database detected"
+                  # shellcheck disable=SC2029
+                  preview_db_url=$(ssh "$OC_PREVIEW_SSH" "grep '^DATABASE_URL=' $preview_base_dir/.env 2>/dev/null | head -1 | cut -d= -f2-")
+                  if [ -z "$preview_db_url" ]; then
+                    echo "  ✗ Could not read DATABASE_URL from $preview_base_dir/.env on server." >&2
+                    exit 1
+                  fi
+
+                  db_url="$preview_db_url"
+                  direct_url="$preview_db_url"
+                  # Mask credentials in output
+                  echo "   Database: ''${preview_db_url%%@*}@***"
+                fi
+
+                echo ""
+                # Force external DB mode (skip local postgres)
+                db_mode="external"
+              fi
+
               # Check if TASK_API_URL is configured and reachable (non-blocking warning)
               if [ -z "$tasks_preview_pr" ] && [ -n "''${TASK_API_URL:-}" ]; then
                 echo "🔗 Task API configured: $TASK_API_URL"
@@ -850,6 +941,12 @@ EOF
               if [ -n "$ngrok_pid" ]; then
                 needs_cleanup=true
                 cleanup_cmds="''${cleanup_cmds}kill $ngrok_pid 2>/dev/null || true; echo \"Stopped ngrok tunnel\";"
+              fi
+
+              # If SSH tunnel is running, ensure it gets cleaned up on exit.
+              if [ -n "$ssh_tunnel_pid" ]; then
+                needs_cleanup=true
+                cleanup_cmds="''${cleanup_cmds}kill $ssh_tunnel_pid 2>/dev/null || true; echo \"Stopped SSH tunnel\";"
               fi
 
               # Brief pause so startup messages are readable before TUI takes over
