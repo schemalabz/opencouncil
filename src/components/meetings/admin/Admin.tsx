@@ -82,7 +82,6 @@ export default function AdminActions({
                 description: t('toasts.transcriptionRequested.description'),
             });
             setIsPopoverOpen(false);
-            setMediaUrl('');
         } catch (error) {
             console.log('toasting');
             toast({
