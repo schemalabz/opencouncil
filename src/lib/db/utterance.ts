@@ -3,6 +3,11 @@ import prisma from './prisma';
 import { getCurrentUser, withUserAuthorizedToEdit } from '../auth';
 import { Utterance } from '@prisma/client';
 
+type BulkDeleteUtteranceResult = {
+    utteranceId: string;
+    segmentId: string | null;
+};
+
 export async function editUtterance(utteranceId: string, newText: string): Promise<Utterance> {
     try {
         const utterance = await prisma.utterance.findUnique({
@@ -95,6 +100,100 @@ export async function deleteUtterance(utteranceId: string): Promise<{ segmentId:
     } catch (error) {
         console.error('Error deleting utterance:', error);
         throw new Error('Failed to delete utterance');
+    }
+}
+
+export async function deleteUtterances(utteranceIds: string[]): Promise<BulkDeleteUtteranceResult[]> {
+    try {
+        const uniqueUtteranceIds = Array.from(new Set(utteranceIds));
+        if (uniqueUtteranceIds.length === 0) {
+            return [];
+        }
+
+        const utterances = await prisma.utterance.findMany({
+            where: { id: { in: uniqueUtteranceIds } },
+            select: {
+                id: true,
+                speakerSegmentId: true,
+                speakerSegment: {
+                    select: {
+                        cityId: true
+                    }
+                }
+            }
+        });
+
+        const cityIds = Array.from(new Set(utterances.map(utterance => utterance.speakerSegment.cityId)));
+        for (const cityId of cityIds) {
+            await withUserAuthorizedToEdit({ cityId });
+        }
+
+        const foundUtteranceIds = utterances.map(utterance => utterance.id);
+        const affectedSegmentIds = Array.from(new Set(utterances.map(utterance => utterance.speakerSegmentId)));
+
+        await prisma.$transaction(async (tx) => {
+            if (foundUtteranceIds.length > 0) {
+                await tx.utterance.deleteMany({
+                    where: { id: { in: foundUtteranceIds } }
+                });
+            }
+
+            if (affectedSegmentIds.length === 0) {
+                return;
+            }
+
+            const remainingUtterances = await tx.utterance.findMany({
+                where: {
+                    speakerSegmentId: { in: affectedSegmentIds }
+                },
+                select: {
+                    speakerSegmentId: true,
+                    startTimestamp: true,
+                    endTimestamp: true
+                }
+            });
+
+            const remainingBySegment = new Map<string, Array<{ startTimestamp: number; endTimestamp: number }>>();
+            for (const utterance of remainingUtterances) {
+                const segmentUtterances = remainingBySegment.get(utterance.speakerSegmentId);
+                if (segmentUtterances) {
+                    segmentUtterances.push({
+                        startTimestamp: utterance.startTimestamp,
+                        endTimestamp: utterance.endTimestamp
+                    });
+                } else {
+                    remainingBySegment.set(utterance.speakerSegmentId, [{
+                        startTimestamp: utterance.startTimestamp,
+                        endTimestamp: utterance.endTimestamp
+                    }]);
+                }
+            }
+
+            for (const segmentId of affectedSegmentIds) {
+                const segmentUtterances = remainingBySegment.get(segmentId);
+                if (!segmentUtterances || segmentUtterances.length === 0) {
+                    continue;
+                }
+
+                const timestamps = segmentUtterances.flatMap((utterance) => [utterance.startTimestamp, utterance.endTimestamp]);
+                await tx.speakerSegment.update({
+                    where: { id: segmentId },
+                    data: {
+                        startTimestamp: Math.min(...timestamps),
+                        endTimestamp: Math.max(...timestamps)
+                    }
+                });
+            }
+        });
+
+        const segmentByUtteranceId = new Map(utterances.map(utterance => [utterance.id, utterance.speakerSegmentId]));
+        return uniqueUtteranceIds.map((utteranceId) => ({
+            utteranceId,
+            segmentId: segmentByUtteranceId.get(utteranceId) ?? null
+        }));
+    } catch (error) {
+        console.error('Error deleting utterances:', error);
+        throw new Error('Failed to delete utterances');
     }
 }
 
