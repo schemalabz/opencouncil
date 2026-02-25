@@ -6,7 +6,7 @@ import prisma from "../db/prisma";
 import { upsertDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
-import { shouldSkipPolling, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
 
 export async function requestPollDecisions(
     cityId: string,
@@ -317,7 +317,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
     // Meetings still being actively polled (have unlinked subjects)
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const stillPolling = await prisma.councilMeeting.count({
+    const stillPollingMeetings = await prisma.councilMeeting.findMany({
         where: {
             dateTime: { gte: ninetyDaysAgo },
             city: { diavgeiaUid: { not: null } },
@@ -328,6 +328,79 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
                 },
             },
         },
+        select: {
+            id: true,
+            cityId: true,
+            dateTime: true,
+            subjects: {
+                where: {
+                    agendaItemIndex: { not: null },
+                    decision: null,
+                },
+                select: { id: true, name: true },
+            },
+        },
+        orderBy: { dateTime: 'desc' },
+    });
+
+    // Batch-fetch polling history for still-polling meetings
+    const stillPollingIds = stillPollingMeetings.map(m => m.id);
+    const stillPollingHistory = stillPollingIds.length > 0
+        ? await prisma.taskStatus.groupBy({
+            by: ['councilMeetingId', 'cityId'],
+            where: {
+                councilMeetingId: { in: stillPollingIds },
+                type: 'pollDecisions',
+                status: 'succeeded',
+            },
+            _count: true,
+            _min: { createdAt: true },
+            _max: { createdAt: true },
+        })
+        : [];
+
+    const stillPollingHistoryMap = new Map(
+        stillPollingHistory.map(h => [
+            `${h.cityId}:${h.councilMeetingId}`,
+            { count: h._count, firstPollAt: h._min.createdAt, lastPollAt: h._max.createdAt },
+        ])
+    );
+
+    // Batch-fetch total eligible subject counts per meeting
+    const eligibleCounts = stillPollingIds.length > 0
+        ? await prisma.subject.groupBy({
+            by: ['councilMeetingId'],
+            where: {
+                councilMeetingId: { in: stillPollingIds },
+                agendaItemIndex: { not: null },
+            },
+            _count: true,
+        })
+        : [];
+
+    const eligibleCountMap = new Map(
+        eligibleCounts.map(r => [r.councilMeetingId, r._count])
+    );
+
+    const meetingsStillPolling = stillPollingMeetings.map(m => {
+        const key = `${m.cityId}:${m.id}`;
+        const history = stillPollingHistoryMap.get(key);
+        const firstPollAt = history?.firstPollAt ?? null;
+        const lastPollAt = history?.lastPollAt ?? null;
+        const { currentTierLabel, nextPollEligible } = getBackoffState(firstPollAt, lastPollAt);
+
+        return {
+            cityId: m.cityId,
+            meetingId: m.id,
+            meetingDate: m.dateTime.toISOString().split('T')[0],
+            unlinkedSubjects: m.subjects.map(s => ({ id: s.id, name: s.name })),
+            totalEligibleSubjects: eligibleCountMap.get(m.id) ?? 0,
+            totalPolls: history?.count ?? 0,
+            firstPollAt: firstPollAt?.toISOString() ?? null,
+            lastPollAt: lastPollAt?.toISOString() ?? null,
+            currentTierLabel,
+            nextPollEligible,
+        };
     });
 
     // Distinct cities that have poll tasks (for the filter dropdown)
@@ -414,9 +487,10 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
     return {
         backoffSchedule: BACKOFF_SCHEDULE,
         maxPollingDays: MAX_POLLING_DAYS,
+        meetingsStillPolling,
         summary: {
             totalDiscoveries: discoveryDetails.length,
-            meetingsStillPolling: stillPolling,
+            meetingsStillPolling: meetingsStillPolling.length,
             discoveryDelay: {
                 avgDays: avg(sortedDelays),
                 medianDays: median(sortedDelays),
@@ -554,40 +628,7 @@ export async function getPollingHistoryForMeeting(
         };
     }
 
-    const now = Date.now();
-    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
-
-    // Check if polling has exceeded the max window
-    if (daysSinceFirstPoll >= MAX_POLLING_DAYS) {
-        return {
-            totalPolls,
-            firstPollAt: firstPollAt.toISOString(),
-            lastPollAt: lastPollAt.toISOString(),
-            currentTierLabel: `Stopped (exceeded ${MAX_POLLING_DAYS}-day window)`,
-            nextPollEligible: null,
-        };
-    }
-
-    // Find the current tier
-    const tier = [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
-
-    let currentTierLabel: string;
-    if (!tier || tier.minIntervalDays === 0) {
-        currentTierLabel = 'Every cron run';
-    } else {
-        const weekNum = Math.floor(tier.afterDays / 7) + 1;
-        currentTierLabel = `Week ${weekNum}: polling every ${tier.minIntervalDays} days`;
-    }
-
-    // Calculate when next poll is eligible
-    let nextPollEligible: string | null = null;
-    if (tier && tier.minIntervalDays > 0) {
-        const nextEligible = new Date(lastPollAt.getTime() + tier.minIntervalDays * 24 * 60 * 60 * 1000);
-        if (nextEligible.getTime() > now) {
-            nextPollEligible = nextEligible.toISOString();
-        }
-        // If nextEligible is in the past, the next cron run will poll
-    }
+    const { currentTierLabel, nextPollEligible } = getBackoffState(firstPollAt, lastPollAt);
 
     return {
         totalPolls,
