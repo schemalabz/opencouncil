@@ -99,9 +99,27 @@ export default function LayerControlsPanel({
         ).length;
     };
 
-    // Count point geometries (excluding boundary polygons)
-    const getPointCount = (geoSet: GeoSetData) => {
-        return geoSet.geometries.filter(g => g.type === 'point').length;
+    // Get a descriptive subtitle for a geoset based on its geometry types
+    const getGeoSetSubtitle = (geoSet: GeoSetData): string => {
+        const total = geoSet.geometries.length;
+        if (total === 0) return '';
+
+        const hasRenderable = geoSet.geometries.some(g => ('geojson' in g && g.geojson) || g.type === 'derived');
+        if (!hasRenderable) return `${total} τοποθεσίες (χωρίς δεδομένα χάρτη)`;
+
+        const points = geoSet.geometries.filter(g => g.type === 'point').length;
+        const derived = geoSet.geometries.filter(g => g.type === 'derived').length;
+        const polygons = total - points - derived;
+
+        if (points > 0 && polygons === 0 && derived === 0) return `${points} σημεία`;
+        if (polygons > 0 && points === 0 && derived === 0) return `${polygons} περιοχές`;
+        if (derived > 0 && points === 0 && polygons === 0) return 'Υπολογιζόμενη περιοχή';
+        return `${total} τοποθεσίες`;
+    };
+
+    // Check if a geoset has any renderable geometries (geojson or derived)
+    const isGeoSetRenderable = (geoSet: GeoSetData): boolean => {
+        return geoSet.geometries.some(g => ('geojson' in g && g.geojson) || g.type === 'derived');
     };
 
     // Export function to merge original data with saved geometries
@@ -354,26 +372,29 @@ export default function LayerControlsPanel({
 
                 {geoSets.map((geoSet, geoSetIndex) => {
                     const color = geoSet.color || colors[geoSetIndex % colors.length];
-                    const pointCount = getPointCount(geoSet);
+                    const subtitle = getGeoSetSubtitle(geoSet);
                     const commentCount = getGeoSetCommentCount(geoSet.id);
+                    const renderable = isGeoSetRenderable(geoSet);
 
                     return (
                         <button
                             key={geoSet.id}
                             onClick={() => onOpenGeoSetDetail(geoSet.id)}
-                            className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left group"
+                            className={`w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left group ${!renderable ? 'opacity-50' : ''}`}
                         >
                             <div
                                 className="w-3 h-3 rounded-full shrink-0"
                                 style={{ backgroundColor: color, boxShadow: `0 0 0 2px white, 0 0 0 3px ${color}` }}
                             />
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium leading-tight">
+                                <div className="text-sm font-medium leading-tight line-clamp-1">
                                     {geoSet.name}
                                 </div>
-                                <div className="text-xs text-muted-foreground mt-0.5">
-                                    {pointCount} προτεινόμενες θέσεις
-                                </div>
+                                {subtitle && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                        {subtitle}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                                 {commentCount > 0 && (
