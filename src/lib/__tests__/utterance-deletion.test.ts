@@ -14,29 +14,31 @@ type TestSegment = {
   label: string;
 };
 
-const transcript: TestSegment[] = [
-  {
-    id: "segment-a",
-    startTimestamp: 10,
-    endTimestamp: 40,
-    label: "A",
-    utterances: [
-      { id: "u-1", startTimestamp: 10, endTimestamp: 15 },
-      { id: "u-2", startTimestamp: 20, endTimestamp: 25 },
-      { id: "u-3", startTimestamp: 30, endTimestamp: 40 },
-    ],
-  },
-  {
-    id: "segment-b",
-    startTimestamp: 45,
-    endTimestamp: 80,
-    label: "B",
-    utterances: [
-      { id: "u-4", startTimestamp: 45, endTimestamp: 50 },
-      { id: "u-5", startTimestamp: 60, endTimestamp: 80 },
-    ],
-  },
-];
+function makeTranscript(): TestSegment[] {
+  return [
+    {
+      id: "segment-a",
+      startTimestamp: 10,
+      endTimestamp: 40,
+      label: "A",
+      utterances: [
+        { id: "u-1", startTimestamp: 10, endTimestamp: 15 },
+        { id: "u-2", startTimestamp: 20, endTimestamp: 25 },
+        { id: "u-3", startTimestamp: 30, endTimestamp: 40 },
+      ],
+    },
+    {
+      id: "segment-b",
+      startTimestamp: 45,
+      endTimestamp: 80,
+      label: "B",
+      utterances: [
+        { id: "u-4", startTimestamp: 45, endTimestamp: 50 },
+        { id: "u-5", startTimestamp: 60, endTimestamp: 80 },
+      ],
+    },
+  ];
+}
 
 describe("applyUtteranceDeletions", () => {
   it("removes utterances and recalculates segment boundaries", () => {
@@ -45,7 +47,7 @@ describe("applyUtteranceDeletions", () => {
       ["segment-b", new Set(["u-4"])],
     ]);
 
-    const updated = applyUtteranceDeletions(transcript, deletions);
+    const updated = applyUtteranceDeletions(makeTranscript(), deletions);
 
     expect(updated[0].utterances.map((u) => u.id)).toEqual(["u-2"]);
     expect(updated[0].startTimestamp).toBe(20);
@@ -61,7 +63,7 @@ describe("applyUtteranceDeletions", () => {
       ["segment-b", new Set(["u-4", "u-5"])],
     ]);
 
-    const updated = applyUtteranceDeletions(transcript, deletions);
+    const updated = applyUtteranceDeletions(makeTranscript(), deletions);
     const segmentB = updated.find((segment) => segment.id === "segment-b");
 
     expect(segmentB?.utterances).toEqual([]);
@@ -70,6 +72,7 @@ describe("applyUtteranceDeletions", () => {
   });
 
   it("does not change transcript when there are no deletions", () => {
+    const transcript = makeTranscript();
     const updated = applyUtteranceDeletions(transcript, new Map());
     expect(updated).toEqual(transcript);
   });

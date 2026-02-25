@@ -47,7 +47,7 @@ export async function editUtterance(utteranceId: string, newText: string): Promi
     }
 }
 
-export async function deleteUtterance(utteranceId: string): Promise<{ segmentId: string, remainingUtterances: number }> {
+export async function deleteUtterance(utteranceId: string): Promise<{ segmentId: string | null, remainingUtterances: number, deleted: boolean }> {
     try {
         const utterance = await prisma.utterance.findUnique({
             where: { id: utteranceId },
@@ -61,7 +61,7 @@ export async function deleteUtterance(utteranceId: string): Promise<{ segmentId:
         });
 
         if (!utterance) {
-            throw new Error('Utterance not found');
+            return { segmentId: null, remainingUtterances: 0, deleted: false };
         }
 
         await withUserAuthorizedToEdit({ cityId: utterance.speakerSegment.cityId });
@@ -91,7 +91,7 @@ export async function deleteUtterance(utteranceId: string): Promise<{ segmentId:
 
         console.log(`Deleted utterance ${utteranceId} from segment ${segmentId}. Remaining: ${remainingUtterances.length}`);
         
-        return { segmentId, remainingUtterances: remainingUtterances.length };
+        return { segmentId, remainingUtterances: remainingUtterances.length, deleted: true };
     } catch (error) {
         console.error('Error deleting utterance:', error);
         throw new Error('Failed to delete utterance');

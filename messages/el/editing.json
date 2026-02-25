@@ -138,6 +138,8 @@
     "invalidOperationExtractStartEnd": "Δεν είναι δυνατή η εξαγωγή από την αρχή ή το τέλος ενός τμήματος. Η επιλογή πρέπει να είναι αυστηρά στη μέση.",
     "deletionSuccess": "{count, plural, one {Διαγράφηκε # φράση} other {Διαγράφηκαν # φράσεις}}",
     "deletionError": "Αποτυχία διαγραφής των επιλεγμένων φράσεων",
+    "bulkDeleteConfirmTitle": "Διαγραφή επιλεγμένων;",
+    "bulkDeleteConfirmDesc": "Είστε βέβαιοι ότι θέλετε να διαγράψετε {count, plural, one {# φράση} other {# φράσεις}}; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
     "reviewCompleted": "Ο Έλεγχος Ολοκληρώθηκε",
     "reviewCompletedDescription": "Ο έλεγχος της απομαγνητοφώνησης έχει σημειωθεί ως ολοκληρωμένος."
   }
