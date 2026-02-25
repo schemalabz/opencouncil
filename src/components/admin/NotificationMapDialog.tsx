@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Loader2 } from 'lucide-react';
 import Map, { MapFeature } from '@/components/map/map';
-import { createCircleBuffer } from '@/lib/geo/buffer';
+import { createCircleBuffer } from '@/lib/geo';
 
 interface SubjectLocation {
     id: string;

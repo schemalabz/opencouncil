@@ -10,7 +10,7 @@ import LayerControlsPanel from "./LayerControlsPanel";
 import DetailPanel from "./DetailPanel";
 import EditingToolsPanel from "./EditingToolsPanel";
 import { CheckboxState } from "./GeoSetItem";
-import { createCircleBuffer } from "@/lib/geo/buffer";
+import { createCircleBuffer } from "@/lib/geo";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Location } from "@/lib/types/onboarding";
 import { useIsMobile } from "@/hooks/use-mobile";
