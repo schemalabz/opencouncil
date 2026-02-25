@@ -132,12 +132,6 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
 
 
     if (error || !response || !response.ok) {
-        // Update task status to failed if API call fails
-        await prisma.taskStatus.update({
-            where: { id: newTask.id },
-            data: { status: 'failed' }
-        });
-
         let errorMessage = 'no response body';
         if (response) {
             console.log(`Status: ${response.status}`);
@@ -152,7 +146,15 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
             errorMessage = (error as Error).message;
         }
 
-        throw new Error(`Failed to start task: ${response?.statusText} (${errorMessage})`);
+        const fullError = `Failed to start task: ${response?.statusText} (${errorMessage})`;
+
+        // Update task status to failed with error details
+        await prisma.taskStatus.update({
+            where: { id: newTask.id },
+            data: { status: 'failed', responseBody: fullError }
+        });
+
+        throw new Error(fullError);
     }
 
     // Update task with full request body including callback URL
@@ -218,9 +220,11 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 }
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}:`, error);
+                const originalResponse = JSON.stringify(update.result);
+                const errorDetail = `Processing error: ${(error as Error).message}\n\n--- Original task server response ---\n${originalResponse}`;
                 await prisma.taskStatus.update({
                     where: { id: taskId },
-                    data: { status: 'failed', version: update.version }
+                    data: { status: 'failed', responseBody: errorDetail, version: update.version }
                 });
 
                 // Send Discord admin alert for processing failure
