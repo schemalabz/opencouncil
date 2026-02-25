@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { updateConsultation, deleteConsultation } from '@/lib/db/consultations';
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
     await withUserAuthorizedToEdit({});
-    const id = params.id;
     const body = await req.json();
     const { name, jsonUrl, endDate, isActive } = body as {
         name?: string;
@@ -14,20 +13,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     };
 
     try {
-        const updated = await prisma.consultation.update({
-            where: { id },
-            data: {
-                ...(name !== undefined && { name }),
-                ...(jsonUrl !== undefined && { jsonUrl }),
-                ...(endDate !== undefined && { endDate: new Date(endDate) }),
-                ...(isActive !== undefined && { isActive }),
-            },
-            include: {
-                city: {
-                    select: { id: true, name: true }
-                }
-            }
-        });
+        const updated = await updateConsultation(params.id, { name, jsonUrl, endDate, isActive });
         return NextResponse.json(updated);
     } catch (error) {
         if ((error as { code?: string })?.code === 'P2025') {
@@ -39,9 +25,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
     await withUserAuthorizedToEdit({});
-    const id = params.id;
     try {
-        await prisma.consultation.delete({ where: { id } });
+        await deleteConsultation(params.id);
         return NextResponse.json({ ok: true });
     } catch (error) {
         if ((error as { code?: string })?.code === 'P2025') {
