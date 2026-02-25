@@ -60,9 +60,23 @@ interface RecentPoll {
   responseBody: string | null;
 }
 
+interface StillPollingMeeting {
+  cityId: string;
+  meetingId: string;
+  meetingDate: string;
+  unlinkedSubjects: Array<{ id: string; name: string }>;
+  totalEligibleSubjects: number;
+  totalPolls: number;
+  firstPollAt: string | null;
+  lastPollAt: string | null;
+  currentTierLabel: string | null;
+  nextPollEligible: string | null;
+}
+
 interface PollingStatsData {
   backoffSchedule: BackoffTier[];
   maxPollingDays: number;
+  meetingsStillPolling: StillPollingMeeting[];
   summary: {
     totalDiscoveries: number;
     meetingsStillPolling: number;
@@ -206,6 +220,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
   const [sortField, setSortField] = useState<SortField>('discoveredAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedPoll, setSelectedPoll] = useState<RecentPoll | null>(null);
+  const [selectedMeeting, setSelectedMeeting] = useState<StillPollingMeeting | null>(null);
   const { updateParam, updateParams, isPending } = useUrlParams();
 
   const handleSort = (field: SortField) => {
@@ -243,7 +258,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
     },
     {
       title: 'Meetings Still Polling',
-      value: stats.summary.meetingsStillPolling,
+      value: stats.meetingsStillPolling.length,
       icon: <Activity className="h-4 w-4" />,
       description: 'With unlinked subjects',
     },
@@ -276,10 +291,89 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
   );
 
   return (
+    <>
     <Sheet open={!!selectedPoll} onOpenChange={(open) => !open && setSelectedPoll(null)}>
     <div className="space-y-6">
       {/* Summary Cards */}
       <StatsCard items={summaryItems} columns={4} />
+
+      {/* Meetings Still Polling */}
+      <CollapsibleSection
+        title="Meetings Still Polling"
+        badge={`${stats.meetingsStillPolling.length} meetings`}
+        defaultOpen={stats.meetingsStillPolling.length > 0}
+      >
+        {stats.meetingsStillPolling.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground">
+            No meetings are currently being polled.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b text-muted-foreground">
+                  <th className="text-left px-4 py-2 font-medium">City</th>
+                  <th className="text-left px-4 py-2 font-medium">Meeting ID</th>
+                  <th className="text-left px-4 py-2 font-medium">Meeting Date</th>
+                  <th className="text-left px-4 py-2 font-medium">Unlinked</th>
+                  <th className="text-left px-4 py-2 font-medium">Polls</th>
+                  <th className="text-left px-4 py-2 font-medium">First Poll</th>
+                  <th className="text-left px-4 py-2 font-medium">Last Poll</th>
+                  <th className="text-left px-4 py-2 font-medium">Backoff</th>
+                  <th className="text-right px-4 py-2 font-medium">Details</th>
+                </tr>
+              </thead>
+              <TooltipProvider>
+              <tbody>
+                {stats.meetingsStillPolling.map(m => (
+                  <tr key={`${m.cityId}:${m.meetingId}`} className="border-b last:border-b-0 hover:bg-muted/30">
+                    <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{m.cityId}</td>
+                    <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{m.meetingId}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">{m.meetingDate}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {m.unlinkedSubjects.length} / {m.totalEligibleSubjects}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-center">{m.totalPolls}</td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {m.firstPollAt ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block cursor-default">{new Date(m.firstPollAt).toLocaleDateString()}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{new Date(m.firstPollAt).toLocaleString()}</TooltipContent>
+                        </Tooltip>
+                      ) : 'Never'}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {m.lastPollAt ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="block cursor-default">{new Date(m.lastPollAt).toLocaleDateString()}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">{new Date(m.lastPollAt).toLocaleString()}</TooltipContent>
+                        </Tooltip>
+                      ) : 'Never'}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-xs">
+                      {m.currentTierLabel ?? '\u2014'}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedMeeting(m)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </TooltipProvider>
+            </table>
+          </div>
+        )}
+      </CollapsibleSection>
 
       {/* Recent Polls */}
       <CollapsibleSection
@@ -579,5 +673,82 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
       </SheetContent>
     )}
     </Sheet>
+
+    {/* Still Polling Meeting Details Sidebar */}
+    <Sheet open={!!selectedMeeting} onOpenChange={(open) => !open && setSelectedMeeting(null)}>
+    {selectedMeeting && (
+      <SheetContent className="sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Meeting Polling Details</SheetTitle>
+          <SheetDescription>
+            {selectedMeeting.cityId} / {selectedMeeting.meetingId}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">City</div>
+              <div className="text-sm font-mono">{selectedMeeting.cityId}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Meeting Date</div>
+              <div className="text-sm font-medium">{selectedMeeting.meetingDate}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Backoff Tier</div>
+              <div className="text-sm font-medium">{selectedMeeting.currentTierLabel ?? 'Not started'}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Next Poll Eligible</div>
+              <div className="text-sm font-medium">
+                {selectedMeeting.nextPollEligible
+                  ? new Date(selectedMeeting.nextPollEligible).toLocaleString()
+                  : 'Next cron run'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Total Polls</div>
+              <div className="text-sm font-medium">{selectedMeeting.totalPolls}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Last Poll</div>
+              <div className="text-sm font-medium">
+                {selectedMeeting.lastPollAt ? new Date(selectedMeeting.lastPollAt).toLocaleString() : 'Never'}
+              </div>
+            </div>
+          </div>
+
+          {/* Meeting Admin Link */}
+          <Link href={`/${selectedMeeting.cityId}/${selectedMeeting.meetingId}/admin`}>
+            <Button variant="outline" className="w-full">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Go to Meeting Admin
+            </Button>
+          </Link>
+
+          {/* Unlinked Subjects */}
+          <div>
+            <div className="text-sm font-medium mb-2">
+              Unlinked Subjects ({selectedMeeting.unlinkedSubjects.length} / {selectedMeeting.totalEligibleSubjects})
+            </div>
+            {selectedMeeting.unlinkedSubjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">All subjects have linked decisions.</p>
+            ) : (
+              <ul className="space-y-2">
+                {selectedMeeting.unlinkedSubjects.map(s => (
+                  <li key={s.id} className="text-sm border rounded-md px-3 py-2 bg-muted/20">
+                    {s.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    )}
+    </Sheet>
+    </>
   );
 }
