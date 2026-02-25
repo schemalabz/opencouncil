@@ -52,35 +52,5 @@
         "formErrors": "Please fix the following errors:",
         "roles": "Roles",
         "success": "Success"
-    },
-    "RolesList": {
-        "addNew": "Add Role",
-        "editRole": "Edit Role",
-        "addRole": "Add Role",
-        "type": "Type",
-        "selectType": "Select type",
-        "types": {
-            "city": "City",
-            "party": "Party",
-            "administrativeBody": "Administrative Body"
-        },
-        "party": "Party",
-        "selectParty": "Select party",
-        "administrativeBody": "Administrative Body",
-        "selectAdministrativeBody": "Select administrative body",
-        "name": "Name",
-        "nameEn": "Name (English)",
-        "isHead": "Head",
-        "isHeadDescription": "Set if the person is head in this role",
-        "startDate": "Start Date",
-        "endDate": "End Date",
-        "pickDate": "Pick a date",
-        "submitting": "Saving...",
-        "update": "Update",
-        "create": "Create",
-        "confirmDelete": "Are you sure you want to delete this role?",
-        "cityRole": "City Role",
-        "head": "Head",
-        "present": "Present"
     }
-} 
+}
