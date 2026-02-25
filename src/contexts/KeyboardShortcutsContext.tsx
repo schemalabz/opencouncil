@@ -95,6 +95,26 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
     }, []);
 
     useEffect(() => {
+        const matchesKeyCombo = (event: KeyboardEvent, keyCombo: string) => {
+            const parts = keyCombo.toLowerCase().split('+');
+            const key = parts.pop();
+            const modifiers = parts;
+
+            if (!key || event.key.toLowerCase() !== key) return false;
+
+            const ctrl = modifiers.includes('control') || modifiers.includes('ctrl');
+            const meta = modifiers.includes('meta') || modifiers.includes('cmd');
+            const shift = modifiers.includes('shift');
+            const alt = modifiers.includes('alt');
+
+            return (
+                event.ctrlKey === ctrl &&
+                event.metaKey === meta &&
+                event.shiftKey === shift &&
+                event.altKey === alt
+            );
+        };
+
         const handleKeyDown = (event: KeyboardEvent) => {
             // Ignore if input/textarea is focused (unless it's a special modifier command we want to allow globally)
             const target = event.target as HTMLElement;
@@ -104,27 +124,8 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 
             // Check all definitions
             for (const action of Object.values(ACTION_DEFINITIONS)) {
-                const isMatch = action.keys.some(keyCombo => {
-                    const parts = keyCombo.toLowerCase().split('+');
-                    const key = parts.pop();
-                    const modifiers = parts;
-                    
-                    if (event.key.toLowerCase() !== key) return false;
-                    
-                    const ctrl = modifiers.includes('control') || modifiers.includes('ctrl');
-                    const meta = modifiers.includes('meta') || modifiers.includes('cmd');
-                    const shift = modifiers.includes('shift');
-                    const alt = modifiers.includes('alt');
-
-                    return (
-                        event.ctrlKey === ctrl &&
-                        event.metaKey === meta &&
-                        event.shiftKey === shift &&
-                        event.altKey === alt
-                    );
-                });
-
-                if (isMatch) {
+                const matchedKeyCombo = action.keys.find((keyCombo) => matchesKeyCombo(event, keyCombo));
+                if (matchedKeyCombo) {
                     const handler = handlers.current.get(action.id);
                     if (handler) {
                         event.preventDefault();

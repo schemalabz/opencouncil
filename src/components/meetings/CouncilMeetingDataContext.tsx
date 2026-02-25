@@ -3,7 +3,7 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useCall
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance as deleteUtteranceInDb } from '@/lib/db/utterance';
+import { deleteUtterance as deleteUtteranceInDb, deleteUtterances as deleteUtterancesInDb } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -335,34 +335,15 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return;
             }
 
-            const localSegmentByUtteranceId = new Map<string, string>();
-            transcript.forEach(segment => {
-                segment.utterances.forEach(utterance => {
-                    localSegmentByUtteranceId.set(utterance.id, segment.id);
-                });
+            const deletedInDb = await deleteUtterancesInDb(uniqueUtteranceIds);
+            const deletedUtterances: Array<{ segmentId: string; utteranceId: string }> = [];
+            deletedInDb.forEach(({ utteranceId, segmentId }) => {
+                if (segmentId) {
+                    deletedUtterances.push({ segmentId, utteranceId });
+                }
             });
 
-            const deletedUtterances: Array<{ segmentId: string; utteranceId: string }> = [];
-            let deletionError: unknown = null;
-
-            for (const utteranceId of uniqueUtteranceIds) {
-                try {
-                    const { segmentId } = await deleteUtteranceInDb(utteranceId);
-                    const effectiveSegmentId = segmentId ?? localSegmentByUtteranceId.get(utteranceId);
-                    if (effectiveSegmentId) {
-                        deletedUtterances.push({ segmentId: effectiveSegmentId, utteranceId });
-                    }
-                } catch (error) {
-                    deletionError = error;
-                    break;
-                }
-            }
-
             applyDeletedUtterancesLocally(deletedUtterances);
-
-            if (deletionError) {
-                throw deletionError;
-            }
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
             setTranscript(prev => prev.map(segment => {
