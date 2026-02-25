@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -6,46 +5,9 @@ import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
-import { getMeetingData, MeetingData } from "@/lib/getMeetingData";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
-
-/**
- * Cached version of getMeetingData that fetches and caches all data for a meeting.
- * User-specific highlight visibility is handled internally via getCurrentUser(),
- * and cache() is request-scoped so each user gets their own cached results.
- */
-export const getMeetingDataCached = cache(async (
-  cityId: string,
-  meetingId: string
-): Promise<MeetingData | null> => {
-  const startTime = performance.now();
-  console.log(`Fetching meeting data for`, cityId, meetingId);
-
-  try {
-    const data = await getMeetingData(cityId, meetingId);
-    console.log(`Got meeting data in ${performance.now() - startTime}ms`);
-    return data;
-  } catch (error) {
-    console.error(`Error fetching meeting data for ${cityId}/${meetingId}:`, error);
-    return null;
-  }
-});
-
-/**
- * Helper function to get a specific subject from cached meeting data
- */
-export async function getSubjectFromMeetingCached(cityId: string, meetingId: string, subjectId: string) {
-  const meetingData = await getMeetingDataCached(cityId, meetingId);
-
-  if (!meetingData) {
-    return null;
-  }
-
-  const subject = meetingData.subjects.find(s => s.id === subjectId);
-  return subject || null;
-}
 
 /**
  * Cached version of getCity that fetches and caches basic city data

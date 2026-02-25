@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Subject from "@/components/meetings/subject/subject";
-import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/cache";
+import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
 
 export async function generateMetadata({

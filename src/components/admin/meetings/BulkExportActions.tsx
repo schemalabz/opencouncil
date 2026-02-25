@@ -12,7 +12,7 @@ import {
     generateMeetingFileName, 
     downloadFile
 } from "@/lib/export/meetings";
-import { MeetingData } from "@/lib/getMeetingData";
+import { MeetingDataCore } from "@/lib/getMeetingData";
 import { useToast } from '@/hooks/use-toast';
 
 interface BulkExportActionsProps {
@@ -41,7 +41,7 @@ export function BulkExportActions({
     const selectedMeetings = meetings.filter(meeting => selectedMeetingIds.has(meeting.id));
     const hasSelectedMeetings = selectedMeetingIds.size > 0;
 
-    const fetchCompleteMeetingData = async (meetingId: string): Promise<MeetingData> => {
+    const fetchCompleteMeetingData = async (meetingId: string): Promise<MeetingDataCore> => {
         const response = await fetch(`/api/cities/${selectedCityId}/meetings/${meetingId}`);
         if (!response.ok) {
             throw new Error(`Failed to fetch meeting data for ${meetingId}`);

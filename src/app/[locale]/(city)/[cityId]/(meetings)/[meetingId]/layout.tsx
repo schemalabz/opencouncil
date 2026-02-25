@@ -11,7 +11,7 @@ import { formatDate } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
-import { getMeetingDataCached } from '@/lib/cache';
+import { getMeetingDataCached } from '@/lib/getMeetingData';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
