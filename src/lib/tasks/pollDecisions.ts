@@ -380,6 +380,8 @@ export async function getPollingStats() {
             matchesFound,
             unmatchedCount,
             ambiguousCount,
+            requestBody: task.requestBody,
+            responseBody: task.responseBody,
         };
     });
 

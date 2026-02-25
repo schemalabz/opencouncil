@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { StatsCard, StatsCardItem } from '@/components/ui/stats-card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink } from 'lucide-react';
 
 interface BackoffTier {
   afterDays: number;
@@ -38,6 +48,8 @@ interface RecentPoll {
   matchesFound: number | null;
   unmatchedCount: number | null;
   ambiguousCount: number | null;
+  requestBody: string;
+  responseBody: string | null;
 }
 
 interface PollingStatsData {
@@ -87,6 +99,65 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "destruct
   }
 }
 
+function CopyableJsonSection({ label, json }: { label: string; json: string }) {
+  const [copied, setCopied] = useState(false);
+
+  let formatted: string;
+  try {
+    formatted = JSON.stringify(JSON.parse(json), null, 2);
+  } catch {
+    formatted = json;
+  }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formatted);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy JSON:', err);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium">{label}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopy}
+          className="flex items-center gap-1 h-7 text-xs"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3 w-3" />
+              Copied!
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3" />
+              Copy
+            </>
+          )}
+        </Button>
+      </div>
+      <Textarea
+        value={formatted}
+        readOnly
+        className="min-h-[200px] font-mono text-xs resize-none bg-muted/30"
+        style={{
+          whiteSpace: 'pre',
+          fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+        }}
+      />
+      <div className="text-xs text-muted-foreground">
+        {formatted.length.toLocaleString()} characters
+      </div>
+    </div>
+  );
+}
+
 function CollapsibleSection({
   title,
   badge,
@@ -125,6 +196,7 @@ function CollapsibleSection({
 export function PollingStats({ stats }: { stats: PollingStatsData }) {
   const [sortField, setSortField] = useState<SortField>('discoveredAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [selectedPoll, setSelectedPoll] = useState<RecentPoll | null>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -194,6 +266,7 @@ export function PollingStats({ stats }: { stats: PollingStatsData }) {
   );
 
   return (
+    <Sheet open={!!selectedPoll} onOpenChange={(open) => !open && setSelectedPoll(null)}>
     <div className="space-y-6">
       {/* Summary Cards */}
       <StatsCard items={summaryItems} columns={4} />
@@ -219,6 +292,7 @@ export function PollingStats({ stats }: { stats: PollingStatsData }) {
                   <th className="text-left px-4 py-2 font-medium">Status</th>
                   <th className="text-left px-4 py-2 font-medium">Subjects Polled</th>
                   <th className="text-left px-4 py-2 font-medium">Matches Found</th>
+                  <th className="text-right px-4 py-2 font-medium">Details</th>
                 </tr>
               </thead>
               <tbody>
@@ -249,6 +323,15 @@ export function PollingStats({ stats }: { stats: PollingStatsData }) {
                           )}
                         </span>
                       ) : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedPoll(poll)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -368,5 +451,83 @@ export function PollingStats({ stats }: { stats: PollingStatsData }) {
         </table>
       </CollapsibleSection>
     </div>
+
+    {/* Poll Details Sidebar */}
+    {selectedPoll && (
+      <SheetContent className="sm:max-w-2xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Poll Details</SheetTitle>
+          <SheetDescription>
+            Task {selectedPoll.id}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-6">
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Status</div>
+              <Badge variant={statusBadgeVariant(selectedPoll.status)}>{selectedPoll.status}</Badge>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Time</div>
+              <div className="text-sm font-medium">{new Date(selectedPoll.createdAt).toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">City</div>
+              <div className="text-sm font-mono">{selectedPoll.cityId}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Meeting</div>
+              <div className="text-sm font-mono">{selectedPoll.councilMeetingId}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Subjects Polled</div>
+              <div className="text-sm font-medium">{selectedPoll.subjectsPolled}</div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-1">Results</div>
+              <div className="text-sm">
+                {selectedPoll.matchesFound !== null ? (
+                  <span>
+                    <span className="font-medium">{selectedPoll.matchesFound}</span> matched
+                    {(selectedPoll.unmatchedCount !== null && selectedPoll.unmatchedCount > 0) && (
+                      <span className="text-muted-foreground"> · {selectedPoll.unmatchedCount} unmatched</span>
+                    )}
+                    {(selectedPoll.ambiguousCount !== null && selectedPoll.ambiguousCount > 0) && (
+                      <span className="text-yellow-600"> · {selectedPoll.ambiguousCount} ambiguous</span>
+                    )}
+                  </span>
+                ) : '—'}
+              </div>
+            </div>
+          </div>
+
+          {/* Meeting Admin Link */}
+          <Link href={`/${selectedPoll.cityId}/${selectedPoll.councilMeetingId}/admin`}>
+            <Button variant="outline" className="w-full">
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Go to Meeting Admin
+            </Button>
+          </Link>
+
+          {/* Request Body */}
+          <CopyableJsonSection label="Request Body" json={selectedPoll.requestBody} />
+
+          {/* Response Body */}
+          {selectedPoll.responseBody ? (
+            <CopyableJsonSection label="Response Body" json={selectedPoll.responseBody} />
+          ) : (
+            <div>
+              <span className="text-sm font-medium">Response Body</span>
+              <p className="text-sm text-muted-foreground mt-1">
+                No response yet — task is still {selectedPoll.status}.
+              </p>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    )}
+    </Sheet>
   );
 }
