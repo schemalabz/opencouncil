@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -6,54 +5,9 @@ import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
-import { getMeetingDataCore, MeetingData } from "@/lib/getMeetingData";
-import { getHighlightsForMeeting } from "@/lib/db/highlights";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
-
-/**
- * Cached version of getMeetingData that composes:
- * 1. Core data (sub-queries individually cached inside getMeetingDataCore)
- * 2. Fresh user-specific highlights (fetched per-request)
- *
- * Outer React cache() deduplicates within a single request (layout calls this 3x).
- * Note: the transcript is NOT cached (too large for 2MB unstable_cache limit),
- * but all other sub-queries are individually cached inside getMeetingDataCore.
- */
-export const getMeetingDataCached = cache(async (
-  cityId: string,
-  meetingId: string
-): Promise<MeetingData | null> => {
-  const startTime = performance.now();
-
-  try {
-    const [core, highlights] = await Promise.all([
-      getMeetingDataCore(cityId, meetingId),
-      getHighlightsForMeeting(cityId, meetingId)
-    ]);
-    const ms = (performance.now() - startTime).toFixed(0);
-    console.log(`getMeetingDataCached ${cityId}/${meetingId} done in ${ms}ms (${highlights.length} highlights)`);
-    return { ...core, highlights };
-  } catch (error) {
-    console.error(`getMeetingDataCached ${cityId}/${meetingId} ERROR:`, error);
-    return null;
-  }
-});
-
-/**
- * Helper function to get a specific subject from cached meeting data
- */
-export async function getSubjectFromMeetingCached(cityId: string, meetingId: string, subjectId: string) {
-  const meetingData = await getMeetingDataCached(cityId, meetingId);
-
-  if (!meetingData) {
-    return null;
-  }
-
-  const subject = meetingData.subjects.find(s => s.id === subjectId);
-  return subject || null;
-}
 
 /**
  * Cached version of getCity that fetches and caches basic city data

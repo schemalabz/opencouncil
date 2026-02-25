@@ -1,9 +1,10 @@
 import { getCouncilMeeting } from '@/lib/db/meetings';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { CityWithGeometry, getCity } from '@/lib/db/cities';
-import { getPeopleForCity, PersonWithRelations } from '@/lib/db/people';
-import { getPartiesForCity } from '@/lib/db/parties';
-import { HighlightWithUtterances } from '@/lib/db/highlights';
+import { PersonWithRelations } from '@/lib/db/people';
+import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
+import { cache } from 'react';
+import { getPeopleForCityCached, getPartiesForCityCached } from '@/lib/cache/queries';
 import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
 import { getBatchStatisticsForSubjects, Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
@@ -54,16 +55,8 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
             ['city', cityId, 'withGeometry'],
             cityTags
         )(),
-        createCache(
-            () => getPeopleForCity(cityId),
-            ['city', cityId, 'people'],
-            { tags: ['city', `city:${cityId}`, `city:${cityId}:people`] }
-        )(),
-        createCache(
-            () => getPartiesForCity(cityId),
-            ['city', cityId, 'parties'],
-            { tags: ['city', `city:${cityId}`, `city:${cityId}:parties`] }
-        )(),
+        getPeopleForCityCached(cityId),
+        getPartiesForCityCached(cityId),
         createCache(
             () => getSubjectsForMeeting(cityId, meetingId),
             ['city', cityId, 'meeting', meetingId, 'subjects'],
@@ -113,4 +106,47 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         speakerTags,
         taskStatus
     };
+}
+
+/**
+ * Cached version of getMeetingData that composes:
+ * 1. Core data (sub-queries individually cached inside getMeetingDataCore)
+ * 2. Fresh user-specific highlights (fetched per-request)
+ *
+ * Outer React cache() deduplicates within a single request (layout calls this 3x).
+ * Note: the transcript is NOT cached (too large for 2MB unstable_cache limit),
+ * but all other sub-queries are individually cached inside getMeetingDataCore.
+ */
+export const getMeetingDataCached = cache(async (
+  cityId: string,
+  meetingId: string
+): Promise<MeetingData | null> => {
+  const startTime = performance.now();
+
+  try {
+    const [core, highlights] = await Promise.all([
+      getMeetingDataCore(cityId, meetingId),
+      getHighlightsForMeeting(cityId, meetingId)
+    ]);
+    const ms = (performance.now() - startTime).toFixed(0);
+    console.log(`getMeetingDataCached ${cityId}/${meetingId} done in ${ms}ms (${highlights.length} highlights)`);
+    return { ...core, highlights };
+  } catch (error) {
+    console.error(`getMeetingDataCached ${cityId}/${meetingId} ERROR:`, error);
+    return null;
+  }
+});
+
+/**
+ * Helper function to get a specific subject from cached meeting data
+ */
+export async function getSubjectFromMeetingCached(cityId: string, meetingId: string, subjectId: string) {
+  const meetingData = await getMeetingDataCached(cityId, meetingId);
+
+  if (!meetingData) {
+    return null;
+  }
+
+  const subject = meetingData.subjects.find(s => s.id === subjectId);
+  return subject || null;
 }
