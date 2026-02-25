@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useShare } from "@/contexts/ShareContext";
-import { useEditing } from "../EditingContext";import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 
 const UtteranceC: React.FC<{
@@ -36,7 +36,7 @@ const UtteranceC: React.FC<{
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
-    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
+    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, requestDeleteSelected, isProcessing } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -311,10 +311,19 @@ const UtteranceC: React.FC<{
 
     const handleDeleteUtterance = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        
+
+        const shouldDeleteSelection = isSelected && selectedUtteranceIds.size > 1;
+        if (shouldDeleteSelection) {
+            requestDeleteSelected();
+            return;
+        }
+
         // Delete immediately without confirmation since utterance is empty
         try {
             await deleteUtterance(localUtterance.id);
+            if (isSelected) {
+                clearSelection();
+            }
             toast({
                 description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }),
             });
@@ -325,6 +334,11 @@ const UtteranceC: React.FC<{
                 variant: 'destructive'
             });
         }
+    };
+
+    const handleDeleteFromContextMenu = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        requestDeleteSelected();
     };
 
     if (localUtterance.drift > options.maxUtteranceDrift) {
@@ -557,6 +571,19 @@ const UtteranceC: React.FC<{
                             {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
                             {t('contextMenu.extractSegment', { defaultValue: 'Extract Segment' })}
                             {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">e</span>}
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                            onClick={handleDeleteFromContextMenu}
+                            disabled={isProcessing || (!isSelected && selectedUtteranceIds.size > 0)}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {selectedUtteranceIds.size > 1
+                                ? t('contextMenu.deleteSelectedUtterances', {
+                                    count: selectedUtteranceIds.size,
+                                    defaultValue: `Delete selected (${selectedUtteranceIds.size})`
+                                })
+                                : t('contextMenu.deleteUtterance', { defaultValue: 'Delete utterance' })}
+                            {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">⌫</span>}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>

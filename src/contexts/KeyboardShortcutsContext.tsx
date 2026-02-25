@@ -30,6 +30,11 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
         description: 'Clear current selection',
         keys: ['Escape']
     },
+    DELETE_SELECTION: {
+        id: 'DELETE_SELECTION',
+        description: 'Delete selected utterances',
+        keys: ['Delete', 'Backspace']
+    },
     PLAY_PAUSE: {
         id: 'PLAY_PAUSE',
         description: 'Play/Pause video',
@@ -92,7 +97,8 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             // Ignore if input/textarea is focused (unless it's a special modifier command we want to allow globally)
-            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+            const target = event.target as HTMLElement;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) {
                 return;
             }
 
