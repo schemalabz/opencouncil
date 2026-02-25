@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { AlertTriangle, Save, ChevronLeft, MessageCircle, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { haversineDistance } from "@/lib/geo";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PermalinkButton from "./PermalinkButton";
 import MarkdownContent from "./MarkdownContent";
@@ -12,16 +13,6 @@ import { Geometry, RegulationData, ReferenceFormat, StaticGeometry, CurrentUser,
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Location } from "@/lib/types/onboarding";
 
-// Compute distance between two [lng, lat] coordinates in meters (Haversine)
-function haversineDistance(a: [number, number], b: [number, number]): number {
-    const R = 6371000;
-    const dLat = (b[1] - a[1]) * Math.PI / 180;
-    const dLng = (b[0] - a[0]) * Math.PI / 180;
-    const sinDLat = Math.sin(dLat / 2);
-    const sinDLng = Math.sin(dLng / 2);
-    const h = sinDLat * sinDLat + Math.cos(a[1] * Math.PI / 180) * Math.cos(b[1] * Math.PI / 180) * sinDLng * sinDLng;
-    return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
 
 interface DetailPanelProps {
     isOpen: boolean;

@@ -3,7 +3,7 @@ import { aiChat } from '@/lib/ai';
 import { getCities } from '@/lib/db/cities';
 import { getCity } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
-import { calculateGeometryBounds } from '@/lib/utils';
+import { calculateGeometryBounds } from '@/lib/geo';
 import { Location } from './types';
 
 // Define the system prompt for filter extraction
