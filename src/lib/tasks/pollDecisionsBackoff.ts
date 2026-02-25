@@ -47,3 +47,46 @@ export function shouldSkipPolling(
 
     return null;
 }
+
+/**
+ * Returns the current backoff tier label and next eligible poll time for a meeting.
+ * Pure function — reused by both getPollingHistoryForMeeting() and batch stats.
+ */
+export function getBackoffState(
+    firstPollAt: Date | null,
+    lastPollAt: Date | null,
+): { currentTierLabel: string | null; nextPollEligible: string | null } {
+    if (!firstPollAt || !lastPollAt) {
+        return { currentTierLabel: null, nextPollEligible: null };
+    }
+
+    const now = Date.now();
+    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysSinceFirstPoll >= MAX_POLLING_DAYS) {
+        return {
+            currentTierLabel: `Stopped (exceeded ${MAX_POLLING_DAYS}-day window)`,
+            nextPollEligible: null,
+        };
+    }
+
+    const tier = [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
+
+    let currentTierLabel: string;
+    if (!tier || tier.minIntervalDays === 0) {
+        currentTierLabel = 'Every cron run';
+    } else {
+        const weekNum = Math.floor(tier.afterDays / 7) + 1;
+        currentTierLabel = `Week ${weekNum}: every ${tier.minIntervalDays}d`;
+    }
+
+    let nextPollEligible: string | null = null;
+    if (tier && tier.minIntervalDays > 0) {
+        const nextEligible = new Date(lastPollAt.getTime() + tier.minIntervalDays * 24 * 60 * 60 * 1000);
+        if (nextEligible.getTime() > now) {
+            nextPollEligible = nextEligible.toISOString();
+        }
+    }
+
+    return { currentTierLabel, nextPollEligible };
+}
