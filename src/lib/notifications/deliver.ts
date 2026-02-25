@@ -1,10 +1,13 @@
 "use server";
 
-import { NotificationDelivery } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { env } from '@/env.mjs';
 import { sendEmail } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
 import { sendWhatsAppMessage, sendSMSMessage } from './bird';
-import { env } from '@/env.mjs';
+
+type PendingDelivery = Prisma.PromiseReturnType<typeof getPendingDeliveries>[number];
+type PendingNotificationSubject = PendingDelivery['notification']['subjects'][number];
 
 /**
  * Release notifications by sending all pending deliveries
@@ -77,7 +80,7 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
 /**
  * Send email delivery via Resend
  */
-async function sendEmailDelivery(delivery: any): Promise<boolean> {
+async function sendEmailDelivery(delivery: PendingDelivery): Promise<boolean> {
     try {
         if (!delivery.email || !delivery.title || !delivery.body) {
             console.error('Missing email, title, or body for delivery', delivery.id);
@@ -111,7 +114,7 @@ async function sendEmailDelivery(delivery: any): Promise<boolean> {
 /**
  * Send message delivery via Bird (WhatsApp with SMS fallback)
  */
-async function sendMessageDelivery(delivery: any): Promise<boolean> {
+async function sendMessageDelivery(delivery: PendingDelivery): Promise<boolean> {
     try {
         if (!delivery.phone) {
             console.error('Missing phone for delivery', delivery.id);
@@ -133,7 +136,10 @@ async function sendMessageDelivery(delivery: any): Promise<boolean> {
         const templateParams = {
             date: meeting.dateTime.toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' }),
             cityName: notification.city.name,
-            subjectsSummary: notification.subjects.slice(0, 3).map((ns: any) => ns.subject.name).join(', '),
+            subjectsSummary: notification.subjects
+                .slice(0, 3)
+                .map((notificationSubject: PendingNotificationSubject) => notificationSubject.subject.name)
+                .join(', '),
             adminBody: meeting.administrativeBody?.name || 'Συνεδρίαση',
             notificationId: notification.id
         };
@@ -172,4 +178,3 @@ async function sendMessageDelivery(delivery: any): Promise<boolean> {
         return false;
     }
 }
-

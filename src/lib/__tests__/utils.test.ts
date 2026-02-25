@@ -236,36 +236,43 @@ describe('subjectToMapFeature', () => {
 });
 
 describe('sortSubjectsByImportance', () => {
+  type TestSortableSubject = {
+    id: string;
+    name: string;
+    hot: boolean;
+    statistics?: { speakingSeconds: number };
+  };
+
   it('should prioritize hot subjects', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false },
       { id: '2', name: 'Subject 2', hot: true }
     ];
 
-    const sorted = sortSubjectsByImportance(subjects as any);
+    const sorted = sortSubjectsByImportance(subjects);
     expect(sorted[0].id).toBe('2');
     expect(sorted[1].id).toBe('1');
   });
 
   it('should sort by speaking time for subjects with same hot status', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false, statistics: { speakingSeconds: 100 } },
       { id: '2', name: 'Subject 2', hot: false, statistics: { speakingSeconds: 200 } }
     ];
 
-    const sorted = sortSubjectsByImportance(subjects as any);
+    const sorted = sortSubjectsByImportance(subjects);
     expect(sorted[0].id).toBe('2');
     expect(sorted[1].id).toBe('1');
   });
 
   it('should handle subjects without statistics', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false },
       { id: '2', name: 'Subject 2', hot: false, statistics: { speakingSeconds: 200 } }
     ];
 
     // Should not throw error
-    expect(() => sortSubjectsByImportance(subjects as any)).not.toThrow();
+    expect(() => sortSubjectsByImportance(subjects)).not.toThrow();
   });
 });
 

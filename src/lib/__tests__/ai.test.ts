@@ -1,9 +1,10 @@
-import { aiChat, ResultWithUsage } from '../ai';
-import Anthropic from '@anthropic-ai/sdk';
+import { aiChat, DEFAULT_AI_MODEL } from '../ai';
+
+var mockCreate: jest.Mock;
 
 // Mock the Anthropic SDK
 jest.mock('@anthropic-ai/sdk', () => {
-  const mockCreate = jest.fn();
+  mockCreate = jest.fn();
   return {
     __esModule: true,
     default: jest.fn().mockImplementation(() => ({
@@ -20,9 +21,6 @@ jest.mock('dotenv', () => ({
 }));
 
 describe('aiChat', () => {
-  // Use this for direct access to the mocked create function
-  const mockCreate = ((Anthropic as unknown as jest.Mock).mock.results[0]?.value.messages.create || jest.fn()) as jest.Mock;
-  
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -42,29 +40,29 @@ describe('aiChat', () => {
   it('should call Anthropic API with correct parameters', async () => {
     const systemPrompt = 'You are a helpful assistant';
     const userPrompt = 'Hello, world!';
-    
+
     await aiChat(systemPrompt, userPrompt);
-    
-    expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-3-5-sonnet-20241022",
+
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: DEFAULT_AI_MODEL,
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
         { role: 'user', content: userPrompt }
       ],
       temperature: 0
-    });
+    }));
   });
 
   it('should include prefillSystemResponse in messages if provided', async () => {
     const systemPrompt = 'You are a helpful assistant';
     const userPrompt = 'Hello, world!';
     const prefill = 'Previous response';
-    
+
     await aiChat(systemPrompt, userPrompt, prefill);
-    
-    expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-3-5-sonnet-20241022",
+
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: DEFAULT_AI_MODEL,
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
@@ -72,7 +70,17 @@ describe('aiChat', () => {
         { role: 'assistant', content: prefill }
       ],
       temperature: 0
-    });
+    }));
+  });
+
+  it('should allow overriding model via config', async () => {
+    const customModel = 'claude-sonnet-4-6-custom';
+
+    await aiChat('system', 'user', undefined, undefined, { model: customModel });
+
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: customModel
+    }));
   });
 
   it('should parse JSON response correctly', async () => {
@@ -87,9 +95,9 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
+
     const result = await aiChat<{ answer: string }>('system', 'user');
-    
+
     expect(result.result).toEqual(expectedResponse);
     expect(result.usage).toEqual({
       input_tokens: 100,
@@ -110,7 +118,7 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
+
     await expect(aiChat('system', 'user')).rejects.toThrow();
   });
 
@@ -125,8 +133,8 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
-    await expect(aiChat('system', 'user')).rejects.toThrow("Expected text response from claude");
+
+    await expect(aiChat('system', 'user')).rejects.toThrow("No text response found in Claude's response");
   });
 
   it('should throw error when there are no content items', async () => {
@@ -140,14 +148,14 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
-    await expect(aiChat('system', 'user')).rejects.toThrow("Expected 1 response from claude");
+
+    await expect(aiChat('system', 'user')).rejects.toThrow('No content received from Claude');
   });
 
   it('should prepend to response if prependToResponse is provided', async () => {
     const expectedResponse = { answer: 'combined response' };
     mockCreate.mockResolvedValue({
-      content: [{ type: 'text', text: '{"answer": "response"}' }],
+      content: [{ type: 'text', text: 'response"}' }],
       usage: {
         input_tokens: 100,
         output_tokens: 50,
@@ -156,21 +164,9 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
-    // Mock JSON.parse to handle our specific test case
-    const originalJSONParse = JSON.parse;
-    global.JSON.parse = jest.fn().mockImplementation((text) => {
-      if (text.includes('combined')) {
-        return expectedResponse;
-      }
-      return originalJSONParse(text);
-    });
-    
+
     const result = await aiChat<{ answer: string }>('system', 'user', undefined, '{"answer": "combined ');
-    
-    // Restore original JSON.parse
-    global.JSON.parse = originalJSONParse;
-    
+
     expect(result.result).toEqual(expectedResponse);
   });
 
@@ -178,10 +174,10 @@ describe('aiChat', () => {
     // Note: This test is challenging due to the recursive nature of the function
     // and would require more advanced mocking techniques or refactoring the function
     // to be more testable. For now, we're skipping this test.
-    
+
     const systemPrompt = 'You are a helpful assistant';
     const userPrompt = 'Long response';
-    
+
     // Just make sure the first call is made
     mockCreate.mockResolvedValueOnce({
       content: [{ type: 'text', text: '{"result": "test"}' }],
@@ -193,7 +189,7 @@ describe('aiChat', () => {
       },
       stop_reason: "end_turn"
     });
-    
+
     await aiChat(systemPrompt, userPrompt);
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
       system: systemPrompt,
@@ -204,7 +200,7 @@ describe('aiChat', () => {
   it('should rethrow API errors', async () => {
     const apiError = new Error('API error');
     mockCreate.mockRejectedValue(apiError);
-    
+
     await expect(aiChat('system', 'user')).rejects.toThrow('API error');
   });
 });
