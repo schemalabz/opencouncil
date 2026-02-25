@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
-import sanitizeHtml from 'sanitize-html';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
 // Dynamically import ReactQuill to avoid SSR issues
@@ -47,32 +47,6 @@ export default function CommentSection({
     const [upvoting, setUpvoting] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
 
-    // Sanitize HTML content to prevent XSS attacks
-    const getSafeHtmlContent = (html: string): string => {
-        return sanitizeHtml(html, {
-            allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li'],
-            allowedAttributes: {
-                'a': ['href', 'target', 'rel']
-            },
-            allowedSchemes: ['http', 'https', 'mailto'],
-            transformTags: {
-                // Ensure external links open in new tab with security attributes
-                'a': (tagName, attribs) => ({
-                    tagName: 'a',
-                    attribs: {
-                        ...attribs,
-                        target: '_blank',
-                        rel: 'noopener noreferrer'
-                    }
-                })
-            }
-        });
-    };
-
-    // Debug logging (can be removed in production)
-    // console.log('Session:', session);
-    // console.log('Comments:', comments);
-    // console.log('Current user ID:', session?.user?.id);
 
     const getEntityTypeLabel = (type: string) => {
         switch (type) {
