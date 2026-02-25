@@ -93,6 +93,48 @@ When `TASK_API_URL` is configured in `.env`, the dev runner will check if the ta
    ⚠ Task server not reachable (start it separately for E2E testing)
 ```
 
+### Preview Database (--preview-db=N)
+
+When testing against a preview deployment's database locally (e.g., running cron jobs or admin tools against a PR's data), use `--preview-db=N` where N is the **opencouncil** PR number:
+
+```bash
+nix run .#dev -- --preview-db=193
+```
+
+Can be combined with `--preview-tasks=M` to also connect to a tasks preview (where M is the **opencouncil-tasks** PR number):
+
+```bash
+nix run .#dev -- --preview-db=193 --preview-tasks=26
+```
+
+**Prerequisites:**
+- `OC_PREVIEW_SSH` must be set to the SSH target for the preview server:
+  ```bash
+  # In .env or exported
+  OC_PREVIEW_SSH=root@159.89.98.26
+  ```
+- Your SSH key must be in the server's `authorized_keys`
+
+**How it works:**
+
+The flag detects whether the PR has an isolated database (migration PRs with `.has-local-db` marker) or uses the shared staging database:
+
+- **Isolated DB**: Opens an SSH tunnel to the per-PR PostgreSQL instance on the server
+- **Shared staging DB**: Reads `DATABASE_URL` from the server's `.env` and uses it directly
+
+In both cases, the local postgres is skipped (`--db=external` mode is forced).
+
+**Startup output:**
+```
+🗄️  Connecting to preview database for PR #193...
+   ✓ SSH connection OK
+   ✓ Isolated database detected (port 5625)
+   ✓ SSH tunnel active: localhost:5625 → 127.0.0.1:5625
+   Database: postgresql://opencouncil@localhost:5625/opencouncil
+```
+
+The SSH tunnel is automatically cleaned up when the dev server exits.
+
 ### Mobile Preview (QR code for phone testing)
 
 The dev server binds to `0.0.0.0` by default, making it accessible from other devices on the same Wi-Fi. Click the **QR button** next to the DEV panel (bottom-right) to see a QR code encoding the LAN URL for the current page.
