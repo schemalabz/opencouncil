@@ -1,85 +1,423 @@
 openapi: 3.0.0
 info:
-  title: City Council API
+  title: OpenCouncil API
   version: 1.0.0
-  description: API for OpenCouncil
+  description: |
+    The OpenCouncil Open Data API provides access to municipal council data including meetings,
+    transcripts, political parties, council members, and more.
+
+    ## Access Levels
+
+    Endpoints are tagged with an access level indicating who can use them:
+
+    - **Public** — No authentication required. Available to everyone.
+    - **Authenticated** — Requires an active user session (sign in via the web UI).
+    - **Admin** — Requires a user account with admin rights for at least one city, party, or person.
+    - **Superadmin** — Requires a superadmin account with unrestricted system access.
+
+    The documentation you see is filtered based on your current session. Sign in to reveal
+    endpoints available to authenticated or admin users.
+
+    ## Authentication
+
+    OpenCouncil uses session-based authentication managed by Auth.js. There is no public
+    OAuth token endpoint. Authenticated API calls require a valid session cookie obtained
+    by signing in at the web UI.
+
+  contact:
+    url: https://github.com/schemalabz/opencouncil
+
+servers:
+  - url: /
+    description: Current server
+
+tags:
+  - name: Cities
+    description: Municipality data and configuration
+  - name: Administrative Bodies
+    description: Councils, committees, and community bodies within a city
+  - name: Meetings
+    description: Council meeting records and transcripts
+  - name: Parties
+    description: Political parties
+  - name: People
+    description: Council members and public officials
+  - name: Search
+    description: Full-text and semantic search across meeting transcripts
+  - name: Statistics
+    description: Aggregated statistics on speakers and topics
+  - name: Topics
+    description: Subject matter topic taxonomy
+  - name: Chat
+    description: AI-powered chat over council meeting data
+  - name: Subjects
+    description: Agenda items and discussion topics within meetings
+  - name: Highlights
+    description: Notable clips from meeting transcripts
+  - name: Notifications
+    description: User and system notification management
+  - name: Map
+    description: Geospatial data for map visualisations
+  - name: User
+    description: Current user profile and preferences
+  - name: Admin — Notifications
+    description: Admin controls for managing and dispatching notifications
+  - name: Admin — Users
+    description: Superadmin user management
+  - name: Admin — QR Campaigns
+    description: QR code redirect campaign management
+  - name: Admin — System
+    description: System administration and cache management
+  - name: Upload
+    description: File upload utilities (images, assets)
+
+security: []
 
 paths:
-  # Cities
+  # ─────────────────────────────────────────────
+  # Cities — Public reads
+  # ─────────────────────────────────────────────
   /api/cities:
     get:
-      summary: Get cities based on user permissions
-      description: Returns cities with full data including counts. Respects user authorization when includeUnlisted=true.
+      tags: [Cities]
+      summary: List cities
+      description: |
+        Returns cities with full data including counts. When `includeUnlisted=true` is passed the
+        response also includes cities the authenticated user can administer.
+      x-access-level: public
       parameters:
         - name: includeUnlisted
           in: query
-          description: When true, includes unlisted cities the user can administer
+          description: When true, includes unlisted cities the authenticated user administers.
           schema:
             type: boolean
             default: false
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/CityWithCounts'
-                description: Full city data with counts
         '400':
-          description: Invalid query parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ValidationError'
         '401':
-          description: Not authorized to view unlisted cities
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Cities]
+      summary: Create a city
+      description: Creates a new city. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [id, name, timezone]
+              properties:
+                id:
+                  type: string
+                  description: Unique city identifier (slug)
+                name:
+                  type: string
+                name_en:
+                  type: string
+                timezone:
+                  type: string
+                  example: Europe/Athens
+                logoImage:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: City created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/CityMinimal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
-          description: Failed to fetch cities
+          $ref: '#/components/responses/InternalError'
 
   /api/cities/all:
     get:
-      summary: Get all cities in minimal format
-      description: Returns all non-pending cities in minimal format. No authentication required. Ideal for dropdowns and selectors.
+      tags: [Cities]
+      summary: List cities (minimal)
+      description: Returns all non-pending cities in a minimal format. Suitable for dropdowns and selectors.
+      x-access-level: public
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/CityMinimal'
-                description: All cities in minimal format
         '500':
-          description: Failed to fetch cities
+          $ref: '#/components/responses/InternalError'
+
+  /api/cities/map:
+    get:
+      tags: [Cities, Map]
+      summary: List cities with geometry
+      description: Returns listed cities with PostGIS geometry for map display. Cached for 1 hour.
+      x-access-level: public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/CityMinimal'
+                    - type: object
+                      properties:
+                        geometry:
+                          type: object
+                          description: GeoJSON geometry
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/cities/{cityId}:
     get:
-      summary: Get a specific city
+      tags: [Cities]
+      summary: Get a city
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CityWithCounts'
         '404':
-          description: City not found
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Failed to fetch city
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Cities]
+      summary: Update a city
+      description: Updates city details. Requires admin rights for the city. Only superadmins may change `officialSupport` or `status`.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                timezone:
+                  type: string
+                status:
+                  type: string
+                  enum: [pending, unlisted, listed]
+                  description: Superadmin only
+                officialSupport:
+                  type: boolean
+                  description: Superadmin only
+                logoImage:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated city
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CityMinimal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Cities]
+      summary: Delete a city
+      description: Deletes a city and all its data. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: City deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
-  # Meetings
+  # ─────────────────────────────────────────────
+  # Administrative Bodies
+  # ─────────────────────────────────────────────
+  /api/cities/{cityId}/administrative-bodies:
+    get:
+      tags: [Administrative Bodies]
+      summary: List administrative bodies
+      description: Returns all councils, committees, and community bodies for a city.
+      x-access-level: public
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdministrativeBody'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Administrative Bodies]
+      summary: Create an administrative body
+      description: Creates a new administrative body within a city. Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type]
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                type:
+                  type: string
+                  enum: [council, committee, community]
+                websiteUrls:
+                  type: array
+                  items:
+                    type: string
+                agendaEmailAddresses:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministrativeBody'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/cities/{cityId}/administrative-bodies/{bodyId}:
+    put:
+      tags: [Administrative Bodies]
+      summary: Update an administrative body
+      description: Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/bodyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                notificationBehavior:
+                  type: string
+                  enum: [NOTIFICATIONS_DISABLED, NOTIFICATIONS_AUTO, NOTIFICATIONS_APPROVAL]
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdministrativeBody'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Administrative Bodies]
+      summary: Delete an administrative body
+      description: Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/bodyId'
+      responses:
+        '204':
+          description: Deleted — no content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Meetings — Public reads
+  # ─────────────────────────────────────────────
   /api/cities/{cityId}/meetings:
     get:
-      summary: Get meetings for a city
+      tags: [Meetings]
+      summary: List meetings
+      description: Returns released council meetings for a city, sorted newest-first.
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
         - name: limit
@@ -91,7 +429,7 @@ paths:
             maximum: 100
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
@@ -99,41 +437,233 @@ paths:
                 items:
                   $ref: '#/components/schemas/Meeting'
         '400':
-          description: Invalid query parameters
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Meetings]
+      summary: Create a meeting
+      description: Creates a new council meeting. Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, dateTime]
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                dateTime:
+                  type: string
+                  format: date-time
+                youtubeUrl:
+                  type: string
+                agendaUrl:
+                  type: string
+                administrativeBodyId:
+                  type: string
+      responses:
+        '200':
+          description: Created meeting
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+                $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
-          description: Failed to fetch meetings
+          $ref: '#/components/responses/InternalError'
 
   /api/cities/{cityId}/meetings/{meetingId}:
     get:
-      summary: Get transcript for a specific meeting
+      tags: [Meetings]
+      summary: Get meeting transcript
+      description: Returns the full meeting record including speaker segments, subjects, and utterances.
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
         - $ref: '#/components/parameters/meetingId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Transcript'
         '404':
-          description: Transcript not found
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Failed to fetch transcript
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Meetings]
+      summary: Update a meeting
+      description: Updates meeting details. Requires admin rights.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/meetingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                dateTime:
+                  type: string
+                  format: date-time
+                youtubeUrl:
+                  type: string
+                agendaUrl:
+                  type: string
+                released:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated meeting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
+  /api/cities/{cityId}/meetings/{meetingId}/status:
+    get:
+      tags: [Meetings]
+      summary: Get meeting processing status
+      description: Returns the completion status of transcription and summarisation tasks for a meeting.
+      x-access-level: public
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/meetingId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcribed:
+                    type: boolean
+                  summarized:
+                    type: boolean
+                  released:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/cities/{cityId}/meetings/{meetingId}/notifications:
+    post:
+      tags: [Meetings, Admin — Notifications]
+      summary: Generate meeting notifications
+      description: |
+        Generates notifications for a meeting and optionally dispatches them immediately.
+        Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/meetingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [beforeMeeting, afterMeeting]
+                sendImmediately:
+                  type: boolean
+                  default: false
+                  description: When true, notifications are dispatched immediately instead of queued for approval.
+      responses:
+        '200':
+          description: Notifications generated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/cities/{cityId}/meetings/{meetingId}/notifications/preview:
+    post:
+      tags: [Meetings, Admin — Notifications]
+      summary: Preview a meeting notification
+      description: Returns the notification content for review before sending. Requires admin rights.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/meetingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [beforeMeeting, afterMeeting]
+      responses:
+        '200':
+          description: Preview content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
   # Parties
+  # ─────────────────────────────────────────────
   /api/cities/{cityId}/parties:
     get:
-      summary: Get parties for a city
+      tags: [Parties]
+      summary: List parties
+      description: Returns all political parties for a city.
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
@@ -141,35 +671,152 @@ paths:
                 items:
                   $ref: '#/components/schemas/Party'
         '500':
-          description: Failed to fetch parties
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Parties]
+      summary: Create a party
+      description: Creates a new political party within a city. Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                name_short:
+                  type: string
+                name_short_en:
+                  type: string
+                colorHex:
+                  type: string
+                  example: '#3B82F6'
+                logo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Created party
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/cities/{cityId}/parties/{partyId}:
     get:
-      summary: Get a specific party
+      tags: [Parties]
+      summary: Get a party
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
         - $ref: '#/components/parameters/partyId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Party'
         '404':
-          description: Party not found
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Failed to fetch party
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Parties]
+      summary: Update a party
+      description: Requires admin rights for the party or city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/partyId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                name_short:
+                  type: string
+                name_short_en:
+                  type: string
+                colorHex:
+                  type: string
+                logo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated party
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Parties]
+      summary: Delete a party
+      description: Requires admin rights for the party or city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/partyId'
+      responses:
+        '200':
+          description: Party deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
+  # ─────────────────────────────────────────────
   # People
+  # ─────────────────────────────────────────────
   /api/cities/{cityId}/people:
     get:
-      summary: Get people for a city
+      tags: [People]
+      summary: List council members
+      description: Returns all people (council members, officials) for a city.
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
@@ -177,31 +824,154 @@ paths:
                 items:
                   $ref: '#/components/schemas/Person'
         '500':
-          description: Failed to fetch people
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [People]
+      summary: Create a person
+      description: Creates a new council member. Requires admin rights for the city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                name_short:
+                  type: string
+                name_short_en:
+                  type: string
+                profileUrl:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                roles:
+                  type: string
+                  description: JSON-encoded array of role objects
+      responses:
+        '200':
+          description: Created person
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /api/cities/{cityId}/people/{personId}:
     get:
-      summary: Get a specific person
+      tags: [People]
+      summary: Get a person
+      x-access-level: public
       parameters:
         - $ref: '#/components/parameters/cityId'
         - $ref: '#/components/parameters/personId'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Person'
         '404':
-          description: Person not found
+          $ref: '#/components/responses/NotFound'
         '500':
-          description: Failed to fetch person
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [People]
+      summary: Update a person
+      description: Requires admin rights for the person or city.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/personId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                name_en:
+                  type: string
+                name_short:
+                  type: string
+                name_short_en:
+                  type: string
+                profileUrl:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+                roles:
+                  type: string
+                  description: JSON-encoded array of role objects
+      responses:
+        '200':
+          description: Updated person
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [People]
+      summary: Delete a person
+      description: Requires admin rights.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - $ref: '#/components/parameters/cityId'
+        - $ref: '#/components/parameters/personId'
+      responses:
+        '200':
+          description: Person deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
+  # ─────────────────────────────────────────────
   # Search
+  # ─────────────────────────────────────────────
   /api/search:
     post:
+      tags: [Search]
       summary: Search subjects
-      description: Search for subjects using a hybrid search approach that combines traditional text search with semantic search
+      description: |
+        Hybrid search combining full-text and semantic search across meeting subjects and transcripts.
+        Supports filtering by city, person, party, topic, date range, and geographic location.
+      x-access-level: public
       requestBody:
         required: true
         content:
@@ -210,25 +980,1187 @@ paths:
               $ref: '#/components/schemas/SearchRequest'
       responses:
         '200':
-          description: Successful response
+          description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchResponse'
         '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/ValidationError'
         '500':
-          description: Internal server error
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Topics
+  # ─────────────────────────────────────────────
+  /api/topics:
+    get:
+      tags: [Topics]
+      summary: List topics
+      description: Returns all discussion topic categories. Cached for 24 hours.
+      x-access-level: public
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Topic'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Statistics
+  # ─────────────────────────────────────────────
+  /api/statistics:
+    get:
+      tags: [Statistics]
+      summary: Get statistics
+      description: |
+        Returns aggregated statistics grouped by topic, person, and party.
+        At least one of the filter parameters should be provided.
+      x-access-level: public
+      parameters:
+        - name: cityId
+          in: query
+          schema:
+            type: string
+          description: Filter by city
+        - name: personId
+          in: query
+          schema:
+            type: string
+          description: Filter by person
+        - name: partyId
+          in: query
+          schema:
+            type: string
+          description: Filter by party
+        - name: meetingId
+          in: query
+          schema:
+            type: string
+          description: Filter by meeting
+        - name: subjectId
+          in: query
+          schema:
+            type: string
+          description: Filter by subject
+        - name: administrativeBodyId
+          in: query
+          schema:
+            type: string
+          description: Filter by administrative body
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statistics'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Chat (AI)
+  # ─────────────────────────────────────────────
+  /api/chat:
+    post:
+      tags: [Chat]
+      summary: AI chat over council data
+      description: |
+        Streams an AI-generated response to questions about council meeting data.
+        Returns a Server-Sent Events stream.
+      x-access-level: public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ChatMessage'
+                cityId:
+                  type: string
+                  description: Optionally scope the chat to a specific city.
+      responses:
+        '200':
+          description: Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Subjects
+  # ─────────────────────────────────────────────
+  /api/subject/voting-utterances:
+    post:
+      tags: [Subjects]
+      summary: Get voting discussion utterances
+      description: Returns utterances that are flagged as part of a voting discussion for a given subject.
+      x-access-level: public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subjectId]
+              properties:
+                subjectId:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Utterance'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/subject/{subjectId}/first-utterance/{speakerId}:
+    get:
+      tags: [Subjects]
+      summary: Get speaker time range for a subject
+      description: Returns the start and end timestamps of the first time a speaker discusses a subject.
+      x-access-level: public
+      parameters:
+        - name: subjectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: speakerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  startTimestamp:
+                    type: number
+                  endTimestamp:
+                    type: number
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/utterance/{utteranceId}:
+    get:
+      tags: [Subjects]
+      summary: Resolve utterance location
+      description: Redirects to the meeting transcript page at the correct timestamp for the given utterance.
+      x-access-level: public
+      parameters:
+        - name: utteranceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to transcript with timestamp
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────
+  # Highlights
+  # ─────────────────────────────────────────────
+  /api/highlights:
+    post:
+      tags: [Highlights]
+      summary: Create a highlight
+      description: Creates a highlight clip from a set of utterances. Requires authentication.
+        Depending on the city's `highlightCreationPermission` setting, creation may be further
+        restricted to city administrators. The name is auto-generated if not provided.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [meetingId, cityId, utteranceIds]
+              properties:
+                meetingId:
+                  type: string
+                cityId:
+                  type: string
+                utteranceIds:
+                  type: array
+                  items:
+                    type: string
+                name:
+                  type: string
+                  nullable: true
+                subjectId:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/highlights/{id}:
+    get:
+      tags: [Highlights]
+      summary: Get a highlight
+      description: Returns a highlight clip. Requires authentication; unauthenticated requests
+        receive a 404. City admins see all highlights; regular users see only their own.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Highlights]
+      summary: Update a highlight
+      description: Fully replaces a highlight's name and utterance list. Requires authentication.
+        Only the highlight's creator or a city administrator may update it.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, meetingId, cityId, utteranceIds]
+              properties:
+                name:
+                  type: string
+                meetingId:
+                  type: string
+                cityId:
+                  type: string
+                utteranceIds:
+                  type: array
+                  items:
+                    type: string
+                subjectId:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated highlight
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Highlights]
+      summary: Delete a highlight
+      description: Requires authentication. Only the highlight's creator or a city administrator may delete it.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Highlights]
+      summary: Toggle highlight showcase flag
+      description: Flips the `showcase` boolean on a highlight. Requires city administrator privileges.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Updated highlight
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Highlight'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Notifications (public view)
+  # ─────────────────────────────────────────────
+  /api/notifications/{id}:
+    get:
+      tags: [Notifications]
+      summary: Get a notification
+      description: Returns the content of a notification by its ID.
+      x-access-level: public
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationRecord'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Map data
+  # ─────────────────────────────────────────────
+  /api/map/subjects:
+    get:
+      tags: [Map]
+      summary: Get subjects with geometry for map
+      description: Returns subjects that have geographic locations attached, for display on a map.
+      x-access-level: public
+      parameters:
+        - name: monthsBack
+          in: query
+          schema:
+            type: integer
+            default: 6
+          description: Number of months to look back for subjects.
+        - name: topicIds
+          in: query
+          schema:
+            type: string
+          description: Comma-separated list of topic IDs to filter by.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MapSubject'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # oEmbed
+  # ─────────────────────────────────────────────
+  /api/oembed:
+    get:
+      tags: [Meetings]
+      summary: Get oEmbed preview
+      description: Proxies oEmbed preview data for a YouTube URL associated with a meeting.
+      x-access-level: public
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+          description: YouTube URL to fetch the oEmbed preview for.
+      responses:
+        '200':
+          description: oEmbed preview data
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # User — Authenticated
+  # ─────────────────────────────────────────────
+  /api/profile:
+    post:
+      tags: [User]
+      summary: Update user profile
+      description: Updates the authenticated user's display name, phone number, and onboarding status.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+                onboarded:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated profile
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/user/notifications:
+    get:
+      tags: [User, Notifications]
+      summary: List user notifications
+      description: Returns notifications for the authenticated user within a city.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: cityId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationRecord'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/user/notification-preferences:
+    get:
+      tags: [User, Notifications]
+      summary: List notification preferences
+      description: Returns the authenticated user's notification subscription preferences.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationPreference'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/user/notification-preferences/{id}:
+    delete:
+      tags: [User, Notifications]
+      summary: Delete a notification preference
+      description: Removes a notification subscription for the authenticated user.
+      x-access-level: user
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Admin — Notifications
+  # ─────────────────────────────────────────────
+  /api/admin/notifications:
+    get:
+      tags: [Admin — Notifications]
+      summary: List notifications (admin)
+      description: Returns all notifications with rich filtering. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: cityId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, sent, failed]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationRecord'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Admin — Notifications]
+      summary: Bulk delete notifications
+      description: Deletes all notifications for the specified meetings. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [meetingKeys]
+              properties:
+                meetingKeys:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      meetingId:
+                        type: string
+                      cityId:
+                        type: string
+                type:
+                  type: string
+                  enum: [beforeMeeting, afterMeeting]
+                  description: If omitted, deletes all notification types for the meetings.
+      responses:
+        '200':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/admin/notifications/release:
+    post:
+      tags: [Admin — Notifications]
+      summary: Send pending notifications
+      description: Dispatches a list of pending notifications. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notificationIds]
+              properties:
+                notificationIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Notifications sent
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/admin/notifications/{id}:
+    delete:
+      tags: [Admin — Notifications]
+      summary: Delete a notification
+      description: Deletes a single notification. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Admin — Users
+  # ─────────────────────────────────────────────
+  /api/admin/users:
+    get:
+      tags: [Admin — Users]
+      summary: List users
+      description: Returns all system users. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Admin — Users]
+      summary: Create an admin user
+      description: Creates a user and sends them an invitation email. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                isSuperAdmin:
+                  type: boolean
+                  default: false
+                administers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      cityId:
+                        type: string
+                      partyId:
+                        type: string
+                      personId:
+                        type: string
+      responses:
+        '200':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Admin — Users]
+      summary: Update an admin user
+      description: Updates user permissions. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                isSuperAdmin:
+                  type: boolean
+                administers:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/admin/users/{userId}:
+    delete:
+      tags: [Admin — Users]
+      summary: Delete a user
+      description: Deletes a user. You cannot delete your own account. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '400':
+          description: Cannot delete yourself
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/admin/users/{userId}/resend-invite:
+    post:
+      tags: [Admin — Users]
+      summary: Resend invitation email
+      description: Sends a new sign-in link to the specified user. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email sent
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Admin — QR Campaigns
+  # ─────────────────────────────────────────────
+  /api/admin/qr:
+    get:
+      tags: [Admin — QR Campaigns]
+      summary: List QR campaigns
+      description: Returns all QR redirect campaigns. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QrCampaign'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Admin — QR Campaigns]
+      summary: Create a QR campaign
+      description: Creates a new QR code redirect campaign. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, url]
+              properties:
+                code:
+                  type: string
+                  description: Short code used in the QR URL (/qr/{code})
+                url:
+                  type: string
+                  description: Destination URL
+                name:
+                  type: string
+                isActive:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Created QR campaign
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrCampaign'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/admin/qr/{id}:
+    put:
+      tags: [Admin — QR Campaigns]
+      summary: Update a QR campaign
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                name:
+                  type: string
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QrCampaign'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Admin — QR Campaigns]
+      summary: Delete a QR campaign
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Admin — System
+  # ─────────────────────────────────────────────
+  /api/admin/elasticsearch/status:
+    get:
+      tags: [Admin — System]
+      summary: Check Elasticsearch sync status
+      description: Compares PostgreSQL and Elasticsearch data to identify sync discrepancies. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      responses:
+        '200':
+          description: Sync status report
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/revalidate:
+    post:
+      tags: [Admin — System]
+      summary: Revalidate Next.js cache
+      description: Manually triggers cache revalidation for specified tags or paths. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  items:
+                    type: string
+                paths:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      path:
+                        type: string
+                      type:
+                        type: string
+                        enum: [page, layout]
+      responses:
+        '200':
+          description: Cache revalidated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────────────────────────────
+  # Upload
+  # ─────────────────────────────────────────────
+  /api/upload/presigned-url:
+    post:
+      tags: [Upload]
+      summary: Get a pre-signed upload URL
+      description: Returns a temporary pre-signed URL for uploading a file directly to DigitalOcean Spaces. Requires authentication.
+      x-access-level: admin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, contentType]
+              properties:
+                filename:
+                  type: string
+                contentType:
+                  type: string
+                  example: image/jpeg
+                config:
+                  type: object
+                  properties:
+                    cityId:
+                      type: string
+                    identifier:
+                      type: string
+                    suffix:
+                      type: string
+      responses:
+        '200':
+          description: Pre-signed URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: Pre-signed PUT URL
+                  key:
+                    type: string
+                    description: Object key in the storage bucket
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/upload/set-acl:
+    post:
+      tags: [Upload]
+      summary: Make an uploaded file public
+      description: Sets the ACL of an uploaded S3 object to public-read. Requires superadmin privileges.
+      x-access-level: superadmin
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key:
+                  type: string
+                  description: Object key in the storage bucket
+      responses:
+        '200':
+          description: ACL updated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
 components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: authjs.session-token
+      description: |
+        Auth.js session cookie. Obtained by signing in via the web UI.
+        There is no machine-to-machine token endpoint; only session-based auth is supported.
+
   parameters:
     cityId:
       name: cityId
@@ -236,29 +2168,73 @@ components:
       required: true
       schema:
         type: string
+      description: City identifier (slug), e.g. `athens`
     meetingId:
       name: meetingId
       in: path
       required: true
       schema:
         type: string
+      description: Council meeting identifier
     partyId:
       name: partyId
       in: path
       required: true
       schema:
         type: string
+      description: Party identifier
     personId:
       name: personId
       in: path
       required: true
       schema:
         type: string
+      description: Person identifier
+    bodyId:
+      name: bodyId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Administrative body identifier
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+    # ─── City schemas ─────────────────────────
     CityMinimal:
       type: object
-      description: Base city data with minimal fields
+      description: City in minimal format, suitable for listings and dropdowns.
       properties:
         id:
           type: string
@@ -288,7 +2264,6 @@ components:
       allOf:
         - $ref: '#/components/schemas/CityMinimal'
         - type: object
-          description: Full city data from the database
           properties:
             timezone:
               type: string
@@ -306,22 +2281,19 @@ components:
       allOf:
         - $ref: '#/components/schemas/City'
         - type: object
-          description: City data with count information
           properties:
             _count:
               type: object
-              description: Aggregated counts for this city
               properties:
                 persons:
                   type: integer
-                  description: Number of people in this city
                 parties:
                   type: integer
-                  description: Number of parties in this city
                 councilMeetings:
                   type: integer
-                  description: Number of released meetings in this city
+                  description: Number of released meetings
 
+    # ─── Meeting schemas ──────────────────────
     Meeting:
       type: object
       properties:
@@ -331,11 +2303,13 @@ components:
           type: string
         name_en:
           type: string
+          nullable: true
         dateTime:
           type: string
           format: date-time
         youtubeUrl:
           type: string
+          nullable: true
         videoUrl:
           type: string
           nullable: true
@@ -365,6 +2339,7 @@ components:
 
     Transcript:
       type: array
+      description: Ordered list of speaker segments comprising the meeting transcript.
       items:
         $ref: '#/components/schemas/SpeakerSegment'
 
@@ -375,6 +2350,7 @@ components:
           type: string
         startTimestamp:
           type: number
+          description: Seconds from the start of the meeting recording.
         endTimestamp:
           type: number
         meeting:
@@ -384,22 +2360,13 @@ components:
           nullable: true
         text:
           type: string
+          description: Full text of the speaker segment.
         summary:
           type: object
           nullable: true
           properties:
             text:
               type: string
-
-    SpeakerTag:
-      type: object
-      properties:
-        id:
-          type: string
-        label:
-          type: string
-        person:
-          $ref: '#/components/schemas/Person'
 
     Utterance:
       type: object
@@ -432,285 +2399,6 @@ components:
           type: number
         confidence:
           type: number
-
-    TopicLabel:
-      type: object
-      properties:
-        id:
-          type: string
-        topic:
-          $ref: '#/components/schemas/Topic'
-
-    Topic:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        name_en:
-          type: string
-        colorHex:
-          type: string
-
-    Summary:
-      type: object
-      properties:
-        id:
-          type: string
-        text:
-          type: string
-
-    Party:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        name_en:
-          type: string
-        name_short:
-          type: string
-        name_short_en:
-          type: string
-        colorHex:
-          type: string
-        logo:
-          type: string
-          nullable: true
-        cityId:
-          type: string
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    Person:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        name_en:
-          type: string
-        name_short:
-          type: string
-        name_short_en:
-          type: string
-        image:
-          type: string
-          nullable: true
-        role:
-          type: string
-          nullable: true
-        role_en:
-          type: string
-          nullable: true
-        activeFrom:
-          type: string
-          format: date-time
-          nullable: true
-        activeTo:
-          type: string
-          format: date-time
-          nullable: true
-        cityId:
-          type: string
-        partyId:
-          type: string
-          nullable: true
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    SearchRequest:
-      type: object
-      required:
-        - query
-      properties:
-        query:
-          type: string
-          description: The search query
-          example: "ηλεκτρικά πατίνια"
-        cityIds:
-          type: array
-          items:
-            type: string
-          description: Array of city IDs to filter by
-          example: ["athens", "chania"]
-        personIds:
-          type: array
-          items:
-            type: string
-          description: Array of person IDs to filter by
-        partyIds:
-          type: array
-          items:
-            type: string
-          description: Array of party IDs to filter by
-        topicIds:
-          type: array
-          items:
-            type: string
-          description: Array of topic IDs to filter by
-        dateRange:
-          type: object
-          description: Date range for filtering results
-          properties:
-            start:
-              type: string
-              format: date-time
-              description: Start date (ISO 8601)
-              example: "2024-01-01T00:00:00Z"
-            end:
-              type: string
-              format: date-time
-              description: End date (ISO 8601)
-              example: "2024-12-31T23:59:59Z"
-        location:
-          type: object
-          description: Geographic location filter
-          properties:
-            point:
-              type: object
-              description: Center point coordinates
-              properties:
-                lat:
-                  type: number
-                  description: Latitude
-                lon:
-                  type: number
-                  description: Longitude
-            radius:
-              type: number
-              description: Search radius in kilometers
-              default: 5
-        page:
-          type: integer
-          description: Page number
-          default: 1
-          minimum: 1
-        pageSize:
-          type: integer
-          description: Results per page
-          default: 10
-          minimum: 1
-          maximum: 100
-        detailed:
-          type: boolean
-          description: Whether to return detailed results with speaker segment text
-          default: false
-
-    SearchResultLight:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        councilMeeting:
-          allOf:
-            - $ref: '#/components/schemas/Meeting'
-            - type: object
-              properties:
-                city:
-                  $ref: '#/components/schemas/City'
-        topic:
-          $ref: '#/components/schemas/Topic'
-          nullable: true
-        introducedBy:
-          $ref: '#/components/schemas/Person'
-          nullable: true
-        location:
-          type: object
-          properties:
-            id:
-              type: string
-            type:
-              type: string
-              enum: [point, lineString, polygon]
-            text:
-              type: string
-            coordinates:
-              type: object
-              properties:
-                x:
-                  type: number
-                y:
-                  type: number
-          nullable: true
-        score:
-          type: number
-        matchedSpeakerSegmentIds:
-          type: array
-          items:
-            type: string
-          description: Array of speaker segment IDs that matched the search query
-          nullable: true
-        highlights:
-          type: array
-          items:
-            $ref: '#/components/schemas/Highlight'
-
-    SearchResultDetailed:
-      allOf:
-        - $ref: '#/components/schemas/SearchResultLight'
-        - type: object
-          properties:
-            speakerSegments:
-              type: array
-              items:
-                $ref: '#/components/schemas/SpeakerSegment'
-
-    SearchResponse:
-      type: object
-      properties:
-        results:
-          oneOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/SearchResultLight'
-            - type: array
-              items:
-                $ref: '#/components/schemas/SearchResultDetailed'
-        pagination:
-          type: object
-          properties:
-            total:
-              type: integer
-              description: Total number of results
-            page:
-              type: integer
-              description: Current page number
-            pageSize:
-              type: integer
-              description: Number of results per page
-            totalPages:
-              type: integer
-              description: Total number of pages
-
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              enum: [INVALID_REQUEST, SEARCH_ERROR, RATE_LIMIT_EXCEEDED, INTERNAL_ERROR]
-            message:
-              type: string
-            details:
-              type: object
 
     Subject:
       type: object
@@ -753,9 +2441,44 @@ components:
           type: string
         name_en:
           type: string
+          nullable: true
         type:
           type: string
           enum: [council, committee, community]
+        cityId:
+          type: string
+        notificationBehavior:
+          type: string
+          enum: [NOTIFICATIONS_DISABLED, NOTIFICATIONS_AUTO, NOTIFICATIONS_APPROVAL]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Party schemas ────────────────────────
+    Party:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+          nullable: true
+        name_short:
+          type: string
+          nullable: true
+        name_short_en:
+          type: string
+          nullable: true
+        colorHex:
+          type: string
+        logo:
+          type: string
+          nullable: true
         cityId:
           type: string
         createdAt:
@@ -764,6 +2487,442 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    # ─── Person schemas ───────────────────────
+    Person:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+          nullable: true
+        name_short:
+          type: string
+          nullable: true
+        name_short_en:
+          type: string
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        role_en:
+          type: string
+          nullable: true
+        activeFrom:
+          type: string
+          format: date-time
+          nullable: true
+        activeTo:
+          type: string
+          format: date-time
+          nullable: true
+        cityId:
+          type: string
+        partyId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ─── Topic schemas ────────────────────────
+    Topic:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        name_en:
+          type: string
+          nullable: true
+        colorHex:
+          type: string
+
+    TopicLabel:
+      type: object
+      properties:
+        id:
+          type: string
+        topic:
+          $ref: '#/components/schemas/Topic'
+
+    # ─── Search schemas ───────────────────────
+    SearchRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: The search query (natural language or keywords).
+          example: ηλεκτρικά πατίνια
+        cityIds:
+          type: array
+          items:
+            type: string
+          description: Filter results to these city IDs.
+          example: [athens, chania]
+        personIds:
+          type: array
+          items:
+            type: string
+          description: Filter results to speeches by these people.
+        partyIds:
+          type: array
+          items:
+            type: string
+          description: Filter results to speeches by members of these parties.
+        topicIds:
+          type: array
+          items:
+            type: string
+          description: Filter results to subjects tagged with these topics.
+        dateRange:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+              example: '2024-01-01T00:00:00Z'
+            end:
+              type: string
+              format: date-time
+              example: '2024-12-31T23:59:59Z'
+        location:
+          type: object
+          properties:
+            point:
+              type: object
+              properties:
+                lat:
+                  type: number
+                lon:
+                  type: number
+            radius:
+              type: number
+              description: Search radius in kilometres.
+              default: 5
+        page:
+          type: integer
+          default: 1
+          minimum: 1
+        pageSize:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 100
+        detailed:
+          type: boolean
+          description: When true, include matching speaker segment text in results.
+          default: false
+
+    SearchResultLight:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        councilMeeting:
+          allOf:
+            - $ref: '#/components/schemas/Meeting'
+            - type: object
+              properties:
+                city:
+                  $ref: '#/components/schemas/City'
+        topic:
+          $ref: '#/components/schemas/Topic'
+          nullable: true
+        introducedBy:
+          $ref: '#/components/schemas/Person'
+          nullable: true
+        location:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            type:
+              type: string
+              enum: [point, lineString, polygon]
+            text:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                x:
+                  type: number
+                y:
+                  type: number
+        score:
+          type: number
+        matchedSpeakerSegmentIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+        highlights:
+          type: array
+          items:
+            $ref: '#/components/schemas/Highlight'
+
+    SearchResultDetailed:
+      allOf:
+        - $ref: '#/components/schemas/SearchResultLight'
+        - type: object
+          properties:
+            speakerSegments:
+              type: array
+              items:
+                $ref: '#/components/schemas/SpeakerSegment'
+
+    SearchResponse:
+      type: object
+      properties:
+        results:
+          oneOf:
+            - type: array
+              items:
+                $ref: '#/components/schemas/SearchResultLight'
+            - type: array
+              items:
+                $ref: '#/components/schemas/SearchResultDetailed'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            totalPages:
+              type: integer
+
+    # ─── Statistics schemas ───────────────────
+    Statistics:
+      type: object
+      properties:
+        byTopic:
+          type: array
+          items:
+            type: object
+            properties:
+              topic:
+                $ref: '#/components/schemas/Topic'
+              count:
+                type: integer
+        byPerson:
+          type: array
+          items:
+            type: object
+            properties:
+              person:
+                $ref: '#/components/schemas/Person'
+              speakingSeconds:
+                type: number
+        byParty:
+          type: array
+          items:
+            type: object
+            properties:
+              party:
+                $ref: '#/components/schemas/Party'
+              speakingSeconds:
+                type: number
+
+    # ─── Chat schemas ─────────────────────────
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+
+    # ─── Highlight schemas ────────────────────
+    Highlight:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          nullable: true
+        meetingId:
+          type: string
+        cityId:
+          type: string
+        showcase:
+          type: boolean
+        utteranceIds:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Notification schemas ─────────────────
+    NotificationRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [beforeMeeting, afterMeeting]
+        status:
+          type: string
+          enum: [pending, sent, failed]
+        channel:
+          type: string
+          enum: [email, whatsapp, sms]
+        cityId:
+          type: string
+        meetingId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    NotificationPreference:
+      type: object
+      properties:
+        id:
+          type: string
+        cityId:
+          type: string
+        topicIds:
+          type: array
+          items:
+            type: string
+        personIds:
+          type: array
+          items:
+            type: string
+        partyIds:
+          type: array
+          items:
+            type: string
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [email, whatsapp, sms]
+
+    # ─── Map schemas ──────────────────────────
+    MapSubject:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        topic:
+          $ref: '#/components/schemas/Topic'
+          nullable: true
+        location:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+              enum: [point, lineString, polygon]
+            coordinates:
+              type: object
+        meeting:
+          type: object
+          properties:
+            id:
+              type: string
+            dateTime:
+              type: string
+              format: date-time
+            city:
+              $ref: '#/components/schemas/CityMinimal'
+
+    # ─── Admin schemas ────────────────────────
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+          nullable: true
+        isSuperAdmin:
+          type: boolean
+        administers:
+          type: array
+          items:
+            type: object
+            properties:
+              cityId:
+                type: string
+                nullable: true
+              partyId:
+                type: string
+                nullable: true
+              personId:
+                type: string
+                nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    QrCampaign:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        url:
+          type: string
+        name:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # ─── Error schemas ────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [INVALID_REQUEST, SEARCH_ERROR, RATE_LIMIT_EXCEEDED, INTERNAL_ERROR, NOT_FOUND, UNAUTHORIZED, FORBIDDEN]
+            message:
+              type: string
+            details:
+              type: object
 
     ValidationErrorResponse:
       type: object
@@ -783,3 +2942,22 @@ components:
                   oneOf:
                     - type: string
                     - type: number
+
+    # ─── Legacy / kept for compatibility ─────
+    SpeakerTag:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        person:
+          $ref: '#/components/schemas/Person'
+
+    Summary:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
