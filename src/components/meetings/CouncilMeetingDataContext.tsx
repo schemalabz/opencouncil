@@ -8,6 +8,7 @@ import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
+import { applyUtteranceDeletions } from '@/lib/transcript/utterance-deletion';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 
 export interface CouncilMeetingDataContext extends MeetingData {
@@ -26,6 +27,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     addUtteranceToSegment: (segmentId: string) => Promise<string>;
     deleteUtterance: (utteranceId: string) => Promise<void>;
+    deleteUtterances: (utteranceIds: string[]) => Promise<void>;
     updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => void;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
@@ -58,6 +60,24 @@ export function CouncilMeetingDataProvider({ children, data }: {
             startTimestamp: Math.min(...allTimestamps),
             endTimestamp: Math.max(...allTimestamps)
         };
+    }, []);
+
+    const applyDeletedUtterancesLocally = useCallback((deletedUtterances: Array<{ segmentId: string; utteranceId: string }>) => {
+        if (deletedUtterances.length === 0) {
+            return;
+        }
+
+        const deletionsBySegment = new Map<string, Set<string>>();
+        deletedUtterances.forEach(({ segmentId, utteranceId }) => {
+            const segmentDeletions = deletionsBySegment.get(segmentId);
+            if (segmentDeletions) {
+                segmentDeletions.add(utteranceId);
+                return;
+            }
+            deletionsBySegment.set(segmentId, new Set([utteranceId]));
+        });
+
+        setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
     }, []);
 
     // Create a map of speaker tag IDs to their segment counts
@@ -300,28 +320,33 @@ export function CouncilMeetingDataProvider({ children, data }: {
         },
         deleteUtterance: async (utteranceId: string) => {
             console.log(`Deleting utterance ${utteranceId}`);
-            const { segmentId, remainingUtterances } = await deleteUtterance(utteranceId);
-            
-            // Update the segment to remove the utterance
-            setTranscript(prev => prev.map(segment => {
-                if (segment.id === segmentId) {
-                    const updatedUtterances = segment.utterances.filter(u => u.id !== utteranceId);
-                    
-                    // If no utterances remain, keep the segment but with empty utterances array
-                    if (remainingUtterances === 0) {
-                        return { ...segment, utterances: [] };
-                    }
-                    
-                    // Otherwise, recalculate timestamps based on remaining utterances
-                    const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
-                    return {
-                        ...segment,
-                        utterances: updatedUtterances,
-                        ...newTimestamps
-                    };
+            const { segmentId } = await deleteUtterance(utteranceId);
+            applyDeletedUtterancesLocally([{ segmentId, utteranceId }]);
+        },
+        deleteUtterances: async (utteranceIds: string[]) => {
+            const uniqueUtteranceIds = Array.from(new Set(utteranceIds));
+            if (uniqueUtteranceIds.length === 0) {
+                return;
+            }
+
+            const deletedUtterances: Array<{ segmentId: string; utteranceId: string }> = [];
+            let deletionError: unknown = null;
+
+            for (const utteranceId of uniqueUtteranceIds) {
+                try {
+                    const { segmentId } = await deleteUtterance(utteranceId);
+                    deletedUtterances.push({ segmentId, utteranceId });
+                } catch (error) {
+                    deletionError = error;
+                    break;
                 }
-                return segment;
-            }));
+            }
+
+            applyDeletedUtterancesLocally(deletedUtterances);
+
+            if (deletionError) {
+                throw deletionError;
+            }
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
             setTranscript(prev => prev.map(segment => {
@@ -350,7 +375,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return segment;
             }));
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps, applyDeletedUtterancesLocally]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>
