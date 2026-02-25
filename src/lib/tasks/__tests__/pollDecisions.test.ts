@@ -1,4 +1,4 @@
-import { shouldSkipPolling, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from '../pollDecisionsBackoff';
+import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from '../pollDecisionsBackoff';
 
 // Helper: create a Date that is `daysAgo` days before now
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -113,6 +113,85 @@ describe('shouldSkipPolling', () => {
 
         it('first tier starts at day 0', () => {
             expect(BACKOFF_SCHEDULE[0].afterDays).toBe(0);
+        });
+    });
+});
+
+describe('getBackoffState', () => {
+    describe('no history', () => {
+        it('returns nulls when both dates are null', () => {
+            expect(getBackoffState(null, null)).toEqual({
+                currentTierLabel: null,
+                nextPollEligible: null,
+            });
+        });
+
+        it('returns nulls when firstPollAt is null', () => {
+            expect(getBackoffState(null, daysAgo(1))).toEqual({
+                currentTierLabel: null,
+                nextPollEligible: null,
+            });
+        });
+
+        it('returns nulls when lastPollAt is null', () => {
+            expect(getBackoffState(daysAgo(1), null)).toEqual({
+                currentTierLabel: null,
+                nextPollEligible: null,
+            });
+        });
+    });
+
+    describe('week 1 (days 0-7): every cron run', () => {
+        it('returns "Every cron run" with no next poll restriction', () => {
+            const result = getBackoffState(daysAgo(3), daysAgo(0));
+            expect(result.currentTierLabel).toBe('Every cron run');
+            expect(result.nextPollEligible).toBeNull();
+        });
+    });
+
+    describe('week 2 (days 7-14)', () => {
+        it('returns week 2 tier label', () => {
+            const result = getBackoffState(daysAgo(8), daysAgo(0));
+            expect(result.currentTierLabel).toBe('Week 2: every 2d');
+        });
+
+        it('returns future next poll eligible when recently polled', () => {
+            const result = getBackoffState(daysAgo(8), daysAgo(0));
+            expect(result.nextPollEligible).not.toBeNull();
+            expect(new Date(result.nextPollEligible!).getTime()).toBeGreaterThan(Date.now());
+        });
+
+        it('returns null next poll eligible when interval has passed', () => {
+            const result = getBackoffState(daysAgo(8), daysAgo(3));
+            expect(result.nextPollEligible).toBeNull();
+        });
+    });
+
+    describe('week 3 (days 14-21)', () => {
+        it('returns week 3 tier label', () => {
+            const result = getBackoffState(daysAgo(15), daysAgo(0));
+            expect(result.currentTierLabel).toBe('Week 3: every 3d');
+        });
+    });
+
+    describe('week 4+ (days 21+)', () => {
+        it('returns week 4 tier label', () => {
+            const result = getBackoffState(daysAgo(25), daysAgo(0));
+            expect(result.currentTierLabel).toBe('Week 4: every 7d');
+        });
+    });
+
+    describe('max polling days exceeded', () => {
+        it(`returns stopped label after ${MAX_POLLING_DAYS} days`, () => {
+            const result = getBackoffState(daysAgo(MAX_POLLING_DAYS + 1), daysAgo(8));
+            expect(result.currentTierLabel).toContain('Stopped');
+            expect(result.currentTierLabel).toContain(`${MAX_POLLING_DAYS}`);
+            expect(result.nextPollEligible).toBeNull();
+        });
+
+        it(`returns active tier just before ${MAX_POLLING_DAYS} days`, () => {
+            const result = getBackoffState(daysAgo(MAX_POLLING_DAYS - 1), daysAgo(8));
+            expect(result.currentTierLabel).not.toContain('Stopped');
         });
     });
 });
