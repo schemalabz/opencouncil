@@ -5,15 +5,20 @@ type MeetingMediaTypeInput = Partial<Pick<CouncilMeeting, "videoUrl" | "audioUrl
     subjects?: Subject[];
 };
 
+function isMp3Url(url: string): boolean {
+    const normalizedUrl = url.split('#')[0].split('?')[0].toLowerCase();
+    return normalizedUrl.endsWith('.mp3');
+}
+
 /**
  * Get media type information for a meeting
  * Returns the type of media available with label and icon component
  */
 export function getMeetingMediaType(meeting: MeetingMediaTypeInput): { label: string; icon: LucideIcon } {
     // Video state - if there's a video and mux playback id
-    if (meeting.videoUrl && meeting.muxPlaybackId && !meeting.videoUrl.endsWith('mp3')) {
+    if (meeting.videoUrl && meeting.muxPlaybackId && !isMp3Url(meeting.videoUrl)) {
         return {
-            label: "Bίντεο",
+            label: "Βίντεο",
             icon: VideoIcon
         };
     }

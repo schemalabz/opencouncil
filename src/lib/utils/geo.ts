@@ -9,7 +9,7 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
         id: subject.id,
         geometry: {
             type: 'Point',
-            coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
+            coordinates: [subject.location.coordinates.x, subject.location.coordinates.y]
         },
         properties: {
             subjectId: subject.id,
@@ -36,7 +36,7 @@ export type GeometryBounds = {
  */
 export interface MinimalGeometry {
     type: string;
-    coordinates?: any;
+    coordinates?: number[] | number[][] | number[][][] | number[][][][];
     geometries?: MinimalGeometry[];
 }
 
@@ -51,7 +51,7 @@ export function calculateGeometryBounds(geometry: MinimalGeometry | null | undef
     };
 
     if (!geometry) {
-        console.log('[Location] No geometry available, using default coordinates');
+        console.warn('[Location] No geometry available, using default coordinates');
         return DEFAULT_RETURN;
     }
 
@@ -68,6 +68,7 @@ export function calculateGeometryBounds(geometry: MinimalGeometry | null | undef
         const processCoordinates = (coords: number[][]) => {
             coords.forEach(point => {
                 const [lng, lat] = point;
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
                 minLng = Math.min(minLng, lng);
                 maxLng = Math.max(maxLng, lng);
                 minLat = Math.min(minLat, lat);
@@ -76,15 +77,26 @@ export function calculateGeometryBounds(geometry: MinimalGeometry | null | undef
         };
 
         if (geometry.type === 'Polygon') {
-            processCoordinates(geometry.coordinates[0]);
+            const outerRing = (geometry.coordinates as number[][][] | undefined)?.[0];
+            if (outerRing) {
+                processCoordinates(outerRing);
+            }
         } else if (geometry.type === 'MultiPolygon') {
-            geometry.coordinates.forEach((polygon: number[][][]) => {
-                processCoordinates(polygon[0]);
+            (geometry.coordinates as number[][][][] | undefined)?.forEach((polygon) => {
+                const outerRing = polygon?.[0];
+                if (outerRing) {
+                    processCoordinates(outerRing);
+                }
             });
         } else if (geometry.type === 'Point') {
-            const [lng, lat] = geometry.coordinates;
+            const [lng, lat] = geometry.coordinates as number[];
             minLng = maxLng = lng;
             minLat = maxLat = lat;
+        }
+
+        if (![minLng, maxLng, minLat, maxLat].every(Number.isFinite)) {
+            console.warn('[Location] Geometry contained no processable coordinates, using default');
+            return DEFAULT_RETURN;
         }
 
         const bounds = {

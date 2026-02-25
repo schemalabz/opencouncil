@@ -229,7 +229,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     >
                         <div className="h-[300px] w-full">
                             <Map
-                                center={location.coordinates ? [location.coordinates.y, location.coordinates.x] : undefined}
+                                center={location.coordinates ? [location.coordinates.x, location.coordinates.y] : undefined}
                                 zoom={15}
                                 features={mapFeatures}
                                 animateRotation={false}

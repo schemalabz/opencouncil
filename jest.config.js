@@ -4,7 +4,7 @@ module.exports = {
   maxWorkers: '50%',
   workerIdleMemoryLimit: '512MB',
   moduleNameMapper: {
-    '^@/env.mjs$': '<rootDir>/tests/mocks/env.ts',
+    '^@/env\\.mjs$': '<rootDir>/tests/mocks/env.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],

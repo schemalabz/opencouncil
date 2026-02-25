@@ -2,11 +2,16 @@
 import { default as greekKlitiki } from "greek-name-klitiki";
 
 export function klitiki(name: string): string {
-    if (name.includes(" ")) {
-        return name.split(" ").map(greekKlitiki).join(" ");
+    if (!name) return '';
+
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    if (trimmed.includes(" ")) {
+        return trimmed.split(/\s+/).map(greekKlitiki).join(" ");
     }
 
-    return greekKlitiki(name);
+    return greekKlitiki(trimmed);
 }
 
 export function normalizeText(text: string): string {
@@ -18,6 +23,7 @@ export function normalizeText(text: string): string {
     // Remove diacritics (τόνοι)
     return text.normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // Remove combining diacritical marks
+        // Fallback replacements for precomposed Greek characters.
         .replace(/ά/g, 'α')
         .replace(/έ/g, 'ε')
         .replace(/ή/g, 'η')
