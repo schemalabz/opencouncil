@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { getConsultationsForAdmin, createConsultation } from '@/lib/db/consultations';
 
 export async function GET() {
     await withUserAuthorizedToEdit({});
-    const items = await prisma.consultation.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-            city: {
-                select: { id: true, name: true }
-            },
-            _count: {
-                select: { comments: true }
-            }
-        }
-    });
+    const items = await getConsultationsForAdmin();
     return NextResponse.json(items);
 }
 
@@ -36,37 +26,12 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // Validate the city exists and has consultations enabled
-    const city = await prisma.city.findUnique({
-        where: { id: cityId },
-        select: { id: true, consultationsEnabled: true }
-    });
-
-    if (!city) {
-        return NextResponse.json({ error: 'City not found' }, { status: 404 });
+    try {
+        const created = await createConsultation({ name, jsonUrl, endDate, isActive, cityId });
+        return NextResponse.json(created, { status: 201 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to create consultation';
+        const status = message.includes('not found') ? 404 : 400;
+        return NextResponse.json({ error: message }, { status });
     }
-
-    if (!city.consultationsEnabled) {
-        return NextResponse.json(
-            { error: 'Consultations are not enabled for this city. Enable them first in city settings.' },
-            { status: 400 }
-        );
-    }
-
-    const created = await prisma.consultation.create({
-        data: {
-            name,
-            jsonUrl,
-            endDate: new Date(endDate),
-            isActive: isActive ?? true,
-            cityId
-        },
-        include: {
-            city: {
-                select: { id: true, name: true }
-            }
-        }
-    });
-
-    return NextResponse.json(created, { status: 201 });
 }
