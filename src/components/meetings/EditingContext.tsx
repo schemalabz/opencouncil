@@ -177,8 +177,8 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error(error);
             toast({
-                title: t('error', { defaultValue: 'Error' }),
-                description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }),
+                title: "Error",
+                description: t('deletionError', { defaultValue: 'Failed to delete selected utterances' }),
                 variant: 'destructive'
             });
         } finally {

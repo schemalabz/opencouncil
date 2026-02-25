@@ -3,7 +3,7 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useCall
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance } from '@/lib/db/utterance';
+import { deleteUtterance as deleteUtteranceInDb } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -320,8 +320,14 @@ export function CouncilMeetingDataProvider({ children, data }: {
         },
         deleteUtterance: async (utteranceId: string) => {
             console.log(`Deleting utterance ${utteranceId}`);
-            const { segmentId } = await deleteUtterance(utteranceId);
-            applyDeletedUtterancesLocally([{ segmentId, utteranceId }]);
+            const localSegmentId = transcript.find(segment =>
+                segment.utterances.some(utterance => utterance.id === utteranceId)
+            )?.id;
+            const { segmentId } = await deleteUtteranceInDb(utteranceId);
+            const effectiveSegmentId = segmentId ?? localSegmentId;
+            if (effectiveSegmentId) {
+                applyDeletedUtterancesLocally([{ segmentId: effectiveSegmentId, utteranceId }]);
+            }
         },
         deleteUtterances: async (utteranceIds: string[]) => {
             const uniqueUtteranceIds = Array.from(new Set(utteranceIds));
@@ -329,13 +335,23 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return;
             }
 
+            const localSegmentByUtteranceId = new Map<string, string>();
+            transcript.forEach(segment => {
+                segment.utterances.forEach(utterance => {
+                    localSegmentByUtteranceId.set(utterance.id, segment.id);
+                });
+            });
+
             const deletedUtterances: Array<{ segmentId: string; utteranceId: string }> = [];
             let deletionError: unknown = null;
 
             for (const utteranceId of uniqueUtteranceIds) {
                 try {
-                    const { segmentId } = await deleteUtterance(utteranceId);
-                    deletedUtterances.push({ segmentId, utteranceId });
+                    const { segmentId } = await deleteUtteranceInDb(utteranceId);
+                    const effectiveSegmentId = segmentId ?? localSegmentByUtteranceId.get(utteranceId);
+                    if (effectiveSegmentId) {
+                        deletedUtterances.push({ segmentId: effectiveSegmentId, utteranceId });
+                    }
                 } catch (error) {
                     deletionError = error;
                     break;

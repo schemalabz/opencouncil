@@ -1,8 +1,8 @@
 import { getTranscriptControlsDesktopLeftOffset } from "@/components/meetings/transcript-controls-layout";
 
 describe("getTranscriptControlsDesktopLeftOffset", () => {
-  it("uses compact offset on mobile", () => {
-    expect(getTranscriptControlsDesktopLeftOffset(true, "expanded")).toBe("0.5rem");
+  it("returns undefined on mobile", () => {
+    expect(getTranscriptControlsDesktopLeftOffset(true, "expanded")).toBe(undefined);
   });
 
   it("uses full sidebar width when sidebar is expanded", () => {
