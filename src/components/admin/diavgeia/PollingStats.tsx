@@ -9,13 +9,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink } from 'lucide-react';
+import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { useUrlParams } from '@/hooks/useUrlParams';
 
 interface BackoffTier {
   afterDays: number;
@@ -74,6 +82,7 @@ interface PollingStatsData {
   };
   discoveries: DiscoveryDetail[];
   recentPolls: RecentPoll[];
+  pollCities: string[];
 }
 
 type SortField = 'discoveredAt' | 'meetingDate' | 'discoveryDelayDays' | 'publishDelayDays' | 'totalPollsForMeeting';
@@ -193,10 +202,11 @@ function CollapsibleSection({
   );
 }
 
-export function PollingStats({ stats }: { stats: PollingStatsData }) {
+export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meetingFilter }: { stats: PollingStatsData; pollCities: string[]; cityFilter?: string; pollMeetings: string[]; meetingFilter?: string }) {
   const [sortField, setSortField] = useState<SortField>('discoveredAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedPoll, setSelectedPoll] = useState<RecentPoll | null>(null);
+  const { updateParam, updateParams, isPending } = useUrlParams();
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -274,9 +284,49 @@ export function PollingStats({ stats }: { stats: PollingStatsData }) {
       {/* Recent Polls */}
       <CollapsibleSection
         title="Recent Polls"
-        badge={`${stats.recentPolls.length} polls`}
+        badge={cityFilter ? `${stats.recentPolls.length} polls (${cityFilter}${meetingFilter ? ` / ${meetingFilter}` : ''})` : `${stats.recentPolls.length} polls`}
         defaultOpen
       >
+        {pollCities.length > 1 && (
+          <div className="flex items-center gap-3 px-4 py-3 border-b">
+            <Select
+              value={cityFilter ?? 'all'}
+              onValueChange={(value) => updateParams({
+                cityId: value === 'all' ? null : value,
+                councilMeetingId: null,
+              })}
+              disabled={isPending}
+            >
+              <SelectTrigger className="w-48" disabled={isPending}>
+                <SelectValue placeholder="All cities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All cities</SelectItem>
+                {pollCities.map(city => (
+                  <SelectItem key={city} value={city}>{city}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {cityFilter && pollMeetings.length > 0 && (
+              <Select
+                value={meetingFilter ?? 'all'}
+                onValueChange={(value) => updateParam('councilMeetingId', value === 'all' ? null : value)}
+                disabled={isPending}
+              >
+                <SelectTrigger className="w-64" disabled={isPending}>
+                  <SelectValue placeholder="All meetings" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All meetings</SelectItem>
+                  {pollMeetings.map(id => (
+                    <SelectItem key={id} value={id}>{id}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
+        )}
         {stats.recentPolls.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             No poll tasks recorded yet.

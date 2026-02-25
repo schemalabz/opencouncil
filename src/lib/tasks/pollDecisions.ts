@@ -207,7 +207,7 @@ export async function pollDecisionsForRecentMeetings() {
  * when did we find it, and how many poll attempts it took.
  * Use this to fine-tune the BACKOFF_SCHEDULE.
  */
-export async function getPollingStats() {
+export async function getPollingStats(cityId?: string, councilMeetingId?: string) {
     // Decisions discovered by polling (have a taskId)
     const discoveries = await prisma.decision.findMany({
         where: { taskId: { not: null } },
@@ -330,9 +330,35 @@ export async function getPollingStats() {
         },
     });
 
+    // Distinct cities that have poll tasks (for the filter dropdown)
+    const pollCityRows = await prisma.taskStatus.findMany({
+        where: { type: 'pollDecisions' },
+        distinct: ['cityId'],
+        select: { cityId: true },
+        orderBy: { cityId: 'asc' },
+    });
+    const pollCities = pollCityRows.map(r => r.cityId);
+
+    // Distinct meeting IDs for the selected city (for the meeting filter dropdown)
+    const pollMeetingRows = cityId
+        ? await prisma.taskStatus.findMany({
+            where: { type: 'pollDecisions', cityId },
+            distinct: ['councilMeetingId'],
+            select: { councilMeetingId: true },
+            orderBy: { createdAt: 'desc' },
+        })
+        : [];
+    const pollMeetings = pollMeetingRows
+        .map(r => r.councilMeetingId)
+        .filter((id): id is string => id !== null);
+
     // Recent poll tasks for the "Recent Polls" table
     const recentPollTasks = await prisma.taskStatus.findMany({
-        where: { type: 'pollDecisions' },
+        where: {
+            type: 'pollDecisions',
+            ...(cityId && { cityId }),
+            ...(councilMeetingId && { councilMeetingId }),
+        },
         orderBy: { createdAt: 'desc' },
         take: 50,
         select: {
@@ -407,6 +433,8 @@ export async function getPollingStats() {
         },
         discoveries: discoveryDetails,
         recentPolls,
+        pollCities,
+        pollMeetings,
     };
 }
 
