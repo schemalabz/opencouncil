@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Location } from '@/lib/types/onboarding';
 import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestionsResult } from '@/lib/google-maps';
 import { useDebounce } from '@/hooks/use-debounce';
-import { cn, calculateGeometryBounds } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { calculateGeometryBounds } from '@/lib/geo';
 import { CityWithGeometry } from '@/lib/db/cities';
 
 interface LocationSelectorProps {
