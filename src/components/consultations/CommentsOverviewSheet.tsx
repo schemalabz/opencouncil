@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import sanitizeHtml from 'sanitize-html';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { Heart, MessageSquare, ChevronDown, Clock, TrendingUp, ChevronUp } from 
 import { formatDistanceToNow } from "date-fns";
 import { el } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { RegulationData } from "./types";
@@ -41,28 +41,6 @@ export default function CommentsOverviewSheet({
     const [upvoting, setUpvoting] = useState<string | null>(null);
     const [localComments, setLocalComments] = useState(comments);
     const [expandedComments, setExpandedComments] = useState(new Set<string>());
-
-    // Sanitize HTML content to prevent XSS attacks
-    const getSafeHtmlContent = (html: string): string => {
-        return sanitizeHtml(html, {
-            allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'a', 'ul', 'ol', 'li'],
-            allowedAttributes: {
-                'a': ['href', 'target', 'rel']
-            },
-            allowedSchemes: ['http', 'https', 'mailto'],
-            transformTags: {
-                // Ensure external links open in new tab with security attributes
-                'a': (tagName, attribs) => ({
-                    tagName: 'a',
-                    attribs: {
-                        ...attribs,
-                        target: '_blank',
-                        rel: 'noopener noreferrer'
-                    }
-                })
-            }
-        });
-    };
 
     // Update local comments when props change
     useEffect(() => {
