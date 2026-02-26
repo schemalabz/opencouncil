@@ -61,7 +61,7 @@ export default function Transcript() {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
     
-    // Center index is driven by currentTime (playback) - NOT scroll position
+    // Center index driven by currentTime with debounce to avoid stuttering
     const centerIndex = useMemo(() => {
         if (!isFishEyeMode || displayedSegments.length === 0) return -1;
         
