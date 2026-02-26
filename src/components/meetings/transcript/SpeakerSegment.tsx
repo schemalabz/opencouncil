@@ -174,7 +174,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
     isFirstSegment?: boolean,
     displayMode?: SegmentDisplayMode
 }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, reassignSegmentSpeaker, deleteEmptySegment } = useCouncilMeetingData();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime, seekTo } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
@@ -197,14 +197,16 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
     };
     
     // Handle expand in fish-eye mode - expands without seeking video
-    const handleExpandClick = () => {
+    const handleExpandClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
         setIsExpanded(!isExpanded);
     };
     
-    // Handle utterance click in fish-eye mode - only this triggers seek
-    const handleUtteranceClick = () => {
-        if (displayMode !== 'full' && !isExpanded) {
-            setIsExpanded(true);
+    // Handle keyboard accessibility for expand
+    const handleExpandKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsExpanded(!isExpanded);
         }
     };
 
@@ -255,13 +257,13 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
 
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
-            reassignSegmentSpeaker(segment.id, personId, memoizedData.speakerTag.label || undefined);
+            updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
         }
     };
 
     const handleLabelChange = (label: string) => {
         if (memoizedData.speakerTag) {
-            reassignSegmentSpeaker(segment.id, memoizedData.speakerTag.personId, label);
+            updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
         }
     };
 
@@ -286,6 +288,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
                 <div 
                     className='my-1 flex flex-row items-center gap-3 w-full px-2 py-1.5 rounded hover:bg-accent/10 cursor-pointer transition-colors'
                     onClick={handleExpandClick}
+                    onKeyDown={handleExpandKeyDown}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    aria-label="Expand segment"
                 >
                     <PersonBadge
                         person={memoizedData.person}
@@ -311,6 +318,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
                     className='my-1 flex flex-col items-start w-full px-2 py-2 rounded hover:bg-accent/10 cursor-pointer transition-colors border-l-2'
                     style={{ borderLeftColor: memoizedData.borderColor }}
                     onClick={handleExpandClick}
+                    onKeyDown={handleExpandKeyDown}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isExpanded}
+                    aria-label="Expand segment"
                 >
                     <div className='flex flex-row items-center gap-2 w-full mb-1'>
                         <PersonBadge

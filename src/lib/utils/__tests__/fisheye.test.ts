@@ -25,8 +25,6 @@ describe('fisheye utils', () => {
     });
 
     describe('getSegmentDisplayMode', () => {
-        const mockSegment = { startTimestamp: 60 } as any;
-
         it('returns full mode when not in fish-eye mode', () => {
             expect(getSegmentDisplayMode(0, 5, false)).toBe('full');
             expect(getSegmentDisplayMode(10, 5, false)).toBe('full');
