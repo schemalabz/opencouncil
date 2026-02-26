@@ -8,14 +8,14 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy, Bot } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
-import { useMediaQuery } from '@/hooks/use-media-query';
+import { SegmentDisplayMode, getSummaryText } from '@/lib/utils/fisheye';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -168,36 +168,44 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
+const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displayMode = 'full' }: {
     segment: TranscriptType[number],
     renderMock: boolean,
-    isFirstSegment?: boolean
+    isFirstSegment?: boolean,
+    displayMode?: SegmentDisplayMode
 }) => {
-    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
-    const { currentTime } = useVideo();
+    const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, reassignSegmentSpeaker, deleteEmptySegment } = useCouncilMeetingData();
+    const { currentTime, seekTo } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
-
-    // Detect mobile viewport for initial collapsed state (SSR-safe)
-    const isMobile = useMediaQuery('(max-width: 767px)');
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    
+    // Fish-eye mode: track expanded state for summary/stripe segments
+    const [isExpanded, setIsExpanded] = useState(false);
+    
+    // Default collapsed state (use CSS for responsiveness, not JS)
+    const [isCollapsed, setIsCollapsed] = useState(true);
     const [userHasInteracted, setUserHasInteracted] = useState(false);
-
-    // Set initial collapsed state based on viewport, but respect user interactions
-    useEffect(() => {
-        if (!userHasInteracted) {
-            setIsCollapsed(isMobile);
-        }
-    }, [isMobile, userHasInteracted]);
 
     // Wrapper to track user interactions
     const handleCollapseToggle = (newState: boolean) => {
         setUserHasInteracted(true);
         setIsCollapsed(newState);
+    };
+    
+    // Handle expand in fish-eye mode - expands without seeking video
+    const handleExpandClick = () => {
+        setIsExpanded(!isExpanded);
+    };
+    
+    // Handle utterance click in fish-eye mode - only this triggers seek
+    const handleUtteranceClick = () => {
+        if (displayMode !== 'full' && !isExpanded) {
+            setIsExpanded(true);
+        }
     };
 
     // Calculate the next unknown speaker label
@@ -240,16 +248,20 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const isEmpty = utterances.length === 0;
 
     const summary = segment.summary;
+    const summaryText = getSummaryText(segment);
+    
+    // Determine effective display mode (considering expanded state)
+    const effectiveMode = (displayMode === 'stripe' || displayMode === 'summary') && isExpanded ? 'full' : displayMode;
 
     const handlePersonChange = (personId: string | null) => {
         if (memoizedData.speakerTag) {
-            updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
+            reassignSegmentSpeaker(segment.id, personId, memoizedData.speakerTag.label || undefined);
         }
     };
 
     const handleLabelChange = (label: string) => {
         if (memoizedData.speakerTag) {
-            updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
+            reassignSegmentSpeaker(segment.id, memoizedData.speakerTag.personId, label);
         }
     };
 
@@ -269,6 +281,57 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                 <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
             )}
             
+            {/* Fish-eye stripe mode: minimal compact row */}
+            {effectiveMode === 'stripe' && !renderMock && (
+                <div 
+                    className='my-1 flex flex-row items-center gap-3 w-full px-2 py-1.5 rounded hover:bg-accent/10 cursor-pointer transition-colors'
+                    onClick={handleExpandClick}
+                >
+                    <PersonBadge
+                        person={memoizedData.person}
+                        speakerTag={memoizedData.speakerTag}
+                        variant="inline"
+                        className="w-6 h-6 shrink-0"
+                    />
+                    <div className='flex-grow min-w-0'>
+                        <div className='text-xs truncate text-muted-foreground'>
+                            <Bot className="inline h-3 w-3 mr-1" />
+                            {summaryText}
+                        </div>
+                    </div>
+                    <span className='text-[10px] text-muted-foreground shrink-0'>
+                        {formatTimestamp(segment.startTimestamp)}
+                    </span>
+                </div>
+            )}
+            
+            {/* Fish-eye summary mode: compact with text + timestamp */}
+            {effectiveMode === 'summary' && !renderMock && (
+                <div 
+                    className='my-1 flex flex-col items-start w-full px-2 py-2 rounded hover:bg-accent/10 cursor-pointer transition-colors border-l-2'
+                    style={{ borderLeftColor: memoizedData.borderColor }}
+                    onClick={handleExpandClick}
+                >
+                    <div className='flex flex-row items-center gap-2 w-full mb-1'>
+                        <PersonBadge
+                            person={memoizedData.person}
+                            speakerTag={memoizedData.speakerTag}
+                            variant="inline"
+                            className="text-sm"
+                        />
+                        <span className='text-[10px] text-muted-foreground'>
+                            {formatTimestamp(segment.startTimestamp)}
+                        </span>
+                    </div>
+                    <div className='text-xs text-foreground'>
+                        <Bot className="inline h-3 w-3 mr-1" />
+                        {summaryText}
+                    </div>
+                </div>
+            )}
+            
+            {/* Full mode or expanded from summary/stripe */}
+            {(effectiveMode === 'full' || isExpanded) && (
             <div className='my-2 sm:my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: memoizedData.borderColor }}>
                 <div className='w-full'>
                     <div 
@@ -471,6 +534,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                     </div>
                 </div>
             </div>
+            )} {/* End of full/expanded mode */}
             {options.editable && (
                 renderMock ? (
                     <div className="w-full h-2" />

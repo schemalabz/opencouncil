@@ -6,9 +6,13 @@ import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
+import { getSegmentDisplayMode, SegmentDisplayMode } from '@/lib/utils/fisheye';
+import { useTranslations } from 'next-intl';
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -34,6 +38,47 @@ export default function Transcript() {
     const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const t = useTranslations('transcript.viewMode');
+    
+    // Fish-eye mode state from URL
+    const isFishEyeMode = searchParams.get('mode') === 'fisheye';
+    
+    // Toggle fish-eye mode without page reload
+    const toggleFishEyeMode = useCallback(() => {
+        const newMode = isFishEyeMode ? 'default' : 'fisheye';
+        const params = new URLSearchParams(searchParams.toString());
+        if (newMode === 'fisheye') {
+            params.set('mode', 'fisheye');
+        } else {
+            params.delete('mode');
+        }
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }, [isFishEyeMode, searchParams, router]);
+    
+    // Join segments if not in edit mode
+    const displayedSegments = useMemo(() => {
+        return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
+    }, [speakerSegments, options.editable]);
+    
+    // Center index is driven by currentTime (playback) - NOT scroll position
+    const centerIndex = useMemo(() => {
+        if (!isFishEyeMode || displayedSegments.length === 0) return -1;
+        
+        // Find the segment closest to current playback time
+        let closestIndex = 0;
+        let smallestDiff = Infinity;
+        
+        displayedSegments.forEach((segment, index) => {
+            const diff = Math.abs(segment.startTimestamp - currentTime);
+            if (diff < smallestDiff) {
+                smallestDiff = diff;
+                closestIndex = index;
+            }
+        });
+        
+        return closestIndex;
+    }, [currentTime, displayedSegments, isFishEyeMode]);
     
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview;
@@ -42,11 +87,6 @@ export default function Transcript() {
     const isScrolled = useMemo(() => {
         return visibleSegments.size > 0 && !visibleSegments.has(0);
     }, [visibleSegments]);
-
-    // Join segments if not in edit mode
-    const displayedSegments = useMemo(() => {
-        return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
-    }, [speakerSegments, options.editable]);
 
     // Helper to calculate time interval from segment indices
     const calculateTimeInterval = useCallback((segmentIndices: number[] | Set<number>): [number, number] | null => {
@@ -175,6 +215,21 @@ export default function Transcript() {
 
     return (
         <div className="container px-2 sm:px-4 md:px-6" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+            {/* Fish-eye mode toggle */}
+            <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 py-2 border-b mb-2">
+                <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{t('label')}</span>
+                    <Button
+                        variant={isFishEyeMode ? "default" : "outline"}
+                        size="sm"
+                        onClick={toggleFishEyeMode}
+                        className="gap-2"
+                    >
+                        {isFishEyeMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        {isFishEyeMode ? t('fisheye') : t('default')}
+                    </Button>
+                </div>
+            </div>
             {isUnverified && (
                 <UnverifiedTranscriptBanner 
                     isScrolled={isScrolled}
@@ -187,6 +242,9 @@ export default function Transcript() {
                     visibleSegments.has(index - 1) ||
                     visibleSegments.has(index + 1);
 
+                // Calculate display mode for fish-eye
+                const displayMode: SegmentDisplayMode = getSegmentDisplayMode(index, centerIndex, isFishEyeMode);
+
                 return (
                     <div
                         key={index}
@@ -196,6 +254,7 @@ export default function Transcript() {
                             segment={segment}
                             renderMock={!shouldRender}
                             isFirstSegment={index === 0}
+                            displayMode={displayMode}
                         />
                     </div>
                 );
