@@ -192,8 +192,8 @@ export function OnboardingProvider({
                     setError('genericError');
                 }
             } else {
-                // Move to completion stage
-                setStage(OnboardingStage.NOTIFICATION_COMPLETE);
+                // Move to welcome brief stage
+                setStage(OnboardingStage.NOTIFICATION_WELCOME_BRIEF);
             }
         } catch (error: any) {
             console.error('Error saving notification preferences:', error);
