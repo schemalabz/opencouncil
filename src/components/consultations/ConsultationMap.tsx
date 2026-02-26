@@ -450,23 +450,10 @@ export default function ConsultationMap({
         if (feature.properties?.id) {
             const geometryId = feature.properties.id;
 
-            // Check if this is a polygon in a geoset with other geometries
-            // If so, open the parent geoset (e.g. clicking community boundary opens the community)
-            const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === geometryId));
-            const clickedGeometry = parentGeoSet?.geometries.find(g => g.id === geometryId);
-
-            if (clickedGeometry?.type === 'polygon' && parentGeoSet && parentGeoSet.geometries.length > 1) {
-                openGeoSetDetail(parentGeoSet.id);
-                // Zoom to the polygon
-                if (feature.geometry) {
-                    setZoomGeometry(feature.geometry);
-                }
-            } else {
-                openGeometryDetail(geometryId);
-                // Zoom to the clicked feature's geometry
-                if (feature.geometry) {
-                    setZoomGeometry(feature.geometry);
-                }
+            openGeometryDetail(geometryId);
+            // Zoom to the clicked feature's geometry
+            if (feature.geometry) {
+                setZoomGeometry(feature.geometry);
             }
         }
     };
@@ -504,15 +491,10 @@ export default function ConsultationMap({
                 // Only add to features if we have valid geometry
                 if (geoJSON) {
                     // For point features, show the address as the map label
-                    // For boundary polygons in a geoset, use the geoset name (without "- Όρια")
-                    let label: string;
-                    if (geometry.type === 'point' && geometry.textualDefinition) {
-                        label = geometry.textualDefinition;
-                    } else if (geometry.type === 'polygon' && geoSet.geometries.length > 1) {
-                        label = geoSet.name;
-                    } else {
-                        label = geometry.name;
-                    }
+                    // For polygons and other types, use the geometry's own name
+                    const label = (geometry.type === 'point' && geometry.textualDefinition)
+                        ? geometry.textualDefinition
+                        : geometry.name;
 
                     features.push({
                         id: geometry.id,
