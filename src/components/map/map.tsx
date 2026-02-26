@@ -478,7 +478,7 @@ const Map = memo(function Map({
                     'text-padding': 8,
                     'text-optional': false,
                     'text-max-width': 10,
-                    'text-allow-overlap': true
+                    'text-allow-overlap': false
                 },
                 'paint': {
                     'text-color': '#1e3a5f',
@@ -486,7 +486,7 @@ const Map = memo(function Map({
                     'text-halo-width': 2.5,
                     'text-opacity': [
                         'interpolate', ['linear'], ['zoom'],
-                        16, 1,
+                        11, 1,
                         17, 0.3
                     ]
                 }
