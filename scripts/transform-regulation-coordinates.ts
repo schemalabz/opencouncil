@@ -9,10 +9,17 @@ const sourceProjection = '+proj=tmerc +lat_0=0 +lon_0=24 +k=0.9996 +x_0=500000 +
 const destProjection = 'WGS84';
 
 // Regular expressions for different coordinate patterns
-// Pattern 1: textualDefinition - "X: <number>, Y: <number>" (GGRS87 coordinates)
+// Pattern 1: textualDefinition - "X: <number>, Y: <number>" (may be GGRS87 or WGS84)
 const textualDefCoordRegex = /X:\s*([\d.]*),\s*Y:\s*([\d.]*)/;
 // Pattern 2: description - "Συντεταγμένες από πηγή (X: <number>, Y: <number>)" (WGS84 coordinates)
 const descriptionCoordRegex = /Συντεταγμένες από πηγή \(X:\s*([\d.]+),\s*Y:\s*([\d.]+)\)/;
+
+// GGRS87 coordinates are in meters (X: ~100,000-900,000, Y: ~3,500,000-4,700,000).
+// WGS84 coordinates are in degrees (lon: ~19-30 for Greece, lat: ~34-42).
+// If X < 180, the coordinates are already WGS84.
+function isWGS84(x: number, y: number): boolean {
+  return x >= -180 && x <= 180 && y >= -90 && y <= 90;
+}
 
 interface GeoJSONPoint {
   type: 'Point';
@@ -54,7 +61,7 @@ function transformCoordinates(filePath: string): void {
     if (item.type === 'geoset') {
       item.geometries.forEach(geometry => {
         if (geometry.type === 'point' && !geometry.geojson) {
-          // Try pattern 1: textualDefinition with GGRS87 coordinates
+          // Try pattern 1: textualDefinition with coordinates (GGRS87 or WGS84)
           if (geometry.textualDefinition) {
             const match = geometry.textualDefinition.match(textualDefCoordRegex);
             if (match && match[1] && match[2]) {
@@ -62,14 +69,24 @@ function transformCoordinates(filePath: string): void {
               const y = parseFloat(match[2]);
 
               if (!isNaN(x) && !isNaN(y)) {
-                // Transform from GGRS87 to WGS84
-                const [longitude, latitude] = proj4(sourceProjection, destProjection, [x, y]);
-                geometry.geojson = {
-                  type: 'Point',
-                  coordinates: [longitude, latitude],
-                };
-                transformedFromTextualDef++;
-                console.log(`Transformed GGRS87 coordinates for geometry: ${geometry.id} (${x}, ${y}) -> (${longitude.toFixed(6)}, ${latitude.toFixed(6)})`);
+                if (isWGS84(x, y)) {
+                  // Coordinates are already WGS84 degrees — use directly
+                  geometry.geojson = {
+                    type: 'Point',
+                    coordinates: [x, y],
+                  };
+                  transformedFromTextualDef++;
+                  console.log(`Used WGS84 coordinates from textualDefinition for geometry: ${geometry.id} (${x}, ${y})`);
+                } else {
+                  // Coordinates are GGRS87 meters — transform to WGS84
+                  const [longitude, latitude] = proj4(sourceProjection, destProjection, [x, y]);
+                  geometry.geojson = {
+                    type: 'Point',
+                    coordinates: [longitude, latitude],
+                  };
+                  transformedFromTextualDef++;
+                  console.log(`Transformed GGRS87 coordinates for geometry: ${geometry.id} (${x}, ${y}) -> (${longitude.toFixed(6)}, ${latitude.toFixed(6)})`);
+                }
                 return; // Skip checking description if we found coordinates in textualDefinition
               }
             }
