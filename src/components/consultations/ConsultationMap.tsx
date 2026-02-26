@@ -333,74 +333,6 @@ export default function ConsultationMap({
         return null;
     }, [geoSets, savedGeometries]);
 
-    const openDetailFromId = useCallback((id: string) => {
-        // Don't override search-location detail
-        if (isInSearchLocationMode.current) return;
-
-        // Check if it's a geoset
-        const geoSet = geoSets.find(gs => gs.id === id);
-        if (geoSet) {
-            setDetailType('geoset');
-            setDetailId(id);
-
-            // Zoom to fit all point geometries in the geoset (shows address labels)
-            const pointGeometries = geoSet.geometries
-                .filter(g => g.type === 'point')
-                .map(g => findGeometryGeoJSON(g.id))
-                .filter((g): g is GeoJSON.Geometry => g !== null);
-
-            if (pointGeometries.length > 0) {
-                const collection: GeoJSON.GeometryCollection = {
-                    type: 'GeometryCollection',
-                    geometries: pointGeometries
-                };
-                setZoomGeometry(collection);
-            } else {
-                // Fallback to boundary polygon if no points
-                const boundaryGeometry = geoSet.geometries.find(g => g.type === 'polygon');
-                if (boundaryGeometry) {
-                    const geoJSON = findGeometryGeoJSON(boundaryGeometry.id);
-                    if (geoJSON) setZoomGeometry(geoJSON);
-                }
-            }
-            return;
-        }
-
-        // Check if it's a geometry
-        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === id);
-        if (geometry) {
-            setDetailType('geometry');
-            setDetailId(id);
-
-            // Zoom to the geometry
-            const geoJSON = findGeometryGeoJSON(id);
-            if (geoJSON) setZoomGeometry(geoJSON);
-            return;
-        }
-
-        // If not found, close detail
-        closeDetail();
-    }, [geoSets, closeDetail, findGeometryGeoJSON]);
-
-    // Handle URL hash changes to open detail panels
-    useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash.substring(1); // Remove #
-            if (hash) {
-                openDetailFromId(hash);
-            } else {
-                closeDetail();
-            }
-        };
-
-        // Check initial hash
-        handleHashChange();
-
-        // Listen for hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [geoSets, openDetailFromId, closeDetail]);
-
     // Functions to manage detail panel
     const openGeoSetDetail = (geoSetId: string) => {
         isInSearchLocationMode.current = false;
@@ -410,6 +342,9 @@ export default function ConsultationMap({
         setSelectedSearchLocationIndex(null);
         // Update URL hash without triggering navigation
         window.location.hash = geoSetId;
+
+        const geoSet = geoSets.find(gs => gs.id === geoSetId);
+        if (geoSet) ensureGeoSetVisibleAndZoom(geoSet);
     };
 
     const openGeometryDetail = (geometryId: string) => {
@@ -449,6 +384,11 @@ export default function ConsultationMap({
 
         if (feature.properties?.id) {
             const geometryId = feature.properties.id;
+
+            // Check if this is a polygon in a geoset with other geometries
+            // If so, open the parent geoset (e.g. clicking community boundary opens the community)
+            const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === geometryId));
+            const clickedGeometry = parentGeoSet?.geometries.find(g => g.id === geometryId);
 
             openGeometryDetail(geometryId);
             // Zoom to the clicked feature's geometry
@@ -628,6 +568,76 @@ export default function ConsultationMap({
             });
         }
     };
+
+    // Shared helper: ensure a renderable geoset is visible, then zoom to its geometries
+    const ensureGeoSetVisibleAndZoom = (geoSet: GeoSetData) => {
+        // Make the geoset visible if it's currently hidden and has renderable geometries
+        if (geoSet.geometries.some(g => ('geojson' in g && g.geojson) || g.type === 'derived')) {
+            if (getGeoSetCheckboxState(geoSet.id) === 'unchecked') {
+                toggleGeoSet(geoSet.id);
+            }
+        }
+
+        const allGeometries = geoSet.geometries
+            .map(g => findGeometryGeoJSON(g.id))
+            .filter((g): g is GeoJSON.Geometry => g !== null);
+
+        if (allGeometries.length > 0) {
+            setZoomGeometry({
+                type: 'GeometryCollection',
+                geometries: allGeometries
+            });
+        }
+    };
+
+    const openDetailFromId = useCallback((id: string) => {
+        // Don't override search-location detail
+        if (isInSearchLocationMode.current) return;
+
+        // Check if it's a geoset
+        const geoSet = geoSets.find(gs => gs.id === id);
+        if (geoSet) {
+            setDetailType('geoset');
+            setDetailId(id);
+            ensureGeoSetVisibleAndZoom(geoSet);
+            return;
+        }
+
+        // Check if it's a geometry
+        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === id);
+        if (geometry) {
+            setDetailType('geometry');
+            setDetailId(id);
+
+            // Zoom to the geometry
+            const geoJSON = findGeometryGeoJSON(id);
+            if (geoJSON) setZoomGeometry(geoJSON);
+            return;
+        }
+
+        // If not found, close detail
+        closeDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [geoSets, closeDetail, findGeometryGeoJSON]);
+
+    // Handle URL hash changes to open detail panels
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.substring(1); // Remove #
+            if (hash) {
+                openDetailFromId(hash);
+            } else {
+                closeDetail();
+            }
+        };
+
+        // Check initial hash
+        handleHashChange();
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', handleHashChange);
+        return () => window.removeEventListener('hashchange', handleHashChange);
+    }, [geoSets, openDetailFromId, closeDetail]);
 
     const toggleGeoSetExpansion = (geoSetId: string) => {
         setExpandedGeoSets(prev => {
