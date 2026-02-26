@@ -375,37 +375,53 @@ export default function LayerControlsPanel({
                     const subtitle = getGeoSetSubtitle(geoSet);
                     const commentCount = getGeoSetCommentCount(geoSet.id);
                     const renderable = isGeoSetRenderable(geoSet);
+                    const checkboxState = getGeoSetCheckboxState(geoSet.id);
+                    const isVisible = checkboxState !== 'unchecked';
 
                     return (
-                        <button
+                        <div
                             key={geoSet.id}
-                            onClick={() => onOpenGeoSetDetail(geoSet.id)}
-                            className={`w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left group ${!renderable ? 'opacity-50' : ''}`}
+                            className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left group ${!renderable ? 'opacity-50' : ''}`}
                         >
-                            <div
-                                className="w-3 h-3 rounded-full shrink-0"
-                                style={{ backgroundColor: color, boxShadow: `0 0 0 2px white, 0 0 0 3px ${color}` }}
-                            />
-                            <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium leading-tight line-clamp-1">
-                                    {geoSet.name}
-                                </div>
-                                {subtitle && (
-                                    <div className="text-xs text-muted-foreground mt-0.5">
-                                        {subtitle}
+                            <button
+                                onClick={() => renderable && onToggleGeoSet(geoSet.id)}
+                                disabled={!renderable}
+                                className="shrink-0 cursor-pointer disabled:cursor-default hover:scale-125 transition-transform"
+                                title={renderable ? (isVisible ? 'Απόκρυψη από τον χάρτη' : 'Εμφάνιση στον χάρτη') : undefined}
+                            >
+                                <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={renderable && isVisible
+                                        ? { backgroundColor: color, boxShadow: `0 0 0 2px white, 0 0 0 3px ${color}` }
+                                        : { backgroundColor: 'white', border: `2px solid ${color}` }
+                                    }
+                                />
+                            </button>
+                            <button
+                                onClick={() => onOpenGeoSetDetail(geoSet.id)}
+                                className={`flex-1 min-w-0 flex items-center gap-3 text-left hover:bg-muted/60 rounded-md -m-1.5 p-1.5 transition-colors ${!isVisible && renderable ? 'opacity-50' : ''}`}
+                            >
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium leading-tight">
+                                        {geoSet.name}
                                     </div>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                {commentCount > 0 && (
-                                    <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                                        <MessageCircle className="h-3 w-3" />
-                                        {commentCount}
-                                    </span>
-                                )}
-                                <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
-                            </div>
-                        </button>
+                                    {subtitle && (
+                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                            {subtitle}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {commentCount > 0 && (
+                                        <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                                            <MessageCircle className="h-3 w-3" />
+                                            {commentCount}
+                                        </span>
+                                    )}
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+                                </div>
+                            </button>
+                        </div>
                     );
                 })}
             </div>
