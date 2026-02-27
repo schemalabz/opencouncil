@@ -1,8 +1,9 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CouncilMeeting, Utterance as UtteranceType } from "@prisma/client";
+import { CouncilMeeting, Utterance } from "@prisma/client";
 import { useTranscriptOptions } from './options/OptionsContext';
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 
 /**
  * VIDEO PLAYBACK ARCHITECTURE OVERVIEW:
@@ -90,7 +91,6 @@ export const useVideoActions = () => {
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
-    utterances: UtteranceType[];
 }
 
 // Add throttle helper function
@@ -105,9 +105,11 @@ const throttle = (func: Function, limit: number) => {
     };
 };
 
-export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
+export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting }) => {
     const { options } = useTranscriptOptions();
     const searchParams = useSearchParams();
+    const { transcript } = useCouncilMeetingData();
+    const utterances = useMemo<Utterance[]>(() => transcript.flatMap(s => s.utterances ?? []), [transcript]);
     
     // === CORE VIDEO STATE ===
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
@@ -122,7 +124,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = useCallback((time: number) => {
         const lastUtteranceBeforeTime = utterances
-            .filter(u => u.startTimestamp <= time)
+            .filter((u) => u.startTimestamp <= time)
             .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
         const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
@@ -151,26 +153,36 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         return () => {
             player?.removeEventListener('loadedmetadata', updateDuration);
         };
-    }, [utterances]);
+    }, []);
 
     // === URL PARAMETER HANDLING ===
     const timeParam = searchParams.get('t');
+    const hasSetInitialTime = useRef(false);
+    const hasAppliedUrlParam = useRef(false);
+
     useEffect(() => {
         // Set initial time to first utterance if no other time set
-        if (currentTimeRef.current === 0 && utterances.length > 0) {
+        if (!hasSetInitialTime.current && utterances.length > 0) {
+            hasSetInitialTime.current = true;
             currentTimeRef.current = utterances[0].startTimestamp;
+            setCurrentTime(utterances[0].startTimestamp);
         }
+    }, [utterances.length > 0]); // Re-run only when utterances first become available
 
+    useEffect(() => {
         // Handle ?t=123 URL parameter for deep linking.
         // Share URLs encode timestamps with Math.floor (see ShareDropdown, ContributionCard),
         // so we resolve the floor'd second back to the exact utterance startTimestamp.
-        if (timeParam) {
+        if (timeParam && !hasAppliedUrlParam.current && playerRef.current) {
             const seconds = parseInt(timeParam, 10);
-            if (!isNaN(seconds) && playerRef.current) {
+            if (!isNaN(seconds)) {
+                hasAppliedUrlParam.current = true;
                 const targetUtterance = utterances.find(u => Math.floor(u.startTimestamp) === seconds);
                 const targetTime = targetUtterance?.startTimestamp ?? seconds;
 
                 currentTimeRef.current = targetTime;
+                setCurrentTime(targetTime);
+                
                 // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
@@ -184,8 +196,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                                 updateHighlightOnce();
                                 // content-visibility:auto causes layout shifts as off-screen
                                 // segments render at their actual size. Re-scroll to correct.
-                                // Multiple attempts with increasing delays to handle varying
-                                // numbers of segments that need to render.
                                 for (const delay of [150, 500, 1000]) {
                                     setTimeout(() => {
                                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -201,11 +211,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 scrollAttempt(3);
             }
         }
-    // updateHighlightOnce is called inside a deferred setTimeout so the reference
-    // is valid at runtime.  It changes only when utterancesBySecond (derived from
-    // utterances) changes, so the existing utterances dep covers it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [utterances, timeParam]);
+    }, [timeParam, utterances.length > 0]);
 
     // === PLAYBACK SPEED SYNC ===
     useEffect(() => {
@@ -280,6 +286,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         setIsSeeking(false);
         if (playerRef.current) {
             currentTimeRef.current = playerRef.current.currentTime;
+            setCurrentTime(currentTimeRef.current);
         }
     }
     
@@ -310,9 +317,17 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
      * - Seeks to time and scrolls transcript to corresponding utterance
      */
     const seekTo = (time: number) => {
-        applySeek(time);
-        if (playerRef.current) {
-            requestAnimationFrame(() => scrollToUtterance(time));
+        if (playerRef.current && hasStartedPlaying) {
+            playerRef.current.currentTime = time;
+        }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
+        
+        if (hasStartedPlaying) {
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+                scrollToUtterance(time);
+            });
         }
     };
 
@@ -340,10 +355,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 throttledSetCurrentTime(newTime);
             }
         }
-        // throttledSetCurrentTime is intentionally excluded from dependencies because:
-        // 1. It's created with useRef, making it stable across renders
-        // 2. Adding it to dependencies would be redundant since it never changes
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSeeking, isPlaying]);
 
     /**
@@ -353,7 +364,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const throttledSetCurrentTime = useRef(
         throttle((time: number) => {
             setCurrentTime(time);
-        }, 2000) // Update at most every 2s — DOM highlighting runs imperatively via <style>, so React state updates are only needed for UI controls
+        }, 2000)
     ).current;
 
     const seekToAndPlay = (time: number) => {
@@ -364,15 +375,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
     // === DOM-BASED ACTIVE UTTERANCE HIGHLIGHTING ===
-    // Uses rAF during playback for smooth 60fps highlighting without React re-renders.
-    // Runs a single update on seek/pause for immediate feedback.
     const styleRef = useRef<HTMLStyleElement | null>(null);
     const activeUtteranceIdRef = useRef<string | null>(null);
 
-    // Pre-computed Map for O(1) utterance lookup by second
-    // Stores arrays to handle overlapping utterances at shared seconds
     const utterancesBySecond = useMemo(() => {
-        const map = new Map<number, UtteranceType[]>();
+        const map = new Map<number, Utterance[]>();
         for (const u of utterances) {
             for (let s = Math.floor(u.startTimestamp); s <= Math.floor(u.endTimestamp); s++) {
                 const existing = map.get(s);
@@ -388,10 +395,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const updateHighlightOnce = useCallback(() => {
         const time = currentTimeRef.current;
-
         const candidates = utterancesBySecond.get(Math.floor(time));
         const activeUtterance = candidates?.find(u => u.startTimestamp <= time && u.endTimestamp >= time) ?? null;
-
         const newActiveId = activeUtterance?.id ?? null;
 
         if (newActiveId !== activeUtteranceIdRef.current) {
@@ -404,7 +409,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }, [utterancesBySecond]);
 
-    // Create/cleanup the <style> element
     useEffect(() => {
         const style = document.createElement('style');
         style.setAttribute('data-utterance-highlight', '');
@@ -416,7 +420,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         };
     }, []);
 
-    // rAF loop: only runs while playing
     useEffect(() => {
         if (!isPlaying) {
             updateHighlightOnce();
@@ -433,9 +436,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         return () => cancelAnimationFrame(rafId);
     }, [isPlaying, updateHighlightOnce]);
 
-    // === STABLE ACTIONS CONTEXT ===
-    // Store action functions in refs so the memoized actions value never changes.
-    // This prevents Utterance components from re-rendering during playback.
     const seekToRef = useRef(seekTo);
     seekToRef.current = seekTo;
     const seekToWithoutScrollRef = useRef(seekToWithoutScroll);
@@ -448,7 +448,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         seekTo: (time: number) => seekToRef.current(time),
         seekToWithoutScroll: (time: number) => seekToWithoutScrollRef.current(time),
         togglePlayPause: () => togglePlayPauseRef.current(),
-    }), []); // eslint-disable-line react-hooks/exhaustive-deps
+    }), []);
 
     const value = {
         isPlaying,

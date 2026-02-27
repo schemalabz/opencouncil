@@ -168,9 +168,10 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
+const SpeakerSegment = React.memo(({ segment, isFirstSegment, renderMock }: {
     segment: TranscriptType[number],
-    isFirstSegment?: boolean
+    isFirstSegment?: boolean,
+    renderMock?: boolean
 }) => {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
@@ -260,6 +261,25 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
             toast({ description: tCopy('segmentCopied') });
         }).catch(console.error);
     };
+
+    if (renderMock) {
+        return (
+            <div className="mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg border-l-[3px] sm:border-l-4 opacity-10" style={{ borderLeftColor: memoizedData.borderColor }}>
+                <div className='w-full'>
+                    <div className='flex flex-col w-full space-y-2 py-2'>
+                        <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
+                            <div className='h-8 w-32 bg-muted rounded animate-pulse' />
+                            <div className='h-4 w-16 bg-muted rounded animate-pulse' />
+                        </div>
+                    </div>
+                </div>
+                <div className='px-2.5 sm:px-4 py-1.5 sm:py-3 w-full space-y-2'>
+                    <div className='h-4 w-full bg-muted rounded animate-pulse' />
+                    <div className='h-4 w-3/4 bg-muted rounded animate-pulse' />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>
