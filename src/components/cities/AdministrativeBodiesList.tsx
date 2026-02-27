@@ -182,155 +182,159 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                         </DialogTitle>
                     </DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                            {formError && (
-                                <div className="text-red-500 mb-4">{formError}</div>
-                            )}
-                            <InputWithDerivatives
-                                baseName="name"
-                                basePlaceholder={t('namePlaceholder')}
-                                baseDescription={t('nameDescription')}
-                                derivatives={[
-                                    {
-                                        name: 'name_en',
-                                        calculate: (baseValue) => toGreeklish(baseValue),
-                                        placeholder: t('nameEnPlaceholder'),
-                                        description: t('nameEnDescription'),
-                                    },
-                                ]}
-                                form={form}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="type"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('type')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <div>
+                                {formError && (
+                                    <div className="text-red-500">{formError}</div>
+                                )}
+                                <InputWithDerivatives
+                                    baseName="name"
+                                    basePlaceholder={t('namePlaceholder')}
+                                    baseDescription={t('nameDescription')}
+                                    derivatives={[
+                                        {
+                                            name: 'name_en',
+                                            calculate: (baseValue) => toGreeklish(baseValue),
+                                            placeholder: t('nameEnPlaceholder'),
+                                            description: t('nameEnDescription'),
+                                        },
+                                    ]}
+                                    form={form}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="type"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('type')}</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={t('selectType')} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="council">{t('types.council')}</SelectItem>
+                                                    <SelectItem value="committee">{t('types.committee')}</SelectItem>
+                                                    <SelectItem value="community">{t('types.community')}</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>
+                                                {t('typeDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="youtubeChannelUrl"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('youtubeChannelUrl')}</FormLabel>
                                             <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectType')} />
-                                                </SelectTrigger>
+                                                <Input
+                                                    {...field}
+                                                    placeholder={t('youtubeChannelUrlPlaceholder')}
+                                                    type="url"
+                                                />
                                             </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="council">{t('types.council')}</SelectItem>
-                                                <SelectItem value="committee">{t('types.committee')}</SelectItem>
-                                                <SelectItem value="community">{t('types.community')}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            {t('typeDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="youtubeChannelUrl"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('youtubeChannelUrl')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('youtubeChannelUrlPlaceholder')}
-                                                type="url"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('youtubeChannelUrlDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailPrimary"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailPrimary')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailPrimaryPlaceholder')}
-                                                type="email"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailPrimaryDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="contactEmailsCC"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('contactEmailsCC')}</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder={t('contactEmailsCCPlaceholder')}
-                                                type="text"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('contactEmailsCCDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="notificationBehavior"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('notificationBehavior')}</FormLabel>
-                                        <FormControl>
-                                            <TripleToggle
-                                                value={field.value}
-                                                onChange={field.onChange}
-                                                options={[
-                                                    {
-                                                        value: 'NOTIFICATIONS_DISABLED',
-                                                        label: t('notificationBehaviorOptions.disabled'),
-                                                        icon: <XCircle className="h-3 w-3" />
-                                                    },
-                                                    {
-                                                        value: 'NOTIFICATIONS_AUTO',
-                                                        label: t('notificationBehaviorOptions.auto'),
-                                                        icon: <Send className="h-3 w-3" />
-                                                    },
-                                                    {
-                                                        value: 'NOTIFICATIONS_APPROVAL',
-                                                        label: t('notificationBehaviorOptions.approval'),
-                                                        icon: <CheckCircle className="h-3 w-3" />
-                                                    }
-                                                ]}
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            {t('notificationBehaviorDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        {t('submitting')}
-                                    </>
-                                ) : (
-                                    editingBody ? t('update') : t('create')
-                                )}
-                            </Button>
+                                            <FormDescription>
+                                                {t('youtubeChannelUrlDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="contactEmailPrimary"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('contactEmailPrimary')}</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder={t('contactEmailPrimaryPlaceholder')}
+                                                    type="email"
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                {t('contactEmailPrimaryDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="contactEmailsCC"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('contactEmailsCC')}</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    {...field}
+                                                    placeholder={t('contactEmailsCCPlaceholder')}
+                                                    type="text"
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                {t('contactEmailsCCDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="notificationBehavior"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('notificationBehavior')}</FormLabel>
+                                            <FormControl>
+                                                <TripleToggle
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    options={[
+                                                        {
+                                                            value: 'NOTIFICATIONS_DISABLED',
+                                                            label: t('notificationBehaviorOptions.disabled'),
+                                                            icon: <XCircle className="h-3 w-3" />
+                                                        },
+                                                        {
+                                                            value: 'NOTIFICATIONS_AUTO',
+                                                            label: t('notificationBehaviorOptions.auto'),
+                                                            icon: <Send className="h-3 w-3" />
+                                                        },
+                                                        {
+                                                            value: 'NOTIFICATIONS_APPROVAL',
+                                                            label: t('notificationBehaviorOptions.approval'),
+                                                            icon: <CheckCircle className="h-3 w-3" />
+                                                        }
+                                                    ]}
+                                                />
+                                            </FormControl>
+                                            <FormDescription>
+                                                {t('notificationBehaviorDescription')}
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            {t('submitting')}
+                                        </>
+                                    ) : (
+                                        editingBody ? t('update') : t('create')
+                                    )}
+                                </Button>
+                            </div>
                         </form>
                     </Form>
                 </DialogContent>
