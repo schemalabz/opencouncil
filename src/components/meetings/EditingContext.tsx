@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { ACTIONS, useKeyboardShortcut } from '@/contexts/KeyboardShortcutsContext';
 import { useToast } from '@/hooks/use-toast';
@@ -170,6 +170,8 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         try {
             const selectedList = Array.from(selectedUtteranceIds);
             await deleteUtterances(selectedList);
+            clearSelection();
+            setIsDeleteDialogOpen(false);
             toast({
                 description: t('deletionSuccess', { count: selectedList.length })
             });
@@ -181,13 +183,22 @@ export function EditingProvider({ children }: { children: ReactNode }) {
                 variant: 'destructive'
             });
         } finally {
-            React.startTransition(() => {
-                setIsDeleteDialogOpen(false);
-                clearSelection();
-                setIsProcessing(false);
-            });
+            setIsProcessing(false);
         }
     }, [selectedUtteranceIds, isProcessing, deleteUtterances, clearSelection, toast, t]);
+
+    // Enter to confirm, Escape to cancel delete dialog
+    useEffect(() => {
+        if (!isDeleteDialogOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter' && !isProcessing) {
+                e.preventDefault();
+                deleteSelectedUtterances();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isDeleteDialogOpen, isProcessing, deleteSelectedUtterances]);
 
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);

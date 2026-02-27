@@ -3,7 +3,6 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useCall
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance, deleteUtterances } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -304,11 +303,24 @@ export function CouncilMeetingDataProvider({ children, data }: {
             const localSegmentId = transcript.find(segment =>
                 segment.utterances.some(utterance => utterance.id === utteranceId)
             )?.id;
-            const { segmentId } = await deleteUtterance(utteranceId);
-            const effectiveSegmentId = segmentId ?? localSegmentId;
-            if (effectiveSegmentId) {
-                const deletionsBySegment = new Map([[effectiveSegmentId, new Set([utteranceId])]]);
+
+            // Capture previous state for rollback
+            const previousTranscript = transcript;
+
+            // Optimistic update — remove from UI immediately
+            if (localSegmentId) {
+                const deletionsBySegment = new Map([[localSegmentId, new Set([utteranceId])]]);
                 setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
+            }
+
+            const response = await fetch('/api/utterances', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [utteranceId] }),
+            });
+            if (!response.ok) {
+                setTranscript(previousTranscript);
+                throw new Error('Failed to delete utterance');
             }
         },
         deleteUtterances: async (utteranceIds: string[]) => {
@@ -317,16 +329,36 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return;
             }
 
-            const deletedInDb = await deleteUtterances(uniqueUtteranceIds);
+            // Build deletionsBySegment locally — we already have the full transcript in memory
+            const idSet = new Set(uniqueUtteranceIds);
             const deletionsBySegment = new Map<string, Set<string>>();
-            deletedInDb.forEach(({ utteranceId, segmentId }) => {
-                if (segmentId) {
-                    const set = deletionsBySegment.get(segmentId) ?? new Set<string>();
-                    set.add(utteranceId);
-                    deletionsBySegment.set(segmentId, set);
+            for (const segment of transcript) {
+                for (const utterance of segment.utterances) {
+                    if (idSet.has(utterance.id)) {
+                        const set = deletionsBySegment.get(segment.id) ?? new Set<string>();
+                        set.add(utterance.id);
+                        deletionsBySegment.set(segment.id, set);
+                    }
                 }
+            }
+
+            // Capture previous state for rollback
+            const previousTranscript = transcript;
+
+            // Optimistic update — remove from UI immediately
+            if (deletionsBySegment.size > 0) {
+                setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
+            }
+
+            const response = await fetch('/api/utterances', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: uniqueUtteranceIds }),
             });
-            setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
+            if (!response.ok) {
+                setTranscript(previousTranscript);
+                throw new Error('Failed to delete utterances');
+            }
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
             setTranscript(prev => prev.map(segment => {
