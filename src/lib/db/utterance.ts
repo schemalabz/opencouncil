@@ -146,6 +146,9 @@ export async function deleteUtterances(utteranceIds: string[]): Promise<BulkDele
             segmentId: segmentByUtteranceId.get(utteranceId) ?? null
         }));
     } catch (error) {
+        if (error instanceof Error && error.message === 'Not authorized') {
+            throw error;
+        }
         console.error('Error deleting utterances:', error);
         throw new Error('Failed to delete utterances');
     }
