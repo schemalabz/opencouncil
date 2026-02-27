@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/sheet';
 import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
 import { useUrlParams } from '@/hooks/useUrlParams';
+import { formatRelativeTime } from '@/lib/formatters/time';
 
 interface BackoffTier {
   afterDays: number;
@@ -348,7 +349,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                       {m.lastPollAt ? (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <span className="block cursor-default">{new Date(m.lastPollAt).toLocaleDateString()}</span>
+                            <span className="block cursor-default">{formatRelativeTime(new Date(m.lastPollAt), 'en')}</span>
                           </TooltipTrigger>
                           <TooltipContent side="bottom">{new Date(m.lastPollAt).toLocaleString()}</TooltipContent>
                         </Tooltip>
@@ -439,11 +440,17 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                   <th className="text-right px-4 py-2 font-medium">Details</th>
                 </tr>
               </thead>
+              <TooltipProvider>
               <tbody>
                 {stats.recentPolls.map(poll => (
                   <tr key={poll.id} className="border-b last:border-b-0 hover:bg-muted/30">
                     <td className="px-4 py-2 whitespace-nowrap">
-                      {new Date(poll.createdAt).toLocaleString()}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="block cursor-default">{formatRelativeTime(new Date(poll.createdAt), 'en')}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">{new Date(poll.createdAt).toLocaleString()}</TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{poll.cityId}</td>
                     <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{poll.councilMeetingId}</td>
@@ -480,6 +487,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                   </tr>
                 ))}
               </tbody>
+              </TooltipProvider>
             </table>
           </div>
         )}
@@ -715,7 +723,9 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
             <div>
               <div className="text-sm text-muted-foreground mb-1">Last Poll</div>
               <div className="text-sm font-medium">
-                {selectedMeeting.lastPollAt ? new Date(selectedMeeting.lastPollAt).toLocaleString() : 'Never'}
+                {selectedMeeting.lastPollAt
+                  ? `${formatRelativeTime(new Date(selectedMeeting.lastPollAt), 'en')} (${new Date(selectedMeeting.lastPollAt).toLocaleString()})`
+                  : 'Never'}
               </div>
             </div>
           </div>
