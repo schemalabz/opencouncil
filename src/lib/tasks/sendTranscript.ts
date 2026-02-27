@@ -80,13 +80,14 @@ export async function sendTranscriptToMunicipality(
 
         // Render email template
         const administrativeBodyName = meeting.administrativeBody?.name || meeting.city.name_municipality;
-        const meetingDateFormatted = formatDate(meeting.dateTime);
+        const meetingDateFormatted = formatDate(meeting.dateTime, meeting.city.timezone);
 
         const emailHtml = await render(
             TranscriptEmail({
                 administrativeBodyName,
                 meetingDate: meeting.dateTime,
                 transcriptUrl,
+                timezone: meeting.city.timezone,
             })
         );
 

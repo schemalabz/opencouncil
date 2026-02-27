@@ -1,5 +1,3 @@
-import { el } from 'date-fns/locale';
-import { format } from 'date-fns';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
 import { getPartyFromRoles, getSingleCityRole, formatTimestamp } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
@@ -32,7 +30,15 @@ const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting'
             alignment: AlignmentType.CENTER,
             spacing: { after: 480 },
             children: [new TextRun({
-                text: format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: el }),
+                text: new Intl.DateTimeFormat('el-GR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: city.timezone,
+                }).format(meeting.dateTime),
                 size: 24 // 12pt
             })],
         }),

@@ -7,16 +7,18 @@ interface TranscriptEmailProps {
     administrativeBodyName: string;
     meetingDate: Date;
     transcriptUrl: string;
+    timezone: string;
 }
 
 export const TranscriptEmail = ({
     administrativeBodyName,
     meetingDate,
     transcriptUrl,
+    timezone,
 }: TranscriptEmailProps): React.ReactElement => {
     const previewText = `Απομαγνητοφώνηση: ${administrativeBodyName}`;
 
-    const meetingDateFormatted = formatDate(meetingDate);
+    const meetingDateFormatted = formatDate(meetingDate, timezone);
 
     return (
         <BaseTemplate previewText={previewText}>
