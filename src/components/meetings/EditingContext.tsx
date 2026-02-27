@@ -21,7 +21,7 @@ interface EditingContextType {
     toggleSelection: (id: string, modifiers: { shift: boolean, ctrl: boolean }) => void;
     clearSelection: () => void;
     extractSelectedSegment: () => Promise<void>;
-    requestDeleteSelected: () => void;
+    confirmDeleteSelected: () => void;
     deleteSelectedUtterances: () => Promise<void>;
     isProcessing: boolean;
 }
@@ -157,7 +157,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         }
     }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
 
-    const requestDeleteSelected = useCallback(() => {
+    const confirmDeleteSelected = useCallback(() => {
         if (selectedUtteranceIds.size === 0) return;
         setIsDeleteDialogOpen(true);
     }, [selectedUtteranceIds]);
@@ -170,7 +170,6 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         try {
             const selectedList = Array.from(selectedUtteranceIds);
             await deleteUtterances(selectedList);
-            clearSelection();
             toast({
                 description: t('deletionSuccess', { count: selectedList.length })
             });
@@ -182,15 +181,18 @@ export function EditingProvider({ children }: { children: ReactNode }) {
                 variant: 'destructive'
             });
         } finally {
-            setIsProcessing(false);
-            setIsDeleteDialogOpen(false);
+            React.startTransition(() => {
+                setIsDeleteDialogOpen(false);
+                clearSelection();
+                setIsProcessing(false);
+            });
         }
     }, [selectedUtteranceIds, isProcessing, deleteUtterances, clearSelection, toast, t]);
 
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
-    useKeyboardShortcut(ACTIONS.DELETE_SELECTION.id, requestDeleteSelected, selectedUtteranceIds.size > 0);
+    useKeyboardShortcut(ACTIONS.DELETE_SELECTION.id, confirmDeleteSelected, selectedUtteranceIds.size > 0);
 
     return (
         <EditingContext.Provider value={{
@@ -199,7 +201,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             toggleSelection,
             clearSelection,
             extractSelectedSegment,
-            requestDeleteSelected,
+            confirmDeleteSelected,
             deleteSelectedUtterances,
             isProcessing
         }}>
@@ -218,7 +220,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
                             {t('common.cancel', { defaultValue: 'Cancel' })}
                         </Button>
                         <Button variant="destructive" onClick={deleteSelectedUtterances} disabled={isProcessing}>
-                            {isProcessing ? t('common.saving', { defaultValue: 'Deleting...' }) : t('common.delete', { defaultValue: 'Delete' })}
+                            {isProcessing ? t('common.deleting', { defaultValue: 'Deleting...' }) : t('common.delete', { defaultValue: 'Delete' })}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -142,7 +142,7 @@
     "bulkDeleteConfirmDesc": "Are you sure you want to delete {count, plural, one {# utterance} other {# utterances}}? This action cannot be undone.",
     "common": {
       "cancel": "Cancel",
-      "saving": "Deleting...",
+      "deleting": "Deleting...",
       "delete": "Delete"
     },
     "reviewCompleted": "Review Completed",
