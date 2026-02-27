@@ -3,12 +3,12 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useCall
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance as deleteUtteranceInDb, deleteUtterances as deleteUtterancesInDb } from '@/lib/db/utterance';
+import { deleteUtterance, deleteUtterances } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
-import { applyUtteranceDeletions } from '@/lib/transcript/utterance-deletion';
+import { applyUtteranceDeletions } from '@/lib/utils/utterance-deletion';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 
 export interface CouncilMeetingDataContext extends MeetingData {
@@ -60,24 +60,6 @@ export function CouncilMeetingDataProvider({ children, data }: {
             startTimestamp: Math.min(...allTimestamps),
             endTimestamp: Math.max(...allTimestamps)
         };
-    }, []);
-
-    const applyDeletedUtterancesLocally = useCallback((deletedUtterances: Array<{ segmentId: string; utteranceId: string }>) => {
-        if (deletedUtterances.length === 0) {
-            return;
-        }
-
-        const deletionsBySegment = new Map<string, Set<string>>();
-        deletedUtterances.forEach(({ segmentId, utteranceId }) => {
-            const segmentDeletions = deletionsBySegment.get(segmentId);
-            if (segmentDeletions) {
-                segmentDeletions.add(utteranceId);
-                return;
-            }
-            deletionsBySegment.set(segmentId, new Set([utteranceId]));
-        });
-
-        setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
     }, []);
 
     // Create a map of speaker tag IDs to their segment counts
@@ -319,14 +301,14 @@ export function CouncilMeetingDataProvider({ children, data }: {
             });
         },
         deleteUtterance: async (utteranceId: string) => {
-            console.log(`Deleting utterance ${utteranceId}`);
             const localSegmentId = transcript.find(segment =>
                 segment.utterances.some(utterance => utterance.id === utteranceId)
             )?.id;
-            const { segmentId } = await deleteUtteranceInDb(utteranceId);
+            const { segmentId } = await deleteUtterance(utteranceId);
             const effectiveSegmentId = segmentId ?? localSegmentId;
             if (effectiveSegmentId) {
-                applyDeletedUtterancesLocally([{ segmentId: effectiveSegmentId, utteranceId }]);
+                const deletionsBySegment = new Map([[effectiveSegmentId, new Set([utteranceId])]]);
+                setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
             }
         },
         deleteUtterances: async (utteranceIds: string[]) => {
@@ -335,15 +317,16 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return;
             }
 
-            const deletedInDb = await deleteUtterancesInDb(uniqueUtteranceIds);
-            const deletedUtterances: Array<{ segmentId: string; utteranceId: string }> = [];
+            const deletedInDb = await deleteUtterances(uniqueUtteranceIds);
+            const deletionsBySegment = new Map<string, Set<string>>();
             deletedInDb.forEach(({ utteranceId, segmentId }) => {
                 if (segmentId) {
-                    deletedUtterances.push({ segmentId, utteranceId });
+                    const set = deletionsBySegment.get(segmentId) ?? new Set<string>();
+                    set.add(utteranceId);
+                    deletionsBySegment.set(segmentId, set);
                 }
             });
-
-            applyDeletedUtterancesLocally(deletedUtterances);
+            setTranscript(prev => applyUtteranceDeletions(prev, deletionsBySegment));
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
             setTranscript(prev => prev.map(segment => {
@@ -372,7 +355,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return segment;
             }));
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps, applyDeletedUtterancesLocally]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>

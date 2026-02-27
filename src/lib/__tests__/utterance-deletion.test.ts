@@ -1,4 +1,4 @@
-import { applyUtteranceDeletions } from "@/lib/transcript/utterance-deletion";
+import { applyUtteranceDeletions } from "@/lib/utils/utterance-deletion";
 
 type TestUtterance = {
   id: string;

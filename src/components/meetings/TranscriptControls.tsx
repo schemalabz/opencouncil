@@ -9,7 +9,6 @@ import { useHighlight } from "./HighlightContext";
 import { useState, useRef, useEffect } from "react";
 import { Video } from "./Video";
 import { useSidebar } from "@/components/ui/sidebar";
-import { getTranscriptControlsDesktopLeftOffset } from "./transcript-controls-layout";
 
 export default function TranscriptControls({ className }: { className?: string }) {
     const { transcript: speakerSegments } = useCouncilMeetingData();
@@ -74,7 +73,11 @@ export default function TranscriptControls({ className }: { className?: string }
     const [hoverTime, setHoverTime] = useState<number | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
     const { isMobile, state: sidebarState } = useSidebar();
-    const desktopLeftOffset = getTranscriptControlsDesktopLeftOffset(isMobile, sidebarState);
+    const desktopLeftOffset = isMobile
+        ? undefined
+        : sidebarState === "collapsed"
+            ? "calc(var(--sidebar-width-icon) + 0.5rem)"
+            : "calc(var(--sidebar-width) + 0.5rem)";
 
     const updateHoveredSpeaker = (time: number) => {
         for (const segment of speakerSegments) {

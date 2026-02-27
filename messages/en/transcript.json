@@ -31,12 +31,7 @@
       "deleteUtterance": "Delete utterance?",
       "deleteUtteranceDescription": "This action cannot be undone.",
       "utteranceDeletedSuccessfully": "Utterance deleted successfully",
-      "deleteError": "Failed to delete utterance",
-      "deleteSelectedUtterances": "Delete {count, plural, one {# utterance} other {# utterances}}?",
-      "deleteSelectedUtterancesDescription": "This action cannot be undone.",
-      "selectedUtterancesDeletedSuccessfully": "Deleted {count, plural, one {# utterance} other {# utterances}} successfully",
-      "deleteSelectedError": "Failed to delete selected utterances",
-      "undo": "Undo"
+      "deleteError": "Failed to delete utterance"
     },
     "common": {
       "error": "Error",
