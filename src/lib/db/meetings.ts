@@ -180,6 +180,26 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
     }
 }
 
+export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise<string | null> {
+    const now = new Date();
+
+    const upcoming = await prisma.councilMeeting.findFirst({
+        where: { cityId, released: true, dateTime: { gt: now } },
+        orderBy: { dateTime: 'asc' },
+        select: { id: true },
+    });
+
+    if (upcoming) return upcoming.id;
+
+    const latest = await prisma.councilMeeting.findFirst({
+        where: { cityId, released: true },
+        orderBy: { dateTime: 'desc' },
+        select: { id: true },
+    });
+
+    return latest?.id ?? null;
+}
+
 export interface MeetingUploadMetrics {
     needsUpload: number; // Count of meetings
     scheduledFuture: number; // Count of future scheduled meetings
