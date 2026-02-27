@@ -21,7 +21,7 @@ type CityCounts = {
     councilMeetings: number;
 };
 
-export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'status' | 'officialSupport' | 'authorityType'> & {
+export type CityMinimalWithCounts = Pick<City, 'id' | 'name' | 'name_en' | 'name_municipality' | 'name_municipality_en' | 'logoImage' | 'supportsNotifications' | 'status' | 'officialSupport' | 'authorityType' | 'timezone'> & {
     _count: CityCounts;
 };
 
@@ -195,6 +195,7 @@ export async function getAllCitiesMinimal(): Promise<CityMinimalWithCounts[]> {
                 status: true,
                 authorityType: true,
                 officialSupport: true,
+                timezone: true,
                 _count: CITY_COUNT_SELECT
             },
             orderBy: CITY_ORDER_BY
