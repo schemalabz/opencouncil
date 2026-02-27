@@ -1,5 +1,5 @@
 import { el } from 'date-fns/locale';
-import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
 import { getPartyFromRoles, getSingleCityRole, formatTimestamp } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
@@ -32,7 +32,7 @@ const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting'
             alignment: AlignmentType.CENTER,
             spacing: { after: 480 },
             children: [new TextRun({
-                text: format(meeting.dateTime, 'EEEE, d MMMM yyyy, HH:mm', { locale: el }),
+                text: formatInTimeZone(meeting.dateTime, city.timezone, 'EEEE, d MMMM yyyy, HH:mm', { locale: el }),
                 size: 24 // 12pt
             })],
         }),
