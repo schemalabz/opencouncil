@@ -339,7 +339,7 @@
         "mostRecent": "Most recent meeting",
         "loading": "Loading...",
         "notPublic": "Not public",
-        "upcoming": "Upcoming",
+        "upcomingWithDistance": "Upcoming: {distance}",
         "today": "Today's meeting"
     },
     "Person": {

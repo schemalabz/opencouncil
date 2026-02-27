@@ -4,34 +4,28 @@ import { useRouter, usePathname } from '../../i18n/routing';
 import { Card, CardContent } from "../ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
-import { format, formatDistanceToNow, isFuture } from 'date-fns';
-import { el, enUS } from 'date-fns/locale';
 import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
-import { sortSubjectsByImportance, formatDateTime, formatDate, IS_DEV } from '@/lib/utils';
+import { sortSubjectsByImportance, formatDateTime, formatDate } from '@/lib/utils';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
 import { motion } from 'framer-motion';
+import { getMeetingCardTemporalState } from '@/lib/meetingCardTime';
 
-// Helper function for development-only logs
-const logDev = (message: string, data?: any) => {
-    if (IS_DEV) {
-        console.log(`[Dev] ${message}`, data || '');
-    }
-};
 
 interface MeetingCardProps {
     item: CouncilMeeting & {
         subjects: (Subject & {
             topic?: Topic | null,
-            speakerSegments?: any[] // Using any for flexibility with the structure
+            speakerSegments?: unknown[]
         })[],
         administrativeBody?: AdministrativeBody | null
     };
     editable: boolean;
     mostRecent?: boolean;
     cityTimezone?: string;
+    referenceNow: string;
 }
 
 const LoadingDots = () => (
@@ -54,7 +48,7 @@ const LoadingDots = () => (
     </div>
 );
 
-export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone, referenceNow }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
@@ -67,27 +61,8 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     }, [pathname]);
 
     const sortedSubjects = useMemo(() => {
-        const result = sortSubjectsByImportance(meeting.subjects, 'importance');
-
-        // Debug logs to help understand the sorting
-        if (result.length > 0) {
-            const topThree = result.slice(0, Math.min(3, result.length));
-            logDev('MeetingCard - Subject Sorting', {
-                meetingId: meeting.id,
-                meetingName: meeting.name,
-                totalSubjects: result.length,
-                topSubjects: topThree.map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    segmentCount: s.speakerSegments?.length || 0,
-                    agendaItemIndex: s.agendaItemIndex,
-                    hasTopic: !!s.topic
-                }))
-            });
-        }
-
-        return result;
-    }, [meeting.subjects, meeting.id, meeting.name]);
+        return sortSubjectsByImportance(meeting.subjects, 'importance');
+    }, [meeting.subjects]);
 
     const handleClick = async (e: React.MouseEvent) => {
         e.preventDefault();
@@ -96,9 +71,21 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     };
 
     const remainingSubjectsCount = meeting.subjects.length - 3;
-    const isUpcoming = isFuture(meeting.dateTime);
-    const isToday = format(meeting.dateTime, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-    const isTodayWithoutVideo = isToday && !meeting.videoUrl;
+    const { isUpcoming, isToday, isTodayWithoutVideo, upcomingDistance } = useMemo(
+        () => {
+            if (!meeting.dateTime) {
+                return { isUpcoming: false, isToday: false, isTodayWithoutVideo: false, upcomingDistance: null };
+            }
+            return getMeetingCardTemporalState({
+                meetingDate: meeting.dateTime,
+                meetingHasVideo: Boolean(meeting.videoUrl),
+                referenceNow,
+                locale: (locale === 'el' || locale === 'en') ? locale : 'en',
+                cityTimezone,
+            });
+        },
+        [meeting.dateTime, meeting.videoUrl, referenceNow, locale, cityTimezone]
+    );
 
     // Ensure we have subjects to display
     const hasSubjects = meeting.subjects.length > 0;
@@ -157,7 +144,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     <span className="relative z-10 flex items-center gap-1.5">
                                         <Clock className="w-3.5 h-3.5" />
                                         {isUpcoming ? (
-                                            <>{t('upcoming')}: {formatDistanceToNow(meeting.dateTime, { locale: locale === 'el' ? el : enUS })}</>
+                                            t('upcomingWithDistance', { distance: upcomingDistance })
                                         ) : (
                                             t('today')
                                         )}

@@ -15,6 +15,7 @@ type CityMeetingsProps = {
     cityId: string,
     timezone: string,
     canEdit: boolean,
+    pageRenderedAt: string,
 } & Partial<PaginationParams>;
 
 export default function CityMeetings({
@@ -22,6 +23,7 @@ export default function CityMeetings({
     cityId,
     timezone,
     canEdit,
+    pageRenderedAt,
     currentPage,
     pageSize
 }: CityMeetingsProps) {
@@ -40,11 +42,11 @@ export default function CityMeetings({
     }, [typeOptions]);
 
     return (
-        <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string }, AdministrativeBodyType>
+        <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string; referenceNow: string }, AdministrativeBodyType>
             items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCard}
-            itemProps={{ cityTimezone: timezone }}
+            itemProps={{ cityTimezone: timezone, referenceNow: pageRenderedAt }}
             FormComponent={AddMeetingForm}
             formProps={{ cityId }}
             t={t}

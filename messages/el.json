@@ -19,7 +19,7 @@
         "beingProcessed": "Επεξεργαζόμαστε τη συνεδρίαση",
         "loading": "Φόρτωση...",
         "notPublic": "Μη δημόσια",
-        "upcoming": "Επερχόμενη",
+        "upcomingWithDistance": "Επερχόμενη: {distance}",
         "today": "Σημερινή συνεδρίαση"
     },
     "PilotPage": {
