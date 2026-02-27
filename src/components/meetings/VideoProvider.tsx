@@ -1,7 +1,8 @@
 "use client"
-import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback, useMemo } from 'react';
 import { CouncilMeeting, Utterance } from "@prisma/client";
 import { useTranscriptOptions } from './options/OptionsContext';
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 
 /**
  * VIDEO PLAYBACK ARCHITECTURE OVERVIEW:
@@ -60,7 +61,6 @@ export const useVideo = () => {
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
-    utterances: Utterance[];
 }
 
 // Add throttle helper function
@@ -75,8 +75,10 @@ const throttle = (func: Function, limit: number) => {
     };
 };
 
-export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
+export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting }) => {
     const { options } = useTranscriptOptions();
+    const { transcript } = useCouncilMeetingData();
+    const utterances = useMemo<Utterance[]>(() => transcript.flatMap(s => s.utterances ?? []), [transcript]);
     
     // === CORE VIDEO STATE ===
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
@@ -91,7 +93,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = useCallback((time: number) => {
         const lastUtteranceBeforeTime = utterances
-            .filter(u => u.startTimestamp <= time)
+            .filter((u) => u.startTimestamp <= time)
             .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
         const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
@@ -130,6 +132,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         // Set initial time to first utterance if no other time set
         if (currentTimeRef.current === 0 && utterances.length > 0) {
             currentTimeRef.current = utterances[0].startTimestamp;
+            setCurrentTime(utterances[0].startTimestamp);
         }
 
         // Handle ?t=123 URL parameter for deep linking
@@ -137,11 +140,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
                 currentTimeRef.current = seconds;
+                setCurrentTime(seconds);
                 // Add a longer delay and retry mechanism for scrolling
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
                         const utteranceElement = utterances
-                            .filter(u => u.startTimestamp <= seconds)
+                            .filter((u) => u.startTimestamp <= seconds)
                             .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
                         if (utteranceElement) {
@@ -234,6 +238,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         setIsSeeking(false);
         if (playerRef.current) {
             currentTimeRef.current = playerRef.current.currentTime;
+            setCurrentTime(currentTimeRef.current);
         }
     }
     
@@ -251,16 +256,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
      * - Scrolls transcript to corresponding utterance
      */
     const seekTo = (time: number) => {
-        if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
-            }
-            currentTimeRef.current = time;
-            // Use requestAnimationFrame to ensure DOM has updated
-            requestAnimationFrame(() => {
-                scrollToUtterance(time);
-            });
+        if (playerRef.current && hasStartedPlaying) {
+            playerRef.current.currentTime = time;
         }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+            scrollToUtterance(time);
+        });
     };
 
     /**
@@ -307,12 +311,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
      * - Used for programmatic seeking
      */
     const seekToWithoutScroll = (time: number) => {
-        if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
-            }
-            currentTimeRef.current = time;
+        if (playerRef.current && hasStartedPlaying) {
+            playerRef.current.currentTime = time;
         }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
     };
 
     const value = {

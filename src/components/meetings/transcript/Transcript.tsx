@@ -17,12 +17,12 @@ const isSpeakerSegmentElement = (element: Element): boolean => {
     return Boolean(element.id && element.id.startsWith(SPEAKER_SEGMENT_PREFIX));
 };
 
-const parseSegmentIndex = (elementId: string): number => {
-    return parseInt(elementId.split('-')[2], 10);
+const parseSegmentId = (elementId: string): string => {
+    return elementId.substring(SPEAKER_SEGMENT_PREFIX.length);
 };
 
-const createSegmentId = (index: number): string => {
-    return `${SPEAKER_SEGMENT_PREFIX}${index}`;
+const createSegmentId = (segmentId: string): string => {
+    return `${SPEAKER_SEGMENT_PREFIX}${segmentId}`;
 };
 
 export default function Transcript() {
@@ -31,28 +31,29 @@ export default function Transcript() {
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
+    const [visibleSegments, setVisibleSegments] = useState<Set<string>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
     
-    // Check if transcript is unverified (humanReview not completed)
-    const isUnverified = !taskStatus.humanReview;
-
-    // Derive scroll state from visible segments - if first segment (index 0) is not visible, we've scrolled
-    const isScrolled = useMemo(() => {
-        return visibleSegments.size > 0 && !visibleSegments.has(0);
-    }, [visibleSegments]);
-
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
 
+    // Check if transcript is unverified (humanReview not completed)
+    const isUnverified = !taskStatus.humanReview;
+
+    // Derive scroll state from visible segments - if first segment is not visible, we've scrolled
+    const isScrolled = useMemo(() => {
+        const firstSegmentId = displayedSegments[0]?.id;
+        if (!firstSegmentId) return false;
+        return visibleSegments.size > 0 && !visibleSegments.has(firstSegmentId);
+    }, [visibleSegments, displayedSegments]);
+
     // Helper to calculate time interval from segment indices
-    const calculateTimeInterval = useCallback((segmentIndices: number[] | Set<number>): [number, number] | null => {
-        const indices = Array.isArray(segmentIndices) ? segmentIndices : Array.from(segmentIndices);
-        const sortedIndices = indices.sort((a, b) => a - b);
-        const validSegments = sortedIndices.map(index => displayedSegments[index]).filter(Boolean);
+    const calculateTimeInterval = useCallback((segmentIds: string[] | Set<string>): [number, number] | null => {
+        const ids = Array.isArray(segmentIds) ? new Set(segmentIds) : segmentIds;
+        const validSegments = displayedSegments.filter(segment => ids.has(segment.id));
         
         if (validSegments.length === 0) return null;
         
@@ -77,9 +78,9 @@ export default function Transcript() {
                             return rect.top < window.innerHeight && rect.bottom >= 0;
                         })
                         .filter(isSpeakerSegmentElement)
-                        .map((child) => parseSegmentIndex(child.id));
+                        .map((child) => parseSegmentId(child.id));
 
-                    const interval = calculateTimeInterval(visibleIndices);
+                    const interval = calculateTimeInterval(new Set(visibleIndices));
                     if (interval) {
                         setCurrentScrollInterval(interval);
                     }
@@ -110,28 +111,28 @@ export default function Transcript() {
     // Single intersection observer for tracking visible segments AND updating scroll interval
     const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
         let hasChanges = false;
-        const updates: { index: number; visible: boolean }[] = [];
+        const updates: { id: string; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
-            const segmentIndex = parseSegmentIndex(entry.target.id);
-            const isCurrentlyVisible = visibleSegments.has(segmentIndex);
+            const segmentId = parseSegmentId(entry.target.id);
+            const isCurrentlyVisible = visibleSegments.has(segmentId);
 
             if (entry.isIntersecting && !isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: true });
+                updates.push({ id: segmentId, visible: true });
                 hasChanges = true;
             } else if (!entry.isIntersecting && isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: false });
+                updates.push({ id: segmentId, visible: false });
                 hasChanges = true;
             }
         });
 
         if (hasChanges) {
             const newVisibleSegments = new Set(visibleSegments);
-            updates.forEach(({ index, visible }) => {
+            updates.forEach(({ id, visible }) => {
                 if (visible) {
-                    newVisibleSegments.add(index);
+                    newVisibleSegments.add(id);
                 } else {
-                    newVisibleSegments.delete(index);
+                    newVisibleSegments.delete(id);
                 }
             });
 
@@ -182,15 +183,17 @@ export default function Transcript() {
                 />
             )}
             {displayedSegments.map((segment, index: number) => {
+                const previousSegmentId = displayedSegments[index - 1]?.id;
+                const nextSegmentId = displayedSegments[index + 1]?.id;
                 // Determine if this segment should be fully rendered
-                const shouldRender = visibleSegments.has(index) ||
-                    visibleSegments.has(index - 1) ||
-                    visibleSegments.has(index + 1);
+                const shouldRender = visibleSegments.has(segment.id) ||
+                    (previousSegmentId ? visibleSegments.has(previousSegmentId) : false) ||
+                    (nextSegmentId ? visibleSegments.has(nextSegmentId) : false);
 
                 return (
                     <div
-                        key={index}
-                        id={createSegmentId(index)}
+                        key={segment.id}
+                        id={createSegmentId(segment.id)}
                     >
                         <SpeakerSegment
                             segment={segment}

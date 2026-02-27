@@ -46,8 +46,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const [speakerTags, setSpeakerTags] = useState(data.speakerTags);
     const [transcript, setTranscript] = useState(data.transcript);
     const [highlights, setHighlights] = useState(data.highlights);
+    const orderedTranscript = useMemo(() => {
+        return [...transcript].sort((a, b) => {
+            if (a.startTimestamp !== b.startTimestamp) {
+                return a.startTimestamp - b.startTimestamp;
+            }
+            if (a.endTimestamp !== b.endTimestamp) {
+                return a.endTimestamp - b.endTimestamp;
+            }
+            return a.id.localeCompare(b.id);
+        });
+    }, [transcript]);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
-    const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
+    const speakerSegmentsMap = useMemo(() => new Map(orderedTranscript.map(segment => [segment.id, segment])), [orderedTranscript]);
     const highlightsMap = useMemo(() => new Map(highlights.map(h => [h.id, h])), [highlights]);
 
     // Helper function to recalculate segment timestamps based on utterances
@@ -63,12 +74,12 @@ export function CouncilMeetingDataProvider({ children, data }: {
     // Create a map of speaker tag IDs to their segment counts
     const speakerTagSegmentCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        transcript.forEach(segment => {
+        orderedTranscript.forEach(segment => {
             const count = counts.get(segment.speakerTag.id) || 0;
             counts.set(segment.speakerTag.id, count + 1);
         });
         return counts;
-    }, [transcript]);
+    }, [orderedTranscript]);
 
     // Highlight management methods
     const addHighlight = useCallback((highlight: HighlightWithUtterances) => {
@@ -99,7 +110,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
     const contextValue = useMemo(() => ({
         ...data,
-        transcript,
+        transcript: orderedTranscript,
         speakerTags,
         highlights,
         getPerson: (id: string) => peopleMap.get(id),
@@ -350,7 +361,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 return segment;
             }));
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, orderedTranscript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>
