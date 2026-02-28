@@ -3,7 +3,7 @@
 import { PollDecisionsRequest, PollDecisionsResult } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { upsertDecision, getDecisionForSubject } from "../db/decisions";
+import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
@@ -11,11 +11,10 @@ import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS 
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
-    subjectIds?: string[]
 ) {
     await withUserAuthorizedToEdit({ cityId });
 
-    return pollDecisionsForMeeting(cityId, councilMeetingId, subjectIds);
+    return pollDecisionsForMeeting(cityId, councilMeetingId);
 }
 
 /**
@@ -25,7 +24,6 @@ export async function requestPollDecisions(
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
-    subjectIds?: string[]
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -50,12 +48,10 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     agendaItemIndex: true,
+                    decision: { select: { ada: true, title: true } },
                 },
                 where: {
                     agendaItemIndex: { not: null },
-                    ...(subjectIds && {
-                        id: { in: subjectIds },
-                    }),
                 },
             },
         },
@@ -82,6 +78,9 @@ export async function pollDecisionsForMeeting(
         subjects: councilMeeting.subjects.map(s => ({
             subjectId: s.id,
             name: s.name,
+            ...(s.decision?.ada ? {
+                existingDecision: { ada: s.decision.ada, decisionTitle: s.decision.title ?? '' },
+            } : {}),
         })),
     };
 
@@ -171,23 +170,9 @@ export async function pollDecisionsForRecentMeetings() {
         }
 
         try {
-            // Only poll for subjects that don't have a decision yet
-            const unlinkedSubjects = await prisma.subject.findMany({
-                where: {
-                    councilMeetingId: meeting.id,
-                    cityId: meeting.cityId,
-                    agendaItemIndex: { not: null },
-                    decision: null,
-                },
-                select: { id: true },
-            });
-
-            if (unlinkedSubjects.length === 0) continue;
-
             await pollDecisionsForMeeting(
                 meeting.cityId,
                 meeting.id,
-                unlinkedSubjects.map(s => s.id)
             );
 
             dispatched++;
@@ -562,22 +547,9 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
         };
     }
 
-    // Poll for all unlinked subjects in the meeting, not just the one requested.
-    // This keeps the per-meeting "last searched" timestamp accurate for every subject.
-    const unlinkedSubjects = await prisma.subject.findMany({
-        where: {
-            councilMeetingId: subject.councilMeetingId,
-            cityId: subject.cityId,
-            agendaItemIndex: { not: null },
-            decision: null,
-        },
-        select: { id: true },
-    });
-
     const task = await pollDecisionsForMeeting(
         subject.cityId,
         subject.councilMeetingId,
-        unlinkedSubjects.map(s => s.id)
     );
 
     return {
@@ -669,10 +641,15 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         throw new Error("Task not found");
     }
 
-    // Validate that all returned subjectIds belong to this task's meeting
+    // Collect all subjectIds from matches and reassignments for validation
+    const allSubjectIds = [
+        ...result.matches.map(m => m.subjectId),
+        ...result.reassignments.flatMap(r => [r.fromSubjectId, r.toSubjectId]),
+    ];
+
     const validSubjectIds = await prisma.subject.findMany({
         where: {
-            id: { in: result.matches.map(m => m.subjectId) },
+            id: { in: allSubjectIds },
             cityId: task.cityId,
             councilMeetingId: task.councilMeetingId,
         },
@@ -680,25 +657,66 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     });
     const validSubjectIdSet = new Set(validSubjectIds.map(s => s.id));
 
-    let processedCount = 0;
-    for (const match of result.matches) {
-        // Skip any subjectIds that don't belong to this meeting
-        if (!validSubjectIdSet.has(match.subjectId)) {
-            console.warn(`Poll decisions: skipping invalid subjectId ${match.subjectId} for task ${taskId}`);
-            continue;
+    // Validate every reassignment has a corresponding match to upsert,
+    // otherwise deleting the old decision would lose it permanently.
+    const matchSubjectIds = new Set(result.matches.map(m => m.subjectId));
+    for (const r of result.reassignments) {
+        if (!matchSubjectIds.has(r.toSubjectId)) {
+            throw new Error(`Reassignment for ${r.ada} has no corresponding match (${r.fromSubjectId} → ${r.toSubjectId})`);
         }
-
-        await upsertDecision({
-            subjectId: match.subjectId,
-            pdfUrl: match.pdfUrl,
-            ada: match.ada,
-            protocolNumber: match.protocolNumber,
-            title: match.decisionTitle,
-            issueDate: new Date(match.issueDate),
-            taskId, // Track that this decision was created by this task
-        });
-        processedCount++;
     }
 
-    console.log(`Poll decisions completed: ${processedCount} processed, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
+    // Wrap reassignments + upserts in a transaction to ensure atomicity.
+    // Reassignments delete old decisions to free ADA unique constraints before
+    // upserting new ones — without a transaction, a failed upsert after a
+    // successful delete would permanently lose decision data.
+    let reassignmentCount = 0;
+    let processedCount = 0;
+
+    await prisma.$transaction(async (tx) => {
+        // Step 1: Process reassignments — delete old decisions to free ADA unique constraint
+        if (result.reassignments.length > 0) {
+            for (const r of result.reassignments) {
+                if (!validSubjectIdSet.has(r.fromSubjectId) || !validSubjectIdSet.has(r.toSubjectId)) {
+                    console.warn(`Poll decisions: skipping invalid reassignment ${r.ada} (${r.fromSubjectId} → ${r.toSubjectId}) for task ${taskId}`);
+                    continue;
+                }
+                await tx.decision.deleteMany({ where: { subjectId: r.fromSubjectId } });
+                reassignmentCount++;
+                console.log(`Reassigned ADA ${r.ada}: ${r.fromSubjectId} → ${r.toSubjectId}: ${r.reason}`);
+            }
+        }
+
+        // Step 2: Upsert new matches (including reassigned ones)
+        for (const match of result.matches) {
+            // Skip any subjectIds that don't belong to this meeting
+            if (!validSubjectIdSet.has(match.subjectId)) {
+                console.warn(`Poll decisions: skipping invalid subjectId ${match.subjectId} for task ${taskId}`);
+                continue;
+            }
+
+            await tx.decision.upsert({
+                where: { subjectId: match.subjectId },
+                create: {
+                    subjectId: match.subjectId,
+                    pdfUrl: match.pdfUrl,
+                    protocolNumber: match.protocolNumber ?? null,
+                    ada: match.ada ?? null,
+                    title: match.decisionTitle ?? null,
+                    publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                    taskId,
+                },
+                update: {
+                    pdfUrl: match.pdfUrl,
+                    protocolNumber: match.protocolNumber ?? null,
+                    ada: match.ada ?? null,
+                    title: match.decisionTitle ?? null,
+                    publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                },
+            });
+            processedCount++;
+        }
+    });
+
+    console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }
