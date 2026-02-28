@@ -432,7 +432,14 @@ export interface PollDecisionsRequest extends TaskRequest {
     meetingDate: string; // ISO date "YYYY-MM-DD"
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
     diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
-    subjects: Array<{ subjectId: string; name: string }>;
+    subjects: Array<{
+        subjectId: string;
+        name: string;
+        existingDecision?: {
+            ada: string;
+            decisionTitle: string;
+        };
+    }>;
 }
 
 export interface PollDecisionsMatch {
@@ -447,6 +454,12 @@ export interface PollDecisionsMatch {
 
 export interface PollDecisionsResult {
     matches: PollDecisionsMatch[];
+    reassignments: Array<{
+        ada: string;
+        fromSubjectId: string;
+        toSubjectId: string;
+        reason: string;
+    }>;
     unmatchedSubjects: Array<{ subjectId: string; name: string; reason: string }>;
     ambiguousSubjects: Array<{
         subjectId: string;
