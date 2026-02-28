@@ -113,7 +113,9 @@ export async function getHighlightsForMeeting(
     // Build where clause based on permissions
     const where: Prisma.HighlightWhereInput = {
         cityId,
-        meetingId
+        meetingId,
+        // NEW: only user-created highlights - excludes AI-generated ones - Issue #234
+        createdById: { not: null }   
     };
 
     // City editors (including super admins) see all highlights
