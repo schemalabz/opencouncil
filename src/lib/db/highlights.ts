@@ -119,6 +119,10 @@ export async function getHighlightsForMeeting(
     // City editors (including super admins) see all highlights
     // Regular users only see their own
     if (!permissions.canEditCity) {
+         // City editors: all user-created highlights (exclude AI)  #issue236
+        where.createdById = {not: null};
+    }   else{
+        // Regular users: only their own highlights (implicitly excludes AI) #issue236
         where.createdById = permissions.userId;
     }
 
