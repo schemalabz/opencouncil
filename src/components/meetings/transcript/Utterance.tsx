@@ -152,13 +152,13 @@ const UtteranceC: React.FC<{
             return;
         }
 
-        // Optimistic update - immediate
-        setLocalUtterance({ 
-            ...localUtterance, 
+        // Optimistic update
+        setLocalUtterance(prev => ({ 
+            ...prev, 
             text: editedText,
             startTimestamp: editedStartTime,
             endTimestamp: editedEndTime
-        });
+        }));
         setIsEditing(false);
         
         // Background save

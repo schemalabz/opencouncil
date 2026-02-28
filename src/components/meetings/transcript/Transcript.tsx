@@ -108,41 +108,37 @@ export default function Transcript() {
         [setCurrentScrollInterval]
     );
 
-    // Single intersection observer for tracking visible segments AND updating scroll interval
+    // Single intersection observer for tracking visible segments
     const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
         let hasChanges = false;
         const updates: { id: string; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
             const segmentId = parseSegmentId(entry.target.id);
-            const isCurrentlyVisible = visibleSegments.has(segmentId);
-
-            if (entry.isIntersecting && !isCurrentlyVisible) {
-                updates.push({ id: segmentId, visible: true });
-                hasChanges = true;
-            } else if (!entry.isIntersecting && isCurrentlyVisible) {
-                updates.push({ id: segmentId, visible: false });
-                hasChanges = true;
-            }
+            updates.push({ id: segmentId, visible: entry.isIntersecting });
         });
 
-        if (hasChanges) {
-            const newVisibleSegments = new Set(visibleSegments);
+        setVisibleSegments(prev => {
+            const next = new Set(prev);
+            let actuallyChanged = false;
             updates.forEach(({ id, visible }) => {
-                if (visible) {
-                    newVisibleSegments.add(id);
-                } else {
-                    newVisibleSegments.delete(id);
+                if (visible && !next.has(id)) {
+                    next.add(id);
+                    actuallyChanged = true;
+                } else if (!visible && next.has(id)) {
+                    next.delete(id);
+                    actuallyChanged = true;
                 }
             });
+            return actuallyChanged ? next : prev;
+        });
+    }, []);
 
-            setVisibleSegments(newVisibleSegments);
-
-            // Update scroll interval with debouncing for performance
-            const interval = calculateTimeInterval(newVisibleSegments);
-            if (interval) {
-                debouncedSetCurrentScrollInterval(interval);
-            }
+    // Effect to update scroll interval when visible segments change
+    useEffect(() => {
+        const interval = calculateTimeInterval(visibleSegments);
+        if (interval) {
+            debouncedSetCurrentScrollInterval(interval);
         }
     }, [visibleSegments, calculateTimeInterval, debouncedSetCurrentScrollInterval]);
 

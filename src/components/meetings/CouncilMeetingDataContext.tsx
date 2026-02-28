@@ -335,31 +335,39 @@ export function CouncilMeetingDataProvider({ children, data }: {
             }));
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
-            setTranscript(prev => prev.map(segment => {
-                if (segment.id === segmentId) {
-                    // Update the utterance
-                    const updatedUtterances = segment.utterances.map(u =>
-                        u.id === utteranceId ? { ...u, ...updates } : u
-                    );
-                    
-                    // If timestamps changed, recalculate segment boundaries
-                    const timestampsChanged = 'startTimestamp' in updates || 'endTimestamp' in updates;
-                    if (timestampsChanged) {
-                        const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+            setTranscript(prev => {
+                const timestampsChanged = 'startTimestamp' in updates || 'endTimestamp' in updates;
+                const updated = prev.map(segment => {
+                    if (segment.id === segmentId) {
+                        const updatedUtterances = segment.utterances.map(u =>
+                            u.id === utteranceId ? { ...u, ...updates } : u
+                        );
+                        
+                        if (timestampsChanged) {
+                            const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+                            return {
+                                ...segment,
+                                utterances: updatedUtterances,
+                                ...newTimestamps
+                            };
+                        }
+                        
                         return {
                             ...segment,
-                            utterances: updatedUtterances,
-                            ...newTimestamps
+                            utterances: updatedUtterances
                         };
                     }
-                    
-                    return {
-                        ...segment,
-                        utterances: updatedUtterances
-                    };
+                    return segment;
+                });
+
+                // Only trigger a full re-sort/re-render if timestamps changed
+                if (!timestampsChanged) {
+                    // We can skip the state update if the data is identical conceptually, 
+                    // but for text changes we need the update.
+                    return updated;
                 }
-                return segment;
-            }));
+                return updated;
+            });
         }
     }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, orderedTranscript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
 

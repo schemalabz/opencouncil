@@ -78,11 +78,11 @@ describe('Transcript', () => {
             makeSegment('seg-b', 20, 30)
         ];
 
-        (useCouncilMeetingData as jest.Mock).mockReturnValue({
+        (useCouncilMeetingData as jest.Mock).mockImplementation(() => ({
             transcript: transcriptData,
             getHighlight: jest.fn(),
             taskStatus: { humanReview: true }
-        });
+        }));
 
         (useTranscriptOptions as jest.Mock).mockReturnValue({
             options: { editable: true }
