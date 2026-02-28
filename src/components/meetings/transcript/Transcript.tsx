@@ -117,36 +117,44 @@ export default function Transcript() {
         []
     );
 
-    // Single intersection observer for tracking visible segments AND updating scroll interval
+    // Single intersection observer for tracking visible segments
+    const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
+        let hasChanges = false;
+        const updates: { id: string; visible: boolean }[] = [];
+
+        entries.forEach((entry) => {
+            const segmentId = parseSegmentId(entry.target.id);
+            updates.push({ id: segmentId, visible: entry.isIntersecting });
+        });
+
+        setVisibleSegments(prev => {
+            const next = new Set(prev);
+            let actuallyChanged = false;
+            updates.forEach(({ id, visible }) => {
+                if (visible && !next.has(id)) {
+                    next.add(id);
+                    actuallyChanged = true;
+                } else if (!visible && next.has(id)) {
+                    next.delete(id);
+                    actuallyChanged = true;
+                }
+            });
+            return actuallyChanged ? next : prev;
+        });
+    }, []);
+
+    // Effect to update scroll interval when visible segments change
+    useEffect(() => {
+        const interval = calculateTimeInterval(visibleSegments);
+        if (interval) {
+            debouncedSetScrollInterval(interval);
+        }
+    }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval]);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const observer = new IntersectionObserver((entries) => {
-            setVisibleSegments(prev => {
-                const next = new Set(prev);
-                let changed = false;
-                
-                entries.forEach(entry => {
-                    const id = parseSegmentId(entry.target.id);
-                    if (entry.isIntersecting && !next.has(id)) {
-                        next.add(id);
-                        changed = true;
-                    } else if (!entry.isIntersecting && next.has(id)) {
-                        next.delete(id);
-                        changed = true;
-                    }
-                });
-
-                if (changed) {
-                    const interval = calculateTimeInterval(next);
-                    if (interval) {
-                        debouncedSetScrollInterval(interval);
-                    }
-                    return next;
-                }
-                return prev;
-            });
-        }, {
+        const observer = new IntersectionObserver(handleIntersection, {
             root: null,
             rootMargin: '200px',
             threshold: 0,
@@ -159,7 +167,7 @@ export default function Transcript() {
         });
 
         return () => observer.disconnect();
-    }, [calculateTimeInterval, debouncedSetScrollInterval]);
+    }, [handleIntersection]);
 
     if (displayedSegments.length === 0) {
         return <div className="container py-8">
