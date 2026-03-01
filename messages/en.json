@@ -503,7 +503,7 @@
         "lastUpdated": "Last updated {time}",
         "decisionTitle": "Title",
         "protocolNumber": "Protocol Number",
-        "issueDate": "Issue Date",
+        "publishDate": "Publish Date",
         "viewDecision": "View decision on Diavgeia"
     },
     "CouncilMeeting": {

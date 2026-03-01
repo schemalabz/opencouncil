@@ -27,7 +27,7 @@ export interface UpsertDecisionData {
     protocolNumber?: string;
     ada?: string;
     title?: string;
-    issueDate?: Date;
+    publishDate?: Date;
     taskId?: string;
     createdById?: string;
 }
@@ -41,7 +41,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
             protocolNumber: data.protocolNumber ?? null,
             ada: data.ada ?? null,
             title: data.title ?? null,
-            issueDate: data.issueDate ?? null,
+            publishDate: data.publishDate ?? null,
             taskId: data.taskId ?? null,
             createdById: data.createdById ?? null,
         },
@@ -50,7 +50,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
             protocolNumber: data.protocolNumber ?? null,
             ada: data.ada ?? null,
             title: data.title ?? null,
-            issueDate: data.issueDate ?? null,
+            publishDate: data.publishDate ?? null,
             // Don't update taskId/createdById on updates - preserve original source
         },
     });
@@ -96,7 +96,7 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
     protocolNumber: string | null;
     title: string | null;
     pdfUrl: string;
-    issueDate: string | null;
+    publishDate: string | null;
     updatedAt: string | null;
 } | null> {
     const decision = await prisma.decision.findUnique({
@@ -108,7 +108,7 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
         protocolNumber: decision.protocolNumber,
         title: decision.title,
         pdfUrl: decision.pdfUrl,
-        issueDate: decision.issueDate?.toISOString() ?? null,
+        publishDate: decision.publishDate?.toISOString() ?? null,
         updatedAt: decision.updatedAt?.toISOString() ?? null,
     };
 }

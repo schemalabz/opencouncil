@@ -22,7 +22,7 @@ const upsertSchema = z.object({
     protocolNumber: z.string().optional(),
     ada: z.string().optional(),
     title: z.string().optional(),
-    issueDate: z.string().datetime().optional(),
+    publishDate: z.string().datetime().optional(),
 });
 
 export async function PUT(
@@ -59,7 +59,7 @@ export async function PUT(
         protocolNumber: parsed.protocolNumber,
         ada: parsed.ada,
         title: parsed.title,
-        issueDate: parsed.issueDate ? new Date(parsed.issueDate) : undefined,
+        publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
         createdById: userId, // Track who manually added this decision
     });
     revalidateTag(`city:${params.cityId}:meetings`);

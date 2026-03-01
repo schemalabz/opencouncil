@@ -448,7 +448,7 @@ export interface PollDecisionsMatch {
     decisionTitle: string; // Full title from Diavgeia
     pdfUrl: string;
     protocolNumber: string; // e.g., "231/2025"
-    issueDate: string; // ISO date when published on Diavgeia
+    publishDate: string; // ISO date when published on Diavgeia
     matchConfidence: number; // 0-1 confidence score
 }
 

@@ -38,7 +38,7 @@ interface DiscoveryDetail {
   subjectId: string;
   subjectName: string;
   ada: string | null;
-  issueDate: string | null;
+  publishDate: string | null;
   discoveredAt: string;
   firstPollAt: string;
   totalPollsForMeeting: number;
@@ -547,7 +547,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
                         </Tooltip>
                       </td>
                       <td className="px-4 py-2 whitespace-nowrap font-mono text-xs">{d.ada ?? '—'}</td>
-                      <td className="px-4 py-2 whitespace-nowrap">{d.issueDate ?? '—'}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">{d.publishDate ?? '—'}</td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         {new Date(d.discoveredAt).toLocaleDateString()}
                       </td>
