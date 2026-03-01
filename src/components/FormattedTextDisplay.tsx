@@ -27,19 +27,26 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     const linkStyle = linkColor === 'blue' ? { color: 'hsl(213 49% 73%)' } : undefined;
 
     // Helper to render entity links (person, subject) with optional context
-    const renderEntityLink = (entityType: string, id: string, children: React.ReactNode) => {
-        if (meetingId && cityId) {
-            return (
-                <a
-                    href={`/${cityId}/${meetingId}/${entityType}/${id}`}
-                    className={`${linkClassName} inline`}
-                    style={linkStyle}
-                >
-                    {children}
-                </a>
-            );
-        }
-        return <span className="inline">{children}</span>;
+    const renderEntityLink = (entityType: 'people' | 'subjects', id: string, children: React.ReactNode) => {
+        if (!cityId) return <span className="inline">{children}</span>;
+
+        // People links are direct: /city/people/id
+        // Subject links are meeting-scoped: /city/meeting/subjects/id
+        const href = entityType === 'people'
+            ? `/${cityId}/people/${id}`
+            : meetingId ? `/${cityId}/${meetingId}/subjects/${id}` : null;
+
+        if (!href) return <span className="inline">{children}</span>;
+
+        return (
+            <a
+                href={href}
+                className={`${linkClassName} inline`}
+                style={linkStyle}
+            >
+                {children}
+            </a>
+        );
     };
 
     return (
