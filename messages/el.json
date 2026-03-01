@@ -2,6 +2,33 @@
     "Common": {
         "allTopics": "Όλα τα θέματα"
     },
+    "Search": {
+        "title": "Αναζήτηση",
+        "subtitle": "Αναζητήστε θέματα συμβουλίων, τοποθετήσεις ομιλητών και περισσότερα",
+        "placeholder": "Πληκτρολογήστε για αναζήτηση...",
+        "placeholderDisabled": "Η αναζήτηση είναι προσωρινά απενεργοποιημένη...",
+        "maintenanceTitle": "Προσωρινή Διακοπή Λειτουργίας",
+        "maintenanceMessage": "Η λειτουργία αναζήτησης είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. Παρακαλούμε δοκιμάστε ξανά αργότερα.",
+        "error": "Σφάλμα αναζήτησης",
+        "errorGeneric": "Προέκυψε σφάλμα",
+        "welcome": "Καλώς ήρθατε στην αναζήτηση",
+        "welcomeSubtitle": "Πληκτρολογήστε για να αναζητήσετε θέματα συμβουλίων",
+        "noResults": "Δε βρέθηκαν αποτελέσματα",
+        "noResultsHint": "Δοκιμάστε να αλλάξετε τους όρους αναζήτησης ή τα φίλτρα",
+        "resultsFound": "Βρέθηκαν {count} αποτελέσματα",
+        "previous": "Προηγούμενο",
+        "next": "Επόμενο",
+        "pageInfo": "Σελίδα {page} από {totalPages}",
+        "filters": "Φίλτρα",
+        "city": "Πόλη",
+        "selectCity": "Επιλέξτε πόλη",
+        "party": "Παράταξη",
+        "selectParty": "Επιλέξτε παράταξη",
+        "person": "Πρόσωπο",
+        "selectPerson": "Επιλέξτε πρόσωπο",
+        "clearFilters": "Καθαρισμός φίλτρων",
+        "clear": "Καθαρισμός"
+    },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",
         "withVideo": "Βίντεο",
@@ -14,7 +41,8 @@
         "loading": "Φόρτωση...",
         "notPublic": "Μη δημόσια",
         "upcoming": "Επερχόμενη",
-        "today": "Σημερινή συνεδρίαση"
+        "today": "Σημερινή συνεδρίαση",
+        "noSubjects": "Χωρίς θέματα"
     },
     "PilotPage": {
         "title": "To OpenCouncil λειτουργεί δοκιμαστικά με μερικά από τα τελευταία δημοτικά συμβούλια του Δήμου Αθηναίων.",
@@ -26,14 +54,62 @@
         "meetings": "συνεδριάσεις"
     },
     "Header": {
-        "about": "Για Δήμους"
+        "about": "Για Δήμους",
+        "notifications": "Ειδοποιήσεις",
+        "petition": "Αναφορά",
+        "searchPlaceholder": "Αναζήτηση...",
+        "chatPrompt": "ή συνομιλήστε με το OpenCouncil AI"
     },
     "Footer": {
+        "tagline": "Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.",
+        "companyDescription": "Η OpenCouncil είναι εταιρεία της",
+        "companyDescriptionSuffix": ", μιας μη-κερδοσκοπικής εταιρείας που αναπτύσσει τεχνολογία για την ενίσχυση της δημοκρατίας.",
+        "links": "Σύνδεσμοι",
+        "home": "Αρχική",
+        "forMunicipalities": "Για δήμους",
+        "search": "Αναζήτηση",
+        "jobs": "Θέσεις Εργασίας",
+        "policiesAndTerms": "Πολιτικές και Όροι",
+        "corrections": "Διορθώσεις",
         "privacy": "Πολιτική Απορρήτου",
         "terms": "Όροι Χρήσης",
         "contact": "Επικοινωνία",
+        "contributeOnGithub": "Συνεισφέρετε στο GitHub",
         "copyright": "Όλα τα δικαιώματα διατηρούνται",
         "disclaimer": "Οι πληροφορίες που εμφανίζονται συλλέγονται αυτόματα, και ενδέχεται να μην είναι σωστές."
+    },
+    "Landing": {
+        "viewMunicipalities": "Δείτε τους δήμους",
+        "stayInformed": "Μείνετε ενημερωμένοι",
+        "stayInformedDescription": "Λάβετε ενημερώσεις για τα θέματα και τις τοποθεσίες που σας ενδιαφέρουν, πριν ή αφότου αυτά συζητηθούν στο δημοτικό συμβούλιο.",
+        "loadingPrivateCities": "Φορτώνονται μη δημόσιες πόλεις...",
+        "heroTitle": "Ο Δήμος σου,",
+        "heroTitleHighlight": "απλά",
+        "infoForMunicipalities": "Πληροφορίες για δήμους και περιφέρειες",
+        "withoutMunicipalitySupport": "Χωρίς την υποστήριξη του δήμου",
+        "withoutRegionSupport": "Χωρίς την υποστήριξη της περιφέρειας",
+        "peopleCount": "{count} Πρόσωπα",
+        "viewAllPeople": "Δείτε όλα τα πρόσωπα",
+        "partiesCount": "{count} Παρατάξεις",
+        "viewAllParties": "Δείτε όλες τις παρατάξεις",
+        "meetingsCount": "{count} Συνεδριάσεις",
+        "viewAllMeetings": "Δείτε όλες τις συνεδριάσεις",
+        "weAreHiring": "Προσλαμβάνουμε",
+        "descriptionPrefix": "To OpenCouncil χρησιμοποιεί",
+        "descriptionAI": "τεχνητή νοημοσύνη",
+        "descriptionTo": "για να",
+        "descriptionMonitor": "παρακολουθεί",
+        "descriptionThe": "τα",
+        "descriptionCouncils": "δημοτικά συμβούλια",
+        "descriptionAndMake": "και να τα κάνει",
+        "descriptionSimple": "απλά και κατανοητά"
+    },
+    "MunicipalitySelector": {
+        "supportedMunicipalities": "ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ",
+        "allMunicipalities": "ΌΛΟΙ ΟΙ ΔΗΜΟΙ",
+        "selectPlaceholder": "Επιλέξτε τον Δήμο σας...",
+        "searchPlaceholder": "Αναζητήστε τον Δήμο σας...",
+        "noResults": "Δεν βρέθηκε Δήμος με αυτό το όνομα."
     },
     "CitiesList": {
         "searchPlaceholder": "Αναζήτηση πόλεων...",
@@ -326,7 +402,10 @@
         "loading": "Φόρτωση...",
         "loadMore": "Περισσότερα",
         "recentSegments": "Πρόσφατες τοποθετήσεις",
-        "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα"
+        "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
+        "breadcrumbHome": "Αρχική",
+        "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
+        "bio": "Βιογραφικό"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -655,5 +734,12 @@
         "noVotingUtterances": "Δεν βρέθηκε ψηφοφορία για αυτό το θέμα",
         "groupedDiscussion": "Συζήτηση μαζί με άλλα θέματα",
         "groupedDiscussionDescription": "Αυτό το θέμα φαίνεται να συζητήθηκε και να ψηφίστηκε μαζί με άλλα θέματα. Δείτε την συζήτηση στο:"
+    },
+    "SignIn": {
+        "title": "Σύνδεση στο OpenCouncil",
+        "emailPlaceholder": "Εισάγετε το email σας",
+        "loading": "Παρακαλώ περιμένετε...",
+        "continueWithEmail": "Συνέχεια με Email",
+        "error": "Υπήρξε πρόβλημα κατά την αποστολή του email. Παρακαλώ δοκιμάστε ξανά αργότερα."
     }
 }

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FilterIcon, X } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { ScrollArea } from "../ui/scroll-area";
+import { useTranslations } from "next-intl";
 
 export type Filters = {
     cityId?: City["id"];
@@ -23,6 +24,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
     const [people, setPeople] = useState<PersonWithRelations[]>([]);
     const [isMobile, setIsMobile] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const t = useTranslations('Search');
 
     // Check if we're on mobile
     useEffect(() => {
@@ -138,12 +140,12 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
     const renderFilters = (className?: string) => (
         <div className={cn("space-y-4", className)}>
             <div className="space-y-2">
-                <label className="text-sm font-medium">Πόλη</label>
+                <label className="text-sm font-medium">{t('city')}</label>
                 <Combobox
                     items={cities}
                     value={selectedCity}
                     onChange={(city) => onCityChange(city?.name ?? null)}
-                    placeholder="Επιλέξτε πόλη"
+                    placeholder={t('selectCity')}
                     loading={cities.length === 0}
                     className="w-full"
                     getItemLabel={(city) => city.name}
@@ -152,12 +154,12 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                 />
             </div>
             <div className="space-y-2">
-                <label className="text-sm font-medium">Παράταξη</label>
+                <label className="text-sm font-medium">{t('party')}</label>
                 <Combobox
                     items={parties}
                     value={selectedParty}
                     onChange={(party) => onPartyChange(party?.name_short ?? null)}
-                    placeholder="Επιλέξτε παράταξη"
+                    placeholder={t('selectParty')}
                     disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && parties.length === 0}
                     className="w-full"
@@ -166,12 +168,12 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                 />
             </div>
             <div className="space-y-2">
-                <label className="text-sm font-medium">Πρόσωπο</label>
+                <label className="text-sm font-medium">{t('person')}</label>
                 <Combobox
                     items={availablePeople}
                     value={selectedPerson}
                     onChange={(person) => onPersonChange(person?.name_short ?? null)}
-                    placeholder="Επιλέξτε πρόσωπο"
+                    placeholder={t('selectPerson')}
                     disabled={!filters.cityId || disabled}
                     loading={filters.cityId !== undefined && people.length === 0}
                     className="w-full"
@@ -188,7 +190,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                     disabled={disabled}
                 >
                     <X className="w-4 h-4 mr-2" />
-                    Καθαρισμός φίλτρων
+                    {t('clearFilters')}
                 </Button>
             )}
         </div>
@@ -204,7 +206,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                     disabled={disabled}
                 >
                     <FilterIcon className="mr-2 h-4 w-4" />
-                    Φίλτρα
+                    {t('filters')}
                     {hasActiveFilters && (
                         <Badge variant="secondary" className="ml-2">
                             {[filters.cityId, filters.partyId, filters.personId].filter(Boolean).length}
@@ -214,7 +216,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                 <Dialog open={isOpen} onOpenChange={setIsOpen}>
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Φίλτρα</DialogTitle>
+                            <DialogTitle>{t('filters')}</DialogTitle>
                         </DialogHeader>
                         <ScrollArea className="h-[400px] pr-4">
                             {renderFilters()}
@@ -228,7 +230,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
     return (
         <div className={className}>
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Φίλτρα</h3>
+                <h3 className="text-lg font-semibold">{t('filters')}</h3>
                 {hasActiveFilters && (
                     <Button
                         variant="ghost"
@@ -238,7 +240,7 @@ export default function MetadataFilters({ className, filters, setFilters, disabl
                         disabled={disabled}
                     >
                         <X className="w-4 h-4 mr-2" />
-                        Καθαρισμός
+                        {t('clear')}
                     </Button>
                 )}
             </div>

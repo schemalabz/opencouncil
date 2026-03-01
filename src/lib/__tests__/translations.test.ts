@@ -1,9 +1,7 @@
 import en from '../../../messages/en.json';
 import el from '../../../messages/el.json';
 
-// TODO: Translation files are currently out of sync.
-// Enable this test once el.json and en.json have matching keys.
-describe.skip('translations sync', () => {
+describe('translations sync', () => {
     it('should have matching top-level keys', () => {
         const enKeys = Object.keys(en).sort();
         const elKeys = Object.keys(el).sort();

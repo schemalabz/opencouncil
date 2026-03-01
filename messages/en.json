@@ -2,6 +2,33 @@
     "Common": {
         "allTopics": "All Topics"
     },
+    "Search": {
+        "title": "Search",
+        "subtitle": "Search council topics, speaker statements and more",
+        "placeholder": "Type to search...",
+        "placeholderDisabled": "Search is temporarily disabled...",
+        "maintenanceTitle": "Temporary Service Interruption",
+        "maintenanceMessage": "The search function is temporarily unavailable due to system maintenance. Please try again later.",
+        "error": "Search Error",
+        "errorGeneric": "An error occurred",
+        "welcome": "Welcome to search",
+        "welcomeSubtitle": "Type to search council topics",
+        "noResults": "No results found",
+        "noResultsHint": "Try changing your search terms or filters",
+        "resultsFound": "Found {count} results",
+        "previous": "Previous",
+        "next": "Next",
+        "pageInfo": "Page {page} of {totalPages}",
+        "filters": "Filters",
+        "city": "City",
+        "selectCity": "Select city",
+        "party": "Party",
+        "selectParty": "Select party",
+        "person": "Person",
+        "selectPerson": "Select person",
+        "clearFilters": "Clear filters",
+        "clear": "Clear"
+    },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",
         "subtitle": "The information contained may have errors.",
@@ -12,14 +39,62 @@
         "meetings": "meetings"
     },
     "Header": {
-        "about": "For Municipalities"
+        "about": "For Municipalities",
+        "notifications": "Notifications",
+        "petition": "Petition",
+        "searchPlaceholder": "Search...",
+        "chatPrompt": "or chat with OpenCouncil AI"
     },
     "Footer": {
+        "tagline": "Built with respect and appreciation for local government.",
+        "companyDescription": "OpenCouncil is a company of",
+        "companyDescriptionSuffix": ", a non-profit company developing technology to strengthen democracy.",
+        "links": "Links",
+        "home": "Home",
+        "forMunicipalities": "For Municipalities",
+        "search": "Search",
+        "jobs": "Jobs",
+        "policiesAndTerms": "Policies and Terms",
+        "corrections": "Corrections",
         "privacy": "Privacy Policy",
         "terms": "Terms of Service",
-        "contact": "Contact Us",
+        "contact": "Contact",
+        "contributeOnGithub": "Contribute on GitHub",
         "copyright": "All rights reserved",
         "disclaimer": "The information shown is automatically collected and may not be accurate."
+    },
+    "Landing": {
+        "viewMunicipalities": "View municipalities",
+        "stayInformed": "Stay informed",
+        "stayInformedDescription": "Receive updates about the topics and locations that interest you, before or after they are discussed in the city council.",
+        "loadingPrivateCities": "Loading private cities...",
+        "heroTitle": "Your Municipality,",
+        "heroTitleHighlight": "simply",
+        "infoForMunicipalities": "Information for municipalities and regions",
+        "withoutMunicipalitySupport": "Without municipality support",
+        "withoutRegionSupport": "Without region support",
+        "peopleCount": "{count} People",
+        "viewAllPeople": "View all people",
+        "partiesCount": "{count} Parties",
+        "viewAllParties": "View all parties",
+        "meetingsCount": "{count} Meetings",
+        "viewAllMeetings": "View all meetings",
+        "weAreHiring": "We're hiring",
+        "descriptionPrefix": "OpenCouncil uses",
+        "descriptionAI": "artificial intelligence",
+        "descriptionTo": "to",
+        "descriptionMonitor": "monitor",
+        "descriptionThe": "the",
+        "descriptionCouncils": "city councils",
+        "descriptionAndMake": "and make them",
+        "descriptionSimple": "simple and understandable"
+    },
+    "MunicipalitySelector": {
+        "supportedMunicipalities": "SUPPORTED MUNICIPALITIES",
+        "allMunicipalities": "ALL MUNICIPALITIES",
+        "selectPlaceholder": "Select your Municipality...",
+        "searchPlaceholder": "Search for your Municipality...",
+        "noResults": "No municipality found with that name."
     },
     "CitiesList": {
         "searchPlaceholder": "Search cities...",
@@ -448,7 +523,8 @@
         "loading": "Loading...",
         "notPublic": "Not public",
         "upcoming": "Upcoming",
-        "today": "Today's meeting"
+        "today": "Today's meeting",
+        "noSubjects": "No subjects"
     },
     "Person": {
         "partyLeader": "Party Leader",
@@ -481,7 +557,10 @@
         "loadMore": "Load more",
         "item": "member",
         "recentSegments": "Recent statements",
-        "tryDifferentFilter": "Try changing the filters"
+        "tryDifferentFilter": "Try changing the filters",
+        "breadcrumbHome": "Home",
+        "independentCouncilMember": "Independent Council Member",
+        "bio": "Biography"
     },
     "Party": {
         "currentMembers": "Current Members",
@@ -655,5 +734,12 @@
         "unexpectedError": "An unexpected error occurred",
         "confirmDelete": "Are you sure you want to delete this administrative body?",
         "failedToDelete": "Failed to delete"
+    },
+    "SignIn": {
+        "title": "Sign in to OpenCouncil",
+        "emailPlaceholder": "Enter your email",
+        "loading": "Please wait...",
+        "continueWithEmail": "Continue with Email",
+        "error": "There was a problem sending the email. Please try again later."
     }
 }

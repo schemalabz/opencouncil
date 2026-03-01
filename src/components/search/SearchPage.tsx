@@ -13,6 +13,7 @@ import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
@@ -24,6 +25,7 @@ export default function SearchPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const t = useTranslations('Search');
 
     // Get all search parameters from URL
     const query = searchParams.get('query') || "";
@@ -217,10 +219,9 @@ export default function SearchPage() {
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                         <div>
-                            <h3 className="font-medium text-amber-800">Προσωρινή Διακοπή Λειτουργίας</h3>
+                            <h3 className="font-medium text-amber-800">{t('maintenanceTitle')}</h3>
                             <p className="text-sm text-amber-700 mt-1">
-                                Η λειτουργία αναζήτησης είναι προσωρινά μη διαθέσιμη λόγω συντήρησης του συστήματος. 
-                                Παρακαλούμε δοκιμάστε ξανά αργότερα.
+                                {t('maintenanceMessage')}
                             </p>
                         </div>
                     </div>
@@ -237,10 +238,10 @@ export default function SearchPage() {
                 </div>
                 <div className="text-center">
                     <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-[hsl(var(--orange))] to-[hsl(var(--accent))] bg-clip-text text-transparent">
-                        Αναζήτηση
+                        {t('title')}
                     </h2>
                     <p className="text-muted-foreground text-sm">
-                        Αναζητήστε θέματα συμβουλίων, τοποθετήσεις ομιλητών και περισσότερα
+                        {t('subtitle')}
                     </p>
                 </div>
             </div>
@@ -269,7 +270,7 @@ export default function SearchPage() {
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
-                                placeholder={SEARCH_TEMPORARILY_DISABLED ? "Η αναζήτηση είναι προσωρινά απενεργοποιημένη..." : "Πληκτρολογήστε για αναζήτηση..."}
+                                placeholder={SEARCH_TEMPORARILY_DISABLED ? t('placeholderDisabled') : t('placeholder')}
                                 className="pl-12 h-12 text-base"
                                 value={localQuery}
                                 onChange={(e) => {
@@ -293,8 +294,8 @@ export default function SearchPage() {
                     {state.error ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-2">
-                                <div className="text-destructive text-lg font-medium">Σφάλμα αναζήτησης</div>
-                                <span className="text-muted-foreground">{state.error instanceof Error ? state.error.message : 'An error occurred'}</span>
+                                <div className="text-destructive text-lg font-medium">{t('error')}</div>
+                                <span className="text-muted-foreground">{state.error instanceof Error ? state.error.message : t('errorGeneric')}</span>
                             </div>
                         </div>
                     ) : state.isLoading ? (
@@ -306,18 +307,18 @@ export default function SearchPage() {
                     ) : !query ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-2">
-                                <div className="text-muted-foreground text-lg">Καλώς ήρθατε στην αναζήτηση</div>
+                                <div className="text-muted-foreground text-lg">{t('welcome')}</div>
                                 <p className="text-muted-foreground text-sm">
-                                    Πληκτρολογήστε για να αναζητήσετε θέματα συμβουλίων
+                                    {t('welcomeSubtitle')}
                                 </p>
                             </div>
                         </div>
                     ) : state.results.length === 0 ? (
                         <div className="flex justify-center items-center min-h-[400px]">
                             <div className="text-center space-y-2">
-                                <div className="text-muted-foreground text-lg">Δε βρέθηκαν αποτελέσματα</div>
+                                <div className="text-muted-foreground text-lg">{t('noResults')}</div>
                                 <p className="text-muted-foreground text-sm">
-                                    Δοκιμάστε να αλλάξετε τους όρους αναζήτησης ή τα φίλτρα
+                                    {t('noResultsHint')}
                                 </p>
                             </div>
                         </div>
@@ -326,7 +327,7 @@ export default function SearchPage() {
                             <div className="mt-6">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm text-muted-foreground">
-                                        Βρέθηκαν {state.total} αποτελέσματα
+                                        {t('resultsFound', { count: state.total })}
                                     </p>
                                 </div>
                                 {resultsGrid}
@@ -338,17 +339,17 @@ export default function SearchPage() {
                                         disabled={page === 1}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
-                                        Προηγούμενο
+                                        {t('previous')}
                                     </button>
                                     <div className="px-4 py-2 text-sm text-muted-foreground">
-                                        Σελίδα {page} από {totalPages}
+                                        {t('pageInfo', { page, totalPages })}
                                     </div>
                                     <button
                                         onClick={() => updateSearchParams({ page: (page + 1).toString() })}
                                         disabled={page === totalPages}
                                         className="px-4 py-2 rounded-md border bg-background hover:bg-accent disabled:opacity-50 disabled:hover:bg-background transition-colors"
                                     >
-                                        Επόμενο
+                                        {t('next')}
                                     </button>
                                 </div>
                             )}

@@ -234,7 +234,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     <div className="flex-1 flex items-center justify-center">
                                         <div className="flex items-center gap-3 w-full">
                                             <div className="h-px bg-border flex-1"></div>
-                                            <span className="text-xs text-muted-foreground px-2">Χωρίς θέματα</span>
+                                            <span className="text-xs text-muted-foreground px-2">{t('noSubjects')}</span>
                                             <div className="h-px bg-border flex-1"></div>
                                         </div>
                                     </div>

@@ -1,5 +1,6 @@
 import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
+import { createOnError, createGetMessageFallback } from './fallback';
 import fs from 'fs';
 import path from 'path';
 
@@ -66,6 +67,22 @@ async function loadTranslations(locale: string) {
     }
 }
 
+// Load Greek messages as fallback (since Greek is the primary language)
+let greekFallbackMessagesCache: Record<string, any> | null = null;
+
+async function getGreekFallbackMessages(): Promise<Record<string, any>> {
+    if (!greekFallbackMessagesCache) {
+        greekFallbackMessagesCache = await loadTranslations('el');
+    }
+    // TypeScript doesn't narrow the type after assignment in the if block,
+    // but we know it's assigned at this point
+    return greekFallbackMessagesCache as Record<string, any>;
+}
+
+export async function getGreekFallback(): Promise<Record<string, any>> {
+    return getGreekFallbackMessages();
+}
+
 export default getRequestConfig(async ({ requestLocale }) => {
     // This typically corresponds to the `[locale]` segment
     let locale = await requestLocale;
@@ -75,8 +92,13 @@ export default getRequestConfig(async ({ requestLocale }) => {
         locale = routing.defaultLocale;
     }
 
+    // Pre-load Greek fallback messages
+    const greekMessages = await getGreekFallbackMessages();
+
     return {
         locale,
-        messages: await loadTranslations(locale)
+        messages: await loadTranslations(locale),
+        onError: createOnError(),
+        getMessageFallback: createGetMessageFallback(greekMessages),
     };
 });

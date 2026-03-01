@@ -181,7 +181,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         <BreadcrumbList>
                             <BreadcrumbItem>
                                 <BreadcrumbLink asChild>
-                                    <Link href="/">Αρχική</Link>
+                                    <Link href="/">{t('breadcrumbHome')}</Link>
                                 </BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
@@ -245,7 +245,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                     {/* Independent Council Member */}
                                     {isIndependentCouncilMember && (
                                         <div className="text-sm sm:text-base text-muted-foreground italic">
-                                            Ανεξάρτητος Δημοτικός Σύμβουλος
+                                            {t('independentCouncilMember')}
                                         </div>
                                     )}
                                 </motion.div>
@@ -261,7 +261,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                         transition={{ delay: 0.5 }}
                                     >
                                         <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
-                                        <span>Βιογραφικό</span>
+                                        <span>{t('bio')}</span>
                                     </motion.a>
                                 )}
                             </div>

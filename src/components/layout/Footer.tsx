@@ -7,12 +7,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { SiX, SiInstagram, SiFacebook, SiGithub, SiDiscord, SiSubstack } from 'react-icons/si';
+import { useTranslations } from "next-intl";
 
 interface FooterProps {
     className?: string;
 }
 
 export default function Footer({ className }: FooterProps = {}) {
+    const t = useTranslations('Footer');
     return (
         <footer className={cn("w-full bg-background border-t print:hidden", className)}>
             <div className="container mx-auto px-4 py-12">
@@ -24,10 +26,10 @@ export default function Footer({ className }: FooterProps = {}) {
                             textClassName="text-lg"
                         />
                         <p className="text-xs text-muted-foreground md:text-left text-center max-w-sm">
-                            Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.
+                            {t('tagline')}
                         </p>
                         <p className="text-xs text-muted-foreground md:text-left text-center max-w-sm">
-                            Η OpenCouncil είναι εταιρεία της{" "}
+                            {t('companyDescription')}{" "}
                             <Link
                                 href="https://schemalabs.gr"
                                 className="underline hover:text-primary transition-colors"
@@ -36,19 +38,19 @@ export default function Footer({ className }: FooterProps = {}) {
                             >
                                 Schema Labs
                             </Link>
-                            , μιας μη-κερδοσκοπικής εταιρείας που αναπτύσσει τεχνολογία για την ενίσχυση της δημοκρατίας.
+                            {t('companyDescriptionSuffix')}
                         </p>
                     </div>
                     <div className="flex flex-col items-center md:items-start space-y-4">
-                        <h3 className="font-semibold text-foreground text-base">Σύνδεσμοι</h3>
+                        <h3 className="font-semibold text-foreground text-base">{t('links')}</h3>
                         <nav className="flex flex-col items-center md:items-start space-y-2">
                             {[
-                                { href: "/", label: "Αρχική" },
-                                { href: "/about", label: "Για δήμους" },
-                                { href: "/search", label: "Αναζήτηση" },
+                                { href: "/", label: t('home') },
+                                { href: "/about", label: t('forMunicipalities') },
+                                { href: "/search", label: t('search') },
                                 { href: "/chat", label: "OpenCouncil AI" },
                                 { href: "/docs", label: "API" },
-                                { href: "https://schemalabs.gr/jobs", label: "Θέσεις Εργασίας", external: true },
+                                { href: "https://schemalabs.gr/jobs", label: t('jobs'), external: true },
                                 { href: "https://status.opencouncil.gr", label: "Status", external: true },
                             ].map((link) => (
                                 <Link
@@ -63,12 +65,12 @@ export default function Footer({ className }: FooterProps = {}) {
                         </nav>
                     </div>
                     <div className="flex flex-col items-center md:items-start space-y-4">
-                        <h3 className="font-semibold text-foreground text-base">Πολιτικές και Όροι</h3>
+                        <h3 className="font-semibold text-foreground text-base">{t('policiesAndTerms')}</h3>
                         <nav className="flex flex-col items-center md:items-start space-y-2">
                             {[
-                                { href: "/corrections", label: "Διορθώσεις" },
-                                { href: "/privacy", label: "Πολιτική Απορρήτου" },
-                                { href: "/terms", label: "Όροι Χρήσης" },
+                                { href: "/corrections", label: t('corrections') },
+                                { href: "/privacy", label: t('privacy') },
+                                { href: "/terms", label: t('terms') },
                             ].map((link) => (
                                 <Link
                                     key={link.href}
@@ -81,7 +83,7 @@ export default function Footer({ className }: FooterProps = {}) {
                         </nav>
                     </div>
                     <div className="flex flex-col items-center md:items-start space-y-4">
-                        <h3 className="font-semibold text-foreground text-base">Επικοιvωνία</h3>
+                        <h3 className="font-semibold text-foreground text-base">{t('contact')}</h3>
                         <a
                             href="tel:+302111980212"
                             className="flex items-center text-xs text-muted-foreground hover:text-primary transition-colors"
@@ -142,7 +144,7 @@ export default function Footer({ className }: FooterProps = {}) {
                             rel="noopener noreferrer"
                             className="flex items-center gap-2"
                         >
-                            <span>Συνεισφέρετε στο GitHub</span>
+                            <span>{t('contributeOnGithub')}</span>
                             <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                         </a>
                     </Button>
