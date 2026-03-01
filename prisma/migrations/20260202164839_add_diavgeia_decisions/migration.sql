@@ -12,7 +12,7 @@ CREATE TABLE "Decision" (
     "protocolNumber" TEXT,
     "title" TEXT,
     "pdfUrl" TEXT NOT NULL,
-    "issueDate" TIMESTAMP(3),
+    "publishDate" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "taskId" TEXT,
