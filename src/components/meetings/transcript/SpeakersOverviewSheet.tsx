@@ -197,10 +197,9 @@ export function SpeakersOverviewSheet() {
                     variant="outline"
                     size="sm"
                     className="flex items-center space-x-1"
-                    title={t('actions.speakers')}
                 >
-                    <Users className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">{t('actions.speakers')}</span>
+                    <Users className="h-4 w-4" />
+                    <span className="text-xs font-medium">{t('actions.speakers')}</span>
                 </Button>
             </SheetTrigger>
             <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0 gap-0">

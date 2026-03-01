@@ -10,11 +10,18 @@
     "nextUnknown": "Next Unknown",
     "speed": "Speed",
     "skipInterval": "Skip Interval",
+    "undo": "Undo",
+    "redo": "Redo",
     "exit": "Exit",
     "enableEdit": "Enable Editing Mode",
     "guide": "Guide",
     "speakers": "Speakers",
     "completeReview": "Complete Review"
+  },
+  "session": {
+    "active": "Editing session active",
+    "activeSince": "Session since {time}",
+    "changes": "{count, plural, =0 {No changes yet} one {# change} other {# changes}}"
   },
   "stats": {
     "title": "Speakers"
@@ -71,6 +78,8 @@
       "editing": {
         "title": "Text Editing",
         "saveAndNext": "Save and edit next",
+        "undo": "Undo last change",
+        "redo": "Redo last undone change",
         "cancel": "Cancel editing"
       },
       "selection": {
@@ -125,6 +134,12 @@
       }
     }
   },
+  "history": {
+    "textEdit": "text edit",
+    "speakerAssignment": "speaker assignment",
+    "speakerLabel": "speaker label",
+    "moveUtterance": "move sentence"
+  },
   "toasts": {
     "exited": "Exited Editing Mode",
     "exitedDescription": "Returned to read-only mode.",
@@ -136,6 +151,16 @@
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
+    "sessionStarted": "Editing session started",
+    "sessionStartedDescription": "Your changes are now tracked in this session and can be undone/redone.",
+    "undoSuccess": "Undid {action}",
+    "redoSuccess": "Redid {action}",
+    "undoErrorTitle": "Undo failed",
+    "undoError": "Could not undo the last change.",
+    "redoErrorTitle": "Redo failed",
+    "redoError": "Could not redo the last change.",
+    "speakerUpdateErrorTitle": "Speaker update failed",
+    "speakerUpdateError": "Could not update speaker assignment.",
     "reviewCompleted": "Review Completed",
     "reviewCompletedDescription": "The transcript review has been marked as complete."
   }

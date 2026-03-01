@@ -16,6 +16,7 @@ import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useEditing } from '../EditingContext';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingData();
@@ -176,9 +177,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
     const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
+    const { pushAction } = useEditing();
     const { data: session } = useSession();
     const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
+    const tEditingToasts = useTranslations('editing.toasts');
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
 
@@ -241,15 +244,59 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
 
     const summary = segment.summary;
 
-    const handlePersonChange = (personId: string | null) => {
-        if (memoizedData.speakerTag) {
-            updateSpeakerTagPerson(memoizedData.speakerTag.id, personId);
+    const handlePersonChange = async (personId: string | null) => {
+        if (!memoizedData.speakerTag) {
+            return;
+        }
+
+        const speakerTagId = memoizedData.speakerTag.id;
+        const previousPersonId = memoizedData.speakerTag.personId;
+
+        if (previousPersonId === personId) {
+            return;
+        }
+
+        try {
+            await updateSpeakerTagPerson(speakerTagId, personId);
+            pushAction({
+                type: 'SPEAKER_ASSIGNMENT',
+                payload: { speakerTagId, previousPersonId, nextPersonId: personId }
+            });
+        } catch (error) {
+            console.error('Failed to update speaker assignment:', error);
+            toast({
+                title: tEditingToasts('speakerUpdateErrorTitle'),
+                description: tEditingToasts('speakerUpdateError'),
+                variant: 'destructive'
+            });
         }
     };
 
-    const handleLabelChange = (label: string) => {
-        if (memoizedData.speakerTag) {
-            updateSpeakerTagLabel(memoizedData.speakerTag.id, label);
+    const handleLabelChange = async (label: string) => {
+        if (!memoizedData.speakerTag) {
+            return;
+        }
+
+        const speakerTagId = memoizedData.speakerTag.id;
+        const previousLabel = memoizedData.speakerTag.label || '';
+
+        if (previousLabel === label) {
+            return;
+        }
+
+        try {
+            await updateSpeakerTagLabel(speakerTagId, label);
+            pushAction({
+                type: 'SPEAKER_LABEL',
+                payload: { speakerTagId, previousLabel, nextLabel: label }
+            });
+        } catch (error) {
+            console.error('Failed to update speaker label:', error);
+            toast({
+                title: tEditingToasts('speakerUpdateErrorTitle'),
+                description: tEditingToasts('speakerUpdateError'),
+                variant: 'destructive'
+            });
         }
     };
 
