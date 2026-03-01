@@ -603,7 +603,7 @@
         "topicImportance": {
             "high": "Υψηλή",
             "normal": "Κανονική",
-            "none": "Καμία"
+            "doNotNotify": "Καμία"
         },
         "proximityImportance": {
             "wide": "Ευρεία",
