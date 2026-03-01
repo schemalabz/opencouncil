@@ -41,7 +41,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         protocolNumber: string | null;
         title: string | null;
         pdfUrl: string;
-        issueDate: string | null;
+        publishDate: string | null;
         updatedAt: string | null;
     } | null>(null);
     const [lastSearchedAt, setLastSearchedAt] = useState<string | null>(null);
@@ -458,10 +458,10 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                                 <td className="py-1.5">{decision.protocolNumber}</td>
                                             </tr>
                                         )}
-                                        {decision.issueDate && (
+                                        {decision.publishDate && (
                                             <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("issueDate")}</td>
-                                                <td className="py-1.5">{formatDate(new Date(decision.issueDate))}</td>
+                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("publishDate")}</td>
+                                                <td className="py-1.5">{formatDate(new Date(decision.publishDate))}</td>
                                             </tr>
                                         )}
                                     </tbody>
