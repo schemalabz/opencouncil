@@ -70,6 +70,11 @@ export default function Transcript() {
         let smallestDiff = Infinity;
         
         displayedSegments.forEach((segment, index) => {
+            if (currentTime >= segment.startTimestamp && currentTime < segment.endTimestamp) {
+                closestIndex = index;
+                smallestDiff = 0;
+                return;
+            }
             const diff = Math.abs(segment.startTimestamp - currentTime);
             if (diff < smallestDiff) {
                 smallestDiff = diff;

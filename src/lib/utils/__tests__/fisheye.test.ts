@@ -8,12 +8,13 @@ describe('fisheye utils', () => {
             expect(getDisplayModeForDistance(100, false)).toBe('full');
         });
 
-        it('returns full mode for center segment (distance 0)', () => {
+        it('returns full mode for center and immediate neighbors (distance 0 and 1)', () => {
             expect(getDisplayModeForDistance(0, true)).toBe('full');
+            expect(getDisplayModeForDistance(1, true)).toBe('full');
         });
 
         it('returns summary mode for near segments', () => {
-            for (let i = 1; i <= NEAR_RADIUS; i++) {
+            for (let i = 2; i <= NEAR_RADIUS; i++) {
                 expect(getDisplayModeForDistance(i, true)).toBe('summary');
             }
         });
@@ -30,13 +31,13 @@ describe('fisheye utils', () => {
             expect(getSegmentDisplayMode(10, 5, false)).toBe('full');
         });
 
-        it('returns full mode for center segment', () => {
+        it('returns full mode for center and immediate neighbors', () => {
             expect(getSegmentDisplayMode(5, 5, true)).toBe('full');
+            expect(getSegmentDisplayMode(4, 5, true)).toBe('full');
+            expect(getSegmentDisplayMode(6, 5, true)).toBe('full');
         });
 
-        it('returns summary mode for segments within NEAR_RADIUS', () => {
-            expect(getSegmentDisplayMode(4, 5, true)).toBe('summary');
-            expect(getSegmentDisplayMode(6, 5, true)).toBe('summary');
+        it('returns summary mode for segments within NEAR_RADIUS but not immediate neighbors', () => {
             expect(getSegmentDisplayMode(3, 5, true)).toBe('summary');
             expect(getSegmentDisplayMode(7, 5, true)).toBe('summary');
         });

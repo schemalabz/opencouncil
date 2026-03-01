@@ -7,10 +7,10 @@ export function getDisplayModeForDistance(distance: number, isFishEyeMode: boole
         return 'full';
     }
     
-    if (distance === 0) {
+    if (distance <= 1) {
         return 'full';
     }
-    
+
     if (distance <= NEAR_RADIUS) {
         return 'summary';
     }

@@ -70,6 +70,6 @@
   "viewMode": {
     "label": "Λειτουργία προβολής",
     "default": "Προεπιλογή",
-    "fisheye": "Fisheye"
+    "fisheye": "Fish-eye"
   }
 }
