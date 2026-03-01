@@ -630,7 +630,7 @@
         "lastUpdated": "Τελευταία ενημέρωση {time}",
         "decisionTitle": "Τίτλος",
         "protocolNumber": "Αριθμός Πρωτοκόλλου",
-        "issueDate": "Ημερομηνία Έκδοσης",
+        "publishDate": "Ημερομηνία Ανάρτησης",
         "viewDecision": "Προβολή απόφασης στη Διαύγεια"
     }
 }

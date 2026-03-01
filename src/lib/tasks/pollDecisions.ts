@@ -199,7 +199,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         select: {
             subjectId: true,
             ada: true,
-            issueDate: true,
+            publishDate: true,
             createdAt: true,
             task: {
                 select: {
@@ -253,19 +253,19 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         const meetingDate = d.subject.councilMeeting.dateTime;
         const discoveredAt = task.createdAt;
         const firstPollAt = meetingPolls?.firstPollAt ?? discoveredAt;
-        const issueDate = d.issueDate;
+        const publishDate = d.publishDate;
 
         // How long after Diavgeia published did we find it?
-        const discoveryDelayDays = issueDate
-            ? (discoveredAt.getTime() - issueDate.getTime()) / (1000 * 60 * 60 * 24)
+        const discoveryDelayDays = publishDate
+            ? (discoveredAt.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24)
             : null;
 
         // How long after we started polling did we find it?
         const pollingDurationDays = (discoveredAt.getTime() - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
 
         // How long after the meeting did Diavgeia publish?
-        const publishDelayDays = issueDate
-            ? (issueDate.getTime() - meetingDate.getTime()) / (1000 * 60 * 60 * 24)
+        const publishDelayDays = publishDate
+            ? (publishDate.getTime() - meetingDate.getTime()) / (1000 * 60 * 60 * 24)
             : null;
 
         return {
@@ -275,7 +275,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
             subjectId: d.subjectId,
             subjectName: d.subject.name,
             ada: d.ada,
-            issueDate: issueDate?.toISOString().split('T')[0] ?? null,
+            publishDate: publishDate?.toISOString().split('T')[0] ?? null,
             discoveredAt: discoveredAt.toISOString(),
             firstPollAt: firstPollAt.toISOString(),
             totalPollsForMeeting: meetingPolls?.totalPolls ?? 1,

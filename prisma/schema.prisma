@@ -448,7 +448,7 @@ model Decision {
   protocolNumber String?             // Protocol number (e.g., "261/2024")
   title          String?             // Decision title from Diavgeia
   pdfUrl         String
-  issueDate      DateTime?           // Date published on Diavgeia
+  publishDate    DateTime?           // Date published on Diavgeia
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
