@@ -441,7 +441,8 @@
         "topicImportance": {
             "high": "High",
             "normal": "Normal",
-            "none": "None"
+            "none": "None",
+            "doNotNotify": "Do Not Notify"
         },
         "proximityImportance": {
             "wide": "Wide",
