@@ -30,6 +30,7 @@ interface PersonDisplayProps {
     preferFullName?: boolean;
     size?: 'sm' | 'md' | 'lg' | 'xl';
     editable?: boolean;
+    lastNameOnly?: boolean;
     onClick?: () => void;
 }
 
@@ -141,6 +142,7 @@ function PersonBadge({
     availablePeople,
     nextUnknownLabel,
     preferFullName = false,
+    lastNameOnly = false,
     size = 'md',
     variant = 'default',
 }: PersonBadgeProps) {
@@ -170,25 +172,31 @@ function PersonBadge({
         }
     };
 
-    // Inline variant - minimal display with just party dot and name
+    // Inline variant - minimal display for compact views
     if (variant === 'inline') {
-        const party = person ? getPartyFromRoles(person.roles) : null;
+        let displayName = speakerTag?.label || "Άγνωστος";
+        if (person) {
+            displayName = preferFullName ? person.name : switchOrder(person.name) || "";
+        }
+        
+        // Extract just the last name if requested
+        if (lastNameOnly && displayName) {
+            const parts = displayName.split(' ');
+            if (parts.length > 1) {
+                // If switchOrder happened (which puts last name first), or standard order, 
+                // we assume the first word in standard Greek naming is the name, last is surname.
+                // switchOrder reverses word order. "Giannis Papadopoulos" -> "Papadopoulos Giannis"
+                // So if we have preferFullName=false, switchOrder puts surname first.
+                displayName = preferFullName ? parts[parts.length - 1] : parts[0];
+            }
+        }
+
         return (
-            <div className={cn("flex items-center gap-2.5 min-w-0", className)}>
-                {party && (
-                    <div
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: party.colorHex }}
-                    />
-                )}
-                <span className="text-sm font-medium truncate">
-                    {person ? (
-                        preferFullName ? person.name : switchOrder(person.name)
-                    ) : (
-                        speakerTag?.label
-                    )}
+            <span className={cn("inline-flex items-center align-baseline", className)}>
+                <span className="font-semibold text-foreground break-words whitespace-normal leading-tight">
+                    {displayName}
                 </span>
-            </div>
+            </span>
         );
     }
 

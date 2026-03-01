@@ -8,8 +8,8 @@ import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy, Bot } from "lucide-react";
-import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
+import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy, Bot, Play } from "lucide-react";
+import { cn, getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
@@ -175,7 +175,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
     displayMode?: SegmentDisplayMode
 }) => {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
-    const { currentTime, seekTo } = useVideo();
+    const { currentTime, seekTo, seekToAndPlay } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -186,26 +186,17 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
     // Fish-eye mode: track expanded state for summary/stripe segments
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Default collapsed state (use CSS for responsiveness, not JS)
-    const [isCollapsed, setIsCollapsed] = useState(true);
-    const [userHasInteracted, setUserHasInteracted] = useState(false);
+    // Automatically unwrap summary text for segments near the active one
+    const [isSummaryWrapped, setIsSummaryWrapped] = useState(displayMode === 'summary');
 
-    // Wrapper to track user interactions
-    const handleCollapseToggle = (newState: boolean) => {
-        setUserHasInteracted(true);
-        setIsCollapsed(newState);
-    };
-    
-    // Handle expand in fish-eye mode - expands without seeking video
-    const handleExpandClick = (e: React.MouseEvent) => {
+    // Make sure we update if the prop changes
+    useEffect(() => {
+        setIsSummaryWrapped(displayMode === 'summary');
+    }, [displayMode]);
+
+    const handleSummaryWrapToggleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setIsExpanded(!isExpanded);
-    };
-    
-    // Handle icon click in fish-eye mode - always toggle
-    const handleIconClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsExpanded(!isExpanded);
+        setIsSummaryWrapped(!isSummaryWrapped);
     };
     
     // Handle keyboard accessibility for expand
@@ -289,65 +280,58 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
                 <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
             )}
             
-            {/* Fish-eye stripe mode: minimal single line - no name, just summary */}
-            {effectiveMode === 'stripe' && !renderMock && (
+            {/* Fish-eye compact mode: unified for stripe and summary */ }
+            {(effectiveMode === 'stripe' || effectiveMode === 'summary') && !renderMock && (
                 <div 
-                    className='my-0.5 flex flex-row items-center gap-2 w-full px-2 py-1 rounded hover:bg-accent/10 cursor-pointer transition-colors'
-                    onClick={handleExpandClick}
-                    onKeyDown={handleExpandKeyDown}
+                    className='my-1 flex flex-row items-start gap-2 sm:gap-3 w-full px-2 py-1.5 rounded hover:bg-accent/10 cursor-pointer transition-colors border-l-[3px]'
+                    style={{ borderLeftColor: memoizedData.borderColor }}
+                    onClick={handleSummaryWrapToggleClick}
                     role="button"
                     tabIndex={0}
-                    aria-expanded={isExpanded}
-                    aria-label="Expand segment"
+                    aria-expanded={isSummaryWrapped}
+                    aria-label="Toggle summary text wrapping"
                 >
-                    <div className='flex-grow min-w-0'>
-                        <div className='text-xs truncate text-muted-foreground'>
-                            <Bot className="inline h-3 w-3 mr-1" />
-                            {summaryText}
+                    <div className='flex-grow min-w-0 pt-0.5'>
+                        <div className={cn("text-xs sm:text-sm text-foreground leading-relaxed", !isSummaryWrapped && "line-clamp-1 break-all sm:break-normal")}>
+                            <PersonBadge
+                                person={memoizedData.person}
+                                speakerTag={memoizedData.speakerTag}
+                                variant="inline"
+                                lastNameOnly={true}
+                                className="mr-1.5"
+                            />
+                            <Bot className="inline h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground relative top-[-1px] mr-1" />
+                            <span className="text-muted-foreground">{summaryText}</span>
                         </div>
                     </div>
-                    <span className='text-[10px] text-muted-foreground shrink-0'>
-                        {formatTimestamp(segment.startTimestamp)}
-                    </span>
-                    {isExpanded ? (
-                        <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
-                    ) : (
-                        <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-                    )}
-                </div>
-            )}
-            
-            {/* Fish-eye summary mode: name + summary + expand/collapse icon */}
-            {effectiveMode === 'summary' && !renderMock && (
-                <div 
-                    className='my-1 flex flex-col items-start w-full px-2 py-2 rounded hover:bg-accent/10 cursor-pointer transition-colors border-l-2'
-                    style={{ borderLeftColor: memoizedData.borderColor }}
-                    onClick={handleExpandClick}
-                    onKeyDown={handleExpandKeyDown}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={isExpanded}
-                    aria-label="Expand segment"
-                >
-                    <div className='flex flex-row items-center justify-between w-full mb-1'>
-                        <span className='text-xs text-muted-foreground truncate flex-grow'>
-                            {memoizedData.speakerTag?.label || 'Unknown'}
-                        </span>
-                        <button
-                            onClick={handleIconClick}
-                            className="p-1 hover:bg-accent/20 rounded shrink-0"
-                            aria-label={isExpanded ? "Collapse" : "Expand"}
+                    <div className='flex flex-row items-center gap-1.5 shrink-0 pt-0.5'>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:bg-accent/50 hover:text-primary"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                seekToAndPlay(segment.startTimestamp); // using seekTo so it scrolls to the section and plays
+                            }}
+                            title="Play from here"
                         >
-                            {isExpanded ? (
-                                <ChevronUp className="h-3 w-3 text-muted-foreground" />
-                            ) : (
-                                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                            )}
-                        </button>
-                    </div>
-                    <div className='text-xs text-foreground w-full'>
-                        <Bot className="inline h-3 w-3 mr-1" />
-                        {summaryText}
+                            <Play className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className='text-[10px] sm:text-xs text-muted-foreground shrink-0'>
+                            {formatTimestamp(segment.startTimestamp)}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:bg-accent/50"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsExpanded(true);
+                            }}
+                            title="Expand transcript"
+                        >
+                            <ChevronDown className="h-4 w-4" />
+                        </Button>
                     </div>
                 </div>
             )}
@@ -361,179 +345,161 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment, displa
                         style={{ top: 'var(--banner-offset, 0px)' }}
                     >
                         {renderMock ? (
-                            <div className='flex flex-col w-full space-y-2 py-2'>
-                                <div className='flex items-center justify-between w-full px-4'>
-                                    <div className='flex-grow overflow-hidden'>
-                                        <div className='h-6 bg-muted rounded animate-pulse' />
-                                    </div>
-                                    <div className='flex items-center gap-3 ml-4'>
-                                        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                                            <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
-                                        </div>
+                            <div className='flex items-center justify-between w-full'>
+                                <div className='flex-grow overflow-hidden'>
+                                    <div className='h-6 bg-muted rounded animate-pulse w-32' />
+                                </div>
+                                <div className='flex items-center gap-3 ml-4'>
+                                    <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+                                        <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
                                     </div>
                                 </div>
-                                {summary && (
-                                    <div className='px-4 space-y-2'>
-                                        <div className='text-sm'>
-                                            <div className='h-4 bg-muted rounded animate-pulse' />
-                                        </div>
-                                        <div className='flex items-center justify-between'>
-                                            {segment.topicLabels.length > 0 && (
-                                                <div className='flex flex-wrap gap-2'>
-                                                    {segment.topicLabels.map(tl =>
-                                                        <div key={tl.topic.id} className='h-6 w-16 bg-muted rounded animate-pulse' />
-                                                    )}
-                                                </div>
-                                            )}
-                                            <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
-                                                {summary?.type === 'procedural' && (
-                                                    <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                                        Διαδικαστικό
-                                                    </span>
-                                                )}
-                                                <AIGeneratedBadge />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         ) : (
-                            <div className='flex flex-col w-full'>
-                                {/* Collapsed header (mobile only, shown when collapsed) */}
-                                {isCollapsed && (
-                                    <button
-                                        onClick={() => handleCollapseToggle(false)}
-                                        className='sticky flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 border-b border-border/40'
-                                        style={{ top: 'var(--banner-offset, 0px)' }}
-                                    >
+                            <div className='flex items-center justify-between w-full gap-2'>
+                                <div className='flex-grow overflow-hidden min-w-0'>
+                                    {memoizedData.speakerTag && (
                                         <PersonBadge
                                             person={memoizedData.person}
                                             speakerTag={memoizedData.speakerTag}
-                                            variant="inline"
-                                            className="flex-1 min-w-0"
+                                            segmentCount={memoizedData.segmentCount}
+                                            editable={options.editable}
+                                            onPersonChange={handlePersonChange}
+                                            onLabelChange={handleLabelChange}
+                                            nextUnknownLabel={nextUnknownLabel}
+                                            availablePeople={people.map(p => ({
+                                                ...p,
+                                                party: getPartyFromRoles(p.roles)
+                                            }))}
+                                            size="sm"
                                         />
-                                        <div className='flex items-center gap-1.5 shrink-0'>
-                                            <span className='text-[10px] text-muted-foreground font-medium'>
-                                                {formatTimestamp(segment.startTimestamp)}
-                                            </span>
-                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                    </button>
-                                )}
-
-                                {/* Full header (always on desktop, conditional on mobile) */}
-                                <div className={`${isCollapsed ? 'hidden md:flex' : 'flex'} flex-col w-full space-y-2 py-2`}>
-                                    <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
-                                        <div className='flex-grow overflow-hidden min-w-0'>
-                                            {memoizedData.speakerTag && (
-                                                <PersonBadge
-                                                    person={memoizedData.person}
-                                                    speakerTag={memoizedData.speakerTag}
-                                                    segmentCount={memoizedData.segmentCount}
-                                                    editable={options.editable}
-                                                    onPersonChange={handlePersonChange}
-                                                    onLabelChange={handleLabelChange}
-                                                    nextUnknownLabel={nextUnknownLabel}
-                                                    availablePeople={people.map(p => ({
-                                                        ...p,
-                                                        party: getPartyFromRoles(p.roles)
-                                                    }))}
-                                                    size="sm"
-                                                />
-                                            )}
-                                        </div>
-                                        <div className='flex items-center gap-1.5 sm:gap-3 shrink-0'>
-                                            {/* Manual collapse button (mobile only) */}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 md:hidden"
-                                                onClick={() => handleCollapseToggle(true)}
-                                            >
-                                                <ChevronUp className="h-4 w-4" />
-                                            </Button>
-                                            {options.editable && isEmpty && !renderMock && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                            onClick={() => deleteEmptySegment(segment.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete empty segment</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            )}
-                                            {isSuperAdmin && !renderMock && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                            onClick={() => setMetadataDialogOpen(true)}
-                                                        >
-                                                            <FileJson className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>View segment metadata</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            )}
-                                            {!renderMock && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                            onClick={handleCopySegment}
-                                                        >
-                                                            <Copy className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{tCopy('button')}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            )}
-                                            <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
-                                                <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {summary && (
-                                        <div className='px-2.5 sm:px-4 space-y-2'>
-                                            <div className='text-xs sm:text-sm'>
-                                                {summary.text}
-                                            </div>
-                                            <div className='flex flex-col gap-2'>
-                                                {segment.topicLabels.length > 0 && (
-                                                    <div className='flex flex-wrap gap-1.5'>
-                                                        {segment.topicLabels.map(tl =>
-                                                            <TopicBadge topic={tl.topic} key={tl.topic.id} />
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
-                                                    {summary?.type === 'procedural' && (
-                                                        <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium whitespace-nowrap">
-                                                            Διαδικαστικό
-                                                        </span>
-                                                    )}
-                                                        <AIGeneratedBadge className="text-[10px] sm:text-xs whitespace-nowrap" />
-                                                </div>
-                                            </div>
-                                        </div>
                                     )}
                                 </div>
+                                <div className='flex items-center gap-1.5 sm:gap-3 shrink-0'>
+                                    {/* Collapse button (shows when expanded from compact) */}
+                                    {isExpanded && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsExpanded(false);
+                                            }}
+                                        >
+                                            <ChevronUp className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                    {options.editable && isEmpty && !renderMock && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => deleteEmptySegment(segment.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Delete empty segment</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    {isSuperAdmin && !renderMock && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                    onClick={() => setMetadataDialogOpen(true)}
+                                                >
+                                                    <FileJson className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>View segment metadata</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    {!renderMock && (
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                    onClick={handleCopySegment}
+                                                >
+                                                    <Copy className="h-4 w-4" />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>{tCopy('button')}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    )}
+                                    <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
+                                        <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
+                                    </div>
+                                </div>
                             </div>
+                        )}
+                    </div>
+                    
+                    {/* Non-sticky Summary & Topics block */}
+                    <div className='flex flex-col w-full'>
+                        {renderMock ? (
+                            summary && (
+                                <div className='px-4 py-2 space-y-2 border-b border-border/10 bg-muted/5'>
+                                    <div className='text-sm'>
+                                        <div className='h-4 bg-muted rounded animate-pulse w-3/4' />
+                                    </div>
+                                    <div className='flex items-center justify-between mt-2'>
+                                        {segment.topicLabels.length > 0 && (
+                                            <div className='flex flex-wrap gap-2'>
+                                                {segment.topicLabels.map(tl =>
+                                                    <div key={tl.topic.id} className='h-6 w-16 bg-muted rounded animate-pulse' />
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
+                                            {summary?.type === 'procedural' && (
+                                                <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                                    Διαδικαστικό
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        ) : (
+                            summary && (
+                                <div className='px-2.5 sm:px-4 py-2 space-y-2 border-b border-border/10 bg-muted/5'>
+                                    <div className='text-xs sm:text-sm text-foreground/90'>
+                                        {summary.text}
+                                    </div>
+                                    <div className='flex flex-col gap-2'>
+                                        {segment.topicLabels.length > 0 && (
+                                            <div className='flex flex-wrap gap-1.5'>
+                                                {segment.topicLabels.map(tl =>
+                                                    <TopicBadge topic={tl.topic} key={tl.topic.id} />
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
+                                            {summary?.type === 'procedural' && (
+                                                <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium whitespace-nowrap">
+                                                    Διαδικαστικό
+                                                </span>
+                                            )}
+                                            <AIGeneratedBadge className="text-[10px] sm:text-xs whitespace-nowrap" />
+                                        </div>
+                                    </div>
+                                </div>
+                            )
                         )}
                     </div>
                     <div className='font-mono px-2.5 sm:px-4 py-1.5 sm:py-3 text-left sm:text-justify w-full leading-relaxed group text-sm sm:text-base'>
