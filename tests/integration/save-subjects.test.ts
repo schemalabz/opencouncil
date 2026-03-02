@@ -9,20 +9,7 @@ import {
     createMeeting,
     createTopic,
 } from '../helpers/factories'
-
-function makeSubject(overrides: Partial<Subject> & { name: string; agendaItemIndex: Subject['agendaItemIndex'] }): Subject {
-    return {
-        description: 'Description',
-        introducedByPersonId: null,
-        speakerContributions: [],
-        topicImportance: 'normal',
-        proximityImportance: 'none',
-        location: null,
-        topicLabel: null,
-        context: null,
-        ...overrides,
-    }
-}
+import { makeSubject } from '../helpers/builders'
 
 describe('saveSubjectsForMeeting - integration', () => {
     let cityId: string
