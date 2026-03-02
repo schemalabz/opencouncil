@@ -183,11 +183,13 @@ function CopyableJsonSection({ label, json }: { label: string; json: string }) {
 }
 
 function CollapsibleSection({
+  id,
   title,
   badge,
   defaultOpen = false,
   children,
 }: {
+  id?: string;
   title: string;
   badge: string;
   defaultOpen?: boolean;
@@ -197,7 +199,7 @@ function CollapsibleSection({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="border rounded-lg">
+      <div id={id} className="border rounded-lg">
         <CollapsibleTrigger asChild>
           <button className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-2">
@@ -222,7 +224,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedPoll, setSelectedPoll] = useState<RecentPoll | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<StillPollingMeeting | null>(null);
-  const { updateParam, updateParams, isPending } = useUrlParams();
+  const { updateParam, updateParams, isPending } = useUrlParams('recent-polls');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -300,6 +302,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
 
       {/* Meetings Still Polling */}
       <CollapsibleSection
+        id="still-polling"
         title="Meetings Still Polling"
         badge={`${stats.meetingsStillPolling.length} meetings`}
         defaultOpen={stats.meetingsStillPolling.length > 0}
@@ -378,6 +381,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
 
       {/* Recent Polls */}
       <CollapsibleSection
+        id="recent-polls"
         title="Recent Polls"
         badge={cityFilter ? `${stats.recentPolls.length} polls (${cityFilter}${meetingFilter ? ` / ${meetingFilter}` : ''})` : `${stats.recentPolls.length} polls`}
         defaultOpen
@@ -495,6 +499,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
 
       {/* Discoveries */}
       <CollapsibleSection
+        id="discoveries"
         title="Discoveries"
         badge={`${stats.discoveries.length} discoveries`}
       >
@@ -565,6 +570,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
 
       {/* Backoff Schedule */}
       <CollapsibleSection
+        id="backoff-schedule"
         title="Backoff Schedule"
         badge={`${stats.backoffSchedule.length} tiers`}
       >
