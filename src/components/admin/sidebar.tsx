@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, MessageSquareText } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -53,6 +53,11 @@ const menuItems = [
         title: "Tasks",
         icon: List,
         url: "/admin/tasks"
+    },
+    {
+        title: "Consultations",
+        icon: MessageSquareText,
+        url: "/admin/consultations",
     },
     {
         title: "QR Campaigns",
