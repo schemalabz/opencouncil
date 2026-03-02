@@ -1249,6 +1249,25 @@ EOF
                 description = "Cachix public key for signature verification";
               };
             };
+
+            githubRepo = mkOption {
+              type = types.str;
+              default = "schemalabz/opencouncil";
+              description = "GitHub repo (owner/name) used to fetch PR body from the API";
+            };
+
+            tasksPreview = {
+              domain = mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                description = "Domain for tasks preview subdomains (e.g. tasks.opencouncil.gr → https://pr-N.tasks.opencouncil.gr)";
+              };
+              envFile = mkOption {
+                type = types.nullOr types.path;
+                default = null;
+                description = "Path to the tasks preview shared env file for reading API_TOKENS";
+              };
+            };
           };
 
           config = mkIf cfg.enable {
@@ -1637,6 +1656,38 @@ CADDYEOF
 
                 echo "Creating preview for PR #$pr_num on port $port"
                 echo "  App: $store_path"
+
+                # Auto-link tasks preview if PR body contains <!-- preview-link: tasks=N -->
+                # Only runs when tasksPreview.domain and tasksPreview.envFile are configured
+                tasks_domain="${toString (cfg.tasksPreview.domain or "")}"
+                tasks_env_file="${toString (cfg.tasksPreview.envFile or "")}"
+
+                if [ -n "$tasks_domain" ] && [ -n "$tasks_env_file" ] && [ ! -f "$pr_dir/.env.local" ]; then
+                  pr_body=$(${pkgs.curl}/bin/curl -sf "https://api.github.com/repos/${cfg.githubRepo}/pulls/$pr_num" | ${pkgs.jq}/bin/jq -r '.body // ""') || true
+                  tasks_pr=$(echo "$pr_body" | ${pkgs.gnugrep}/bin/grep -oP '<!--\s*preview-link:\s*tasks=\K\d+' || true)
+
+                  if [ -n "$tasks_pr" ]; then
+                    tasks_url="https://pr-''${tasks_pr}.''${tasks_domain}"
+                    tasks_key=""
+
+                    # Read API key from tasks preview shared env file
+                    if [ -f "$tasks_env_file" ]; then
+                      # API_TOKENS is a JSON array, extract first token
+                      tasks_key=$(${pkgs.gnugrep}/bin/grep '^API_TOKENS=' "$tasks_env_file" | ${pkgs.gnused}/bin/sed 's/^API_TOKENS=//' | ${pkgs.jq}/bin/jq -r '.[0] // ""')
+                    fi
+
+                    if [ -n "$tasks_key" ]; then
+                      printf '%s\n' "# Linked tasks preview (auto-detected from PR body)" \
+                        "TASK_API_URL=$tasks_url" \
+                        "TASK_API_KEY=$tasks_key" \
+                        > "$pr_dir/.env.local"
+                      chown ${cfg.user}:${cfg.group} "$pr_dir/.env.local"
+                      echo "Linked to tasks preview PR #$tasks_pr ($tasks_url)"
+                    else
+                      echo "Warning: Found tasks link (PR #$tasks_pr) but could not read API key from $tasks_env_file"
+                    fi
+                  fi
+                fi
 
                 # Handle isolated database for migration PRs
                 if [ "$with_db" = "true" ]; then
