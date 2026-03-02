@@ -228,8 +228,6 @@ jobs:
           PREVIEW_USER: ${{ secrets.PREVIEW_USER || 'opencouncil' }}
           STORE_PATH: ${{ steps.store-path.outputs.path }}
           HAS_MIGRATIONS: ${{ needs.preflight.outputs.has-migrations }}
-          LINKED_TASKS_PR: ${{ steps.preview-links.outputs.tasks-pr }}
-          PREVIEW_TASKS_API_KEY: ${{ secrets.PREVIEW_TASKS_API_KEY }}
         run: |
           set -euo pipefail
 
@@ -255,16 +253,7 @@ jobs:
 
           # The droplet pulls the build from Cachix automatically (configured as a substituter).
           # Just SSH in and create the preview — nix-store --realise is called by the create script.
-
-          # Write per-preview env overrides BEFORE create (so service picks them up on first start)
-          if [ -n "${LINKED_TASKS_PR:-}" ]; then
-            echo "🔗 Linking to tasks preview PR #$LINKED_TASKS_PR"
-            TASKS_URL="https://pr-${LINKED_TASKS_PR}.tasks.opencouncil.gr"
-            TASKS_KEY="${PREVIEW_TASKS_API_KEY:-}"
-            $SSH_CMD "mkdir -p /var/lib/opencouncil-previews/pr-$PR_NUM"
-            $SSH_CMD "printf '%s\n' '# Linked tasks preview' 'TASK_API_URL=$TASKS_URL' 'TASK_API_KEY=$TASKS_KEY' > /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
-            $SSH_CMD "chmod 600 /var/lib/opencouncil-previews/pr-$PR_NUM/.env.local"
-          fi
+          # Tasks preview linking is handled by opencouncil-preview-create (reads PR body from GitHub API).
 
           echo "Creating/updating preview instance..."
           $SSH_CMD "sudo opencouncil-preview-create '$PR_NUM' '$STORE_PATH' $DEPLOY_FLAGS"
