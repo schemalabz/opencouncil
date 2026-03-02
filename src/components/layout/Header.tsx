@@ -1,7 +1,7 @@
 "use client"
 import { cn } from "@/lib/utils"
 import { Link } from '@/i18n/routing'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
@@ -39,17 +39,18 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchOverlayRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const t = useTranslations('Header');
 
     // Add dynamic path elements based on the current segment
     const dynamicPath = [...path];
     if (segment === 'notifications') {
         dynamicPath.push({
-            name: "Ενημερώσεις",
+            name: t('notifications'),
             link: `/${currentEntity?.cityId}/notifications`
         });
     } else if (segment === 'petition') {
         dynamicPath.push({
-            name: "Υποστήριξη Δήμου",
+            name: t('petition'),
             link: `/${currentEntity?.cityId}/petition`
         });
     }
@@ -319,7 +320,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                     <Input
                                         ref={searchInputRef}
                                         type="text"
-                                        placeholder="Αναζήτηση..."
+                                        placeholder={t('searchPlaceholder')}
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"
@@ -331,7 +332,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                         onClick={handleChatClick}
                                         className="w-full text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors flex justify-end underline decoration-1 underline-offset-4"
                                     >
-                                        ή συνομιλήστε με το OpenCouncil AI
+                                        {t('chatPrompt')}
                                     </button>
                                 </div>
                             </motion.div>

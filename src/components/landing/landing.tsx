@@ -10,8 +10,10 @@ import { Hero } from "./hero";
 import { CityOverview } from "./city-overview";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
+import { useTranslations } from "next-intl";
 
 export function Landing({ allCities, cities, latestPost }: LandingPageData) {
+    const t = useTranslations('Landing');
     const { status } = useSession();
     const router = useRouter();
     const [citiesWithMeetings, setCitiesWithMeetings] = useState<LandingCity[]>(cities);
@@ -110,7 +112,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                 onClick={scrollToContent}
             >
                 <span className="text-base sm:text-lg font-medium text-muted-foreground/80 group-hover:text-primary transition-colors">
-                    Δείτε τους δήμους
+                    {t('viewMunicipalities')}
                 </span>
                 <div className="relative w-8 h-8 flex items-center justify-center animate-bounce">
                     <div className="absolute inset-0 bg-primary/10 rounded-full scale-0 group-hover:scale-100 transition-transform duration-300" />
@@ -124,9 +126,9 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                     {/* Notification Signup Callout */}
                     <div className="bg-muted/50 rounded-lg p-6 border border-border flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="w-full sm:w-1/2">
-                            <h2 className="text-xl font-semibold mb-2">Μείνετε ενημερωμένοι</h2>
+                            <h2 className="text-xl font-semibold mb-2">{t('stayInformed')}</h2>
                             <p className="text-muted-foreground mb-0">
-                                Λάβετε ενημερώσεις για τα θέματα και τις τοποθεσίες που σας ενδιαφέρουν, πριν ή αφότου αυτά συζητηθούν στο δημοτικό συμβούλιο.
+                                {t('stayInformedDescription')}
                             </p>
                         </div>
                         <div className="w-full sm:w-1/2">
@@ -154,7 +156,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                         {isLoadingUserCities && (
                             <div className="flex items-center justify-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-                                <span className="ml-3 text-muted-foreground">Φορτώνονται μη δημόσιες πόλεις...</span>
+                                <span className="ml-3 text-muted-foreground">{t('loadingPrivateCities')}</span>
                             </div>
                         )}
                     </div>

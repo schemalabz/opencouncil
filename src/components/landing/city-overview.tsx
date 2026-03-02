@@ -7,6 +7,7 @@ import { LandingCity } from "@/lib/db/landing";
 import { CityMiniCard } from "./city-mini-card";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useTranslations } from "next-intl";
 
 interface CityOverviewProps {
     city: LandingCity;
@@ -14,6 +15,7 @@ interface CityOverviewProps {
 }
 
 export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
+    const t = useTranslations('Landing');
     const router = useRouter();
     const latestMeeting = city.mostRecentMeeting;
 
@@ -76,7 +78,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 <div className="flex">
                     <Badge variant="outline" className="gap-2 text-muted-foreground py-1.5 px-3">
                         <BadgeX className="w-4 h-4" />
-                        <span>Χωρίς την υποστήριξη {city.authorityType === "municipality" ? "του δήμου" : "της περιφέρειας"}</span>
+                        <span>{city.authorityType === "municipality" ? t('withoutMunicipalitySupport') : t('withoutRegionSupport')}</span>
                     </Badge>
                 </div>
             )}
@@ -101,22 +103,22 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4 lg:w-80 h-full">
                     {statCard(
                         <Users className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city._count.persons} Πρόσωπα`,
-                        "Δείτε όλα τα πρόσωπα",
+                        t('peopleCount', { count: city._count.persons }),
+                        t('viewAllPeople'),
                         `/${city.id}/people`,
                         0
                     )}
                     {statCard(
                         <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city._count.parties} Παρατάξεις`,
-                        "Δείτε όλες τις παρατάξεις",
+                        t('partiesCount', { count: city._count.parties }),
+                        t('viewAllParties'),
                         `/${city.id}/parties`,
                         1
                     )}
                     {statCard(
                         <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6" />,
-                        `${city._count.councilMeetings || 0} Συνεδριάσεις`,
-                        "Δείτε όλες τις συνεδριάσεις",
+                        t('meetingsCount', { count: city._count.councilMeetings || 0 }),
+                        t('viewAllMeetings'),
                         `/${city.id}`,
                         2
                     )}

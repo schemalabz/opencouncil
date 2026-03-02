@@ -5,8 +5,10 @@ import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
 import { useSearchParams } from "next/navigation"
 import { signInWithEmail } from "@/lib/serverSignIn"
 import { useState } from "react"
+import { useTranslations } from "next-intl"
 
 export function SignIn() {
+    const t = useTranslations('SignIn')
     const searchParams = useSearchParams()
     const email = searchParams.get("email")
     const [error, setError] = useState<string | null>(null)
@@ -21,7 +23,7 @@ export function SignIn() {
             const formData = new FormData(e.currentTarget)
             await signInWithEmail(formData)
         } catch (err) {
-            setError("Υπήρξε πρόβλημα κατά την αποστολή του email. Παρακαλώ δοκιμάστε ξανά αργότερα.")
+            setError(t('error'))
             console.error("Sign in error:", err)
         } finally {
             setIsLoading(false)
@@ -31,7 +33,7 @@ export function SignIn() {
     return (
         <Card className="max-w-xl">
             <CardHeader>
-                <h2 className="text-2xl font-semibold text-center">Σύνδεση στο OpenCouncil</h2>
+                <h2 className="text-2xl font-semibold text-center">{t('title')}</h2>
             </CardHeader>
             <form onSubmit={handleSubmit}>
                 <CardContent>
@@ -39,7 +41,7 @@ export function SignIn() {
                         <Input
                             type="email"
                             name="email"
-                            placeholder="Εισάγετε το email σας"
+                            placeholder={t('emailPlaceholder')}
                             className="w-full"
                             required
                             defaultValue={email || ""}
@@ -52,7 +54,7 @@ export function SignIn() {
                 </CardContent>
                 <CardFooter>
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? "Παρακαλώ περιμένετε..." : "Συνέχεια με Email"}
+                        {isLoading ? t('loading') : t('continueWithEmail')}
                     </Button>
                 </CardFooter>
             </form>

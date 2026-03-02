@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
+import { useTranslations } from 'next-intl';
 
 interface MunicipalitySelectorProps {
     cities: CityMinimalWithCounts[];
@@ -20,17 +21,18 @@ export function MunicipalitySelector({
     isNavigating = false,
     hideQuickSelection = false,
 }: MunicipalitySelectorProps) {
+    const t = useTranslations('MunicipalitySelector');
     // Group cities
     const groups = [
         {
             key: 'supported',
-            label: 'ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ',
+            label: t('supportedMunicipalities'),
             items: cities.filter(city => city.status === 'listed'),
             icon: MapPin
         },
         {
             key: 'all',
-            label: 'ΌΛΟΙ ΟΙ ΔΗΜΟΙ',
+            label: t('allMunicipalities'),
             items: cities.filter(city => city.status !== 'listed'),
             icon: MapPin
         }
@@ -113,15 +115,15 @@ export function MunicipalitySelector({
                     items={cities}
                     value={value}
                     onChange={onCitySelect}
-                    placeholder="Επιλέξτε τον Δήμο σας..."
-                    searchPlaceholder="Αναζητήστε τον Δήμο σας..."
+                    placeholder={t('selectPlaceholder')}
+                    searchPlaceholder={t('searchPlaceholder')}
                     groups={groups}
                     ItemComponent={CityItem}
                     TriggerComponent={CityTrigger}
                     getItemLabel={(city) => city.name}
                     getItemValue={(city) => `${city.name} ${city.name_municipality}`}
                     clearable
-                    emptyMessage="Δεν βρέθηκε Δήμος με αυτό το όνομα."
+                    emptyMessage={t('noResults')}
                 />
 
                 {/* Quick Selection for Listed Cities */}

@@ -6,6 +6,7 @@ import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { HeaderBar } from './header-bar';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 import { OpenCouncilDescription } from './OpenCouncilDescription';
+import { useTranslations } from 'next-intl';
 
 interface HeroProps {
     latestPost?: SubstackPost;
@@ -16,6 +17,7 @@ interface HeroProps {
 }
 
 export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: HeroProps) {
+    const t = useTranslations('Landing');
     const { scrollY } = useScroll();
     const opacity = useTransform(scrollY, [0, 200], [1, 0]);
     const y = useTransform(scrollY, [0, 200], [0, 100]);
@@ -58,9 +60,9 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                             variants={item}
                             className="text-3xl sm:text-5xl md:text-7xl font-normal"
                         >
-                            Ο Δήμος σου,{' '}
+                            {t('heroTitle')}{' '}
                             <span className="relative z-10 text-[hsl(var(--orange))]">
-                                απλά
+                                {t('heroTitleHighlight')}
                             </span>
                         </motion.h1>
                     </motion.div>
@@ -89,7 +91,7 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                             className="text-base sm:text-lg text-accent hover:text-accent/80 transition-colors duration-300"
                         >
                             <Link href="/about">
-                                Πληροφορίες για δήμους και περιφέρειες
+                                {t('infoForMunicipalities')}
                             </Link>
                         </Button>
                     </motion.div>
