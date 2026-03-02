@@ -45,10 +45,11 @@ export async function requestProcessAgenda(agendaUrl: string, councilMeetingId: 
     if (councilMeeting.subjects.length > 0) {
         if (force) {
             console.log(`Deleting existing subjects for meeting ${councilMeetingId}`);
-            // Delete subject-linked highlights before subjects to avoid orphans
-            // (saveSubjectsForMeeting only cleans up highlights for subjects it processes)
+            // Delete auto-generated subject-linked highlights before subjects to avoid orphans.
+            // User-created highlights (createdById is set) are preserved — their subjectId
+            // will be set to null by the onDelete: SetNull cascade when subjects are deleted.
             await prisma.highlight.deleteMany({
-                where: { meetingId: councilMeetingId, cityId, subjectId: { not: null } }
+                where: { meetingId: councilMeetingId, cityId, subjectId: { not: null }, createdById: null }
             });
             await prisma.subject.deleteMany({
                 where: {

@@ -294,14 +294,15 @@ export async function saveSubjectsForMeeting(
     console.log(`saveSubjectsForMeeting: ${toUpdate.length} to update, ${toCreate.length} to create, ${nonAgendaSubjectIds.length} non-agenda to replace, ${existingSubjects.length - toUpdate.length - nonAgendaSubjectIds.length} existing kept`);
 
     await prisma.$transaction(async (tx) => {
-        // Delete highlights only for subjects being updated or replaced (not unmatched ones)
+        // Delete only auto-generated highlights for subjects being updated or replaced.
+        // User-created highlights (createdById is set) are preserved.
         const subjectIdsBeingProcessed = [
             ...toUpdate.map(u => u.existingId),
             ...nonAgendaSubjectIds,
         ];
         if (subjectIdsBeingProcessed.length > 0) {
             await tx.highlight.deleteMany({
-                where: { meetingId: councilMeetingId, cityId, subjectId: { in: subjectIdsBeingProcessed } }
+                where: { meetingId: councilMeetingId, cityId, subjectId: { in: subjectIdsBeingProcessed }, createdById: null }
             });
         }
 
