@@ -137,6 +137,84 @@ export async function createNotificationPreference(params: { userId: string; cit
     })
 }
 
+export async function createTaskStatus(meetingId: string, cityId: string, data?: {
+    type?: string
+    status?: string
+    requestBody?: string
+    responseBody?: string | null
+}) {
+    return prisma.taskStatus.create({
+        data: {
+            type: data?.type ?? 'processAgenda',
+            status: data?.status ?? 'pending',
+            requestBody: data?.requestBody ?? '{}',
+            responseBody: data?.responseBody ?? null,
+            councilMeetingId: meetingId,
+            cityId,
+        },
+    })
+}
+
+export async function createPerson(cityId: string, data?: {
+    name?: string
+    name_en?: string
+    name_short?: string
+    name_short_en?: string
+}) {
+    return prisma.person.create({
+        data: {
+            name: data?.name ?? 'Test Person',
+            name_en: data?.name_en ?? data?.name ?? 'Test Person',
+            name_short: data?.name_short ?? 'T. Person',
+            name_short_en: data?.name_short_en ?? data?.name_short ?? 'T. Person',
+            cityId,
+        },
+    })
+}
+
+export async function createSpeakerTag(data?: {
+    label?: string
+    personId?: string | null
+}) {
+    return prisma.speakerTag.create({
+        data: {
+            label: data?.label ?? 'Speaker',
+            personId: data?.personId ?? null,
+        },
+    })
+}
+
+export async function createSpeakerSegment(meetingId: string, cityId: string, data: {
+    speakerTagId: string
+    startTimestamp?: number
+    endTimestamp?: number
+}) {
+    return prisma.speakerSegment.create({
+        data: {
+            startTimestamp: data.startTimestamp ?? 0,
+            endTimestamp: data.endTimestamp ?? 60,
+            meetingId,
+            cityId,
+            speakerTagId: data.speakerTagId,
+        },
+    })
+}
+
+export async function createUtterance(speakerSegmentId: string, data?: {
+    text?: string
+    startTimestamp?: number
+    endTimestamp?: number
+}) {
+    return prisma.utterance.create({
+        data: {
+            text: data?.text ?? 'Test utterance text',
+            startTimestamp: data?.startTimestamp ?? 0,
+            endTimestamp: data?.endTimestamp ?? 10,
+            speakerSegmentId,
+        },
+    })
+}
+
 export function metersToLatLngOffset(lat: number, dxMeters: number, dyMeters: number): { dLng: number; dLat: number } {
     const metersPerDegLat = 111320
     const metersPerDegLng = 111320 * Math.cos((lat * Math.PI) / 180)
