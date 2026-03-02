@@ -4,14 +4,21 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 
 /**
- * Custom hook for updating URL search parameters
- * Provides a consistent way to update URL params with loading state
+ * Custom hook for updating URL search parameters.
+ * Accepts an optional `hash` that is appended to every URL update,
+ * keeping the viewport anchored to a specific section across param changes.
  */
-export function useUrlParams() {
+export function useUrlParams(hash?: string) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+
+  const buildUrl = (params: URLSearchParams) => {
+    const qs = params.toString();
+    const base = qs ? `${pathname}?${qs}` : pathname;
+    return hash ? `${base}#${hash}` : base;
+  };
 
   const updateParam = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams);
@@ -23,7 +30,7 @@ export function useUrlParams() {
     }
 
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
+      router.push(buildUrl(params));
     });
   };
 
@@ -39,7 +46,7 @@ export function useUrlParams() {
     }
 
     startTransition(() => {
-      router.push(`${pathname}?${params.toString()}`);
+      router.push(buildUrl(params));
     });
   };
 
@@ -50,4 +57,3 @@ export function useUrlParams() {
     searchParams
   };
 }
-
