@@ -458,7 +458,7 @@ const Map = memo(function Map({
                 }
             });
 
-            // Polygon labels (e.g. community names) - centered, prominent
+            // Polygon labels (e.g. community names)
             map.current?.addLayer({
                 'id': 'feature-labels',
                 'type': 'symbol',
@@ -466,15 +466,10 @@ const Map = memo(function Map({
                 'filter': ['!=', ['geometry-type'], 'Point'],
                 'layout': {
                     'text-field': ['get', 'label'],
-                    'text-size': [
-                        'interpolate', ['linear'], ['zoom'],
-                        11, 13,
-                        14, 16,
-                        17, 12
-                    ],
+                    'text-size': 12,
                     'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-anchor': 'center',
-                    'text-offset': [0, 0],
+                    'text-anchor': 'left',
+                    'text-offset': [1, 0],
                     'text-padding': 8,
                     'text-optional': false,
                     'text-max-width': 10,
@@ -483,12 +478,7 @@ const Map = memo(function Map({
                 'paint': {
                     'text-color': '#1e3a5f',
                     'text-halo-color': '#ffffff',
-                    'text-halo-width': 2.5,
-                    'text-opacity': [
-                        'interpolate', ['linear'], ['zoom'],
-                        11, 1,
-                        17, 0.3
-                    ]
+                    'text-halo-width': 2.5
                 }
             });
 
@@ -508,7 +498,7 @@ const Map = memo(function Map({
                 }
             });
 
-            // Point labels layer - show address/name labels when zoomed in
+            // Point labels layer - show address/name labels
             map.current?.addLayer({
                 'id': 'feature-point-labels',
                 'type': 'symbol',
@@ -517,18 +507,18 @@ const Map = memo(function Map({
                     ['==', ['geometry-type'], 'Point'],
                     ['!=', ['get', 'alwaysShowLabel'], true]
                 ],
-                'minzoom': 14,
+                'minzoom': 12,
                 'layout': {
                     'text-field': ['get', 'label'],
                     'text-size': [
                         'interpolate', ['linear'], ['zoom'],
-                        14, 10,
+                        12, 10,
                         17, 13
                     ],
                     'text-anchor': 'top',
                     'text-offset': [0, 0.8],
                     'text-padding': 3,
-                    'text-optional': true,
+                    'text-optional': false,
                     'text-max-width': 16,
                     'text-allow-overlap': false
                 },
@@ -537,9 +527,9 @@ const Map = memo(function Map({
                     'text-halo-color': '#ffffff',
                     'text-halo-width': 1.5,
                     'text-opacity': [
-                        'step', ['zoom'],
-                        0,     // hidden below zoom 15
-                        15, 1  // fully visible at zoom 15+
+                        'interpolate', ['linear'], ['zoom'],
+                        12, 0,
+                        13, 1
                     ]
                 }
             });
@@ -663,7 +653,7 @@ const Map = memo(function Map({
                 });
             }
 
-            // Add major street names layer
+            // Add major street names layer (inserted before feature-labels so our labels win collisions)
             if (!map.current.getLayer('major-street-labels')) {
                 map.current.addLayer({
                     'id': 'major-street-labels',
@@ -704,7 +694,7 @@ const Map = memo(function Map({
                         ['has', 'name'],
                         ['in', 'class', 'motorway', 'trunk', 'primary', 'secondary', 'tertiary']
                     ]
-                });
+                }, 'feature-labels');
             }
 
             // Add regular street names layer (including smaller roads)
@@ -751,7 +741,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'street', 'street_limited']
                     ],
                     'minzoom': 12
-                });
+                }, 'feature-labels');
             }
 
             // Add small roads and paths layer
@@ -798,7 +788,7 @@ const Map = memo(function Map({
                         ['in', 'class', 'service', 'path', 'pedestrian', 'track', 'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link']
                     ],
                     'minzoom': 14
-                });
+                }, 'feature-labels');
             }
 
             // Note: place-labels and poi-labels intentionally omitted
