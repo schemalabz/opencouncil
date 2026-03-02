@@ -93,6 +93,7 @@
     "date-fns-tz": "^3.2.0",
     "docx": "^9.1.1",
     "dotenv": "^16.4.5",
+    "feed": "^5.1.0",
     "framer-motion": "^11.11.17",
     "get-video-duration": "^4.1.0",
     "glob": "^11.0.0",
