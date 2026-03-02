@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -o pipefail
 
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -71,6 +72,52 @@ TABLES=(
     "QrCampaign"
 )
 
+# Validate that TABLES order respects foreign key dependencies in the source database.
+# For each table, check that any table it references (via FK) appears earlier in the list.
+# Run this BEFORE --clear deletion so we never wipe data if the order is wrong.
+echo "Validating table order against foreign key dependencies..."
+declare -A TABLE_INDEX
+for i in "${!TABLES[@]}"; do
+    TABLE_INDEX["${TABLES[$i]}"]=$i
+done
+
+FK_VALIDATION_OUTPUT=$(psql "$SOURCE" -t -A -F $'\t' -c "
+    SELECT
+        cl_child.relname AS child_table,
+        cl_parent.relname AS parent_table
+    FROM pg_constraint con
+    JOIN pg_class cl_child ON con.conrelid = cl_child.oid
+    JOIN pg_class cl_parent ON con.confrelid = cl_parent.oid
+    WHERE con.contype = 'f'
+      AND cl_child.relname != cl_parent.relname
+    ORDER BY cl_child.relname;
+")
+if [ $? -ne 0 ]; then
+    echo -e "\033[31mFailed to query foreign key constraints from source database. Aborting.\033[0m"
+    exit 1
+fi
+
+FK_ERRORS=0
+while IFS=$'\t' read -r child parent; do
+    # Skip FK references to tables not in our copy list (e.g. User)
+    if [ -z "${TABLE_INDEX[$parent]+x}" ]; then
+        continue
+    fi
+    if [ -z "${TABLE_INDEX[$child]+x}" ]; then
+        continue
+    fi
+    if [ "${TABLE_INDEX[$child]}" -lt "${TABLE_INDEX[$parent]}" ]; then
+        echo -e "\033[31mFK ordering error: \"$child\" (position ${TABLE_INDEX[$child]}) references \"$parent\" (position ${TABLE_INDEX[$parent]}) — \"$parent\" must come first.\033[0m"
+        FK_ERRORS=$((FK_ERRORS + 1))
+    fi
+done <<< "$FK_VALIDATION_OUTPUT"
+
+if [ "$FK_ERRORS" -gt 0 ]; then
+    echo -e "\033[31mFound $FK_ERRORS FK ordering error(s). Fix the TABLES array order before proceeding.\033[0m"
+    exit 1
+fi
+echo "Table order is valid."
+
 # Delete all rows from destination tables if --clear flag is set
 if [ "$CLEAR" = true ]; then
     for TABLE in "${TABLES[@]}"; do
@@ -82,5 +129,9 @@ fi
 # Proceed with data copying
 for TABLE in "${TABLES[@]}"; do
     echo "Copying data for $TABLE"
-    pg_dump --data-only -t "\"$TABLE\"" "$SOURCE" | psql "$TARGET"
+    pg_dump --data-only -t "\"$TABLE\"" "$SOURCE" | psql --set ON_ERROR_STOP=on "$TARGET"
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31mERROR: Failed to copy $TABLE. Aborting.\033[0m"
+        exit 1
+    fi
 done
