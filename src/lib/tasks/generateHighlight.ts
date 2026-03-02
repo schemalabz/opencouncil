@@ -82,19 +82,23 @@ export async function requestGenerateHighlight(
                 partyLabel = party.name_short || party.name;
             }
             
-            // For role label, prioritize city/administrative roles for non-party speakers
-            const cityRole = getSingleCityRole(person.roles, highlight.meeting.dateTime, highlight.meeting.administrativeBodyId || undefined);
-            if (cityRole) {
-                roleLabel = cityRole.name || undefined;
-                // For city-level roles (mayor, deputy mayor), show the role name
-                // as the speaker label instead of the party name
-                if (cityRole.name) {
-                    partyLabel = cityRole.name;
-                }
+            // For role label, use the meeting-context role (admin body or city-level)
+            const contextRole = getSingleCityRole(person.roles, highlight.meeting.dateTime, highlight.meeting.administrativeBodyId || undefined);
+            if (contextRole) {
+                roleLabel = contextRole.name || undefined;
             } else {
-                // Fallback to any active role if no city role found
+                // Fallback to any active role if no context role found
                 const activeRole = person.roles.find(role => isRoleActiveAt(role, highlight.meeting.dateTime));
                 roleLabel = activeRole?.name || undefined;
+            }
+
+            // For the speaker label: always check for a pure city-level role (mayor,
+            // deputy mayor) and use it instead of the party name if found.
+            // This check is done separately from contextRole because the meeting may
+            // have an administrativeBodyId that would otherwise hide the city-level role.
+            const pureCityRole = getSingleCityRole(person.roles, highlight.meeting.dateTime);
+            if (pureCityRole?.name) {
+                partyLabel = pureCityRole.name;
             }
         }
         
