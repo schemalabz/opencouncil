@@ -86,6 +86,11 @@ export async function requestGenerateHighlight(
             const cityRole = getSingleCityRole(person.roles, highlight.meeting.dateTime, highlight.meeting.administrativeBodyId || undefined);
             if (cityRole) {
                 roleLabel = cityRole.name || undefined;
+                // For city-level roles (mayor, deputy mayor), show the role name
+                // as the speaker label instead of the party name
+                if (cityRole.name) {
+                    partyLabel = cityRole.name;
+                }
             } else {
                 // Fallback to any active role if no city role found
                 const activeRole = person.roles.find(role => isRoleActiveAt(role, highlight.meeting.dateTime));
