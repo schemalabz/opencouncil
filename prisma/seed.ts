@@ -647,7 +647,6 @@ async function seedSubjects(subjects: any[], meeting: any) {
     id: subject.id,
     name: subject.name,
     description: subject.description,
-    hot: subject.hot || false,
     agendaItemIndex: subject.agendaItemIndex,
     nonAgendaReason: subject.nonAgendaReason,
     topicId: subject.topicId,

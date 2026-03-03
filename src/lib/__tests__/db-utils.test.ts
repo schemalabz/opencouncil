@@ -100,7 +100,6 @@ describe('DB Utils', () => {
           name: 'Test Subject',
           description: 'Description',
           topicLabel: 'Environment',
-          hot: true,
           agendaItemIndex: 1,
           introducedByPersonId: 'person-1',
           speakerSegments: [{ speakerSegmentId: 'segment-1', summary: 'Summary' }],
