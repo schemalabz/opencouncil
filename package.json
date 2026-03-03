@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:integration": "jest --config jest.integration.config.js",
+    "test:integration": "node --max-old-space-size=8192 ./node_modules/.bin/jest --config jest.integration.config.js",
     "test:watch": "jest --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
