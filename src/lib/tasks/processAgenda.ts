@@ -159,6 +159,10 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
 
                 // Send Discord admin alert about sending
                 sendNotificationsSentAdminAlert({
+                    cityId: task.councilMeeting.cityId,
+                    meetingId: task.councilMeeting.id,
+                    cityName: task.councilMeeting.city.name_en,
+                    meetingName: task.councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
                     messagesSent: releaseResult.messagesSent,

@@ -431,6 +431,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 
             // Send Discord admin alert for new citizen notification signup
             sendNotificationSignupAdminAlert({
+                cityId,
                 cityName: result.city.name_en,
                 locationCount: validLocationIds.length,
                 topicCount: validTopicIds.length,
@@ -439,6 +440,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 sendUserOnboardedAdminAlert({
+                    cityId,
                     cityName: result.city.name_en,
                     onboardingSource: 'notification_preferences',
                 });
@@ -565,6 +567,7 @@ export async function savePetition(data: OnboardingData & {
 
             // Send Discord admin alert for new petition
             sendPetitionReceivedAdminAlert({
+                cityId,
                 cityName: result.city.name_en,
                 isResident: isResident,
                 isCitizen: isCitizen,
@@ -573,6 +576,7 @@ export async function savePetition(data: OnboardingData & {
             // Send Discord admin alert for user onboarding (if we just created the user)
             if (isNewlyCreatedUser) {
                 sendUserOnboardedAdminAlert({
+                    cityId,
                     cityName: result.city.name_en,
                     onboardingSource: 'petition',
                 });

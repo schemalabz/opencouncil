@@ -271,6 +271,7 @@ export async function sendTaskFailedAdminAlert(data: {
  * Send admin alert when a user completes onboarding
  */
 export async function sendUserOnboardedAdminAlert(data: {
+    cityId?: string;
     cityName: string;
     onboardingSource: 'notification_preferences' | 'petition' | 'admin_invite' | 'magic_link';
 }): Promise<void> {
@@ -281,9 +282,13 @@ export async function sendUserOnboardedAdminAlert(data: {
         magic_link: 'Magic Link',
     };
 
+    const title = data.cityId
+        ? `✨ User Onboarded - ${data.cityId}`
+        : '✨ User Onboarded';
+
     await sendDiscordMessage({
         embeds: [{
-            title: '✨ User Onboarded',
+            title,
             description: `A user has completed onboarding.`,
             color: 0x9b59b6, // Purple
             fields: [
@@ -310,13 +315,14 @@ export async function sendUserOnboardedAdminAlert(data: {
  * Send admin alert when a petition is received
  */
 export async function sendPetitionReceivedAdminAlert(data: {
+    cityId: string;
     cityName: string;
     isResident: boolean;
     isCitizen: boolean;
 }): Promise<void> {
     await sendDiscordMessage({
         embeds: [{
-            title: '📝 New Petition Received',
+            title: `📝 New Petition Received - ${data.cityId}`,
             description: `A petition has been submitted for a municipality.`,
             color: 0xf39c12, // Orange
             fields: [
@@ -348,13 +354,14 @@ export async function sendPetitionReceivedAdminAlert(data: {
  * Send admin alert when someone signs up for notifications
  */
 export async function sendNotificationSignupAdminAlert(data: {
+    cityId: string;
     cityName: string;
     locationCount: number;
     topicCount: number;
 }): Promise<void> {
     await sendDiscordMessage({
         embeds: [{
-            title: '🔔 New Notification Signup',
+            title: `🔔 New Notification Signup - ${data.cityId}`,
             description: `A user has signed up for notifications.`,
             color: 0x3498db, // Light blue
             fields: [
@@ -449,6 +456,10 @@ export async function sendNotificationsCreatedAdminAlert(data: {
  * Send admin alert when notifications are sent/released
  */
 export async function sendNotificationsSentAdminAlert(data: {
+    cityId: string;
+    meetingId: string;
+    cityName: string;
+    meetingName: string;
     notificationCount: number;
     emailsSent: number;
     messagesSent: number;
@@ -459,15 +470,26 @@ export async function sendNotificationsSentAdminAlert(data: {
         return;
     }
 
+    const meetingUrl = `${env.NEXTAUTH_URL}/${data.cityId}/${data.meetingId}`;
     const adminNotificationsUrl = `${env.NEXTAUTH_URL}/admin/notifications`;
     const color = data.failed > 0 ? 0xe74c3c : 0x2ecc71; // Red if failures, green if all success
 
     await sendDiscordMessage({
         embeds: [{
-            title: `📤 Notifications Sent`,
-            description: `Delivery batch completed for ${data.notificationCount} notifications`,
+            title: `📤 Notifications Sent - ${data.cityId}`,
+            description: `Delivery batch completed for ${data.notificationCount} notifications for ${data.meetingId}`,
             color,
             fields: [
+                {
+                    name: 'Municipality',
+                    value: data.cityName,
+                    inline: true,
+                },
+                {
+                    name: 'Meeting',
+                    value: data.meetingName,
+                    inline: true,
+                },
                 {
                     name: '📧 Emails Sent',
                     value: data.emailsSent.toString(),
@@ -484,8 +506,8 @@ export async function sendNotificationsSentAdminAlert(data: {
                     inline: true,
                 },
                 {
-                    name: 'Manage',
-                    value: `[View All Notifications](${adminNotificationsUrl})`,
+                    name: 'Links',
+                    value: `[View Meeting](${meetingUrl}) | [Manage Notifications](${adminNotificationsUrl})`,
                     inline: false,
                 },
             ],

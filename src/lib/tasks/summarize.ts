@@ -230,6 +230,10 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
                 // Send Discord admin alert about sending
                 sendNotificationsSentAdminAlert({
+                    cityId: councilMeeting.cityId,
+                    meetingId: councilMeeting.id,
+                    cityName: councilMeeting.city.name_en,
+                    meetingName: councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
                     messagesSent: releaseResult.messagesSent,
