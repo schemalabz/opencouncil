@@ -79,6 +79,10 @@ export async function POST(
 
         // Send Discord admin alert about sending
         sendNotificationsSentAdminAlert({
+            cityId: params.cityId,
+            meetingId: params.meetingId,
+            cityName: meeting?.city.name_en ?? params.cityId,
+            meetingName: meeting?.name ?? params.meetingId,
             notificationCount: stats.notificationsCreated,
             emailsSent: releaseResult.emailsSent,
             messagesSent: releaseResult.messagesSent,
