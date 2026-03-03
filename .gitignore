@@ -10,6 +10,7 @@
 /coverage
 /og-previews
 /prisma/seed_data.json
+/prisma/diavgeia_municipalities.json
 
 # next.js
 /.next/

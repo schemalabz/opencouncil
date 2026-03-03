@@ -356,6 +356,20 @@ ls -la /var/lib/opencouncil-previews/pr-<num>/postgres/
 
 ## Troubleshooting
 
+**Amended migration files (schema mismatch after force-push):**
+
+`prisma migrate deploy` tracks applied migrations by name. If you amend a migration file that was already applied (e.g., rename a column from `diavgeiaUnitId` to `diavgeiaUnitIds`), the isolated DB keeps the old schema — Prisma sees the migration name as already applied and skips it. Symptoms: `The column X does not exist in the current database` errors at runtime.
+
+Fix: destroy and recreate the preview to get a fresh DB with the updated migration:
+```bash
+ssh root@<droplet-ip>
+STORE_PATH=$(readlink /var/lib/opencouncil-previews/pr-<num>/app)
+sudo opencouncil-preview-destroy <num>
+sudo opencouncil-preview-create <num> "$STORE_PATH" --with-db
+```
+
+To avoid this, prefer creating additive migrations instead of amending existing ones. If you must amend, remember to reset the preview DB afterwards.
+
 **Preview not accessible:**
 1. DNS: `dig pr-123.preview.opencouncil.gr` should resolve to droplet IP
 2. Caddy: `systemctl status caddy` + check `/etc/caddy/conf.d/pr-123.conf` exists

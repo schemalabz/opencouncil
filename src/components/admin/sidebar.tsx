@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, Landmark } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -58,6 +58,11 @@ const menuItems = [
         title: "QR Campaigns",
         icon: QrCode,
         url: "/admin/qr",
+    },
+    {
+        title: "Diavgeia",
+        icon: Landmark,
+        url: "/admin/diavgeia",
     },
     {
         title: "Elasticsearch",
