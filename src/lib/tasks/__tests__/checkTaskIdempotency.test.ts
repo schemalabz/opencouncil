@@ -19,9 +19,7 @@ jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('../../discord', () => ({
-  sendTaskStartedAdminAlert: jest.fn(),
-  sendTaskCompletedAdminAlert: jest.fn(),
-  sendTaskFailedAdminAlert: jest.fn(),
+  sendTaskAdminAlert: jest.fn(),
 }));
 jest.mock('../registry', () => ({ taskHandlers: {} }));
 
