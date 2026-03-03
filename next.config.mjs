@@ -10,7 +10,10 @@ try {
     } else {
         console.log('[build] DATABASE_URL not set');
     }
-} catch (_) {}
+} catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[build] Failed to parse DATABASE_URL from env.DATABASE_URL:', message);
+}
 
 const withNextIntl = createNextIntlPlugin();
 
@@ -19,7 +22,20 @@ const nextConfig = {
     reactStrictMode: false,
     output: 'standalone',
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
+        remotePatterns: [
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com', pathname: '/city-logos/**' },
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com', pathname: '/party-logos/**' },
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com', pathname: '/person-images/**' },
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com', pathname: '/uploads/**' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr', pathname: '/city-logos/**' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr', pathname: '/party-logos/**' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr', pathname: '/person-images/**' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr', pathname: '/uploads/**' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com', pathname: '/townhalls-gr/city-logos/**' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com', pathname: '/townhalls-gr/party-logos/**' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com', pathname: '/townhalls-gr/person-images/**' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com', pathname: '/townhalls-gr/uploads/**' },
+        ],
     },
     transpilePackages: ['@'],
     // Development optimizations
@@ -38,4 +54,3 @@ const nextConfig = {
 };
 
 export default withNextIntl(nextConfig);
-

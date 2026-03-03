@@ -3,12 +3,12 @@ import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { search, SearchResultDetailed, SearchConfig } from '@/lib/search';
 import { PersonWithRelations, getPeopleForCity } from '@/lib/db/people';
 import { ChatMessage } from '@/types/chat';
-import { aiChatStream, AIConfig } from '@/lib/ai';
+import { aiChatStream, AIConfig, DEFAULT_AI_MODEL } from '@/lib/ai';
 import { City } from '@prisma/client';
-import { 
+import {
     findSubjectsByQuery,
     findMockSpeakerSegmentsForSubject,
-    generateMockClaudeResponse 
+    generateMockClaudeResponse
 } from '@/lib/db/chat-mock-data';
 import { getCity } from '@/lib/db/cities';
 import { IS_DEV } from '@/lib/utils';
@@ -49,9 +49,8 @@ const CONTEXT_CONFIG = {
 // AI Configuration
 const AI_CONFIG: AIConfig = {
     maxTokens: 1000,
-    model: 'claude-sonnet-4-5-20250929',
+    model: DEFAULT_AI_MODEL,
     temperature: 0,
-
 };
 
 // @TODO: Better logging in the future
@@ -70,19 +69,19 @@ const logDev = (message: string, data?: any) => {
 // Content Extraction
 function extractRelevantContent(searchResults: SearchResultDetailed[]): ExtractedSubject[] {
     logDev(`[Content Extraction] Processing ${searchResults.length} search results`);
-    
+
     const extracted = searchResults.map(result => {
         // Get matched segments from the detailed results
         const matchedSegments = (result.speakerSegments as SegmentWithRelations[])
             .filter(segment => result.matchedSpeakerSegmentIds?.includes(segment.id));
-            
+
         logDev(`[Content Extraction] Subject "${result.name}":`, {
             score: result.score,
             totalSegments: result.speakerSegments.length,
             matchedSegments: matchedSegments.length,
             hasContext: result.context ? 'Yes' : 'No'
         });
-        
+
         return {
             name: result.name,
             description: result.description,
@@ -122,7 +121,7 @@ function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
 
     // Group people by party name for display
     const groupedPeople = groupPeopleByActiveParty(people, 'name');
-    
+
     // Format people with their roles
     const peopleByParty: PeopleByParty = Object.entries(groupedPeople).reduce((acc, [partyName, partyPeople]) => {
         acc[partyName] = partyPeople.map(person => {
@@ -136,16 +135,16 @@ function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
                 })
                 .filter(Boolean)
                 .join(", ");
-            
+
             return {
                 name: person.name,
                 roles: formattedRoles
             };
         });
-        
+
         // Sort people within each party by name
         acc[partyName].sort((a, b) => a.name.localeCompare(b.name));
-        
+
         return acc;
     }, {} as PeopleByParty);
 
@@ -154,9 +153,9 @@ function formatCityPoliticalContext(city: City, people: PersonWithRelations[]) {
 
 Κόμματα και Μέλη:
 ${Object.entries(peopleByParty)
-    .map(([party, members]) => 
-        `${party}:\n${(members as FormattedPerson[]).map(member => `  - ${member.name} [${member.roles}]`).join('\n')}`)
-    .join('\n\n')}
+            .map(([party, members]) =>
+                `${party}:\n${(members as FormattedPerson[]).map(member => `  - ${member.name} [${member.roles}]`).join('\n')}`)
+            .join('\n\n')}
 
 ----------------------------------------
 `;
@@ -203,7 +202,7 @@ async function enhancePrompt(messages: ChatMessage[], context: ReturnType<typeof
         useAllSegments: CONTEXT_CONFIG.useAllSegments,
         cityId
     });
-    
+
     let cityContext = '';
     if (cityId) {
         const city = await getCity(cityId)
@@ -212,20 +211,20 @@ async function enhancePrompt(messages: ChatMessage[], context: ReturnType<typeof
             cityContext = formatCityPoliticalContext(city, people);
         }
     }
-    
+
     const systemPrompt = `${SYSTEM_PROMPT}
 
 ${cityContext}
 
 Σχετικά θέματα συμβουλίου (με σειρά προτεραιότητας):
 ${context.map((subject, index) => {
-    logDev(`[Prompt Enhancement] Processing subject ${index + 1}:`, {
-        totalSegments: subject.speakerSegments.length,
-        keySegments: subject.keySegments.length,
-        hasContext: subject.context ? 'Yes' : 'No'
-    });
-    
-    return `
+        logDev(`[Prompt Enhancement] Processing subject ${index + 1}:`, {
+            totalSegments: subject.speakerSegments.length,
+            keySegments: subject.keySegments.length,
+            hasContext: subject.context ? 'Yes' : 'No'
+        });
+
+        return `
 ----------------------------------------
 [${index + 1}] Θέμα: ${subject.name}
 ${subject.topic ? `Κατηγορία: ${subject.topic}` : ''}
@@ -233,16 +232,16 @@ ${subject.topic ? `Κατηγορία: ${subject.topic}` : ''}
 ${subject.context ? `\nΠρόσθετο περιεχόμενο για το θέμα: ${cleanContextReferences(subject.context)}` : ''}
 
 Αποσπάσματα ομιλιών:
-${CONTEXT_CONFIG.useAllSegments 
-    ? subject.speakerSegments.map(segment => {
-        const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
-        const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
-        return `${prefix}${segment.speaker}: "${segment.text}"`;
-    }).join('\n')
-    : subject.keySegments.map(segment => {
-        return `• ${segment.speaker}: "${segment.text}"`;
-    }).join('\n')
-}
+${CONTEXT_CONFIG.useAllSegments
+                ? subject.speakerSegments.map(segment => {
+                    const isKeySegment = subject.keySegments.some(keySeg => keySeg.text === segment.text);
+                    const prefix = isKeySegment && CONTEXT_CONFIG.useAllSegments ? '🔹 ' : '• ';
+                    return `${prefix}${segment.speaker}: "${segment.text}"`;
+                }).join('\n')
+                : subject.keySegments.map(segment => {
+                    return `• ${segment.speaker}: "${segment.text}"`;
+                }).join('\n')
+            }
 ----------------------------------------`}).join('\n\n')}
 
 ${CONTEXT_CONFIG.useAllSegments ? 'Σημείωση: Τα αποσπάσματα με 🔹 είναι τα πιο σχετικά με την ερώτησή σας.' : ''}`;
@@ -328,7 +327,7 @@ export async function POST(req: NextRequest) {
         try {
             logEssential('Chat Session Started');
             const { messages, cityId, useMockData } = await req.json();
-            
+
             // Log request details
             logEssential('Chat Request Details', {
                 messages: messages.length,
@@ -345,7 +344,7 @@ export async function POST(req: NextRequest) {
                 searchResults = subjects.map(subject => {
                     // Get mock speaker segments for this subject
                     const mockSegments = findMockSpeakerSegmentsForSubject(subject.name);
-                    
+
                     return {
                         ...subject,
                         score: 1.0,
@@ -457,11 +456,11 @@ export async function POST(req: NextRequest) {
 
             // Close the stream
             await writer.close();
-            
+
             logEssential('Chat Session Completed');
         } catch (error) {
             console.error(`[Chat API] Error:`, error);
-            
+
             // Send an error message to the client
             const errorData = {
                 id: Date.now().toString(),
@@ -478,7 +477,7 @@ export async function POST(req: NextRequest) {
             } catch (e) {
                 console.error('Error writing to stream:', e);
             }
-            
+
             logEssential('Chat Session Failed', {
                 error: error instanceof Error ? error.message : 'Unknown error'
             });

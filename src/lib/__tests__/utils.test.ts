@@ -12,7 +12,9 @@ import {
   isRoleActive,
   filterActiveRoles,
   filterInactiveRoles,
-  normalizeText
+  normalizeText,
+  klitiki,
+  getMeetingMediaType
 } from '../utils';
 import { calculateOfferTotals } from '../pricing';
 
@@ -208,7 +210,7 @@ describe('subjectToMapFeature', () => {
       id: '123',
       geometry: {
         type: 'Point',
-        coordinates: [20, 10]
+        coordinates: [10, 20]
       },
       properties: {
         subjectId: '123',
@@ -236,36 +238,73 @@ describe('subjectToMapFeature', () => {
 });
 
 describe('sortSubjectsByImportance', () => {
+  type TestSortableSubject = {
+    id: string;
+    name: string;
+    hot: boolean;
+    statistics?: { speakingSeconds: number };
+  };
+
   it('should prioritize hot subjects', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false },
       { id: '2', name: 'Subject 2', hot: true }
     ];
 
-    const sorted = sortSubjectsByImportance(subjects as any);
+    const sorted = sortSubjectsByImportance(subjects);
     expect(sorted[0].id).toBe('2');
     expect(sorted[1].id).toBe('1');
   });
 
   it('should sort by speaking time for subjects with same hot status', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false, statistics: { speakingSeconds: 100 } },
       { id: '2', name: 'Subject 2', hot: false, statistics: { speakingSeconds: 200 } }
     ];
 
-    const sorted = sortSubjectsByImportance(subjects as any);
+    const sorted = sortSubjectsByImportance(subjects);
     expect(sorted[0].id).toBe('2');
     expect(sorted[1].id).toBe('1');
   });
 
   it('should handle subjects without statistics', () => {
-    const subjects = [
+    const subjects: TestSortableSubject[] = [
       { id: '1', name: 'Subject 1', hot: false },
       { id: '2', name: 'Subject 2', hot: false, statistics: { speakingSeconds: 200 } }
     ];
 
     // Should not throw error
-    expect(() => sortSubjectsByImportance(subjects as any)).not.toThrow();
+    expect(() => sortSubjectsByImportance(subjects)).not.toThrow();
+  });
+
+  it('should rank subjects with statistics above subjects without statistics', () => {
+    const subjects: TestSortableSubject[] = [
+      { id: '1', name: 'Subject 1', hot: false },
+      { id: '2', name: 'Subject 2', hot: false, statistics: { speakingSeconds: 1 } }
+    ];
+
+    const sorted = sortSubjectsByImportance(subjects);
+    expect(sorted[0].id).toBe('2');
+  });
+
+  it('should treat timestamp 0 as valid in appearance ordering', () => {
+    const subjects = [
+      {
+        id: '1',
+        name: 'Ζήτα',
+        hot: false,
+        speakerSegments: [{ startTimestamp: 0 }]
+      },
+      {
+        id: '2',
+        name: 'Άλφα',
+        hot: false,
+        speakerSegments: [{ startTimestamp: 10 }]
+      }
+    ];
+
+    const sorted = sortSubjectsByImportance(subjects as any, 'appearance');
+    expect(sorted[0].id).toBe('1');
   });
 });
 
@@ -331,6 +370,158 @@ describe('joinTranscriptSegments', () => {
 
     const joined = joinTranscriptSegments(segments as any);
     expect(joined).toHaveLength(2);
+  });
+
+  it('should join overlapping segments from the same speaker', () => {
+    const segments = [
+      {
+        speakerTag: { personId: '1' },
+        startTimestamp: 0,
+        endTimestamp: 10,
+        utterances: [{ id: '1' }],
+        topicLabels: [{ id: 'topic1' }]
+      },
+      {
+        speakerTag: { personId: '1' },
+        startTimestamp: 5,
+        endTimestamp: 15,
+        utterances: [{ id: '2' }],
+        topicLabels: [{ id: 'topic2' }]
+      }
+    ];
+
+    const joined = joinTranscriptSegments(segments as any);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].startTimestamp).toBe(0);
+    expect(joined[0].endTimestamp).toBe(15);
+  });
+
+  it('should keep the most recent summary updatedAt when joining', () => {
+    const olderDate = new Date('2024-01-01T10:00:00Z');
+    const newerDate = new Date('2024-01-01T11:00:00Z');
+
+    const segments = [
+      {
+        id: 'segment-1',
+        speakerTag: { personId: '1' },
+        startTimestamp: 0,
+        endTimestamp: 10,
+        utterances: [{ id: '1' }],
+        topicLabels: [{ id: 'topic1' }],
+        summary: {
+          id: 'summary-1',
+          createdAt: olderDate,
+          updatedAt: olderDate,
+          speakerSegmentId: 'segment-1',
+          text: 'first',
+          type: 'procedural'
+        }
+      },
+      {
+        id: 'segment-2',
+        speakerTag: { personId: '1' },
+        startTimestamp: 10,
+        endTimestamp: 20,
+        utterances: [{ id: '2' }],
+        topicLabels: [{ id: 'topic2' }],
+        summary: {
+          id: 'summary-2',
+          createdAt: newerDate,
+          updatedAt: newerDate,
+          speakerSegmentId: 'segment-2',
+          text: 'second',
+          type: 'substantive'
+        }
+      }
+    ];
+
+    const joined = joinTranscriptSegments(segments as any);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].summary?.updatedAt).toEqual(newerDate);
+  });
+
+  it('should keep current updatedAt when next summary has no updatedAt', () => {
+    const currentDate = new Date('2024-01-01T10:00:00Z');
+
+    const segments = [
+      {
+        id: 'segment-1',
+        speakerTag: { personId: '1' },
+        startTimestamp: 0,
+        endTimestamp: 10,
+        utterances: [{ id: '1' }],
+        topicLabels: [{ id: 'topic1' }],
+        summary: {
+          id: 'summary-1',
+          createdAt: currentDate,
+          updatedAt: currentDate,
+          speakerSegmentId: 'segment-1',
+          text: 'first',
+          type: 'procedural'
+        }
+      },
+      {
+        id: 'segment-2',
+        speakerTag: { personId: '1' },
+        startTimestamp: 10,
+        endTimestamp: 20,
+        utterances: [{ id: '2' }],
+        topicLabels: [{ id: 'topic2' }],
+        summary: {
+          id: 'summary-2',
+          createdAt: currentDate,
+          speakerSegmentId: 'segment-2',
+          text: 'second',
+          type: 'substantive'
+        }
+      }
+    ];
+
+    const joined = joinTranscriptSegments(segments as any);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].summary?.updatedAt).toEqual(currentDate);
+  });
+
+  it('should use next updatedAt when current summary has no updatedAt', () => {
+    const nextDate = new Date('2024-01-01T11:00:00Z');
+
+    const segments = [
+      {
+        id: 'segment-1',
+        speakerTag: { personId: '1' },
+        startTimestamp: 0,
+        endTimestamp: 10,
+        utterances: [{ id: '1' }],
+        topicLabels: [{ id: 'topic1' }],
+        summary: {
+          id: 'summary-1',
+          createdAt: nextDate,
+          speakerSegmentId: 'segment-1',
+          text: 'first',
+          type: 'procedural'
+        }
+      },
+      {
+        id: 'segment-2',
+        speakerTag: { personId: '1' },
+        startTimestamp: 10,
+        endTimestamp: 20,
+        utterances: [{ id: '2' }],
+        topicLabels: [{ id: 'topic2' }],
+        summary: {
+          id: 'summary-2',
+          createdAt: nextDate,
+          updatedAt: nextDate,
+          speakerSegmentId: 'segment-2',
+          text: 'second',
+          type: 'substantive'
+        }
+      }
+    ];
+
+    const joined = joinTranscriptSegments(segments as any);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].summary?.updatedAt).toEqual(nextDate);
   });
 });
 
@@ -427,6 +618,38 @@ describe('normalizeText', () => {
     expect(normalizeText('')).toBe('');
     // @ts-ignore - Testing invalid input
     expect(normalizeText(null)).toBe('');
+  });
+});
+
+describe('klitiki', () => {
+  it('should return empty string for empty input', () => {
+    expect(klitiki('')).toBe('');
+    expect(klitiki('   ')).toBe('');
+  });
+
+  it('should normalize whitespace before processing names', () => {
+    expect(klitiki('  Γιώργος   Νίκος  ')).toBe('Γιώργο Νίκο');
+  });
+});
+
+describe('getMeetingMediaType', () => {
+  it('should classify mp4 URLs as video', () => {
+    const result = getMeetingMediaType({
+      videoUrl: 'https://example.com/recording.mp4?token=abc',
+      muxPlaybackId: 'mux-id'
+    } as any);
+
+    expect(result.label).toBe('Βίντεο');
+  });
+
+  it('should not classify .mp3 URLs with query as video', () => {
+    const result = getMeetingMediaType({
+      videoUrl: 'https://example.com/recording.MP3?token=abc',
+      audioUrl: 'https://example.com/recording.mp3',
+      muxPlaybackId: 'mux-id'
+    } as any);
+
+    expect(result.label).toBe('Ήχος');
   });
 });
 
