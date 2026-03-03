@@ -5,7 +5,7 @@ import prisma from '@/lib/db/prisma';
 import { MeetingTaskType, TASK_CONFIG } from '@/lib/tasks/types';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
-import { sendTaskStartedAdminAlert, sendTaskCompletedAdminAlert, sendTaskFailedAdminAlert } from '@/lib/discord';
+import { sendTaskAdminAlert } from '@/lib/discord';
 import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers } from './registry';
@@ -162,7 +162,8 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     });
 
     // Send Discord admin alert
-    sendTaskStartedAdminAlert({
+    sendTaskAdminAlert({
+        status: 'started',
         taskType: taskType,
         cityName: newTask.councilMeeting.city.name_en,
         meetingName: newTask.councilMeeting.name_en,
@@ -197,7 +198,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 await processResult(taskId, update.result, options);
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
-                sendTaskCompletedAdminAlert({
+                sendTaskAdminAlert({
+                    status: 'completed',
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
                     meetingName: task.councilMeeting.name_en,
@@ -222,7 +224,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 });
 
                 // Send Discord admin alert for processing failure
-                sendTaskFailedAdminAlert({
+                sendTaskAdminAlert({
+                    status: 'failed',
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
                     meetingName: task.councilMeeting.name_en,
@@ -236,7 +239,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             console.log(`No result for task ${taskId}`);
 
             // Task succeeded but has no result to process - still send completion admin alert
-            sendTaskCompletedAdminAlert({
+            sendTaskAdminAlert({
+                status: 'completed',
                 taskType: task.type,
                 cityName: task.councilMeeting.city.name_en,
                 meetingName: task.councilMeeting.name_en,
@@ -252,7 +256,8 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         });
 
         // Send Discord admin alert for task failure
-        sendTaskFailedAdminAlert({
+        sendTaskAdminAlert({
+            status: 'failed',
             taskType: task.type,
             cityName: task.councilMeeting.city.name_en,
             meetingName: task.councilMeeting.name_en,
