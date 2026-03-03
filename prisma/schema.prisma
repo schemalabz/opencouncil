@@ -397,7 +397,6 @@ model Subject {
   cityId String
   councilMeetingId String
 
-  hot Boolean @default(false)
   agendaItemIndex Int?
   nonAgendaReason NonAgendaReason?
   topicId String?

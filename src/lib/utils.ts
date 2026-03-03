@@ -111,7 +111,6 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
  */
 interface SortableSubject {
   name: string;
-  hot: boolean;
   // Optional fields used for advanced sorting
   statistics?: Statistics;
   speakerSegments?: any[];
@@ -123,12 +122,8 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
   orderBy: 'importance' | 'appearance' = 'importance'
 ) {
   return [...subjects].sort((a, b) => {
-    // First priority: hot subjects (regardless of ordering mode)
-    if (b.hot && !a.hot) return 1;
-    if (a.hot && !b.hot) return -1;
-
     if (orderBy === 'importance') {
-      // Second priority: speaking time from statistics
+      // First priority: speaking time from statistics
       if (a.statistics && b.statistics) {
         const timeComparison = b.statistics.speakingSeconds - a.statistics.speakingSeconds;
         // Add tie breaker for equal statistics
