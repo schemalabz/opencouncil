@@ -66,5 +66,10 @@
     "button": "Copy segment",
     "segmentCopied": "Segment copied",
     "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
+  },
+  "viewMode": {
+    "label": "View mode",
+    "default": "Default",
+    "fisheye": "Fish-Eye"
   }
 }
