@@ -23,7 +23,6 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
-    // Sort subjects by importance (hot subjects first, then by speaking time)
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
     return (
@@ -171,11 +170,10 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
         day: 'numeric',
     });
 
-    // Sort subjects by importance (hot subjects first, then by speaking time)
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
     return (
-        <Container 
+        <Container
             watermarkProps={{ size: 120, fontSize: 50, bottom: 52, right: 52 }}
             containerPadding="64px 48px"
         >

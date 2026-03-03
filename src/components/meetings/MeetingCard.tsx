@@ -66,8 +66,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
-    // Since data comes from the backend as ordered by hot status already (due to db query order),d
-    // we maintain that order but use our utility for consistency
     const sortedSubjects = useMemo(() => {
         const result = sortSubjectsByImportance(meeting.subjects, 'importance');
 
@@ -81,7 +79,6 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                 topSubjects: topThree.map(s => ({
                     id: s.id,
                     name: s.name,
-                    isHot: s.hot,
                     segmentCount: s.speakerSegments?.length || 0,
                     agendaItemIndex: s.agendaItemIndex,
                     hasTopic: !!s.topic

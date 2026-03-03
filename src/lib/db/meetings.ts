@@ -98,9 +98,6 @@ export async function getCouncilMeetingsForCity(cityId: string, { includeUnrelea
             include: {
                 subjects: {
                     orderBy: [
-                        // Ensure hot subjects are first in the list 
-                        { hot: 'desc' },
-                        // Secondary ordering by agenda item index when available
                         { agendaItemIndex: 'asc' },
                         { name: 'asc' }
                     ],
@@ -155,7 +152,6 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                     select: {
                         id: true,
                         name: true,
-                        hot: true,
                         topic: {
                             select: {
                                 colorHex: true
