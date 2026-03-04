@@ -73,11 +73,16 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function klitiki(name: string): string {
-  if (name.includes(" ")) {
-    return name.split(" ").map(greekKlitiki).join(" ");
+  const normalizedName = name.trim();
+  if (!normalizedName) {
+    return "";
   }
 
-  return greekKlitiki(name);
+  if (/\s/.test(normalizedName)) {
+    return normalizedName.split(/\s+/).map(greekKlitiki).join(" ");
+  }
+
+  return greekKlitiki(normalizedName);
 }
 
 export function debounce<T extends (...args: any[]) => any>(

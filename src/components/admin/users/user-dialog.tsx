@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
 import { UserWithRelations } from "@/lib/db/users"
 import Combobox from "@/components/Combobox"
+import { toast } from "@/hooks/use-toast"
 
 interface UserDialogProps {
     open: boolean
@@ -112,9 +113,11 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
         setLoading(true)
 
         const formData = new FormData(e.currentTarget)
+        const email = String(formData.get("email") ?? "")
+        const name = String(formData.get("name") ?? "")
         const data = {
-            email: formData.get("email") as string,
-            name: formData.get("name") as string,
+            email,
+            name: name || null,
             isSuperAdmin: formData.get("isSuperAdmin") === "on",
             administers: selectedEntities.map(entity => ({
                 [entity.type]: { connect: { id: entity.id } }
@@ -134,12 +137,37 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
             })
 
             if (!response.ok) {
-                throw new Error("Failed to save user")
+                const { error } = await response.json().catch(() => ({ error: "Failed to save user" }))
+                throw new Error(typeof error === "string" ? error : "Failed to save user")
             }
 
+            const responseData = await response.json().catch((err: unknown) => {
+                console.error("Failed to parse response body:", err)
+                return null
+            })
+
+            if (response.status === 207) {
+                toast({
+                    title: "User created with warning",
+                    description: responseData?.warning ?? "User created but invite email could not be sent.",
+                    variant: "destructive",
+                })
+                onOpenChange(false)
+                return
+            }
+
+            toast({
+                title: "Success",
+                description: isEditing ? "User updated successfully." : "User created successfully.",
+            })
             onOpenChange(false)
         } catch (error) {
             console.error("Failed to save user:", error)
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "Failed to save user",
+                variant: "destructive",
+            })
         } finally {
             setLoading(false)
         }
