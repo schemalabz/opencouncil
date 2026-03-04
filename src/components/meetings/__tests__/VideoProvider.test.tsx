@@ -64,7 +64,7 @@ const SeekConsumer = () => {
 describe('VideoProvider', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        
+
         // Setup initial mocks
         jest.spyOn(OptionsContext, 'useTranscriptOptions').mockReturnValue({
             options: { playbackSpeed: 1, editable: true, canCreateHighlights: true, editsAllowed: true, selectedSpeakerTag: null, highlightLowConfidenceWords: true, maxUtteranceDrift: 500, skipInterval: 5 },
@@ -83,8 +83,6 @@ describe('VideoProvider', () => {
         ];
 
         // Mock context hook
-        const mockedUseCouncilMeetingData = useCouncilMeetingData as jest.Mock;
-        
         const ContextProvider = ({ children }: { children: React.ReactNode }) => {
             (useCouncilMeetingData as jest.Mock).mockReturnValue({
                 transcript: transcriptData,
@@ -108,7 +106,7 @@ describe('VideoProvider', () => {
 
         // Action: Click button to scroll to 5s (should find utt-1)
         fireEvent.click(screen.getByTestId('scroll-to-5'));
-        
+
         expect(mockScrollIntoView).toHaveBeenCalledTimes(1);
         // The element should be the one with id 'utt-1'
         // We can't easily check which element scrollIntoView was called on with just jest.fn() natively
@@ -149,7 +147,7 @@ describe('VideoProvider', () => {
 
         // Action: Click button to scroll to 15s (should find utt-2)
         fireEvent.click(screen.getByTestId('scroll-to-15'));
-        
+
         // Verify utt2 received the scrollIntoView call because VideoProvider 
         // dynamically picked up the new utterance
         expect(utt2AfterRerender!.scrollIntoView).toHaveBeenCalledTimes(1);

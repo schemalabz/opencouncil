@@ -110,7 +110,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     const searchParams = useSearchParams();
     const { transcript } = useCouncilMeetingData();
     const utterances = useMemo<Utterance[]>(() => transcript.flatMap(s => s.utterances ?? []), [transcript]);
-    
+
     // === CORE VIDEO STATE ===
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
     const currentTimeRef = useRef(0); // Ref for immediate access without re-renders
@@ -120,6 +120,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false); // First play flag
     const playerRef = useRef<HTMLVideoElement | null>(null); // Direct reference to video element
     const [currentTime, setCurrentTime] = useState(0); // React state for UI (throttled updates)
+    const hasSetInitialTime = useRef(false); // Ensures initial time is set only once
 
     // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = useCallback((time: number) => {
@@ -157,11 +158,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
 
     // === URL PARAMETER HANDLING ===
     const timeParam = searchParams.get('t');
-    const hasSetInitialTime = useRef(false);
     const hasAppliedUrlParam = useRef(false);
 
     useEffect(() => {
-        // Set initial time to first utterance if no other time set
+        // Set initial time to first utterance only on first load
         if (!hasSetInitialTime.current && utterances.length > 0) {
             hasSetInitialTime.current = true;
             currentTimeRef.current = utterances[0].startTimestamp;
@@ -221,7 +221,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     }, [options.playbackSpeed]);
 
     // === CORE PLAYBACK CONTROLS ===
-    
+
     /**
      * PLAY FUNCTION:
      * - Calls native video.play() method
@@ -271,7 +271,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     };
 
     // === SEEKING CONTROL ===
-    
+
     /**
      * SEEKING EVENT HANDLERS:
      * - onSeeking: Fired when user starts dragging timeline
@@ -289,7 +289,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
             setCurrentTime(currentTimeRef.current);
         }
     }
-    
+
     const handleSpeedChange = (value: string) => {
         setPlaybackSpeed(value);
         if (playerRef.current) {
