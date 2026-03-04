@@ -1171,8 +1171,59 @@ EOF
               platforms = systems;
             };
           };
+          oc-rss = pkgs.writeShellApplication {
+            name = "oc-rss";
+            runtimeInputs = with pkgs; [
+              curl
+              jq
+              newsboat
+            ];
+            text = ''
+              set -euo pipefail
+
+              port="''${OC_APP_PORT:-''${APP_PORT:-3000}}"
+              base="http://localhost:$port"
+
+              # Check dev server is running
+              if ! curl -sf "$base" >/dev/null 2>&1; then
+                echo "Dev server not reachable at $base" >&2
+                echo "Start it first: nix run .#dev" >&2
+                exit 1
+              fi
+
+              # Discover cities from API
+              cities=$(curl -sf "$base/api/cities" | jq -r '.[].id')
+              if [ -z "$cities" ]; then
+                echo "No cities found from $base/api/cities" >&2
+                exit 1
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              trap 'rm -rf "$tmp_dir"' EXIT
+
+              # Generate newsboat urls file
+              urls_file="$tmp_dir/urls"
+              for city in $cities; do
+                echo "$base/$city/feed \"~$city\"" >> "$urls_file"
+              done
+
+              echo "Feeds:"
+              cat "$urls_file"
+              echo ""
+
+              # Minimal newsboat config for dev use
+              config_file="$tmp_dir/config"
+              cat > "$config_file" <<'CFG'
+              auto-reload yes
+              reload-time 30
+              show-read-feeds no
+              CFG
+
+              exec newsboat -u "$urls_file" -C "$config_file" -c "$tmp_dir/cache.db"
+            '';
+          };
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup opencouncil-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod;
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
@@ -1949,6 +2000,10 @@ CADDYEOF
             nix build .#opencouncil-prod "$@"
             echo "Build complete. Output in ./result/"
           ''}";
+        };
+        rss = {
+          type = "app";
+          program = "${self.packages.${system}.oc-rss}/bin/oc-rss";
         };
         start = {
           type = "app";
