@@ -89,12 +89,6 @@ export async function POST(request: Request) {
         // Send invitation email
         const inviteEmailSent = await sendInviteEmail(newUser.email, newUser.name ?? newUser.email)
 
-        // Send Discord admin alert for admin invite
-        sendUserOnboardedAdminAlert({
-            cityName: isSuperAdmin ? 'Super Admin' : 'Admin User',
-            onboardingSource: 'admin_invite',
-        });
-
         if (!inviteEmailSent) {
             console.error(`User ${newUser.id} created, but invite email failed to send`)
             return NextResponse.json(
@@ -102,6 +96,12 @@ export async function POST(request: Request) {
                 { status: 207 }
             )
         }
+
+        // Only alert when the full invite flow succeeded
+        sendUserOnboardedAdminAlert({
+            cityName: isSuperAdmin ? 'Super Admin' : 'Admin User',
+            onboardingSource: 'admin_invite',
+        });
 
         return NextResponse.json(newUser)
     } catch (error) {

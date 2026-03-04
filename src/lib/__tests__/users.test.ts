@@ -15,7 +15,12 @@ jest.mock('../api/errors', () => {
       super(400, message);
     }
   }
-  return { ApiError, BadRequestError, ConflictError };
+  class NotFoundError extends ApiError {
+    constructor(message: string = "Not found") {
+      super(404, message);
+    }
+  }
+  return { ApiError, BadRequestError, ConflictError, NotFoundError };
 });
 
 jest.mock('../auth', () => ({
