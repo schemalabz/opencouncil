@@ -16,7 +16,7 @@ export async function GET(
 
     const city = await getCityCached(cityId);
 
-    if (!city || !city.isListed || city.isPending) {
+    if (!city) {
         const t = await getTranslations({ locale, namespace: 'RSS' });
         return new NextResponse(t('cityNotFound'), { status: 404 });
     }
@@ -44,7 +44,7 @@ export async function GET(
     const cityUrl = locale === 'el' 
         ? `${baseUrl}/${cityId}`
         : `${baseUrl}/${locale}/${cityId}`;
-    const feedUrl = `${baseUrl}/${locale}/${cityId}/rss.xml`;
+    const feedUrl = `${baseUrl}/${locale}/${cityId}/feed`;
 
     // Get translations
     const t = await getTranslations({ locale, namespace: 'RSS' });
