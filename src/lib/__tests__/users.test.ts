@@ -34,7 +34,6 @@ jest.mock('../db/prisma', () => ({
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-      delete: jest.fn(),
     },
     administers: {
       deleteMany: jest.fn(),

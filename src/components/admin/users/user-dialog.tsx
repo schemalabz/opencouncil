@@ -141,12 +141,12 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                 throw new Error(typeof error === "string" ? error : "Failed to save user")
             }
 
-            const responseData = await response.json().catch(() => ({}))
+            const responseData = await response.json().catch(() => null)
 
-            if (response.status === 207 && responseData.warning) {
+            if (response.status === 207) {
                 toast({
                     title: "User created with warning",
-                    description: responseData.warning,
+                    description: responseData?.warning ?? "User created but invite email could not be sent.",
                     variant: "destructive",
                 })
                 onOpenChange(false)

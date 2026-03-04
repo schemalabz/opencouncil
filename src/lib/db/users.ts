@@ -55,9 +55,9 @@ function normalizeEmail(email: string): string {
     return normalizedEmail;
 }
 
-function normalizeName(name: string | null | undefined): string | null | undefined {
+function normalizeName(name: string | null | undefined): string | null {
     if (typeof name !== "string") {
-        return name;
+        return null;
     }
 
     const normalizedName = name.trim();

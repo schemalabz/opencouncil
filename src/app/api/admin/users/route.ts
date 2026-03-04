@@ -53,7 +53,11 @@ async function sendInviteEmail(email: string, name: string) {
     } catch (error) {
         console.error("Failed to send invite email:", error)
         if (verificationTokenKey) {
-            try { await prisma.verificationToken.deleteMany({ where: verificationTokenKey }) } catch { }
+            try {
+                await prisma.verificationToken.deleteMany({ where: verificationTokenKey })
+            } catch (cleanupError) {
+                console.error("Failed to clean up verification token:", cleanupError)
+            }
         }
         return false
     }
