@@ -76,7 +76,7 @@ export function klitiki(name: string): string {
     return "";
   }
 
-  if (normalizedName.includes(" ")) {
+  if (/\s/.test(normalizedName)) {
     return normalizedName.split(/\s+/).map(greekKlitiki).join(" ");
   }
 

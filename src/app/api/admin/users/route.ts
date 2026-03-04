@@ -73,8 +73,7 @@ export async function GET() {
         const users = await getUsers()
         return NextResponse.json(users)
     } catch (error) {
-        console.error("Failed to fetch users:", error)
-        return new NextResponse("Failed to fetch users", { status: 500 })
+        return handleApiError(error, "Failed to fetch users")
     }
 }
 

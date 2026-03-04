@@ -89,7 +89,6 @@ export async function getUsers(): Promise<UserWithRelations[]> {
         });
         return users;
     } catch (error) {
-        console.error('Error fetching users:', error);
         throw new Error('Failed to fetch users');
     }
 }
@@ -125,7 +124,6 @@ export async function createUser(data: AdminUserData, options: { skipAuthCheck?:
         if (errorWithCode.code === "P2002") {
             throw new ConflictError("A user with this email already exists.");
         }
-        console.error("Error creating user:", error);
         throw new Error("Failed to create user");
     }
 }
@@ -170,7 +168,6 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
         if (errorWithCode.code === "P2002") {
             throw new ConflictError("A user with this email already exists.");
         }
-        console.error("Error updating user:", error);
         throw new Error("Failed to update user");
     }
 }
@@ -186,7 +183,6 @@ export async function deleteUser(id: string): Promise<void> {
         if (errorWithCode.code === "P2025") {
             throw new NotFoundError("User not found");
         }
-        console.error("Error deleting user:", error);
         throw new Error("Failed to delete user");
     }
 }
@@ -201,7 +197,6 @@ export async function updateUserProfile(id: string, data: UserProfileUpdateData)
         });
         return updatedUser;
     } catch (error) {
-        console.error("Error updating user profile:", error);
         throw new Error("Failed to update user profile");
     }
 }
