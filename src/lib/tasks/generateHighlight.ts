@@ -3,7 +3,7 @@
 import prisma from '@/lib/db/prisma';
 import { startTask } from './tasks';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';
-import { getPartyFromRoles, isRoleActiveAt, getSingleCityRole } from '@/lib/utils';
+import { getSpeakerDisplayInfo } from '@/lib/utils';
 import { canViewHighlight } from '@/lib/db/highlights';
 import { sendHighlightCompleteEmail } from '@/lib/email/highlightComplete';
 
@@ -75,21 +75,17 @@ export async function requestGenerateHighlight(
         let roleLabel: string | undefined;
         
         if (person && person.roles) {
-            // Use the utility function to get the active party at the meeting date
-            const party = getPartyFromRoles(person.roles, highlight.meeting.dateTime);
+            const { party, cityRole, isIndependent } = getSpeakerDisplayInfo(person.roles, highlight.meeting.dateTime);
+
             if (party) {
                 partyColorHex = party.colorHex || undefined;
                 partyLabel = party.name_short || party.name;
             }
-            
-            // For role label, prioritize city/administrative roles for non-party speakers
-            const cityRole = getSingleCityRole(person.roles, highlight.meeting.dateTime, highlight.meeting.administrativeBodyId || undefined);
+
             if (cityRole) {
                 roleLabel = cityRole.name || undefined;
-            } else {
-                // Fallback to any active role if no city role found
-                const activeRole = person.roles.find(role => isRoleActiveAt(role, highlight.meeting.dateTime));
-                roleLabel = activeRole?.name || undefined;
+            } else if (isIndependent) {
+                roleLabel = "Ανεξάρτητος Δημοτικός Σύμβουλος";
             }
         }
         

@@ -1,7 +1,7 @@
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
-import { getPartyFromRoles, getSingleCityRole, formatTimestamp } from '@/lib/utils';
+import { getSpeakerDisplayInfo, formatTimestamp } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
 
 const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
@@ -89,8 +89,9 @@ const createTranscriptSection = ({ transcript, people, meeting }: Pick<MeetingDa
     transcript.forEach((speakerSegment) => {
         const speaker = speakerSegment.speakerTag.personId ? people.find(p => p.id === speakerSegment.speakerTag.personId) : null;
         const speakerName = speaker ? `${speaker.name_short}` : speakerSegment.speakerTag.label;
-        const party = speaker ? getPartyFromRoles(speaker.roles || [], new Date(meeting.dateTime)) : null;
-        const role = speaker ? getSingleCityRole(speaker.roles || [], new Date(meeting.dateTime)) : null;
+        const { party, cityRole: role } = speaker
+            ? getSpeakerDisplayInfo(speaker.roles || [], new Date(meeting.dateTime))
+            : { party: null, cityRole: null };
 
         const children = [
             new TextRun({
