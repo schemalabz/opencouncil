@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, isRoleActiveAt } from '../roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt, sortRolesByPriority } from '../roles';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
   return {
@@ -187,5 +187,90 @@ describe('isRoleActiveAt', () => {
   it('works with proper Date objects (no regression)', () => {
     const role = { startDate: new Date('2025-01-01'), endDate: new Date('2025-12-31') };
     expect(isRoleActiveAt(role, checkDate)).toBe(true);
+  });
+});
+
+describe('sortRolesByPriority', () => {
+  it('sorts city-level head (mayor) first', () => {
+    const roles = [
+      makeRole({ id: 'party', partyId: 'p1' }),
+      makeRole({ id: 'mayor', cityId: 'c1', isHead: true }),
+      makeRole({ id: 'admin', administrativeBodyId: 'ab1' }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual(['mayor', 'party', 'admin']);
+  });
+
+  it('sorts city-level non-head (deputy mayor) before party roles', () => {
+    const roles = [
+      makeRole({ id: 'party', partyId: 'p1' }),
+      makeRole({ id: 'deputy', cityId: 'c1', name: 'Αντιδήμαρχος' }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual(['deputy', 'party']);
+  });
+
+  it('sorts admin body head (council president) before party roles', () => {
+    const roles = [
+      makeRole({ id: 'party', partyId: 'p1' }),
+      makeRole({ id: 'council-president', administrativeBodyId: 'ab1', isHead: true, name: 'Πρόεδρος' }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual(['council-president', 'party']);
+  });
+
+  it('sorts party head before regular party role', () => {
+    const roles = [
+      makeRole({ id: 'regular', partyId: 'p1' }),
+      makeRole({ id: 'head', partyId: 'p1', isHead: true }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual(['head', 'regular']);
+  });
+
+  it('sorts party roles before regular admin body members', () => {
+    const roles = [
+      makeRole({ id: 'admin', administrativeBodyId: 'ab1' }),
+      makeRole({ id: 'party', partyId: 'p1' }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual(['party', 'admin']);
+  });
+
+  it('applies full priority order correctly', () => {
+    const roles = [
+      makeRole({ id: 'admin', administrativeBodyId: 'ab1' }),
+      makeRole({ id: 'party', partyId: 'p1' }),
+      makeRole({ id: 'admin-head', administrativeBodyId: 'ab1', isHead: true }),
+      makeRole({ id: 'deputy', cityId: 'c1', name: 'Αντιδήμαρχος' }),
+      makeRole({ id: 'mayor', cityId: 'c1', isHead: true }),
+      makeRole({ id: 'party-head', partyId: 'p1', isHead: true }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(sorted.map(r => r.id)).toEqual([
+      'mayor',       // city-level + isHead
+      'deputy',      // city-level
+      'admin-head',  // admin body + isHead (council president/chair)
+      'party-head',  // party + isHead
+      'party',       // party member
+      'admin',       // regular admin body member
+    ]);
+  });
+
+  it('does not mutate the input array', () => {
+    const roles = [
+      makeRole({ id: 'party', partyId: 'p1' }),
+      makeRole({ id: 'mayor', cityId: 'c1', isHead: true }),
+    ];
+
+    const sorted = sortRolesByPriority(roles);
+    expect(roles[0].id).toBe('party');
+    expect(sorted[0].id).toBe('mayor');
   });
 });

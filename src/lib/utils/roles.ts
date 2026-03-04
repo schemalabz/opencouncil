@@ -275,6 +275,41 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
 }
 
 /**
+ * Returns a numeric priority for a role type (lower = higher priority).
+ * City-level roles rank highest, then admin body heads (council president, committee chair),
+ * then party roles, then regular admin body members.
+ *
+ * TODO: Regular admin body roles should rank higher when viewing a meeting of that admin body
+ * (e.g. a council member role should rank above a party role when viewing a council meeting).
+ * This will require passing context (e.g. administrativeBodyId) to the sorting function.
+ */
+function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+  const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
+  if (isCityLevel && role.isHead) return 0;  // mayor
+  if (isCityLevel) return 1;                 // deputy mayor
+  if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
+  if (role.partyId && role.isHead) return 3;  // party leader
+  if (role.partyId) return 4;                 // party member
+  if (role.administrativeBodyId) return 5;    // regular admin body member
+  return 6;
+}
+
+/**
+ * Sorts roles by display priority:
+ * 1. City-level roles with isHead (mayor)
+ * 2. City-level roles (deputy mayor)
+ * 3. Admin body roles with isHead (council president, committee chair)
+ * 4. Party roles with isHead (party leader)
+ * 5. Party roles
+ * 6. Admin body roles (regular member)
+ *
+ * Returns a new sorted array without mutating the input.
+ */
+export function sortRolesByPriority<T extends { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }>(roles: T[]): T[] {
+  return [...roles].sort((a, b) => getRoleTypePriority(a) - getRoleTypePriority(b));
+}
+
+/**
  * Derives speaker display information from roles at a specific date.
  * Centralizes the logic for determining what to show for a person:
  * - City-level role (mayor, deputy mayor) takes priority
