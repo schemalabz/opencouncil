@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStatisticsFor } from '@/lib/statistics';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 // This route uses dynamic data from request params and can't be statically optimized
 export const dynamic = 'force-dynamic';
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
         const subjectId = searchParams.get('subjectId');
         const administrativeBodyId = searchParams.get('administrativeBodyId');
 
+        const includeUnreleased = cityId ? await isUserAuthorizedToEdit({ cityId }) : false;
+
         const params: any = {};
         if (personId) params.personId = personId;
         if (partyId) params.partyId = partyId;
@@ -21,6 +24,7 @@ export async function GET(request: NextRequest) {
         if (cityId) params.cityId = cityId;
         if (subjectId) params.subjectId = subjectId;
         if (administrativeBodyId) params.administrativeBodyId = administrativeBodyId;
+        params.includeUnreleased = includeUnreleased;
 
         const groupBy = ['topic', 'person', 'party'] as ('topic' | 'person' | 'party')[];
         const statistics = await getStatisticsFor(params, groupBy);

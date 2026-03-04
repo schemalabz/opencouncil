@@ -469,7 +469,8 @@ export async function getLatestSegmentsForSpeaker(
     page: number = 1,
     pageSize: number = 5,
     administrativeBodyId?: string | null,
-    topicId?: string | null
+    topicId?: string | null,
+    includeUnreleased?: boolean
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
@@ -484,9 +485,10 @@ export async function getLatestSegmentsForSpeaker(
                 }
             }
         },
-        meeting: administrativeBodyId ? {
-            administrativeBodyId: administrativeBodyId
-        } : undefined
+        meeting: {
+            ...(includeUnreleased ? {} : { released: true }),
+            ...(administrativeBodyId ? { administrativeBodyId } : {})
+        }
     };
 
     if (topicId) {
@@ -559,9 +561,15 @@ export async function getLatestSegmentsForParty(
     partyId: string,
     page: number = 1,
     pageSize: number = 5,
-    administrativeBodyId?: string | null
+    administrativeBodyId?: string | null,
+    includeUnreleased?: boolean
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
+
+    const meetingFilter = {
+        ...(includeUnreleased ? {} : { released: true }),
+        ...(administrativeBodyId ? { administrativeBodyId } : {})
+    };
 
     const [segments, totalCount] = await Promise.all([
         prisma.speakerSegment.findMany({
@@ -582,9 +590,7 @@ export async function getLatestSegmentsForParty(
                         }
                     }
                 },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
+                meeting: meetingFilter
             },
             include: {
                 meeting: {
@@ -640,9 +646,7 @@ export async function getLatestSegmentsForParty(
                         }
                     }
                 },
-                meeting: administrativeBodyId ? {
-                    administrativeBodyId: administrativeBodyId
-                } : undefined
+                meeting: meetingFilter
             }
         })
     ]);

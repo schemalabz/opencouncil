@@ -352,10 +352,11 @@ function SegmentsTab({
     );
 }
 
-export default function PartyC({ city, party, administrativeBodies }: {
+export default function PartyC({ city, party, administrativeBodies, includeUnreleased }: {
     city: City,
     party: PartyWithPersons,
-    administrativeBodies: AdministrativeBody[]
+    administrativeBodies: AdministrativeBody[],
+    includeUnreleased?: boolean
 }) {
     const t = useTranslations('Party');
     const router = useRouter();
@@ -416,7 +417,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
                     party.id,
                     1,
                     5,
-                    selectedAdminBodyId
+                    selectedAdminBodyId,
+                    includeUnreleased
                 );
                 setLatestSegments(results);
                 setTotalCount(totalCount);
@@ -438,7 +440,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
                     party.id,
                     page,
                     5,
-                    selectedAdminBodyId
+                    selectedAdminBodyId,
+                    includeUnreleased
                 );
                 setLatestSegments(prevSegments => [...prevSegments, ...results]);
             } catch (error) {

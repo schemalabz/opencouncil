@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
+import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
 import { env } from '@/env.mjs';
 
@@ -87,12 +88,14 @@ export async function generateMetadata({ params }: { params: { locale: string, p
 }
 
 export default async function PersonPage({ params }: { params: { locale: string, personId: string, cityId: string } }) {
+    const includeUnreleased = await isUserAuthorizedToEdit({ cityId: params.cityId });
+
     const [person, city, parties, administrativeBodies, statistics] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId }, ['topic'])
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic'])
     ]);
 
     if (!person || !city) {
@@ -105,5 +108,6 @@ export default async function PersonPage({ params }: { params: { locale: string,
         parties={parties}
         administrativeBodies={administrativeBodies}
         statistics={statistics}
+        includeUnreleased={includeUnreleased}
     />;
 }

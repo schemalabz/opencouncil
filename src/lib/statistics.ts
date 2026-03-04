@@ -34,13 +34,14 @@ type SpeakerSegmentInfo = SpeakerSegment & {
 }
 
 export async function getStatisticsFor(
-    { personId, partyId, meetingId, cityId, subjectId, administrativeBodyId }: {
+    { personId, partyId, meetingId, cityId, subjectId, administrativeBodyId, includeUnreleased }: {
         personId?: Person["id"],
         partyId?: Party["id"],
         meetingId?: CouncilMeeting["id"],
         cityId?: City["id"],
         subjectId?: Subject["id"],
-        administrativeBodyId?: string | null
+        administrativeBodyId?: string | null,
+        includeUnreleased?: boolean
     },
     groupBy: ("person" | "topic" | "party")[]
 ): Promise<Statistics> {
@@ -114,7 +115,10 @@ export async function getStatisticsFor(
         meetingId: meetingId,
         cityId: cityId,
         speakerTag: { personId: personId },
-        meeting: administrativeBodyId ? { administrativeBodyId } : undefined,
+        meeting: {
+            ...(includeUnreleased ? {} : { released: true }),
+            ...(administrativeBodyId ? { administrativeBodyId } : {})
+        },
         NOT: { summary: { type: "procedural" as const } }
     };
 
@@ -272,6 +276,7 @@ export async function getBatchStatisticsForSubjects(
     const segments = await prisma.speakerSegment.findMany({
         where: {
             id: { in: [...allSegmentIds] },
+            meeting: { released: true },
             NOT: { summary: { type: "procedural" as const } }
         },
         include: { speakerTag: speakerTagInclude }

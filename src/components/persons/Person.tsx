@@ -26,12 +26,13 @@ import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics, includeUnreleased }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
-    statistics: Statistics
+    statistics: Statistics,
+    includeUnreleased?: boolean
 }) {
     const t = useTranslations('Person');
     const router = useRouter();
@@ -89,7 +90,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     1,
                     5,
                     selectedAdminBodyId,
-                    selectedTopicId
+                    selectedTopicId,
+                    includeUnreleased
                 );
                 setLatestSegments(results);
                 setTotalCount(totalCount);
@@ -113,7 +115,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     page,
                     5,
                     selectedAdminBodyId,
-                    selectedTopicId
+                    selectedTopicId,
+                    includeUnreleased
                 );
                 setLatestSegments(prevSegments => [...prevSegments, ...results]);
             } catch (error) {
