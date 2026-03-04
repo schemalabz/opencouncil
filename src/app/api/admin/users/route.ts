@@ -1,15 +1,16 @@
 import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
 import { sendEmail } from "@/lib/email/resend"
-import { renderAsync } from "@react-email/render"
+import { render } from "@react-email/render"
 import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { NextResponse } from "next/server"
 import { createHash } from "crypto"
 import { env } from "@/env.mjs"
 import { createUser, getUsers, updateUser } from "@/lib/db/users"
 import { sendUserOnboardedAdminAlert } from "@/lib/discord"
+import { handleApiError } from "@/lib/api/errors"
 
-async function generateSignInLink(email: string) {
+async function generateSignInLink(email: string): Promise<{ signInUrl: string, verificationTokenKey: { identifier: string, token: string } }> {
     // Create a token that expires in 24 hours
     const token = createHash('sha256')
         .update(email + Date.now().toString())
@@ -26,22 +27,32 @@ async function generateSignInLink(email: string) {
 
     // Generate the sign-in URL
     const signInUrl = `${env.NEXTAUTH_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
-    return signInUrl
+    return {
+        signInUrl,
+        verificationTokenKey: {
+            identifier: email,
+            token,
+        }
+    }
 }
 
 async function sendInviteEmail(email: string, name: string) {
-    const signInUrl = await generateSignInLink(email)
-    const emailHtml = await renderAsync(UserInviteEmail({
-        name: name || email,
-        inviteUrl: signInUrl
-    }))
-
-    await sendEmail({
-        from: "OpenCouncil <auth@opencouncil.gr>",
-        to: email,
-        subject: "You've been invited to OpenCouncil",
-        html: emailHtml,
-    })
+    const { signInUrl, verificationTokenKey } = await generateSignInLink(email)
+    try {
+        const emailHtml = await render(UserInviteEmail({ name: name || email, inviteUrl: signInUrl }))
+        const sendResult = await sendEmail({
+            from: "OpenCouncil <auth@opencouncil.gr>",
+            to: email,
+            subject: "You've been invited to OpenCouncil",
+            html: emailHtml,
+        })
+        if (!sendResult.success) throw new Error("Email send failed")
+        return true
+    } catch (error) {
+        console.error("Failed to send invite email:", error)
+        try { await prisma.verificationToken.deleteMany({ where: verificationTokenKey }) } catch { }
+        return false
+    }
 }
 
 export async function GET() {
@@ -72,7 +83,10 @@ export async function POST(request: Request) {
         const newUser = await createUser({ email, name, isSuperAdmin, administers })
 
         // Send invitation email
-        await sendInviteEmail(email, name)
+        const inviteEmailSent = await sendInviteEmail(newUser.email, newUser.name ?? newUser.email)
+        if (!inviteEmailSent) {
+            console.error(`User ${newUser.id} created, but invite email failed to send`)
+        }
 
         // Send Discord admin alert for admin invite
         sendUserOnboardedAdminAlert({
@@ -82,8 +96,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json(newUser)
     } catch (error) {
-        console.error("Failed to create user:", error)
-        return new NextResponse("Failed to create user", { status: 500 })
+        return handleApiError(error, "Failed to create user")
     }
 }
 
@@ -100,8 +113,6 @@ export async function PUT(request: Request) {
         const updatedUser = await updateUser(id, { email, name, isSuperAdmin, administers })
         return NextResponse.json(updatedUser)
     } catch (error) {
-        console.error("Failed to update user:", error)
-        return new NextResponse("Failed to update user", { status: 500 })
+        return handleApiError(error, "Failed to update user")
     }
 }
-

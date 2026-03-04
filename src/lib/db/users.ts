@@ -3,6 +3,7 @@
 import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { ConflictError } from "@/lib/api/errors";
 
 const userWithAdministersInclude = {
     administers: {
@@ -46,6 +47,37 @@ export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin'
     administers?: Prisma.AdministersCreateWithoutUserInput[]
 }
 
+function normalizeEmail(email: string): string {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+        throw new Error("Email cannot be empty");
+    }
+    return normalizedEmail;
+}
+
+function normalizeName(name: string | null | undefined): string | null | undefined {
+    if (typeof name !== "string") {
+        return name;
+    }
+
+    const normalizedName = name.trim();
+    return normalizedName ? normalizedName : null;
+}
+
+function normalizeAdminUserData(data: AdminUserData): AdminUserData {
+    const normalizedData: AdminUserData = { ...data };
+
+    if (typeof data.email === "string") {
+        normalizedData.email = normalizeEmail(data.email);
+    }
+
+    if (data.name !== undefined) {
+        normalizedData.name = normalizeName(data.name);
+    }
+
+    return normalizedData;
+}
+
 export async function getUsers(): Promise<UserWithRelations[]> {
     await withUserAuthorizedToEdit({});
     try {
@@ -67,11 +99,13 @@ export async function createUser(data: AdminUserData, options: { skipAuthCheck?:
         await withUserAuthorizedToEdit({});
     }
 
-    if (!data.email) {
+    const normalizedData = normalizeAdminUserData(data);
+    if (!normalizedData.email) {
         throw new Error("Email is required to create a user");
     }
-    
-    const { email, name, isSuperAdmin, administers, onboarded } = data;
+
+    const { email, name, isSuperAdmin, administers, onboarded } = normalizedData;
+
     try {
         const newUser = await prisma.user.create({
             data: {
@@ -87,15 +121,19 @@ export async function createUser(data: AdminUserData, options: { skipAuthCheck?:
         });
         return newUser;
     } catch (error) {
-        console.error('Error creating user:', error);
-        throw new Error('Failed to create user');
+        const errorWithCode = error as { code?: string };
+        if (errorWithCode.code === "P2002") {
+            throw new ConflictError("A user with this email already exists.");
+        }
+        throw error;
     }
 }
 
 export async function updateUser(id: string, data: AdminUserData): Promise<UserWithAdministers> {
-    await withUserAuthorizedToEdit({ });
-    
-    const { administers, ...userData } = data;
+    await withUserAuthorizedToEdit({});
+
+    const normalizedData = normalizeAdminUserData(data);
+    const { administers, ...userData } = normalizedData;
 
     try {
         if (administers) {
@@ -122,8 +160,11 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
         });
         return updatedUser;
     } catch (error) {
-        console.error('Error updating user:', error);
-        throw new Error('Failed to update user');
+        const errorWithCode = error as { code?: string };
+        if (errorWithCode.code === "P2002") {
+            throw new ConflictError("A user with this email already exists.");
+        }
+        throw error;
     }
 }
 
