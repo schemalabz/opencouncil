@@ -134,6 +134,11 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
     await withUserAuthorizedToEdit({});
 
     const normalizedData = normalizeAdminUserData(data);
+
+    if (normalizedData.email === null) {
+        throw new BadRequestError("Email cannot be null");
+    }
+
     const { administers, ...userData } = normalizedData;
 
     try {
