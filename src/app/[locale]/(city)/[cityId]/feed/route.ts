@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Feed } from 'feed';
 import { getTranslations } from 'next-intl/server';
+import { formatInTimeZone } from 'date-fns-tz';
+import sanitizeHtml from 'sanitize-html';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { env } from '@/env.mjs';
 import { routing } from '@/i18n/routing';
-
-export const revalidate = 600; // 10 minutes
 
 export async function GET(
     request: NextRequest,
@@ -14,7 +14,8 @@ export async function GET(
 ) {
     const { locale, cityId } = params;
     const searchParams = request.nextUrl.searchParams;
-    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '20', 10), 1), 100);
+    const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Number.isNaN(rawLimit) ? 20 : Math.min(Math.max(rawLimit, 1), 100);
 
     const city = await getCityCached(cityId);
 
@@ -30,7 +31,9 @@ export async function GET(
     const cityUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}`
         : `${baseUrl}/${locale}/${cityId}`;
-    const feedUrl = `${baseUrl}/${locale}/${cityId}/feed`;
+    const feedUrl = isDefaultLocale
+        ? `${baseUrl}/${cityId}/feed`
+        : `${baseUrl}/${locale}/${cityId}/feed`;
 
     // Get translations
     const t = await getTranslations({ locale, namespace: 'RSS' });
@@ -60,7 +63,7 @@ export async function GET(
             : `${baseUrl}/${locale}/${cityId}/${meeting.id}`;
 
         const cityName = isDefaultLocale ? city.name : city.name_en;
-        const dateStr = meetingDate.toISOString().split('T')[0];
+        const dateStr = formatInTimeZone(meetingDate, city.timezone, 'yyyy-MM-dd');
         const meetingTitle = t('meetingTitle', {
             meetingName: meeting.name,
             cityName,
@@ -87,11 +90,12 @@ export async function GET(
                     ? `${baseUrl}/${cityId}/${meeting.id}/subjects/${subject.id}`
                     : `${baseUrl}/${locale}/${cityId}/${meeting.id}/subjects/${subject.id}`;
 
+                const sanitizeOptions = { allowedTags: [], allowedAttributes: {} };
                 const subjectDescription = subject.description
-                    ? `<p style="margin:0">${stripMarkdown(subject.description)}</p>`
+                    ? `<p style="margin:0">${sanitizeHtml(stripMarkdown(subject.description), sanitizeOptions)}</p>`
                     : '';
 
-                return `<li><a href="${subjectUrl}">${subject.name}</a>${subjectDescription}</li><br/>`;
+                return `<li><a href="${subjectUrl}">${sanitizeHtml(subject.name, sanitizeOptions)}</a>${subjectDescription}</li><br/>`;
             }).join('');
 
             content = `<h3>${t('subjects')}</h3><ul>${subjectsList}</ul>`;
@@ -106,7 +110,6 @@ export async function GET(
             description,
             content,
             date: meetingDate,
-            guid: `meeting-${meeting.id}`,
         });
     }
 
