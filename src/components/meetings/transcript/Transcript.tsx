@@ -34,7 +34,7 @@ export default function Transcript() {
     const [visibleSegments, setVisibleSegments] = useState<Set<string>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
-    
+
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
@@ -54,9 +54,9 @@ export default function Transcript() {
     const calculateTimeInterval = useCallback((segmentIds: string[] | Set<string>): [number, number] | null => {
         const ids = Array.isArray(segmentIds) ? new Set(segmentIds) : segmentIds;
         const validSegments = displayedSegments.filter(segment => ids.has(segment.id));
-        
+
         if (validSegments.length === 0) return null;
-        
+
         const firstVisible = validSegments[0];
         const lastVisible = validSegments[validSegments.length - 1];
         return [firstVisible.startTimestamp, lastVisible.endTimestamp];
@@ -110,7 +110,6 @@ export default function Transcript() {
 
     // Single intersection observer for tracking visible segments
     const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
-        let hasChanges = false;
         const updates: { id: string; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
@@ -173,7 +172,7 @@ export default function Transcript() {
     return (
         <div className="container px-2 sm:px-4 md:px-6" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
             {isUnverified && (
-                <UnverifiedTranscriptBanner 
+                <UnverifiedTranscriptBanner
                     isScrolled={isScrolled}
                     onBannerHeightChange={setBannerHeight}
                 />
