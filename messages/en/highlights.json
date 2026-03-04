@@ -14,9 +14,14 @@
   },
   "title": "Meeting Highlights",
   "description": "Create and manage video highlights from this meeting. Click on a highlight to view its details, or create a new one to get started.",
+  "tabs": {
+    "myHighlights": "My Highlights",
+    "othersHighlights": "Others' Highlights",
+    "aiGenerated": "AI Generated"
+  },
   "sections": {
     "showcased": "Showcased Highlights",
-    "video": "Video Highlights", 
+    "video": "Video Highlights",
     "draft": "Draft Highlights"
   },
   "emptyState": {

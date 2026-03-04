@@ -1,13 +1,14 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useSession } from "next-auth/react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import type { HighlightWithUtterances } from "@/lib/db/highlights";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Clock, Users, Star, Play, Loader2, Calendar, Tag, User } from "lucide-react";
-
 import { formatTime, formatRelativeTime } from "@/lib/utils";
 import { useHighlight } from "./HighlightContext";
 import { CreateHighlightButton } from "./CreateHighlightButton";
@@ -25,21 +26,21 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   const { options } = useTranscriptOptions();
   const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('highlights');
-  
+
   const highlightData = calculateHighlightData(highlight);
-  
+
   // Extract the statistics we need, with fallbacks
   const duration = highlightData?.statistics.duration || 0;
   const speakerCount = highlightData?.statistics.speakerCount || 0;
   const utteranceCount = highlightData?.statistics.utteranceCount || 0;
-  
+
   // Only show creator for city editors (they can see all highlights)
   const canEditCity = options.editsAllowed;
   const creatorName = canEditCity ? highlight.createdBy?.name : null;
 
   const handleCardClick = () => {
     if (isLoading) return; // Prevent multiple clicks
-    
+
     setIsLoading(true);
     try {
       router.push(`/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`);
@@ -50,7 +51,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
   };
 
   return (
-    <Card 
+    <Card
       className={`hover:shadow-md transition-all cursor-pointer ${
         isLoading ? 'opacity-75 pointer-events-none' : ''
       }`}
@@ -70,7 +71,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground flex-shrink-0" />
                 )}
               </div>
-              
+
               {/* Subject badge and creator info */}
               <div className="mb-3 space-y-2">
                 <div className="flex items-center space-x-2">
@@ -85,7 +86,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                     </Badge>
                   )}
                 </div>
-                
+
                 {/* Creator info */}
                 {creatorName && (
                   <div className="flex items-center space-x-1 text-xs text-muted-foreground">
@@ -94,7 +95,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                   </div>
                 )}
               </div>
-              
+
               {/* Stats row - compact and organized */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
                 <div className="flex items-center space-x-3 sm:space-x-4">
@@ -110,7 +111,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
                     {utteranceCount} <span className="hidden sm:inline">{t('common.utterances')}</span>
                   </span>
                 </div>
-                
+
                 {/* Updated timestamp - subtle but visible */}
                 <div className="flex items-center space-x-1 text-xs text-muted-foreground/70">
                   <Calendar className="h-3 w-3" />
@@ -128,7 +129,7 @@ const HighlightCard = ({ highlight }: HighlightCardProps) => {
 const AddHighlightButton = () => {
   const { editingHighlight } = useHighlight();
   const t = useTranslations('highlights');
-  
+
   return (
     <div className="p-4 border-b">
       {editingHighlight && (
@@ -143,18 +144,15 @@ const AddHighlightButton = () => {
           </p>
         </div>
       )}
-      <CreateHighlightButton 
-        variant="full" 
+      <CreateHighlightButton
+        variant="full"
         size="lg"
       />
     </div>
   );
 };
 
-export default function HighlightsList() {
-  const { highlights } = useCouncilMeetingData();
-  const { options } = useTranscriptOptions();
-  const canCreateHighlights = options.canCreateHighlights;
+function HighlightsGrid({ highlights, showCreateButton }: { highlights: HighlightWithUtterances[]; showCreateButton: boolean }) {
   const t = useTranslations('highlights');
 
   const showcasedHighlights = highlights.filter(h => h.isShowcased);
@@ -163,7 +161,144 @@ export default function HighlightsList() {
 
   return (
     <div className="space-y-6">
-      {/* Instructions */}
+      {/* Create New Highlight Button */}
+      {showCreateButton && highlights.length > 0 && (
+        <div className="flex justify-center">
+          <AddHighlightButton />
+        </div>
+      )}
+
+      {/* Showcased Highlights */}
+      {showcasedHighlights.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <Star className="w-5 h-5 mr-2 text-yellow-500" />
+            {t('sections.showcased')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {showcasedHighlights.map(highlight => (
+              <HighlightCard
+                key={highlight.id}
+                highlight={highlight}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Highlights with Video */}
+      {highlightsWithVideo.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <Play className="w-5 h-5 mr-2 text-green-500" />
+            {t('sections.video')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {highlightsWithVideo.map(highlight => (
+              <HighlightCard
+                key={highlight.id}
+                highlight={highlight}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Draft Highlights */}
+      {draftHighlights.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <Clock className="h-5 w-5 mr-2 text-blue-500" />
+            {t('sections.draft')}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {draftHighlights.map(highlight => (
+              <HighlightCard
+                key={highlight.id}
+                highlight={highlight}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {highlights.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-muted-foreground">
+            <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">{t('emptyState.title')}</h3>
+            <p className="text-sm mb-4">
+              {t('emptyState.description')}
+            </p>
+            {showCreateButton && <AddHighlightButton />}
+          </div>
+        </div>
+      )}
+
+      {/* No Draft Highlights State */}
+      {highlights.length > 0 && draftHighlights.length === 0 && (
+        <div className="text-center py-8">
+          <div className="text-muted-foreground">
+            <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">
+              {t('highlightCard.allHighlightsProcessed')}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function HighlightsList() {
+  const { highlights } = useCouncilMeetingData();
+  const { options } = useTranscriptOptions();
+  const { data: session } = useSession();
+  const canCreateHighlights = options.canCreateHighlights;
+  const t = useTranslations('highlights');
+
+  const isAdmin = options.editsAllowed;
+  const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+  const currentUserId = session?.user?.id;
+
+  const { myHighlights, othersHighlights, aiHighlights } = useMemo(() => {
+    const my: HighlightWithUtterances[] = [];
+    const others: HighlightWithUtterances[] = [];
+    const ai: HighlightWithUtterances[] = [];
+
+    for (const h of highlights) {
+      if (h.createdById === null) {
+        ai.push(h);
+      } else if (h.createdById === currentUserId) {
+        my.push(h);
+      } else {
+        others.push(h);
+      }
+    }
+
+    return { myHighlights: my, othersHighlights: others, aiHighlights: ai };
+  }, [highlights, currentUserId]);
+
+  // Regular users: no tabs, filter out AI highlights defensively
+  if (!isAdmin) {
+    const userHighlights = highlights.filter(h => h.createdById !== null);
+    return (
+      <div className="space-y-6">
+        <div className="bg-muted/50 rounded-lg p-4">
+          <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground mb-3 text-center">
+            {t('description')}
+          </p>
+        </div>
+        <HighlightsGrid highlights={userHighlights} showCreateButton={canCreateHighlights} />
+      </div>
+    );
+  }
+
+  // Admin / superadmin: tabbed view
+  return (
+    <div className="space-y-6">
       <div className="bg-muted/50 rounded-lg p-4">
         <h2 className="text-lg font-semibold mb-2">{t('title')}</h2>
         <p className="text-sm text-muted-foreground mb-3 text-center">
@@ -171,95 +306,35 @@ export default function HighlightsList() {
         </p>
       </div>
 
-      {/* Create New Highlight Button */}
-      {canCreateHighlights && highlights.length > 0 && (
-        <div className="flex justify-center">
-          <AddHighlightButton />
-        </div>
-      )}
+      <Tabs defaultValue="mine" searchParam="highlights-tab">
+        <TabsList>
+          <TabsTrigger value="mine">
+            {t('tabs.myHighlights')} ({myHighlights.length})
+          </TabsTrigger>
+          <TabsTrigger value="others">
+            {t('tabs.othersHighlights')} ({othersHighlights.length})
+          </TabsTrigger>
+          {isSuperAdmin && (
+            <TabsTrigger value="ai">
+              {t('tabs.aiGenerated')} ({aiHighlights.length})
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {/* Highlights Grid */}
-      <div className="space-y-6">
-        {/* Showcased Highlights */}
-        {showcasedHighlights.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Star className="w-5 h-5 mr-2 text-yellow-500" />
-              {t('sections.showcased')}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {showcasedHighlights.map(highlight => (
-                <HighlightCard
-                  key={highlight.id}
-                  highlight={highlight}
-                />
-              ))}
-            </div>
-          </div>
+        <TabsContent value="mine">
+          <HighlightsGrid highlights={myHighlights} showCreateButton={canCreateHighlights} />
+        </TabsContent>
+
+        <TabsContent value="others">
+          <HighlightsGrid highlights={othersHighlights} showCreateButton={false} />
+        </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="ai">
+            <HighlightsGrid highlights={aiHighlights} showCreateButton={false} />
+          </TabsContent>
         )}
-        
-        {/* Highlights with Video */}
-        {highlightsWithVideo.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Play className="w-5 h-5 mr-2 text-green-500" />
-              {t('sections.video')}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {highlightsWithVideo.map(highlight => (
-                <HighlightCard
-                  key={highlight.id}
-                  highlight={highlight}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Draft Highlights */}
-        {draftHighlights.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-blue-500" />
-              {t('sections.draft')}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {draftHighlights.map(highlight => (
-                <HighlightCard
-                  key={highlight.id}
-                  highlight={highlight}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Empty State */}
-        {highlights.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-muted-foreground">
-              <Star className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-semibold mb-2">{t('emptyState.title')}</h3>
-              <p className="text-sm mb-4">
-                {t('emptyState.description')}
-              </p>
-              {canCreateHighlights && <AddHighlightButton />}
-            </div>
-          </div>
-        )}
-        
-        {/* No Draft Highlights State */}
-        {highlights.length > 0 && draftHighlights.length === 0 && (
-          <div className="text-center py-8">
-            <div className="text-muted-foreground">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">
-                {t('highlightCard.allHighlightsProcessed')}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+      </Tabs>
     </div>
   );
-} 
+}
