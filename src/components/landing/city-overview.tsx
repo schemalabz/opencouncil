@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 interface CityOverviewProps {
     city: LandingCity;
     showPrivateLabel?: boolean;
+    renderedAt: string;
 }
 
-export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
+export function CityOverview({ city, showPrivateLabel, renderedAt }: CityOverviewProps) {
     const router = useRouter();
     const latestMeeting = city.mostRecentMeeting;
 
@@ -93,6 +94,8 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                             }}
                             editable={false}
                             mostRecent={true}
+                            cityTimezone={city.timezone}
+                            referenceNow={renderedAt}
                         />
                     )}
                 </div>

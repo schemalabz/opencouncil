@@ -11,7 +11,11 @@ import { CityOverview } from "./city-overview";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 
-export function Landing({ allCities, cities, latestPost }: LandingPageData) {
+interface LandingProps extends LandingPageData {
+    renderedAt: string;
+}
+
+export function Landing({ allCities, cities, latestPost, renderedAt }: LandingProps) {
     const { status } = useSession();
     const router = useRouter();
     const [citiesWithMeetings, setCitiesWithMeetings] = useState<LandingCity[]>(cities);
@@ -55,8 +59,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                     userCities.map(async city => {
                         try {
                             const meetings: CouncilMeetingWithAdminBodyAndSubjects[] = await fetch(
-                                `/api/cities/${city.id}/meetings?limit=1`,
-                                { next: { tags: [`city:${city.id}:meetings`] } }
+                                `/api/cities/${city.id}/meetings?limit=1`
                             ).then(r => r.json());
 
                             return {
@@ -147,6 +150,7 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
                                 key={city.id}
                                 city={city}
                                 showPrivateLabel={city.status !== 'listed'}
+                                renderedAt={renderedAt}
                             />
                         ))}
 
