@@ -137,12 +137,12 @@ describe('users db layer - normalization and duplicate handling', () => {
       ).rejects.toThrow('Email is required to create a user');
     });
 
-    it('re-throws non-P2002 errors', async () => {
+    it('masks non-P2002 errors with generic message', async () => {
       mockCreate.mockRejectedValueOnce(new Error('connection failed'));
 
       await expect(
         createUser({ email: 'test@example.com' })
-      ).rejects.toThrow('connection failed');
+      ).rejects.toThrow('Failed to create user');
     });
   });
 
@@ -190,12 +190,34 @@ describe('users db layer - normalization and duplicate handling', () => {
       ).rejects.toThrow('A user with this email already exists.');
     });
 
-    it('re-throws non-P2002 errors', async () => {
+    it('masks non-P2002 errors with generic message', async () => {
       mockUpdate.mockRejectedValueOnce(new Error('connection failed'));
 
       await expect(
         updateUser('user-1', { email: 'test@example.com' })
-      ).rejects.toThrow('connection failed');
+      ).rejects.toThrow('Failed to update user');
+    });
+
+    it('maps P2002 error to ConflictError in transaction path', async () => {
+      mockTransaction.mockRejectedValueOnce({ code: 'P2002' });
+
+      await expect(
+        updateUser('user-1', {
+          email: 'duplicate@example.com',
+          administers: [{ city: { connect: { id: 'city-1' } } }],
+        })
+      ).rejects.toThrow('A user with this email already exists.');
+    });
+
+    it('masks non-P2002 errors in transaction path', async () => {
+      mockTransaction.mockRejectedValueOnce(new Error('tx failed'));
+
+      await expect(
+        updateUser('user-1', {
+          email: 'test@example.com',
+          administers: [{ city: { connect: { id: 'city-1' } } }],
+        })
+      ).rejects.toThrow('Failed to update user');
     });
   });
 });
