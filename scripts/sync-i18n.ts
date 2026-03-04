@@ -24,7 +24,7 @@ function syncKeys(source: Record<string, unknown>, target: Record<string, unknow
     let changed = false;
     for (const key in source) {
         if (typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])) {
-            if (target[key] === undefined || target[key] === null) {
+            if (target[key] === undefined || target[key] === null || typeof target[key] !== 'object' || Array.isArray(target[key])) {
                 target[key] = {};
                 changed = true;
             }
@@ -92,7 +92,7 @@ syncDirectory(enDir, elDir, '[TODO: EL]');
 try {
     console.log('\nGenerating i18n types...');
     const generateTypesScript = path.join(__dirname, 'generate-types.ts');
-    execSync(`npx tsx ${generateTypesScript}`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+    execSync(`npx tsx "${generateTypesScript}"`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
 } catch (error) {
     console.error('Failed to generate types:', error instanceof Error ? error.message : String(error));
 }
