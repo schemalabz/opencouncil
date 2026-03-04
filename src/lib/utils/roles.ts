@@ -270,6 +270,32 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
 }
 
 /**
+ * Derives speaker display information from roles at a specific date.
+ * Centralizes the logic for determining what to show for a person:
+ * - City-level role (mayor, deputy mayor) takes priority
+ * - Party affiliation if no city-level role
+ * - Independent if neither
+ *
+ * @param roles Array of roles with party relations
+ * @param date Date to check for active roles (defaults to current date)
+ * @returns Object with party, city role, and independent status
+ */
+export function getSpeakerDisplayInfo(
+  roles: (Role & { party?: Party | null; cityId?: string | null })[],
+  date?: Date
+): {
+  party: Party | null;
+  cityRole: Role | null;
+  isIndependent: boolean;
+} {
+  const party = getPartyFromRoles(roles, date);
+  const cityRole = getSingleCityRole(roles, date);
+  const isIndependent = !party && !cityRole;
+
+  return { party, cityRole, isIndependent };
+}
+
+/**
  * Checks if a person has a city-level role (mayor or deputy mayor).
  * City-level roles are identified by having cityId set but no partyId or administrativeBodyId.
  * @param roles Array of roles to check
