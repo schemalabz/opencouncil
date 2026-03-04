@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { buildSubjectsByTopicsWhere } from '@/lib/db/subject'
 
 // Disable caching for dynamic queries with different filters
 export const dynamic = 'force-dynamic';
@@ -29,27 +30,14 @@ export async function GET(request: Request) {
         console.log('📅 Date threshold:', dateThreshold.toISOString());
 
         // Build where clause
-        const whereClause: any = {
-            locationId: {
-                not: null
-            },
-            councilMeeting: {
-                city: {
-                    officialSupport: true
-                },
-                released: true,
-                dateTime: {
-                    gte: dateThreshold
-                }
-            }
+        const whereClause = {
+            locationId: { not: null },
+            ...buildSubjectsByTopicsWhere({
+                requireOfficialSupport: true,
+                since: dateThreshold,
+                topicIds,
+            }),
         };
-
-        // Add topic filter if specified
-        if (topicIds.length > 0) {
-            whereClause.topicId = {
-                in: topicIds
-            };
-        }
 
         // Get all subjects from officially supported cities that have locations
         const subjects = await prisma.subject.findMany({

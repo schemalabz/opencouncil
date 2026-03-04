@@ -12,6 +12,35 @@ import {
     CouncilMeeting,
     Prisma,
 } from '@prisma/client';
+
+export interface GetSubjectsByTopicsParams {
+    /** Filter to a single city. Mutually exclusive with requireOfficialSupport. */
+    cityId?: string;
+    /** When true, only include subjects from cities with officialSupport: true. */
+    requireOfficialSupport?: boolean;
+    since: Date;
+    topicIds: string[];
+}
+
+/**
+ * Builds the Prisma `where` clause for fetching subjects filtered by topics and date.
+ * Shared by the map subjects API route and the welcome brief API route.
+ */
+export function buildSubjectsByTopicsWhere(params: GetSubjectsByTopicsParams): Prisma.SubjectWhereInput {
+    const { cityId, requireOfficialSupport, since, topicIds } = params;
+
+    const councilMeetingFilter: Prisma.CouncilMeetingWhereInput = {
+        released: true,
+        dateTime: { gte: since },
+        ...(cityId ? { cityId } : {}),
+        ...(requireOfficialSupport ? { city: { officialSupport: true } } : {}),
+    };
+
+    return {
+        councilMeeting: councilMeetingFilter,
+        ...(topicIds.length > 0 ? { topicId: { in: topicIds } } : {}),
+    };
+}
 import { PersonWithRelations } from '@/lib/db/people';
 import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
