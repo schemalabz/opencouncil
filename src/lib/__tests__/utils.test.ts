@@ -6,6 +6,7 @@ import {
   formatDateRange,
   cn,
   debounce,
+  klitiki,
   subjectToMapFeature,
   sortSubjectsByImportance,
   joinTranscriptSegments,
@@ -144,6 +145,24 @@ describe('cn', () => {
     const isActive = true;
     const isDisabled = false;
     expect(cn('base', { 'active': isActive, 'disabled': isDisabled })).toBe('base active');
+  });
+});
+
+describe('klitiki', () => {
+  it('should trim and decline a single name', () => {
+    expect(klitiki('  Γιώργος  ')).toBe('Γιώργο');
+  });
+
+  it('should collapse extra spaces between multiple names', () => {
+    expect(klitiki('  Γιώργος   Νίκος  ')).toBe('Γιώργο Νίκο');
+  });
+
+  it('should return empty string for whitespace-only input', () => {
+    expect(klitiki('   ')).toBe('');
+  });
+
+  it('should return empty string for empty input', () => {
+    expect(klitiki('')).toBe('');
   });
 });
 
