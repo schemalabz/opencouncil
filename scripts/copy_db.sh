@@ -72,6 +72,39 @@ TABLES=(
     "QrCampaign"
 )
 
+# Verify the target database has all migrations that the source has.
+# The target may have extra migrations (e.g. feature branch), but must not be
+# missing any from the source — otherwise pg_dump's COPY will reference columns
+# that don't exist in the target.
+echo "Checking migration state..."
+SOURCE_MIGRATIONS=$(psql "$SOURCE" -t -A -c "SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at;")
+SOURCE_PSQL_EXIT=$?
+TARGET_MIGRATIONS=$(psql "$TARGET" -t -A -c "SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY finished_at;")
+TARGET_PSQL_EXIT=$?
+if [ $SOURCE_PSQL_EXIT -ne 0 ] || [ $TARGET_PSQL_EXIT -ne 0 ] || [ -z "$SOURCE_MIGRATIONS" ] || [ -z "$TARGET_MIGRATIONS" ]; then
+    echo -e "\033[31mCould not read migration state from one or both databases. Aborting.\033[0m"
+    [ $SOURCE_PSQL_EXIT -ne 0 ] && echo -e "\033[31m  Source query failed (exit $SOURCE_PSQL_EXIT)\033[0m"
+    [ $TARGET_PSQL_EXIT -ne 0 ] && echo -e "\033[31m  Target query failed (exit $TARGET_PSQL_EXIT)\033[0m"
+    exit 1
+fi
+
+MISSING_MIGRATIONS=()
+while IFS= read -r migration; do
+    if ! grep -qxF "$migration" <<< "$TARGET_MIGRATIONS"; then
+        MISSING_MIGRATIONS+=("$migration")
+    fi
+done <<< "$SOURCE_MIGRATIONS"
+
+if [ ${#MISSING_MIGRATIONS[@]} -gt 0 ]; then
+    echo -e "\033[31mTarget is missing ${#MISSING_MIGRATIONS[@]} migration(s) that exist in source:\033[0m"
+    for m in "${MISSING_MIGRATIONS[@]}"; do
+        echo -e "\033[31m  - $m\033[0m"
+    done
+    echo -e "\033[31mRun migrations on the target database before copying. Aborting.\033[0m"
+    exit 1
+fi
+echo "Migration state OK (target has all source migrations)."
+
 # Validate that TABLES order respects foreign key dependencies in the source database.
 # For each table, check that any table it references (via FK) appears earlier in the list.
 # Run this BEFORE --clear deletion so we never wipe data if the order is wrong.
@@ -123,6 +156,10 @@ if [ "$CLEAR" = true ]; then
     for TABLE in "${TABLES[@]}"; do
         echo "Deleting all rows from $TABLE"
         psql "$TARGET" -c "DELETE FROM \"$TABLE\";"
+        if [ $? -ne 0 ]; then
+            echo -e "\033[31mERROR: Failed to delete from $TABLE. Aborting.\033[0m"
+            exit 1
+        fi
     done
 fi
 
