@@ -114,7 +114,10 @@ walk(srcDir, (file) => {
     if (!file.endsWith('.ts') && !file.endsWith('.tsx')) return;
     if (file.includes('.test.') || file.includes('.spec.') || file.includes('__tests__')) return;
 
-    const content = fs.readFileSync(file, 'utf8');
+    const rawContent = fs.readFileSync(file, 'utf8');
+    const content = rawContent
+        .replace(/\/\/[^\n]*/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '');
     let match: RegExpExecArray | null;
     translationRegex.lastIndex = 0;
     while ((match = translationRegex.exec(content)) !== null) {
