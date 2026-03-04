@@ -151,6 +151,42 @@ if [ "$FK_ERRORS" -gt 0 ]; then
 fi
 echo "Table order is valid."
 
+# Find nullable FK columns that reference tables NOT in our copy list (e.g. User).
+# Since we intentionally exclude user data for privacy, these columns must be NULLed
+# during copy to avoid FK violations against non-existent rows.
+declare -A NULLIFY_COLUMNS  # TABLE -> space-separated column names to NULL
+ORPHAN_FK_OUTPUT=$(psql "$SOURCE" -t -A -F $'\t' -c "
+    SELECT
+        cl_child.relname,
+        a.attname,
+        cl_parent.relname,
+        CASE WHEN a.attnotnull THEN 'NO' ELSE 'YES' END
+    FROM pg_constraint con
+    JOIN pg_class cl_child ON con.conrelid = cl_child.oid
+    JOIN pg_class cl_parent ON con.confrelid = cl_parent.oid
+    JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = ANY(con.conkey)
+    WHERE con.contype = 'f' AND cl_child.relname != cl_parent.relname;
+")
+if [ $? -ne 0 ]; then
+    echo -e "\033[31mFailed to query orphan FK columns. Aborting.\033[0m"
+    exit 1
+fi
+while IFS=$'\t' read -r child_table col_name parent_table is_nullable; do
+    [ -z "$child_table" ] && continue
+    # Only care about tables we're copying that reference tables we're NOT copying
+    if [ -z "${TABLE_INDEX[$child_table]+x}" ]; then continue; fi
+    if [ -n "${TABLE_INDEX[$parent_table]+x}" ]; then continue; fi
+    if [ "$is_nullable" != "YES" ]; then
+        echo -e "\033[31mERROR: \"$child_table\".\"$col_name\" has a non-nullable FK to \"$parent_table\" which is not being copied. Cannot proceed.\033[0m"
+        exit 1
+    fi
+    NULLIFY_COLUMNS[$child_table]="${NULLIFY_COLUMNS[$child_table]:+${NULLIFY_COLUMNS[$child_table]} }$col_name"
+done <<< "$ORPHAN_FK_OUTPUT"
+
+for tbl in "${!NULLIFY_COLUMNS[@]}"; do
+    echo "Note: will NULL out [${NULLIFY_COLUMNS[$tbl]}] in \"$tbl\" (FK to non-copied table)"
+done
+
 # Delete all rows from destination tables if --clear flag is set
 if [ "$CLEAR" = true ]; then
     for TABLE in "${TABLES[@]}"; do
@@ -165,8 +201,28 @@ fi
 
 # Proceed with data copying
 for TABLE in "${TABLES[@]}"; do
-    echo "Copying data for $TABLE"
-    pg_dump --data-only -t "\"$TABLE\"" "$SOURCE" | psql --set ON_ERROR_STOP=on "$TARGET"
+    if [ -n "${NULLIFY_COLUMNS[$TABLE]+x}" ]; then
+        # Table has FK columns pointing to non-copied tables — use custom SELECT that NULLs them
+        COLS_TO_NULL="${NULLIFY_COLUMNS[$TABLE]}"
+        echo "Copying data for $TABLE (NULLing: $COLS_TO_NULL)"
+
+        # Build SELECT: replace each column-to-NULL with "NULL AS col", keep the rest
+        ALL_COLUMNS=$(psql "$SOURCE" -t -A -c "
+            SELECT string_agg('\"' || column_name || '\"', ', ' ORDER BY ordinal_position)
+            FROM information_schema.columns
+            WHERE table_name = '$TABLE' AND table_schema = 'public';
+        ")
+        SELECT_COLUMNS="$ALL_COLUMNS"
+        for col in $COLS_TO_NULL; do
+            SELECT_COLUMNS=$(echo "$SELECT_COLUMNS" | sed "s/\"$col\"/NULL AS \"$col\"/g")
+        done
+
+        psql "$SOURCE" -c "COPY (SELECT $SELECT_COLUMNS FROM \"$TABLE\") TO STDOUT" \
+            | psql --set ON_ERROR_STOP=on "$TARGET" -c "COPY \"$TABLE\" ($ALL_COLUMNS) FROM STDIN"
+    else
+        echo "Copying data for $TABLE"
+        pg_dump --data-only -t "\"$TABLE\"" "$SOURCE" | psql --set ON_ERROR_STOP=on "$TARGET"
+    fi
     if [ $? -ne 0 ]; then
         echo -e "\033[31mERROR: Failed to copy $TABLE. Aborting.\033[0m"
         exit 1
