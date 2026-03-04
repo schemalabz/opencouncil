@@ -3,7 +3,7 @@
 import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { BadRequestError, ConflictError } from "@/lib/api/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 
 const userWithAdministersInclude = {
     administers: {
@@ -177,6 +177,10 @@ export async function deleteUser(id: string): Promise<void> {
             where: { id },
         });
     } catch (error) {
+        const errorWithCode = error as { code?: string };
+        if (errorWithCode.code === "P2025") {
+            throw new NotFoundError("User not found");
+        }
         console.error("Error deleting user:", error);
         throw new Error("Failed to delete user");
     }

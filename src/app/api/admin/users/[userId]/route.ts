@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth"
 import { deleteUser } from "@/lib/db/users"
 import { NextResponse } from "next/server"
+import { handleApiError } from "@/lib/api/errors"
 
 export async function DELETE(
     request: Request,
@@ -27,11 +28,6 @@ export async function DELETE(
 
         return NextResponse.json({ message: "User deleted successfully" })
     } catch (error) {
-        console.error("Failed to delete user:", error)
-        // Check for specific Prisma error for record not found
-        if (error instanceof Error && (error as any).code === 'P2025') {
-            return new NextResponse("User not found", { status: 404 })
-        }
-        return new NextResponse("Failed to delete user", { status: 500 })
+        return handleApiError(error, "Failed to delete user")
     }
 } 
