@@ -3,7 +3,7 @@
 import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { ConflictError } from "@/lib/api/errors";
+import { BadRequestError, ConflictError } from "@/lib/api/errors";
 
 const userWithAdministersInclude = {
     administers: {
@@ -50,7 +50,7 @@ export type AdminUserData = Partial<Pick<User, 'email' | 'name' | 'isSuperAdmin'
 function normalizeEmail(email: string): string {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-        throw new Error("Email cannot be empty");
+        throw new BadRequestError("Email cannot be empty");
     }
     return normalizedEmail;
 }
@@ -101,7 +101,7 @@ export async function createUser(data: AdminUserData, options: { skipAuthCheck?:
 
     const normalizedData = normalizeAdminUserData(data);
     if (!normalizedData.email) {
-        throw new Error("Email is required to create a user");
+        throw new BadRequestError("Email is required to create a user");
     }
 
     const { email, name, isSuperAdmin, administers, onboarded } = normalizedData;

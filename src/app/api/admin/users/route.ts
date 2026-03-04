@@ -37,9 +37,11 @@ async function generateSignInLink(email: string): Promise<{ signInUrl: string, v
 }
 
 async function sendInviteEmail(email: string, name: string) {
-    const { signInUrl, verificationTokenKey } = await generateSignInLink(email)
+    let verificationTokenKey: { identifier: string, token: string } | undefined
     try {
-        const emailHtml = await render(UserInviteEmail({ name: name || email, inviteUrl: signInUrl }))
+        const signInLink = await generateSignInLink(email)
+        verificationTokenKey = signInLink.verificationTokenKey
+        const emailHtml = await render(UserInviteEmail({ name: name || email, inviteUrl: signInLink.signInUrl }))
         const sendResult = await sendEmail({
             from: "OpenCouncil <auth@opencouncil.gr>",
             to: email,
@@ -50,7 +52,9 @@ async function sendInviteEmail(email: string, name: string) {
         return true
     } catch (error) {
         console.error("Failed to send invite email:", error)
-        try { await prisma.verificationToken.deleteMany({ where: verificationTokenKey }) } catch { }
+        if (verificationTokenKey) {
+            try { await prisma.verificationToken.deleteMany({ where: verificationTokenKey }) } catch { }
+        }
         return false
     }
 }

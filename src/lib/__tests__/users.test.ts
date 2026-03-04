@@ -10,7 +10,12 @@ jest.mock('../api/errors', () => {
       super(409, message);
     }
   }
-  return { ApiError, ConflictError };
+  class BadRequestError extends ApiError {
+    constructor(message: string = "Invalid request") {
+      super(400, message);
+    }
+  }
+  return { ApiError, BadRequestError, ConflictError };
 });
 
 jest.mock('../auth', () => ({
@@ -118,6 +123,18 @@ describe('users db layer - normalization and duplicate handling', () => {
       );
 
       expect(mockWithUserAuthorizedToEdit).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestError for empty email', async () => {
+      await expect(
+        createUser({ email: '   ' })
+      ).rejects.toThrow('Email cannot be empty');
+    });
+
+    it('throws BadRequestError when email is missing', async () => {
+      await expect(
+        createUser({ name: 'No Email' })
+      ).rejects.toThrow('Email is required to create a user');
     });
 
     it('re-throws non-P2002 errors', async () => {
