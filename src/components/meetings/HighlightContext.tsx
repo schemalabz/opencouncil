@@ -552,7 +552,13 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       
       // Immediately enter editing mode with the full server data
       enterEditMode(highlight);
-      
+
+      // Set the anchor for shift-click range selection to the pre-selected utterance
+      if (preSelectedUtteranceId) {
+        setLastClickedUtteranceId(preSelectedUtteranceId);
+        setLastClickedAction('add');
+      }
+
       onSuccess?.(highlight);
       
       return { success: true };
