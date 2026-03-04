@@ -13,6 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const messagesDir = path.join(__dirname, '../messages');
@@ -86,3 +87,12 @@ const enDir = enPath.replace('.json', '');
 
 syncDirectory(elDir, enDir, '[TODO: EN]');
 syncDirectory(enDir, elDir, '[TODO: EL]');
+
+// 3. Generate TS Types
+try {
+    console.log('\nGenerating i18n types...');
+    const generateTypesScript = path.join(__dirname, 'generate-types.ts');
+    execSync(`npx tsx ${generateTypesScript}`, { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+} catch (error) {
+    console.error('Failed to generate types:', error instanceof Error ? error.message : String(error));
+}

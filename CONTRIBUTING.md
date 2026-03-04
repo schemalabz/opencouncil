@@ -93,6 +93,16 @@ With a plan from a PRD or a simple Issue, the next step is to translate it into 
 4.  As the final step, they collaboratively update any relevant Architectural Guide.
 5.  The final Pull Request contains both the new code and the updated documentation.
 
+### Managing Translations
+
+OpenCouncil uses an automated workflow for managing multilingual support:
+
+1.  **Add Keys**: Always add new translation keys to the Greek source of truth first (`messages/el.json` or modular files in `messages/el/*.json`).
+2.  **Synchronize**: Run `npm run i18n:sync` to automatically propagate these keys to other locales (e.g., `en.json`) with `[TODO]` placeholders.
+3.  **Type Safety**: This synchronization automatically triggers `scripts/generate-types.ts`, which updates `src/global.d.ts` to provide autocomplete and type-checking for the new keys.
+4.  **Translate**: Replace the `[TODO]` placeholders with actual translations in the target language files.
+5.  **Validate**: Run `npm run test:i18n` to ensure all keys are synchronized and correctly used in the source code.
+
 ### Committing Patches
 
 To maintain a clean and understandable project history, we follow best practices for creating commits. While our AI pair programmer assists in this process, the human contributor is the final reviewer responsible for the quality of each commit.
