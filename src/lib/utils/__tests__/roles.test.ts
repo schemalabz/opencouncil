@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo } from '../roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt } from '../roles';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
   return {
@@ -138,5 +138,54 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.cityRole!.name).toBe('Αντιδήμαρχος');
     expect(result.party).toBeNull();
     expect(result.isIndependent).toBe(false);
+  });
+});
+
+describe('isRoleActiveAt', () => {
+  const checkDate = new Date('2025-06-15');
+
+  // These tests simulate what happens when role data passes through unstable_cache
+  // (JSON serialization). TypeScript types say Date, but runtime values are ISO strings.
+  // The `as unknown as Date` cast replicates this real-world type/runtime mismatch.
+
+  it('handles startDate as ISO string (from JSON serialization)', () => {
+    const role = { startDate: '2025-01-01T00:00:00.000Z' as unknown as Date, endDate: null };
+    expect(isRoleActiveAt(role, checkDate)).toBe(true);
+  });
+
+  it('handles endDate as ISO string (from JSON serialization)', () => {
+    const role = { startDate: null, endDate: '2025-12-31T00:00:00.000Z' as unknown as Date };
+    expect(isRoleActiveAt(role, checkDate)).toBe(true);
+  });
+
+  it('handles both dates as ISO strings within range', () => {
+    const role = {
+      startDate: '2025-01-01T00:00:00.000Z' as unknown as Date,
+      endDate: '2025-12-31T00:00:00.000Z' as unknown as Date,
+    };
+    expect(isRoleActiveAt(role, checkDate)).toBe(true);
+  });
+
+  it('handles both dates as ISO strings outside range', () => {
+    const role = {
+      startDate: '2020-01-01T00:00:00.000Z' as unknown as Date,
+      endDate: '2023-12-31T00:00:00.000Z' as unknown as Date,
+    };
+    expect(isRoleActiveAt(role, checkDate)).toBe(false);
+  });
+
+  it('handles startDate as ISO string in the future', () => {
+    const role = { startDate: '2026-01-01T00:00:00.000Z' as unknown as Date, endDate: null };
+    expect(isRoleActiveAt(role, checkDate)).toBe(false);
+  });
+
+  it('returns true when both dates are null', () => {
+    const role = { startDate: null, endDate: null };
+    expect(isRoleActiveAt(role, checkDate)).toBe(true);
+  });
+
+  it('works with proper Date objects (no regression)', () => {
+    const role = { startDate: new Date('2025-01-01'), endDate: new Date('2025-12-31') };
+    expect(isRoleActiveAt(role, checkDate)).toBe(true);
   });
 });

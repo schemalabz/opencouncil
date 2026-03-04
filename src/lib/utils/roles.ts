@@ -90,22 +90,27 @@ export function validateRoles(
  * @returns true if role is active at the given date
  */
 export function isRoleActiveAt(role: { startDate: Date | null, endDate: Date | null }, date: Date): boolean {
+  // Normalize dates to handle string values from JSON serialization (e.g. unstable_cache).
+  // new Date(Date) is a no-op, new Date(isoString) correctly parses strings.
+  const start = role.startDate ? new Date(role.startDate) : null;
+  const end = role.endDate ? new Date(role.endDate) : null;
+
   // Both dates null = active
-  if (!role.startDate && !role.endDate) return true;
+  if (!start && !end) return true;
 
   // Only start date set - active if date is after start
-  if (role.startDate && !role.endDate) {
-    return role.startDate <= date;
+  if (start && !end) {
+    return start <= date;
   }
 
   // Only end date set - active if date is before end
-  if (!role.startDate && role.endDate) {
-    return role.endDate > date;
+  if (!start && end) {
+    return end > date;
   }
 
   // Both dates set - active if date is within range
-  if (role.startDate && role.endDate) {
-    return role.startDate <= date && role.endDate > date;
+  if (start && end) {
+    return start <= date && end > date;
   }
 
   return false;
