@@ -36,7 +36,6 @@ export default function Transcript() {
     const [visibleSegments, setVisibleSegments] = useState<Set<string>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const searchParams = useSearchParams();
-    
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview;
 
@@ -53,8 +52,9 @@ export default function Transcript() {
     }, [visibleSegments, displayedSegments]);
 
     // Helper to calculate time interval from segment identities
-    const calculateTimeInterval = useCallback((segmentIds: Set<string>): [number, number] | null => {
-        const validSegments = displayedSegments.filter(segment => segmentIds.has(segment.id));
+    const calculateTimeInterval = useCallback((segmentIds: string[] | Set<string>): [number, number] | null => {
+        const ids = Array.isArray(segmentIds) ? new Set(segmentIds) : segmentIds;
+        const validSegments = displayedSegments.filter(segment => ids.has(segment.id));
         
         if (validSegments.length === 0) return null;
         
@@ -119,7 +119,6 @@ export default function Transcript() {
 
     // Single intersection observer for tracking visible segments
     const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
-        let hasChanges = false;
         const updates: { id: string; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
