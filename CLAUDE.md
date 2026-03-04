@@ -45,6 +45,8 @@ This allows testing the migration against a local database first before applying
 - `npm run lint` - Run ESLint
 - `npm run email` - Test municipality email sending
 - `npm run import:people` - Import people data
+- `npm run i18n:sync` - Sync Greek keys to English and auto-generate types
+- `npm run test:i18n` - Validate translation parity and source code usage
 - `npm run generate-seed` - Generate seed data dump
 
 ## Architecture Overview
@@ -176,6 +178,8 @@ Multi-channel delivery in `src/lib/notifications/`:
 - Never use dynamic imports unless explicitly requested
 - Avoid unnecessary try/catch blocks
 - Never create markdown files after completing tasks (unless directly asked)
+- **i18n Workflow**: Always add keys to `messages/el.json` (or `messages/el/*.json`) first, then run `npm run i18n:sync` to propagate to `en.json` and update `src/global.d.ts`.
+- **Type Safety**: `src/global.d.ts` is auto-generated. Do not edit it manually to add/remove namespaces; update JSON files and run `npm run i18n:sync` instead.
 - Use time formatting utilities from `src/lib/formatters/time.ts` (e.g., `formatTimestamp`, `formatDate`, `formatDuration`)
 
 ### Dev-Only Components
