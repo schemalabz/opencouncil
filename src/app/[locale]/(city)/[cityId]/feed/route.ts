@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Feed } from 'feed';
 import { getTranslations } from 'next-intl/server';
-import { getCityCached } from '@/lib/cache/queries';
-import { prisma } from '@/lib/db/prisma';
+import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
+import { stripMarkdown } from '@/lib/formatters/markdown';
+import { env } from '@/env.mjs';
+import { routing } from '@/i18n/routing';
 
 export const revalidate = 600; // 10 minutes
 
@@ -21,27 +23,11 @@ export async function GET(
         return new NextResponse(t('cityNotFound'), { status: 404 });
     }
 
-    // Fetch meetings with all subjects
-    const meetings = await prisma.councilMeeting.findMany({
-        where: {
-            cityId,
-            released: true,
-        },
-        orderBy: {
-            dateTime: 'desc',
-        },
-        take: limit,
-        include: {
-            subjects: {
-                orderBy: {
-                    createdAt: 'asc',
-                },
-            },
-        },
-    });
+    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, { limit });
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://opencouncil.gr';
-    const cityUrl = locale === 'el' 
+    const baseUrl = env.NEXTAUTH_URL;
+    const isDefaultLocale = locale === routing.defaultLocale;
+    const cityUrl = isDefaultLocale
         ? `${baseUrl}/${cityId}`
         : `${baseUrl}/${locale}/${cityId}`;
     const feedUrl = `${baseUrl}/${locale}/${cityId}/feed`;
@@ -51,30 +37,29 @@ export async function GET(
 
     // Create feed instance
     const feed = new Feed({
-        title: t('title', { city: locale === 'el' ? city.name : city.name_en }),
-        description: t('description', { 
-            municipality: locale === 'el' ? city.name_municipality : city.name_municipality_en 
+        title: t('title', { city: isDefaultLocale ? city.name : city.name_en }),
+        description: t('description', {
+            municipality: isDefaultLocale ? city.name_municipality : city.name_municipality_en
         }),
         id: feedUrl,
         link: cityUrl,
         language: locale,
-        updated: meetings.length > 0 ? meetings[0].dateTime : new Date(),
+        updated: meetings.length > 0 ? new Date(meetings[0].dateTime) : new Date(),
         generator: 'OpenCouncil',
         feedLinks: {
             rss: feedUrl,
         },
-        // Add required copyright field to conform to FeedOptions
         copyright: `Copyright © ${new Date().getFullYear()} OpenCouncil`,
     });
 
     // Add meeting items with nested subjects
     for (const meeting of meetings) {
         const meetingDate = new Date(meeting.dateTime);
-        const meetingUrl = locale === 'el'
-            ? `${baseUrl}/${cityId}/meetings/${meeting.id}`
-            : `${baseUrl}/${locale}/${cityId}/meetings/${meeting.id}`;
-        
-        const cityName = locale === 'el' ? city.name : city.name_en;
+        const meetingUrl = isDefaultLocale
+            ? `${baseUrl}/${cityId}/${meeting.id}`
+            : `${baseUrl}/${locale}/${cityId}/${meeting.id}`;
+
+        const cityName = isDefaultLocale ? city.name : city.name_en;
         const dateStr = meetingDate.toISOString().split('T')[0];
         const meetingTitle = t('meetingTitle', {
             meetingName: meeting.name,
@@ -98,17 +83,17 @@ export async function GET(
         let content = '';
         if (meeting.subjects.length > 0) {
             const subjectsList = meeting.subjects.map(subject => {
-                const subjectUrl = locale === 'el'
-                    ? `${baseUrl}/${cityId}/meetings/${meeting.id}/subjects/${subject.id}`
-                    : `${baseUrl}/${locale}/${cityId}/meetings/${meeting.id}/subjects/${subject.id}`;
-                
-                const subjectDescription = subject.description 
-                    ? `<p>${subject.description}</p>` 
+                const subjectUrl = isDefaultLocale
+                    ? `${baseUrl}/${cityId}/${meeting.id}/subjects/${subject.id}`
+                    : `${baseUrl}/${locale}/${cityId}/${meeting.id}/subjects/${subject.id}`;
+
+                const subjectDescription = subject.description
+                    ? `<p style="margin:0">${stripMarkdown(subject.description)}</p>`
                     : '';
-                
-                return `<li><a href="${subjectUrl}">${subject.name}</a>${subjectDescription}</li>`;
+
+                return `<li><a href="${subjectUrl}">${subject.name}</a>${subjectDescription}</li><br/>`;
             }).join('');
-            
+
             content = `<h3>${t('subjects')}</h3><ul>${subjectsList}</ul>`;
         } else {
             content = `<p>${t('noSubjects')}</p>`;
@@ -133,4 +118,3 @@ export async function GET(
         },
     });
 }
-
