@@ -437,6 +437,11 @@ model Subject {
 
   decision Decision?
 
+  // Temporary field for ADA conflict resolution.
+  // Set when a poll detects that an ADA already belongs to another subject's decision.
+  // Cleared to null once admin resolves the conflict (reassign or dismiss).
+  claimedAda String?
+
   @@index([cityId, councilMeetingId])
   @@index([discussedInId])
 }

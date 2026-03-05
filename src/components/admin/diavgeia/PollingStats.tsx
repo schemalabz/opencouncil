@@ -22,7 +22,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Search, Clock, Activity, CalendarClock, ArrowUpDown, ChevronDown, Eye, Copy, Check, ExternalLink, Loader2, AlertTriangle } from 'lucide-react';
+import { resolveAdaConflict } from '@/lib/tasks/pollDecisions';
 import { useUrlParams } from '@/hooks/useUrlParams';
 import { formatRelativeTime } from '@/lib/formatters/time';
 
@@ -74,10 +83,31 @@ interface StillPollingMeeting {
   nextPollEligible: string | null;
 }
 
+interface AdaConflict {
+  claimingSubject: {
+    id: string;
+    name: string;
+    cityId: string;
+    councilMeetingId: string;
+  };
+  ada: string;
+  existingDecision: {
+    title: string | null;
+    pdfUrl: string;
+    currentSubject: {
+      id: string;
+      name: string;
+      cityId: string;
+      councilMeetingId: string;
+    };
+  } | null;
+}
+
 interface PollingStatsData {
   backoffSchedule: BackoffTier[];
   maxPollingDays: number;
   meetingsStillPolling: StillPollingMeeting[];
+  conflicts: AdaConflict[];
   summary: {
     totalDiscoveries: number;
     meetingsStillPolling: number;
@@ -186,12 +216,14 @@ function CollapsibleSection({
   id,
   title,
   badge,
+  description,
   defaultOpen = false,
   children,
 }: {
   id?: string;
   title: string;
   badge: string;
+  description?: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
@@ -202,11 +234,14 @@ function CollapsibleSection({
       <div id={id} className="border rounded-lg">
         <CollapsibleTrigger asChild>
           <button className="flex w-full items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold">{title}</h2>
-              <Badge variant="secondary" className="font-normal">{badge}</Badge>
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-lg font-semibold shrink-0">{title}</h2>
+              <Badge variant="secondary" className="font-normal shrink-0">{badge}</Badge>
+              {description && (
+                <span className="text-xs text-muted-foreground truncate hidden sm:inline">{description}</span>
+              )}
             </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`} />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -216,6 +251,229 @@ function CollapsibleSection({
         </CollapsibleContent>
       </div>
     </Collapsible>
+  );
+}
+
+function SubjectCell({ subjectId, name, cityId, meetingId }: { subjectId: string; name: string; cityId: string; meetingId: string }) {
+  return (
+    <div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link
+            href={`/${cityId}/${meetingId}/subjects/${subjectId}`}
+            className="block truncate hover:underline"
+          >
+            {name}
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-sm">{name}</TooltipContent>
+      </Tooltip>
+      <Link
+        href={`/${cityId}/${meetingId}/admin`}
+        className="text-xs text-muted-foreground hover:underline"
+      >
+        {cityId}/{meetingId}
+      </Link>
+    </div>
+  );
+}
+
+function ConflictsSection({ conflicts }: { conflicts: AdaConflict[] }) {
+  const [resolvingAda, setResolvingAda] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ conflict: AdaConflict; resolution: 'reassign' | 'dismiss' } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { updateParam } = useUrlParams('filters');
+
+  const handleResolve = async () => {
+    if (!confirmAction) return;
+    const { conflict, resolution } = confirmAction;
+    setConfirmAction(null);
+    setResolvingAda(conflict.ada);
+    setError(null);
+    try {
+      await resolveAdaConflict(conflict.claimingSubject.id, resolution);
+      updateParam('_t', String(Date.now()));
+    } catch (err) {
+      console.error('Failed to resolve conflict:', err);
+      setError((err as Error).message ?? 'Failed to resolve conflict');
+    } finally {
+      setResolvingAda(null);
+    }
+  };
+
+  // Group conflicts by ADA so multiple claimants for the same ADA are shown together
+  const groupedByAda = useMemo(() => {
+    const groups: { ada: string; existingDecision: AdaConflict['existingDecision']; claimants: AdaConflict['claimingSubject'][] }[] = [];
+    const map = new Map<string, typeof groups[number]>();
+    for (const c of conflicts) {
+      const existing = map.get(c.ada);
+      if (existing) {
+        existing.claimants.push(c.claimingSubject);
+      } else {
+        const group = { ada: c.ada, existingDecision: c.existingDecision, claimants: [c.claimingSubject] };
+        map.set(c.ada, group);
+        groups.push(group);
+      }
+    }
+    return groups;
+  }, [conflicts]);
+
+  // Helper to find the full conflict object for a claimant
+  const findConflict = (claimantId: string) => conflicts.find(c => c.claimingSubject.id === claimantId)!;
+
+  return (
+    <>
+    <CollapsibleSection
+      id="ada-conflicts"
+      title="ADA Conflicts"
+      badge={`${conflicts.length} conflicts`}
+      description="Decisions matched to multiple subjects — reassign or dismiss each claim"
+      defaultOpen
+    >
+      {error && (
+        <div className="mx-4 mt-2 mb-0 p-2 text-sm text-red-600 bg-red-50 rounded border border-red-200">
+          {error}
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/50 border-b text-muted-foreground">
+              <th className="text-left px-4 py-2 font-medium">ADA</th>
+              <th className="text-left px-4 py-2 font-medium">Decision Title</th>
+              <th className="text-left px-4 py-2 font-medium">Current Subject</th>
+              <th className="text-left px-4 py-2 font-medium">Claiming Subject</th>
+              <th className="text-right px-4 py-2 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <TooltipProvider>
+          <tbody>
+            {groupedByAda.map(group => (
+              group.claimants.map((claimant, idx) => (
+                <tr key={claimant.id} className={`hover:bg-muted/30 ${idx === group.claimants.length - 1 ? 'border-b' : ''}`}>
+                  {idx === 0 ? (
+                    <>
+                      <td className="px-4 py-2 whitespace-nowrap font-mono text-xs align-top" rowSpan={group.claimants.length}>
+                        {group.ada}
+                      </td>
+                      <td className="px-4 py-2 max-w-[200px] align-top" rowSpan={group.claimants.length}>
+                        {group.existingDecision ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="block truncate">{group.existingDecision.title ?? '—'}</span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-sm">
+                              {group.existingDecision.title}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-muted-foreground">Decision deleted</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 max-w-[200px] align-top" rowSpan={group.claimants.length}>
+                        {group.existingDecision ? (
+                          <SubjectCell
+                            subjectId={group.existingDecision.currentSubject.id}
+                            name={group.existingDecision.currentSubject.name}
+                            cityId={group.existingDecision.currentSubject.cityId}
+                            meetingId={group.existingDecision.currentSubject.councilMeetingId}
+                          />
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </>
+                  ) : null}
+                  <td className="px-4 py-2 max-w-[200px]">
+                    <SubjectCell
+                      subjectId={claimant.id}
+                      name={claimant.name}
+                      cityId={claimant.cityId}
+                      meetingId={claimant.councilMeetingId}
+                    />
+                  </td>
+                  <td className="px-4 py-2 text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      {group.existingDecision && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={resolvingAda === group.ada}
+                          onClick={() => setConfirmAction({ conflict: findConflict(claimant.id), resolution: 'reassign' })}
+                        >
+                          {resolvingAda === group.ada ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                          Reassign
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={resolvingAda === group.ada}
+                        onClick={() => setConfirmAction({ conflict: findConflict(claimant.id), resolution: 'dismiss' })}
+                      >
+                        {resolvingAda === group.ada ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        Dismiss
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ))}
+          </tbody>
+          </TooltipProvider>
+        </table>
+      </div>
+    </CollapsibleSection>
+
+    {/* Confirmation Dialog */}
+    <Dialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+      {confirmAction && (
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction.resolution === 'reassign' ? 'Reassign Decision' : 'Dismiss Claim'}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction.resolution === 'reassign'
+                ? 'This will move the decision from the current subject to the claiming subject. The current subject will lose its linked decision.'
+                : 'This will discard the claim. The decision stays with the current subject.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">ADA:</span>{' '}
+              <span className="font-mono">{confirmAction.conflict.ada}</span>
+            </div>
+            {confirmAction.conflict.existingDecision && (
+              <div>
+                <span className="text-muted-foreground">Current subject:</span>{' '}
+                <span>{confirmAction.conflict.existingDecision.currentSubject.name}</span>
+                <span className="text-muted-foreground text-xs ml-1">
+                  ({confirmAction.conflict.existingDecision.currentSubject.cityId}/{confirmAction.conflict.existingDecision.currentSubject.councilMeetingId})
+                </span>
+              </div>
+            )}
+            <div>
+              <span className="text-muted-foreground">Claiming subject:</span>{' '}
+              <span>{confirmAction.conflict.claimingSubject.name}</span>
+              <span className="text-muted-foreground text-xs ml-1">
+                ({confirmAction.conflict.claimingSubject.cityId}/{confirmAction.conflict.claimingSubject.councilMeetingId})
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancel</Button>
+            <Button
+              variant={confirmAction.resolution === 'reassign' ? 'default' : 'secondary'}
+              onClick={handleResolve}
+            >
+              {confirmAction.resolution === 'reassign' ? 'Reassign' : 'Dismiss'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+    </>
   );
 }
 
@@ -265,6 +523,12 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
       icon: <Activity className="h-4 w-4" />,
       description: 'With unlinked subjects',
     },
+    ...(stats.conflicts.length > 0 ? [{
+      title: 'ADA Conflicts',
+      value: stats.conflicts.length,
+      icon: <AlertTriangle className="h-4 w-4" />,
+      description: 'Require admin resolution',
+    }] : []),
     {
       title: 'Avg Discovery Delay',
       value: formatDays(stats.summary.discoveryDelay.avgDays),
@@ -298,7 +562,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
     <Sheet open={!!selectedPoll} onOpenChange={(open) => !open && setSelectedPoll(null)}>
     <div className="space-y-6">
       {/* Summary Cards */}
-      <StatsCard items={summaryItems} columns={4} />
+      <StatsCard items={summaryItems} columns={summaryItems.length as 4 | 5} />
 
       {/* Filters */}
       {pollCities.length > 1 && (
@@ -340,6 +604,11 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
           )}
           {isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
+      )}
+
+      {/* ADA Conflicts */}
+      {stats.conflicts.length > 0 && (
+        <ConflictsSection conflicts={stats.conflicts} />
       )}
 
       {/* Meetings Still Polling */}
