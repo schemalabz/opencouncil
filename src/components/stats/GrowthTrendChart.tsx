@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
     ChartContainer,
     ChartTooltip,
@@ -31,6 +32,8 @@ const chartConfig: ChartConfig = {
 };
 
 export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
+    const id = useId();
+    const gradientId = `gradHours-${id}`;
     const chartData = data.map((item) => ({
         month: item.month,
         hours: Math.round(item.totalSeconds / 3600),
@@ -48,7 +51,7 @@ export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
             <ChartContainer config={chartConfig} className="h-64 w-full">
                 <AreaChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                     <defs>
-                        <linearGradient id="gradHours" x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                             <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                         </linearGradient>
@@ -91,7 +94,7 @@ export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
                         dataKey="hours"
                         stroke="hsl(var(--primary))"
                         strokeWidth={2}
-                        fill="url(#gradHours)"
+                        fill={`url(#${gradientId})`}
                         dot={false}
                     />
                 </AreaChart>
