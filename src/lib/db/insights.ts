@@ -190,7 +190,11 @@ export async function getPartyDistribution(cityId?: string): Promise<PartyDistri
     FROM "SpeakerSegment" ss
     JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
     JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
-    JOIN "Role" r ON r."personId" = st."personId" AND r."cityId" = ss."cityId"
+    JOIN LATERAL (
+      SELECT r."partyId" FROM "Role" r
+      WHERE r."personId" = st."personId" AND r."cityId" = ss."cityId" AND r."partyId" IS NOT NULL
+      LIMIT 1
+    ) r ON true
     JOIN "Party" p ON r."partyId" = p.id
     LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
     WHERE cm.released = true
@@ -245,12 +249,11 @@ export async function getCityLeaderboard(): Promise<CityLeaderboardItem[]> {
       c.id as "cityId",
       c.name as "cityName",
       CAST(COUNT(DISTINCT cm.id) AS INTEGER) as "meetingCount",
-      CAST(COALESCE(SUM(ss."endTimestamp" - ss."startTimestamp"), 0) AS FLOAT) as "totalSeconds"
+      CAST(COALESCE(SUM(CASE WHEN (s.type IS NULL OR s.type != 'procedural') THEN ss."endTimestamp" - ss."startTimestamp" ELSE 0 END), 0) AS FLOAT) as "totalSeconds"
     FROM "City" c
     JOIN "CouncilMeeting" cm ON cm."cityId" = c.id AND cm.released = true
     LEFT JOIN "SpeakerSegment" ss ON ss."cityId" = c.id AND ss."meetingId" = cm.id
     LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
-    WHERE (s.type IS NULL OR s.type != 'procedural')
     GROUP BY c.id, c.name
     ORDER BY "totalSeconds" DESC
   `;
