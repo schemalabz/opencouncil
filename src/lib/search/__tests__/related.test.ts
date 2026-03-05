@@ -91,6 +91,8 @@ describe('findRelatedSubjects', () => {
 
         // Assert
         expect(results).toHaveLength(1);
+        expect(mockPrismaTopicFindMany).not.toHaveBeenCalled();
+        expect(mockPrismaMeetingFindMany).not.toHaveBeenCalled();
         expect(results[0]).toEqual(expect.objectContaining({
             id: 'sub456',
             name: 'Related 1',
@@ -101,7 +103,8 @@ describe('findRelatedSubjects', () => {
             score: 0.95,
             topicId: null,
             topicColor: null,
-            adminBodyId: null
+            adminBodyId: null,
+            adminBodyName: null
         }));
     });
 
