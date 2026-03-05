@@ -17,6 +17,7 @@ interface CollapsibleCardProps {
   /** When set, the card gets an anchor id and auto-opens when the URL hash matches */
   id?: string
   className?: string
+  onExpand?: () => void;
 }
 
 const BORDER_RADIUS = "0.5rem"
@@ -29,6 +30,7 @@ export function CollapsibleCard({
   defaultOpen = false,
   id,
   className,
+  onExpand
 }: CollapsibleCardProps) {
   const [open, setOpen] = React.useState(defaultOpen)
 
@@ -50,6 +52,12 @@ export function CollapsibleCard({
     window.addEventListener('hashchange', openAndScroll)
     return () => window.removeEventListener('hashchange', openAndScroll)
   }, [id])
+
+  React.useEffect(() => {
+    if (open && onExpand) {
+      onExpand();
+    }
+  }, [open, onExpand]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>

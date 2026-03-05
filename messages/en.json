@@ -847,7 +847,13 @@
         "votePresent": "Present",
         "voteDidNotVote": "Did not vote",
         "groupedDiscussion": "Discussion grouped with other subjects",
-        "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:"
+        "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:",
+        "relatedSubjects": {
+            "title": "Related Subjects",
+            "sameBody": "In the same body",
+            "elsewhere": "Elsewhere",
+            "loading": "Loading related subjects..."
+        }
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
