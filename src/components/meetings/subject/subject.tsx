@@ -542,7 +542,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 </CollapsibleCard>}
 
                 {/* Related Subjects Section */}
-                <RelatedSubjects subjectId={subject.id} cityId={meeting.cityId} />
+                <RelatedSubjects subjectId={subject.id} />
 
                 {/* Admin Section - internal signals, only for users authorized to edit */}
                 {options.editsAllowed && (topicImportance || proximityImportance) && (
