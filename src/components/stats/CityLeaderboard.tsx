@@ -8,7 +8,7 @@ interface CityLeaderboardProps {
 }
 
 export function CityLeaderboard({ cities }: CityLeaderboardProps) {
-    const maxSeconds = cities[0]?.totalSeconds ?? 1;
+    const maxSeconds = Math.max(cities[0]?.totalSeconds ?? 0, 1);
 
     return (
         <section
