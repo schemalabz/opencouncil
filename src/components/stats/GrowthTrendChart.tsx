@@ -25,10 +25,6 @@ const chartConfig: ChartConfig = {
         label: "Ώρες",
         color: "hsl(var(--primary))",
     },
-    meetings: {
-        label: "Συνεδριάσεις",
-        color: "hsl(var(--chart-2, 220 70% 50%))",
-    },
 };
 
 export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
@@ -37,7 +33,6 @@ export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
     const chartData = data.map((item) => ({
         month: item.month,
         hours: Math.round(item.totalSeconds / 3600),
-        meetings: item.meetingCount,
     }));
 
     return (
@@ -82,10 +77,7 @@ export function GrowthTrendChart({ data }: GrowthTrendChartProps) {
                                     const [year, month] = label.split("-");
                                     return `${month}/${year}`;
                                 }}
-                                formatter={(value, name) => [
-                                    name === "hours" ? `${value}h` : `${value} συνεδριάσεις`,
-                                    name === "hours" ? "Ώρες" : "Συνεδριάσεις",
-                                ]}
+                                formatter={(value) => [`${value}h`, "Ώρες"]}
                             />
                         }
                     />
