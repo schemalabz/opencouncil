@@ -87,7 +87,7 @@ export async function createLocation({ id, text, lng, lat }: { id: string; text?
     return { id: res[0]?.id ?? id }
 }
 
-export async function createSubject(meetingId: string, cityId: string, data?: { id?: string; name?: string; description?: string; topicId?: string | null; locationId?: string | null }) {
+export async function createSubject(meetingId: string, cityId: string, data?: { id?: string; name?: string; description?: string; topicId?: string | null; locationId?: string | null; agendaItemIndex?: number | null }) {
     return prisma.subject.create({
         data: {
             id: data?.id,
@@ -95,6 +95,7 @@ export async function createSubject(meetingId: string, cityId: string, data?: { 
             description: data?.description ?? 'Subject description',
             topicId: data?.topicId ?? null,
             locationId: data?.locationId ?? null,
+            agendaItemIndex: data?.agendaItemIndex ?? null,
             councilMeetingId: meetingId,
             cityId,
         },

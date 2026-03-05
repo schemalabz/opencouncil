@@ -1,4 +1,4 @@
-import { Subject, ProcessAgendaResult, SummarizeResult } from '@/lib/apiTypes'
+import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch } from '@/lib/apiTypes'
 
 export function makeSubject(overrides: Partial<Subject> & { name: string; agendaItemIndex: Subject['agendaItemIndex'] }): Subject {
     return {
@@ -27,5 +27,30 @@ export function makeSummarizeResult(params: {
         speakerSegmentSummaries: params.speakerSegmentSummaries ?? [],
         subjects: params.subjects ?? [],
         utteranceDiscussionStatuses: params.utteranceDiscussionStatuses ?? [],
+    }
+}
+
+export function makePollDecisionsMatch(overrides: Partial<PollDecisionsMatch> & { subjectId: string; ada: string }): PollDecisionsMatch {
+    return {
+        decisionTitle: 'Decision Title',
+        pdfUrl: 'https://example.com/decision.pdf',
+        protocolNumber: '1/2025',
+        publishDate: '2025-01-15',
+        matchConfidence: 0.95,
+        ...overrides,
+    }
+}
+
+export function makePollDecisionsResult(params: {
+    matches?: PollDecisionsMatch[]
+    reassignments?: PollDecisionsResult['reassignments']
+    unmatchedSubjects?: PollDecisionsResult['unmatchedSubjects']
+    ambiguousSubjects?: PollDecisionsResult['ambiguousSubjects']
+}): PollDecisionsResult {
+    return {
+        matches: params.matches ?? [],
+        reassignments: params.reassignments ?? [],
+        unmatchedSubjects: params.unmatchedSubjects ?? [],
+        ambiguousSubjects: params.ambiguousSubjects ?? [],
     }
 }
