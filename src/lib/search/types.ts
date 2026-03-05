@@ -76,3 +76,23 @@ export interface SubjectDocument {
     description: string;
     location_text: string;
 }
+
+// Related subject result type (returned by the related-subjects API)
+export interface RelatedSubjectResult {
+    id: string;
+    name: string;
+    name_en: string | null;
+    description: string | null;
+    topicId: string | null;
+    topicName: string | null;
+    topicColor: string | null;
+    topicIcon: string | null;
+    meetingDate: string | null;
+    meetingName: string | null;
+    cityId: string;
+    cityName: string | null;
+    cityNameEn: string | null;
+    adminBodyId: string | null;
+    adminBodyName: string | null;
+    score: number;
+}
