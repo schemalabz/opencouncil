@@ -8,6 +8,13 @@ import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
+import {
+  getGlobalKPIs,
+  getTopicDistribution,
+  getPartyDistribution,
+  getMonthlyGrowth,
+  getCityLeaderboard,
+} from "@/lib/db/insights";
 
 /**
  * Cached version of getCity that fetches and caches basic city data
@@ -51,8 +58,8 @@ export async function getCouncilMeetingsForCityPublicCached(cityId: string, { li
  * Cached derived status per meeting
  */
 export async function getMeetingStatusCached(cityId: string, meetingId: string) {
-    return createCache(
-        () => getMeetingStatus(cityId, meetingId),
+  return createCache(
+    () => getMeetingStatus(cityId, meetingId),
     ['city', cityId, 'meetings', 'derived', meetingId],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}:derived`] }
   )();
@@ -130,5 +137,60 @@ export async function getCityMessageCached(cityId: string) {
     () => getCityMessage(cityId),
     ['city', cityId, 'message'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
+  )();
+}
+
+/**
+ * Cached version of getGlobalKPIs
+ */
+export async function getGlobalKPIsCached() {
+  return createCache(
+    () => getGlobalKPIs(),
+    ['insights', 'global-kpis'],
+    { tags: ['insights'] }
+  )();
+}
+
+/**
+ * Cached version of getTopicDistribution, optionally filtered by city
+ */
+export async function getTopicDistributionCached(cityId?: string) {
+  return createCache(
+    () => getTopicDistribution(cityId),
+    cityId ? ['insights', 'topic-distribution', cityId] : ['insights', 'topic-distribution'],
+    { tags: ['insights', ...(cityId ? [`insights:city:${cityId}`] : [])] }
+  )();
+}
+
+/**
+ * Cached version of getPartyDistribution, optionally filtered by city
+ */
+export async function getPartyDistributionCached(cityId?: string) {
+  return createCache(
+    () => getPartyDistribution(cityId),
+    cityId ? ['insights', 'party-distribution', cityId] : ['insights', 'party-distribution'],
+    { tags: ['insights', ...(cityId ? [`insights:city:${cityId}`] : [])] }
+  )();
+}
+
+/**
+ * Cached version of getMonthlyGrowth
+ */
+export async function getMonthlyGrowthCached() {
+  return createCache(
+    () => getMonthlyGrowth(),
+    ['insights', 'monthly-growth'],
+    { tags: ['insights'] }
+  )();
+}
+
+/**
+ * Cached version of getCityLeaderboard
+ */
+export async function getCityLeaderboardCached() {
+  return createCache(
+    () => getCityLeaderboard(),
+    ['insights', 'city-leaderboard'],
+    { tags: ['insights'] }
   )();
 }
