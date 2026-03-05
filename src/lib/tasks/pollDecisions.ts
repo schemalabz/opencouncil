@@ -312,6 +312,8 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
                     decision: null,
                 },
             },
+            ...(cityId && { cityId }),
+            ...(councilMeetingId && { id: councilMeetingId }),
         },
         select: {
             id: true,
@@ -354,7 +356,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
     // Batch-fetch total eligible subject counts per meeting
     const eligibleCounts = stillPollingIds.length > 0
         ? await prisma.subject.groupBy({
-            by: ['councilMeetingId'],
+            by: ['councilMeetingId', 'cityId'],
             where: {
                 councilMeetingId: { in: stillPollingIds },
                 agendaItemIndex: { not: null },
@@ -364,7 +366,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         : [];
 
     const eligibleCountMap = new Map(
-        eligibleCounts.map(r => [r.councilMeetingId, r._count])
+        eligibleCounts.map(r => [`${r.cityId}:${r.councilMeetingId}`, r._count])
     );
 
     const meetingsStillPolling = stillPollingMeetings.map(m => {
@@ -379,7 +381,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
             meetingId: m.id,
             meetingDate: m.dateTime.toISOString().split('T')[0],
             unlinkedSubjects: m.subjects.map(s => ({ id: s.id, name: s.name })),
-            totalEligibleSubjects: eligibleCountMap.get(m.id) ?? 0,
+            totalEligibleSubjects: eligibleCountMap.get(key) ?? 0,
             totalPolls: history?.count ?? 0,
             firstPollAt: firstPollAt?.toISOString() ?? null,
             lastPollAt: lastPollAt?.toISOString() ?? null,
@@ -388,27 +390,53 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         };
     });
 
-    // Distinct cities that have poll tasks (for the filter dropdown)
-    const pollCityRows = await prisma.taskStatus.findMany({
-        where: { type: 'pollDecisions' },
-        distinct: ['cityId'],
-        select: { cityId: true },
-        orderBy: { cityId: 'asc' },
-    });
-    const pollCities = pollCityRows.map(r => r.cityId);
+    // Distinct cities for filter dropdown: union of cities with poll tasks + cities with unlinked subjects
+    const [pollCityRows, stillPollingCityRows] = await Promise.all([
+        prisma.taskStatus.findMany({
+            where: { type: 'pollDecisions' },
+            distinct: ['cityId'],
+            select: { cityId: true },
+        }),
+        prisma.councilMeeting.findMany({
+            where: {
+                dateTime: { gte: ninetyDaysAgo },
+                city: { diavgeiaUid: { not: null } },
+                subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
+            },
+            distinct: ['cityId'],
+            select: { cityId: true },
+        }),
+    ]);
+    const pollCities = [...new Set([
+        ...pollCityRows.map(r => r.cityId),
+        ...stillPollingCityRows.map(r => r.cityId),
+    ])].sort();
 
-    // Distinct meeting IDs for the selected city (for the meeting filter dropdown)
-    const pollMeetingRows = cityId
-        ? await prisma.taskStatus.findMany({
-            where: { type: 'pollDecisions', cityId },
-            distinct: ['councilMeetingId'],
-            select: { councilMeetingId: true },
-            orderBy: { createdAt: 'desc' },
-        })
-        : [];
-    const pollMeetings = pollMeetingRows
-        .map(r => r.councilMeetingId)
-        .filter((id): id is string => id !== null);
+    // Distinct meeting IDs for the selected city: union of meetings from both sources
+    let pollMeetings: string[] = [];
+    if (cityId) {
+        const [taskMeetingRows, stillPollingMeetingRows] = await Promise.all([
+            prisma.taskStatus.findMany({
+                where: { type: 'pollDecisions', cityId },
+                distinct: ['councilMeetingId'],
+                select: { councilMeetingId: true },
+            }),
+            prisma.councilMeeting.findMany({
+                where: {
+                    cityId,
+                    dateTime: { gte: ninetyDaysAgo },
+                    city: { diavgeiaUid: { not: null } },
+                    subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
+                },
+                select: { id: true },
+                orderBy: { dateTime: 'desc' },
+            }),
+        ]);
+        pollMeetings = [...new Set([
+            ...taskMeetingRows.map(r => r.councilMeetingId).filter((id): id is string => id !== null),
+            ...stillPollingMeetingRows.map(r => r.id),
+        ])];
+    }
 
     // Recent poll tasks for the "Recent Polls" table
     const recentPollTasks = await prisma.taskStatus.findMany({

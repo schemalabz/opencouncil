@@ -224,7 +224,7 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedPoll, setSelectedPoll] = useState<RecentPoll | null>(null);
   const [selectedMeeting, setSelectedMeeting] = useState<StillPollingMeeting | null>(null);
-  const { updateParam, updateParams, isPending } = useUrlParams('recent-polls');
+  const { updateParam, updateParams, isPending } = useUrlParams('filters');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -300,11 +300,53 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
       {/* Summary Cards */}
       <StatsCard items={summaryItems} columns={4} />
 
+      {/* Filters */}
+      {pollCities.length > 1 && (
+        <div id="filters" className="flex items-center gap-3 border rounded-lg px-4 py-3">
+          <Select
+            value={cityFilter ?? 'all'}
+            onValueChange={(value) => updateParams({
+              cityId: value === 'all' ? null : value,
+              councilMeetingId: null,
+            })}
+            disabled={isPending}
+          >
+            <SelectTrigger className="w-48" disabled={isPending}>
+              <SelectValue placeholder="All cities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All cities</SelectItem>
+              {pollCities.map(city => (
+                <SelectItem key={city} value={city}>{city}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {cityFilter && pollMeetings.length > 0 && (
+            <Select
+              value={meetingFilter ?? 'all'}
+              onValueChange={(value) => updateParam('councilMeetingId', value === 'all' ? null : value)}
+              disabled={isPending}
+            >
+              <SelectTrigger className="w-64" disabled={isPending}>
+                <SelectValue placeholder="All meetings" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All meetings</SelectItem>
+                {pollMeetings.map(id => (
+                  <SelectItem key={id} value={id}>{id}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+        </div>
+      )}
+
       {/* Meetings Still Polling */}
       <CollapsibleSection
         id="still-polling"
         title="Meetings Still Polling"
-        badge={`${stats.meetingsStillPolling.length} meetings`}
+        badge={cityFilter ? `${stats.meetingsStillPolling.length} meetings (${cityFilter}${meetingFilter ? ` / ${meetingFilter}` : ''})` : `${stats.meetingsStillPolling.length} meetings`}
         defaultOpen={stats.meetingsStillPolling.length > 0}
       >
         {stats.meetingsStillPolling.length === 0 ? (
@@ -386,46 +428,6 @@ export function PollingStats({ stats, pollCities, cityFilter, pollMeetings, meet
         badge={cityFilter ? `${stats.recentPolls.length} polls (${cityFilter}${meetingFilter ? ` / ${meetingFilter}` : ''})` : `${stats.recentPolls.length} polls`}
         defaultOpen
       >
-        {pollCities.length > 1 && (
-          <div className="flex items-center gap-3 px-4 py-3 border-b">
-            <Select
-              value={cityFilter ?? 'all'}
-              onValueChange={(value) => updateParams({
-                cityId: value === 'all' ? null : value,
-                councilMeetingId: null,
-              })}
-              disabled={isPending}
-            >
-              <SelectTrigger className="w-48" disabled={isPending}>
-                <SelectValue placeholder="All cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All cities</SelectItem>
-                {pollCities.map(city => (
-                  <SelectItem key={city} value={city}>{city}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {cityFilter && pollMeetings.length > 0 && (
-              <Select
-                value={meetingFilter ?? 'all'}
-                onValueChange={(value) => updateParam('councilMeetingId', value === 'all' ? null : value)}
-                disabled={isPending}
-              >
-                <SelectTrigger className="w-64" disabled={isPending}>
-                  <SelectValue placeholder="All meetings" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All meetings</SelectItem>
-                  {pollMeetings.map(id => (
-                    <SelectItem key={id} value={id}>{id}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            {isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-          </div>
-        )}
         {stats.recentPolls.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             No poll tasks recorded yet.
