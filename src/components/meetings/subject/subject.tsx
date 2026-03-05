@@ -4,7 +4,7 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Landmark, FileText, CheckSquare, Search, PlusCircle, PenSquare, Share2, Facebook, Twitter, Link2, Download, ScrollText, Play, ExternalLink, Loader2, MapPin } from "lucide-react";
+import { Landmark, FileText, CheckSquare, ScrollText, Play, ExternalLink, Loader2, MapPin } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -463,7 +463,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
 
                 {/* Related Subjects Section */}
-                <RelatedSubjects subjectId={subject.id} cityId={meeting.cityId} />
+                <RelatedSubjects subjectId={subject.id} />
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
