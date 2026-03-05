@@ -509,7 +509,9 @@
             "title": "Related Subjects",
             "sameBody": "In the same body",
             "elsewhere": "Elsewhere",
-            "loading": "Loading related subjects..."
+            "loading": "Loading related subjects...",
+            "error": "Failed to load related subjects. Please try again later.",
+            "noResults": "No related subjects found."
         },
         "voting": "Voting",
         "votingDisclaimer": "OpenCouncil does not yet extract votes on subjects — but the discussion related to voting is displayed below",
