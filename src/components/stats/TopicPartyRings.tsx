@@ -12,10 +12,12 @@ function RingWithLegend({
     title,
     items,
     testId,
+    centerLabel,
 }: {
     title: string;
     items: { id: string; name: string; colorHex: string; percentage: number }[];
     testId: string;
+    centerLabel: string;
 }) {
     const ringData = items.map((item) => ({
         color: item.colorHex || "#94a3b8",
@@ -30,7 +32,7 @@ function RingWithLegend({
                     <span className="text-sm text-muted-foreground font-medium text-center leading-tight">
                         {items.length}
                         <br />
-                        <span className="text-xs">κατηγορίες</span>
+                        <span className="text-xs">{centerLabel}</span>
                     </span>
                 </ColorPercentageRing>
             </div>
@@ -71,8 +73,8 @@ export function TopicPartyRings({ topics, parties }: TopicPartyRingsProps) {
 
     return (
         <section className="grid md:grid-cols-2 gap-10 bg-card/50 rounded-2xl border border-border/40 p-8">
-            <RingWithLegend title="Θεματικές Κατηγορίες" items={topicItems} testId="topics-ring" />
-            <RingWithLegend title="Κατανομή Κομμάτων" items={partyItems} testId="parties-ring" />
+            <RingWithLegend title="Θεματικές Κατηγορίες" items={topicItems} testId="topics-ring" centerLabel="κατηγορίες" />
+            <RingWithLegend title="Κατανομή Κομμάτων" items={partyItems} testId="parties-ring" centerLabel="κόμματα" />
         </section>
     );
 }
