@@ -8,11 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MapPin, CalendarDays, Link, ServerCrash, AlignLeft } from 'lucide-react';
 import { RelatedSubjectResult } from '@/lib/search/types';
 import NextLink from 'next/link';
-import { formatTimestamp } from '@/lib/formatters/time';
 
 interface RelatedSubjectsProps {
     subjectId: string;
-    cityId: string;
 }
 
 interface RelatedSubjectsData {
@@ -32,12 +30,12 @@ function RelatedSubjectItem({ subject, locale }: { subject: RelatedSubjectResult
         <div className="flex flex-col gap-2 py-3 border-b last:border-0 border-border">
             <div className="flex items-start justify-between gap-4">
                 <NextLink
-                    href={`/${subject.cityId}/meetings/${subject.meetingId}/subjects/${subject.id}`}
+                    href={subject.meetingId ? `/${subject.cityId}/meetings/${subject.meetingId}/subjects/${subject.id}` : `/${subject.cityId}`}
                     prefetch={false}
                     className="group"
                 >
                     <h4 className="font-semibold text-base transition-colors group-hover:text-primary">
-                        {locale === 'en' && subject.name_en ? subject.name_en : subject.name}
+                        {subject.name}
                     </h4>
                 </NextLink>
                 {subject.topicName && (
@@ -94,7 +92,7 @@ function SubjectListSkeleton() {
     );
 }
 
-export function RelatedSubjects({ subjectId, cityId }: RelatedSubjectsProps) {
+export function RelatedSubjects({ subjectId }: RelatedSubjectsProps) {
     const t = useTranslations('Subject.relatedSubjects');
     const locale = useLocale();
     const [data, setData] = useState<RelatedSubjectsData | null>(null);
