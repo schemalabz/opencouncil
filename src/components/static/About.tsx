@@ -230,13 +230,15 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                                 <Marquee
                                     className="[--duration:30s] [--gap:2rem] sm:[--gap:2.5rem] md:[--gap:3rem] p-0 justify-center"
                                     reverse={false}
-                                    pauseOnHover={false}
+                                    pauseOnHover={true}
                                     repeat={5}
                                 >
                                     {citiesWithLogos.map((city) => (
-                                        <div
+                                        <Link
                                             key={city.id}
-                                            className="flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 transition-opacity hover:opacity-80"
+                                            href={`/${city.id}`}
+                                            title={city.name_municipality}
+                                            className="flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 transition-opacity hover:opacity-80 cursor-pointer"
                                         >
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
@@ -244,7 +246,7 @@ export default function AboutPage({ citiesWithLogos }: AboutPageProps) {
                                                 alt={city.name_municipality}
                                                 className="w-full h-full object-contain"
                                             />
-                                        </div>
+                                        </Link>
                                     ))}
                                 </Marquee>
                             </div>
