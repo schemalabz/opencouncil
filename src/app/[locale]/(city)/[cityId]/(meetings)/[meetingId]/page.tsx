@@ -4,7 +4,8 @@ import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataC
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
 import { formatDate } from "date-fns";
-import { AlertTriangleIcon, CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
+import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
+import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
@@ -85,26 +86,7 @@ export default function MeetingPage() {
             </div>
 
             <div className="p-4 sm:p-6">
-                {
-                    !meeting.youtubeUrl && meeting.agendaUrl && (
-                        <div className="flex flex-col items-center justify-center max-w-2xl mx-auto mb-8 p-4 rounded-lg border bg-muted/50">
-                            <div className="flex items-center gap-2 mb-2">
-                                <AlertTriangleIcon className="w-5 h-5 text-yellow-500" />
-                                <span className="font-medium">Αυτή η συνεδρίαση δεν έχει γίνει ακόμα.</span>
-                            </div>
-                            <div>
-                                Μπορείτε <Link
-                                    href={meeting.agendaUrl}
-                                    target="_blank"
-                                    className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
-                                >
-                                    να διαβάσετε την ημερήσια διάταξη εδώ
-                                    <ExternalLink className="w-4 h-4" />
-                                </Link>
-                            </div>
-                        </div>
-                    )
-                }
+                <UpcomingMeetingCard />
                 <HighlightCards subjects={subjects} />
 
                 {availableTopics.length > 0 && (
@@ -182,4 +164,51 @@ function MeetingInfo() {
             </div>
         </div>
     )
+}
+
+function UpcomingMeetingCard() {
+    const { meeting, city } = useCouncilMeetingData();
+    const locale = useLocale();
+
+    if (meeting.youtubeUrl || (!meeting.agendaUrl && !meeting.administrativeBody?.youtubeChannelUrl)) {
+        return null;
+    }
+
+    const meetingDate = new Date(meeting.dateTime);
+
+    return (
+        <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
+            <div className="flex items-center justify-center gap-2 mb-3">
+                <CalendarIcon className="w-5 h-5 text-primary" />
+                <p className="font-medium">
+                    Η συνεδρίαση θα πραγματοποιηθεί {formatRelativeTime(meetingDate, locale)}
+                </p>
+            </div>
+            <p className="text-lg font-semibold">
+                {formatDateTime(meetingDate, city.timezone)}
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+                {meeting.administrativeBody?.youtubeChannelUrl && (
+                    <Link
+                        href={meeting.administrativeBody.youtubeChannelUrl}
+                        target="_blank"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
+                    >
+                        <Youtube className="w-5 h-5 text-red-600" />
+                        YouTube
+                    </Link>
+                )}
+                {meeting.agendaUrl && (
+                    <Link
+                        href={meeting.agendaUrl}
+                        target="_blank"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
+                    >
+                        <FileText className="w-4 h-4" />
+                        Ημερήσια Διάταξη
+                    </Link>
+                )}
+            </div>
+        </div>
+    );
 }
