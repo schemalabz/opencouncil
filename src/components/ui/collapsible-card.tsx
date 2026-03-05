@@ -33,6 +33,8 @@ export function CollapsibleCard({
   onExpand
 }: CollapsibleCardProps) {
   const [open, setOpen] = React.useState(defaultOpen)
+  const onExpandRef = React.useRef(onExpand);
+  onExpandRef.current = onExpand;
 
   // Auto-open and scroll when URL hash matches this card's id.
   // Scroll is delayed so the card can expand before the browser calculates position.
@@ -42,6 +44,7 @@ export function CollapsibleCard({
     const openAndScroll = () => {
       if (window.location.hash === `#${id}`) {
         setOpen(true)
+        onExpandRef.current?.()
         setTimeout(() => {
           document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 200)
@@ -53,14 +56,8 @@ export function CollapsibleCard({
     return () => window.removeEventListener('hashchange', openAndScroll)
   }, [id])
 
-  React.useEffect(() => {
-    if (open && onExpand) {
-      onExpand();
-    }
-  }, [open, onExpand]);
-
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={(newOpen) => { setOpen(newOpen); if (newOpen) onExpandRef.current?.(); }}>
       <div id={id} className={cn("group rounded-lg shadow-sm overflow-hidden", className)}>
         <div
           className={cn(
