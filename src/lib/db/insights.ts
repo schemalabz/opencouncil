@@ -100,30 +100,19 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
             }
         }),
 
-        // Total unique speakers
-        // Prisma does not support count distinct on relation directly in aggregate.
-        // So we fetch distinct personIds.
-        prisma.speakerTag.findMany({
-            where: {
-                personId: { not: null },
-                speakerSegments: {
-                    some: {
-                        meeting: {
-                            released: true,
-                        },
-                        summary: {
-                            type: {
-                                not: "procedural"
-                            }
-                        }
-                    }
-                }
-            },
-            distinct: ['personId'],
-            select: {
-                personId: true
-            }
-        })
+        // Total unique speakers via COUNT(DISTINCT) to avoid loading all rows into memory
+        prisma.$queryRaw<[{ count: bigint }]>`
+          SELECT COUNT(DISTINCT st."personId") AS count
+          FROM "SpeakerTag" st
+          WHERE st."personId" IS NOT NULL
+            AND EXISTS (
+              SELECT 1 FROM "SpeakerSegment" ss
+              JOIN "CouncilMeeting" cm ON cm.id = ss."meetingId" AND cm.released = true
+              LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+              WHERE ss."speakerTagId" = st.id
+                AND (s.type IS NULL OR s.type != 'procedural')
+            )
+        `.then(r => Number(r[0].count))
     ]);
 
     const sumEnd = segmentAgg._sum.endTimestamp || 0;
@@ -136,7 +125,7 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
         meetingCount,
         hoursTranscribed,
         wordCount,
-        speakerCount: speakersAgg.length,
+        speakerCount: speakersAgg,
     };
 }
 
@@ -158,7 +147,7 @@ export async function getTopicDistribution(cityId?: string): Promise<TopicDistri
     JOIN "SpeakerSegment" ss ON tl."speakerSegmentId" = ss.id
     JOIN "Topic" t ON tl."topicId" = t.id
     JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-    LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+    LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
       AND (s.type IS NULL OR s.type != 'procedural')
       ${cityFilter}
@@ -193,10 +182,11 @@ export async function getPartyDistribution(cityId?: string): Promise<PartyDistri
     JOIN LATERAL (
       SELECT r."partyId" FROM "Role" r
       WHERE r."personId" = st."personId" AND r."cityId" = ss."cityId" AND r."partyId" IS NOT NULL
+      ORDER BY r.id DESC
       LIMIT 1
     ) r ON true
     JOIN "Party" p ON r."partyId" = p.id
-    LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+    LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
       AND (s.type IS NULL OR s.type != 'procedural')
       ${cityFilter}
@@ -220,12 +210,11 @@ export async function getMonthlyGrowth(): Promise<MonthlyGrowthItem[]> {
     SELECT
       to_char(cm."dateTime", 'YYYY-MM') as month,
       CAST(COUNT(DISTINCT cm.id) AS INTEGER) as "meetingCount",
-      CAST(COALESCE(SUM(ss."endTimestamp" - ss."startTimestamp"), 0) AS FLOAT) as "totalSeconds"
+      CAST(COALESCE(SUM(CASE WHEN (s.type IS NULL OR s.type != 'procedural') THEN ss."endTimestamp" - ss."startTimestamp" ELSE 0 END), 0) AS FLOAT) as "totalSeconds"
     FROM "CouncilMeeting" cm
     LEFT JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-    LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+    LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
-      AND (s.type IS NULL OR s.type != 'procedural')
       AND cm."dateTime" >= NOW() - INTERVAL '24 months'
     GROUP BY month
     ORDER BY month ASC
