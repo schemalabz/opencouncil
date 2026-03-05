@@ -46,8 +46,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const [speakerTags, setSpeakerTags] = useState(data.speakerTags);
     const [transcript, setTranscript] = useState(data.transcript);
     const [highlights, setHighlights] = useState(data.highlights);
+    const orderedTranscript = useMemo(() => {
+        return [...transcript].sort((a, b) => {
+            if (a.startTimestamp !== b.startTimestamp) {
+                return a.startTimestamp - b.startTimestamp;
+            }
+            if (a.endTimestamp !== b.endTimestamp) {
+                return a.endTimestamp - b.endTimestamp;
+            }
+            return a.id.localeCompare(b.id);
+        });
+    }, [transcript]);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
-    const speakerSegmentsMap = useMemo(() => new Map(transcript.map(segment => [segment.id, segment])), [transcript]);
+    const speakerSegmentsMap = useMemo(() => new Map(orderedTranscript.map(segment => [segment.id, segment])), [orderedTranscript]);
     const highlightsMap = useMemo(() => new Map(highlights.map(h => [h.id, h])), [highlights]);
 
     // Helper function to recalculate segment timestamps based on utterances
@@ -63,12 +74,12 @@ export function CouncilMeetingDataProvider({ children, data }: {
     // Create a map of speaker tag IDs to their segment counts
     const speakerTagSegmentCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        transcript.forEach(segment => {
+        orderedTranscript.forEach(segment => {
             const count = counts.get(segment.speakerTag.id) || 0;
             counts.set(segment.speakerTag.id, count + 1);
         });
         return counts;
-    }, [transcript]);
+    }, [orderedTranscript]);
 
     // Highlight management methods
     const addHighlight = useCallback((highlight: HighlightWithUtterances) => {
@@ -79,11 +90,11 @@ export function CouncilMeetingDataProvider({ children, data }: {
         setHighlights(prev => {
             const highlightIndex = prev.findIndex(h => h.id === highlightId);
             if (highlightIndex === -1) return prev;
-            
+
             // Remove the highlight from its current position
             const updatedHighlight = { ...prev[highlightIndex], ...updates };
             const newHighlights = prev.filter(h => h.id !== highlightId);
-            
+
             // Add it to the start of the list
             return [updatedHighlight, ...newHighlights];
         });
@@ -99,7 +110,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
     const contextValue = useMemo(() => ({
         ...data,
-        transcript,
+        transcript: orderedTranscript,
         speakerTags,
         highlights,
         getPerson: (id: string) => peopleMap.get(id),
@@ -142,7 +153,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 // Find the index of the segment we're inserting after using fresh state
                 const segmentIndex = prev.findIndex(s => s.id === afterSegmentId);
                 if (segmentIndex === -1) return prev;
-                
+
                 return [
                     ...prev.slice(0, segmentIndex + 1),
                     newSegment,
@@ -165,7 +176,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                 // Find the index of the segment we're inserting before using fresh state
                 const segmentIndex = prev.findIndex(s => s.id === beforeSegmentId);
                 if (segmentIndex === -1) return prev;
-                
+
                 return [
                     ...prev.slice(0, segmentIndex),
                     newSegment,
@@ -239,7 +250,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
             // Remove the segment from the transcript
             setTranscript(prev => {
                 const updated = prev.filter(s => s.id !== segmentId);
-                
+
                 // Only remove the speaker tag if no other segments are using it
                 if (deletedSpeakerTagId) {
                     const isTagStillInUse = updated.some(s => s.speakerTagId === deletedSpeakerTagId);
@@ -247,7 +258,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
                         setSpeakerTags(prevTags => prevTags.filter(t => t.id !== deletedSpeakerTagId));
                     }
                 }
-                
+
                 return updated;
             });
         },
@@ -257,7 +268,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         updateSpeakerSegmentData: async (segmentId: string, editData: EditableSpeakerSegmentData) => {
             console.log(`Updating speaker segment ${segmentId} data`);
             const updatedSegment = await updateSpeakerSegmentData(segmentId, editData, data.meeting.cityId);
-            
+
             // Update transcript state with the fully updated segment data
             setTranscript(prev => prev.map(segment =>
                 segment.id === segmentId ? updatedSegment : segment
@@ -266,19 +277,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
         addUtteranceToSegment: async (segmentId: string) => {
             console.log(`Adding utterance to segment ${segmentId}`);
             const updatedSegment = await addUtteranceToSegment(segmentId, data.meeting.cityId);
-            
+
             // Update transcript state with the fully updated segment data
             setTranscript(prev => prev.map(segment =>
                 segment.id === segmentId ? updatedSegment : segment
             ));
-            
+
             // Return the ID of the newly created utterance (last one in the updated segment)
             const newUtterance = updatedSegment.utterances[updatedSegment.utterances.length - 1];
             return newUtterance?.id || '';
         },
         extractSpeakerSegment: async (segmentId: string, startUtteranceId: string, endUtteranceId: string) => {
             const newSegments = await extractSpeakerSegment(data.meeting.cityId, data.meeting.id, segmentId, startUtteranceId, endUtteranceId);
-            
+
             // Replace the original segment with the new segments (Before, Middle, After)
             setTranscript(prev => {
                 const originalIndex = prev.findIndex(s => s.id === segmentId);
@@ -286,32 +297,32 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
                 const updatedTranscript = [...prev];
                 updatedTranscript.splice(originalIndex, 1, ...newSegments);
-                
+
                 return updatedTranscript;
             });
-            
+
             // Add any new speaker tags that were created
             const newTags = newSegments.map(s => s.speakerTag);
             setSpeakerTags(prev => {
-                 const prevIds = new Set(prev.map(t => t.id));
-                 const tagsToAdd = newTags.filter(t => !prevIds.has(t.id));
-                 return [...prev, ...tagsToAdd];
+                const prevIds = new Set(prev.map(t => t.id));
+                const tagsToAdd = newTags.filter(t => !prevIds.has(t.id));
+                return [...prev, ...tagsToAdd];
             });
         },
         deleteUtterance: async (utteranceId: string) => {
             console.log(`Deleting utterance ${utteranceId}`);
             const { segmentId, remainingUtterances } = await deleteUtterance(utteranceId);
-            
+
             // Update the segment to remove the utterance
             setTranscript(prev => prev.map(segment => {
                 if (segment.id === segmentId) {
                     const updatedUtterances = segment.utterances.filter(u => u.id !== utteranceId);
-                    
+
                     // If no utterances remain, keep the segment but with empty utterances array
                     if (remainingUtterances === 0) {
                         return { ...segment, utterances: [] };
                     }
-                    
+
                     // Otherwise, recalculate timestamps based on remaining utterances
                     const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
                     return {
@@ -324,33 +335,35 @@ export function CouncilMeetingDataProvider({ children, data }: {
             }));
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {
-            setTranscript(prev => prev.map(segment => {
-                if (segment.id === segmentId) {
-                    // Update the utterance
-                    const updatedUtterances = segment.utterances.map(u =>
-                        u.id === utteranceId ? { ...u, ...updates } : u
-                    );
-                    
-                    // If timestamps changed, recalculate segment boundaries
-                    const timestampsChanged = 'startTimestamp' in updates || 'endTimestamp' in updates;
-                    if (timestampsChanged) {
-                        const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+            setTranscript(prev => {
+                const timestampsChanged = 'startTimestamp' in updates || 'endTimestamp' in updates;
+                const updated = prev.map(segment => {
+                    if (segment.id === segmentId) {
+                        const updatedUtterances = segment.utterances.map(u =>
+                            u.id === utteranceId ? { ...u, ...updates } : u
+                        );
+
+                        if (timestampsChanged) {
+                            const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+                            return {
+                                ...segment,
+                                utterances: updatedUtterances,
+                                ...newTimestamps
+                            };
+                        }
+
                         return {
                             ...segment,
-                            utterances: updatedUtterances,
-                            ...newTimestamps
+                            utterances: updatedUtterances
                         };
                     }
-                    
-                    return {
-                        ...segment,
-                        utterances: updatedUtterances
-                    };
-                }
-                return segment;
-            }));
+                    return segment;
+                });
+
+                return updated;
+            });
         }
-    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, transcript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
+    }), [data, peopleMap, partiesMap, speakerTags, speakerTagsMap, speakerSegmentsMap, orderedTranscript, speakerTagSegmentCounts, highlights, addHighlight, updateHighlight, removeHighlight, getHighlight, recalculateSegmentTimestamps]);
 
     return (
         <CouncilMeetingDataContext.Provider value={contextValue}>

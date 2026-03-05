@@ -28,10 +28,6 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
     const [isWide, setIsWide] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    const memoizedUtterances = useMemo(() => {
-        return meetingData.transcript.map((u) => u.utterances).flat()
-    }, [meetingData.transcript]);
-
     const memoizedMeeting = useMemo(() => meetingData.meeting, [meetingData.meeting]);
 
     useEffect(() => {
@@ -61,7 +57,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
-                    <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
+                    <VideoProvider meeting={memoizedMeeting}>
                         <UtteranceExpansionProvider>
                             <HighlightProvider>
                                 <KeyboardShortcutsProvider>
