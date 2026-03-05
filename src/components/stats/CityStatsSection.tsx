@@ -25,10 +25,12 @@ function SmallRing({
     items: { id: string; name: string; colorHex: string; percentage: number }[];
     testId?: string;
 }) {
-    const ringData = items.map((item) => ({
-        color: item.colorHex || "#94a3b8",
-        percentage: item.percentage,
-    }));
+    const top5 = items.slice(0, 5);
+    const otherPercentage = items.slice(5).reduce((acc, item) => acc + item.percentage, 0);
+    const ringData = [
+        ...top5.map((item) => ({ color: item.colorHex || "#94a3b8", percentage: item.percentage })),
+        ...(otherPercentage > 0 ? [{ color: "#94a3b8", percentage: otherPercentage }] : []),
+    ];
     return (
         <div data-testid={testId} className="flex flex-col items-center gap-4">
             <h4 className="text-sm font-semibold text-foreground">{title}</h4>
@@ -53,19 +55,25 @@ export function CityStatsSection({ cities, initialTopics, initialParties }: City
     const [selectedCityId, setSelectedCityId] = useState<string>("global");
     const [topics, setTopics] = useState<TopicDistributionItem[]>(initialTopics);
     const [parties, setParties] = useState<PartyDistributionItem[]>(initialParties);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
     function handleCityChange(cityId: string) {
         setSelectedCityId(cityId);
+        setFetchError(null);
         if (cityId === "global") {
             setTopics(initialTopics);
             setParties(initialParties);
             return;
         }
         startTransition(async () => {
-            const data = await getCityStats(cityId);
-            setTopics(data.topics);
-            setParties(data.parties);
+            try {
+                const data = await getCityStats(cityId);
+                setTopics(data.topics);
+                setParties(data.parties);
+            } catch {
+                setFetchError("Αποτυχία φόρτωσης στατιστικών δήμου.");
+            }
         });
     }
 
@@ -96,6 +104,9 @@ export function CityStatsSection({ cities, initialTopics, initialParties }: City
                     ))}
                 </select>
             </div>
+            {fetchError && (
+                <p className="text-sm text-destructive mb-4">{fetchError}</p>
+            )}
             <div
                 data-testid="city-stats-rings"
                 className={`grid md:grid-cols-2 gap-10 transition-opacity duration-300 ${isPending ? "opacity-50" : "opacity-100"}`}
