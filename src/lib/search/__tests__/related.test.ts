@@ -9,6 +9,12 @@ jest.mock('@/env.mjs', () => ({
     }
 }));
 
+const mockSearch = jest.fn();
+
+jest.mock('@elastic/elasticsearch', () => ({
+    Client: jest.fn().mockImplementation(() => ({ search: mockSearch }))
+}));
+
 import { findRelatedSubjects } from '../related';
 import { executeElasticsearchWithRetry } from '../retry';
 import prisma from '@/lib/db/prisma';
@@ -30,6 +36,7 @@ const mockPrismaMeetingFindMany = prisma.councilMeeting.findMany as jest.Mock;
 describe('findRelatedSubjects', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockSearch.mockResolvedValue({ hits: { hits: [] } });
     });
 
     it('returns empty array when no ES hits are found', async () => {
@@ -178,11 +185,10 @@ describe('findRelatedSubjects', () => {
         });
     });
 
-    it('builds topic boost clause when topicId is provided', async () => {
-        // Arrange
-        mockExecuteES.mockResolvedValueOnce({
-            hits: { hits: [] }
-        } as any);
+    it('builds topic boost clause in both BM25 and semantic arms when topicId is provided', async () => {
+        // Arrange: execute the thunk directly so we can inspect the ES query
+        mockExecuteES.mockImplementationOnce((thunk) => thunk());
+        mockSearch.mockResolvedValueOnce({ hits: { hits: [] } });
 
         // Act
         await findRelatedSubjects({
@@ -192,14 +198,28 @@ describe('findRelatedSubjects', () => {
             topicId: 'topic456'
         });
 
-        // Assert
-        const esCallArgs = mockExecuteES.mock.calls[0][0]; // the thunk
-        const query = await esCallArgs(); // execute the thunk to see what it passes to ES
-        // Note: this part of testing the actual ES query payload structure would require 
-        // mocking the Elasticsearch client directly, but we at least verify the thunk runs.
+        // Assert: ES client was called with the correct query shape
+        expect(mockSearch).toHaveBeenCalledTimes(1);
+        const searchParams = mockSearch.mock.calls[0][0];
+        const retrievers = searchParams.retriever.rrf.retrievers;
 
-        // In a real TDD, we would extract the payload builder to test it pure, 
-        // or spy on the client.search call. For now, testing the branch logic in the function.
-        expect(mockExecuteES).toHaveBeenCalled();
+        // Arm 1 (BM25): topic boost in bool.should
+        const arm1Bool = retrievers[0].standard.query.bool;
+        expect(arm1Bool.should).toEqual(
+            expect.arrayContaining([
+                { term: { topic_id: { value: 'topic456', boost: 2.0 } } }
+            ])
+        );
+
+        // Arm 2 (semantic): topic boost merged into should array (not overwriting semantic clauses)
+        const arm2Bool = retrievers[1].standard.query.bool;
+        expect(arm2Bool.should).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ semantic: expect.objectContaining({ field: 'name.semantic' }) }),
+                { term: { topic_id: { value: 'topic456', boost: 2.0 } } }
+            ])
+        );
+        // minimum_should_match must still be present (semantic search not silently disabled)
+        expect(arm2Bool.minimum_should_match).toBe(1);
     });
 });
