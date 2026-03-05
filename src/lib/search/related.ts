@@ -181,6 +181,7 @@ export async function findRelatedSubjects(input: FindRelatedSubjectsInput): Prom
             topicName: src.topic_name ?? null,
             topicColor: topicData?.colorHex ?? null,
             topicIcon: topicData?.icon ?? null,
+            meetingId: src.councilMeeting_id ?? null,
             meetingDate: src.meeting_date ?? null,
             meetingName: src.meeting_name ?? null,
             cityId: src.city_id ?? '',

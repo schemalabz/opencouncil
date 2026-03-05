@@ -31,8 +31,8 @@ function RelatedSubjectItem({ subject, locale }: { subject: RelatedSubjectResult
     return (
         <div className="flex flex-col gap-2 py-3 border-b last:border-0 border-border">
             <div className="flex items-start justify-between gap-4">
-                <NextLink 
-                    href={`/${subject.cityId}/meetings/${subject.id}`} 
+                <NextLink
+                    href={`/${subject.cityId}/meetings/${subject.meetingId}/subjects/${subject.id}`}
                     prefetch={false}
                     className="group"
                 >

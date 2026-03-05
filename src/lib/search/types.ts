@@ -87,6 +87,7 @@ export interface RelatedSubjectResult {
     topicName: string | null;
     topicColor: string | null;
     topicIcon: string | null;
+    meetingId: string | null;
     meetingDate: string | null;
     meetingName: string | null;
     cityId: string;
