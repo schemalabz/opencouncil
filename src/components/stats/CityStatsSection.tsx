@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { TopicDistributionItem, PartyDistributionItem } from "@/lib/db/insights";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import { getCityStats } from "./cityStatsActions";
@@ -58,8 +58,11 @@ export function CityStatsSection({ cities, initialTopics, initialParties }: City
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
+    const latestCityRef = useRef<string>("global");
+
     function handleCityChange(cityId: string) {
         setSelectedCityId(cityId);
+        latestCityRef.current = cityId;
         setFetchError(null);
         if (cityId === "global") {
             setTopics(initialTopics);
@@ -69,10 +72,15 @@ export function CityStatsSection({ cities, initialTopics, initialParties }: City
         startTransition(async () => {
             try {
                 const data = await getCityStats(cityId);
-                setTopics(data.topics);
-                setParties(data.parties);
+                // Ignore response if user has already navigated to a different city
+                if (latestCityRef.current === cityId) {
+                    setTopics(data.topics);
+                    setParties(data.parties);
+                }
             } catch {
-                setFetchError("Αποτυχία φόρτωσης στατιστικών δήμου.");
+                if (latestCityRef.current === cityId) {
+                    setFetchError("Αποτυχία φόρτωσης στατιστικών δήμου.");
+                }
             }
         });
     }
