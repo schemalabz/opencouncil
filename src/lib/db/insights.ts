@@ -42,7 +42,7 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
     const [
         cityCount,
         meetingCount,
-        segmentAgg,
+        totalSecondsRaw,
         wordCount,
         speakersAgg
     ] = await Promise.all([
@@ -64,41 +64,24 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
             },
         }),
 
-        // Transcribed hours: sum(endTimestamp) - sum(startTimestamp) for substantive segments in released meetings
-        prisma.speakerSegment.aggregate({
-            where: {
-                meeting: {
-                    released: true,
-                },
-                summary: {
-                    type: {
-                        not: "procedural"
-                    }
-                }
-            },
-            _sum: {
-                endTimestamp: true,
-                startTimestamp: true,
-            },
-        }),
+        // Transcribed hours: use LATERAL join to match SQL null-summary inclusion logic
+        prisma.$queryRaw<[{ totalSeconds: number }]>`
+          SELECT CAST(COALESCE(SUM(CASE WHEN (s.type IS NULL OR s.type != 'procedural') THEN ss."endTimestamp" - ss."startTimestamp" ELSE 0 END), 0) AS FLOAT) as "totalSeconds"
+          FROM "SpeakerSegment" ss
+          JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND cm.released = true
+          LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
+        `.then(r => r[0].totalSeconds),
 
         // Total words in substantive segments of released meetings
-        prisma.word.count({
-            where: {
-                utterance: {
-                    speakerSegment: {
-                        meeting: {
-                            released: true,
-                        },
-                        summary: {
-                            type: {
-                                not: "procedural"
-                            }
-                        }
-                    }
-                }
-            }
-        }),
+        prisma.$queryRaw<[{ wordCount: bigint }]>`
+          SELECT COUNT(w.id) as "wordCount"
+          FROM "Word" w
+          JOIN "Utterance" u ON w."utteranceId" = u.id
+          JOIN "SpeakerSegment" ss ON u."speakerSegmentId" = ss.id
+          JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND cm.released = true
+          LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
+          WHERE (s.type IS NULL OR s.type != 'procedural')
+        `.then(r => Number(r[0].wordCount)),
 
         // Total unique speakers via COUNT(DISTINCT) to avoid loading all rows into memory
         prisma.$queryRaw<[{ count: bigint }]>`
@@ -108,17 +91,14 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
             AND EXISTS (
               SELECT 1 FROM "SpeakerSegment" ss
               JOIN "CouncilMeeting" cm ON cm.id = ss."meetingId" AND cm.released = true
-              LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+              LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
               WHERE ss."speakerTagId" = st.id
                 AND (s.type IS NULL OR s.type != 'procedural')
             )
         `.then(r => Number(r[0].count))
     ]);
 
-    const sumEnd = segmentAgg._sum.endTimestamp || 0;
-    const sumStart = segmentAgg._sum.startTimestamp || 0;
-    const totalSeconds = sumEnd - sumStart;
-    const hoursTranscribed = Math.round(totalSeconds / 3600);
+    const hoursTranscribed = Math.round(Number(totalSecondsRaw) / 3600);
 
     return {
         cityCount,
@@ -242,7 +222,7 @@ export async function getCityLeaderboard(): Promise<CityLeaderboardItem[]> {
     FROM "City" c
     JOIN "CouncilMeeting" cm ON cm."cityId" = c.id AND cm.released = true
     LEFT JOIN "SpeakerSegment" ss ON ss."cityId" = c.id AND ss."meetingId" = cm.id
-    LEFT JOIN "Summary" s ON s."speakerSegmentId" = ss.id
+    LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     GROUP BY c.id, c.name
     ORDER BY "totalSeconds" DESC
   `;
