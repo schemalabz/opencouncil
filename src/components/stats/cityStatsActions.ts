@@ -1,14 +1,15 @@
 "use server";
 
-import { getTopicDistribution, getPartyDistribution, TopicDistributionItem, PartyDistributionItem } from "@/lib/db/insights";
+import { TopicDistributionItem, PartyDistributionItem } from "@/lib/db/insights";
+import { getTopicDistributionCached, getPartyDistributionCached } from "@/lib/cache/queries";
 
 export async function getCityStats(cityId: string): Promise<{
     topics: TopicDistributionItem[];
     parties: PartyDistributionItem[];
 }> {
     const [topics, parties] = await Promise.all([
-        getTopicDistribution(cityId),
-        getPartyDistribution(cityId),
+        getTopicDistributionCached(cityId),
+        getPartyDistributionCached(cityId),
     ]);
     return { topics, parties };
 }
