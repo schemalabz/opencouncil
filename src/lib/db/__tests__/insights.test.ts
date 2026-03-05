@@ -14,15 +14,11 @@ jest.mock('../prisma', () => ({
     default: {
         city: { count: jest.fn() },
         councilMeeting: { count: jest.fn() },
-        speakerSegment: { aggregate: jest.fn() },
-        word: { count: jest.fn() },
-        speakerTag: { findMany: jest.fn() },
         $queryRaw: jest.fn(),
     }
 }));
 
 import prisma from '../prisma';
-import { Prisma } from '@prisma/client';
 import {
     getGlobalKPIs,
     getTopicDistribution,
@@ -40,13 +36,12 @@ describe('Insights Queries', () => {
         it('returns expected shape and calculates hours transcribed', async () => {
             (prisma.city.count as jest.Mock).mockResolvedValue(10);
             (prisma.councilMeeting.count as jest.Mock).mockResolvedValue(100);
-            (prisma.speakerSegment.aggregate as jest.Mock).mockResolvedValue({
-                _sum: { endTimestamp: 36000, startTimestamp: 0 }
-            });
-            (prisma.word.count as jest.Mock).mockResolvedValue(50000);
-            (prisma.speakerTag.findMany as jest.Mock).mockResolvedValue([
-                { personId: 'p1' }, { personId: 'p2' }
-            ]);
+            // hours: 36000 seconds → 10 hours
+            (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ totalSeconds: 36000 }]);
+            // wordCount
+            (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ wordCount: BigInt(50000) }]);
+            // speakerCount
+            (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([{ count: BigInt(2) }]);
 
             const result = await getGlobalKPIs();
 
