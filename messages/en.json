@@ -528,7 +528,19 @@
         "decisionTitle": "Title",
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
-        "viewDecision": "View decision on Diavgeia"
+        "viewDecision": "View decision on Diavgeia",
+        "relatedSubjects": {
+            "title": "Related Subjects",
+            "sameBody": "In the same body",
+            "elsewhere": "Elsewhere",
+            "loading": "Loading related subjects..."
+        },
+        "voting": "Voting",
+        "votingDisclaimer": "OpenCouncil does not yet extract votes on subjects — but the discussion related to voting is displayed below",
+        "noVotingUtterances": "No voting found for this subject",
+        "groupedDiscussion": "Discussed together with other subjects",
+        "groupedDiscussionDescription": "This subject appears to have been discussed and voted on together with other subjects. See the discussion at:",
+        "fetchDecisionButton": "Search Diavgeia"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
