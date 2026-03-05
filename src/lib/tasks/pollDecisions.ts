@@ -438,6 +438,68 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         ])];
     }
 
+    // ADA conflicts: subjects with claimedAda set
+    const claimingSubjects = await prisma.subject.findMany({
+        where: {
+            claimedAda: { not: null },
+            ...(cityId && { cityId }),
+            ...(councilMeetingId && { councilMeetingId }),
+        },
+        select: {
+            id: true,
+            name: true,
+            cityId: true,
+            councilMeetingId: true,
+            claimedAda: true,
+        },
+    });
+
+    // Look up existing decisions for the claimed ADAs
+    const claimedAdas = claimingSubjects.map(s => s.claimedAda!);
+    const existingDecisionsForClaims = claimedAdas.length > 0
+        ? await prisma.decision.findMany({
+            where: { ada: { in: claimedAdas } },
+            select: {
+                ada: true,
+                title: true,
+                pdfUrl: true,
+                subjectId: true,
+                subject: {
+                    select: {
+                        id: true,
+                        name: true,
+                        cityId: true,
+                        councilMeetingId: true,
+                    },
+                },
+            },
+        })
+        : [];
+    const decisionByAda = new Map(existingDecisionsForClaims.map(d => [d.ada!, d]));
+
+    const conflicts = claimingSubjects.map(claiming => {
+        const existingDecision = decisionByAda.get(claiming.claimedAda!);
+        return {
+            claimingSubject: {
+                id: claiming.id,
+                name: claiming.name,
+                cityId: claiming.cityId,
+                councilMeetingId: claiming.councilMeetingId,
+            },
+            ada: claiming.claimedAda!,
+            existingDecision: existingDecision ? {
+                title: existingDecision.title,
+                pdfUrl: existingDecision.pdfUrl,
+                currentSubject: {
+                    id: existingDecision.subject.id,
+                    name: existingDecision.subject.name,
+                    cityId: existingDecision.subject.cityId,
+                    councilMeetingId: existingDecision.subject.councilMeetingId,
+                },
+            } : null,
+        };
+    });
+
     // Recent poll tasks for the "Recent Polls" table
     const recentPollTasks = await prisma.taskStatus.findMany({
         where: {
@@ -501,6 +563,7 @@ export async function getPollingStats(cityId?: string, councilMeetingId?: string
         backoffSchedule: BACKOFF_SCHEDULE,
         maxPollingDays: MAX_POLLING_DAYS,
         meetingsStillPolling,
+        conflicts,
         summary: {
             totalDiscoveries: discoveryDetails.length,
             meetingsStillPolling: meetingsStillPolling.length,
@@ -660,6 +723,89 @@ export async function getLastPollTimeForMeeting(
     return lastTask?.createdAt.toISOString() ?? null;
 }
 
+export async function resolveAdaConflict(
+    subjectId: string,
+    resolution: 'reassign' | 'dismiss',
+) {
+    const subject = await prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { id: true, cityId: true, claimedAda: true },
+    });
+
+    if (!subject) {
+        throw new Error("Subject not found");
+    }
+
+    await withUserAuthorizedToEdit({ cityId: subject.cityId });
+
+    if (!subject.claimedAda) {
+        throw new Error("Subject has no claimed ADA");
+    }
+
+    if (resolution === 'dismiss') {
+        await prisma.subject.update({
+            where: { id: subjectId },
+            data: { claimedAda: null },
+        });
+        return;
+    }
+
+    // resolution === 'reassign'
+    await prisma.$transaction(async (tx) => {
+        // Re-read claimedAda inside the transaction to avoid using a stale value
+        const freshSubject = await tx.subject.findUnique({
+            where: { id: subjectId },
+            select: { claimedAda: true },
+        });
+
+        if (!freshSubject?.claimedAda) {
+            // Claim was resolved concurrently — nothing to do
+            return;
+        }
+
+        // Only move the decision if the claiming subject doesn't already have one
+        const existingOnClaiming = await tx.decision.findUnique({
+            where: { subjectId },
+        });
+
+        if (!existingOnClaiming) {
+            const existingDecision = await tx.decision.findUnique({
+                where: { ada: freshSubject.claimedAda },
+                include: { subject: { select: { cityId: true } } },
+            });
+
+            if (existingDecision) {
+                // Defensive: polls are per-city so cross-city conflicts shouldn't occur,
+                // but guard against it to prevent modifying another city's data.
+                if (existingDecision.subject.cityId !== subject.cityId) {
+                    throw new Error("Cannot reassign a decision that belongs to a different city");
+                }
+
+                // Delete existing decision to free ADA unique constraint, then recreate on claiming subject
+                await tx.decision.delete({ where: { id: existingDecision.id } });
+                await tx.decision.create({
+                    data: {
+                        subjectId,
+                        ada: existingDecision.ada,
+                        pdfUrl: existingDecision.pdfUrl,
+                        protocolNumber: existingDecision.protocolNumber,
+                        title: existingDecision.title,
+                        publishDate: existingDecision.publishDate,
+                        taskId: existingDecision.taskId,
+                        createdById: existingDecision.createdById,
+                    },
+                });
+            }
+        }
+
+        // Always clear the claim
+        await tx.subject.update({
+            where: { id: subjectId },
+            data: { claimedAda: null },
+        });
+    });
+}
+
 export async function handlePollDecisionsResult(taskId: string, result: PollDecisionsResult) {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -700,9 +846,20 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // successful delete would permanently lose decision data.
     let reassignmentCount = 0;
     let processedCount = 0;
+    let conflictCount = 0;
 
     await prisma.$transaction(async (tx) => {
-        // Step 1: Process reassignments — delete old decisions to free ADA unique constraint
+        // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
+        const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
+        const existingDecisions = matchAdas.length > 0
+            ? await tx.decision.findMany({ where: { ada: { in: matchAdas } }, select: { ada: true, subjectId: true } })
+            : [];
+        const adaToExistingSubject = new Map(existingDecisions.map(d => [d.ada!, d.subjectId]));
+
+        // Build set of ADAs being reassigned — these are handled explicitly, not conflicts
+        const reassignedAdas = new Set(result.reassignments.map(r => r.ada));
+
+        // Step 2: Process reassignments — delete old decisions to free ADA unique constraint
         if (result.reassignments.length > 0) {
             for (const r of result.reassignments) {
                 if (!validSubjectIdSet.has(r.fromSubjectId) || !validSubjectIdSet.has(r.toSubjectId)) {
@@ -715,7 +872,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
 
-        // Step 2: Upsert new matches (including reassigned ones)
+        // Step 3: Upsert new matches (including reassigned ones), recording conflicts
         for (const match of result.matches) {
             // Skip any subjectIds that don't belong to this meeting
             if (!validSubjectIdSet.has(match.subjectId)) {
@@ -723,28 +880,70 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 continue;
             }
 
-            await tx.decision.upsert({
-                where: { subjectId: match.subjectId },
-                create: {
-                    subjectId: match.subjectId,
-                    pdfUrl: match.pdfUrl,
-                    protocolNumber: match.protocolNumber ?? null,
-                    ada: match.ada ?? null,
-                    title: match.decisionTitle ?? null,
-                    publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                    taskId,
-                },
-                update: {
-                    pdfUrl: match.pdfUrl,
-                    protocolNumber: match.protocolNumber ?? null,
-                    ada: match.ada ?? null,
-                    title: match.decisionTitle ?? null,
-                    publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                },
+            // Check for ADA conflict: ADA exists on a different subject and isn't being reassigned
+            if (match.ada) {
+                const existingSubjectId = adaToExistingSubject.get(match.ada);
+                if (existingSubjectId && existingSubjectId !== match.subjectId && !reassignedAdas.has(match.ada)) {
+                    // Record the claim on the incoming subject, skip the upsert
+                    await tx.subject.update({
+                        where: { id: match.subjectId },
+                        data: { claimedAda: match.ada },
+                    });
+                    conflictCount++;
+                    console.log(`ADA conflict: ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
+                    continue;
+                }
+            }
+
+            try {
+                await tx.decision.upsert({
+                    where: { subjectId: match.subjectId },
+                    create: {
+                        subjectId: match.subjectId,
+                        pdfUrl: match.pdfUrl,
+                        protocolNumber: match.protocolNumber ?? null,
+                        ada: match.ada ?? null,
+                        title: match.decisionTitle ?? null,
+                        publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                        taskId,
+                    },
+                    update: {
+                        pdfUrl: match.pdfUrl,
+                        protocolNumber: match.protocolNumber ?? null,
+                        ada: match.ada ?? null,
+                        title: match.decisionTitle ?? null,
+                        publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                    },
+                });
+            } catch (e) {
+                // Concurrent poll race: another transaction committed a decision with the same
+                // ADA between our conflict check and this upsert. Fall back to recording a claim.
+                if (match.ada && (e as { code?: string })?.code === 'P2002') {
+                    await tx.subject.update({
+                        where: { id: match.subjectId },
+                        data: { claimedAda: match.ada },
+                    });
+                    conflictCount++;
+                    console.log(`ADA conflict (concurrent): ${match.ada} claimed by subject ${match.subjectId}`);
+                    continue;
+                }
+                throw e;
+            }
+
+            // Clear any stale conflict claim now that this subject has a valid decision
+            await tx.subject.updateMany({
+                where: { id: match.subjectId, claimedAda: { not: null } },
+                data: { claimedAda: null },
             });
+
             processedCount++;
+
+            // Track this ADA so later matches in the same batch see it as taken
+            if (match.ada) {
+                adaToExistingSubject.set(match.ada, match.subjectId);
+            }
         }
     });
 
-    console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
+    console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }
