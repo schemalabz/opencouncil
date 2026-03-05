@@ -852,7 +852,9 @@
             "title": "Related Subjects",
             "sameBody": "In the same body",
             "elsewhere": "Elsewhere",
-            "loading": "Loading related subjects..."
+            "loading": "Loading related subjects...",
+            "error": "Failed to load related subjects. Please try again later.",
+            "noResults": "No related subjects found."
         }
     },
     "CouncilMeeting": {

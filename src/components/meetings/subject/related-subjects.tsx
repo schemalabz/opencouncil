@@ -136,13 +136,13 @@ export function RelatedSubjects({ subjectId, cityId }: RelatedSubjectsProps) {
                 {error && (
                     <div className="flex items-center gap-2 text-destructive py-4 text-sm bg-destructive/10 rounded-md px-3 border border-destructive/20">
                         <ServerCrash className="w-4 h-4" />
-                        <span>Failed to load related subjects. Please try again later.</span>
+                        <span>{t('error')}</span>
                     </div>
                 )}
 
                 {hasLoaded && !loading && !error && !hasResults && (
                     <div className="text-sm text-muted-foreground py-4 text-center">
-                        No related subjects found.
+                        {t('noResults')}
                     </div>
                 )}
 

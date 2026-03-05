@@ -89,14 +89,14 @@ export async function findRelatedSubjects(input: FindRelatedSubjectsInput): Prom
                                                         boost: 1.0
                                                     }
                                                 }]
-                                                : [])
+                                                : []),
+                                            ...topicBoostClause
                                         ],
                                         minimum_should_match: 1,
                                         filter: [
                                             { term: { meeting_released: true } },
                                             { bool: { must_not: { term: { _id: subjectId } } } }
-                                        ],
-                                        ...(topicBoostClause.length > 0 ? { should: topicBoostClause } : {})
+                                        ]
                                     }
                                 }
                             }
