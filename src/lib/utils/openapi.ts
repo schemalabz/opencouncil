@@ -48,8 +48,14 @@ export function filterSpecByAccessLevel(spec: OpenApiSpec, userLevel: AccessLeve
 
             const operation = value as OpenApiOperation;
             const opLevel = (operation['x-access-level'] ?? 'public') as AccessLevel;
+            const opIndex = ACCESS_LEVEL_ORDER.indexOf(opLevel);
 
-            if (ACCESS_LEVEL_ORDER.indexOf(opLevel) <= ACCESS_LEVEL_ORDER.indexOf(userLevel)) {
+            // Unrecognized x-access-level values are treated as maximally
+            // restrictive (hidden from everyone) so a typo can never
+            // accidentally expose an endpoint to public users.
+            if (opIndex === -1) continue;
+
+            if (opIndex <= ACCESS_LEVEL_ORDER.indexOf(userLevel)) {
                 filteredPathItem[key] = operation;
                 hasAnyOperation = true;
             }
