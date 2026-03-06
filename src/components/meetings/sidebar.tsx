@@ -19,8 +19,7 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { usePathname } from "next/navigation"
-import { cn, formatTime } from "@/lib/utils"
-import { sortSubjectsByImportance } from "@/lib/utils"
+import { cn, formatTime, sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex } from "@/lib/utils"
 import { useTranscriptOptions } from "./options/OptionsContext"
 
 export default function MeetingSidebar() {
@@ -34,10 +33,20 @@ export default function MeetingSidebar() {
     const canEdit = options.editsAllowed
     const canCreateHighlights = options.canCreateHighlights
 
-    // Sort subjects by appearance (chronological) for the sidebar
-    const chronologicalSubjects = useMemo(() => {
-        return sortSubjectsByImportance(subjects, 'appearance')
-    }, [subjects])
+    const beforeAgendaSubjects = useMemo(() =>
+        sortSubjectsBySpeakingTime(subjects.filter(s => s.nonAgendaReason === 'beforeAgenda' && s.agendaItemIndex === null)),
+        [subjects]
+    )
+
+    const outOfAgendaSubjects = useMemo(() =>
+        sortSubjectsBySpeakingTime(subjects.filter(s => s.nonAgendaReason === 'outOfAgenda' && s.agendaItemIndex === null)),
+        [subjects]
+    )
+
+    const agendaSubjects = useMemo(() =>
+        sortSubjectsByAgendaIndex(subjects.filter(s => s.agendaItemIndex !== null)),
+        [subjects]
+    )
 
     // Sync with pathname when it changes
     useEffect(() => {
@@ -161,24 +170,87 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && (
                                 <>
-                                    {chronologicalSubjects?.map((subject) => (
-                                        <SidebarMenuItem key={subject.id} className="pl-8">
-                                            <SidebarMenuButton
-                                                asChild
-                                                onClick={handleMenuItemClick}
-                                                isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
-                                            >
-                                                <Link
-                                                    href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
-                                                    className={cn(
-                                                        activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
-                                                    )}
-                                                >
-                                                    <span className="text-sm">{subject.name}</span>
-                                                </Link>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    ))}
+                                    {beforeAgendaSubjects.length > 0 && (
+                                        <>
+                                            <SidebarMenuItem className="pl-4">
+                                                <span className="text-xs font-semibold text-muted-foreground tracking-wide py-1">
+                                                    Προ ημερησίας
+                                                </span>
+                                            </SidebarMenuItem>
+                                            {beforeAgendaSubjects.map((subject, index) => (
+                                                <SidebarMenuItem key={subject.id} className="pl-8">
+                                                    <SidebarMenuButton
+                                                        asChild
+                                                        onClick={handleMenuItemClick}
+                                                        isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                    >
+                                                        <Link
+                                                            href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                            className={cn(
+                                                                activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
+                                                            )}
+                                                        >
+                                                            <span className="text-sm">{index + 1}. {subject.name}</span>
+                                                        </Link>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            ))}
+                                        </>
+                                    )}
+                                    {outOfAgendaSubjects.length > 0 && (
+                                        <>
+                                            <SidebarMenuItem className="pl-4">
+                                                <span className="text-xs font-semibold text-muted-foreground tracking-wide py-1">
+                                                    Εκτός ημερησίας
+                                                </span>
+                                            </SidebarMenuItem>
+                                            {outOfAgendaSubjects.map((subject, index) => (
+                                                <SidebarMenuItem key={subject.id} className="pl-8">
+                                                    <SidebarMenuButton
+                                                        asChild
+                                                        onClick={handleMenuItemClick}
+                                                        isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                    >
+                                                        <Link
+                                                            href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                            className={cn(
+                                                                activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
+                                                            )}
+                                                        >
+                                                            <span className="text-sm">{index + 1}. {subject.name}</span>
+                                                        </Link>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            ))}
+                                        </>
+                                    )}
+                                    {agendaSubjects.length > 0 && (
+                                        <>
+                                            <SidebarMenuItem className="pl-4">
+                                                <span className="text-xs font-semibold text-muted-foreground tracking-wide py-1">
+                                                    Ημερησίας διάταξης
+                                                </span>
+                                            </SidebarMenuItem>
+                                            {agendaSubjects.map((subject) => (
+                                                <SidebarMenuItem key={subject.id} className="pl-8">
+                                                    <SidebarMenuButton
+                                                        asChild
+                                                        onClick={handleMenuItemClick}
+                                                        isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                    >
+                                                        <Link
+                                                            href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
+                                                            className={cn(
+                                                                activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
+                                                            )}
+                                                        >
+                                                            <span className="text-sm">{subject.agendaItemIndex}. {subject.name}</span>
+                                                        </Link>
+                                                    </SidebarMenuButton>
+                                                </SidebarMenuItem>
+                                            ))}
+                                        </>
+                                    )}
                                 </>
                             )}
                         </SidebarMenu>
