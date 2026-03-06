@@ -4,6 +4,7 @@ OpenCouncil sends real-time admin alerts to Discord for key events:
 
 - 🆕 **New meeting added** - With link to view meeting
 - ▶️ **Task started/completed/failed** - With links to admin panel
+- 📋 **pollDecisions batch** - Batch started + aggregated completion summary (replaces per-task alerts)
 - ✅ **Human review completed** - With review statistics (edits, time, efficiency)
 - ✨ **User onboarded** - Via notification preferences, petition, magic link, or admin invite
 - 📝 **New petition** - When submitted for a municipality
@@ -98,6 +99,46 @@ Municipality: Athens | Meeting: City Council - January 2025
 - Secondary reviewer sessions are marked with ↳ symbol
 - Efficiency is calculated using total time from all reviewers
 - "Total Time (All)" field only appears when there are multiple reviewers
+
+**pollDecisions Alerts:**
+
+Unlike other task types, `pollDecisions` uses `discordAlertMode: 'none'` — generic per-task started/completed/failed alerts are suppressed entirely. Instead, two batch-level alerts replace them:
+
+*Batch Started (cron dispatch only):*
+```
+▶️ pollDecisions cron: 5 tasks dispatched
+Batch dispatched successfully
+Dispatched: 5 | Skipped (backoff): 2
+Meetings:
+  `athens/jan15_2025`
+  `thessaloniki/feb10_2025`
+  ...
+```
+
+*Batch Completed (when all sibling tasks finish):*
+```
+📋 pollDecisions: 3 decision(s) found
+5 task(s) completed
+Succeeded: 5 | Failed: 0 | Decisions Found: 3
+Details:
+  `athens/jan15_2025` — 2 match(es)
+  `thessaloniki/feb10_2025` — 1 match(es), 1 reassignment(s)
+Admin Panel: athens/jan15_2025 | thessaloniki/feb10_2025
+```
+
+Color coding: green (all succeeded), orange (conflicts found), red (failures).
+
+No-op runs (no new decisions):
+```
+📋 pollDecisions batch completed (no new decisions)
+5 task(s) completed
+Succeeded: 5 | Failed: 0 | Decisions Found: 0
+```
+
+**Notes:**
+- Cron batches produce **2 messages** instead of up to 20 (1 started + 1 completed).
+- Manual triggers from the admin panel get a completion summary when the task finishes (batch of 1). No separate started alert.
+- Sibling tasks are grouped by a ±2 minute window (`BATCH_WINDOW_MS`). The cron interval must be >4 minutes to avoid batch overlap.
 
 **User Onboarded:**
 ```

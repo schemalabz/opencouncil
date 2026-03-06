@@ -2,13 +2,13 @@
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
-import { MeetingTaskType, TASK_CONFIG } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, getDiscordAlertMode } from '@/lib/tasks/types';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
-import { taskHandlers } from './registry';
+import { taskHandlers, taskTerminalHooks } from './registry';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -80,7 +80,7 @@ const taskStatusWithMeetingInclude = {
     }
 } satisfies Prisma.TaskStatusInclude;
 
-export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
+export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean; silent?: boolean } = {}) => {
     // Only enforce idempotency for core pipeline tasks — non-pipeline tasks
     // (generateHighlight, splitMediaFile, etc.) can legitimately run multiple times
     if (TASK_CONFIG[taskType].requiredForPipeline) {
@@ -163,16 +163,18 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
         data: { requestBody: JSON.stringify(fullRequestBody) }
     });
 
-    // Send Discord admin alert
-    sendTaskAdminAlert({
-        status: 'started',
-        taskType: taskType,
-        cityName: newTask.councilMeeting.city.name_en,
-        meetingName: newTask.councilMeeting.name_en,
-        taskId: newTask.id,
-        cityId: cityId,
-        meetingId: councilMeetingId,
-    });
+    // Send Discord admin alert unless silent or alert mode is 'none'
+    if (!options.silent && getDiscordAlertMode(taskType) !== 'none') {
+        sendTaskAdminAlert({
+            status: 'started',
+            taskType: taskType,
+            cityName: newTask.councilMeeting.city.name_en,
+            meetingName: newTask.councilMeeting.name_en,
+            taskId: newTask.id,
+            cityId: cityId,
+            meetingId: councilMeetingId,
+        });
+    }
 
     return newTask;
 }
@@ -189,6 +191,9 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         return;
     }
 
+    // Check if generic Discord alerts should be sent for this task type
+    const sendGenericAlerts = getDiscordAlertMode(task.type) !== 'none';
+
     if (update.status === 'success') {
         const updatedTask = await prisma.taskStatus.update({
             where: { id: taskId },
@@ -200,16 +205,18 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 await processResult(taskId, update.result, options);
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
-                sendTaskAdminAlert({
-                    status: 'completed',
-                    taskType: task.type,
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: task.councilMeeting.name_en,
-                    taskId: task.id,
-                    cityId: task.cityId,
-                    meetingId: task.councilMeetingId,
-                });
-                
+                if (sendGenericAlerts) {
+                    sendTaskAdminAlert({
+                        status: 'completed',
+                        taskType: task.type,
+                        cityName: task.councilMeeting.city.name_en,
+                        meetingName: task.councilMeeting.name_en,
+                        taskId: task.id,
+                        cityId: task.cityId,
+                        meetingId: task.councilMeetingId,
+                    });
+                }
+
                 // Revalidate cache only for successful tasks that affect meeting data
                 if (updatedTask.cityId && shouldRevalidateForTaskType(updatedTask.type as MeetingTaskType)) {
                     try {
@@ -228,30 +235,34 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 });
 
                 // Send Discord admin alert for processing failure
+                if (sendGenericAlerts) {
+                    sendTaskAdminAlert({
+                        status: 'failed',
+                        taskType: task.type,
+                        cityName: task.councilMeeting.city.name_en,
+                        meetingName: task.councilMeeting.name_en,
+                        taskId: task.id,
+                        cityId: task.cityId,
+                        meetingId: task.councilMeetingId,
+                        error: (error as Error).message,
+                    });
+                }
+            }
+        } else {
+            console.log(`No result for task ${taskId}`);
+
+            // Task succeeded but has no result to process - still send completion admin alert
+            if (sendGenericAlerts) {
                 sendTaskAdminAlert({
-                    status: 'failed',
+                    status: 'completed',
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
                     meetingName: task.councilMeeting.name_en,
                     taskId: task.id,
                     cityId: task.cityId,
                     meetingId: task.councilMeetingId,
-                    error: (error as Error).message,
                 });
             }
-        } else {
-            console.log(`No result for task ${taskId}`);
-
-            // Task succeeded but has no result to process - still send completion admin alert
-            sendTaskAdminAlert({
-                status: 'completed',
-                taskType: task.type,
-                cityName: task.councilMeeting.city.name_en,
-                meetingName: task.councilMeeting.name_en,
-                taskId: task.id,
-                cityId: task.cityId,
-                meetingId: task.councilMeetingId,
-            });
         }
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
@@ -260,25 +271,40 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         });
 
         // Send Discord admin alert for task failure
-        sendTaskAdminAlert({
-            status: 'failed',
-            taskType: task.type,
-            cityName: task.councilMeeting.city.name_en,
-            meetingName: task.councilMeeting.name_en,
-            taskId: task.id,
-            cityId: task.cityId,
-            meetingId: task.councilMeetingId,
-            error: update.error,
-        });
+        if (sendGenericAlerts) {
+            sendTaskAdminAlert({
+                status: 'failed',
+                taskType: task.type,
+                cityName: task.councilMeeting.city.name_en,
+                meetingName: task.councilMeeting.name_en,
+                taskId: task.id,
+                cityId: task.cityId,
+                meetingId: task.councilMeetingId,
+                error: update.error,
+            });
+        }
     } else if (update.status === 'processing') {
         // Use updateMany with WHERE clause to atomically prevent overwriting terminal states
         await prisma.taskStatus.updateMany({
-            where: { 
+            where: {
                 id: taskId,
                 status: { notIn: ['succeeded', 'failed'] }
             },
             data: { status: 'pending', stage: update.stage, percentComplete: update.progressPercent, version: update.version }
         });
+    }
+
+    // After the task reaches a terminal state, call registered hooks.
+    // Runs after all DB status updates are settled, so hooks always see correct state.
+    if (update.status === 'success' || update.status === 'error') {
+        const terminalHook = taskTerminalHooks[task.type];
+        if (terminalHook) {
+            try {
+                await terminalHook(taskId, task.createdAt);
+            } catch (hookError) {
+                console.error(`Error in terminal hook for task ${taskId}:`, hookError);
+            }
+        }
     }
 }
 

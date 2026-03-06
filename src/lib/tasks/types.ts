@@ -1,4 +1,20 @@
 // Centralized task configuration and types
+
+/**
+ * Controls whether generic Discord alerts (started/completed/failed) are sent
+ * via sendTaskAdminAlert for a given task type.
+ *
+ * - 'all'  — send all lifecycle alerts (default when omitted)
+ * - 'none' — suppress all generic alerts; the task's result handler
+ *            is responsible for sending its own alerts
+ */
+export type DiscordAlertMode = 'all' | 'none';
+
+interface TaskConfig {
+  requiredForPipeline: boolean;
+  discordAlertMode?: DiscordAlertMode;
+}
+
 export const TASK_CONFIG = {
   processAgenda: {
     requiredForPipeline: false,
@@ -32,11 +48,22 @@ export const TASK_CONFIG = {
   },
   pollDecisions: {
     requiredForPipeline: false,
+    discordAlertMode: 'none',
   },
-} as const;
+} satisfies Record<string, TaskConfig>;
 
 // Derive MeetingTaskType from the configuration
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
+
+/**
+ * Returns the DiscordAlertMode for a task type.
+ * Unknown task types (e.g. from DB records with stale type values) default to 'all'
+ * so that generic alerts are never accidentally suppressed.
+ */
+export function getDiscordAlertMode(taskType: string): DiscordAlertMode {
+  const config = TASK_CONFIG[taskType as MeetingTaskType] as TaskConfig | undefined;
+  return config?.discordAlertMode ?? 'all';
+}
 
 // Derive core processing tasks from configuration
 export const CORE_PROCESSING_TASKS = Object.entries(TASK_CONFIG)
