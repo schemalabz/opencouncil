@@ -25,7 +25,7 @@ const CreateMeetingSchema = z.object({
     date: z.string().openapi({ description: 'Meeting date/time (ISO 8601)', example: '2024-09-15T18:00:00Z' }),
     youtubeUrl: z.string().url().optional().or(z.literal('')).openapi({ description: 'YouTube video URL' }),
     agendaUrl: z.string().url().optional().or(z.literal('')).openapi({ description: 'Agenda document URL' }),
-    meetingId: z.string().min(1).openapi({ description: 'Unique meeting ID' }),
+meetingId: z.string().min(1).openapi({ description: 'Client-supplied unique meeting ID (e.g., UUID). The server returns 409 if the ID already exists.' }),
     administrativeBodyId: z.string().optional().openapi({ description: 'Administrative body to associate with' }),
 }).openapi('CreateMeeting');
 
