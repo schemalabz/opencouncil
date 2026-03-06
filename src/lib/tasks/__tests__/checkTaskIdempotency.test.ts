@@ -1,6 +1,7 @@
 /** @jest-environment node */
 
 const mockFindFirst = jest.fn();
+const mockFindUnique = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 
@@ -10,8 +11,10 @@ jest.mock('../../db/prisma', () => ({
   default: {
     taskStatus: {
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
+      findUnique: (...args: unknown[]) => mockFindUnique(...args),
       create: (...args: unknown[]) => mockCreate(...args),
       update: (...args: unknown[]) => mockUpdate(...args),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   },
 }));
@@ -21,9 +24,14 @@ jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('../../discord', () => ({
   sendTaskAdminAlert: jest.fn(),
 }));
-jest.mock('../registry', () => ({ taskHandlers: {} }));
+const mockTerminalHook = jest.fn().mockResolvedValue(undefined);
+jest.mock('../registry', () => ({
+  taskHandlers: {},
+  taskTerminalHooks: { pollDecisions: (...args: unknown[]) => mockTerminalHook(...args) },
+}));
 
-import { checkTaskIdempotency, startTask } from '../tasks';
+import { checkTaskIdempotency, startTask, handleTaskUpdate } from '../tasks';
+import { sendTaskAdminAlert } from '../../discord';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';
@@ -222,5 +230,258 @@ describe('startTask — idempotency scoping', () => {
 
     // force skips the DB check entirely
     expect(mockFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe('startTask — silent option', () => {
+  const createdTask = {
+    id: 'new-task',
+    type: 'summarize',
+    status: 'pending',
+    councilMeeting: { city: { name_en: 'Test City' }, name_en: 'Test Meeting' },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFindFirst.mockResolvedValue(null);
+    mockCreate.mockResolvedValue(createdTask);
+    mockUpdate.mockResolvedValue(createdTask);
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, text: async () => '{}' });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('sends Discord alert by default', async () => {
+    await startTask('generateHighlight', {}, MEETING_ID, CITY_ID);
+
+    expect(sendTaskAdminAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'started', taskType: 'generateHighlight' })
+    );
+  });
+
+  it('suppresses Discord alert when silent: true', async () => {
+    await startTask('generateHighlight', {}, MEETING_ID, CITY_ID, { silent: true });
+
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+  });
+
+  it('suppresses Discord alert for pollDecisions (discordAlertMode: none)', async () => {
+    const pollTask = { ...createdTask, type: 'pollDecisions' };
+    mockCreate.mockResolvedValue(pollTask);
+    mockUpdate.mockResolvedValue(pollTask);
+
+    await startTask('pollDecisions', {}, MEETING_ID, CITY_ID);
+
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleTaskUpdate — discordAlertMode gating', () => {
+  const mockProcessResult = jest.fn().mockResolvedValue(undefined);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProcessResult.mockResolvedValue(undefined);
+  });
+
+  it('sends Discord alert for summarize (default alertMode)', async () => {
+    const task = {
+      id: 'task-1',
+      type: 'summarize',
+      cityId: CITY_ID,
+      councilMeetingId: MEETING_ID,
+      councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+    };
+    mockFindUnique.mockResolvedValue(task);
+    mockUpdate.mockResolvedValue({ ...task, status: 'succeeded' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { data: 'test' }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(sendTaskAdminAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'completed', taskType: 'summarize' })
+    );
+  });
+
+  it('suppresses Discord alert for pollDecisions success (discordAlertMode: none)', async () => {
+    const task = {
+      id: 'task-1',
+      type: 'pollDecisions',
+      cityId: CITY_ID,
+      councilMeetingId: MEETING_ID,
+      councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+    };
+    mockFindUnique.mockResolvedValue(task);
+    mockUpdate.mockResolvedValue({ ...task, status: 'succeeded' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { matches: [] }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+  });
+
+  it('suppresses Discord alert for pollDecisions failure (discordAlertMode: none)', async () => {
+    const task = {
+      id: 'task-1',
+      type: 'pollDecisions',
+      cityId: CITY_ID,
+      councilMeetingId: MEETING_ID,
+      councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+    };
+    mockFindUnique.mockResolvedValue(task);
+    mockUpdate.mockResolvedValue({ ...task, status: 'failed' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'error', error: 'some error', stage: '', progressPercent: 0, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+  });
+
+  it('sends Discord alert for summarize failure (default alertMode)', async () => {
+    const task = {
+      id: 'task-1',
+      type: 'summarize',
+      cityId: CITY_ID,
+      councilMeetingId: MEETING_ID,
+      councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+    };
+    mockFindUnique.mockResolvedValue(task);
+    mockUpdate.mockResolvedValue({ ...task, status: 'failed' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'error', error: 'some error', stage: '', progressPercent: 0, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(sendTaskAdminAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'failed', taskType: 'summarize' })
+    );
+  });
+});
+
+describe('handleTaskUpdate — terminal hooks', () => {
+  const mockProcessResult = jest.fn().mockResolvedValue(undefined);
+
+  const pollDecisionsTask = {
+    id: 'task-1',
+    type: 'pollDecisions',
+    cityId: CITY_ID,
+    councilMeetingId: MEETING_ID,
+    createdAt: new Date('2026-03-06T10:00:00Z'),
+    councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+  };
+
+  const summarizeTask = {
+    id: 'task-2',
+    type: 'summarize',
+    cityId: CITY_ID,
+    councilMeetingId: MEETING_ID,
+    createdAt: new Date('2026-03-06T10:00:00Z'),
+    councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProcessResult.mockResolvedValue(undefined);
+  });
+
+  it('calls terminal hook after successful processing', async () => {
+    mockFindUnique.mockResolvedValue(pollDecisionsTask);
+    mockUpdate.mockResolvedValue({ ...pollDecisionsTask, status: 'succeeded' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { matches: [] }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockTerminalHook).toHaveBeenCalledTimes(1);
+    expect(mockTerminalHook).toHaveBeenCalledWith('task-1', pollDecisionsTask.createdAt);
+  });
+
+  it('calls terminal hook after processing failure', async () => {
+    mockFindUnique.mockResolvedValue(pollDecisionsTask);
+    // First update sets status to 'succeeded' (before processResult runs),
+    // second update sets status to 'failed' (in the catch block after processResult throws).
+    mockUpdate
+      .mockResolvedValueOnce({ ...pollDecisionsTask, status: 'succeeded' })
+      .mockResolvedValueOnce({ ...pollDecisionsTask, status: 'failed' });
+    mockProcessResult.mockRejectedValue(new Error('DB transaction failed'));
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { matches: [] }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    // Hook still runs — after catch block settles the status to 'failed'
+    expect(mockTerminalHook).toHaveBeenCalledTimes(1);
+    expect(mockTerminalHook).toHaveBeenCalledWith('task-1', pollDecisionsTask.createdAt);
+  });
+
+  it('calls terminal hook after server error', async () => {
+    mockFindUnique.mockResolvedValue(pollDecisionsTask);
+    mockUpdate.mockResolvedValue({ ...pollDecisionsTask, status: 'failed' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'error', error: 'worker timeout', stage: '', progressPercent: 0, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockTerminalHook).toHaveBeenCalledTimes(1);
+    expect(mockTerminalHook).toHaveBeenCalledWith('task-1', pollDecisionsTask.createdAt);
+  });
+
+  it('does not call terminal hook for processing status', async () => {
+    mockFindUnique.mockResolvedValue(pollDecisionsTask);
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'processing', stage: 'matching', progressPercent: 50, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockTerminalHook).not.toHaveBeenCalled();
+  });
+
+  it('does not call terminal hook for task types without one', async () => {
+    mockFindUnique.mockResolvedValue(summarizeTask);
+    mockUpdate.mockResolvedValue({ ...summarizeTask, status: 'succeeded' });
+
+    await handleTaskUpdate(
+      'task-2',
+      { status: 'success', result: { data: 'test' }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockTerminalHook).not.toHaveBeenCalled();
+  });
+
+  it('does not break handleTaskUpdate if terminal hook throws', async () => {
+    mockFindUnique.mockResolvedValue(pollDecisionsTask);
+    mockUpdate.mockResolvedValue({ ...pollDecisionsTask, status: 'succeeded' });
+    mockTerminalHook.mockRejectedValue(new Error('hook crashed'));
+
+    // Should not throw — hook error is caught and logged
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { matches: [] }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockTerminalHook).toHaveBeenCalledTimes(1);
   });
 });

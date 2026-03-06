@@ -7,6 +7,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/dec
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
+import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
     cityId: string,
@@ -20,10 +21,13 @@ export async function requestPollDecisions(
 /**
  * Core function to poll decisions for a meeting. Used by both the admin action and the cron job.
  * Does NOT check authorization — callers are responsible for auth.
+ *
+ * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
+    options?: { silent?: boolean },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -84,7 +88,7 @@ export async function pollDecisionsForMeeting(
         })),
     };
 
-    return startTask('pollDecisions', body, councilMeetingId, cityId);
+    return startTask('pollDecisions', body, councilMeetingId, cityId, { silent: options?.silent });
 }
 
 /**
@@ -153,6 +157,9 @@ export async function pollDecisionsForRecentMeetings() {
 
     const results: Array<{ cityId: string; meetingId: string; status: string }> = [];
     let dispatched = 0;
+    let skipped = 0;
+    const dispatchedMeetings: Array<{ cityId: string; meetingId: string }> = [];
+    const dispatchErrors: Array<{ cityId: string; meetingId: string; error: string }> = [];
 
     for (const meeting of meetings) {
         if (dispatched >= 10) break;
@@ -166,6 +173,7 @@ export async function pollDecisionsForRecentMeetings() {
         );
         if (skipReason) {
             results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `skipped: ${skipReason}` });
+            skipped++;
             continue;
         }
 
@@ -173,14 +181,30 @@ export async function pollDecisionsForRecentMeetings() {
             await pollDecisionsForMeeting(
                 meeting.cityId,
                 meeting.id,
+                { silent: true },
             );
 
             dispatched++;
+            dispatchedMeetings.push({ cityId: meeting.cityId, meetingId: meeting.id });
             results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: 'started' });
         } catch (error) {
             console.error(`Failed to poll decisions for meeting ${meeting.cityId}/${meeting.id}:`, error);
-            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `error: ${(error as Error).message}` });
+            const errorMsg = (error as Error).message;
+            dispatchErrors.push({ cityId: meeting.cityId, meetingId: meeting.id, error: errorMsg });
+            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `error: ${errorMsg}` });
         }
+    }
+
+    // Send a single batch started alert instead of per-task alerts.
+    // .catch() ensures failures are logged — this is the sole observability path
+    // for pollDecisions (discordAlertMode: 'none' suppresses all generic alerts).
+    if (dispatched > 0 || dispatchErrors.length > 0) {
+        sendPollDecisionsBatchStartedAlert({
+            dispatchedCount: dispatched,
+            skippedCount: skipped,
+            meetings: dispatchedMeetings,
+            errors: dispatchErrors,
+        }).catch(err => console.error('Failed to send pollDecisions batch started alert:', err));
     }
 
     return { meetingsProcessed: dispatched, results };
@@ -806,6 +830,145 @@ export async function resolveAdaConflict(
     });
 }
 
+/** Per-meeting entry in the batch completion summary. */
+export interface PollDecisionsMeetingResult {
+    cityId: string;
+    meetingId: string;
+    matches: number;
+    reassignments: number;
+    conflicts: number;
+    status: 'succeeded' | 'failed';
+    error?: string;
+}
+
+/** Max characters for an individual error line in batch Discord summaries. */
+const ERROR_PREVIEW_LENGTH = 200;
+
+/**
+ * Radius (ms) for grouping pollDecisions tasks into a batch.
+ * Tasks created within ±BATCH_WINDOW_MS of each other are considered siblings.
+ *
+ * Must be less than half the cron interval to avoid grouping tasks from
+ * consecutive runs into the same batch. Current cron interval: 10 minutes.
+ */
+const BATCH_WINDOW_MS = 2 * 60 * 1000;
+
+/**
+ * After a pollDecisions task reaches a terminal state, check whether all sibling
+ * tasks in the same batch window have also finished. If so, aggregate results
+ * and send a single batch completion alert.
+ *
+ * Called via taskTerminalHooks in handleTaskUpdate — runs AFTER the task's DB
+ * status is settled, so all statuses read from DB are correct.
+ *
+ * NOTE: Tasks that fail during startTask() (backend API errors) are set to
+ * 'failed' directly without a callback, so handleTaskUpdate and this hook are
+ * never invoked for them. Partial dispatch failures self-heal (surviving tasks
+ * trigger this hook and find failed siblings via the time-window query). A
+ * complete dispatch failure produces only a batch started alert — no completed
+ * alert fires, since the started alert already shows the dispatch errors.
+ */
+export async function checkBatchCompletionAndAlert(
+    _taskId: string,
+    taskCreatedAt: Date,
+) {
+    const windowStart = new Date(taskCreatedAt.getTime() - BATCH_WINDOW_MS);
+    const windowEnd = new Date(taskCreatedAt.getTime() + BATCH_WINDOW_MS);
+
+    // Find all pollDecisions tasks in the time window
+    const siblingTasks = await prisma.taskStatus.findMany({
+        where: {
+            type: 'pollDecisions',
+            createdAt: { gte: windowStart, lte: windowEnd },
+        },
+        select: {
+            id: true,
+            status: true,
+            cityId: true,
+            councilMeetingId: true,
+            responseBody: true,
+        },
+    });
+
+    // Check if all siblings are in terminal state.
+    // Note: if two tasks complete nearly simultaneously, both may see allTerminal=true
+    // and send a duplicate alert. This is a benign race — Discord duplicates are
+    // preferable to missing alerts, and the window is very small in practice.
+    const allTerminal = siblingTasks.every(t => t.status === 'succeeded' || t.status === 'failed');
+    if (!allTerminal) {
+        return; // Not all done yet — a later completion will trigger the summary
+    }
+
+    // Aggregate results — all tasks read uniformly from DB.
+    let totalMatches = 0;
+    let totalReassignments = 0;
+    let totalConflicts = 0;
+    let succeededCount = 0;
+    let failedCount = 0;
+    const meetingBreakdown: PollDecisionsMeetingResult[] = [];
+
+    for (const sibling of siblingTasks) {
+        const cityId = sibling.cityId;
+        const meetingId = sibling.councilMeetingId ?? 'unknown';
+
+        if (sibling.status === 'failed') {
+            failedCount++;
+            meetingBreakdown.push({
+                cityId,
+                meetingId,
+                matches: 0,
+                reassignments: 0,
+                conflicts: 0,
+                status: 'failed',
+                error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
+            });
+            continue;
+        }
+
+        succeededCount++;
+
+        // Parse responseBody for result counts. Prefer _processedCounts (enriched
+        // after processing) for accurate post-processing numbers; fall back to raw
+        // server response counts for older tasks or edge cases.
+        let matches = 0;
+        let reassignments = 0;
+        let conflicts = 0;
+        if (sibling.responseBody) {
+            try {
+                const parsed = JSON.parse(sibling.responseBody);
+                if (parsed._processedCounts) {
+                    matches = parsed._processedCounts.matches ?? 0;
+                    reassignments = parsed._processedCounts.reassignments ?? 0;
+                    conflicts = parsed._processedCounts.conflicts ?? 0;
+                } else {
+                    matches = Array.isArray(parsed.matches) ? parsed.matches.length : 0;
+                    reassignments = Array.isArray(parsed.reassignments) ? parsed.reassignments.length : 0;
+                }
+            } catch { /* ignore parse errors */ }
+        }
+        totalMatches += matches;
+        totalReassignments += reassignments;
+        totalConflicts += conflicts;
+        meetingBreakdown.push({
+            cityId,
+            meetingId,
+            matches,
+            reassignments,
+            conflicts,
+            status: 'succeeded',
+        });
+    }
+
+    sendPollDecisionsBatchCompletedAlert({
+        succeededCount,
+        failedCount,
+        totalMatches,
+        totalReassignments,
+        totalConflicts,
+        meetingBreakdown,
+    }).catch(err => console.error('Failed to send pollDecisions batch completed alert:', err));
+}
+
 export async function handlePollDecisionsResult(taskId: string, result: PollDecisionsResult) {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -814,6 +977,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     if (!task) {
         throw new Error("Task not found");
     }
+
+    let reassignmentCount = 0;
+    let processedCount = 0;
+    let conflictCount = 0;
 
     // Collect all subjectIds from matches and reassignments for validation
     const allSubjectIds = [
@@ -844,10 +1011,6 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // Reassignments delete old decisions to free ADA unique constraints before
     // upserting new ones — without a transaction, a failed upsert after a
     // successful delete would permanently lose decision data.
-    let reassignmentCount = 0;
-    let processedCount = 0;
-    let conflictCount = 0;
-
     await prisma.$transaction(async (tx) => {
         // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
         const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
@@ -944,6 +1107,24 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
     });
+
+    // Enrich responseBody with post-processing counts so the batch completion
+    // hook (checkBatchCompletionAndAlert) can read accurate totals from DB.
+    // Wrapped in try/catch because this runs after the main transaction committed —
+    // a failure here should not mark the task as failed when decisions were already persisted.
+    try {
+        await prisma.taskStatus.update({
+            where: { id: taskId },
+            data: {
+                responseBody: JSON.stringify({
+                    ...result,
+                    _processedCounts: { matches: processedCount, reassignments: reassignmentCount, conflicts: conflictCount },
+                }),
+            },
+        });
+    } catch (enrichError) {
+        console.error(`Failed to enrich responseBody for task ${taskId} (decisions already persisted):`, enrichError);
+    }
 
     console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }
