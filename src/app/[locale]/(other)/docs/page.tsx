@@ -3,7 +3,7 @@ import Link from 'next/link';
 import yaml from 'js-yaml';
 import ReactSwagger from '@/components/ReactSwagger';
 import { getCurrentUser } from '@/lib/auth';
-import { filterSpecByAccessLevel, type AccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
+import { filterSpecByAccessLevel, getUserAccessLevel, type AccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 
 async function getSpec(): Promise<OpenApiSpec> {
   const yamlString = fs.readFileSync('./swagger.yaml', 'utf8');
@@ -17,16 +17,7 @@ type Props = {
 export default async function ApiDoc({ params }: Props) {
   const [spec, user] = await Promise.all([getSpec(), getCurrentUser()]);
 
-  let userLevel: AccessLevel = 'public';
-  if (user) {
-    if (user.isSuperAdmin) {
-      userLevel = 'superadmin';
-    } else if (user.administers.length > 0) {
-      userLevel = 'admin';
-    } else {
-      userLevel = 'user';
-    }
-  }
+  const userLevel = getUserAccessLevel(user);
 
   const filteredSpec = filterSpecByAccessLevel(spec, userLevel);
   const totalPaths = Object.keys(spec.paths ?? {}).length;

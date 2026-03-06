@@ -27,13 +27,15 @@
     "test:og": "tsx scripts/test_og_images.ts",
     "generate-seed": "tsx scripts/generate_seed_dump.ts",
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
-    "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts"
+    "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
+    "generate-openapi": "tsx scripts/generate-openapi.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
+    "@asteasolutions/zod-to-openapi": "^7.3.4",
     "@auth/core": "^0.39.1",
     "@auth/prisma-adapter": "^2.7.4",
     "@aws-sdk/client-s3": "^3.637.0",
