@@ -97,7 +97,13 @@ registry.registerPath({
             },
         },
         401: {
-            description: 'Unauthorized — superadmin access required',
+            description: 'Unauthorized — not authenticated',
+            content: {
+                'application/json': { schema: ErrorResponseSchema },
+            },
+        },
+        403: {
+            description: 'Forbidden — superadmin access required',
             content: {
                 'application/json': { schema: ErrorResponseSchema },
             },
