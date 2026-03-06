@@ -8,6 +8,7 @@
 import { env } from '@/env.mjs';
 import { formatDurationMs } from '@/lib/formatters/time';
 import type { ReviewerInfo } from '@/lib/db/reviews';
+import type { PollDecisionsMeetingResult } from '@/lib/tasks/pollDecisions';
 
 interface DiscordEmbed {
     title?: string;
@@ -601,6 +602,146 @@ export async function sendTranscriptSentAdminAlert(data: {
                 inline: false,
             },
         ],
+    });
+}
+
+/** Discord embed field value limit. Truncates with an indicator when exceeded. */
+const DISCORD_FIELD_LIMIT = 1024;
+function truncateField(s: string, limit = DISCORD_FIELD_LIMIT): string {
+    if (s.length <= limit) return s;
+    const suffix = '\n… (truncated)';
+    return s.substring(0, limit - suffix.length) + suffix;
+}
+
+/**
+ * Send batch started alert when the pollDecisions cron dispatches tasks.
+ * Replaces individual "started" alerts for cron-triggered polls.
+ */
+export async function sendPollDecisionsBatchStartedAlert(data: {
+    dispatchedCount: number;
+    skippedCount: number;
+    meetings: Array<{ cityId: string; meetingId: string }>;
+    errors: Array<{ cityId: string; meetingId: string; error: string }>;
+}): Promise<void> {
+    if (data.dispatchedCount === 0 && data.errors.length === 0) return;
+
+    const meetingList = data.meetings
+        .map(m => `\`${m.cityId}/${m.meetingId}\``)
+        .join('\n');
+
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        { name: 'Dispatched', value: data.dispatchedCount.toString(), inline: true },
+        { name: 'Skipped (backoff)', value: data.skippedCount.toString(), inline: true },
+    ];
+
+    if (meetingList) {
+        fields.push({
+            name: 'Meetings',
+            value: truncateField(meetingList),
+            inline: false,
+        });
+    }
+
+    if (data.errors.length > 0) {
+        const errorText = data.errors
+            .map(e => `\`${e.cityId}/${e.meetingId}\`: ${e.error}`)
+            .join('\n');
+        fields.push({
+            name: 'Dispatch Errors',
+            value: truncateField(errorText),
+            inline: false,
+        });
+    }
+
+    await sendAdminAlert({
+        title: `▶️ pollDecisions cron: ${data.dispatchedCount} tasks dispatched`,
+        description: data.errors.length > 0
+            ? `${data.errors.length} dispatch error(s)`
+            : 'Batch dispatched successfully',
+        color: 0x3498db, // Blue
+        fields,
+    });
+}
+
+/**
+ * Send batch completed alert when all pollDecisions tasks in a cron batch finish.
+ * Aggregates results from all sibling tasks into a single summary.
+ */
+export async function sendPollDecisionsBatchCompletedAlert(data: {
+    succeededCount: number;
+    failedCount: number;
+    totalMatches: number;
+    totalReassignments: number;
+    totalConflicts: number;
+    meetingBreakdown: PollDecisionsMeetingResult[];
+}): Promise<void> {
+    const hasDecisions = data.totalMatches > 0;
+    const hasFailures = data.failedCount > 0;
+    // Check per-meeting breakdown for any conflicts
+    const hasConflicts = data.meetingBreakdown.some(m => m.conflicts > 0);
+
+    const color = hasFailures ? 0xff0000 : hasConflicts ? 0xf39c12 : 0x00ff00;
+
+    const title = hasDecisions
+        ? `📋 pollDecisions: ${data.totalMatches} decision(s) found`
+        : '📋 pollDecisions batch completed (no new decisions)';
+
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+        { name: 'Succeeded', value: data.succeededCount.toString(), inline: true },
+        { name: 'Failed', value: data.failedCount.toString(), inline: true },
+        { name: 'Decisions Found', value: data.totalMatches.toString(), inline: true },
+    ];
+
+    if (data.totalReassignments > 0) {
+        fields.push({ name: 'Reassignments', value: data.totalReassignments.toString(), inline: true });
+    }
+
+    // Per-meeting breakdown for meetings with results or failures
+    const notable = data.meetingBreakdown.filter(
+        m => m.matches > 0 || m.reassignments > 0 || m.conflicts > 0 || m.status === 'failed'
+    );
+
+    if (notable.length > 0) {
+        const breakdown = notable
+            .map(m => {
+                const parts: string[] = [`\`${m.cityId}/${m.meetingId}\``];
+                if (m.status === 'failed') {
+                    parts.push(`**FAILED**: ${m.error?.substring(0, 200) ?? 'unknown error'}`);
+                } else {
+                    const details: string[] = [];
+                    if (m.matches > 0) details.push(`${m.matches} match(es)`);
+                    if (m.reassignments > 0) details.push(`${m.reassignments} reassignment(s)`);
+                    if (m.conflicts > 0) details.push(`${m.conflicts} conflict(s)`);
+                    parts.push(details.join(', '));
+                }
+                return parts.join(' — ');
+            })
+            .join('\n');
+        fields.push({
+            name: 'Details',
+            value: truncateField(breakdown),
+            inline: false,
+        });
+    }
+
+    // Admin panel links for meetings with decisions or failures
+    const actionable = data.meetingBreakdown.filter(m => m.matches > 0 || m.status === 'failed');
+    if (actionable.length > 0) {
+        const links = actionable
+            .map(m => `[${m.cityId}/${m.meetingId}](${meetingAdminUrl(m.cityId, m.meetingId)})`)
+            .join(' | ');
+        fields.push({
+            name: 'Admin Panel',
+            value: truncateField(links),
+            inline: false,
+        });
+    }
+
+    await sendAdminAlert({
+        title,
+        description: `${data.succeededCount + data.failedCount} task(s) completed`,
+        color,
+        fields,
     });
 }
 
