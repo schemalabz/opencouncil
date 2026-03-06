@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs/promises';
 import Link from 'next/link';
 import yaml from 'js-yaml';
 import ReactSwagger from '@/components/ReactSwagger';
@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { filterSpecByAccessLevel, getUserAccessLevel, type AccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 
 async function getSpec(): Promise<OpenApiSpec> {
-  const yamlString = fs.readFileSync('./swagger.yaml', 'utf8');
+  const yamlString = await fs.readFile('./swagger.yaml', 'utf8');
   return yaml.load(yamlString) as OpenApiSpec;
 }
 
