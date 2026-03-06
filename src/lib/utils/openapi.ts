@@ -6,10 +6,10 @@ export const ACCESS_LEVEL_ORDER: AccessLevel[] = ['public', 'user', 'admin', 'su
  * Determine the access level for the current user.
  * Shared between the docs page and the /api spec endpoint.
  */
-export function getUserAccessLevel(user: { isSuperAdmin: boolean; administers: unknown[] } | null): AccessLevel {
+export function getUserAccessLevel(user: { isSuperAdmin: boolean; administers?: unknown[] } | null): AccessLevel {
     if (!user) return 'public';
     if (user.isSuperAdmin) return 'superadmin';
-    if (user.administers.length > 0) return 'admin';
+    if ((user.administers ?? []).length > 0) return 'admin';
     return 'user';
 }
 

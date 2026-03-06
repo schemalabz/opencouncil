@@ -9,8 +9,8 @@ export const registry = new OpenAPIRegistry();
 export const sessionAuth = registry.registerComponent('securitySchemes', 'sessionAuth', {
     type: 'apiKey',
     in: 'cookie',
-    name: 'next-auth.session-token',
-    description: 'Session-based authentication via NextAuth. Sign in at /sign-in to obtain a session cookie.',
+    name: 'authjs.session-token',
+    description: 'Session-based authentication via Auth.js. Sign in at /sign-in to obtain a session cookie.',
 });
 
 // Reusable error schemas
