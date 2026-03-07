@@ -148,6 +148,14 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                         <span className="text-sm">{t('shortcuts.editing.saveAndNext')}</span>
                                         <Badge variant="secondary">Enter</Badge>
                                     </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.editing.undo')}</span>
+                                        <Badge variant="secondary">Ctrl/Cmd+Z</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.editing.redo')}</span>
+                                        <Badge variant="secondary">Ctrl+Y / Cmd+Shift+Z</Badge>
+                                    </div>
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.editing.cancel')}</span>
                                         <Badge variant="secondary">Esc</Badge>
@@ -340,4 +348,3 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
         </Dialog>
     );
 }
-
