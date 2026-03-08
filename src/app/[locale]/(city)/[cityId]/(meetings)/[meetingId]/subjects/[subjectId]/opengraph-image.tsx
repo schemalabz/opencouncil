@@ -5,6 +5,7 @@ import { formatDate } from "date-fns";
 import { el, enUS } from "date-fns/locale";
 import { PersonWithRelations } from '@/lib/db/people';
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
+import { getMeetingDisplayTitle } from "@/lib/utils/meetingTitle";
 
 // Image configuration
 export const size = {
@@ -212,6 +213,8 @@ export default async function SubjectOgImage({
         locale: params.locale === "el" ? el : enUS,
     });
 
+    const displayTitle = getMeetingDisplayTitle(data.meeting, params.locale);
+
     return new ImageResponse(
         (
             <Container>
@@ -238,7 +241,7 @@ export default async function SubjectOgImage({
                         logoImage: data.city.logoImage,
                     }}
                     meeting={{
-                        name: data.meeting.name,
+                        name: displayTitle,
                         dateFormatted: meetingDate,
                     }}
                 />

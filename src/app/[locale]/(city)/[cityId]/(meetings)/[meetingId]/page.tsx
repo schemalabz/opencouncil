@@ -136,10 +136,14 @@ export default function MeetingPage() {
 function MeetingInfo() {
     const { meeting, subjects } = useCouncilMeetingData();
     const locale = useLocale();
+    const displayTitle = useMemo(
+        () => getMeetingDisplayTitle(meeting, locale),
+        [meeting, locale]
+    );
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-                <h1 className="text-xl sm:text-2xl font-bold">{meeting.name}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">{displayTitle}</h1>
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">
                     <div className="flex items-center">
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />

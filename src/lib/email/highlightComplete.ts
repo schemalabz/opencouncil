@@ -4,6 +4,7 @@ import { HighlightCompleteEmail } from './templates/HighlightCompleteEmail';
 import prisma from '@/lib/db/prisma';
 import { formatDuration } from '@/lib/formatters/time';
 import { env } from '@/env.mjs';
+import { getMeetingDisplayTitle } from '@/lib/utils/meetingTitle';
 
 interface SendHighlightCompleteEmailParams {
     userId: string;
@@ -37,6 +38,7 @@ export async function sendHighlightCompleteEmail({
             include: {
                 meeting: {
                     include: {
+                        administrativeBody: true,
                         city: {
                             select: {
                                 name: true
@@ -79,7 +81,7 @@ export async function sendHighlightCompleteEmail({
         // Prepare email data
         const userName = user.name || user.email.split('@')[0];
         const highlightTitle = highlight.name || 'Χωρίς τίτλο';
-        const meetingName = highlight.meeting.name || `Συνεδρίαση ${new Date(highlight.meeting.dateTime).toLocaleDateString('el-GR')}`;
+        const meetingName = getMeetingDisplayTitle(highlight.meeting);
         const cityName = highlight.meeting.city.name;
 
         // Render the email template

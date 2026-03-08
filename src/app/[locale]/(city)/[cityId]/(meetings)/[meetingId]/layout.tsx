@@ -12,6 +12,7 @@ import { el, enUS } from 'date-fns/locale';
 import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
+import { getMeetingDisplayTitle } from '@/lib/utils/meetingTitle';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
@@ -32,19 +33,21 @@ export async function generateImageMetadata({
         return [];
     }
 
+    const displayTitle = getMeetingDisplayTitle(data.meeting);
+
     return [
         {
             contentType: 'image/png',
             size: { width: 1200, height: 630 },
             id: 'og',
-            alt: data.meeting.name,
+            alt: displayTitle,
             url: `/api/og?meetingId=${meetingId}&cityId=${cityId}`
         },
         {
             contentType: 'image/png',
             size: { width: 32, height: 32 },
             id: 'icon',
-            alt: data.meeting.name,
+            alt: displayTitle,
             url: `/api/icon?meetingId=${meetingId}&cityId=${cityId}`
         }
     ];
@@ -63,8 +66,10 @@ export async function generateMetadata({
         };
     }
 
+    const displayTitle = getMeetingDisplayTitle(data.meeting);
+
     // Create an optimized title between 30-60 characters
-    const optimizedTitle = `${data.city.name} - ${data.meeting.name} | OpenCouncil`;
+    const optimizedTitle = `${data.city.name} - ${displayTitle} | OpenCouncil`;
 
     // Use the hero text for description, which is already optimized for Greek audience
     const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
@@ -81,7 +86,7 @@ export async function generateMetadata({
                 url: imageUrl,
                 width: 1200,
                 height: 630,
-                alt: `${data.meeting.name} - ${data.city.name} Δημοτικό Συμβούλιο`
+                alt: `${displayTitle} - ${data.city.name}`
             }]
         },
         twitter: {
@@ -119,6 +124,8 @@ export default async function CouncilMeetingPage({
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
 
+    const displayTitle = getMeetingDisplayTitle(data.meeting, locale, data.city.timezone);
+
     // Format meeting description to include more info
     const meetingDescription = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
@@ -144,7 +151,7 @@ export default async function CouncilMeetingPage({
                                         city: data.city
                                     },
                                     {
-                                        name: data.meeting.name,
+                                        name: displayTitle,
                                         link: `/${cityId}/${meetingId}`,
                                         description: meetingDescription
                                     }
