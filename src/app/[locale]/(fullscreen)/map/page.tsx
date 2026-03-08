@@ -239,27 +239,45 @@ export default function MapPage() {
                 const unsupportedWithGeometry = citiesWithGeometry.filter(city => !city.officialSupport);
 
                 // Convert cities to map features
-                const cityFeatures: MapFeature[] = citiesWithGeometry.map(city => ({
-                    id: city.id,
-                    geometry: city.geometry!,
-                    properties: {
-                        name: city.name,
-                        name_en: city.name_en,
-                        cityId: city.id,
-                        officialSupport: city.officialSupport,
-                        supportsNotifications: city.supportsNotifications,
-                        logoImage: (city as any).logoImage,
-                        meetingsCount: (city as any)._count?.councilMeetings || 0,
-                        featureType: 'city'
-                    },
-                    style: {
-                        fillColor: city.officialSupport ? 'hsl(24, 100%, 92%)' : 'hsl(212, 50%, 76%)', // Black for supported (won't show), Blue for unsupported
-                        fillOpacity: city.officialSupport ? 0.35 : 0, // Soft fill for supported, NO fill for unsupported
-                        strokeColor: city.officialSupport ? 'hsl(24, 100%, 50%)' : 'hsl(212, 50%, 76%)', // Orange for supported, Blue for unsupported
-                        strokeWidth: city.officialSupport ? 1.5 : 0, // Supported: border visible, Unsupported: no border
-                        strokeOpacity: city.officialSupport ? 0.6 : 0, // Supported: visible, Unsupported: invisible
-                    }
-                }));
+                const cityFeatures: MapFeature[] = citiesWithGeometry.map(city => {
+                    const petitionCount = (city as any)._count?.petitions || 0;
+                    const isSupported = city.officialSupport;
+                    
+                    // Heatmap logic for unsupported cities:
+                    // Only apply blue color if there are petitions. 
+                    // Otherwise keep it gray/invisible as it was before.
+                    const blueOpacity = petitionCount > 0 
+                        ? Math.min(0.4, 0.1 + (petitionCount / 50) * 0.3)
+                        : 0; // Completely transparent if zero petitions
+
+                    return {
+                        id: city.id,
+                        geometry: city.geometry!,
+                        properties: {
+                            name: city.name,
+                            name_en: city.name_en,
+                            cityId: city.id,
+                            officialSupport: isSupported,
+                            supportsNotifications: city.supportsNotifications,
+                            logoImage: (city as any).logoImage,
+                            meetingsCount: (city as any)._count?.councilMeetings || 0,
+                            petitionCount: petitionCount,
+                            featureType: 'city'
+                        },
+                        style: {
+                            // Supported: Orange, Unsupported: Blue
+                            fillColor: isSupported 
+                                ? 'hsl(24, 100%, 92%)' 
+                                : 'hsl(212, 100%, 45%)', // Always blue base for unsupported
+                            fillOpacity: isSupported ? 0.35 : blueOpacity,
+                            strokeColor: isSupported 
+                                ? 'hsl(24, 100%, 50%)' 
+                                : 'hsl(212, 100%, 45%)', // Always blue stroke base for unsupported
+                            strokeWidth: isSupported ? 1.5 : 0, // 0 width by default for unsupported
+                            strokeOpacity: isSupported ? 0.6 : 0, // 0 opacity by default for unsupported
+                        }
+                    };
+                });
 
                 // Calculate opacity based on recency
                 const now = new Date();
@@ -464,11 +482,11 @@ export default function MapPage() {
             );
         }
 
-        // City popup - unified layout for both supported and unsupported cities
         const name = feature.properties?.name;
         const isSupported = feature.properties?.officialSupport;
         const logoImage = feature.properties?.logoImage;
         const meetingsCount = feature.properties?.meetingsCount || 0;
+        const petitionCount = feature.properties?.petitionCount || 0;
 
         return (
             <div className="bg-background/98 backdrop-blur-md rounded-xl shadow-xl overflow-hidden pointer-events-none border border-border/50 max-w-sm">
@@ -494,12 +512,31 @@ export default function MapPage() {
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1 mt-1">
-                                    <Icon name="BadgeX" size={12} color="#9ca3af" />
-                                    <span className="text-xs text-muted-foreground">Χωρίς επίσημη υποστήριξη</span>
+                                    <Icon name="BadgeInfo" size={12} color="#3b82f6" />
+                                    <span className="text-xs text-blue-600">
+                                        {petitionCount > 0 
+                                            ? `${petitionCount} αιτήματα δημοτών` 
+                                            : "Δήμος χωρίς υποστήριξη"}
+                                    </span>
                                 </div>
                             )}
                         </div>
                     </div>
+
+                    {!isSupported && petitionCount > 0 && (
+                        <div className="space-y-1.5 pt-2 border-t border-border/30">
+                            <div className="flex justify-between text-[10px] font-medium">
+                                <span className="text-muted-foreground">Πρόοδος αιτημάτων</span>
+                                <span className="text-blue-600">{Math.min(100, Math.round((petitionCount / 50) * 100))}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-blue-100 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-blue-500 transition-all duration-500" 
+                                    style={{ width: `${Math.min(100, (petitionCount / 50) * 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {isSupported && meetingsCount > 0 && (
                         <div className="pt-2 border-t border-border/30 text-xs">

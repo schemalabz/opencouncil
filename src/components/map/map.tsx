@@ -48,7 +48,7 @@ const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
     return calculateGeometryBounds(features[0].geometry).center;
 }
 
-const Map = memo(function Map({
+const MapComponent = memo(function MapComponent({
     className,
     center = undefined,
     zoom = 10,
@@ -78,6 +78,14 @@ const Map = memo(function Map({
     const currentCenter = useRef<[number, number] | null>(null)
     const currentZoom = useRef(zoom)
     const selectedGeometryRef = useRef<string | null>(selectedGeometryForEdit)
+
+    // Create a stable mapping of string IDs to integers for Mapbox feature-state
+    // This is essential for high-performance animations and must be consistent across effects
+    const idToIntegerMap = useMemo(() => {
+        const idMap = new Map<string, number>();
+        features.forEach((f, i) => idMap.set(f.id, i + 1));
+        return idMap;
+    }, [features]);
 
     // Memoize the center coordinates only for initial setup
     const initialCenterCoords = useMemo(() => {
@@ -444,13 +452,13 @@ const Map = memo(function Map({
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: features.map((feature, index) => ({
+                    features: features.map((feature) => ({
                         type: 'Feature',
-                        id: `${feature.id}-${index}`, // Ensure unique ID at feature level
+                        id: idToIntegerMap.get(feature.id), // Use the stable mapped integer ID
                         geometry: feature.geometry,
                         properties: {
                             id: feature.id,
-                            uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
+                            uniqueFeatureId: feature.id,
                             subjectId: feature.id,
                             ...feature.properties,
                             fillColor: feature.style?.fillColor || '#627BBC',
@@ -477,6 +485,23 @@ const Map = memo(function Map({
                         duration: 200,
                         delay: 0
                     }
+                }
+            });
+
+            // Dedicated Pulse Layer - Sits on top of fills but under borders
+            // This prevents the pulse from being overwritten by hover effects
+            map.current?.addLayer({
+                'id': 'feature-pulse',
+                'type': 'fill',
+                'source': 'features',
+                'filter': ['all', 
+                    ['==', ['get', 'featureType'], 'city'], 
+                    ['>=', ['get', 'petitionCount'], 25],
+                    ['!', ['get', 'officialSupport']]
+                ],
+                'paint': {
+                    'fill-color': 'hsl(212, 100%, 45%)',
+                    'fill-opacity': 0
                 }
             });
 
@@ -583,13 +608,13 @@ const Map = memo(function Map({
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
             type: 'FeatureCollection',
-            features: features.map((feature, index) => ({
+            features: features.map((feature) => ({
                 type: 'Feature',
-                id: `${feature.id}-${index}`, // Ensure unique ID at feature level
+                id: idToIntegerMap.get(feature.id), // Use the stable mapped integer ID
                 geometry: feature.geometry,
                 properties: {
                     id: feature.id,
-                    uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
+                    uniqueFeatureId: feature.id,
                     subjectId: feature.id,
                     ...feature.properties,
                     fillColor: feature.style?.fillColor || '#627BBC',
@@ -880,6 +905,34 @@ const Map = memo(function Map({
         }
     }, [editingMode]);
 
+    // Handle pulse animation for trending features
+    useEffect(() => {
+        if (!map.current || !isInitialized.current) return;
+
+        let startTime = Date.now();
+        let animationId: number;
+
+        const animatePulse = () => {
+            const duration = 3000;
+            const elapsed = Date.now() - startTime;
+            const progress = (elapsed % duration) / duration;
+            
+            // Smoother Sine wave for the dedicated pulse layer
+            const opacity = 0.1 + (Math.sin(progress * Math.PI * 2) + 1) * 0.12;
+
+            if (map.current?.getLayer('feature-pulse')) {
+                map.current.setPaintProperty('feature-pulse', 'fill-opacity', opacity);
+            }
+
+            animationId = requestAnimationFrame(animatePulse);
+        };
+        animatePulse();
+
+        return () => {
+            if (animationId) cancelAnimationFrame(animationId);
+        };
+    }, [features]);
+
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
         if (!map.current || !isInitialized.current) return;
@@ -1063,4 +1116,4 @@ const Map = memo(function Map({
     );
 })
 
-export default Map;
+export default MapComponent;

@@ -29,7 +29,8 @@ export async function GET() {
                 highlightCreationPermission: true,
                 _count: {
                     select: {
-                        councilMeetings: true
+                        councilMeetings: true,
+                        petitions: true
                     }
                 }
             },
