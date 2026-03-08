@@ -33,9 +33,6 @@ export async function GET() {
                     }
                 }
             },
-            where: {
-                status: 'listed'
-            },
             orderBy: [
                 { status: 'desc' },
                 { name: 'asc' }
