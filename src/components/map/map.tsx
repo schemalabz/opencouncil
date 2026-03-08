@@ -145,7 +145,7 @@ const Map = memo(function Map({
             ]);
         } else {
             // For supported cities: borders already visible, just make slightly thicker
-            // For unsupported cities: show blue overlay AND border after 1 second
+            // For unsupported cities: show blue overlay AND border
 
             if (isSupported) {
                 // Supported city: ONLY BORDER (orange), NO OVERLAY
@@ -262,10 +262,57 @@ const Map = memo(function Map({
         }
     }, []);
 
-    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
-        if (e.features && e.features.length > 0 && onFeatureClick) {
-            onFeatureClick(e.features[0]);
+    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent) => {
+        if (!onFeatureClick || !map.current) return;
+
+        // Create 24px bounding box around tap point for mobile precision (12px radius)
+        // This creates a "magnetic" zone that makes subjects easier to tap on mobile
+        const bbox: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+            [e.point.x - 12, e.point.y - 12],
+            [e.point.x + 12, e.point.y + 12]
+        ];
+
+        // Query all features within the bounding box
+        const features = map.current.queryRenderedFeatures(bbox, {
+            layers: ['feature-points', 'feature-fills']
+        });
+
+        if (features.length === 0) return;
+
+        // Prioritize subjects (points) over cities (fills)
+        // Filter all point features
+        const pointFeatures = features.filter(f => f.layer?.id === 'feature-points');
+
+        if (pointFeatures.length === 0) {
+            // No subjects found, select city polygon
+            onFeatureClick(features[0]);
+            return;
         }
+
+        if (pointFeatures.length === 1) {
+            // Single subject, select it
+            onFeatureClick(pointFeatures[0]);
+            return;
+        }
+
+        // Multiple subjects found - select the closest one by Euclidean distance
+        const closestFeature = pointFeatures.sort((a, b) => {
+            const coordsA = (a.geometry as any).coordinates;
+            const coordsB = (b.geometry as any).coordinates;
+
+            const distA = Math.hypot(
+                coordsA[0] - e.lngLat.lng,
+                coordsA[1] - e.lngLat.lat
+            );
+            const distB = Math.hypot(
+                coordsB[0] - e.lngLat.lng,
+                coordsB[1] - e.lngLat.lat
+            );
+
+            return distA - distB;
+        })[0];
+
+        onFeatureClick(closestFeature);
     }, [onFeatureClick]);
 
     // Handle drawing events
@@ -425,7 +472,11 @@ const Map = memo(function Map({
                 'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from fills
                 'paint': {
                     'fill-color': ['get', 'fillColor'],
-                    'fill-opacity': ['get', 'fillOpacity']
+                    'fill-opacity': ['get', 'fillOpacity'],
+                    'fill-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
                 }
             });
 
@@ -437,7 +488,15 @@ const Map = memo(function Map({
                 'paint': {
                     'line-color': ['get', 'strokeColor'],
                     'line-width': ['get', 'strokeWidth'],
-                    'line-opacity': ['get', 'strokeOpacity']
+                    'line-opacity': ['get', 'strokeOpacity'],
+                    'line-width-transition': {
+                        duration: 200,
+                        delay: 0
+                    },
+                    'line-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
                 }
             });
 
@@ -474,14 +533,23 @@ const Map = memo(function Map({
                     'circle-radius': ['get', 'strokeWidth'],
                     'circle-stroke-width': 2,
                     'circle-stroke-color': ['get', 'strokeColor'],
-                    'circle-stroke-opacity': ['get', 'strokeOpacity']
+                    'circle-stroke-opacity': ['get', 'strokeOpacity'],
+                    // Hardware-accelerated smooth transitions
+                    'circle-radius-transition': {
+                        duration: 200,
+                        delay: 0
+                    },
+                    'circle-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
                 }
             });
 
             // Add event listeners
+            // Use a single map-wide click handler to prevent dual sidebar bug
             if (onFeatureClick) {
-                map.current?.on('click', 'feature-fills', handleMapFeatureClick);
-                map.current?.on('click', 'feature-points', handleMapFeatureClick);
+                map.current?.on('click', handleMapFeatureClick);
             }
 
             map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
