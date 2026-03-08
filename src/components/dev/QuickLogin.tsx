@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { LogOut, Settings, User, Crown, EyeOff } from 'lucide-react'
 import { getTestUsersForDisplay } from '@/lib/dev/test-users'
 import { useQuickLoginVisibility } from '@/hooks/useQuickLoginVisibility'
-import { IS_DEV } from '@/lib/utils'
+import { IS_DEV_OR_PREVIEW } from '@/lib/utils'
 import MobilePreviewButton from '@/components/dev/MobilePreviewButton'
 
 // Get predefined test users from shared definition
@@ -154,7 +154,7 @@ export default function QuickLogin() {
   }
 
   // Only show in development
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return null
   }
 

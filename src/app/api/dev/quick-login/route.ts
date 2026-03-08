@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { IS_DEV } from '@/lib/utils'
+import { IS_DEV, IS_DEV_OR_PREVIEW } from '@/lib/utils'
 
 export async function POST(request: NextRequest) {
   // Only allow in development environment
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 

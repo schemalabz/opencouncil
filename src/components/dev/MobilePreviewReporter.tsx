@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
-import { IS_DEV } from '@/lib/utils'
+import { IS_DEV_OR_PREVIEW } from '@/lib/utils'
 
 function generateId(): string {
   // crypto.randomUUID() requires a secure context (HTTPS).
@@ -49,7 +49,7 @@ export default function MobilePreviewReporter() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    if (!IS_DEV || !isLanAccess()) return
+    if (!IS_DEV_OR_PREVIEW || !isLanAccess()) return
 
     const sendHeartbeat = () => {
       fetch('/api/dev/mobile-preview', {

@@ -37,6 +37,8 @@ export {
 } from './utils/roles';
 
 export const IS_DEV = process.env.NODE_ENV === 'development';
+export const IS_PREVIEW = process.env.NEXTAUTH_URL?.includes('.preview.') ?? false;
+export const IS_DEV_OR_PREVIEW = IS_DEV || IS_PREVIEW;
 
 export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts with the blue city polygons
 

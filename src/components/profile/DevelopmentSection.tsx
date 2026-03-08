@@ -12,7 +12,7 @@ export function DevelopmentSection() {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 
   // Only show in development
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return null
   }
 

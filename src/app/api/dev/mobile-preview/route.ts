@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { IS_DEV } from '@/lib/utils'
+import { IS_DEV_OR_PREVIEW } from '@/lib/utils'
 
 interface ConnectedDevice {
   id: string
@@ -55,7 +55,7 @@ function cleanStaleDevices() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
@@ -105,7 +105,7 @@ export async function GET() {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!IS_DEV) {
+  if (!IS_DEV_OR_PREVIEW) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
