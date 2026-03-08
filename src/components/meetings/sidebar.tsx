@@ -184,7 +184,7 @@ export default function MeetingSidebar() {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
-                <div className="h-20 shrink-0" />
+                <div className="h-40 shrink-0" />
             </SidebarContent>
         </Sidebar>
     )
