@@ -260,152 +260,92 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
                             <label className="text-sm font-medium">
                                 Δήμοι
                             </label>
-                            {filters.selectedCities.length > 0 && filters.selectedCities.length < availableCities.length && (
+                            {filters.selectedCities.length > 0 && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleRemoveAllCities}
                                     className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
                                 >
-                                    Καθαρισμός
+                                    Καθαρισμός όλων
                                 </Button>
                             )}
                         </div>
 
-                        {availableCities.length > 0 ? (
-                            <Popover open={cityComboboxOpen} onOpenChange={setCityComboboxOpen} modal={false}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={cityComboboxOpen}
-                                        className="w-full justify-between"
+                        <div className="space-y-3">
+                            {/* Search input - INLINE (No Popover) */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder="Αναζήτηση δήμου..."
+                                    value={citySearch}
+                                    onChange={(e) => setCitySearch(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 text-sm bg-accent/50 rounded-md border-0 focus:ring-2 focus:ring-primary outline-none transition-all"
+                                />
+                                {citySearch && (
+                                    <button 
+                                        onClick={() => setCitySearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2"
                                     >
-                                        {filters.selectedCities.length === 0 || filters.selectedCities.length === availableCities.length
-                                            ? "Όλοι οι δήμοι"
-                                            : filters.selectedCities.length === 1
-                                            ? availableCities.find(c => c.id === filters.selectedCities[0])?.name
-                                            : `${filters.selectedCities.length} δήμοι`}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                    className="w-full p-0"
-                                    align="start"
-                                    onOpenAutoFocus={(e) => e.preventDefault()}
-                                >
-                                    <div className="flex flex-col h-full max-h-80" style={{ pointerEvents: 'auto' }}>
-                                        {/* Search input */}
-                                        <div className="flex items-center border-b px-3 py-2">
-                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                            <input
-                                                ref={searchInputRef}
-                                                type="text"
-                                                placeholder="Αναζήτηση δήμου..."
-                                                value={citySearch}
-                                                onChange={(e) => setCitySearch(e.target.value)}
-                                                className="h-9 border-0 p-0 focus:ring-0 focus:outline-none flex-1 bg-transparent"
-                                            />
-                                        </div>
-                                        {/* Cities list */}
-                                        <div className="overflow-y-auto max-h-64 p-1" style={{ pointerEvents: 'auto' }}>
-                                            {/* Select all option */}
-                                            <div
-                                                role="button"
-                                                tabIndex={0}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    e.preventDefault();
-                                                    if (filters.selectedCities.length === availableCities.length) {
-                                                        handleRemoveAllCities();
-                                                    } else {
-                                                        handleSelectAllCities();
-                                                    }
-                                                }}
-                                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm font-medium outline-none hover:bg-accent hover:text-accent-foreground transition-all hover:scale-105 active:scale-95"
-                                                style={{ pointerEvents: 'auto' }}
-                                            >
-                                                <Check
-                                                    className={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        filters.selectedCities.length === availableCities.length
-                                                            ? "opacity-100"
-                                                            : "opacity-0"
-                                                    )}
-                                                />
-                                                Όλοι οι δήμοι ({availableCities.length})
-                                            </div>
-                                            {/* Individual cities */}
-                                            {filteredCities.length === 0 ? (
-                                                <div className="py-6 text-center text-sm text-muted-foreground">
-                                                    Δεν βρέθηκε δήμος.
-                                                </div>
-                                            ) : (
-                                                filteredCities.map((city) => (
-                                                    <div
-                                                        key={city.id}
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            e.preventDefault();
-                                                            handleCitySelect(city.id);
-                                                        }}
-                                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground transition-all hover:scale-105 active:scale-95"
-                                                        style={{ pointerEvents: 'auto' }}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                filters.selectedCities.includes(city.id)
-                                                                    ? "opacity-100"
-                                                                    : "opacity-0"
-                                                            )}
-                                                        />
-                                                        <span className="flex-1">{city.name}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            ({city.meetingsCount})
-                                                        </span>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                className="w-full justify-between"
-                                disabled
-                            >
-                                Φόρτωση δήμων...
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        )}
-
-                        {/* Selected cities badges */}
-                        {filters.selectedCities.length > 0 && filters.selectedCities.length < availableCities.length && (
-                            <div className="flex flex-wrap gap-2">
-                                {filters.selectedCities.map(cityId => {
-                                    const city = availableCities.find(c => c.id === cityId);
-                                    if (!city) return null;
-                                    return (
-                                        <Badge
-                                            key={cityId}
-                                            variant="secondary"
-                                            className="gap-1"
-                                        >
-                                            {city.name}
-                                            <X
-                                                className="h-3 w-3 cursor-pointer"
-                                                onClick={() => handleRemoveCity(cityId)}
-                                            />
-                                        </Badge>
-                                    );
-                                })}
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                )}
                             </div>
-                        )}
+
+                            {/* Cities list - INLINE scrollable area */}
+                            <div className="border rounded-md overflow-hidden bg-background">
+                                <div className="max-h-[160px] overflow-y-auto p-1 scrollbar-thin">
+                                    {/* Select all option */}
+                                    <div
+                                        role="button"
+                                        onClick={() => {
+                                            if (filters.selectedCities.length === availableCities.length) {
+                                                handleRemoveAllCities();
+                                            } else {
+                                                handleSelectAllCities();
+                                            }
+                                        }}
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm font-medium hover:bg-accent transition-colors"
+                                    >
+                                        <div className={cn(
+                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                                            filters.selectedCities.length === availableCities.length ? "bg-primary text-primary-foreground" : "opacity-50"
+                                        )}>
+                                            {filters.selectedCities.length === availableCities.length && <Check className="h-3 w-3" />}
+                                        </div>
+                                        Όλοι οι δήμοι ({availableCities.length})
+                                    </div>
+
+                                    {/* Individual cities */}
+                                    {filteredCities.length === 0 ? (
+                                        <div className="py-6 text-center text-sm text-muted-foreground italic">
+                                            Δεν βρέθηκε δήμος.
+                                        </div>
+                                    ) : (
+                                        filteredCities.map((city) => (
+                                            <div
+                                                key={city.id}
+                                                role="button"
+                                                onClick={() => handleCitySelect(city.id)}
+                                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm hover:bg-accent transition-colors"
+                                            >
+                                                <div className={cn(
+                                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                                                    filters.selectedCities.includes(city.id) ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                )}>
+                                                    {filters.selectedCities.includes(city.id) && <Check className="h-3 w-3" />}
+                                                </div>
+                                                <span className="flex-1 truncate">{city.name}</span>
+                                                <span className="text-[10px] tabular-nums bg-accent px-1.5 py-0.5 rounded-full text-muted-foreground ml-2">
+                                                    {city.meetingsCount}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     )}
 

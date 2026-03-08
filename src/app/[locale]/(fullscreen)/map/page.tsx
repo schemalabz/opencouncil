@@ -8,6 +8,7 @@ import { CitySheet } from "@/components/map/CitySheet";
 import { SubjectInfoSheet } from "@/components/map/SubjectInfoSheet";
 import { MapExplainer } from "@/components/map/MapExplainer";
 import { Topic } from '@prisma/client';
+import { getUserPreferences, UserPreference } from "@/lib/db/notifications";
 
 interface SubjectWithGeometry {
     id: string;
@@ -97,27 +98,22 @@ export default function MapPage() {
         }
     }, []);
 
-    // Fetch all topics and cities on mount
+    // Fetch user preferences, topics, and cities on mount
     useEffect(() => {
-        async function loadTopics() {
+        async function loadInitialData() {
             try {
-                const response = await fetch('/api/topics');
-                const topics: Topic[] = await response.json();
+                // Fetch topics and cities in parallel
+                const [topicsResponse, citiesResponse] = await Promise.all([
+                    fetch('/api/topics'),
+                    fetch('/api/cities/map')
+                ]);
+                
+                const topics: Topic[] = await topicsResponse.json();
+                const cities: CityWithGeometry[] = await citiesResponse.json();
+                
                 setAllTopics(topics);
-                // Initialize with all topics selected
-                setFilters(prev => ({ ...prev, selectedTopics: topics }));
-            } catch (error) {
-                console.error('Error loading topics:', error);
-            }
-        }
-
-        async function loadCities() {
-            try {
-                const response = await fetch('/api/cities/map');
-                const cities: CityWithGeometry[] = await response.json();
-                // Store full cities with geometry
                 setCitiesWithGeometry(cities);
-                // Only include cities with meetings
+
                 const citiesWithMeetings: CityOption[] = cities
                     .filter(c => (c as any)._count?.councilMeetings > 0)
                     .map(c => ({
@@ -127,15 +123,48 @@ export default function MapPage() {
                         meetingsCount: (c as any)._count?.councilMeetings || 0
                     }));
                 setAllCities(citiesWithMeetings);
-                // Initialize with all cities selected
-                setFilters(prev => ({ ...prev, selectedCities: citiesWithMeetings.map(c => c.id) }));
+
+                // Fetch User Preferences (Server Action)
+                let userPrefs: UserPreference[] = [];
+                try {
+                    userPrefs = await getUserPreferences();
+                } catch (e) {
+                    // Not authenticated or error - ignore
+                }
+
+                // Apply Personalization if available
+                if (userPrefs && userPrefs.length > 0) {
+                    const primaryPref = userPrefs[0];
+                    const preferredTopicIds = new Set(primaryPref.topics?.map(t => t.id) || []);
+                    
+                    const initialFilters = {
+                        monthsBack: 6,
+                        selectedTopics: preferredTopicIds.size > 0 
+                            ? topics.filter(t => preferredTopicIds.has(t.id))
+                            : topics,
+                        selectedCities: [primaryPref.cityId]
+                    };
+                    
+                    setFilters(initialFilters);
+
+                    // Auto-zoom to preferred city
+                    if (primaryPref.city?.geometry) {
+                        setZoomToGeometry(primaryPref.city.geometry as GeoJSON.Geometry);
+                    }
+                } else {
+                    // Default: Select all topics and all cities
+                    setFilters({
+                        monthsBack: 6,
+                        selectedTopics: topics,
+                        selectedCities: citiesWithMeetings.map(c => c.id)
+                    });
+                }
             } catch (error) {
-                console.error('Error loading cities:', error);
+                console.error('Error loading initial map data:', error);
             }
         }
 
-        loadTopics();
-        loadCities();
+        loadInitialData();
     }, []);
 
     // Zoom to selected city when only one is selected
