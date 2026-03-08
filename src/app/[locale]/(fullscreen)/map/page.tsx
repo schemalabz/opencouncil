@@ -27,13 +27,24 @@ interface SubjectWithGeometry {
     geometry: GeoJSON.Geometry;
 }
 
+interface CityOption {
+    id: string;
+    name: string;
+    name_en: string;
+    meetingsCount: number;
+}
+
 export default function MapPage() {
     const [features, setFeatures] = useState<MapFeature[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
     const [allTopics, setAllTopics] = useState<Topic[]>([]);
+    const [allCities, setAllCities] = useState<CityOption[]>([]);
+    const [citiesWithGeometry, setCitiesWithGeometry] = useState<CityWithGeometry[]>([]);
+    const [zoomToGeometry, setZoomToGeometry] = useState<GeoJSON.Geometry | null>(null);
     const [filters, setFilters] = useState<MapFiltersState>({
         monthsBack: 6,
-        selectedTopics: []
+        selectedTopics: [],
+        selectedCities: []
     });
     const [showExplainer, setShowExplainer] = useState(false);
     const [citySheet, setCitySheet] = useState<{
@@ -86,7 +97,7 @@ export default function MapPage() {
         }
     }, []);
 
-    // Fetch all topics on mount
+    // Fetch all topics and cities on mount
     useEffect(() => {
         async function loadTopics() {
             try {
@@ -99,20 +110,58 @@ export default function MapPage() {
                 console.error('Error loading topics:', error);
             }
         }
+
+        async function loadCities() {
+            try {
+                const response = await fetch('/api/cities/map');
+                const cities: CityWithGeometry[] = await response.json();
+                // Store full cities with geometry
+                setCitiesWithGeometry(cities);
+                // Only include cities with meetings
+                const citiesWithMeetings: CityOption[] = cities
+                    .filter(c => (c as any)._count?.councilMeetings > 0)
+                    .map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        name_en: c.name_en,
+                        meetingsCount: (c as any)._count?.councilMeetings || 0
+                    }));
+                setAllCities(citiesWithMeetings);
+                // Initialize with all cities selected
+                setFilters(prev => ({ ...prev, selectedCities: citiesWithMeetings.map(c => c.id) }));
+            } catch (error) {
+                console.error('Error loading cities:', error);
+            }
+        }
+
         loadTopics();
+        loadCities();
     }, []);
+
+    // Zoom to selected city when only one is selected
+    useEffect(() => {
+        if (filters.selectedCities.length === 1 && citiesWithGeometry.length > 0) {
+            const selectedCityId = filters.selectedCities[0];
+            const selectedCity = citiesWithGeometry.find(c => c.id === selectedCityId);
+
+            if (selectedCity?.geometry) {
+                const geometry = selectedCity.geometry;
+                // Force re-trigger by clearing first, then setting in next tick
+                setZoomToGeometry(null);
+                setTimeout(() => {
+                    setZoomToGeometry(geometry);
+                }, 0);
+            }
+        } else {
+            // Reset zoom when multiple or no cities selected
+            setZoomToGeometry(null);
+        }
+    }, [filters.selectedCities, citiesWithGeometry]);
 
     // Fetch subjects based on filters
     useEffect(() => {
-        console.log('🔄 useEffect triggered with filters:', {
-            monthsBack: filters.monthsBack,
-            selectedTopicsCount: filters.selectedTopics.length,
-            allTopicsCount: allTopics.length
-        });
-
-        // Don't fetch until topics are loaded
-        if (allTopics.length === 0) {
-            console.log('⏸️ Skipping fetch - topics not loaded yet');
+        // Don't fetch until topics and cities are loaded
+        if (allTopics.length === 0 || allCities.length === 0) {
             return;
         }
 
@@ -126,14 +175,10 @@ export default function MapPage() {
 
                 // Build query params for subjects
                 const topicIds = filters.selectedTopics.map(t => t.id).join(',');
-                const subjectsUrl = `/api/map/subjects?monthsBack=${filters.monthsBack}${topicIds ? `&topicIds=${topicIds}` : ''}`;
-
-                console.log('🌐 Frontend: Fetching with filters:', {
-                    monthsBack: filters.monthsBack,
-                    selectedTopicsCount: filters.selectedTopics.length,
-                    topicIds,
-                    url: subjectsUrl
-                });
+                const cityIds = filters.selectedCities.join(',');
+                let subjectsUrl = `/api/map/subjects?monthsBack=${filters.monthsBack}`;
+                if (topicIds) subjectsUrl += `&topicIds=${topicIds}`;
+                if (cityIds) subjectsUrl += `&cityIds=${cityIds}`;
 
                 // Fetch both cities and subjects in parallel (with abort signal)
                 const [citiesResponse, subjectsResponse] = await Promise.all([
@@ -149,19 +194,14 @@ export default function MapPage() {
 
                 // Check if this request was cancelled
                 if (isStale) {
-                    console.log('🚫 Request cancelled - newer request in progress');
                     return;
                 }
 
                 const cities: CityWithGeometry[] = await citiesResponse.json();
                 const subjects: SubjectWithGeometry[] = await subjectsResponse.json();
 
-                console.log('📦 Frontend: Received', subjects.length, 'subjects');
-                console.log('📊 Frontend: Sample subjects:', subjects.slice(0, 3).map(s => ({
-                    name: s.name,
-                    date: s.meetingDate,
-                    topic: s.topicName
-                })));
+                // Update citiesWithGeometry state so zoom can use fresh geometry data
+                setCitiesWithGeometry(cities);
 
                 // Convert ALL cities with geometry to map features
                 // Show both supported and unsupported municipalities
@@ -265,7 +305,7 @@ export default function MapPage() {
             isStale = true;
             abortController.abort();
         };
-    }, [filters, allTopics.length]);
+    }, [filters, allTopics.length, allCities.length]);
 
     const renderPopup = (feature: GeoJSON.Feature) => {
         const featureType = feature.properties?.featureType;
@@ -499,6 +539,7 @@ export default function MapPage() {
                 renderPopup={renderPopup}
                 onFeatureClick={handleFeatureClick}
                 className="h-full w-full"
+                zoomToGeometry={zoomToGeometry}
             />
 
             {/* Loading overlay when loading or updating */}
@@ -511,11 +552,12 @@ export default function MapPage() {
                 </div>
             )}
 
-            {allTopics.length > 0 && (
+            {allTopics.length > 0 && allCities.length > 0 && (
                 <>
                     <MapFilters
                         filters={filters}
                         allTopics={allTopics}
+                        allCities={allCities}
                         onFiltersChange={setFilters}
                     />
                     <MapExplainer

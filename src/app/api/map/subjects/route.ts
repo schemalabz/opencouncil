@@ -11,15 +11,20 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const monthsBackParam = searchParams.get('monthsBack');
         const topicIdsParam = searchParams.get('topicIds');
+        const cityIdsParam = searchParams.get('cityIds');
 
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
+        const cityIds = cityIdsParam ? cityIdsParam.split(',') : [];
 
         console.log('🔍 API Filter params:', {
             monthsBack,
             topicIdsCount: topicIds.length,
+            cityIdsCount: cityIds.length,
             topicIdsParam,
-            topicIds: topicIds.slice(0, 5)
+            cityIdsParam,
+            topicIds: topicIds.slice(0, 5),
+            cityIds: cityIds.slice(0, 5)
         });
 
         // Calculate date threshold
@@ -43,6 +48,13 @@ export async function GET(request: Request) {
                 }
             }
         };
+
+        // Add city filter if specified
+        if (cityIds.length > 0) {
+            whereClause.councilMeeting.cityId = {
+                in: cityIds
+            };
+        }
 
         // Add topic filter if specified
         if (topicIds.length > 0) {
