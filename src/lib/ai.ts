@@ -1,11 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
-import dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { env } from '@/env.mjs';
 import { IS_DEV } from './utils';
 
-dotenv.config();
 
 const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
 export type ResultWithUsage<T> = { result: T, usage: Anthropic.Messages.Usage };
@@ -26,7 +24,7 @@ export interface AIConfig {
 const DEFAULT_CONFIG: AIConfig = {
     maxTokens: 8192,
     temperature: 0,
-    model: "claude-sonnet-4-0",
+    model: "claude-sonnet-4-6",
     logPrompts: IS_DEV,
     promptsDir: path.join(process.cwd(), 'logs', 'prompts'),
     enableWebSearch: false,

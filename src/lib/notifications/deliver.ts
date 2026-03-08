@@ -77,7 +77,7 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
 /**
  * Send email delivery via Resend
  */
-async function sendEmailDelivery(delivery: any): Promise<boolean> {
+async function sendEmailDelivery(delivery: NotificationDelivery): Promise<boolean> {
     try {
         if (!delivery.email || !delivery.title || !delivery.body) {
             console.error('Missing email, title, or body for delivery', delivery.id);
@@ -111,7 +111,7 @@ async function sendEmailDelivery(delivery: any): Promise<boolean> {
 /**
  * Send message delivery via Bird (WhatsApp with SMS fallback)
  */
-async function sendMessageDelivery(delivery: any): Promise<boolean> {
+async function sendMessageDelivery(delivery: NotificationDelivery): Promise<boolean> {
     try {
         if (!delivery.phone) {
             console.error('Missing phone for delivery', delivery.id);
