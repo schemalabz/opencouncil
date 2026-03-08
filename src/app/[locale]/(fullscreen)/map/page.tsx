@@ -35,6 +35,7 @@ export default function MapPage() {
         monthsBack: 6,
         selectedTopics: []
     });
+    const [showExplainer, setShowExplainer] = useState(false);
     const [citySheet, setCitySheet] = useState<{
         open: boolean;
         cityId: string;
@@ -76,6 +77,14 @@ export default function MapPage() {
         cityId: '',
         councilMeetingId: ''
     });
+
+    // Check if this is the user's first visit to the map
+    useEffect(() => {
+        const hasSeenExplainer = localStorage.getItem('opencouncil-map-explainer-dismissed');
+        if (!hasSeenExplainer) {
+            setShowExplainer(true);
+        }
+    }, []);
 
     // Fetch all topics on mount
     useEffect(() => {
@@ -175,8 +184,8 @@ export default function MapPage() {
                         featureType: 'city'
                     },
                     style: {
-                        fillColor: city.officialSupport ? '#000000' : 'hsl(212, 50%, 76%)', // Black for supported (won't show), Blue for unsupported
-                        fillOpacity: 0, // NO fill by default for BOTH
+                        fillColor: city.officialSupport ? 'hsl(24, 100%, 92%)' : 'hsl(212, 50%, 76%)', // Black for supported (won't show), Blue for unsupported
+                        fillOpacity: city.officialSupport ? 0.35 : 0, // Soft fill for supported, NO fill for unsupported
                         strokeColor: city.officialSupport ? 'hsl(24, 100%, 50%)' : 'hsl(212, 50%, 76%)', // Orange for supported, Blue for unsupported
                         strokeWidth: city.officialSupport ? 1.5 : 0, // Supported: border visible, Unsupported: no border
                         strokeOpacity: city.officialSupport ? 0.6 : 0, // Supported: visible, Unsupported: invisible
@@ -509,7 +518,10 @@ export default function MapPage() {
                         allTopics={allTopics}
                         onFiltersChange={setFilters}
                     />
-                    <MapExplainer />
+                    <MapExplainer
+                        open={showExplainer}
+                        onOpenChange={setShowExplainer}
+                    />
 
                     {/* Map Summary - Subjects count, topics and timeframe info */}
                     <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">

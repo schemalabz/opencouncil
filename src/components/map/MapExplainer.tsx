@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -11,13 +10,24 @@ import {
 import { HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export function MapExplainer() {
-    const [open, setOpen] = useState(false);
+interface MapExplainerProps {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+}
+
+export function MapExplainer({ open: controlledOpen, onOpenChange }: MapExplainerProps = {}) {
+    const handleOpenChange = (newOpen: boolean) => {
+        // Persist dismissal to localStorage
+        if (!newOpen && controlledOpen) {
+            localStorage.setItem('opencouncil-map-explainer-dismissed', 'true');
+        }
+        onOpenChange?.(newOpen);
+    };
 
     return (
-        <Sheet open={open} onOpenChange={setOpen}>
+        <Sheet open={controlledOpen} onOpenChange={handleOpenChange}>
             <Button
-                onClick={() => setOpen(true)}
+                onClick={() => handleOpenChange(true)}
                 size="lg"
                 className="fixed bottom-6 left-[110px] sm:left-[160px] z-40 rounded-full shadow-lg h-14 px-6 gap-2 bg-white hover:bg-gray-50 text-foreground border border-border"
             >
