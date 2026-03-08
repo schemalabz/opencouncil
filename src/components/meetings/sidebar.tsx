@@ -161,7 +161,7 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && (
                                 <>
-                                    {chronologicalSubjects?.map((subject) => (
+                                    {chronologicalSubjects?.map((subject, index) => (
                                         <SidebarMenuItem key={subject.id} className="pl-8">
                                             <SidebarMenuButton
                                                 asChild
@@ -174,7 +174,7 @@ export default function MeetingSidebar() {
                                                         activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
                                                     )}
                                                 >
-                                                    <span className="text-sm">{subject.name}</span>
+                                                    <span className="text-sm"><span className="text-muted-foreground tabular-nums">{index + 1}.</span>{' '}{subject.name}</span>
                                                 </Link>
                                             </SidebarMenuButton>
                                         </SidebarMenuItem>
