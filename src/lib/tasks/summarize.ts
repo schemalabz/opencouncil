@@ -55,6 +55,26 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
     const topicByName = new Map(topics.map(t => [t.name, t]));
 
+    // Clean up stale data from previous summarize runs before processing new results.
+    // This ensures re-summarize produces the same result as a first-time summarize.
+    // 1. Delete old topic labels for this meeting's speaker segments
+    await prisma.topicLabel.deleteMany({
+        where: {
+            speakerSegmentId: { in: availableSpeakerSegmentIds }
+        }
+    });
+
+    // 2. Reset utterance discussion statuses for this meeting's speaker segments
+    await prisma.utterance.updateMany({
+        where: {
+            speakerSegmentId: { in: availableSpeakerSegmentIds }
+        },
+        data: {
+            discussionStatus: null,
+            discussionSubjectId: null
+        }
+    });
+
     // Prepare all operations for batch execution
     const operations: any[] = [];
 
