@@ -24,6 +24,9 @@ const nextConfig = {
     transpilePackages: ['@'],
     // Development optimizations
     swcMinify: true,
+    experimental: {
+        optimizePackageImports: ['lucide-react'],
+    },
     // Enable custom domains - we'll handle this entirely in middleware
     // Removing the invalid rewrite configuration
     async redirects() {
@@ -38,4 +41,3 @@ const nextConfig = {
 };
 
 export default withNextIntl(nextConfig);
-

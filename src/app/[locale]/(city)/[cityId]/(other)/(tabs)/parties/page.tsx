@@ -8,16 +8,17 @@ export default async function PartiesPage({
 }: {
     params: { cityId: string }
 }) {
-    const people = await getPeopleForCityCached(cityId);
-    const partiesWithPersons = await getPartiesForCityCached(cityId);
-
-    const peopleWithoutParties = people.filter(person => !partiesWithPersons.some(party => party.people.some(p => p.id === person.id)));
+    const [people, partiesWithPersons, canEdit] = await Promise.all([
+        getPeopleForCityCached(cityId),
+        getPartiesForCityCached(cityId),
+        isUserAuthorizedToEdit({ cityId }),
+    ]);
 
     if (!partiesWithPersons) {
         notFound();
     }
 
-    const canEdit = await isUserAuthorizedToEdit({ cityId });
+    const peopleWithoutParties = people.filter(person => !partiesWithPersons.some(party => party.people.some(p => p.id === person.id)));
 
     return (
         <CityParties
@@ -27,4 +28,4 @@ export default async function PartiesPage({
             canEdit={canEdit}
         />
     );
-} 
+}

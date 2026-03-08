@@ -143,13 +143,16 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 AND type = 'point'
             `;
 
+            // Build a Map for O(1) coordinate lookup instead of O(n) .find()
+            const coordMap = new Map(locationCoordinates.map(l => [l.id, l]));
+
             // Merge coordinates into the subjects
             return subjects.map(subject => ({
                 ...subject,
                 location: subject.location
                     ? {
                         ...subject.location,
-                        coordinates: locationCoordinates.find(l => l.id === subject.location!.id),
+                        coordinates: coordMap.get(subject.location.id),
                     }
                     : null,
             }));
