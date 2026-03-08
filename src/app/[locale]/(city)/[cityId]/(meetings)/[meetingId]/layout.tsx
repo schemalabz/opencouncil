@@ -165,7 +165,7 @@ export default async function CouncilMeetingPage({
                             <div className="flex-1 flex min-h-0">
                                 <MeetingSidebar />
                                 <div className="flex-1 overflow-auto">
-                                    <div className='pb-20'>
+                                    <div className='pb-32'>
                                         <Suspense>
                                             {children}
                                         </Suspense>
