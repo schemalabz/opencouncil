@@ -395,8 +395,13 @@ export async function updateSegmentTimestamps(segmentId: string) {
 
     await withUserAuthorizedToEdit({ cityId: segment.cityId });
 
-    const earliestStart = Math.min(...segment.utterances.map(u => u.startTimestamp));
-    const latestEnd = Math.max(...segment.utterances.map(u => u.endTimestamp));
+    // Use a loop instead of Math.min/max spread to avoid stack overflow on large segments
+    let earliestStart = Infinity;
+    let latestEnd = -Infinity;
+    for (const u of segment.utterances) {
+        if (u.startTimestamp < earliestStart) earliestStart = u.startTimestamp;
+        if (u.endTimestamp > latestEnd) latestEnd = u.endTimestamp;
+    }
 
     await prisma.speakerSegment.update({
         where: { id: segmentId },
@@ -781,9 +786,13 @@ export async function updateSpeakerSegmentData(
         }
 
         // Calculate new segment timestamps based on utterances
-        const allTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
-        const newSegmentStart = Math.min(...allTimestamps);
-        const newSegmentEnd = Math.max(...allTimestamps);
+        // Use a loop instead of Math.min/max spread to avoid stack overflow on large segments
+        let newSegmentStart = Infinity;
+        let newSegmentEnd = -Infinity;
+        for (const u of data.utterances) {
+            if (u.startTimestamp < newSegmentStart) newSegmentStart = u.startTimestamp;
+            if (u.endTimestamp > newSegmentEnd) newSegmentEnd = u.endTimestamp;
+        }
 
         // Update or delete summary
         if (data.summary) {

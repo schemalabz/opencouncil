@@ -67,7 +67,7 @@ export async function generateMetadata({
     const optimizedTitle = `${data.city.name} - ${data.meeting.name} | OpenCouncil`;
 
     // Use the hero text for description, which is already optimized for Greek audience
-    const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
+    const description = "Το OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
 
     const imageUrl = `/api/og?meetingId=${meetingId}&cityId=${cityId}`;
 
@@ -103,10 +103,11 @@ export default async function CouncilMeetingPage({
     children: React.ReactNode
 }) {
 
-    const currentUser = await getCurrentUser();
-    const editable = await isUserAuthorizedToEdit({ cityId });
-
-    const data = await getMeetingDataCached(cityId, meetingId);
+    const [currentUser, editable, data] = await Promise.all([
+        getCurrentUser(),
+        isUserAuthorizedToEdit({ cityId }),
+        getMeetingDataCached(cityId, meetingId),
+    ]);
 
     if (!data || !data.city) {
         notFound();
@@ -127,8 +128,8 @@ export default async function CouncilMeetingPage({
 
     return (
         <ShareProvider>
-            <CouncilMeetingWrapper 
-                meetingData={data} 
+            <CouncilMeetingWrapper
+                meetingData={data}
                 editable={editable}
                 canCreateHighlights={highlightCreationAllowed}
             >

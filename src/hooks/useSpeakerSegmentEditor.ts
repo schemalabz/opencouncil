@@ -116,8 +116,12 @@ export function useSpeakerSegmentEditor(segment: TranscriptType[number]) {
             
             // Calculate a reasonable timestamp for the new utterance
             // Place it at the end of the segment with a 1-second duration
-            const existingTimestamps = data.utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
-            const maxTimestamp = existingTimestamps.length > 0 ? Math.max(...existingTimestamps) : 0;
+            // Use a loop instead of Math.max spread to avoid stack overflow on large segments
+            let maxTimestamp = 0;
+            for (const u of data.utterances) {
+                if (u.startTimestamp > maxTimestamp) maxTimestamp = u.startTimestamp;
+                if (u.endTimestamp > maxTimestamp) maxTimestamp = u.endTimestamp;
+            }
             const newStartTimestamp = maxTimestamp + 0.1; // Small gap after last utterance
             const newEndTimestamp = newStartTimestamp + 1; // 1 second duration
             
