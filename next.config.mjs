@@ -19,7 +19,11 @@ const nextConfig = {
     reactStrictMode: false,
     output: 'standalone',
     images: {
-        domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
+        remotePatterns: [
+            { protocol: 'https', hostname: 'townhalls-gr.fra1.digitaloceanspaces.com' },
+            { protocol: 'https', hostname: 'data.opencouncil.gr' },
+            { protocol: 'https', hostname: 'fra1.digitaloceanspaces.com' },
+        ],
     },
     transpilePackages: ['@'],
     // Development optimizations

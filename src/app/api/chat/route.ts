@@ -49,7 +49,7 @@ const CONTEXT_CONFIG = {
 // AI Configuration
 const AI_CONFIG: AIConfig = {
     maxTokens: 1000,
-    model: 'claude-sonnet-4-5-20250929',
+    model: 'claude-sonnet-4-6',
     temperature: 0,
 
 };
