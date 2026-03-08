@@ -7,6 +7,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/dec
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
+import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
     cityId: string,
@@ -20,10 +21,13 @@ export async function requestPollDecisions(
 /**
  * Core function to poll decisions for a meeting. Used by both the admin action and the cron job.
  * Does NOT check authorization — callers are responsible for auth.
+ *
+ * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
+    options?: { silent?: boolean },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -84,7 +88,7 @@ export async function pollDecisionsForMeeting(
         })),
     };
 
-    return startTask('pollDecisions', body, councilMeetingId, cityId);
+    return startTask('pollDecisions', body, councilMeetingId, cityId, { silent: options?.silent });
 }
 
 /**
@@ -153,6 +157,9 @@ export async function pollDecisionsForRecentMeetings() {
 
     const results: Array<{ cityId: string; meetingId: string; status: string }> = [];
     let dispatched = 0;
+    let skipped = 0;
+    const dispatchedMeetings: Array<{ cityId: string; meetingId: string }> = [];
+    const dispatchErrors: Array<{ cityId: string; meetingId: string; error: string }> = [];
 
     for (const meeting of meetings) {
         if (dispatched >= 10) break;
@@ -166,6 +173,7 @@ export async function pollDecisionsForRecentMeetings() {
         );
         if (skipReason) {
             results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `skipped: ${skipReason}` });
+            skipped++;
             continue;
         }
 
@@ -173,14 +181,28 @@ export async function pollDecisionsForRecentMeetings() {
             await pollDecisionsForMeeting(
                 meeting.cityId,
                 meeting.id,
+                { silent: true },
             );
 
             dispatched++;
+            dispatchedMeetings.push({ cityId: meeting.cityId, meetingId: meeting.id });
             results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: 'started' });
         } catch (error) {
             console.error(`Failed to poll decisions for meeting ${meeting.cityId}/${meeting.id}:`, error);
-            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `error: ${(error as Error).message}` });
+            const errorMsg = (error as Error).message;
+            dispatchErrors.push({ cityId: meeting.cityId, meetingId: meeting.id, error: errorMsg });
+            results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `error: ${errorMsg}` });
         }
+    }
+
+    // Send a single batch started alert instead of per-task alerts
+    if (dispatched > 0 || dispatchErrors.length > 0) {
+        sendPollDecisionsBatchStartedAlert({
+            dispatchedCount: dispatched,
+            skippedCount: skipped,
+            meetings: dispatchedMeetings,
+            errors: dispatchErrors,
+        });
     }
 
     return { meetingsProcessed: dispatched, results };
@@ -806,6 +828,138 @@ export async function resolveAdaConflict(
     });
 }
 
+/** Per-meeting entry in the batch completion summary. */
+export interface PollDecisionsMeetingResult {
+    cityId: string;
+    meetingId: string;
+    matches: number;
+    reassignments: number;
+    conflicts: number;
+    status: 'succeeded' | 'failed';
+    error?: string;
+}
+
+/** Max characters for an individual error line in batch Discord summaries. */
+const ERROR_PREVIEW_LENGTH = 200;
+
+/**
+ * Radius (ms) for grouping pollDecisions tasks into a batch.
+ * Tasks created within ±BATCH_WINDOW_MS of each other are considered siblings.
+ *
+ * Must be less than half the cron interval to avoid grouping tasks from
+ * consecutive runs into the same batch. Current cron interval: 10 minutes.
+ */
+const BATCH_WINDOW_MS = 2 * 60 * 1000;
+
+/**
+ * After a pollDecisions task reaches a terminal state, check whether all sibling
+ * tasks in the same batch window have also finished. If so, aggregate results
+ * and send a single batch completion alert.
+ *
+ * Called via taskTerminalHooks in handleTaskUpdate — runs AFTER the task's DB
+ * status is settled, so all statuses read from DB are correct.
+ */
+export async function checkBatchCompletionAndAlert(
+    taskId: string,
+    taskCreatedAt: Date,
+) {
+    const windowStart = new Date(taskCreatedAt.getTime() - BATCH_WINDOW_MS);
+    const windowEnd = new Date(taskCreatedAt.getTime() + BATCH_WINDOW_MS);
+
+    // Find all pollDecisions tasks in the time window
+    const siblingTasks = await prisma.taskStatus.findMany({
+        where: {
+            type: 'pollDecisions',
+            createdAt: { gte: windowStart, lte: windowEnd },
+        },
+        select: {
+            id: true,
+            status: true,
+            cityId: true,
+            councilMeetingId: true,
+            responseBody: true,
+        },
+    });
+
+    // Check if all siblings are in terminal state.
+    // Note: if two tasks complete nearly simultaneously, both may see allTerminal=true
+    // and send a duplicate alert. This is a benign race — Discord duplicates are
+    // preferable to missing alerts, and the window is very small in practice.
+    const allTerminal = siblingTasks.every(t => t.status === 'succeeded' || t.status === 'failed');
+    if (!allTerminal) {
+        return; // Not all done yet — a later completion will trigger the summary
+    }
+
+    // Aggregate results — all tasks read uniformly from DB.
+    let totalMatches = 0;
+    let totalReassignments = 0;
+    let totalConflicts = 0;
+    let succeededCount = 0;
+    let failedCount = 0;
+    const meetingBreakdown: PollDecisionsMeetingResult[] = [];
+
+    for (const sibling of siblingTasks) {
+        const cityId = sibling.cityId;
+        const meetingId = sibling.councilMeetingId ?? 'unknown';
+
+        if (sibling.status === 'failed') {
+            failedCount++;
+            meetingBreakdown.push({
+                cityId,
+                meetingId,
+                matches: 0,
+                reassignments: 0,
+                conflicts: 0,
+                status: 'failed',
+                error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
+            });
+            continue;
+        }
+
+        succeededCount++;
+
+        // Parse responseBody for result counts. Prefer _processedCounts (enriched
+        // after processing) for accurate post-processing numbers; fall back to raw
+        // server response counts for older tasks or edge cases.
+        let matches = 0;
+        let reassignments = 0;
+        let conflicts = 0;
+        if (sibling.responseBody) {
+            try {
+                const parsed = JSON.parse(sibling.responseBody);
+                if (parsed._processedCounts) {
+                    matches = parsed._processedCounts.matches ?? 0;
+                    reassignments = parsed._processedCounts.reassignments ?? 0;
+                    conflicts = parsed._processedCounts.conflicts ?? 0;
+                } else {
+                    matches = Array.isArray(parsed.matches) ? parsed.matches.length : 0;
+                    reassignments = Array.isArray(parsed.reassignments) ? parsed.reassignments.length : 0;
+                }
+            } catch { /* ignore parse errors */ }
+        }
+        totalMatches += matches;
+        totalReassignments += reassignments;
+        totalConflicts += conflicts;
+        meetingBreakdown.push({
+            cityId,
+            meetingId,
+            matches,
+            reassignments,
+            conflicts,
+            status: 'succeeded',
+        });
+    }
+
+    sendPollDecisionsBatchCompletedAlert({
+        succeededCount,
+        failedCount,
+        totalMatches,
+        totalReassignments,
+        totalConflicts,
+        meetingBreakdown,
+    });
+}
+
 export async function handlePollDecisionsResult(taskId: string, result: PollDecisionsResult) {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -815,135 +969,153 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         throw new Error("Task not found");
     }
 
-    // Collect all subjectIds from matches and reassignments for validation
-    const allSubjectIds = [
-        ...result.matches.map(m => m.subjectId),
-        ...result.reassignments.flatMap(r => [r.fromSubjectId, r.toSubjectId]),
-    ];
-
-    const validSubjectIds = await prisma.subject.findMany({
-        where: {
-            id: { in: allSubjectIds },
-            cityId: task.cityId,
-            councilMeetingId: task.councilMeetingId,
-        },
-        select: { id: true },
-    });
-    const validSubjectIdSet = new Set(validSubjectIds.map(s => s.id));
-
-    // Validate every reassignment has a corresponding match to upsert,
-    // otherwise deleting the old decision would lose it permanently.
-    const matchSubjectIds = new Set(result.matches.map(m => m.subjectId));
-    for (const r of result.reassignments) {
-        if (!matchSubjectIds.has(r.toSubjectId)) {
-            throw new Error(`Reassignment for ${r.ada} has no corresponding match (${r.fromSubjectId} → ${r.toSubjectId})`);
-        }
-    }
-
-    // Wrap reassignments + upserts in a transaction to ensure atomicity.
-    // Reassignments delete old decisions to free ADA unique constraints before
-    // upserting new ones — without a transaction, a failed upsert after a
-    // successful delete would permanently lose decision data.
     let reassignmentCount = 0;
     let processedCount = 0;
     let conflictCount = 0;
 
-    await prisma.$transaction(async (tx) => {
-        // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
-        const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
-        const existingDecisions = matchAdas.length > 0
-            ? await tx.decision.findMany({ where: { ada: { in: matchAdas } }, select: { ada: true, subjectId: true } })
-            : [];
-        const adaToExistingSubject = new Map(existingDecisions.map(d => [d.ada!, d.subjectId]));
+    // Collect all subjectIds from matches and reassignments for validation
+        const allSubjectIds = [
+            ...result.matches.map(m => m.subjectId),
+            ...result.reassignments.flatMap(r => [r.fromSubjectId, r.toSubjectId]),
+        ];
 
-        // Build set of ADAs being reassigned — these are handled explicitly, not conflicts
-        const reassignedAdas = new Set(result.reassignments.map(r => r.ada));
+        const validSubjectIds = await prisma.subject.findMany({
+            where: {
+                id: { in: allSubjectIds },
+                cityId: task.cityId,
+                councilMeetingId: task.councilMeetingId,
+            },
+            select: { id: true },
+        });
+        const validSubjectIdSet = new Set(validSubjectIds.map(s => s.id));
 
-        // Step 2: Process reassignments — delete old decisions to free ADA unique constraint
-        if (result.reassignments.length > 0) {
-            for (const r of result.reassignments) {
-                if (!validSubjectIdSet.has(r.fromSubjectId) || !validSubjectIdSet.has(r.toSubjectId)) {
-                    console.warn(`Poll decisions: skipping invalid reassignment ${r.ada} (${r.fromSubjectId} → ${r.toSubjectId}) for task ${taskId}`);
-                    continue;
-                }
-                await tx.decision.deleteMany({ where: { subjectId: r.fromSubjectId } });
-                reassignmentCount++;
-                console.log(`Reassigned ADA ${r.ada}: ${r.fromSubjectId} → ${r.toSubjectId}: ${r.reason}`);
+        // Validate every reassignment has a corresponding match to upsert,
+        // otherwise deleting the old decision would lose it permanently.
+        const matchSubjectIds = new Set(result.matches.map(m => m.subjectId));
+        for (const r of result.reassignments) {
+            if (!matchSubjectIds.has(r.toSubjectId)) {
+                throw new Error(`Reassignment for ${r.ada} has no corresponding match (${r.fromSubjectId} → ${r.toSubjectId})`);
             }
         }
 
-        // Step 3: Upsert new matches (including reassigned ones), recording conflicts
-        for (const match of result.matches) {
-            // Skip any subjectIds that don't belong to this meeting
-            if (!validSubjectIdSet.has(match.subjectId)) {
-                console.warn(`Poll decisions: skipping invalid subjectId ${match.subjectId} for task ${taskId}`);
-                continue;
-            }
+        // Wrap reassignments + upserts in a transaction to ensure atomicity.
+        // Reassignments delete old decisions to free ADA unique constraints before
+        // upserting new ones — without a transaction, a failed upsert after a
+        // successful delete would permanently lose decision data.
+        await prisma.$transaction(async (tx) => {
+            // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
+            const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
+            const existingDecisions = matchAdas.length > 0
+                ? await tx.decision.findMany({ where: { ada: { in: matchAdas } }, select: { ada: true, subjectId: true } })
+                : [];
+            const adaToExistingSubject = new Map(existingDecisions.map(d => [d.ada!, d.subjectId]));
 
-            // Check for ADA conflict: ADA exists on a different subject and isn't being reassigned
-            if (match.ada) {
-                const existingSubjectId = adaToExistingSubject.get(match.ada);
-                if (existingSubjectId && existingSubjectId !== match.subjectId && !reassignedAdas.has(match.ada)) {
-                    // Record the claim on the incoming subject, skip the upsert
-                    await tx.subject.update({
-                        where: { id: match.subjectId },
-                        data: { claimedAda: match.ada },
-                    });
-                    conflictCount++;
-                    console.log(`ADA conflict: ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
-                    continue;
+            // Build set of ADAs being reassigned — these are handled explicitly, not conflicts
+            const reassignedAdas = new Set(result.reassignments.map(r => r.ada));
+
+            // Step 2: Process reassignments — delete old decisions to free ADA unique constraint
+            if (result.reassignments.length > 0) {
+                for (const r of result.reassignments) {
+                    if (!validSubjectIdSet.has(r.fromSubjectId) || !validSubjectIdSet.has(r.toSubjectId)) {
+                        console.warn(`Poll decisions: skipping invalid reassignment ${r.ada} (${r.fromSubjectId} → ${r.toSubjectId}) for task ${taskId}`);
+                        continue;
+                    }
+                    await tx.decision.deleteMany({ where: { subjectId: r.fromSubjectId } });
+                    reassignmentCount++;
+                    console.log(`Reassigned ADA ${r.ada}: ${r.fromSubjectId} → ${r.toSubjectId}: ${r.reason}`);
                 }
             }
 
-            try {
-                await tx.decision.upsert({
-                    where: { subjectId: match.subjectId },
-                    create: {
-                        subjectId: match.subjectId,
-                        pdfUrl: match.pdfUrl,
-                        protocolNumber: match.protocolNumber ?? null,
-                        ada: match.ada ?? null,
-                        title: match.decisionTitle ?? null,
-                        publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                        taskId,
-                    },
-                    update: {
-                        pdfUrl: match.pdfUrl,
-                        protocolNumber: match.protocolNumber ?? null,
-                        ada: match.ada ?? null,
-                        title: match.decisionTitle ?? null,
-                        publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                    },
+            // Step 3: Upsert new matches (including reassigned ones), recording conflicts
+            for (const match of result.matches) {
+                // Skip any subjectIds that don't belong to this meeting
+                if (!validSubjectIdSet.has(match.subjectId)) {
+                    console.warn(`Poll decisions: skipping invalid subjectId ${match.subjectId} for task ${taskId}`);
+                    continue;
+                }
+
+                // Check for ADA conflict: ADA exists on a different subject and isn't being reassigned
+                if (match.ada) {
+                    const existingSubjectId = adaToExistingSubject.get(match.ada);
+                    if (existingSubjectId && existingSubjectId !== match.subjectId && !reassignedAdas.has(match.ada)) {
+                        // Record the claim on the incoming subject, skip the upsert
+                        await tx.subject.update({
+                            where: { id: match.subjectId },
+                            data: { claimedAda: match.ada },
+                        });
+                        conflictCount++;
+                        console.log(`ADA conflict: ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
+                        continue;
+                    }
+                }
+
+                try {
+                    await tx.decision.upsert({
+                        where: { subjectId: match.subjectId },
+                        create: {
+                            subjectId: match.subjectId,
+                            pdfUrl: match.pdfUrl,
+                            protocolNumber: match.protocolNumber ?? null,
+                            ada: match.ada ?? null,
+                            title: match.decisionTitle ?? null,
+                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                            taskId,
+                        },
+                        update: {
+                            pdfUrl: match.pdfUrl,
+                            protocolNumber: match.protocolNumber ?? null,
+                            ada: match.ada ?? null,
+                            title: match.decisionTitle ?? null,
+                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                        },
+                    });
+                } catch (e) {
+                    // Concurrent poll race: another transaction committed a decision with the same
+                    // ADA between our conflict check and this upsert. Fall back to recording a claim.
+                    if (match.ada && (e as { code?: string })?.code === 'P2002') {
+                        await tx.subject.update({
+                            where: { id: match.subjectId },
+                            data: { claimedAda: match.ada },
+                        });
+                        conflictCount++;
+                        console.log(`ADA conflict (concurrent): ${match.ada} claimed by subject ${match.subjectId}`);
+                        continue;
+                    }
+                    throw e;
+                }
+
+                // Clear any stale conflict claim now that this subject has a valid decision
+                await tx.subject.updateMany({
+                    where: { id: match.subjectId, claimedAda: { not: null } },
+                    data: { claimedAda: null },
                 });
-            } catch (e) {
-                // Concurrent poll race: another transaction committed a decision with the same
-                // ADA between our conflict check and this upsert. Fall back to recording a claim.
-                if (match.ada && (e as { code?: string })?.code === 'P2002') {
-                    await tx.subject.update({
-                        where: { id: match.subjectId },
-                        data: { claimedAda: match.ada },
-                    });
-                    conflictCount++;
-                    console.log(`ADA conflict (concurrent): ${match.ada} claimed by subject ${match.subjectId}`);
-                    continue;
+
+                processedCount++;
+
+                // Track this ADA so later matches in the same batch see it as taken
+                if (match.ada) {
+                    adaToExistingSubject.set(match.ada, match.subjectId);
                 }
-                throw e;
             }
+        });
 
-            // Clear any stale conflict claim now that this subject has a valid decision
-            await tx.subject.updateMany({
-                where: { id: match.subjectId, claimedAda: { not: null } },
-                data: { claimedAda: null },
-            });
-
-            processedCount++;
-
-            // Track this ADA so later matches in the same batch see it as taken
-            if (match.ada) {
-                adaToExistingSubject.set(match.ada, match.subjectId);
-            }
-        }
-    });
+    // Enrich responseBody with post-processing counts so the batch completion
+    // hook (checkBatchCompletionAndAlert) can read accurate totals from DB.
+    // Wrapped in try/catch because this runs after the main transaction committed —
+    // a failure here should not mark the task as failed when decisions were already persisted.
+    try {
+        await prisma.taskStatus.update({
+            where: { id: taskId },
+            data: {
+                responseBody: JSON.stringify({
+                    ...result,
+                    _processedCounts: { matches: processedCount, reassignments: reassignmentCount, conflicts: conflictCount },
+                }),
+            },
+        });
+    } catch (enrichError) {
+        console.error(`Failed to enrich responseBody for task ${taskId} (decisions already persisted):`, enrichError);
+    }
 
     console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }
