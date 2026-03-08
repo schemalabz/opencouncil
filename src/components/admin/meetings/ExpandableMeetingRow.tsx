@@ -27,6 +27,7 @@ import { MeetingStatusBadge } from "@/components/meetings/MeetingStatusBadge";
 import Link from "next/link";
 import { MeetingTimeline } from "@/components/meetings/MeetingTimeline";
 import { getPollingHistoryForMeeting } from "@/lib/tasks/pollDecisions";
+import { getMeetingDisplayTitle } from "@/lib/utils/meetingTitle";
 
 interface ExpandableMeetingRowProps {
     meeting: CouncilMeetingWithAdminBodyAndSubjects;
@@ -50,6 +51,7 @@ export function ExpandableMeetingRow({
     const [pollingFetched, setPollingFetched] = React.useState(false);
     const subjectCount = meeting.subjects.length;
     const meetingDate = format(new Date(meeting.dateTime), "MMM dd, yyyy");
+    const displayTitle = getMeetingDisplayTitle(meeting);
 
     const fetchCompleteMeetingData = async (): Promise<MeetingDataCore> => {
         const response = await fetch(`/api/cities/${selectedCityId}/meetings/${meeting.id}`);
@@ -240,13 +242,13 @@ export function ExpandableMeetingRow({
             onSelect={onSelect}
             expandedContent={expandedContent}
             onExpand={fetchPollingStatus}
-            ariaLabel={meeting.name}
+            ariaLabel={displayTitle}
         >
             {/* Meeting Info */}
             <TableCell className="min-w-0">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-medium text-foreground truncate">{meeting.name}</span>
+                        <span className="font-medium text-foreground truncate">{displayTitle}</span>
                         {!meeting.released && (
                             <Badge variant="secondary" className="text-xs flex-shrink-0">
                                 Draft
