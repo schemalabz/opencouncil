@@ -6,8 +6,9 @@ import { useLocale, useTranslations } from 'next-intl';
 import React, { useEffect, useState, useMemo } from 'react';
 import { format, formatDistanceToNow, isFuture } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
-import { CalendarIcon, Clock, Loader2, ChevronRight, Building } from 'lucide-react';
+import { CalendarIcon, Clock, Loader2, ChevronRight } from 'lucide-react';
 import { sortSubjectsByImportance, formatDateTime, formatDate, IS_DEV } from '@/lib/utils';
+import { getMeetingDisplayTitle } from '@/lib/utils/meetingTitle';
 import SubjectBadge from '../subject-badge';
 import { cn } from '@/lib/utils';
 import { Link } from '@/i18n/routing';
@@ -66,6 +67,10 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
         setIsLoading(false);
     }, [pathname]);
 
+    const displayTitle = useMemo(() => {
+        return getMeetingDisplayTitle(meeting, locale, cityTimezone);
+    }, [meeting, locale, cityTimezone]);
+
     const sortedSubjects = useMemo(() => {
         const result = sortSubjectsByImportance(meeting.subjects, 'importance');
 
@@ -74,7 +79,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
             const topThree = result.slice(0, Math.min(3, result.length));
             logDev('MeetingCard - Subject Sorting', {
                 meetingId: meeting.id,
-                meetingName: meeting.name,
+                displayTitle,
                 totalSubjects: result.length,
                 topSubjects: topThree.map(s => ({
                     id: s.id,
@@ -179,18 +184,12 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     isHovered ? "text-primary" : ""
                                 )}
                             >
-                                {meeting.name}
+                                {displayTitle}
                             </h3>
                         </div>
 
-                        {/* Meeting metadata - more compact */}
+                        {/* Meeting metadata -- date-only row (admin body is now part of the title) */}
                         <div className="mt-1 mb-1 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-                            {meeting.administrativeBody && (
-                                <div className="flex items-center gap-1">
-                                    <Building className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                    <span>{meeting.administrativeBody.name}</span>
-                                </div>
-                            )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
                                 <span>{(isUpcoming || isToday)

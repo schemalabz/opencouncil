@@ -3,8 +3,11 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { Document, Paragraph, TextRun, HeadingLevel, ExternalHyperlink, Packer, AlignmentType } from 'docx';
 import { getSpeakerDisplayInfo, formatTimestamp } from '@/lib/utils';
 import { MeetingDataForExport } from '@/lib/export/meetings';
+import { getMeetingDisplayTitle } from '@/lib/utils/meetingTitle';
 
 const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting' | 'city'>) => {
+    const displayTitle = getMeetingDisplayTitle(meeting, 'el', city.timezone);
+
     return [
         new Paragraph({ spacing: { before: 2880 } }),
 
@@ -14,7 +17,7 @@ const createTitlePage = ({ meeting, city }: Pick<MeetingDataForExport, 'meeting'
             spacing: { after: 400 },
             children: [
                 new TextRun({
-                    text: meeting.name,
+                    text: displayTitle,
                     size: 32, // 16pt
                     bold: true
                 })
@@ -135,7 +138,7 @@ export const renderDocx = async ({ meeting, transcript, people, city }: MeetingD
     const doc = new Document({
         creator: "OpenCouncil",
         description: "Council Meeting Transcript",
-        title: meeting.name,
+        title: getMeetingDisplayTitle(meeting, 'el', city.timezone),
         subject: "Council Meeting",
         keywords: ["council", "meeting", "transcript"].join(", "),
         lastModifiedBy: "OpenCouncil",

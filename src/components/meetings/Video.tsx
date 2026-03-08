@@ -4,6 +4,7 @@ import { useVideo } from './VideoProvider';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Minimize2, Move, ArrowDownLeftSquare, Scaling } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
+import { getMeetingDisplayTitle } from '@/lib/utils/meetingTitle';
 
 export const Video: React.FC<{ className?: string, expandable?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, onExpandChange }) => {
     const { playerRef, meeting, isPlaying, currentTime, setIsPlaying, seekTo } = useVideo();
@@ -15,6 +16,8 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     const initialMousePos = useRef<{ x: number; y: number } | null>(null);
     const initialDimensions = useRef<{ width: number; height: number } | null>(null);
     const controls = useAnimation();
+
+    const displayTitle = useMemo(() => getMeetingDisplayTitle(meeting), [meeting]);
 
     const toggleExpand = () => {
         const prevState = {
@@ -83,7 +86,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     };
 
     const renderVideoElement = () => {
-        return <VideoElement id={meeting.id} title={meeting.name} playbackId={meeting.muxPlaybackId!} isExpanded={isExpanded} />
+        return <VideoElement id={meeting.id} title={displayTitle} playbackId={meeting.muxPlaybackId!} isExpanded={isExpanded} />
     };
 
     if (isExpanded) {
