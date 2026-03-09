@@ -241,6 +241,23 @@ export async function deleteHighlight(id: Highlight["id"]) {
 }
 
 
+export async function getHighlightsForUser(userId: string) {
+    return prisma.highlight.findMany({
+        where: { createdById: userId },
+        include: {
+            ...highlightWithUtterancesInclude,
+            meeting: {
+                select: {
+                    name: true,
+                    name_en: true,
+                    dateTime: true,
+                }
+            },
+        },
+        orderBy: { updatedAt: 'desc' }
+    });
+}
+
 export async function toggleHighlightShowcase(id: Highlight["id"]) {
     const highlight = await prisma.highlight.findUnique({
         where: { id },
