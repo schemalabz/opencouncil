@@ -12,12 +12,14 @@ export default async function ProfilePage() {
 
     const t = await getTranslations("Profile");
 
+    const isAdmin = user.isSuperAdmin || user.administers.length > 0;
+
     return (
         <div className="container max-w-2xl py-8 space-y-8">
             <DevelopmentSection />
-            {user.onboarded && <AdminSection user={user} t={t} />}
             <UserInfoForm user={user} isOnboarded={!!user.onboarded} />
             <NotificationPreferencesSection />
+            {user.onboarded && isAdmin && <AdminSection user={user} t={t} />}
         </div>
     );
 }
