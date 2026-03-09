@@ -36,7 +36,7 @@ const UtteranceC: React.FC<{
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
-    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
+    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, deleteSelectedUtterances, isProcessing } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -304,9 +304,14 @@ const UtteranceC: React.FC<{
     
     const handleExtractSegment = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        
+
         // Extract the current selection (state is already updated from context menu open)
         await extractSelectedSegment();
+    };
+
+    const handleDeleteSelected = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        await deleteSelectedUtterances();
     };
 
     const handleDeleteUtterance = async (e: React.MouseEvent) => {
@@ -557,6 +562,18 @@ const UtteranceC: React.FC<{
                             {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
                             {t('contextMenu.extractSegment', { defaultValue: 'Extract Segment' })}
                             {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">e</span>}
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                            onClick={handleDeleteSelected}
+                            disabled={isProcessing || selectedUtteranceIds.size === 0}
+                            className="text-red-600 focus:text-red-600"
+                        >
+                            {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                            {t('contextMenu.deleteSelected', {
+                                count: selectedUtteranceIds.size,
+                                defaultValue: `Delete ${selectedUtteranceIds.size} utterance(s)`
+                            })}
+                            <span className="ml-auto text-xs text-muted-foreground pl-4">Del</span>
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>

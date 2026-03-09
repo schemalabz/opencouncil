@@ -204,6 +204,10 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                         <span className="text-sm">{t('shortcuts.selection.extract')}</span>
                                         <Badge variant="secondary">e</Badge>
                                     </div>
+                                    <div className="flex justify-between items-center py-2 border-b">
+                                        <span className="text-sm">{t('shortcuts.selection.delete')}</span>
+                                        <Badge variant="secondary">Delete</Badge>
+                                    </div>
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.selection.clear')}</span>
                                         <Badge variant="secondary">Esc</Badge>
@@ -260,6 +264,15 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                         </h4>
                                         <p className="text-sm text-muted-foreground pl-6">
                                             {t('tasks.createSegment.answer')}
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                                            🗑️ {t('tasks.deleteUtterances.question')}
+                                        </h4>
+                                        <p className="text-sm text-muted-foreground pl-6">
+                                            {t('tasks.deleteUtterances.answer')}
                                         </p>
                                     </div>
 

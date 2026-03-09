@@ -98,6 +98,74 @@ export async function deleteUtterance(utteranceId: string): Promise<{ segmentId:
     }
 }
 
+export async function deleteMultipleUtterances(utteranceIds: string[]): Promise<{ affectedSegments: { segmentId: string; remainingUtterances: number }[] }> {
+    if (utteranceIds.length === 0) {
+        return { affectedSegments: [] };
+    }
+
+    try {
+        // Fetch all utterances with their segments
+        const utterances = await prisma.utterance.findMany({
+            where: { id: { in: utteranceIds } },
+            include: {
+                speakerSegment: {
+                    include: {
+                        utterances: true
+                    }
+                }
+            }
+        });
+
+        if (utterances.length === 0) {
+            throw new Error('No utterances found');
+        }
+
+        // Authorize based on the first utterance's city (all should be same city)
+        await withUserAuthorizedToEdit({ cityId: utterances[0].speakerSegment.cityId });
+
+        const idsToDelete = new Set(utterances.map(u => u.id));
+
+        // Group by segment to compute remaining utterances after deletion
+        const segmentMap = new Map<string, { allUtterances: typeof utterances[0]['speakerSegment']['utterances']; deletingIds: Set<string> }>();
+        for (const utterance of utterances) {
+            const segId = utterance.speakerSegmentId;
+            if (!segmentMap.has(segId)) {
+                segmentMap.set(segId, { allUtterances: utterance.speakerSegment.utterances, deletingIds: new Set() });
+            }
+            segmentMap.get(segId)!.deletingIds.add(utterance.id);
+        }
+
+        // Delete all utterances in one query
+        await prisma.utterance.deleteMany({
+            where: { id: { in: utteranceIds } }
+        });
+
+        // Recalculate timestamps for affected segments
+        const affectedSegments: { segmentId: string; remainingUtterances: number }[] = [];
+        for (const [segmentId, { allUtterances, deletingIds }] of segmentMap) {
+            const remaining = allUtterances.filter(u => !deletingIds.has(u.id));
+            affectedSegments.push({ segmentId, remainingUtterances: remaining.length });
+
+            if (remaining.length > 0) {
+                const allTimestamps = remaining.flatMap(u => [u.startTimestamp, u.endTimestamp]);
+                await prisma.speakerSegment.update({
+                    where: { id: segmentId },
+                    data: {
+                        startTimestamp: Math.min(...allTimestamps),
+                        endTimestamp: Math.max(...allTimestamps)
+                    }
+                });
+            }
+        }
+
+        console.log(`Deleted ${utteranceIds.length} utterances across ${segmentMap.size} segments`);
+        return { affectedSegments };
+    } catch (error) {
+        console.error('Error deleting multiple utterances:', error);
+        throw new Error('Failed to delete utterances');
+    }
+}
+
 export async function updateUtteranceTimestamps(
     utteranceId: string,
     startTimestamp: number,

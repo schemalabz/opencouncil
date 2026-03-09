@@ -78,6 +78,7 @@
         "selectRange": "Select range of utterances",
         "toggleSelect": "Toggle utterance selection",
         "extract": "Extract selected segment",
+        "delete": "Delete selected utterances",
         "clear": "Clear selection"
       }
     },
@@ -101,6 +102,10 @@
       "createSegment": {
         "question": "How do I create a new empty segment?",
         "answer": "Click the '+' button on any segment card to create a new segment before or after it."
+      },
+      "deleteUtterances": {
+        "question": "How do I delete multiple utterances at once?",
+        "answer": "Select utterances using Ctrl+Click to toggle individual ones or Shift+Click for a range, then press Delete or right-click and select 'Delete'."
       },
       "findUnknown": {
         "question": "How do I find unknown speakers quickly?",
@@ -137,6 +142,8 @@
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
     "reviewCompleted": "Review Completed",
-    "reviewCompletedDescription": "The transcript review has been marked as complete."
+    "reviewCompletedDescription": "The transcript review has been marked as complete.",
+    "deleteSuccess": "{count} utterance(s) deleted successfully",
+    "deleteError": "Failed to delete utterances"
   }
 }

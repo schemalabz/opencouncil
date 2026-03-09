@@ -30,6 +30,11 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
         description: 'Clear current selection',
         keys: ['Escape']
     },
+    DELETE_SELECTED: {
+        id: 'DELETE_SELECTED',
+        description: 'Delete selected utterances',
+        keys: ['Delete']
+    },
     PLAY_PAUSE: {
         id: 'PLAY_PAUSE',
         description: 'Play/Pause video',

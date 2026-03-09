@@ -3,7 +3,7 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useCall
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
-import { deleteUtterance } from '@/lib/db/utterance';
+import { deleteUtterance, deleteMultipleUtterances } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -26,6 +26,7 @@ export interface CouncilMeetingDataContext extends MeetingData {
     updateSpeakerSegmentData: (segmentId: string, data: EditableSpeakerSegmentData) => Promise<void>;
     addUtteranceToSegment: (segmentId: string) => Promise<string>;
     deleteUtterance: (utteranceId: string) => Promise<void>;
+    deleteUtterances: (utteranceIds: string[]) => Promise<void>;
     updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => void;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
     getHighlight: (highlightId: string) => HighlightWithUtterances | undefined;
@@ -321,6 +322,25 @@ export function CouncilMeetingDataProvider({ children, data }: {
                     };
                 }
                 return segment;
+            }));
+        },
+        deleteUtterances: async (utteranceIds: string[]) => {
+            console.log(`Deleting ${utteranceIds.length} utterances`);
+            const { affectedSegments } = await deleteMultipleUtterances(utteranceIds);
+            const idsToDelete = new Set(utteranceIds);
+
+            setTranscript(prev => prev.map(segment => {
+                const affected = affectedSegments.find(s => s.segmentId === segment.id);
+                if (!affected) return segment;
+
+                const updatedUtterances = segment.utterances.filter(u => !idsToDelete.has(u.id));
+
+                if (affected.remainingUtterances === 0) {
+                    return { ...segment, utterances: [] };
+                }
+
+                const newTimestamps = recalculateSegmentTimestamps(updatedUtterances);
+                return { ...segment, utterances: updatedUtterances, ...newTimestamps };
             }));
         },
         updateUtterance: (segmentId: string, utteranceId: string, updates: Partial<{ text: string; startTimestamp: number; endTimestamp: number; lastModifiedBy: LastModifiedBy | null }>) => {

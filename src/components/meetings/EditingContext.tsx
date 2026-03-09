@@ -12,6 +12,7 @@ interface EditingContextType {
     toggleSelection: (id: string, modifiers: { shift: boolean, ctrl: boolean }) => void;
     clearSelection: () => void;
     extractSelectedSegment: () => Promise<void>;
+    deleteSelectedUtterances: () => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -22,7 +23,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const { transcript, extractSpeakerSegment, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { transcript, extractSpeakerSegment, getSpeakerSegmentById, deleteUtterances } = useCouncilMeetingData();
     const { toast } = useToast();
     const t = useTranslations('editing.toasts');
 
@@ -145,8 +146,37 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         }
     }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, clearSelection, toast, transcript, t]);
 
+    const deleteSelectedUtterances = useCallback(async () => {
+        if (selectedUtteranceIds.size === 0) return;
+        if (isProcessing) return;
+
+        setIsProcessing(true);
+        try {
+            const ids = Array.from(selectedUtteranceIds);
+            await deleteUtterances(ids);
+
+            clearSelection();
+            toast({
+                description: t('deleteSuccess', {
+                    count: ids.length,
+                    defaultValue: `${ids.length} utterance(s) deleted successfully`
+                })
+            });
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: t('deleteError', { defaultValue: 'Failed to delete utterances' }),
+                variant: "destructive"
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [selectedUtteranceIds, isProcessing, deleteUtterances, clearSelection, toast, t]);
+
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
+    useKeyboardShortcut(ACTIONS.DELETE_SELECTED.id, deleteSelectedUtterances, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
 
     return (
@@ -156,6 +186,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             toggleSelection,
             clearSelection,
             extractSelectedSegment,
+            deleteSelectedUtterances,
             isProcessing
         }}>
             {children}
