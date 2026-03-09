@@ -149,7 +149,7 @@ export function TopicSelector({
                                 </Button>
                             )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid md:grid-cols-3 sm:grid-cols-2 grid-cols-1 gap-4">
                             {topics.map(topic => {
                                 const isSelected = isTopicSelected(topic);
                                 return (
@@ -183,9 +183,6 @@ export function TopicSelector({
                                             </div>
                                             <div className="flex flex-col items-start overflow-hidden flex-1">
                                                 <span className="font-medium truncate w-full">{topic.name}</span>
-                                                {topic.name_en && (
-                                                    <span className="text-xs text-gray-500 truncate w-full">{topic.name_en}</span>
-                                                )}
                                             </div>
                                             {isSelected && (
                                                 <motion.div

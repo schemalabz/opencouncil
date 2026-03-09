@@ -3,6 +3,55 @@
 import axios from 'axios';
 import { env } from '@/env.mjs';
 import { Result, createSuccess, createError } from '@/lib/result';
+import { findNearbyLocations } from '@/lib/db/location';
+import prisma from '@/lib/db/prisma';
+
+const NEARBY_SUBJECTS_RADIUS_METERS = 1000;
+
+export type NearbySubject = {
+    id: string;
+    name: string;
+    cityId: string;
+    councilMeetingId: string;
+    topic: { name: string; colorHex: string } | null;
+    meetingDate: Date | null;
+};
+
+export async function getSubjectsNearLocations(
+    coordinates: [number, number][]
+): Promise<NearbySubject[]> {
+    const locationArrays = await Promise.all(
+        coordinates.map(coords =>
+            findNearbyLocations({ coordinates: coords, distanceInMeters: NEARBY_SUBJECTS_RADIUS_METERS })
+        )
+    );
+
+    const locationIds = [...new Set(locationArrays.flat().map(l => l.id))];
+    if (locationIds.length === 0) return [];
+
+    const subjects = await prisma.subject.findMany({
+        where: { locationId: { in: locationIds } },
+        select: {
+            id: true,
+            name: true,
+            cityId: true,
+            councilMeetingId: true,
+            topic: { select: { name: true, colorHex: true } },
+            councilMeeting: { select: { date: true } },
+        },
+        orderBy: { councilMeeting: { date: 'desc' } },
+        take: 20,
+    });
+
+    return subjects.map(s => ({
+        id: s.id,
+        name: s.name,
+        cityId: s.cityId,
+        councilMeetingId: s.councilMeetingId,
+        topic: s.topic,
+        meetingDate: s.councilMeeting?.date ?? null,
+    }));
+}
 
 // The radius to use for location-based search, in meters (40km)
 const SEARCH_RADIUS = 40000;

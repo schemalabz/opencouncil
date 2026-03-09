@@ -44,9 +44,8 @@ export interface Flow {
 export const notificationFlow: Flow = {
     type: 'notification',
     steps: [
-        { id: OnboardingStage.NOTIFICATION_INFO, showInProgress: false },
-        { id: OnboardingStage.NOTIFICATION_LOCATION_SELECTION, showInProgress: true },
         { id: OnboardingStage.NOTIFICATION_TOPIC_SELECTION, showInProgress: true },
+        { id: OnboardingStage.NOTIFICATION_LOCATION_SELECTION, showInProgress: true },
         { id: OnboardingStage.NOTIFICATION_REGISTRATION, showInProgress: true },
         { id: OnboardingStage.NOTIFICATION_COMPLETE, showInProgress: false }
     ],
@@ -58,7 +57,7 @@ export const notificationFlow: Flow = {
         const currentIndex = notificationFlow.steps.findIndex(s => s.id === currentStep);
         return currentIndex > 0 ? notificationFlow.steps[currentIndex - 1].id : undefined;
     },
-    isFirstStep: (step) => step === OnboardingStage.NOTIFICATION_INFO,
+    isFirstStep: (step) => step === OnboardingStage.NOTIFICATION_TOPIC_SELECTION,
     isLastStep: (step) => step === OnboardingStage.NOTIFICATION_COMPLETE,
     getProgressStepCount: () => notificationFlow.steps.filter(step => step.showInProgress).length,
     getProgressStepIndex: (step) => {

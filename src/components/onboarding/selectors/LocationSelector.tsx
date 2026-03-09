@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestions
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn, calculateGeometryBounds } from '@/lib/utils';
 import { CityWithGeometry } from '@/lib/db/cities';
+import Map, { MapFeature } from '@/components/map/map';
 
 interface LocationSelectorProps {
     selectedLocations: Location[];
@@ -16,6 +17,7 @@ interface LocationSelectorProps {
     onRemove: (index: number) => void;
     city: CityWithGeometry;
     onLocationClick?: (location: Location) => void;
+    quickSuggestions?: string[];
 }
 
 export function LocationSelector({
@@ -23,7 +25,8 @@ export function LocationSelector({
     onSelect,
     onRemove,
     city,
-    onLocationClick
+    onLocationClick,
+    quickSuggestions = ['Κουκάκι', 'Παγκράτι'],
 }: LocationSelectorProps) {
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -31,6 +34,7 @@ export function LocationSelector({
     const [isSelectingLocation, setIsSelectingLocation] = useState(false);
     const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [zoomToGeometry, setZoomToGeometry] = useState<GeoJSON.Geometry | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Debounce the input value to avoid making too many API calls
@@ -107,6 +111,38 @@ export function LocationSelector({
         fetchSuggestions();
     }, [debouncedInputValue, city.name, city.geometry, getErrorMessage]);
 
+    const mapFeatures = useMemo(() => {
+        const cityFeature: MapFeature = {
+            id: city.id,
+            geometry: city.geometry,
+            style: { fillColor: '#627BBC', fillOpacity: 0.2, strokeColor: '#4263EB', strokeWidth: 2 }
+        };
+        const locationFeatures = selectedLocations
+            .map((loc, i) => {
+                const lng = parseFloat(String(loc.coordinates[0]));
+                const lat = parseFloat(String(loc.coordinates[1]));
+                if (isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) return null;
+                return {
+                    id: `location-${i}`,
+                    geometry: { type: 'Point' as const, coordinates: [lng, lat] as [number, number] },
+                    style: { fillColor: '#EF4444', fillOpacity: 0.8, strokeColor: '#B91C1C', strokeWidth: 6 }
+                } satisfies MapFeature;
+            })
+            .filter(Boolean) as MapFeature[];
+        return [cityFeature, ...locationFeatures];
+    }, [city, selectedLocations]);
+
+    const { center: mapCenter, zoom: mapZoom } = useMemo(() => {
+        if (!city.geometry) return { center: [23.7275, 37.9838] as [number, number], zoom: 6 };
+        const { bounds, center } = calculateGeometryBounds(city.geometry);
+        let zoom = 10;
+        if (bounds) {
+            const maxDiff = Math.max(bounds.maxLng - bounds.minLng, bounds.maxLat - bounds.minLat);
+            zoom = Math.max(8, Math.min(13, 11 - Math.log2(maxDiff * 111)));
+        }
+        return { center, zoom };
+    }, [city.geometry]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         setInputValue(newValue);
@@ -137,6 +173,10 @@ export function LocationSelector({
                 };
 
                 onSelect(location);
+                setZoomToGeometry({
+                    type: 'Point',
+                    coordinates: [placeDetails.coordinates[0], placeDetails.coordinates[1]]
+                });
                 setInputValue('');
                 setSuggestions([]);
                 setIsWaitingForDebounce(false);
@@ -152,117 +192,146 @@ export function LocationSelector({
     };
 
     return (
-        <div className="space-y-5">
-            <div className="relative">
-                <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                        <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-                        <Input
-                            ref={inputRef}
-                            type="text"
-                            inputMode="search"
-                            autoComplete="off"
-                            data-1p-ignore
-                            data-lpignore="true"
-                            data-form-type="other"
-                            placeholder={`Αναζητήστε διεύθυνση στον δήμο ${city.name}...`}
-                            className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
-                            value={inputValue}
-                            onChange={handleInputChange}
-                            disabled={isSelectingLocation}
-                        />
-                        {(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) && (
-                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
-                                <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin text-primary" />
-                            </div>
-                        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            {/* Column 1: search + selected locations */}
+            <div className="space-y-4">
+                <div className="relative">
+                    <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                            <Input
+                                ref={inputRef}
+                                type="text"
+                                inputMode="search"
+                                autoComplete="off"
+                                data-1p-ignore
+                                data-lpignore="true"
+                                data-form-type="other"
+                                placeholder={`Αναζητήστε διεύθυνση στον δήμο ${city.name}...`}
+                                className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
+                                value={inputValue}
+                                onChange={handleInputChange}
+                                disabled={isSelectingLocation}
+                            />
+                            {(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
+                                    <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin text-primary" />
+                                </div>
+                            )}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                                setInputValue('');
+                                setError(null);
+                                setIsWaitingForDebounce(false);
+                                setSuggestions([]);
+                            }}
+                            className={cn(
+                                "transition-opacity h-11 w-11 md:h-10 md:w-10 touch-manipulation",
+                                inputValue ? "opacity-100" : "opacity-0"
+                            )}
+                            disabled={!inputValue}
+                        >
+                            <X className="h-5 w-5 md:h-4 md:w-4" />
+                        </Button>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                            setInputValue('');
-                            setError(null);
-                            setIsWaitingForDebounce(false);
-                            setSuggestions([]);
-                        }}
-                        className={cn(
-                            "transition-opacity h-11 w-11 md:h-10 md:w-10 touch-manipulation",
-                            inputValue ? "opacity-100" : "opacity-0"
-                        )}
-                        disabled={!inputValue}
-                    >
-                        <X className="h-5 w-5 md:h-4 md:w-4" />
-                    </Button>
+
+                    {!inputValue && quickSuggestions.length > 0 && (
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                            {quickSuggestions.map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setInputValue(s)}
+                                    className="text-xs px-3 py-1.5 rounded-full border border-gray-300 bg-white hover:border-primary hover:text-primary transition-colors text-muted-foreground"
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md text-sm flex items-center gap-2 text-red-600">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <p>{error}</p>
+                        </div>
+                    )}
+
+                    {suggestions.length > 0 && (
+                        <div className="absolute z-10 mt-2 w-full bg-white rounded-md shadow-lg max-h-60 overflow-auto border border-gray-200">
+                            <ul className="py-1">
+                                {suggestions.map((suggestion) => (
+                                    <li
+                                        key={suggestion.id}
+                                        className={cn(
+                                            "px-4 py-4 md:py-3 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-3 border-b last:border-b-0 border-gray-100 touch-manipulation min-h-[48px] md:min-h-0",
+                                            isSelectingLocation ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                                        )}
+                                        onClick={() => !isSelectingLocation && handleSelectLocation(suggestion)}
+                                    >
+                                        <MapPin className="h-5 w-5 md:h-4 md:w-4 text-primary flex-shrink-0" />
+                                        <span className="line-clamp-2 text-base md:text-sm">{suggestion.text}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
 
-                {error && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md text-sm flex items-center gap-2 text-red-600">
-                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                        <p>{error}</p>
-                    </div>
-                )}
-
-                {suggestions.length > 0 && (
-                    <div className="absolute z-10 mt-2 w-full bg-white rounded-md shadow-lg max-h-60 overflow-auto border border-gray-200">
-                        <ul className="py-1">
-                            {suggestions.map((suggestion) => (
-                                <li
-                                    key={suggestion.id}
-                                    className={cn(
-                                        "px-4 py-4 md:py-3 hover:bg-gray-50 active:bg-gray-100 flex items-center gap-3 border-b last:border-b-0 border-gray-100 touch-manipulation min-h-[48px] md:min-h-0",
-                                        isSelectingLocation ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-                                    )}
-                                    onClick={() => !isSelectingLocation && handleSelectLocation(suggestion)}
+                {selectedLocations.length > 0 ? (
+                    <div>
+                        <div className="text-sm font-medium text-gray-700 mb-2">Επιλεγμένες τοποθεσίες ({selectedLocations.length})</div>
+                        <div className="grid grid-cols-1 gap-2">
+                            {selectedLocations.map((location, index) => (
+                                <div
+                                    key={`loc-${index}`}
+                                    className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group ${onLocationClick ? 'cursor-pointer' : ''}`}
+                                    onClick={() => onLocationClick?.(location)}
                                 >
-                                    <MapPin className="h-5 w-5 md:h-4 md:w-4 text-primary flex-shrink-0" />
-                                    <span className="line-clamp-2 text-base md:text-sm">{suggestion.text}</span>
-                                </li>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                                        <div className="truncate text-sm font-medium">{location.text}</div>
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-11 md:h-7 px-3 md:px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full flex-shrink-0 opacity-80 group-hover:opacity-100 touch-manipulation min-w-[88px] md:min-w-0"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onRemove(index);
+                                        }}
+                                    >
+                                        <X className="h-4 w-4 md:h-3 md:w-3 mr-1" />
+                                        <span className="hidden sm:inline">Αφαίρεση</span>
+                                        <span className="sm:hidden">Αφαίρ.</span>
+                                    </Button>
+                                </div>
                             ))}
-                        </ul>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                        <MapPin className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                        <p className="text-gray-500 text-sm">Δεν έχετε επιλέξει τοποθεσίες ακόμα.</p>
+                        <p className="text-gray-500 text-xs mt-1">Χρησιμοποιήστε την αναζήτηση για να προσθέσετε τοποθεσίες ενδιαφέροντος.</p>
                     </div>
                 )}
             </div>
 
-            {selectedLocations.length > 0 ? (
-                <div className="mt-4">
-                    <div className="text-sm font-medium text-gray-700 mb-2">Επιλεγμένες τοποθεσίες ({selectedLocations.length})</div>
-                    <div className="grid grid-cols-1 gap-2">
-                        {selectedLocations.map((location, index) => (
-                            <div
-                                key={`loc-${index}`}
-                                className={`flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-colors group ${onLocationClick ? 'cursor-pointer' : ''
-                                    }`}
-                                onClick={() => onLocationClick?.(location)}
-                            >
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                                    <div className="truncate text-sm font-medium">{location.text}</div>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-11 md:h-7 px-3 md:px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full flex-shrink-0 opacity-80 group-hover:opacity-100 touch-manipulation min-w-[88px] md:min-w-0"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onRemove(index);
-                                    }}
-                                >
-                                    <X className="h-4 w-4 md:h-3 md:w-3 mr-1" />
-                                    <span className="hidden sm:inline">Αφαίρεση</span>
-                                    <span className="sm:hidden">Αφαίρ.</span>
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : (
-                <div className="mt-6 text-center p-6 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                    <MapPin className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-gray-500 text-sm">Δεν έχετε επιλέξει τοποθεσίες ακόμα.</p>
-                    <p className="text-gray-500 text-xs mt-1">Χρησιμοποιήστε την αναζήτηση για να προσθέσετε τοποθεσίες ενδιαφέροντος.</p>
-                </div>
-            )}
+            {/* Column 2: map */}
+            <div className="col-span-1 rounded-lg overflow-hidden border border-gray-200 h-full min-h-48">
+                <Map
+                    features={mapFeatures}
+                    center={mapCenter}
+                    zoom={mapZoom}
+                    animateRotation={false}
+                    zoomToGeometry={zoomToGeometry}
+                    className="w-full h-full"
+                />
+            </div>
         </div>
     );
 } 

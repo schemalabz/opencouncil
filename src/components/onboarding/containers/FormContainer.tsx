@@ -3,6 +3,7 @@
 import React from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { cn } from '@/lib/utils';
+import { CollapsibleCard } from '@/components/ui/collapsible-card';
 import { NotificationLocationStep } from '../steps/notification/NotificationLocationStep';
 import { NotificationTopicStep } from '../steps/notification/NotificationTopicStep';
 import { NotificationRegistrationStep } from '../steps/notification/NotificationRegistrationStep';
@@ -13,7 +14,6 @@ import { OnboardingStage, getCurrentFlow, getCurrentStep } from '@/lib/types/onb
 import { useRouter } from 'next/navigation';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { PetitionFormStep } from '../steps/petition/PetitionFormStep';
-import { NotificationInfoStep } from '../steps/notification/NotificationInfoStep';
 
 export function FormContainer() {
     const {
@@ -53,15 +53,6 @@ export function FormContainer() {
 
     const renderNotificationStep = () => {
         switch (stage) {
-            case OnboardingStage.NOTIFICATION_INFO:
-                return (
-                    <NotificationInfoStep
-                        currentStep={currentFlow.getProgressStepIndex(stage)}
-                        totalSteps={currentFlow.getProgressStepCount()}
-                        onBack={handleBack}
-                        onContinue={handleNext}
-                    />
-                );
             case OnboardingStage.NOTIFICATION_LOCATION_SELECTION:
                 return (
                     <NotificationLocationStep
@@ -149,28 +140,18 @@ export function FormContainer() {
     if (!isFormVisible) return null;
 
     return (
-        <div
-            className={cn(
-                "absolute z-10 transition-all duration-300 ease-in-out",
-                "fixed top-20 md:top-24 bottom-4 md:bottom-8 mx-auto w-[95%] md:w-[90%] max-w-md rounded-xl shadow-2xl overflow-hidden bg-white/95 backdrop-blur-sm",
-                isDesktop ? "left-4" : "left-1/2 -translate-x-1/2",
-                "safe-area-inset-top safe-area-inset-bottom"
-            )}
-        >
-            <div className={cn(
-                "w-full h-full",
-                !isDesktop && "space-y-6"
-            )}>
+        <CollapsibleCard title="Ειδοποιήσεις" defaultOpen>
+            <div className={cn("w-full", !isDesktop && "space-y-6")}>
                 {isLoading ? (
                     <div className="w-full h-40 flex items-center justify-center">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
                     </div>
                 ) : (
-                    <div className="w-full h-full">
+                    <div className="w-full">
                         {renderStep()}
                     </div>
                 )}
             </div>
-        </div>
+        </CollapsibleCard>
     );
 } 

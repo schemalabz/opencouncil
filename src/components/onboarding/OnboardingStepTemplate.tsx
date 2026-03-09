@@ -9,7 +9,7 @@ interface OnboardingStepTemplateProps {
 
 export function OnboardingStepTemplate({ title, description, children, footer }: OnboardingStepTemplateProps) {
   return (
-    <div className="flex flex-col h-full w-full max-w-md mx-auto bg-white pt-4 md:pt-6">
+    <div className="flex flex-col h-full w-full mx-auto pt-4 md:pt-6">
       {/* Header section */}
       <div className="flex-none px-4 md:px-6 lg:px-8 pb-2">
         <h2 className="text-lg md:text-xl font-bold mb-1 text-primary">{title}</h2>
@@ -17,7 +17,7 @@ export function OnboardingStepTemplate({ title, description, children, footer }:
       </div>
 
       {/* Scrollable content section */}
-      <div className="flex-1 overflow-y-auto overscroll-contain p-4 px-4 md:px-6 lg:px-8 pb-2">
+      <div className="flex-1 p-4 px-4 md:px-6 lg:px-8 p-2">
         {children}
       </div>
 

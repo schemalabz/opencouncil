@@ -21,6 +21,9 @@ import CityCreator from '@/components/cities/CityCreator';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 import { IS_DEV } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { FormContainer } from '@/components/onboarding/containers/FormContainer';
+import { OnboardingProvider } from '@/contexts/OnboardingContext';
+import { OnboardingStage } from '@/lib/types/onboarding';
 
 type CityHeaderProps = {
     city: City,
@@ -37,6 +40,12 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
     const [canEdit, setCanEdit] = useState(false);
     const [hasNotifications, setHasNotifications] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
+    const [formData, setFormData] = useState({
+        step1: '',
+        step2: '',
+        step3: ''
+    });
     const router = useRouter();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -88,6 +97,26 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
         setIsCityCreatorOpen(false);
         // Refresh the page to show the updated city
         window.location.reload();
+    };
+
+    const handleNextStep = () => {
+        if (currentStep < 3) {
+            setCurrentStep(currentStep + 1);
+        }
+    };
+
+    const handlePreviousStep = () => {
+        if (currentStep > 1) {
+            setCurrentStep(currentStep - 1);
+        }
+    };
+
+    const handleFormSubmit = () => {
+        console.log('Form submitted:', formData);
+        toast({
+            title: "Form submitted successfully",
+            description: "Your 3-step form has been completed.",
+        });
     };
 
     const handleResetCity = async () => {
@@ -235,26 +264,24 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                             </Button>
                         )}
                     </div>
-                    {city.supportsNotifications && (
-                        <Button
-                            onClick={handleNotificationSignup}
-                            size="xl"
-                            className="group transition-all duration-300"
-                        >
-                            <div className="relative z-10 flex items-center gap-2">
-                                <Bell className="w-5 h-5" />
-                                <span className="font-medium">
-                                    {hasNotifications ? 'Διαχείριση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
-                                </span>
-                            </div>
-                            <motion.div
-                                className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
-                                whileHover={{
-                                    boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
-                                }}
-                            />
-                        </Button>
-                    )}
+                    <Button
+                        onClick={handleNotificationSignup}
+                        size="xl"
+                        className="group transition-all duration-300"
+                    >
+                        <div className="relative z-10 flex items-center gap-2">
+                            <Bell className="w-5 h-5" />
+                            <span className="font-medium">
+                                {hasNotifications ? 'Διαχείριση ειδοποιήσεων' : 'Ενεργοποίηση ειδοποιήσεων'}
+                            </span>
+                        </div>
+                        <motion.div
+                            className="absolute inset-0 rounded-xl bg-[hsl(var(--orange))] opacity-0 group-hover:opacity-10 transition-opacity"
+                            whileHover={{
+                                boxShadow: "0 0 30px rgba(var(--orange), 0.5)"
+                            }}
+                        />
+                    </Button>
                     {city.status !== 'pending' && !city.officialSupport && (
                         <Button
                             onClick={() => router.push(`/${city.id}/petition`)}
@@ -303,8 +330,12 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                 </motion.div>
             )}
 
+            <OnboardingProvider city={city} initialStage={OnboardingStage.NOTIFICATION_TOPIC_SELECTION} >
+                <FormContainer />
+            </OnboardingProvider>
+
             {/* Search Section */}
-            <motion.form
+            {/* <motion.form
                 onSubmit={handleSearch}
                 className="relative mb-8 md:mb-12 max-w-2xl mx-auto"
                 initial={{ opacity: 0, y: 20 }}
@@ -318,7 +349,7 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
-            </motion.form>
+            </motion.form> */}
         </>
     );
 } 

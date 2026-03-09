@@ -31,7 +31,7 @@ export function OnboardingFooter({
             onClick={onBack}
             className="text-muted-foreground hover:text-primary h-11 md:h-10 px-4 md:px-3 touch-manipulation"
           >
-            Πίσω
+            Προηγούμενο βήμα
           </Button>
         )}
       </div>
@@ -46,8 +46,8 @@ export function OnboardingFooter({
               idx === currentStep
                 ? 'bg-primary w-8 md:w-8 shadow-lg'
                 : idx < currentStep
-                ? 'bg-primary/50 w-6 md:w-6'
-                : 'bg-muted-foreground/30 w-4 md:w-4'
+                  ? 'bg-primary/50 w-6 md:w-6'
+                  : 'bg-muted-foreground/30 w-4 md:w-4'
             )}
           />
         ))}
