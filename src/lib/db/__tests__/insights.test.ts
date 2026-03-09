@@ -75,10 +75,10 @@ describe('Insights Queries', () => {
             (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
             await getTopicDistribution('city123');
 
-            // Verifying the tagged template was called correctly is tricky with jest mocks,
-            // but we can ensure it runs over SQL containing the string logic.
-            const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
-            expect(callArgs.some((str: string) => str.includes('AND ss."cityId" ='))).toBeTruthy();
+            // The cityFilter is a Prisma.sql interpolated value, not a static string,
+            // so it appears in mock.calls[0][1], not mock.calls[0][0].
+            // Verify the city ID value is present anywhere in the call arguments.
+            expect(JSON.stringify((prisma.$queryRaw as jest.Mock).mock.calls[0])).toContain('city123');
         });
     });
 
@@ -100,8 +100,9 @@ describe('Insights Queries', () => {
         it('filters by cityId', async () => {
             (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
             await getPartyDistribution('city123');
-            const callArgs = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
-            expect(callArgs.some((str: string) => str.includes('AND ss."cityId" ='))).toBeTruthy();
+
+            // The cityFilter is a Prisma.sql interpolated value, not a static string.
+            expect(JSON.stringify((prisma.$queryRaw as jest.Mock).mock.calls[0])).toContain('city123');
         });
     });
 
