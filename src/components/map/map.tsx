@@ -180,18 +180,11 @@ const MapComponent = memo(function MapComponent({
                     ['get', 'fillOpacity']
                 ]);
             } else {
-                // Unsupported city: show BOTH blue overlay AND border IMMEDIATELY
+                // Unsupported city: show ONLY blue border on hover
+                // Keep existing petition heatmap fill untouched
                 // No timeout - instant feedback
 
-                // Show blue OVERLAY (fill) - only for the hovered feature
-                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
-                    'case',
-                    featureFilter,
-                    0.2,
-                    ['get', 'fillOpacity']
-                ]);
-
-                // Show blue BORDER - only for the hovered feature
+                // Show soft blue BORDER - only for the hovered feature
                 map.current.setPaintProperty('feature-borders', 'line-width', [
                     'case',
                     featureFilter,

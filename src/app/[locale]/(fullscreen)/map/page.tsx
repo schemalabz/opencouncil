@@ -266,14 +266,14 @@ export default function MapPage() {
                             featureType: 'city'
                         },
                         style: {
-                            // Supported: Orange, Unsupported: Blue
-                            fillColor: isSupported 
-                                ? 'hsl(24, 100%, 92%)' 
+                            // Supported: Orange, Unsupported: Soft Blue
+                            fillColor: isSupported
+                                ? 'hsl(24, 100%, 92%)'
                                 : 'hsl(212, 100%, 45%)', // Always blue base for unsupported
                             fillOpacity: isSupported ? 0.35 : blueOpacity,
-                            strokeColor: isSupported 
-                                ? 'hsl(24, 100%, 50%)' 
-                                : 'hsl(212, 100%, 45%)', // Always blue stroke base for unsupported
+                            strokeColor: isSupported
+                                ? 'hsl(24, 100%, 50%)'
+                                : 'hsl(212, 60%, 65%)', // Soft blue stroke for unsupported
                             strokeWidth: isSupported ? 1.5 : 0, // 0 width by default for unsupported
                             strokeOpacity: isSupported ? 0.6 : 0, // 0 opacity by default for unsupported
                         }
