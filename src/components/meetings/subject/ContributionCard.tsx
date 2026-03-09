@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Clock } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
@@ -12,6 +12,7 @@ import { useTranslations } from "next-intl";
 import { SpeakerContribution } from "@/lib/apiTypes";
 import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 import { formatTimestamp } from "@/lib/formatters/time";
+import { matchSpeakerNameToPerson } from "@/lib/utils/speakerMatch";
 import useSWR from "swr";
 
 interface UtteranceTimeRange {
@@ -30,18 +31,33 @@ export const ContributionCard = memo(function ContributionCard({
     contribution,
     subjectId,
 }: ContributionCardProps) {
-    const { getPerson, meeting } = useCouncilMeetingData();
+    const { getPerson, meeting, people } = useCouncilMeetingData();
     const t = useTranslations("Subject");
 
-    const speaker = contribution.speakerId
-        ? getPerson(contribution.speakerId)
-        : null;
+    const speaker = useMemo(() => {
+        // Direct lookup by ID
+        if (contribution.speakerId) {
+            return getPerson(contribution.speakerId) ?? null;
+        }
+        // Fallback: try to match speakerName against known people by shared
+        // name tokens (handles role-prefixed names like "Αντιδήμαρχος Ευαγγελίδου")
+        if (contribution.speakerName) {
+            const matchedId = matchSpeakerNameToPerson(contribution.speakerName, people);
+            if (matchedId) {
+                return getPerson(matchedId) ?? null;
+            }
+        }
+        return null;
+    }, [contribution.speakerId, contribution.speakerName, getPerson, people]);
+
+    // Use the resolved speaker's ID (from direct match or name fallback)
+    const resolvedSpeakerId = speaker?.id ?? null;
 
     // Fetch the time range for this speaker's discussion of this subject
     // Uses the discussionSubjectId index for efficient lookup
     const { data: utteranceInfo } = useSWR<UtteranceTimeRange>(
-        contribution.speakerId
-            ? `/api/subject/${subjectId}/first-utterance/${contribution.speakerId}`
+        resolvedSpeakerId
+            ? `/api/subject/${subjectId}/first-utterance/${resolvedSpeakerId}`
             : null,
         fetcher
     );

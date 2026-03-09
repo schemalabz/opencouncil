@@ -12,6 +12,7 @@ import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./s
 import { Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
+import { matchSpeakerNameToPerson } from "../utils/speakerMatch";
 
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
@@ -168,7 +169,15 @@ async function validateSubjectPersons(subjects: Subject[], cityId: string) {
 
     const existingIntroducerIds = new Set(existingIntroducers.map(p => p.id));
 
-    return { topicsByName, validSpeakerIds, existingIntroducerIds };
+    // Fetch all people with names for fallback speaker-name matching.
+    // This is a lightweight query (id + name only) used when the AI backend
+    // returns a speakerName but no speakerId.
+    const cityPeople = await prisma.person.findMany({
+        where: { cityId },
+        select: { id: true, name: true }
+    });
+
+    return { topicsByName, validSpeakerIds, existingIntroducerIds, cityPeople };
 }
 
 async function createLocationInTx(
@@ -270,8 +279,26 @@ export async function saveSubjectsForMeeting(
     cityId: string,
     councilMeetingId: string,
 ): Promise<Map<string, string>> {
-    const { topicsByName, validSpeakerIds, existingIntroducerIds } = await validateSubjectPersons(subjects, cityId);
+    const { topicsByName, validSpeakerIds, existingIntroducerIds, cityPeople } = await validateSubjectPersons(subjects, cityId);
     const subjectIdMap = new Map<string, string>();
+
+    // Resolve speakerId for a contribution: validate the existing speakerId,
+    // or fall back to name-matching when the AI backend returned a speakerName
+    // but no speakerId (e.g. "Αντιδήμαρχος Ευαγγελίδου" instead of a person ID).
+    const resolveSpeakerId = (contrib: { speakerId: string | null; speakerName: string | null }): string | null => {
+        if (contrib.speakerId && validSpeakerIds.has(contrib.speakerId)) {
+            return contrib.speakerId;
+        }
+        // Fallback: try to match by name when speakerId is missing or invalid
+        if (contrib.speakerName) {
+            const matched = matchSpeakerNameToPerson(contrib.speakerName, cityPeople);
+            if (matched) {
+                console.log(`Matched speakerName "${contrib.speakerName}" to person ${matched} by name`);
+            }
+            return matched;
+        }
+        return null;
+    };
 
     // Fetch existing subjects for matching
     const existingSubjects = await prisma.subject.findMany({
@@ -361,9 +388,7 @@ export async function saveSubjectsForMeeting(
                 await tx.speakerContribution.createMany({
                     data: incoming.speakerContributions.map(contrib => ({
                         subjectId: existingId,
-                        speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
-                            ? contrib.speakerId
-                            : null,
+                        speakerId: resolveSpeakerId(contrib),
                         speakerName: contrib.speakerName,
                         text: contrib.text
                     }))
@@ -425,9 +450,7 @@ export async function saveSubjectsForMeeting(
                     proximityImportance: subject.proximityImportance,
                     contributions: {
                         create: subject.speakerContributions.map(contrib => ({
-                            speakerId: contrib.speakerId && validSpeakerIds.has(contrib.speakerId)
-                                ? contrib.speakerId
-                                : null,
+                            speakerId: resolveSpeakerId(contrib),
                             speakerName: contrib.speakerName,
                             text: contrib.text
                         }))
