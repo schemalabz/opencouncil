@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
+import { stripMarkdown } from '@/lib/formatters/markdown';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
@@ -426,7 +427,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                     {summary && (
                                         <div className='px-2.5 sm:px-4 space-y-2'>
                                             <div className='text-xs sm:text-sm'>
-                                                {summary.text}
+                                                {stripMarkdown(summary.text)}
                                             </div>
                                             <div className='flex flex-col gap-2'>
                                                 {segment.topicLabels.length > 0 && (
