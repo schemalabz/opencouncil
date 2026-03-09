@@ -12,7 +12,9 @@ import { el, enUS } from 'date-fns/locale';
 import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
+import { getAdjacentMeetings } from '@/lib/db/meetings';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
+import MeetingNavigation from '@/components/meetings/MeetingNavigation';
 
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
@@ -20,6 +22,7 @@ import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButt
 import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
 import { HighlightCreationPermission } from '@prisma/client';
+import { createCache } from '@/lib/cache';
 
 export async function generateImageMetadata({
     params: { meetingId, cityId }
@@ -119,11 +122,40 @@ export default async function CouncilMeetingPage({
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
 
+    // Fetch adjacent meetings for prev/next navigation (cached per meeting)
+    const adjacentMeetings = await createCache(
+        () => getAdjacentMeetings(
+            cityId,
+            meetingId,
+            data.meeting.dateTime,
+            data.meeting.administrativeBodyId
+        ),
+        ['city', cityId, 'meeting', meetingId, 'adjacentMeetings'],
+        { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+    )();
+
     // Format meeting description to include more info
-    const meetingDescription = [
+    const meetingDescriptionText = [
         formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
         `${data.subjects.length} θέματα`
     ].filter(Boolean).join(' · ');
+
+    // Serialize adjacent meeting dates for the client component
+    const prevMeeting = adjacentMeetings.previous
+        ? { id: adjacentMeetings.previous.id, dateTime: adjacentMeetings.previous.dateTime.toISOString() }
+        : null;
+    const nextMeeting = adjacentMeetings.next
+        ? { id: adjacentMeetings.next.id, dateTime: adjacentMeetings.next.dateTime.toISOString() }
+        : null;
+
+    const meetingDescription = (
+        <MeetingNavigation
+            cityId={cityId}
+            previous={prevMeeting}
+            next={nextMeeting}
+            meetingDescription={meetingDescriptionText}
+        />
+    );
 
     return (
         <ShareProvider>
