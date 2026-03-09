@@ -31,7 +31,7 @@ const UtteranceC: React.FC<{
     utterance: Utterance,
     onUpdate?: (updatedUtterance: Utterance) => void
 }> = React.memo(({ utterance, onUpdate }) => {
-    const { currentTime, seekTo, togglePlayPause } = useVideo();
+    const { currentTime, seekTo, seekToWithoutScroll, setIsPlaying, togglePlayPause } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
@@ -113,7 +113,7 @@ const UtteranceC: React.FC<{
                 { shift: e.shiftKey }
             );
             // Seek to the utterance timestamp so user can easily play and listen to what they highlighted
-            seekTo(localUtterance.startTimestamp);
+            seekToWithoutScroll(localUtterance.startTimestamp);
         } else if (options.editable) {
             // Editing Mode: Handle Selection Logic
             // Prevent text editing if modifiers are present (intent is selection)
@@ -125,14 +125,15 @@ const UtteranceC: React.FC<{
             } else if (isSelected) {
                 // Click on selected utterance: enable editing
                 setIsEditing(true);
-                seekTo(localUtterance.startTimestamp);
+                seekToWithoutScroll(localUtterance.startTimestamp);
             } else {
                  // Standard click: Seek & Edit
                  setIsEditing(true);
-                 seekTo(localUtterance.startTimestamp);
+                 seekToWithoutScroll(localUtterance.startTimestamp);
             }
         } else {
-            seekTo(localUtterance.startTimestamp);
+            seekToWithoutScroll(localUtterance.startTimestamp);
+            setIsPlaying(true);
         }
     };
 
