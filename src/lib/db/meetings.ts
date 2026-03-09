@@ -260,3 +260,49 @@ export async function getMeetingUploadMetrics(last30Days: boolean = false): Prom
         earliestScheduledFuture: scheduledFutureMeetings.length > 0 ? scheduledFutureMeetings[0].dateTime : null,
     };
 }
+
+export type AdjacentMeeting = {
+    id: string;
+    dateTime: Date;
+} | null;
+
+export interface AdjacentMeetings {
+    previous: AdjacentMeeting;
+    next: AdjacentMeeting;
+}
+
+/**
+ * Fetches the chronologically adjacent (previous and next) released meetings
+ * for the same administrative body as the given meeting. If the meeting has no
+ * administrative body, falls back to all meetings in the same city.
+ *
+ * Only considers released meetings so users are never linked to unpublished content.
+ */
+export async function getAdjacentMeetings(
+    cityId: string,
+    meetingId: string,
+    dateTime: Date,
+    administrativeBodyId: string | null
+): Promise<AdjacentMeetings> {
+    const baseWhere = {
+        cityId,
+        released: true,
+        id: { not: meetingId },
+        ...(administrativeBodyId ? { administrativeBodyId } : {}),
+    };
+
+    const [previous, next] = await Promise.all([
+        prisma.councilMeeting.findFirst({
+            where: { ...baseWhere, dateTime: { lt: dateTime } },
+            orderBy: { dateTime: 'desc' },
+            select: { id: true, dateTime: true },
+        }),
+        prisma.councilMeeting.findFirst({
+            where: { ...baseWhere, dateTime: { gt: dateTime } },
+            orderBy: { dateTime: 'asc' },
+            select: { id: true, dateTime: true },
+        }),
+    ]);
+
+    return { previous: previous ?? null, next: next ?? null };
+}

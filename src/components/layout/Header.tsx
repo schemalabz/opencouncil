@@ -16,7 +16,7 @@ import { useState, useRef, useEffect } from "react"
 export interface PathElement {
     name: string
     link: string
-    description?: string
+    description?: React.ReactNode
     city?: City
 }
 
