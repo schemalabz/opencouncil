@@ -1,6 +1,6 @@
 "use client";
 import { Utterance } from "@prisma/client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from 'next-intl';
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
@@ -31,7 +31,7 @@ const UtteranceC: React.FC<{
     utterance: Utterance,
     onUpdate?: (updatedUtterance: Utterance) => void
 }> = React.memo(({ utterance, onUpdate }) => {
-    const { currentTime, seekTo, togglePlayPause } = useVideo();
+    const { currentTime, seekTo, seekToWithoutScroll, togglePlayPause } = useVideo();
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
@@ -63,25 +63,34 @@ const UtteranceC: React.FC<{
         setEditedEndTime(utterance.endTimestamp);
     }, [utterance]);
 
+    // Track whether the initial URL ?t= scroll has already been handled
+    const hasHandledUrlScroll = useRef(false);
+
     useEffect(() => {
         const isActive = currentTime >= localUtterance.startTimestamp && currentTime <= localUtterance.endTimestamp;
         setIsActive(isActive);
+    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp]);
 
-        // Check if this utterance should be initially active based on URL param
+    // Handle ?t= URL parameter scroll only once on mount, not on every currentTime change.
+    // Previously this ran inside the currentTime effect, causing repeated scrollIntoView calls
+    // that would yank focus away from the textarea when editing a newly created utterance.
+    useEffect(() => {
+        if (hasHandledUrlScroll.current) return;
+
         const urlParams = new URLSearchParams(window.location.search);
         const timeParam = urlParams.get('t');
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && seconds >= localUtterance.startTimestamp && seconds <= localUtterance.endTimestamp) {
+                hasHandledUrlScroll.current = true;
                 setIsActive(true);
-                // If this is the target utterance, ensure it's visible
                 const element = document.getElementById(localUtterance.id);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
         }
-    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
+    }, [localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
 
     // Check if this utterance is highlighted in the current editing highlight
     const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id) || false;
@@ -125,11 +134,13 @@ const UtteranceC: React.FC<{
             } else if (isSelected) {
                 // Click on selected utterance: enable editing
                 setIsEditing(true);
-                seekTo(localUtterance.startTimestamp);
+                // Use seekToWithoutScroll to avoid scrolling to a different utterance,
+                // which would yank focus away from the textarea that's about to appear
+                seekToWithoutScroll(localUtterance.startTimestamp);
             } else {
                  // Standard click: Seek & Edit
                  setIsEditing(true);
-                 seekTo(localUtterance.startTimestamp);
+                 seekToWithoutScroll(localUtterance.startTimestamp);
             }
         } else {
             seekTo(localUtterance.startTimestamp);
