@@ -42,6 +42,19 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
+    // Clean up stale data from previous summarize runs before processing new results.
+    // Without this, re-summarizing accumulates orphaned TopicLabels and leaves
+    // utterances with outdated discussionStatus/discussionSubjectId values.
+    await prisma.$transaction([
+        prisma.topicLabel.deleteMany({
+            where: { speakerSegmentId: { in: availableSpeakerSegmentIds } }
+        }),
+        prisma.utterance.updateMany({
+            where: { speakerSegment: { id: { in: availableSpeakerSegmentIds } } },
+            data: { discussionStatus: null, discussionSubjectId: null }
+        }),
+    ]);
+
     // Pre-fetch all topics to avoid repeated queries
     const allTopicNames = new Set<string>();
     for (const segmentSummary of response.speakerSegmentSummaries) {
