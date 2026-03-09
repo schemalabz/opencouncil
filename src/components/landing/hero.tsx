@@ -6,6 +6,7 @@ import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { HeaderBar } from './header-bar';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 import { OpenCouncilDescription } from './OpenCouncilDescription';
+import { CarbonaraButton } from './CarbonaraButton';
 
 interface HeroProps {
     latestPost?: SubstackPost;
@@ -92,6 +93,7 @@ export function Hero({ latestPost, cities, value, onCitySelect, isNavigating }: 
                                 Πληροφορίες για δήμους και περιφέρειες
                             </Link>
                         </Button>
+                        <CarbonaraButton />
                     </motion.div>
                 </div>
             </motion.div>
