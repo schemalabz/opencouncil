@@ -39,5 +39,7 @@ describe("TopicPartyRings", () => {
 
         expect(screen.getAllByText("60%").length).toBeGreaterThan(0);
         expect(screen.getAllByText("40%").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("70%").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("30%").length).toBeGreaterThan(0);
     });
 });

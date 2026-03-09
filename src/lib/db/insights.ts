@@ -223,6 +223,7 @@ export async function getCityLeaderboard(): Promise<CityLeaderboardItem[]> {
     JOIN "CouncilMeeting" cm ON cm."cityId" = c.id AND cm.released = true
     LEFT JOIN "SpeakerSegment" ss ON ss."cityId" = c.id AND ss."meetingId" = cm.id
     LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
+    WHERE c.status = 'listed'
     GROUP BY c.id, c.name
     ORDER BY "totalSeconds" DESC
   `;
