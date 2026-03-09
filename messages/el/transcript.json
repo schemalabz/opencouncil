@@ -13,7 +13,8 @@
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
       "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
       "shareFromHere": "Κοινοποίηση από εδώ",
-      "extractSegment": "Εξαγωγή τμήματος"
+      "extractSegment": "Εξαγωγή τμήματος",
+      "deleteSelected": "Διαγραφή Επιλεγμένων ({count})"
     },
     "toasts": {
       "moveUtterances": "Μετακίνηση φράσεων;",

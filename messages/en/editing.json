@@ -78,7 +78,8 @@
         "selectRange": "Select range of utterances",
         "toggleSelect": "Toggle utterance selection",
         "extract": "Extract selected segment",
-        "clear": "Clear selection"
+        "clear": "Clear selection",
+        "deleteSelected": "Delete selected utterances"
       }
     },
     "tasks": {
@@ -137,6 +138,15 @@
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
     "reviewCompleted": "Review Completed",
-    "reviewCompletedDescription": "The transcript review has been marked as complete."
+    "reviewCompletedDescription": "The transcript review has been marked as complete.",
+    "bulkDeleteSuccess": "{count} utterances deleted successfully",
+    "bulkDeleteErrorTitle": "Delete Error",
+    "bulkDeleteError": "Failed to delete some utterances"
+  },
+  "selection": {
+    "selected": "selected",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "deleteSelected": "Delete Selected"
   }
 }

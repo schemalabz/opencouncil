@@ -7,12 +7,13 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
+import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward, Trash2, CheckSquare, Square, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EditingGuideDialog } from './EditingGuideDialog';
 import { GuideButton } from './GuideButton';
+import { useEditing } from './EditingContext';
 import { UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
 import { SpeakersOverviewSheet } from './transcript/SpeakersOverviewSheet';
 import { CompleteReviewDialog } from '@/components/reviews/CompleteReviewDialog';
@@ -23,6 +24,7 @@ export function EditingModeBar() {
     const { playbackSpeed, handleSpeedChange, seekTo, currentTime } = useVideo();
     const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
+    const { selectedUtteranceIds, selectAllUtterances, clearSelection, deleteSelectedUtterances, isProcessing } = useEditing();
     const t = useTranslations('editing');
     const [showCompleteDialog, setShowCompleteDialog] = useState(false);
     const [isReviewCompleted, setIsReviewCompleted] = useState(false);
@@ -220,6 +222,18 @@ export function EditingModeBar() {
                                             iconClassName="mr-1"
                                         />
 
+                                        {/* Select All */}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => selectAllUtterances()}
+                                            className="flex items-center space-x-1"
+                                            title={t('selection.selectAll', { defaultValue: 'Select All' })}
+                                        >
+                                            <CheckSquare className="h-4 w-4 mr-1" />
+                                            <span className="hidden sm:inline">{t('selection.selectAll', { defaultValue: 'Select All' })}</span>
+                                        </Button>
+
                                         {/* Exit Button */}
                                         <Button
                                             variant="ghost"
@@ -232,6 +246,34 @@ export function EditingModeBar() {
                                         </Button>
                                     </div>
                                 </div>
+                                {selectedUtteranceIds.size > 0 && (
+                                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200">
+                                        <span className="text-xs font-medium text-slate-600">
+                                            {selectedUtteranceIds.size} {t('selection.selected', { defaultValue: 'selected' })}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => deleteSelectedUtterances()}
+                                            disabled={isProcessing}
+                                            className="flex items-center space-x-1 bg-red-50 hover:bg-red-100 border-red-200 text-red-700"
+                                            title={t('selection.deleteSelected', { defaultValue: 'Delete Selected' })}
+                                        >
+                                            {isProcessing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                                            <span>{t('selection.deleteSelected', { defaultValue: 'Delete Selected' })}</span>
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => clearSelection()}
+                                            className="flex items-center space-x-1"
+                                            title={t('selection.deselectAll', { defaultValue: 'Deselect All' })}
+                                        >
+                                            <Square className="h-4 w-4 mr-1" />
+                                            <span className="hidden sm:inline">{t('selection.deselectAll', { defaultValue: 'Deselect All' })}</span>
+                                        </Button>
+                                    </div>
+                                )}
                             </CardContent>
                         </div>
                     </div>

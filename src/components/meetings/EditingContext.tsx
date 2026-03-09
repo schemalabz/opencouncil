@@ -11,7 +11,9 @@ interface EditingContextType {
     lastClickedUtteranceId: string | null;
     toggleSelection: (id: string, modifiers: { shift: boolean, ctrl: boolean }) => void;
     clearSelection: () => void;
+    selectAllUtterances: () => void;
     extractSelectedSegment: () => Promise<void>;
+    deleteSelectedUtterances: () => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -22,7 +24,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
-    const { transcript, extractSpeakerSegment, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { transcript, extractSpeakerSegment, getSpeakerSegmentById, deleteUtterance } = useCouncilMeetingData();
     const { toast } = useToast();
     const t = useTranslations('editing.toasts');
 
@@ -145,8 +147,49 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         }
     }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, clearSelection, toast, transcript, t]);
 
+    const selectAllUtterances = useCallback(() => {
+        const allIds = new Set(allUtterances.map(u => u.id));
+        setSelectedUtteranceIds(allIds);
+        if (allUtterances.length > 0) {
+            setLastClickedUtteranceId(allUtterances[allUtterances.length - 1].id);
+        }
+    }, [allUtterances]);
+
+    const deleteSelectedUtterances = useCallback(async () => {
+        if (selectedUtteranceIds.size === 0) return;
+        if (isProcessing) return;
+
+        setIsProcessing(true);
+        try {
+            const idsToDelete = Array.from(selectedUtteranceIds);
+
+            // Delete utterances sequentially to avoid race conditions
+            for (const id of idsToDelete) {
+                await deleteUtterance(id);
+            }
+
+            clearSelection();
+            toast({
+                description: t('bulkDeleteSuccess', {
+                    count: idsToDelete.length,
+                    defaultValue: '{count} utterances deleted successfully'
+                })
+            });
+        } catch (error) {
+            console.error('Failed to delete utterances:', error);
+            toast({
+                title: t('bulkDeleteErrorTitle', { defaultValue: 'Delete Error' }),
+                description: t('bulkDeleteError', { defaultValue: 'Failed to delete some utterances' }),
+                variant: 'destructive'
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [selectedUtteranceIds, isProcessing, deleteUtterance, clearSelection, toast, t]);
+
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
+    useKeyboardShortcut(ACTIONS.DELETE_SELECTED.id, deleteSelectedUtterances, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
 
     return (
@@ -155,7 +198,9 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             lastClickedUtteranceId,
             toggleSelection,
             clearSelection,
+            selectAllUtterances,
             extractSelectedSegment,
+            deleteSelectedUtterances,
             isProcessing
         }}>
             {children}

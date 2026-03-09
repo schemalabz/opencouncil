@@ -13,7 +13,8 @@
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
       "shareFromHere": "Share from here",
-      "extractSegment": "Extract segment"
+      "extractSegment": "Extract segment",
+      "deleteSelected": "Delete Selected ({count})"
     },
     "toasts": {
       "moveUtterances": "Move utterances?",
