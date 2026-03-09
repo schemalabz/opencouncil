@@ -13,51 +13,22 @@ import {
 } from '@/components/ui/sheet';
 import { TopicFilter } from '@/components/filters/TopicFilter';
 import { Slider } from '@/components/ui/slider';
-import { Filter, Check, ChevronsUpDown, X, Search, Info } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Badge } from '@/components/ui/badge';
+import { Filter, Check, X, Search, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-export interface MapFiltersState {
-    monthsBack: number;
-    selectedTopics: Topic[];
-    selectedCities: string[]; // Array of city IDs
-}
-
-interface CityOption {
-    id: string;
-    name: string;
-    name_en: string;
-    meetingsCount: number;
-}
+import { CityOption, MapFiltersState } from '@/types/map';
 
 interface MapFiltersProps {
     filters: MapFiltersState;
     allTopics: Topic[];
     allCities: CityOption[];
     onFiltersChange: (filters: MapFiltersState) => void;
-    onShowExplainer?: () => void;
 }
 
-export function MapFilters({ filters, allTopics, allCities, onFiltersChange, onShowExplainer }: MapFiltersProps) {
+export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: MapFiltersProps) {
     const [open, setOpen] = useState(false);
-    const [cityComboboxOpen, setCityComboboxOpen] = useState(false);
     const [citySearch, setCitySearch] = useState('');
     const [localMonthsBack, setLocalMonthsBack] = useState(filters.monthsBack);
     const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-    const searchInputRef = useRef<HTMLInputElement>(null);
-
-    // Reset search when popover closes
-    useEffect(() => {
-        if (!cityComboboxOpen) {
-            setCitySearch('');
-        } else {
-            // Focus input when popover opens
-            setTimeout(() => {
-                searchInputRef.current?.focus();
-            }, 0);
-        }
-    }, [cityComboboxOpen]);
 
     // Update local state when filters prop changes
     useEffect(() => {
@@ -102,13 +73,6 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange, onS
         });
     };
 
-    const handleRemoveCity = (cityId: string) => {
-        onFiltersChange({
-            ...filters,
-            selectedCities: filters.selectedCities.filter(id => id !== cityId)
-        });
-    };
-
     const handleSelectAllCities = () => {
         onFiltersChange({
             ...filters,
@@ -135,7 +99,6 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange, onS
 
         // Set new timeout to update filters after 300ms
         debounceTimeout.current = setTimeout(() => {
-            console.log('⏱️ Debounced slider update:', newMonthsBack);
             onFiltersChange({
                 ...filters,
                 monthsBack: newMonthsBack
