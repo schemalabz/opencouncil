@@ -528,5 +528,34 @@
         "noItems": "There are no meetings in OpenCouncil.",
         "previous": "Previous",
         "next": "Next"
+    },
+    "Profile": {
+        "welcomeOnboard": "Welcome to OpenCouncil",
+        "personalInfo": "Personal Information",
+        "onboardingDescription": "Please fill in the information below to complete your registration.",
+        "fullName": "Full Name",
+        "email": "Email",
+        "phone": "Phone",
+        "allowContact": "Allow contact",
+        "allowContactDescription": "Allow OpenCouncil to contact me for important updates and announcements.",
+        "saving": "Saving...",
+        "saveProfile": "Save Profile",
+        "administration": "Administration",
+        "superAdminAccess": "You have system administrator access",
+        "goToAdmin": "Go to Administration",
+        "noAdminAccess": "You do not have admin permissions.",
+        "contactForAccess": "To gain admin access, contact us:",
+        "adminCity": "City Admin",
+        "adminParty": "Party Admin",
+        "adminPerson": "Member Admin",
+        "myHighlights": "My Highlights",
+        "viewHighlights": "View all your highlights across meetings",
+        "highlights": {
+            "title": "My Highlights",
+            "description": "All your highlights across every meeting, in one place.",
+            "emptyTitle": "No highlights yet",
+            "emptyDescription": "You haven't created any highlights yet. Visit a meeting to create your first highlight.",
+            "count": "{count, plural, one {# highlight} other {# highlights}} across all meetings"
+        }
     }
 }
