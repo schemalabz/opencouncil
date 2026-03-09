@@ -14,10 +14,12 @@ import { CityStatsSection } from "@/components/stats/CityStatsSection";
 import { CityMarquee } from "@/components/stats/CityMarquee";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-    title: "Στατιστικά Πλατφόρμας | OpenCouncil",
-    description: "Δείτε πόσες ώρες δημοτικών συνεδριάσεων έχουμε καταγράψει, ποια κόμματα μιλάνε περισσότερο και ποιοι δήμοι ηγούνται.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+    return {
+        title: "Στατιστικά Πλατφόρμας | OpenCouncil",
+        description: "Δείτε πόσες ώρες δημοτικών συνεδριάσεων έχουμε καταγράψει, ποια κόμματα μιλάνε περισσότερο και ποιοι δήμοι ηγούνται.",
+    };
+}
 
 export default async function StatsPage() {
     const [kpis, topics, parties, growth, leaderboard, allCities] = await Promise.all([

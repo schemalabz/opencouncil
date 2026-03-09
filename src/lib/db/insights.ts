@@ -46,9 +46,10 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
     wordCount,
     speakersAgg
   ] = await Promise.all([
-    // Number of cities with at least one released meeting
+    // Number of listed cities with at least one released meeting
     prisma.city.count({
       where: {
+        status: 'listed',
         councilMeetings: {
           some: {
             released: true,
@@ -91,6 +92,7 @@ export async function getGlobalKPIs(): Promise<GlobalKPIs> {
             AND EXISTS (
               SELECT 1 FROM "SpeakerSegment" ss
               JOIN "CouncilMeeting" cm ON cm.id = ss."meetingId" AND cm.released = true
+              JOIN "City" c ON c.id = cm."cityId" AND c.status = 'listed'
               LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
               WHERE ss."speakerTagId" = st.id
                 AND (s.type IS NULL OR s.type != 'procedural')
@@ -127,6 +129,7 @@ export async function getTopicDistribution(cityId?: string): Promise<TopicDistri
     JOIN "SpeakerSegment" ss ON tl."speakerSegmentId" = ss.id
     JOIN "Topic" t ON tl."topicId" = t.id
     JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
+    JOIN "City" c ON c.id = cm."cityId" AND c.status = 'listed'
     LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
       AND (s.type IS NULL OR s.type != 'procedural')
@@ -152,25 +155,27 @@ export async function getPartyDistribution(cityId?: string): Promise<PartyDistri
     speakingSeconds: number;
   }>>`
     SELECT
-      p.id as "partyId",
-      p.name as "partyName",
-      p."colorHex" as "colorHex",
+      COALESCE(p.id, 'independent') as "partyId",
+      COALESCE(p.name, 'Ανεξάρτητοι') as "partyName",
+      COALESCE(p."colorHex", '#94a3b8') as "colorHex",
       CAST(SUM(ss."endTimestamp" - ss."startTimestamp") AS FLOAT) as "speakingSeconds"
     FROM "SpeakerSegment" ss
     JOIN "CouncilMeeting" cm ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
+    JOIN "City" c ON c.id = cm."cityId" AND c.status = 'listed'
     JOIN "SpeakerTag" st ON ss."speakerTagId" = st.id
-    JOIN LATERAL (
+    LEFT JOIN LATERAL (
       SELECT r."partyId" FROM "Role" r
       WHERE r."personId" = st."personId" AND r."cityId" = ss."cityId" AND r."partyId" IS NOT NULL
       ORDER BY COALESCE(r."startDate", '1970-01-01'::timestamp) DESC, r."createdAt" DESC
       LIMIT 1
     ) r ON true
-    JOIN "Party" p ON r."partyId" = p.id
+    LEFT JOIN "Party" p ON r."partyId" = p.id
     LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
       AND (s.type IS NULL OR s.type != 'procedural')
+      AND st."personId" IS NOT NULL
       ${cityFilter}
-    GROUP BY p.id, p.name, p."colorHex"
+    GROUP BY COALESCE(p.id, 'independent'), COALESCE(p.name, 'Ανεξάρτητοι'), COALESCE(p."colorHex", '#94a3b8')
     ORDER BY "speakingSeconds" DESC
   `;
 
@@ -192,6 +197,7 @@ export async function getMonthlyGrowth(): Promise<MonthlyGrowthItem[]> {
       CAST(COUNT(DISTINCT cm.id) AS INTEGER) as "meetingCount",
       CAST(COALESCE(SUM(CASE WHEN (s.type IS NULL OR s.type != 'procedural') THEN ss."endTimestamp" - ss."startTimestamp" ELSE 0 END), 0) AS FLOAT) as "totalSeconds"
     FROM "CouncilMeeting" cm
+    JOIN "City" c ON c.id = cm."cityId" AND c.status = 'listed'
     LEFT JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
     LEFT JOIN LATERAL (SELECT s.type FROM "Summary" s WHERE s."speakerSegmentId" = ss.id LIMIT 1) s ON true
     WHERE cm.released = true
