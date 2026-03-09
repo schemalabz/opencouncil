@@ -12,9 +12,9 @@ jest.mock("framer-motion", () => ({
 
 describe("CityLeaderboard", () => {
     const cities = [
-        { cityId: "c1", cityName: "Αθήνα", totalSeconds: 360000, meetingCount: 100 },
-        { cityId: "c2", cityName: "Θεσσαλονίκη", totalSeconds: 180000, meetingCount: 50 },
-        { cityId: "c3", cityName: "Πάτρα", totalSeconds: 90000, meetingCount: 25 },
+        { cityId: "c1", cityName: "Αθήνα", totalSeconds: 540000, meetingCount: 100 },
+        { cityId: "c2", cityName: "Θεσσαλονίκη", totalSeconds: 270000, meetingCount: 50 },
+        { cityId: "c3", cityName: "Πάτρα", totalSeconds: 108000, meetingCount: 25 },
     ];
 
     it("renders cities in order", () => {
@@ -30,8 +30,8 @@ describe("CityLeaderboard", () => {
     it("shows hours and meeting count for each city", () => {
         render(<CityLeaderboard cities={cities} />);
 
-        // 360000 / 3600 = 100 hours
-        expect(screen.getByText(/100h/)).toBeDefined();
+        // 540000 / 3600 = 150 hours, meetingCount = 100 (distinct values)
+        expect(screen.getByText(/150h/)).toBeDefined();
         expect(screen.getByText(/100 συν\./)).toBeDefined();
     });
 

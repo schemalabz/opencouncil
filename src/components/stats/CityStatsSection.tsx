@@ -26,7 +26,7 @@ function SmallRing({
     testId?: string;
 }) {
     const top5 = items.slice(0, 5);
-    const otherPercentage = items.slice(5).reduce((acc, item) => acc + item.percentage, 0);
+    const otherPercentage = Math.max(0, 100 - top5.reduce((acc, item) => acc + item.percentage, 0));
     const ringData = [
         ...top5.map((item) => ({ color: item.colorHex || "#94a3b8", percentage: item.percentage })),
         ...(otherPercentage > 0 ? [{ color: "#94a3b8", percentage: otherPercentage }] : []),
