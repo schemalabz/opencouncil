@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sheet';
 import { TopicFilter } from '@/components/filters/TopicFilter';
 import { Slider } from '@/components/ui/slider';
-import { Filter, Check, ChevronsUpDown, X, Search } from 'lucide-react';
+import { Filter, Check, ChevronsUpDown, X, Search, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -36,9 +36,10 @@ interface MapFiltersProps {
     allTopics: Topic[];
     allCities: CityOption[];
     onFiltersChange: (filters: MapFiltersState) => void;
+    onShowExplainer?: () => void;
 }
 
-export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: MapFiltersProps) {
+export function MapFilters({ filters, allTopics, allCities, onFiltersChange, onShowExplainer }: MapFiltersProps) {
     const [open, setOpen] = useState(false);
     const [cityComboboxOpen, setCityComboboxOpen] = useState(false);
     const [citySearch, setCitySearch] = useState('');
@@ -211,12 +212,13 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
             <SheetTrigger asChild>
                 <Button
                     variant="default"
-                    size="lg"
-                    className="fixed bottom-6 left-6 z-40 rounded-full shadow-lg h-14 px-6 gap-2"
+                    size="sm"
+                    className="fixed bottom-6 left-6 z-40 rounded-full shadow-lg h-8 w-[100px] px-0 gap-2"
                 >
-                    <Filter className="h-5 w-5" />
-                    <span className="hidden sm:inline">Φίλτρα</span>
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-white">ΦΙΛΤΡΑ</span>
                 </Button>
+
             </SheetTrigger>
             <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
                 <SheetHeader className="text-left mb-6">
@@ -227,6 +229,44 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
                 </SheetHeader>
 
                 <div className="space-y-8 pb-6">
+                    {/* LEGEND - For mobile view only */}
+                    <div className="md:hidden space-y-4 p-4 rounded-xl bg-accent/30 border border-border/50 mb-6">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Info className="w-4 h-4 text-primary" />
+                            <h4 className="text-xs font-bold uppercase tracking-wider">Υπoμνημα Χαρτη</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Ζητηση</p>
+                                <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-blue-100 to-blue-600" />
+                                <div className="flex justify-between text-[8px] text-muted-foreground mb-1">
+                                    <span>Χαμηλή</span>
+                                    <span>Υψηλή</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                    <div className="relative w-1.5 h-1.5">
+                                        <div className="absolute inset-0 rounded-full bg-blue-500 animate-pulse" />
+                                    </div>
+                                    <span className="text-[8px] text-blue-600 font-bold uppercase italic animate-pulse">Κινητοποιηση</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2.5">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Κατασταση</p>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full border border-[hsl(24,100%,50%)] bg-[hsl(24,100%,92%)]" />
+                                    <span className="text-[9px] font-bold uppercase">Υποστηριζομενος</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center -space-x-1">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary z-10" />
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary/20" />
+                                    </div>
+                                    <span className="text-[9px] font-bold uppercase">Νεα vs Παλαια</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Date Range Filter */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">

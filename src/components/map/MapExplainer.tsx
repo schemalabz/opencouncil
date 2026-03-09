@@ -13,9 +13,10 @@ import Link from 'next/link';
 interface MapExplainerProps {
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
+    hideButton?: boolean;
 }
 
-export function MapExplainer({ open: controlledOpen, onOpenChange }: MapExplainerProps = {}) {
+export function MapExplainer({ open: controlledOpen, onOpenChange, hideButton = false }: MapExplainerProps = {}) {
     const handleOpenChange = (newOpen: boolean) => {
         // Persist dismissal to localStorage
         if (!newOpen && controlledOpen) {
@@ -26,14 +27,17 @@ export function MapExplainer({ open: controlledOpen, onOpenChange }: MapExplaine
 
     return (
         <Sheet open={controlledOpen} onOpenChange={handleOpenChange}>
-            <Button
-                onClick={() => handleOpenChange(true)}
-                size="lg"
-                className="fixed bottom-6 left-[110px] sm:left-[160px] z-40 rounded-full shadow-lg h-14 px-6 gap-2 bg-white hover:bg-gray-50 text-foreground border border-border"
-            >
-                <HelpCircle className="h-5 w-5" />
-                <span className="hidden sm:inline">Τι είναι αυτό;</span>
-            </Button>
+            {!hideButton && (
+                <Button
+                    onClick={() => handleOpenChange(true)}
+                    size="sm"
+                    variant="outline"
+                    className="fixed bottom-6 left-[125px] z-40 rounded-full shadow-lg h-8 px-4 gap-2 bg-white hover:bg-gray-50 text-foreground border border-border md:hidden"
+                >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-xs font-medium tracking-tight">Τι είναι αυτό;</span>
+                </Button>
+            )}
 
             <SheetContent side="left" className="w-full sm:max-w-lg overflow-y-auto">
                 <SheetHeader className="text-left mb-6">

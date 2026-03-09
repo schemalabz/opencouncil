@@ -7,6 +7,7 @@ import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
 import { SubjectInfoSheet } from "@/components/map/SubjectInfoSheet";
 import { MapExplainer } from "@/components/map/MapExplainer";
+import { MapLegend } from "@/components/map/MapLegend";
 import { Topic } from '@prisma/client';
 import { getUserPreferences, UserPreference } from "@/lib/db/notifications";
 
@@ -625,11 +626,23 @@ export default function MapPage() {
                         allTopics={allTopics}
                         allCities={allCities}
                         onFiltersChange={setFilters}
+                        onShowExplainer={() => setShowExplainer(true)}
                     />
+                    <MapLegend onShowExplainer={() => setShowExplainer(true)} />
                     <MapExplainer
                         open={showExplainer}
                         onOpenChange={setShowExplainer}
+                        hideButton={true} // Still hide the default button, we handle it below
                     />
+
+                    {/* Dedicated mobile explainer button - appears only on small screens */}
+                    <div className="md:hidden">
+                        <MapExplainer
+                            open={showExplainer}
+                            onOpenChange={setShowExplainer}
+                            hideButton={false}
+                        />
+                    </div>
 
                     {/* Map Summary - Subjects count, topics and timeframe info */}
                     <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">
