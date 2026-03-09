@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { createCouncilMeeting, getCouncilMeetingsForCity } from '@/lib/db/meetings';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
-import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
+import { createMeetingCalendarEvent, buildMeetingCalendarParams } from '@/lib/google-calendar';
 import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
@@ -87,32 +87,24 @@ export async function POST(
 
             // Sync to Google Calendar
             try {
-                // Build title in format: "city.name: administrative body.name" (using local names)
-                let calendarTitle = city.name;
-                
-                if (meeting.administrativeBody?.name) {
-                    calendarTitle += `: ${meeting.administrativeBody.name}`;
-                }
-
-                // Build description with agenda URL and meeting link
-                const meetingUrl = `${process.env.NEXTAUTH_URL}/${cityId}/${meetingId}`;
-                const descriptionParts: string[] = [];
-                
-                if (meeting.agendaUrl) {
-                    descriptionParts.push(`Ημερήσια Διάταξη: ${meeting.agendaUrl}`);
-                }
-                
-                descriptionParts.push(`${meetingUrl}`);
-
-                const endTime = calculateMeetingEndTime(date, 2); // Default 2 hour meetings
-                
-                await createMeetingCalendarEvent({
-                    title: calendarTitle,
-                    description: descriptionParts.join('\n\n'),
+                const calendarParams = buildMeetingCalendarParams({
+                    cityName: city.name,
+                    administrativeBodyName: meeting.administrativeBody?.name,
+                    agendaUrl: meeting.agendaUrl,
+                    meetingUrl: `${process.env.NEXTAUTH_URL}/${cityId}/${meetingId}`,
                     startTime: date,
-                    endTime: endTime,
-                    timezone: city.timezone
+                    timezone: city.timezone,
                 });
+
+                const calendarEvent = await createMeetingCalendarEvent(calendarParams);
+
+                // Store the calendar event ID so we can update/delete it later
+                if (calendarEvent) {
+                    await prisma.councilMeeting.update({
+                        where: { cityId_id: { cityId, id: meetingId } },
+                        data: { calendarEventId: calendarEvent.id },
+                    });
+                }
 
                 console.log('Meeting synced to Google Calendar successfully');
             } catch (error) {

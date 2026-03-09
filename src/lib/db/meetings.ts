@@ -4,6 +4,7 @@ import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
+import { deleteMeetingCalendarEvent } from '@/lib/google-calendar';
 
 export type CouncilMeetingWithAdminBody = CouncilMeeting & {
     administrativeBody: AdministrativeBody | null
@@ -16,16 +17,27 @@ export type CouncilMeetingWithAdminBodyAndSubjects = CouncilMeetingWithAdminBody
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
+        // Fetch the meeting first to get the calendarEventId before deleting
+        const meeting = await prisma.councilMeeting.findUnique({
+            where: { cityId_id: { cityId, id } },
+            select: { calendarEventId: true },
+        });
+
         await prisma.councilMeeting.delete({
             where: { cityId_id: { cityId, id } },
         });
+
+        // Delete the corresponding Google Calendar event if one exists
+        if (meeting?.calendarEventId) {
+            await deleteMeetingCalendarEvent(meeting.calendarEventId);
+        }
     } catch (error) {
         console.error('Error deleting council meeting:', error);
         throw new Error('Failed to delete council meeting');
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string, calendarEventId?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     try {
         const newMeeting = await prisma.councilMeeting.create({

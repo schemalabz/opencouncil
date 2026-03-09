@@ -175,6 +175,7 @@ model CouncilMeeting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   released  Boolean  @default(false)
+  calendarEventId String?
 
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
