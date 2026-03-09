@@ -4,6 +4,8 @@ import { getMeetingDataCore } from '@/lib/getMeetingData';
 import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { updateMeetingCalendarEvent, createMeetingCalendarEvent, buildMeetingCalendarParams } from '@/lib/google-calendar';
+import prisma from '@/lib/db/prisma';
 
 const meetingSchema = z.object({
     name: z.string().min(2, {
@@ -70,7 +72,46 @@ export async function PUT(
             administrativeBodyId: administrativeBodyId || null,
         });
 
-        revalidateTag(`city:${params.cityId}:meetings`);
+        
+        // Sync updated date/time to Google Calendar
+        try {
+            const city = await prisma.city.findUnique({
+                where: { id: params.cityId },
+                select: { name: true, timezone: true }
+            });
+
+            if (city) {
+                const calendarParams = buildMeetingCalendarParams({
+                    cityName: city.name,
+                    administrativeBodyName: meeting.administrativeBody?.name,
+                    agendaUrl: meeting.agendaUrl,
+                    meetingUrl: `${process.env.NEXTAUTH_URL}/${params.cityId}/${params.meetingId}`,
+                    startTime: date,
+                    timezone: city.timezone,
+                });
+
+                if (meeting.calendarEventId) {
+                    // Update the existing calendar event
+                    await updateMeetingCalendarEvent(meeting.calendarEventId, calendarParams);
+                } else {
+                    // No calendar event exists yet — create one and store the ID
+                    const calendarEvent = await createMeetingCalendarEvent(calendarParams);
+                    if (calendarEvent) {
+                        await prisma.councilMeeting.update({
+                            where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
+                            data: { calendarEventId: calendarEvent.id },
+                        });
+                    }
+                }
+
+                console.log('Meeting calendar event synced successfully');
+            }
+        } catch (error) {
+            // Don't fail the meeting update if calendar sync fails
+            console.error('Failed to sync meeting to Google Calendar:', error);
+        }
+
+revalidateTag(`city:${params.cityId}:meetings`);
         revalidatePath(`/${params.cityId}`, "layout");
 
         return NextResponse.json(meeting);
