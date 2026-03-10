@@ -42,7 +42,8 @@ export function useMapPersonalization({
                         selectedTopics: preferredTopicIds.size > 0
                             ? allTopics.filter((t: Topic) => preferredTopicIds.has(t.id))
                             : allTopics,
-                        selectedCities: [primaryPref.cityId]
+                        selectedCities: [primaryPref.cityId],
+                        selectedBodyTypes: ['council', 'committee', 'community']
                     };
 
                     onFiltersChange(initialFilters);
@@ -57,7 +58,8 @@ export function useMapPersonalization({
                     onFiltersChange({
                         monthsBack: 6,
                         selectedTopics: allTopics,
-                        selectedCities: allCities
+                        selectedCities: allCities,
+                        selectedBodyTypes: ['council', 'committee', 'community']
                     });
                 }
             } catch (e) {
@@ -65,7 +67,8 @@ export function useMapPersonalization({
                 onFiltersChange({
                     monthsBack: 6,
                     selectedTopics: allTopics,
-                    selectedCities: allCities
+                    selectedCities: allCities,
+                    selectedBodyTypes: ['council', 'committee', 'community']
                 });
             }
         }

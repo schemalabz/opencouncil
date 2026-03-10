@@ -12,26 +12,26 @@ export async function GET(request: Request) {
         const monthsBackParam = searchParams.get('monthsBack');
         const topicIdsParam = searchParams.get('topicIds');
         const cityIdsParam = searchParams.get('cityIds');
+        const bodyTypesParam = searchParams.get('bodyTypes');
 
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
         const cityIds = cityIdsParam ? cityIdsParam.split(',') : [];
+        const bodyTypes = bodyTypesParam ? bodyTypesParam.split(',') : [];
 
         console.log('🔍 API Filter params:', {
             monthsBack,
             topicIdsCount: topicIds.length,
             cityIdsCount: cityIds.length,
+            bodyTypes: bodyTypes,
             topicIdsParam,
             cityIdsParam,
-            topicIds: topicIds.slice(0, 5),
-            cityIds: cityIds.slice(0, 5)
+            bodyTypesParam
         });
 
         // Calculate date threshold
         const dateThreshold = new Date();
         dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
-
-        console.log('📅 Date threshold:', dateThreshold.toISOString());
 
         // Build where clause
         const whereClause: any = {
@@ -60,6 +60,15 @@ export async function GET(request: Request) {
         if (topicIds.length > 0) {
             whereClause.topicId = {
                 in: topicIds
+            };
+        }
+
+        // Add body type filter if specified
+        if (bodyTypes.length > 0) {
+            whereClause.councilMeeting.administrativeBody = {
+                type: {
+                    in: bodyTypes
+                }
             };
         }
 
@@ -123,16 +132,12 @@ export async function GET(request: Request) {
         `;
 
         // Create a map of location id to geometry
-        // Fix coordinate order: PostGIS might return [lat, lon] but GeoJSON needs [lon, lat]
         const geometryMap = new Map(
             geometries.map(g => {
                 const geom = JSON.parse(g.geometry);
-                // Swap coordinates if it's a Point
                 if (geom.type === 'Point' && geom.coordinates.length === 2) {
-                    // Check if coordinates seem to be in [lat, lon] order (lat > lon for Greece)
                     const [first, second] = geom.coordinates;
                     if (first > 30 && first < 42 && second > 19 && second < 30) {
-                        // Likely [lat, lon], swap to [lon, lat]
                         geom.coordinates = [second, first];
                     }
                 }
@@ -144,7 +149,6 @@ export async function GET(request: Request) {
         const subjectsWithGeometry = subjects
             .filter(s => s.locationId && geometryMap.has(s.locationId))
             .map(s => {
-                // Calculate discussion time (in seconds) and unique speakers
                 const speakerSegments = s.speakerSegments || [];
                 const totalTimeSeconds = speakerSegments.reduce((sum, sss) => {
                     const duration = sss.speakerSegment.endTimestamp - sss.speakerSegment.startTimestamp;
@@ -174,17 +178,9 @@ export async function GET(request: Request) {
                 };
             });
 
-        console.log('✅ Returning', subjectsWithGeometry.length, 'subjects');
-        console.log('📊 Sample dates:', subjectsWithGeometry.slice(0, 3).map(s => ({
-            id: s.id,
-            date: s.meetingDate,
-            topic: s.topicName
-        })));
-
         return NextResponse.json(subjectsWithGeometry);
     } catch (error) {
         console.error('Error fetching subjects for map:', error);
         return NextResponse.json({ error: 'Failed to fetch subjects' }, { status: 500 });
     }
 }
-

@@ -23,7 +23,8 @@ export default function MapPage() {
     const [filters, setFilters] = useState<MapFiltersState>({
         monthsBack: 6,
         selectedTopics: [],
-        selectedCities: []
+        selectedCities: [],
+        selectedBodyTypes: ['council', 'committee', 'community']
     });
 
     // Automatically select all topics and cities when they load for the first time

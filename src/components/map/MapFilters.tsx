@@ -24,6 +24,12 @@ interface MapFiltersProps {
     onFiltersChange: (filters: MapFiltersState) => void;
 }
 
+const ADMIN_BODY_TYPES = [
+    { id: 'council', name: 'Δημοτικό Συμβούλιο' },
+    { id: 'committee', name: 'Δημοτική Επιτροπή' },
+    { id: 'community', name: 'Δημοτική Κοινότητα' },
+];
+
 export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: MapFiltersProps) {
     const [open, setOpen] = useState(false);
     const [citySearch, setCitySearch] = useState('');
@@ -87,6 +93,31 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
         });
     };
 
+    const handleBodyTypeToggle = (typeId: string) => {
+        const currentBodyTypes = filters.selectedBodyTypes || [];
+        const isSelected = currentBodyTypes.includes(typeId);
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: isSelected
+                ? currentBodyTypes.filter(id => id !== typeId)
+                : [...currentBodyTypes, typeId]
+        });
+    };
+
+    const handleRemoveAllBodyTypes = () => {
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: []
+        });
+    };
+
+    const handleSelectAllBodyTypes = () => {
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: ADMIN_BODY_TYPES.map(t => t.id)
+        });
+    };
+
     // Debounced months change handler
     const handleMonthsChange = useCallback((value: number[]) => {
         const newMonthsBack = value[0];
@@ -121,10 +152,12 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
 
     // Generate filter summary in Greek
     const getFilterSummary = () => {
-        const topicCount = filters.selectedTopics.length;
+        const topicCount = filters.selectedTopics?.length || 0;
         const totalTopics = allTopics.length;
-        const cityCount = filters.selectedCities.length;
+        const cityCount = filters.selectedCities?.length || 0;
         const totalCities = availableCities.length;
+        const bodyCount = filters.selectedBodyTypes?.length || 0;
+        const totalBodies = ADMIN_BODY_TYPES.length;
         const months = filters.monthsBack;
 
         let cityPart = '';
@@ -135,6 +168,13 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
             cityPart = `Δήμος ${selectedCity?.name}`;
         } else {
             cityPart = `${cityCount} δήμοι`;
+        }
+
+        let bodyPart = '';
+        if (bodyCount === 0) {
+            bodyPart = ', κανένα όργανο';
+        } else if (bodyCount < totalBodies) {
+            bodyPart = `, ${bodyCount} όργανα`;
         }
 
         let topicPart = '';
@@ -167,7 +207,7 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
             timePart = `των τελευταίων ${months} μηνών`;
         }
 
-        return `${cityPart}, ${topicPart} ${timePart}`;
+        return `${cityPart}${bodyPart}, ${topicPart} ${timePart}`;
     };
 
     return (
@@ -364,6 +404,53 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
                             onSelectAll={handleSelectAllTopics}
                             onRemoveAll={handleRemoveAllTopics}
                         />
+                    </div>
+
+                    {/* Admin Body Type Filter */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">
+                                Όργανα
+                            </label>
+                            <div className="flex gap-2">
+                                {(filters.selectedBodyTypes?.length || 0) < ADMIN_BODY_TYPES.length && (
+                                    <button
+                                        onClick={handleSelectAllBodyTypes}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        Επιλογή όλων
+                                    </button>
+                                )}
+                                {(filters.selectedBodyTypes?.length || 0) > 0 && (
+                                    <button
+                                        onClick={handleRemoveAllBodyTypes}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        Καθαρισμός όλων
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {ADMIN_BODY_TYPES.map((type) => {
+                                const isSelected = (filters.selectedBodyTypes || []).includes(type.id);
+                                return (
+                                    <Button
+                                        key={type.id}
+                                        variant={isSelected ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleBodyTypeToggle(type.id)}
+                                        className={cn(
+                                            "h-8 text-xs rounded-full",
+                                            isSelected ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                                        )}
+                                    >
+                                        {isSelected && <Check className="mr-1 h-3 w-3" />}
+                                        {type.name}
+                                    </Button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </SheetContent>

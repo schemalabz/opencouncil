@@ -33,6 +33,7 @@ export interface MapFiltersState {
     monthsBack: number;
     selectedTopics: Topic[];
     selectedCities: string[]; // Array of city IDs
+    selectedBodyTypes: string[]; // 'council', 'committee', 'community'
 }
 
 /**

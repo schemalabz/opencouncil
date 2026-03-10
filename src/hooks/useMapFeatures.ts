@@ -41,11 +41,77 @@ export function useMapFeatures({
                 setIsUpdating(true);
 
                 // Build query params for subjects
-                const topicIds = filters.selectedTopics.map(t => t.id).join(',');
-                const cityIds = filters.selectedCities.join(',');
+                const topicIds = filters.selectedTopics?.map(t => t.id).join(',') || '';
+                const cityIds = filters.selectedCities?.join(',') || '';
+                const bodyTypes = filters.selectedBodyTypes?.join(',') || '';
+
+                // If any main filter category is empty, we don't fetch subjects (UX: nothing selected = nothing shown)
+                if (
+                    (filters.selectedTopics?.length === 0) ||
+                    (filters.selectedCities?.length === 0) ||
+                    (filters.selectedBodyTypes?.length === 0)
+                ) {
+                    // We still fetch cities to show the polygons, but skip subject fetch
+                    const citiesResponse = await fetch('/api/cities/map', {
+                        cache: 'no-store',
+                        signal: abortController.signal
+                    });
+
+                    if (isStale) return;
+
+                    const cities: CityWithGeometryAndCounts[] = await citiesResponse.json();
+                    onCitiesUpdate?.(cities);
+
+                    const citiesWithGeometry = cities.filter(city => city.geometry);
+                    const cityFeatures: MapFeature[] = citiesWithGeometry.map(city => {
+                        const petitionCount = city._count?.petitions || 0;
+                        const isSupported = city.officialSupport;
+
+                        const blueOpacity = petitionCount > 0
+                            ? Math.min(
+                                MAP_HEATMAP_CONFIG.MAX_HEATMAP_OPACITY,
+                                MAP_HEATMAP_CONFIG.MIN_HEATMAP_OPACITY +
+                                (petitionCount / MAP_HEATMAP_CONFIG.PETITION_TARGET) *
+                                MAP_HEATMAP_CONFIG.HEATMAP_OPACITY_RANGE
+                            )
+                            : 0;
+
+                        return {
+                            id: city.id,
+                            geometry: city.geometry!,
+                            properties: {
+                                name: city.name,
+                                name_en: city.name_en,
+                                cityId: city.id,
+                                officialSupport: isSupported,
+                                supportsNotifications: city.supportsNotifications,
+                                logoImage: city.logoImage,
+                                meetingsCount: city._count?.councilMeetings || 0,
+                                petitionCount: petitionCount,
+                                featureType: 'city'
+                            },
+                            style: {
+                                fillColor: isSupported
+                                    ? 'hsl(24, 100%, 92%)'
+                                    : 'hsl(212, 100%, 45%)',
+                                fillOpacity: isSupported ? 0.35 : blueOpacity,
+                                strokeColor: isSupported
+                                    ? 'hsl(24, 100%, 50%)'
+                                    : 'hsl(212, 60%, 65%)',
+                                strokeWidth: isSupported ? 1.5 : 0,
+                                strokeOpacity: isSupported ? 0.6 : 0,
+                            }
+                        };
+                    });
+
+                    setFeatures(cityFeatures);
+                    return;
+                }
+
                 let subjectsUrl = `/api/map/subjects?monthsBack=${filters.monthsBack}`;
                 if (topicIds) subjectsUrl += `&topicIds=${topicIds}`;
                 if (cityIds) subjectsUrl += `&cityIds=${cityIds}`;
+                if (bodyTypes) subjectsUrl += `&bodyTypes=${bodyTypes}`;
 
                 // Fetch both cities and subjects in parallel
                 const [citiesResponse, subjectsResponse] = await Promise.all([
