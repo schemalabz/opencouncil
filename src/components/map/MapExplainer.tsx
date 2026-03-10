@@ -70,7 +70,7 @@ export function MapExplainer({ open: controlledOpen, onOpenChange, hideButton = 
                             <Link
                                 href="/about"
                                 className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                                onClick={() => setOpen(false)}
+                                onClick={() => handleOpenChange(false)}
                             >
                                 Για Δήμους
                             </Link>

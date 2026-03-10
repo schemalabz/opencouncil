@@ -112,6 +112,7 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
  * Any type matching this structure can be sorted.
  */
 interface SortableSubject {
+  id?: string;
   name: string;
   // Optional fields used for advanced sorting
   statistics?: Statistics;
