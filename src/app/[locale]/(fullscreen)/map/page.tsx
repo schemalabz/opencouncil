@@ -14,6 +14,7 @@ import { useMapFeatures } from "@/hooks/useMapFeatures";
 import { useMapZoom } from "@/hooks/useMapZoom";
 import { useMapSheets } from "@/hooks/useMapSheets";
 import { useFirstVisit } from "@/hooks/useFirstVisit";
+import { MapTourGate } from "@/components/map/MapTourGate";
 
 export default function MapPage() {
     // Custom hooks
@@ -28,7 +29,6 @@ export default function MapPage() {
     });
 
     // Automatically select all topics and cities when they load for the first time
-    // This ensures "See Everything" mode on initial load
     useEffect(() => {
         if (allTopics.length > 0 && allCities.length > 0 && filters.selectedTopics.length === 0 && filters.selectedCities.length === 0) {
             setFilters(prev => ({
@@ -65,6 +65,11 @@ export default function MapPage() {
     } = useMapSheets();
 
     const { showExplainer, setShowExplainer } = useFirstVisit('opencouncil-map-explainer-dismissed');
+
+    // Tour State (managed via Gate)
+    const [activeTourFeature, setActiveTourFeature] = useState<GeoJSON.Feature | null>(null);
+    const [travelerGeoJSON, setTravelerGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
+    const [isTourPaused, setIsTourPaused] = useState(false);
 
     // Apply user personalization
     useMapPersonalization({
@@ -124,6 +129,22 @@ export default function MapPage() {
                 onFeatureClick={handleFeatureClick}
                 className="h-full w-full"
                 zoomToGeometry={zoomToGeometry}
+                activeTourFeature={activeTourFeature}
+                travelerGeoJSON={travelerGeoJSON}
+                onTourPause={setIsTourPaused}
+            />
+
+            {/* SOTA Feature Gate */}
+            <MapTourGate
+                features={features}
+                selectedCities={filters.selectedCities}
+                allCities={allCities}
+                isUIBlocked={citySheet.open || subjectSheet.open || showExplainer}
+                onUpdateMap={(feature, traveler, paused) => {
+                    setActiveTourFeature(feature);
+                    setTravelerGeoJSON(traveler);
+                    setIsTourPaused(paused);
+                }}
             />
 
             {/* Loading overlay */}

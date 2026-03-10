@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
@@ -37,6 +37,9 @@ interface MapProps {
     drawingMode?: 'point' | 'polygon'
     selectedGeometryForEdit?: string | null
     zoomToGeometry?: GeoJSON.Geometry | null
+    activeTourFeature?: GeoJSON.Feature | null
+    travelerGeoJSON?: GeoJSON.FeatureCollection | null
+    onTourPause?: (paused: boolean) => void
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
@@ -60,15 +63,20 @@ const MapComponent = memo(function MapComponent({
     editingMode = false,
     drawingMode = 'point',
     selectedGeometryForEdit = null,
-    zoomToGeometry
+    zoomToGeometry,
+    activeTourFeature,
+    travelerGeoJSON,
+    onTourPause
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
     const popup = useRef<mapboxgl.Popup | null>(null)
+    const tourPopup = useRef<mapboxgl.Popup | null>(null)
+    const tourPopupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const animationFrame = useRef<number | null>(null)
     const featuresRef = useRef(features)
-    const isInitialized = useRef(false)
+    const [isInitialized, setIsInitialized] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
@@ -78,6 +86,79 @@ const MapComponent = memo(function MapComponent({
     const currentCenter = useRef<[number, number] | null>(null)
     const currentZoom = useRef(zoom)
     const selectedGeometryRef = useRef<string | null>(selectedGeometryForEdit)
+
+    // Handle Shooting Star Update (Declarative)
+    useEffect(() => {
+        if (!map.current || !isInitialized || !travelerGeoJSON) return;
+        
+        const tryUpdate = () => {
+            const source = map.current?.getSource('tour-traveler') as mapboxgl.GeoJSONSource;
+            if (source) {
+                source.setData(travelerGeoJSON);
+            }
+        };
+
+        if (map.current.isStyleLoaded()) {
+            tryUpdate();
+        } else {
+            map.current.once('idle', tryUpdate);
+        }
+    }, [travelerGeoJSON, isInitialized]);
+
+    // Handle Auto-Tour Popup
+    useEffect(() => {
+        if (!map.current || !isInitialized || !renderPopup) return;
+
+        // Clean up tour popup if no feature is active
+        if (!activeTourFeature) {
+            if (tourPopup.current) {
+                tourPopup.current.remove();
+                tourPopup.current = null;
+            }
+            if (tourPopupRoot.current) {
+                tourPopupRoot.current.unmount();
+                tourPopupRoot.current = null;
+            }
+            return;
+        }
+
+        const coordinates = (activeTourFeature.geometry as any).coordinates as [number, number];
+        
+        // Remove existing tour popup
+        if (tourPopup.current) tourPopup.current.remove();
+        if (tourPopupRoot.current) {
+            tourPopupRoot.current.unmount();
+            tourPopupRoot.current = null;
+        }
+
+        tourPopup.current = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: '400px',
+            className: 'tour-popup subject-popup',
+            offset: [0, -10]
+        });
+
+        const popupContent = renderPopup(activeTourFeature);
+        const container = document.createElement('div');
+        tourPopupRoot.current = createRoot(container);
+        tourPopupRoot.current.render(popupContent);
+
+        tourPopup.current
+            .setLngLat(coordinates)
+            .setDOMContent(container)
+            .addTo(map.current);
+
+    }, [activeTourFeature, renderPopup]);
+
+    // Handle Map events for Tour Pausing
+    const handleTourPauseTrigger = useCallback(() => {
+        if (onTourPause) onTourPause(true);
+    }, [onTourPause]);
+
+    const handleTourResumeTrigger = useCallback(() => {
+        if (onTourPause) onTourPause(false);
+    }, [onTourPause]);
 
     // Create a stable mapping of string IDs to integers for Mapbox feature-state
     // This is essential for high-performance animations and must be consistent across effects
@@ -434,7 +515,7 @@ const MapComponent = memo(function MapComponent({
 
         // Wait for map to load before initializing features
         map.current.on('load', () => {
-            isInitialized.current = true;
+            setIsInitialized(true);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
@@ -564,6 +645,30 @@ const MapComponent = memo(function MapComponent({
                 }
             });
 
+            // Shooting Star Source & Layer
+            map.current?.addSource('tour-traveler', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: []
+                }
+            });
+
+            map.current?.addLayer({
+                'id': 'tour-traveler-layer',
+                'type': 'circle',
+                'source': 'tour-traveler',
+                'paint': {
+                    'circle-radius': 6,
+                    'circle-color': '#fff',
+                    'circle-blur': 0.8,
+                    'circle-opacity': 0.9,
+                    'circle-stroke-width': 4,
+                    'circle-stroke-color': '#3b82f6',
+                    'circle-stroke-opacity': 0.4
+                }
+            });
+
             // Add event listeners
             // Use a single map-wide click handler to prevent dual sidebar bug
             if (onFeatureClick) {
@@ -574,6 +679,11 @@ const MapComponent = memo(function MapComponent({
             map.current?.on('mouseleave', 'feature-fills', handleFeatureLeave);
             map.current?.on('mousemove', 'feature-points', handleFeatureHover);
             map.current?.on('mouseleave', 'feature-points', handleFeatureLeave);
+
+            // Tour interaction listeners
+            map.current?.on('mouseenter', 'feature-fills', handleTourPauseTrigger);
+            map.current?.on('mouseleave', 'feature-fills', handleTourResumeTrigger);
+            map.current?.on('mousedown', handleTourPauseTrigger);
         });
 
         return () => {
@@ -583,20 +693,26 @@ const MapComponent = memo(function MapComponent({
             if (popupRoot.current) {
                 popupRoot.current.unmount();
             }
+            if (tourPopupRoot.current) {
+                tourPopupRoot.current.unmount();
+            }
             if (popup.current) {
                 popup.current.remove();
+            }
+            if (tourPopup.current) {
+                tourPopup.current.remove();
             }
             resizeObserver.disconnect();
             map.current?.remove();
             map.current = null;
-            isInitialized.current = false;
+            setIsInitialized(false);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array - initialize only once
 
     // Handle feature updates without resetting zoom/center
     useEffect(() => {
-        if (!map.current || !isInitialized.current || !map.current.getSource('features')) return;
+        if (!map.current || !isInitialized || !map.current.getSource('features')) return;
 
         // Update source data without changing zoom/center
         (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
@@ -623,7 +739,7 @@ const MapComponent = memo(function MapComponent({
 
     // Only update center/zoom if explicitly changed via props AND user hasn't interacted
     useEffect(() => {
-        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+        if (!map.current || !isInitialized || isUserInteracted.current) return;
 
         // If center prop changes explicitly, update it
         if (center && (currentCenter.current?.[0] !== center[0] || currentCenter.current?.[1] !== center[1])) {
@@ -633,7 +749,7 @@ const MapComponent = memo(function MapComponent({
     }, [center]);
 
     useEffect(() => {
-        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+        if (!map.current || !isInitialized || isUserInteracted.current) return;
 
         // If zoom prop changes explicitly, update it
         if (zoom !== currentZoom.current) {
@@ -644,7 +760,7 @@ const MapComponent = memo(function MapComponent({
 
     // Handle editing mode - add/remove street name layers
     useEffect(() => {
-        if (!map.current || !isInitialized.current) return;
+        if (!map.current || !isInitialized) return;
 
         if (editingMode) {
             // Add street data source if it doesn't exist
@@ -900,7 +1016,7 @@ const MapComponent = memo(function MapComponent({
 
     // Handle pulse animation for trending features
     useEffect(() => {
-        if (!map.current || !isInitialized.current) return;
+        if (!map.current || !isInitialized) return;
 
         let startTime = Date.now();
         let animationId: number;
@@ -928,7 +1044,7 @@ const MapComponent = memo(function MapComponent({
 
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
-        if (!map.current || !isInitialized.current) return;
+        if (!map.current || !isInitialized) return;
 
         if (editingMode && selectedGeometryForEdit) {
             // Initialize Mapbox GL Draw if not already done
@@ -1051,7 +1167,7 @@ const MapComponent = memo(function MapComponent({
 
     // Expose zoom functionality via callback
     useEffect(() => {
-        if (zoomToGeometry && map.current && isInitialized.current) {
+        if (zoomToGeometry && map.current && isInitialized) {
             const performZoom = (geometry: GeoJSON.Geometry) => {
                 try {
                     const bounds = calculateGeometryBounds(geometry);
@@ -1093,20 +1209,6 @@ const MapComponent = memo(function MapComponent({
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
     );
-}, (prevProps, nextProps) => {
-    // Custom comparison to prevent unnecessary rerenders
-    // Only rerender if specific props change
-    return (
-        prevProps.center === nextProps.center &&
-        prevProps.zoom === nextProps.zoom &&
-        prevProps.animateRotation === nextProps.animateRotation &&
-        prevProps.pitch === nextProps.pitch &&
-        prevProps.editingMode === nextProps.editingMode &&
-        prevProps.drawingMode === nextProps.drawingMode &&
-        prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
-        prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
-        JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
-    );
-})
+});
 
 export default MapComponent;
