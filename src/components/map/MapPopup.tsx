@@ -1,4 +1,5 @@
 import Icon, { iconMap } from "@/components/icon";
+import Image from 'next/image';
 
 interface MapPopupProps {
     feature: GeoJSON.Feature;
@@ -145,10 +146,13 @@ export function MapPopup({ feature }: MapPopupProps) {
                 <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 flex-shrink-0">
                         {logoImage ? (
-                            <img
+                            <Image
                                 src={logoImage}
                                 alt={`${name} logo`}
-                                className="w-12 h-12 object-contain"
+                                width={48}
+                                height={48}
+                                className="object-contain"
+                                unoptimized
                             />
                         ) : (
                             <Icon name="Building2" size={48} color="#9ca3af" />

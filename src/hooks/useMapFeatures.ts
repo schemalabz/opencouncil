@@ -187,7 +187,7 @@ export function useMapFeatures({
             isStale = true;
             abortController.abort();
         };
-    }, [filters, allTopicsLoaded, allCitiesLoaded]);
+    }, [filters, allTopicsLoaded, allCitiesLoaded, onCitiesUpdate]);
 
     return { features, isUpdating };
 }

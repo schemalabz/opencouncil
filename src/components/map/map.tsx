@@ -619,7 +619,7 @@ const MapComponent = memo(function MapComponent({
                 }
             }))
         });
-    }, [features]);
+    }, [features, idToIntegerMap]);
 
     // Only update center/zoom if explicitly changed via props AND user hasn't interacted
     useEffect(() => {

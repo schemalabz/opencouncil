@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Map from "@/components/map/map";
 import { MapFilters } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
@@ -16,28 +16,42 @@ import { useMapSheets } from "@/hooks/useMapSheets";
 import { useFirstVisit } from "@/hooks/useFirstVisit";
 
 export default function MapPage() {
-    // State
+    // Custom hooks
+    const { allTopics, allCities, citiesWithGeometry, isLoading } = useMapOptions();
+
+    // State - initialized with empty lists, then populated when allTopics/allCities load
     const [filters, setFilters] = useState<MapFiltersState>({
         monthsBack: 6,
         selectedTopics: [],
         selectedCities: []
     });
 
-    // Custom hooks
-    const { allTopics, allCities, citiesWithGeometry, isLoading } = useMapOptions();
+    // Automatically select all topics and cities when they load for the first time
+    // This ensures "See Everything" mode on initial load
+    useEffect(() => {
+        if (allTopics.length > 0 && allCities.length > 0 && filters.selectedTopics.length === 0 && filters.selectedCities.length === 0) {
+            setFilters(prev => ({
+                ...prev,
+                selectedTopics: allTopics,
+                selectedCities: allCities.map(c => c.id)
+            }));
+        }
+    }, [allTopics, allCities, filters.selectedTopics.length, filters.selectedCities.length]);
 
     const { zoomToGeometry, setZoomToGeometry } = useMapZoom(
         filters.selectedCities,
         citiesWithGeometry
     );
 
+    const onCitiesUpdate = useCallback(() => {
+        // Cities are already tracked in useMapOptions
+    }, []);
+
     const { features, isUpdating } = useMapFeatures({
         filters,
         allTopicsLoaded: allTopics.length > 0,
         allCitiesLoaded: allCities.length > 0,
-        onCitiesUpdate: () => {
-            // Cities are already tracked in useMapOptions
-        }
+        onCitiesUpdate
     });
 
     const {
