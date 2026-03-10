@@ -70,7 +70,7 @@ export function MapPopup({ feature }: MapPopupProps) {
                                     </span>
                                 )}
                             </div>
-                            <h4 className="text-sm font-semibold text-foreground leading-tight line-clamp-2">{name}</h4>
+                            <h4 className="text-sm font-semibold text-foreground leading-tight">{name}</h4>
                             {(cityName || locationText) && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 line-clamp-1">
                                     {cityName && (
@@ -118,7 +118,7 @@ export function MapPopup({ feature }: MapPopupProps) {
                         {meetingName && (
                             <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
                                 <Icon name="FileText" size={12} color="#9ca3af" />
-                                <span className="line-clamp-1">{meetingName}</span>
+                                <span>{meetingName}</span>
                             </div>
                         )}
                     </div>

@@ -166,9 +166,6 @@ export function TopicFilter({
                                 </div>
                                 <div className="flex flex-col items-start overflow-hidden flex-1">
                                     <span className="font-medium truncate w-full text-sm">{topic.name}</span>
-                                    {topic.name_en && (
-                                        <span className="text-xs text-muted-foreground truncate w-full">{topic.name_en}</span>
-                                    )}
                                 </div>
                                 {isSelected && (
                                     <motion.div
