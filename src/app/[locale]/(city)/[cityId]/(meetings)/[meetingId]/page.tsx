@@ -60,25 +60,29 @@ export default function MeetingPage() {
             : sortSubjectsBySpeakingTime(agenda);
     }, [filteredSubjects, agendaSortMode]);
 
+    // Build features array, including city polygon only if geometry exists
+    const cityFeature = city.geometry ? [{
+        type: 'Feature' as const,
+        id: city.id,
+        geometry: city.geometry,
+        properties: {
+            featureType: 'city' as const,
+            name: city.name,
+            name_en: city.name_en
+        },
+        style: {
+            fillColor: '#627BBC',
+            fillOpacity: 0.2,
+            strokeColor: '#627BBC',
+            strokeWidth: 2,
+        }
+    }] : [];
+
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
                 <MapView className="w-full h-full" features={[
-                    {
-                        type: 'Feature',
-                        id: city.id,
-                        geometry: city.geometry,
-                        properties: {
-                            name: city.name,
-                            name_en: city.name_en
-                        },
-                        style: {
-                            fillColor: '#627BBC',
-                            fillOpacity: 0.2,
-                            strokeColor: '#627BBC',
-                            strokeWidth: 2,
-                        }
-                    },
+                    ...cityFeature,
                     ...subjectFeatures
                 ]}
                 />

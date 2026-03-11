@@ -42,13 +42,14 @@ export function MapContainer() {
 
     // Derive map features from city and locations
     const mapFeatures = useMemo(() => {
-        if (!city) return [];
+        if (!city || !city.geometry) return [];
 
         const cityFeature: MapFeature = {
             type: 'Feature',
             id: city.id,
             geometry: city.geometry,
             properties: {
+                featureType: 'city' as const,
                 name: city.name,
                 cityId: city.id
             },

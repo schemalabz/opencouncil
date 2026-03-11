@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Topic } from '@prisma/client';
-import { getUserPreferences, UserPreference } from '@/lib/db/notifications';
+import { UserPreference } from '@/lib/db/notifications';
 import { MapFiltersState, CityWithGeometryAndCounts } from '@/types/map';
 
 interface UseMapPersonalizationProps {
@@ -29,7 +29,9 @@ export function useMapPersonalization({
 
         async function applyPersonalization() {
             try {
-                const userPrefs: UserPreference[] = await getUserPreferences();
+                // Fetch user preferences from API route (not server action directly)
+                const response = await fetch('/api/user/preferences');
+                const userPrefs: UserPreference[] = await response.json();
 
                 if (userPrefs && userPrefs.length > 0) {
                     const primaryPref = userPrefs[0];
@@ -74,6 +76,7 @@ export function useMapPersonalization({
         }
 
         applyPersonalization();
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allTopics.length, allCities.length, citiesWithGeometry.length]); // Only run when data is loaded
 }

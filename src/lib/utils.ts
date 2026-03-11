@@ -52,10 +52,11 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
     type: 'Feature' as const,
     id: subject.id,
     geometry: {
-      type: 'Point',
+      type: 'Point' as const,
       coordinates: [subject.location.coordinates.y, subject.location.coordinates.x]
     },
     properties: {
+      featureType: 'subject' as const,
       subjectId: subject.id,
       name: subject.name
     },

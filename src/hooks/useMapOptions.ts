@@ -4,6 +4,10 @@ import { CityOption, CityWithGeometryAndCounts } from '@/types/map';
 
 /**
  * Hook to load and manage map options (topics and cities)
+ *
+ * Cities are fetched once on mount and remain stable. If you need
+ * real-time city updates (e.g., fresh petition counts), use the
+ * onCitiesUpdate callback in useMapFeatures instead.
  */
 export function useMapOptions() {
     const [allTopics, setAllTopics] = useState<Topic[]>([]);

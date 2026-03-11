@@ -10,11 +10,44 @@ import { env } from '@/env.mjs'
 
 mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
-export interface MapFeature {
+/**
+ * Application-level map feature extending GeoJSON.Feature
+ *
+ * Note: The index signature `[key: string]: unknown` is required because:
+ * 1. Mapbox GL dynamically adds internal properties to features
+ * 2. We spread `...feature.properties` into Mapbox layers (line 556, 747)
+ * 3. Using `unknown` instead of `any` maintains type safety for known properties
+ */
+export interface MapFeature extends GeoJSON.Feature {
     type: 'Feature'
     id: string
-    geometry: any // GeoJSON geometry
-    properties: Record<string, any>
+    geometry: GeoJSON.Geometry
+    properties: {
+        featureType?: 'city' | 'subject'
+        name?: string
+        name_en?: string
+        cityId?: string
+        cityName?: string
+        subjectId?: string
+        officialSupport?: boolean
+        supportsNotifications?: boolean
+        logoImage?: string | null
+        meetingsCount?: number
+        petitionCount?: number
+        locationText?: string
+        topicName?: string
+        topicColor?: string
+        topicIcon?: string | null
+        meetingDate?: string
+        meetingName?: string
+        discussionTimeSeconds?: number
+        speakerCount?: number
+        description?: string
+        councilMeetingId?: string
+        uniqueFeatureId?: string
+        // Allow Mapbox internal properties while preserving type safety for known fields
+        [key: string]: unknown
+    }
     style?: {
         fillColor?: string
         fillOpacity?: number
@@ -76,7 +109,6 @@ const MapComponent = memo(function MapComponent({
     const tourPopupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const animationFrame = useRef<number | null>(null)
-    const featuresRef = useRef(features)
     const [isInitialized, setIsInitialized] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -123,7 +155,9 @@ const MapComponent = memo(function MapComponent({
             return;
         }
 
-        const coordinates = (activeTourFeature.geometry as any).coordinates as [number, number];
+        const coordinates = activeTourFeature.geometry.type === 'Point'
+            ? activeTourFeature.geometry.coordinates as [number, number]
+            : [0, 0] as [number, number];
         
         // Remove existing tour popup
         if (tourPopup.current) tourPopup.current.remove();
@@ -380,8 +414,8 @@ const MapComponent = memo(function MapComponent({
 
         // Multiple subjects found - select the closest one by Euclidean distance
         const closestFeature = pointFeatures.sort((a, b) => {
-            const coordsA = (a.geometry as any).coordinates;
-            const coordsB = (b.geometry as any).coordinates;
+            const coordsA = a.geometry.type === 'Point' ? a.geometry.coordinates : [0, 0];
+            const coordsB = b.geometry.type === 'Point' ? b.geometry.coordinates : [0, 0];
 
             const distA = Math.hypot(
                 coordsA[0] - e.lngLat.lng,
@@ -399,11 +433,13 @@ const MapComponent = memo(function MapComponent({
     }, [onFeatureClick]);
 
     // Handle drawing events
-    const handleDrawCreate = useCallback((e: any) => {
+    const handleDrawCreate = useCallback((e: { features: GeoJSON.Feature[] }) => {
         const feature = e.features[0];
-        console.log('🗺️ GeoJSON Generated:', JSON.stringify(feature.geometry, null, 2));
-        console.log('📍 Feature:', feature);
-        console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🗺️ GeoJSON Generated:', JSON.stringify(feature.geometry, null, 2));
+            console.log('📍 Feature:', feature);
+            console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        }
 
         // Save to localStorage if we have a selected geometry
         if (selectedGeometryRef.current) {
@@ -415,13 +451,17 @@ const MapComponent = memo(function MapComponent({
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
 
-                console.log(`💾 Saved geometry for ID: ${selectedGeometryRef.current}`);
-                console.log('📦 All saved geometries:', savedGeometries);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`💾 Saved geometry for ID: ${selectedGeometryRef.current}`);
+                    console.log('📦 All saved geometries:', savedGeometries);
+                }
             } catch (error) {
                 console.error('Error saving geometry to localStorage:', error);
             }
         } else {
-            console.warn('⚠️ No geometry selected for editing - geometry not saved');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ No geometry selected for editing - geometry not saved');
+            }
         }
 
         // Clear the drawing to allow creating more features
@@ -430,10 +470,12 @@ const MapComponent = memo(function MapComponent({
         }
     }, []);
 
-    const handleDrawUpdate = useCallback((e: any) => {
+    const handleDrawUpdate = useCallback((e: { features: GeoJSON.Feature[] }) => {
         const feature = e.features[0];
-        console.log('🔄 GeoJSON Updated:', JSON.stringify(feature.geometry, null, 2));
-        console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔄 GeoJSON Updated:', JSON.stringify(feature.geometry, null, 2));
+            console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        }
 
         // Also save updates to localStorage
         if (selectedGeometryRef.current) {
@@ -445,12 +487,16 @@ const MapComponent = memo(function MapComponent({
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
 
-                console.log(`💾 Updated geometry for ID: ${selectedGeometryRef.current}`);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`💾 Updated geometry for ID: ${selectedGeometryRef.current}`);
+                }
             } catch (error) {
                 console.error('Error updating geometry in localStorage:', error);
             }
         } else {
-            console.warn('⚠️ No geometry selected for editing - geometry update not saved');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ No geometry selected for editing - geometry update not saved');
+            }
         }
     }, []);
 
@@ -713,10 +759,17 @@ const MapComponent = memo(function MapComponent({
 
     // Handle feature updates without resetting zoom/center
     useEffect(() => {
-        if (!map.current || !isInitialized || !map.current.getSource('features')) return;
+        if (!map.current || !isInitialized) {
+            return;
+        }
+
+        const source = map.current.getSource('features') as mapboxgl.GeoJSONSource;
+        if (!source) {
+            return;
+        }
 
         // Update source data without changing zoom/center
-        (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
+        source.setData({
             type: 'FeatureCollection',
             features: features.map((feature) => ({
                 type: 'Feature',
@@ -736,7 +789,7 @@ const MapComponent = memo(function MapComponent({
                 }
             }))
         });
-    }, [features, idToIntegerMap]);
+    }, [features, idToIntegerMap, isInitialized]);
 
     // Only update center/zoom if explicitly changed via props AND user hasn't interacted
     useEffect(() => {
@@ -1041,7 +1094,7 @@ const MapComponent = memo(function MapComponent({
         return () => {
             if (animationId) cancelAnimationFrame(animationId);
         };
-    }, [features]);
+    }, [features, isInitialized]);
 
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
@@ -1156,13 +1209,15 @@ const MapComponent = memo(function MapComponent({
                 draw.current = null;
             }
         }
-    }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate]);
+    }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate, isInitialized]);
 
     // Update ref when selectedGeometryForEdit changes
     useEffect(() => {
         selectedGeometryRef.current = selectedGeometryForEdit;
         if (selectedGeometryForEdit) {
-            console.log('🎯 Updated selected geometry ref to:', selectedGeometryForEdit);
+            if (process.env.NODE_ENV === 'development') {
+                console.log('🎯 Updated selected geometry ref to:', selectedGeometryForEdit);
+            }
         }
     }, [selectedGeometryForEdit]);
 
@@ -1185,7 +1240,9 @@ const MapComponent = memo(function MapComponent({
                             maxZoom: 16 // Don't zoom in too much for small geometries
                         });
 
-                        console.log('🔍 Zoomed to geometry bounds:', bounds);
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('🔍 Zoomed to geometry bounds:', bounds);
+                        }
                     } else {
                         // For single points, just center on them
                         if (geometry.type === 'Point') {
@@ -1194,7 +1251,9 @@ const MapComponent = memo(function MapComponent({
                                 center: coordinates,
                                 zoom: 15
                             });
-                            console.log('🔍 Centered on point:', coordinates);
+                            if (process.env.NODE_ENV === 'development') {
+                                console.log('🔍 Centered on point:', coordinates);
+                            }
                         }
                     }
                 } catch (error) {
@@ -1205,7 +1264,7 @@ const MapComponent = memo(function MapComponent({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry]);
+    }, [zoomToGeometry, isInitialized]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />

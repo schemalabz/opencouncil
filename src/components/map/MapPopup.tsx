@@ -37,7 +37,10 @@ export function MapPopup({ feature }: MapPopupProps) {
             if (minutes < 60) return `${minutes} λεπτά`;
             const hours = Math.floor(minutes / 60);
             const remainingMinutes = minutes % 60;
-            return remainingMinutes > 0 ? `${hours}ω ${remainingMinutes}λ` : `${hours} ώρα${hours > 1 ? 'ες' : ''}`;
+            const hourText = hours === 1 ? 'ώρα' : 'ώρες';
+            return remainingMinutes > 0
+                ? `${hours} ${hourText} ${remainingMinutes} λεπτά`
+                : `${hours} ${hourText}`;
         })() : null;
 
         return (

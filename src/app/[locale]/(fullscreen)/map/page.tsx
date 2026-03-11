@@ -28,31 +28,20 @@ export default function MapPage() {
         selectedBodyTypes: ['council', 'committee', 'community']
     });
 
-    // Automatically select all topics and cities when they load for the first time
-    useEffect(() => {
-        if (allTopics.length > 0 && allCities.length > 0 && filters.selectedTopics.length === 0 && filters.selectedCities.length === 0) {
-            setFilters(prev => ({
-                ...prev,
-                selectedTopics: allTopics,
-                selectedCities: allCities.map(c => c.id)
-            }));
-        }
-    }, [allTopics, allCities, filters.selectedTopics.length, filters.selectedCities.length]);
+    const [filtersInitialized, setFiltersInitialized] = useState(false);
 
     const { zoomToGeometry, setZoomToGeometry } = useMapZoom(
         filters.selectedCities,
         citiesWithGeometry
     );
 
-    const onCitiesUpdate = useCallback(() => {
-        // Cities are already tracked in useMapOptions
-    }, []);
-
-    const { features, isUpdating } = useMapFeatures({
+    const { features, isUpdating, error } = useMapFeatures({
         filters,
         allTopicsLoaded: allTopics.length > 0,
         allCitiesLoaded: allCities.length > 0,
-        onCitiesUpdate
+        filtersInitialized,
+        // onCitiesUpdate is optional - useMapZoom already tracks cities via citiesWithGeometry prop
+        onCitiesUpdate: undefined
     });
 
     const {
@@ -76,7 +65,10 @@ export default function MapPage() {
         allTopics,
         allCities: allCities.map(c => c.id),
         citiesWithGeometry,
-        onFiltersChange: setFilters,
+        onFiltersChange: (newFilters) => {
+            setFilters(newFilters);
+            setFiltersInitialized(true);
+        },
         onZoomChange: setZoomToGeometry
     });
 
@@ -153,6 +145,18 @@ export default function MapPage() {
                     <div className="flex items-center gap-3 text-white bg-black/80 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl">
                         <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
                         <span className="text-lg font-medium">Ενημέρωση χάρτη...</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Error overlay */}
+            {error && (
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30 pointer-events-none">
+                    <div className="flex items-center gap-3 text-white bg-red-600/90 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl">
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-lg font-medium">{error}</span>
                     </div>
                 </div>
             )}

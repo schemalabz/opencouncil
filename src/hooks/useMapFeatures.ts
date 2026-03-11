@@ -11,6 +11,7 @@ interface UseMapFeaturesProps {
     filters: MapFiltersState;
     allTopicsLoaded: boolean;
     allCitiesLoaded: boolean;
+    filtersInitialized: boolean;
     onCitiesUpdate?: (cities: CityWithGeometryAndCounts[]) => void;
 }
 
@@ -22,14 +23,19 @@ export function useMapFeatures({
     filters,
     allTopicsLoaded,
     allCitiesLoaded,
+    filtersInitialized,
     onCitiesUpdate
 }: UseMapFeaturesProps) {
     const [features, setFeatures] = useState<MapFeature[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // Don't fetch until topics and cities are loaded
-        if (!allTopicsLoaded || !allCitiesLoaded) {
+        // Clear error when user changes filters (fresh attempt)
+        setError(null);
+
+        // Don't fetch until topics, cities, and filters are all initialized
+        if (!allTopicsLoaded || !allCitiesLoaded || !filtersInitialized) {
             return;
         }
 
@@ -45,12 +51,13 @@ export function useMapFeatures({
                 const cityIds = filters.selectedCities?.join(',') || '';
                 const bodyTypes = filters.selectedBodyTypes?.join(',') || '';
 
-                // If any main filter category is empty, we don't fetch subjects (UX: nothing selected = nothing shown)
-                if (
-                    (filters.selectedTopics?.length === 0) ||
-                    (filters.selectedCities?.length === 0) ||
-                    (filters.selectedBodyTypes?.length === 0)
-                ) {
+                // Early exit only if filters were initialized and user has explicitly cleared them
+                // During initialization (filtersInitialized=false), skip the early exit and fetch normally
+                const userHasClearedTopics = filtersInitialized && filters.selectedTopics?.length === 0;
+                const userHasClearedCities = filtersInitialized && filters.selectedCities?.length === 0;
+                const userHasClearedBodies = filtersInitialized && filters.selectedBodyTypes?.length === 0;
+
+                if (userHasClearedTopics || userHasClearedCities || userHasClearedBodies) {
                     // We still fetch cities to show the polygons, but skip subject fetch
                     const citiesResponse = await fetch('/api/cities/map', {
                         cache: 'no-store',
@@ -126,12 +133,13 @@ export function useMapFeatures({
                     })
                 ]);
 
-                if (isStale) {
-                    return;
-                }
+                if (isStale) return;
 
                 const cities: CityWithGeometryAndCounts[] = await citiesResponse.json();
+                if (isStale) return;
+
                 const subjects: SubjectWithGeometry[] = await subjectsResponse.json();
+                if (isStale) return;
 
                 // Notify parent of updated cities (for zoom functionality)
                 onCitiesUpdate?.(cities);
@@ -242,6 +250,10 @@ export function useMapFeatures({
             } catch (error) {
                 if (error instanceof Error && error.name !== 'AbortError') {
                     console.error('Error loading cities:', error);
+                    if (!isStale) {
+                        setError('Αποτυχία φόρτωσης δεδομένων χάρτη');
+                        setFeatures([]);
+                    }
                 }
             } finally {
                 if (!isStale) {
@@ -256,7 +268,7 @@ export function useMapFeatures({
             isStale = true;
             abortController.abort();
         };
-    }, [filters, allTopicsLoaded, allCitiesLoaded, onCitiesUpdate]);
+    }, [filters, allTopicsLoaded, allCitiesLoaded, filtersInitialized, onCitiesUpdate]);
 
-    return { features, isUpdating };
+    return { features, isUpdating, error };
 }

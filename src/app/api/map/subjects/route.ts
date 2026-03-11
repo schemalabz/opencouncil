@@ -19,22 +19,24 @@ export async function GET(request: Request) {
         const cityIds = cityIdsParam ? cityIdsParam.split(',') : [];
         const bodyTypes = bodyTypesParam ? bodyTypesParam.split(',') : [];
 
-        console.log('🔍 API Filter params:', {
-            monthsBack,
-            topicIdsCount: topicIds.length,
-            cityIdsCount: cityIds.length,
-            bodyTypes: bodyTypes,
-            topicIdsParam,
-            cityIdsParam,
-            bodyTypesParam
-        });
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔍 API Filter params:', {
+                monthsBack,
+                topicIdsCount: topicIds.length,
+                cityIdsCount: cityIds.length,
+                bodyTypes: bodyTypes,
+                topicIdsParam,
+                cityIdsParam,
+                bodyTypesParam
+            });
+        }
 
         // Calculate date threshold
         const dateThreshold = new Date();
         dateThreshold.setMonth(dateThreshold.getMonth() - monthsBack);
 
-        // Build where clause
-        const whereClause: any = {
+        // Build where clause with proper Prisma types
+        const whereClause: Prisma.SubjectWhereInput = {
             locationId: {
                 not: null
             },
@@ -51,6 +53,9 @@ export async function GET(request: Request) {
 
         // Add city filter if specified
         if (cityIds.length > 0) {
+            if (!whereClause.councilMeeting) {
+                whereClause.councilMeeting = {};
+            }
             whereClause.councilMeeting.cityId = {
                 in: cityIds
             };
@@ -65,9 +70,12 @@ export async function GET(request: Request) {
 
         // Add body type filter if specified
         if (bodyTypes.length > 0) {
+            if (!whereClause.councilMeeting) {
+                whereClause.councilMeeting = {};
+            }
             whereClause.councilMeeting.administrativeBody = {
                 type: {
-                    in: bodyTypes
+                    in: bodyTypes as any[]
                 }
             };
         }
@@ -132,12 +140,22 @@ export async function GET(request: Request) {
         `;
 
         // Create a map of location id to geometry
+        // PostGIS coordinate fix: Some historical data has coordinates stored as [lat, lng]
+        // but GeoJSON spec requires [lng, lat]. This heuristic detects and fixes the swap
+        // using Greece's geographic bounds:
+        // - Latitude: 34-42°N (first coord > 30 && < 42 suggests it's latitude)
+        // - Longitude: 19-30°E (second coord > 19 && < 30 suggests it's longitude)
+        const GREECE_LAT_RANGE = [30, 42] as const;
+        const GREECE_LNG_RANGE = [19, 30] as const;
+
         const geometryMap = new Map(
             geometries.map(g => {
                 const geom = JSON.parse(g.geometry);
                 if (geom.type === 'Point' && geom.coordinates.length === 2) {
                     const [first, second] = geom.coordinates;
-                    if (first > 30 && first < 42 && second > 19 && second < 30) {
+                    // If first coordinate looks like latitude, swap to [lng, lat]
+                    if (first > GREECE_LAT_RANGE[0] && first < GREECE_LAT_RANGE[1] &&
+                        second > GREECE_LNG_RANGE[0] && second < GREECE_LNG_RANGE[1]) {
                         geom.coordinates = [second, first];
                     }
                 }

@@ -165,7 +165,7 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
             cityPart = 'Όλοι οι δήμοι';
         } else if (cityCount === 1) {
             const selectedCity = availableCities.find(c => c.id === filters.selectedCities[0]);
-            cityPart = `Δήμος ${selectedCity?.name}`;
+            cityPart = `στον Δήμο ${selectedCity?.name}`;
         } else {
             cityPart = `${cityCount} δήμοι`;
         }

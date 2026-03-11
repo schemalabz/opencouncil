@@ -25,14 +25,18 @@ export function useMapTour({ features, selectedCities, allCities, isEnabled }: U
     const tourSubjects = useMemo(() => {
         if (!isSingleCity || !cityId || !isEnabled || isManualInterruption) return [];
 
-        return features
-            .filter(f => f.properties?.featureType === 'subject' && f.properties?.cityId === cityId)
-            .sort((a, b) => {
-                const dateA = new Date(a.properties?.meetingDate || 0).getTime();
-                const dateB = new Date(b.properties?.meetingDate || 0).getTime();
-                return dateB - dateA;
-            })
-            .slice(0, 10);
+        const filtered = features.filter(
+            f => f.properties?.featureType === 'subject' && f.properties?.cityId === cityId
+        );
+
+        // Create shallow copy before sorting to avoid mutation
+        const sorted = [...filtered].sort((a, b) => {
+            const dateA = new Date(a.properties?.meetingDate || 0).getTime();
+            const dateB = new Date(b.properties?.meetingDate || 0).getTime();
+            return dateB - dateA;
+        });
+
+        return sorted.slice(0, 10);
     }, [features, cityId, isSingleCity, isEnabled, isManualInterruption]);
 
     const activeFeature = activeIndex >= 0 ? tourSubjects[activeIndex] : null;
