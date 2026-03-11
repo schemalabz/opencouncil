@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
 import { Prisma } from '@prisma/client'
+import { MAP_FILTERS_CONFIG } from '@/types/map'
 
 // Disable caching for dynamic queries with different filters
 export const dynamic = 'force-dynamic';
@@ -13,11 +14,13 @@ export async function GET(request: Request) {
         const topicIdsParam = searchParams.get('topicIds');
         const cityIdsParam = searchParams.get('cityIds');
         const bodyTypesParam = searchParams.get('bodyTypes');
+        const longOnlyParam = searchParams.get('longOnly');
 
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
         const cityIds = cityIdsParam ? cityIdsParam.split(',') : [];
         const bodyTypes = bodyTypesParam ? bodyTypesParam.split(',') : [];
+        const longOnly = longOnlyParam === 'true';
 
         if (process.env.NODE_ENV === 'development') {
             console.log('🔍 API Filter params:', {
@@ -104,6 +107,12 @@ export async function GET(request: Request) {
                         type: true
                     }
                 },
+                discussionUtterances: {
+                    select: {
+                        startTimestamp: true,
+                        endTimestamp: true
+                    }
+                },
                 speakerSegments: {
                     select: {
                         speakerSegment: {
@@ -167,12 +176,19 @@ export async function GET(request: Request) {
         const subjectsWithGeometry = subjects
             .filter(s => s.locationId && geometryMap.has(s.locationId))
             .map(s => {
-                const speakerSegments = s.speakerSegments || [];
-                const totalTimeSeconds = speakerSegments.reduce((sum, sss) => {
-                    const duration = sss.speakerSegment.endTimestamp - sss.speakerSegment.startTimestamp;
-                    return sum + duration;
+                // Calculate duration from both potential sources (legacy segments and modern utterances)
+                const segmentTime = (s.speakerSegments || []).reduce((sum, sss) => {
+                    return sum + (sss.speakerSegment.endTimestamp - sss.speakerSegment.startTimestamp);
                 }, 0);
 
+                const utteranceTime = (s.discussionUtterances || []).reduce((sum, u) => {
+                    return sum + (u.endTimestamp - u.startTimestamp);
+                }, 0);
+
+                // Use the maximum of either source
+                const totalTimeSeconds = Math.max(segmentTime, utteranceTime);
+
+                const speakerSegments = s.speakerSegments || [];
                 const uniqueSpeakerIds = new Set(
                     speakerSegments.map(sss => sss.speakerSegment.speakerTag.id)
                 );
@@ -194,7 +210,8 @@ export async function GET(request: Request) {
                     speakerCount: uniqueSpeakerIds.size,
                     geometry: geometryMap.get(s.locationId!)
                 };
-            });
+            })
+            .filter(s => !longOnly || (s.discussionTimeSeconds || 0) >= MAP_FILTERS_CONFIG.LONG_DISCUSSION_THRESHOLD);
 
         return NextResponse.json(subjectsWithGeometry);
     } catch (error) {

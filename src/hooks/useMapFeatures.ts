@@ -50,6 +50,7 @@ export function useMapFeatures({
                 const topicIds = filters.selectedTopics?.map(t => t.id).join(',') || '';
                 const cityIds = filters.selectedCities?.join(',') || '';
                 const bodyTypes = filters.selectedBodyTypes?.join(',') || '';
+                const longOnly = filters.longOnly || false;
 
                 // Early exit only if filters were initialized and user has explicitly cleared them
                 // During initialization (filtersInitialized=false), skip the early exit and fetch normally
@@ -120,6 +121,7 @@ export function useMapFeatures({
                 if (topicIds) subjectsUrl += `&topicIds=${topicIds}`;
                 if (cityIds) subjectsUrl += `&cityIds=${cityIds}`;
                 if (bodyTypes) subjectsUrl += `&bodyTypes=${bodyTypes}`;
+                if (longOnly) subjectsUrl += `&longOnly=true`;
 
                 // Fetch both cities and subjects in parallel
                 const [citiesResponse, subjectsResponse] = await Promise.all([

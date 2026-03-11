@@ -5,6 +5,7 @@
 
 import { CityWithGeometry } from '@/lib/db/cities';
 import { Topic } from '@prisma/client';
+import { findAllByDisplayValue } from '@testing-library/react';
 
 /**
  * City with geometry and count aggregates for map display
@@ -34,6 +35,7 @@ export interface MapFiltersState {
     selectedTopics: Topic[];
     selectedCities: string[]; // Array of city IDs
     selectedBodyTypes: string[]; // 'council', 'committee', 'community'
+    longOnly?: boolean; // If true, only show subjects > 5 minutes
 }
 
 /**
@@ -56,6 +58,17 @@ export interface SubjectWithGeometry {
     speakerCount?: number;
     geometry: GeoJSON.Geometry;
 }
+
+/**
+ * Map filters configuration
+ */
+export const MAP_FILTERS_CONFIG = {
+    // Threshold for "Long Discussions" in seconds
+    LONG_DISCUSSION_THRESHOLD: 300, // 5 minutes
+    
+    // Feature Flag: Show the long discussion filter in UI
+    ENABLE_LONG_DISCUSSION_FILTER: findAllByDisplayValue,
+};
 
 /**
  * Map heatmap configuration constants

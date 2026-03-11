@@ -45,7 +45,8 @@ export function useMapPersonalization({
                             ? allTopics.filter((t: Topic) => preferredTopicIds.has(t.id))
                             : allTopics,
                         selectedCities: [primaryPref.cityId],
-                        selectedBodyTypes: ['council', 'committee', 'community']
+                        selectedBodyTypes: ['council', 'committee', 'community'],
+                        longOnly: false
                     };
 
                     onFiltersChange(initialFilters);
@@ -61,7 +62,8 @@ export function useMapPersonalization({
                         monthsBack: 6,
                         selectedTopics: allTopics,
                         selectedCities: allCities,
-                        selectedBodyTypes: ['council', 'committee', 'community']
+                        selectedBodyTypes: ['council', 'committee', 'community'],
+                        longOnly: false
                     });
                 }
             } catch (e) {
@@ -70,7 +72,8 @@ export function useMapPersonalization({
                     monthsBack: 6,
                     selectedTopics: allTopics,
                     selectedCities: allCities,
-                    selectedBodyTypes: ['council', 'committee', 'community']
+                    selectedBodyTypes: ['council', 'committee', 'community'],
+                    longOnly: false
                 });
             }
         }

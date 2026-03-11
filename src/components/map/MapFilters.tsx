@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/sheet';
 import { TopicFilter } from '@/components/filters/TopicFilter';
 import { Slider } from '@/components/ui/slider';
-import { Filter, Check, X, Search, Info } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Filter, Check, X, Search, Info, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CityOption, MapFiltersState } from '@/types/map';
+import { CityOption, MapFiltersState, MAP_FILTERS_CONFIG } from '@/types/map';
 
 interface MapFiltersProps {
     filters: MapFiltersState;
@@ -118,6 +119,13 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
         });
     };
 
+    const handleLongOnlyToggle = (checked: boolean) => {
+        onFiltersChange({
+            ...filters,
+            longOnly: checked
+        });
+    };
+
     // Debounced months change handler
     const handleMonthsChange = useCallback((value: number[]) => {
         const newMonthsBack = value[0];
@@ -159,6 +167,7 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
         const bodyCount = filters.selectedBodyTypes?.length || 0;
         const totalBodies = ADMIN_BODY_TYPES.length;
         const months = filters.monthsBack;
+        const isLongOnly = filters.longOnly;
 
         let cityPart = '';
         if (cityCount === 0 || cityCount === totalCities) {
@@ -178,14 +187,17 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
         }
 
         let topicPart = '';
+        const baseSubjectText = (MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && isLongOnly) ? 'εκτενείς συζητήσεις' : 'θέματα';
+
         if (topicCount === 0) {
-            topicPart = 'κανένα θέμα';
+            topicPart = `κανένα ${baseSubjectText === 'θέματα' ? 'θέμα' : 'θέμα'}`; // Simplification for Greek
+            if (MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && isLongOnly) topicPart = 'καμία εκτενής συζήτηση';
         } else if (topicCount === totalTopics) {
-            topicPart = 'όλα τα θέματα';
+            topicPart = `όλα τα ${baseSubjectText}`;
         } else if (topicCount === 1) {
-            topicPart = `θέματα για ${filters.selectedTopics[0].name}`;
+            topicPart = `${baseSubjectText} για ${filters.selectedTopics[0].name}`;
         } else {
-            topicPart = `θέματα για ${topicCount} θεματικές`;
+            topicPart = `${baseSubjectText} για ${topicCount} θεματικές`;
         }
 
         let timePart = '';
@@ -269,6 +281,40 @@ export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: M
                             </div>
                         </div>
                     </div>
+
+                    {/* Long Discussion Filter */}
+                    {MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && (
+                        <div className={cn(
+                            "flex items-center justify-between p-4 rounded-xl border transition-all duration-200",
+                            filters.longOnly ? "bg-primary/5 border-primary/30" : "bg-accent/30 border-border/50"
+                        )}>
+                            <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                    <Clock className={cn("w-4 h-4", filters.longOnly ? "text-primary" : "text-muted-foreground")} />
+                                    <label className="text-sm font-semibold">
+                                        Εκτενείς συζητήσεις
+                                    </label>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Μόνο θέματα με διάρκεια άνω των {Math.round(MAP_FILTERS_CONFIG.LONG_DISCUSSION_THRESHOLD / 60)} λεπτών
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {filters.longOnly && (
+                                    <button
+                                        onClick={() => handleLongOnlyToggle(false)}
+                                        className="text-[10px] uppercase font-bold text-primary hover:text-primary/80 underline underline-offset-2"
+                                    >
+                                        Καθαρισμός
+                                    </button>
+                                )}
+                                <Switch
+                                    checked={filters.longOnly || false}
+                                    onCheckedChange={handleLongOnlyToggle}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Date Range Filter */}
                     <div className="space-y-4">

@@ -25,7 +25,8 @@ export default function MapPage() {
         monthsBack: 6,
         selectedTopics: [],
         selectedCities: [],
-        selectedBodyTypes: ['council', 'committee', 'community']
+        selectedBodyTypes: ['council', 'committee', 'community'],
+        longOnly: false
     });
 
     const [filtersInitialized, setFiltersInitialized] = useState(false);
