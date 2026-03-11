@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Icon, { iconMap } from '@/components/icon';
 import { motion } from 'framer-motion';
+import { formatMeetingTitle } from '@/lib/utils';
 
 interface SubjectInfoSheetProps {
     open: boolean;
@@ -54,12 +55,13 @@ export function SubjectInfoSheet({
     topicColor,
     topicIcon,
     meetingDate,
-    meetingName,
+    meetingName: rawMeetingName,
     discussionTimeSeconds,
     speakerCount,
     cityName
 }: SubjectInfoSheetProps) {
     const router = useRouter();
+    const meetingName = formatMeetingTitle(rawMeetingName);
 
     const handleViewSubject = () => {
         router.push(`/${cityId}/${councilMeetingId}/subjects/${subjectId}`);
@@ -173,7 +175,7 @@ export function SubjectInfoSheet({
                                 <div className="flex items-center gap-2 text-sm">
                                     <FileText className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-muted-foreground">Συνεδρίαση:</span>
-                                    <span className="font-medium line-clamp-1">{meetingName}</span>
+                                    <span className="font-medium text-left line-clamp-2">{meetingName}</span>
                                 </div>
                             </div>
                         )}
@@ -212,8 +214,8 @@ export function SubjectInfoSheet({
                     {description && (
                         <div className="space-y-2">
                             <h4 className="text-sm font-medium">Περιγραφή</h4>
-                            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                                {description}
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                {description.replace(/\[([^\]]+)\]\(REF:[^\)]+\)/g, '$1')}
                             </p>
                         </div>
                     )}

@@ -164,6 +164,7 @@ function createLocationLineFeatures(locations: Location[]): MapFeature[] {
             };
 
             lineFeatures.push({
+                type: 'Feature',
                 id: `location-line-${i}`,
                 geometry: lineGeometry,
                 properties: {
@@ -184,6 +185,7 @@ function createLocationLineFeatures(locations: Location[]): MapFeature[] {
     // Create point features for each location (works for single or multiple locations)
     locations.forEach((location, index) => {
         lineFeatures.push({
+            type: 'Feature',
             id: `location-point-${index}`,
             geometry: {
                 type: 'Point',
@@ -199,8 +201,8 @@ function createLocationLineFeatures(locations: Location[]): MapFeature[] {
                 fillColor: '#EF4444',
                 fillOpacity: 0.9, // Slightly more opaque for better visibility
                 strokeColor: '#B91C1C',
-                strokeWidth: locations.length === 1 ? 12 : 10, // Bigger for single location, large for multiple
-                label: locations.length === 1 ? '📍' : `${index + 1}` // Pin emoji for single, numbers for multiple
+                strokeWidth: 10,
+                label: locations.length === 1 ? '📍' : `${index + 1}`
             }
         });
     });
@@ -235,7 +237,7 @@ export default function ConsultationMap({
     const [isEditingMode, setIsEditingMode] = useState(false);
     const [drawingMode, setDrawingMode] = useState<'point' | 'polygon'>('point');
     const [selectedGeometryForEdit, setSelectedGeometryForEdit] = useState<string | null>(null);
-    
+
     // Local storage state for saved geometries
     const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
 
@@ -247,7 +249,7 @@ export default function ConsultationMap({
         const loadSavedGeometries = () => {
             try {
                 const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-                
+
                 // Only update state if the data actually changed (deep comparison)
                 setSavedGeometries(prev => {
                     const hasChanged = JSON.stringify(prev) !== JSON.stringify(saved);
@@ -269,7 +271,7 @@ export default function ConsultationMap({
         };
 
         window.addEventListener('storage', handleStorageChange);
-        
+
         // Custom event for same-tab localStorage changes (we'll dispatch this from the map component)
         const handleCustomStorageChange = () => {
             loadSavedGeometries();
@@ -436,6 +438,7 @@ export default function ConsultationMap({
                 // Only add to features if we have valid geometry
                 if (geoJSON) {
                     features.push({
+                        type: 'Feature',
                         id: geometry.id,
                         geometry: geoJSON,
                         properties: {
@@ -466,7 +469,7 @@ export default function ConsultationMap({
         if (isEditingMode && selectedLocations.length > 0) {
             const locationLineFeatures = createLocationLineFeatures(selectedLocations);
             features.push(...locationLineFeatures);
-            
+
             if (selectedLocations.length === 1) {
                 console.log(`📍 Added 1 prominent location marker`);
             } else {
@@ -537,7 +540,7 @@ export default function ConsultationMap({
             setEnabledGeoSets(prevGeoSets => {
                 const newGeoSets = new Set(prevGeoSets);
                 const enabledCount = parentGeoSet.geometries.filter(g => (newEnabledGeometries as Set<string>).has(g.id)).length;
-                
+
                 if (enabledCount > 0) {
                     newGeoSets.add(parentGeoSet.id);
                 } else {
@@ -563,13 +566,13 @@ export default function ConsultationMap({
     // Function to handle geometry selection for editing with auto-zoom
     const handleSelectGeometryForEdit = (geometryId: string | null) => {
         setSelectedGeometryForEdit(geometryId);
-        
+
         if (geometryId) {
             // Find the geometry to zoom to
             const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
             if (geometry) {
                 let geoJSON: GeoJSON.Geometry | null = null;
-                
+
                 // Check for saved geometry first
                 if (savedGeometries[geometry.id]) {
                     geoJSON = savedGeometries[geometry.id];
@@ -582,7 +585,7 @@ export default function ConsultationMap({
                 else if (geometry.type === 'derived') {
                     geoJSON = computeDerivedGeometry(geometry, geoSets);
                 }
-                
+
                 // Store geometry for zooming
                 if (geoJSON) {
                     setZoomGeometry(geoJSON);
@@ -635,18 +638,18 @@ export default function ConsultationMap({
             const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
             delete savedGeometries[geometryId];
             localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-            
+
             // IMMEDIATELY update local state to reflect the change
             setSavedGeometries(savedGeometries);
-            
+
             // Dispatch custom event to notify components of localStorage change
             window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-            
+
             // If the deleted geometry was selected for editing, deselect it
             if (selectedGeometryForEdit === geometryId) {
                 setSelectedGeometryForEdit(null);
             }
-            
+
             console.log(`🗑️ Deleted saved geometry for ID: ${geometryId}`);
         } catch (error) {
             console.error('Error deleting saved geometry:', error);
@@ -757,4 +760,5 @@ export default function ConsultationMap({
             />
         </div>
     );
-} 
+}
+ 

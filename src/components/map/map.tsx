@@ -1,5 +1,5 @@
 "use client"
-import { useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useRef, useEffect, useCallback, useMemo, memo, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
@@ -10,10 +10,44 @@ import { env } from '@/env.mjs'
 
 mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
-export interface MapFeature {
+/**
+ * Application-level map feature extending GeoJSON.Feature
+ *
+ * Note: The index signature `[key: string]: unknown` is required because:
+ * 1. Mapbox GL dynamically adds internal properties to features
+ * 2. We spread `...feature.properties` into Mapbox layers (line 556, 747)
+ * 3. Using `unknown` instead of `any` maintains type safety for known properties
+ */
+export interface MapFeature extends GeoJSON.Feature {
+    type: 'Feature'
     id: string
-    geometry: any // GeoJSON geometry
-    properties?: Record<string, any>
+    geometry: GeoJSON.Geometry
+    properties: {
+        featureType?: 'city' | 'subject'
+        name?: string
+        name_en?: string
+        cityId?: string
+        cityName?: string
+        subjectId?: string
+        officialSupport?: boolean
+        supportsNotifications?: boolean
+        logoImage?: string | null
+        meetingsCount?: number
+        petitionCount?: number
+        locationText?: string
+        topicName?: string
+        topicColor?: string
+        topicIcon?: string | null
+        meetingDate?: string
+        meetingName?: string
+        discussionTimeSeconds?: number
+        speakerCount?: number
+        description?: string
+        councilMeetingId?: string
+        uniqueFeatureId?: string
+        // Allow Mapbox internal properties while preserving type safety for known fields
+        [key: string]: unknown
+    }
     style?: {
         fillColor?: string
         fillOpacity?: number
@@ -37,6 +71,9 @@ interface MapProps {
     drawingMode?: 'point' | 'polygon'
     selectedGeometryForEdit?: string | null
     zoomToGeometry?: GeoJSON.Geometry | null
+    activeTourFeature?: GeoJSON.Feature | null
+    travelerGeoJSON?: GeoJSON.FeatureCollection | null
+    onTourPause?: (paused: boolean) => void
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
@@ -48,7 +85,7 @@ const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
     return calculateGeometryBounds(features[0].geometry).center;
 }
 
-const Map = memo(function Map({
+const MapComponent = memo(function MapComponent({
     className,
     center = undefined,
     zoom = 10,
@@ -60,15 +97,19 @@ const Map = memo(function Map({
     editingMode = false,
     drawingMode = 'point',
     selectedGeometryForEdit = null,
-    zoomToGeometry
+    zoomToGeometry,
+    activeTourFeature,
+    travelerGeoJSON,
+    onTourPause
 }: MapProps) {
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
     const popup = useRef<mapboxgl.Popup | null>(null)
+    const tourPopup = useRef<mapboxgl.Popup | null>(null)
+    const tourPopupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const popupRoot = useRef<ReturnType<typeof createRoot> | null>(null)
     const animationFrame = useRef<number | null>(null)
-    const featuresRef = useRef(features)
-    const isInitialized = useRef(false)
+    const [isInitialized, setIsInitialized] = useState(false)
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
@@ -78,6 +119,89 @@ const Map = memo(function Map({
     const currentCenter = useRef<[number, number] | null>(null)
     const currentZoom = useRef(zoom)
     const selectedGeometryRef = useRef<string | null>(selectedGeometryForEdit)
+
+    // Handle Shooting Star Update (Declarative)
+    useEffect(() => {
+        if (!map.current || !isInitialized || !travelerGeoJSON) return;
+        
+        const tryUpdate = () => {
+            const source = map.current?.getSource('tour-traveler') as mapboxgl.GeoJSONSource;
+            if (source) {
+                source.setData(travelerGeoJSON);
+            }
+        };
+
+        if (map.current.isStyleLoaded()) {
+            tryUpdate();
+        } else {
+            map.current.once('idle', tryUpdate);
+        }
+    }, [travelerGeoJSON, isInitialized]);
+
+    // Handle Auto-Tour Popup
+    useEffect(() => {
+        if (!map.current || !isInitialized || !renderPopup) return;
+
+        // Clean up tour popup if no feature is active
+        if (!activeTourFeature) {
+            if (tourPopup.current) {
+                tourPopup.current.remove();
+                tourPopup.current = null;
+            }
+            if (tourPopupRoot.current) {
+                tourPopupRoot.current.unmount();
+                tourPopupRoot.current = null;
+            }
+            return;
+        }
+
+        const coordinates = activeTourFeature.geometry.type === 'Point'
+            ? activeTourFeature.geometry.coordinates as [number, number]
+            : [0, 0] as [number, number];
+        
+        // Remove existing tour popup
+        if (tourPopup.current) tourPopup.current.remove();
+        if (tourPopupRoot.current) {
+            tourPopupRoot.current.unmount();
+            tourPopupRoot.current = null;
+        }
+
+        tourPopup.current = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: '400px',
+            className: 'tour-popup subject-popup',
+            offset: [0, -10]
+        });
+
+        const popupContent = renderPopup(activeTourFeature);
+        const container = document.createElement('div');
+        tourPopupRoot.current = createRoot(container);
+        tourPopupRoot.current.render(popupContent);
+
+        tourPopup.current
+            .setLngLat(coordinates)
+            .setDOMContent(container)
+            .addTo(map.current);
+
+    }, [activeTourFeature, renderPopup]);
+
+    // Handle Map events for Tour Pausing
+    const handleTourPauseTrigger = useCallback(() => {
+        if (onTourPause) onTourPause(true);
+    }, [onTourPause]);
+
+    const handleTourResumeTrigger = useCallback(() => {
+        if (onTourPause) onTourPause(false);
+    }, [onTourPause]);
+
+    // Create a stable mapping of string IDs to integers for Mapbox feature-state
+    // This is essential for high-performance animations and must be consistent across effects
+    const idToIntegerMap = useMemo(() => {
+        const idMap = new Map<string, number>();
+        features.forEach((f, i) => idMap.set(f.id, i + 1));
+        return idMap;
+    }, [features]);
 
     // Memoize the center coordinates only for initial setup
     const initialCenterCoords = useMemo(() => {
@@ -145,7 +269,7 @@ const Map = memo(function Map({
             ]);
         } else {
             // For supported cities: borders already visible, just make slightly thicker
-            // For unsupported cities: show blue overlay AND border after 1 second
+            // For unsupported cities: show blue overlay AND border
 
             if (isSupported) {
                 // Supported city: ONLY BORDER (orange), NO OVERLAY
@@ -172,18 +296,11 @@ const Map = memo(function Map({
                     ['get', 'fillOpacity']
                 ]);
             } else {
-                // Unsupported city: show BOTH blue overlay AND border IMMEDIATELY
+                // Unsupported city: show ONLY blue border on hover
+                // Keep existing petition heatmap fill untouched
                 // No timeout - instant feedback
 
-                // Show blue OVERLAY (fill) - only for the hovered feature
-                map.current.setPaintProperty('feature-fills', 'fill-opacity', [
-                    'case',
-                    featureFilter,
-                    0.2,
-                    ['get', 'fillOpacity']
-                ]);
-
-                // Show blue BORDER - only for the hovered feature
+                // Show soft blue BORDER - only for the hovered feature
                 map.current.setPaintProperty('feature-borders', 'line-width', [
                     'case',
                     featureFilter,
@@ -262,18 +379,67 @@ const Map = memo(function Map({
         }
     }, []);
 
-    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
-        if (e.features && e.features.length > 0 && onFeatureClick) {
-            onFeatureClick(e.features[0]);
+    const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent) => {
+        if (!onFeatureClick || !map.current) return;
+
+        // Create 24px bounding box around tap point for mobile precision (12px radius)
+        // This creates a "magnetic" zone that makes subjects easier to tap on mobile
+        const bbox: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+            [e.point.x - 12, e.point.y - 12],
+            [e.point.x + 12, e.point.y + 12]
+        ];
+
+        // Query all features within the bounding box
+        const features = map.current.queryRenderedFeatures(bbox, {
+            layers: ['feature-points', 'feature-fills']
+        });
+
+        if (features.length === 0) return;
+
+        // Prioritize subjects (points) over cities (fills)
+        // Filter all point features
+        const pointFeatures = features.filter(f => f.layer?.id === 'feature-points');
+
+        if (pointFeatures.length === 0) {
+            // No subjects found, select city polygon
+            onFeatureClick(features[0]);
+            return;
         }
+
+        if (pointFeatures.length === 1) {
+            // Single subject, select it
+            onFeatureClick(pointFeatures[0]);
+            return;
+        }
+
+        // Multiple subjects found - select the closest one by Euclidean distance
+        const closestFeature = pointFeatures.sort((a, b) => {
+            const coordsA = a.geometry.type === 'Point' ? a.geometry.coordinates : [0, 0];
+            const coordsB = b.geometry.type === 'Point' ? b.geometry.coordinates : [0, 0];
+
+            const distA = Math.hypot(
+                coordsA[0] - e.lngLat.lng,
+                coordsA[1] - e.lngLat.lat
+            );
+            const distB = Math.hypot(
+                coordsB[0] - e.lngLat.lng,
+                coordsB[1] - e.lngLat.lat
+            );
+
+            return distA - distB;
+        })[0];
+
+        onFeatureClick(closestFeature);
     }, [onFeatureClick]);
 
     // Handle drawing events
-    const handleDrawCreate = useCallback((e: any) => {
+    const handleDrawCreate = useCallback((e: { features: GeoJSON.Feature[] }) => {
         const feature = e.features[0];
-        console.log('🗺️ GeoJSON Generated:', JSON.stringify(feature.geometry, null, 2));
-        console.log('📍 Feature:', feature);
-        console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🗺️ GeoJSON Generated:', JSON.stringify(feature.geometry, null, 2));
+            console.log('📍 Feature:', feature);
+            console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        }
 
         // Save to localStorage if we have a selected geometry
         if (selectedGeometryRef.current) {
@@ -285,13 +451,17 @@ const Map = memo(function Map({
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
 
-                console.log(`💾 Saved geometry for ID: ${selectedGeometryRef.current}`);
-                console.log('📦 All saved geometries:', savedGeometries);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`💾 Saved geometry for ID: ${selectedGeometryRef.current}`);
+                    console.log('📦 All saved geometries:', savedGeometries);
+                }
             } catch (error) {
                 console.error('Error saving geometry to localStorage:', error);
             }
         } else {
-            console.warn('⚠️ No geometry selected for editing - geometry not saved');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ No geometry selected for editing - geometry not saved');
+            }
         }
 
         // Clear the drawing to allow creating more features
@@ -300,10 +470,12 @@ const Map = memo(function Map({
         }
     }, []);
 
-    const handleDrawUpdate = useCallback((e: any) => {
+    const handleDrawUpdate = useCallback((e: { features: GeoJSON.Feature[] }) => {
         const feature = e.features[0];
-        console.log('🔄 GeoJSON Updated:', JSON.stringify(feature.geometry, null, 2));
-        console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔄 GeoJSON Updated:', JSON.stringify(feature.geometry, null, 2));
+            console.log('🎯 Selected Geometry ID for Edit:', selectedGeometryRef.current);
+        }
 
         // Also save updates to localStorage
         if (selectedGeometryRef.current) {
@@ -315,12 +487,16 @@ const Map = memo(function Map({
                 // Dispatch custom event to notify components of localStorage change
                 window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
 
-                console.log(`💾 Updated geometry for ID: ${selectedGeometryRef.current}`);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`💾 Updated geometry for ID: ${selectedGeometryRef.current}`);
+                }
             } catch (error) {
                 console.error('Error updating geometry in localStorage:', error);
             }
         } else {
-            console.warn('⚠️ No geometry selected for editing - geometry update not saved');
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ No geometry selected for editing - geometry update not saved');
+            }
         }
     }, []);
 
@@ -386,7 +562,7 @@ const Map = memo(function Map({
 
         // Wait for map to load before initializing features
         map.current.on('load', () => {
-            isInitialized.current = true;
+            setIsInitialized(true);
 
             if (animateRotation) {
                 animationFrame.current = requestAnimationFrame(rotateCamera);
@@ -397,13 +573,13 @@ const Map = memo(function Map({
                 type: 'geojson',
                 data: {
                     type: 'FeatureCollection',
-                    features: features.map((feature, index) => ({
+                    features: features.map((feature) => ({
                         type: 'Feature',
-                        id: `${feature.id}-${index}`, // Ensure unique ID at feature level
+                        id: idToIntegerMap.get(feature.id), // Use the stable mapped integer ID
                         geometry: feature.geometry,
                         properties: {
                             id: feature.id,
-                            uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
+                            uniqueFeatureId: feature.id,
                             subjectId: feature.id,
                             ...feature.properties,
                             fillColor: feature.style?.fillColor || '#627BBC',
@@ -425,7 +601,28 @@ const Map = memo(function Map({
                 'filter': ['!=', ['geometry-type'], 'Point'], // Exclude points from fills
                 'paint': {
                     'fill-color': ['get', 'fillColor'],
-                    'fill-opacity': ['get', 'fillOpacity']
+                    'fill-opacity': ['get', 'fillOpacity'],
+                    'fill-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
+                }
+            });
+
+            // Dedicated Pulse Layer - Sits on top of fills but under borders
+            // This prevents the pulse from being overwritten by hover effects
+            map.current?.addLayer({
+                'id': 'feature-pulse',
+                'type': 'fill',
+                'source': 'features',
+                'filter': ['all', 
+                    ['==', ['get', 'featureType'], 'city'], 
+                    ['>=', ['get', 'petitionCount'], 25],
+                    ['!', ['get', 'officialSupport']]
+                ],
+                'paint': {
+                    'fill-color': 'hsl(212, 100%, 45%)',
+                    'fill-opacity': 0
                 }
             });
 
@@ -437,7 +634,15 @@ const Map = memo(function Map({
                 'paint': {
                     'line-color': ['get', 'strokeColor'],
                     'line-width': ['get', 'strokeWidth'],
-                    'line-opacity': ['get', 'strokeOpacity']
+                    'line-opacity': ['get', 'strokeOpacity'],
+                    'line-width-transition': {
+                        duration: 200,
+                        delay: 0
+                    },
+                    'line-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
                 }
             });
 
@@ -474,20 +679,58 @@ const Map = memo(function Map({
                     'circle-radius': ['get', 'strokeWidth'],
                     'circle-stroke-width': 2,
                     'circle-stroke-color': ['get', 'strokeColor'],
-                    'circle-stroke-opacity': ['get', 'strokeOpacity']
+                    'circle-stroke-opacity': ['get', 'strokeOpacity'],
+                    // Hardware-accelerated smooth transitions
+                    'circle-radius-transition': {
+                        duration: 200,
+                        delay: 0
+                    },
+                    'circle-opacity-transition': {
+                        duration: 200,
+                        delay: 0
+                    }
+                }
+            });
+
+            // Shooting Star Source & Layer
+            map.current?.addSource('tour-traveler', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: []
+                }
+            });
+
+            map.current?.addLayer({
+                'id': 'tour-traveler-layer',
+                'type': 'circle',
+                'source': 'tour-traveler',
+                'paint': {
+                    'circle-radius': 6,
+                    'circle-color': '#fff',
+                    'circle-blur': 0.8,
+                    'circle-opacity': 0.9,
+                    'circle-stroke-width': 4,
+                    'circle-stroke-color': '#3b82f6',
+                    'circle-stroke-opacity': 0.4
                 }
             });
 
             // Add event listeners
+            // Use a single map-wide click handler to prevent dual sidebar bug
             if (onFeatureClick) {
-                map.current?.on('click', 'feature-fills', handleMapFeatureClick);
-                map.current?.on('click', 'feature-points', handleMapFeatureClick);
+                map.current?.on('click', handleMapFeatureClick);
             }
 
             map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
             map.current?.on('mouseleave', 'feature-fills', handleFeatureLeave);
             map.current?.on('mousemove', 'feature-points', handleFeatureHover);
             map.current?.on('mouseleave', 'feature-points', handleFeatureLeave);
+
+            // Tour interaction listeners
+            map.current?.on('mouseenter', 'feature-fills', handleTourPauseTrigger);
+            map.current?.on('mouseleave', 'feature-fills', handleTourResumeTrigger);
+            map.current?.on('mousedown', handleTourPauseTrigger);
         });
 
         return () => {
@@ -497,31 +740,44 @@ const Map = memo(function Map({
             if (popupRoot.current) {
                 popupRoot.current.unmount();
             }
+            if (tourPopupRoot.current) {
+                tourPopupRoot.current.unmount();
+            }
             if (popup.current) {
                 popup.current.remove();
+            }
+            if (tourPopup.current) {
+                tourPopup.current.remove();
             }
             resizeObserver.disconnect();
             map.current?.remove();
             map.current = null;
-            isInitialized.current = false;
+            setIsInitialized(false);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Empty dependency array - initialize only once
 
     // Handle feature updates without resetting zoom/center
     useEffect(() => {
-        if (!map.current || !isInitialized.current || !map.current.getSource('features')) return;
+        if (!map.current || !isInitialized) {
+            return;
+        }
+
+        const source = map.current.getSource('features') as mapboxgl.GeoJSONSource;
+        if (!source) {
+            return;
+        }
 
         // Update source data without changing zoom/center
-        (map.current.getSource('features') as mapboxgl.GeoJSONSource).setData({
+        source.setData({
             type: 'FeatureCollection',
-            features: features.map((feature, index) => ({
+            features: features.map((feature) => ({
                 type: 'Feature',
-                id: `${feature.id}-${index}`, // Ensure unique ID at feature level
+                id: idToIntegerMap.get(feature.id), // Use the stable mapped integer ID
                 geometry: feature.geometry,
                 properties: {
                     id: feature.id,
-                    uniqueFeatureId: `${feature.id}-${index}`, // Unique property for precise highlighting
+                    uniqueFeatureId: feature.id,
                     subjectId: feature.id,
                     ...feature.properties,
                     fillColor: feature.style?.fillColor || '#627BBC',
@@ -533,11 +789,11 @@ const Map = memo(function Map({
                 }
             }))
         });
-    }, [features]);
+    }, [features, idToIntegerMap, isInitialized]);
 
     // Only update center/zoom if explicitly changed via props AND user hasn't interacted
     useEffect(() => {
-        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+        if (!map.current || !isInitialized || isUserInteracted.current) return;
 
         // If center prop changes explicitly, update it
         if (center && (currentCenter.current?.[0] !== center[0] || currentCenter.current?.[1] !== center[1])) {
@@ -547,7 +803,7 @@ const Map = memo(function Map({
     }, [center]);
 
     useEffect(() => {
-        if (!map.current || !isInitialized.current || isUserInteracted.current) return;
+        if (!map.current || !isInitialized || isUserInteracted.current) return;
 
         // If zoom prop changes explicitly, update it
         if (zoom !== currentZoom.current) {
@@ -558,7 +814,7 @@ const Map = memo(function Map({
 
     // Handle editing mode - add/remove street name layers
     useEffect(() => {
-        if (!map.current || !isInitialized.current) return;
+        if (!map.current || !isInitialized) return;
 
         if (editingMode) {
             // Add street data source if it doesn't exist
@@ -812,9 +1068,37 @@ const Map = memo(function Map({
         }
     }, [editingMode]);
 
+    // Handle pulse animation for trending features
+    useEffect(() => {
+        if (!map.current || !isInitialized) return;
+
+        let startTime = Date.now();
+        let animationId: number;
+
+        const animatePulse = () => {
+            const duration = 3000;
+            const elapsed = Date.now() - startTime;
+            const progress = (elapsed % duration) / duration;
+            
+            // Smoother Sine wave for the dedicated pulse layer
+            const opacity = 0.1 + (Math.sin(progress * Math.PI * 2) + 1) * 0.12;
+
+            if (map.current?.getLayer('feature-pulse')) {
+                map.current.setPaintProperty('feature-pulse', 'fill-opacity', opacity);
+            }
+
+            animationId = requestAnimationFrame(animatePulse);
+        };
+        animatePulse();
+
+        return () => {
+            if (animationId) cancelAnimationFrame(animationId);
+        };
+    }, [features, isInitialized]);
+
     // Handle Mapbox GL Draw setup for editing mode
     useEffect(() => {
-        if (!map.current || !isInitialized.current) return;
+        if (!map.current || !isInitialized) return;
 
         if (editingMode && selectedGeometryForEdit) {
             // Initialize Mapbox GL Draw if not already done
@@ -925,19 +1209,21 @@ const Map = memo(function Map({
                 draw.current = null;
             }
         }
-    }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate]);
+    }, [editingMode, drawingMode, selectedGeometryForEdit, handleDrawCreate, handleDrawUpdate, isInitialized]);
 
     // Update ref when selectedGeometryForEdit changes
     useEffect(() => {
         selectedGeometryRef.current = selectedGeometryForEdit;
         if (selectedGeometryForEdit) {
-            console.log('🎯 Updated selected geometry ref to:', selectedGeometryForEdit);
+            if (process.env.NODE_ENV === 'development') {
+                console.log('🎯 Updated selected geometry ref to:', selectedGeometryForEdit);
+            }
         }
     }, [selectedGeometryForEdit]);
 
     // Expose zoom functionality via callback
     useEffect(() => {
-        if (zoomToGeometry && map.current && isInitialized.current) {
+        if (zoomToGeometry && map.current && isInitialized) {
             const performZoom = (geometry: GeoJSON.Geometry) => {
                 try {
                     const bounds = calculateGeometryBounds(geometry);
@@ -954,7 +1240,9 @@ const Map = memo(function Map({
                             maxZoom: 16 // Don't zoom in too much for small geometries
                         });
 
-                        console.log('🔍 Zoomed to geometry bounds:', bounds);
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('🔍 Zoomed to geometry bounds:', bounds);
+                        }
                     } else {
                         // For single points, just center on them
                         if (geometry.type === 'Point') {
@@ -963,7 +1251,9 @@ const Map = memo(function Map({
                                 center: coordinates,
                                 zoom: 15
                             });
-                            console.log('🔍 Centered on point:', coordinates);
+                            if (process.env.NODE_ENV === 'development') {
+                                console.log('🔍 Centered on point:', coordinates);
+                            }
                         }
                     }
                 } catch (error) {
@@ -974,25 +1264,11 @@ const Map = memo(function Map({
             // Perform the zoom
             performZoom(zoomToGeometry);
         }
-    }, [zoomToGeometry]);
+    }, [zoomToGeometry, isInitialized]);
 
     return (
         <div ref={mapContainer} className={cn("w-full h-full", className)} />
     );
-}, (prevProps, nextProps) => {
-    // Custom comparison to prevent unnecessary rerenders
-    // Only rerender if specific props change
-    return (
-        prevProps.center === nextProps.center &&
-        prevProps.zoom === nextProps.zoom &&
-        prevProps.animateRotation === nextProps.animateRotation &&
-        prevProps.pitch === nextProps.pitch &&
-        prevProps.editingMode === nextProps.editingMode &&
-        prevProps.drawingMode === nextProps.drawingMode &&
-        prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
-        prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
-        JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
-    );
-})
+});
 
-export default Map;
+export default MapComponent;

@@ -13,7 +13,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 // Utility function to calculate center and zoom from GeoJSON
 function calculateMapView(geometry: any): { center: [number, number]; zoom: number } {
     const { bounds, center } = calculateGeometryBounds(geometry);
-    
+
     let zoom = 10; // Default zoom
     if (bounds) {
         const lngDiff = bounds.maxLng - bounds.minLng;
@@ -42,11 +42,17 @@ export function MapContainer() {
 
     // Derive map features from city and locations
     const mapFeatures = useMemo(() => {
-        if (!city) return [];
+        if (!city || !city.geometry) return [];
 
-        const cityFeature = {
+        const cityFeature: MapFeature = {
+            type: 'Feature',
             id: city.id,
             geometry: city.geometry,
+            properties: {
+                featureType: 'city' as const,
+                name: city.name,
+                cityId: city.id
+            },
             style: {
                 fillColor: '#627BBC',
                 fillOpacity: 0.2,
@@ -72,10 +78,15 @@ export function MapContainer() {
             }
 
             return {
+                type: 'Feature',
                 id: `location-${index}`,
                 geometry: {
                     type: 'Point',
                     coordinates: [lng, lat] as [number, number]
+                },
+                properties: {
+                    text: location.text,
+                    index
                 },
                 style: {
                     fillColor: '#EF4444',
@@ -83,7 +94,7 @@ export function MapContainer() {
                     strokeColor: '#B91C1C',
                     strokeWidth: 6
                 }
-            };
+            } as MapFeature;
         }).filter(Boolean) as MapFeature[];
 
         return [cityFeature, ...locationFeatures];
@@ -156,3 +167,4 @@ export function MapContainer() {
         </>
     );
 } 
+ 

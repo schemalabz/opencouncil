@@ -13,21 +13,27 @@ import {
 } from '@/components/ui/sheet';
 import { TopicFilter } from '@/components/filters/TopicFilter';
 import { Slider } from '@/components/ui/slider';
-import { Filter } from 'lucide-react';
-
-export interface MapFiltersState {
-    monthsBack: number;
-    selectedTopics: Topic[];
-}
+import { Switch } from '@/components/ui/switch';
+import { Filter, Check, X, Search, Info, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CityOption, MapFiltersState, MAP_FILTERS_CONFIG } from '@/types/map';
 
 interface MapFiltersProps {
     filters: MapFiltersState;
     allTopics: Topic[];
+    allCities: CityOption[];
     onFiltersChange: (filters: MapFiltersState) => void;
 }
 
-export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersProps) {
+const ADMIN_BODY_TYPES = [
+    { id: 'council', name: 'Δημοτικό Συμβούλιο' },
+    { id: 'committee', name: 'Δημοτική Επιτροπή' },
+    { id: 'community', name: 'Δημοτική Κοινότητα' },
+];
+
+export function MapFilters({ filters, allTopics, allCities, onFiltersChange }: MapFiltersProps) {
     const [open, setOpen] = useState(false);
+    const [citySearch, setCitySearch] = useState('');
     const [localMonthsBack, setLocalMonthsBack] = useState(filters.monthsBack);
     const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -64,6 +70,62 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
         });
     };
 
+    const handleCitySelect = (cityId: string) => {
+        const isSelected = filters.selectedCities.includes(cityId);
+        onFiltersChange({
+            ...filters,
+            selectedCities: isSelected
+                ? filters.selectedCities.filter(id => id !== cityId)
+                : [...filters.selectedCities, cityId]
+        });
+    };
+
+    const handleSelectAllCities = () => {
+        onFiltersChange({
+            ...filters,
+            selectedCities: allCities.map(c => c.id)
+        });
+    };
+
+    const handleRemoveAllCities = () => {
+        onFiltersChange({
+            ...filters,
+            selectedCities: []
+        });
+    };
+
+    const handleBodyTypeToggle = (typeId: string) => {
+        const currentBodyTypes = filters.selectedBodyTypes || [];
+        const isSelected = currentBodyTypes.includes(typeId);
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: isSelected
+                ? currentBodyTypes.filter(id => id !== typeId)
+                : [...currentBodyTypes, typeId]
+        });
+    };
+
+    const handleRemoveAllBodyTypes = () => {
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: []
+        });
+    };
+
+    const handleSelectAllBodyTypes = () => {
+        onFiltersChange({
+            ...filters,
+            selectedBodyTypes: ADMIN_BODY_TYPES.map(t => t.id)
+        });
+    };
+
+    const handleLongOnlyToggle = (checked: boolean) => {
+        onFiltersChange({
+            ...filters,
+            longOnly: checked
+        });
+    };
+
     // Debounced months change handler
     const handleMonthsChange = useCallback((value: number[]) => {
         const newMonthsBack = value[0];
@@ -76,7 +138,6 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
 
         // Set new timeout to update filters after 300ms
         debounceTimeout.current = setTimeout(() => {
-            console.log('⏱️ Debounced slider update:', newMonthsBack);
             onFiltersChange({
                 ...filters,
                 monthsBack: newMonthsBack
@@ -84,21 +145,59 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
         }, 300);
     }, [filters, onFiltersChange]);
 
+    // Sort and filter cities (only show those with meetings)
+    const availableCities = (allCities || [])
+        .filter(c => c.meetingsCount > 0)
+        .sort((a, b) => a.name.localeCompare(b.name, 'el'));
+
+    // Filter cities by search term
+    const filteredCities = citySearch
+        ? availableCities.filter(c =>
+            c.name.toLowerCase().includes(citySearch.toLowerCase()) ||
+            c.name_en.toLowerCase().includes(citySearch.toLowerCase())
+        )
+        : availableCities;
+
     // Generate filter summary in Greek
     const getFilterSummary = () => {
-        const topicCount = filters.selectedTopics.length;
+        const topicCount = filters.selectedTopics?.length || 0;
         const totalTopics = allTopics.length;
+        const cityCount = filters.selectedCities?.length || 0;
+        const totalCities = availableCities.length;
+        const bodyCount = filters.selectedBodyTypes?.length || 0;
+        const totalBodies = ADMIN_BODY_TYPES.length;
         const months = filters.monthsBack;
+        const isLongOnly = filters.longOnly;
+
+        let cityPart = '';
+        if (cityCount === 0 || cityCount === totalCities) {
+            cityPart = 'Όλοι οι δήμοι';
+        } else if (cityCount === 1) {
+            const selectedCity = availableCities.find(c => c.id === filters.selectedCities[0]);
+            cityPart = `στον Δήμο ${selectedCity?.name}`;
+        } else {
+            cityPart = `${cityCount} δήμοι`;
+        }
+
+        let bodyPart = '';
+        if (bodyCount === 0) {
+            bodyPart = ', κανένα όργανο';
+        } else if (bodyCount < totalBodies) {
+            bodyPart = `, ${bodyCount} όργανα`;
+        }
 
         let topicPart = '';
+        const baseSubjectText = (MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && isLongOnly) ? 'εκτενείς συζητήσεις' : 'θέματα';
+
         if (topicCount === 0) {
-            topicPart = 'Κανένα θέμα';
+            topicPart = `κανένα ${baseSubjectText === 'θέματα' ? 'θέμα' : 'θέμα'}`; // Simplification for Greek
+            if (MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && isLongOnly) topicPart = 'καμία εκτενής συζήτηση';
         } else if (topicCount === totalTopics) {
-            topicPart = 'Όλα τα θέματα';
+            topicPart = `όλα τα ${baseSubjectText}`;
         } else if (topicCount === 1) {
-            topicPart = `Θέματα για ${filters.selectedTopics[0].name}`;
+            topicPart = `${baseSubjectText} για ${filters.selectedTopics[0].name}`;
         } else {
-            topicPart = `Θέματα για ${topicCount} θεματικές`;
+            topicPart = `${baseSubjectText} για ${topicCount} θεματικές`;
         }
 
         let timePart = '';
@@ -120,7 +219,7 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
             timePart = `των τελευταίων ${months} μηνών`;
         }
 
-        return `${topicPart} ${timePart}`;
+        return `${cityPart}${bodyPart}, ${topicPart} ${timePart}`;
     };
 
     return (
@@ -128,12 +227,13 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
             <SheetTrigger asChild>
                 <Button
                     variant="default"
-                    size="lg"
-                    className="fixed bottom-6 left-6 z-40 rounded-full shadow-lg h-14 px-6 gap-2"
+                    size="sm"
+                    className="fixed bottom-6 left-6 z-40 rounded-full shadow-lg h-8 w-[100px] px-0 gap-2"
                 >
-                    <Filter className="h-5 w-5" />
-                    <span className="hidden sm:inline">Φίλτρα</span>
+                    <Filter className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-white">ΦΙΛΤΡΑ</span>
                 </Button>
+
             </SheetTrigger>
             <SheetContent side="left" className="w-full sm:max-w-md overflow-y-auto">
                 <SheetHeader className="text-left mb-6">
@@ -144,6 +244,78 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
                 </SheetHeader>
 
                 <div className="space-y-8 pb-6">
+                    {/* LEGEND - For mobile view only */}
+                    <div className="md:hidden space-y-4 p-4 rounded-xl bg-accent/30 border border-border/50 mb-6">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Info className="w-4 h-4 text-primary" />
+                            <h4 className="text-xs font-bold uppercase tracking-wider">Υπoμνημα Χαρτη</h4>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Ζητηση</p>
+                                <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-blue-100 to-blue-600" />
+                                <div className="flex justify-between text-[8px] text-muted-foreground mb-1">
+                                    <span>Χαμηλή</span>
+                                    <span>Υψηλή</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 pt-0.5">
+                                    <div className="relative w-1.5 h-1.5">
+                                        <div className="absolute inset-0 rounded-full bg-blue-500 animate-pulse" />
+                                    </div>
+                                    <span className="text-[8px] text-blue-600 font-bold uppercase italic animate-pulse">Κινητοποιηση</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2.5">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Κατασταση</p>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full border border-[hsl(24,100%,50%)] bg-[hsl(24,100%,92%)]" />
+                                    <span className="text-[9px] font-bold uppercase">Υποστηριζομενος</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center -space-x-1">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary z-10" />
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary/20" />
+                                    </div>
+                                    <span className="text-[9px] font-bold uppercase">Νεα vs Παλαια</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Long Discussion Filter */}
+                    {MAP_FILTERS_CONFIG.ENABLE_LONG_DISCUSSION_FILTER && (
+                        <div className={cn(
+                            "flex items-center justify-between p-4 rounded-xl border transition-all duration-200",
+                            filters.longOnly ? "bg-primary/5 border-primary/30" : "bg-accent/30 border-border/50"
+                        )}>
+                            <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                    <Clock className={cn("w-4 h-4", filters.longOnly ? "text-primary" : "text-muted-foreground")} />
+                                    <label className="text-sm font-semibold">
+                                        Εκτενείς συζητήσεις
+                                    </label>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Μόνο θέματα με διάρκεια άνω των {Math.round(MAP_FILTERS_CONFIG.LONG_DISCUSSION_THRESHOLD / 60)} λεπτών
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {filters.longOnly && (
+                                    <button
+                                        onClick={() => handleLongOnlyToggle(false)}
+                                        className="text-[10px] uppercase font-bold text-primary hover:text-primary/80 underline underline-offset-2"
+                                    >
+                                        Καθαρισμός
+                                    </button>
+                                )}
+                                <Switch
+                                    checked={filters.longOnly || false}
+                                    onCheckedChange={handleLongOnlyToggle}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {/* Date Range Filter */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -170,6 +342,102 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
                         </div>
                     </div>
 
+                    {/* City Filter */}
+                    {availableCities.length > 0 && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">
+                                Δήμοι
+                            </label>
+                            {filters.selectedCities.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleRemoveAllCities}
+                                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                    Καθαρισμός όλων
+                                </Button>
+                            )}
+                        </div>
+
+                        <div className="space-y-3">
+                            {/* Search input - INLINE (No Popover) */}
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    placeholder="Αναζήτηση δήμου..."
+                                    value={citySearch}
+                                    onChange={(e) => setCitySearch(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2 text-sm bg-accent/50 rounded-md border-0 focus:ring-2 focus:ring-primary outline-none transition-all"
+                                />
+                                {citySearch && (
+                                    <button 
+                                        onClick={() => setCitySearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                                    >
+                                        <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Cities list - INLINE scrollable area */}
+                            <div className="border rounded-md overflow-hidden bg-background">
+                                <div className="max-h-[160px] overflow-y-auto p-1 scrollbar-thin">
+                                    {/* Select all option */}
+                                    <div
+                                        role="button"
+                                        onClick={() => {
+                                            if (filters.selectedCities.length === availableCities.length) {
+                                                handleRemoveAllCities();
+                                            } else {
+                                                handleSelectAllCities();
+                                            }
+                                        }}
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm font-medium hover:bg-accent transition-colors"
+                                    >
+                                        <div className={cn(
+                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                                            filters.selectedCities.length === availableCities.length ? "bg-primary text-primary-foreground" : "opacity-50"
+                                        )}>
+                                            {filters.selectedCities.length === availableCities.length && <Check className="h-3 w-3" />}
+                                        </div>
+                                        Όλοι οι δήμοι ({availableCities.length})
+                                    </div>
+
+                                    {/* Individual cities */}
+                                    {filteredCities.length === 0 ? (
+                                        <div className="py-6 text-center text-sm text-muted-foreground italic">
+                                            Δεν βρέθηκε δήμος.
+                                        </div>
+                                    ) : (
+                                        filteredCities.map((city) => (
+                                            <div
+                                                key={city.id}
+                                                role="button"
+                                                onClick={() => handleCitySelect(city.id)}
+                                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm hover:bg-accent transition-colors"
+                                            >
+                                                <div className={cn(
+                                                    "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                                                    filters.selectedCities.includes(city.id) ? "bg-primary text-primary-foreground" : "opacity-50"
+                                                )}>
+                                                    {filters.selectedCities.includes(city.id) && <Check className="h-3 w-3" />}
+                                                </div>
+                                                <span className="flex-1 truncate">{city.name}</span>
+                                                <span className="text-[10px] tabular-nums bg-accent px-1.5 py-0.5 rounded-full text-muted-foreground ml-2">
+                                                    {city.meetingsCount}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    )}
+
                     {/* Topic Filter */}
                     <div className="space-y-4">
                         <label className="text-sm font-medium">
@@ -182,6 +450,53 @@ export function MapFilters({ filters, allTopics, onFiltersChange }: MapFiltersPr
                             onSelectAll={handleSelectAllTopics}
                             onRemoveAll={handleRemoveAllTopics}
                         />
+                    </div>
+
+                    {/* Admin Body Type Filter */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium">
+                                Όργανα
+                            </label>
+                            <div className="flex gap-2">
+                                {(filters.selectedBodyTypes?.length || 0) < ADMIN_BODY_TYPES.length && (
+                                    <button
+                                        onClick={handleSelectAllBodyTypes}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        Επιλογή όλων
+                                    </button>
+                                )}
+                                {(filters.selectedBodyTypes?.length || 0) > 0 && (
+                                    <button
+                                        onClick={handleRemoveAllBodyTypes}
+                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        Καθαρισμός όλων
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {ADMIN_BODY_TYPES.map((type) => {
+                                const isSelected = (filters.selectedBodyTypes || []).includes(type.id);
+                                return (
+                                    <Button
+                                        key={type.id}
+                                        variant={isSelected ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleBodyTypeToggle(type.id)}
+                                        className={cn(
+                                            "h-8 text-xs rounded-full",
+                                            isSelected ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                                        )}
+                                    >
+                                        {isSelected && <Check className="mr-1 h-3 w-3" />}
+                                        {type.name}
+                                    </Button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
             </SheetContent>
