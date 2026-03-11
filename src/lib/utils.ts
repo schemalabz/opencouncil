@@ -69,6 +69,32 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
   };
 }
 
+/**
+ * Cleans meeting titles by removing redundant date information.
+ * Handles formats like: "12/03/2024", "(12-03-24)", "της 12.03.2024"
+ * and cleans up trailing punctuation.
+ */
+export function formatMeetingTitle(title: string | undefined | null): string {
+  if (!title) return '';
+
+  // 1. Remove common date patterns: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, DD/MM/YY
+  // including "της 12/03/2024", "(12/03/2024)", etc.
+  const dateRegex = /(?:\s+|-|\()?(?:της\s+)?\d{1,2}[\/\-\.]\d{1,2}[\/\-\.](?:\d{4}|\d{2})\)?/gi;
+
+  let cleanedTitle = title.replace(dateRegex, '');
+
+  // 2. Clean up trailing/leading punctuation and whitespace
+  // This removes things like "Συνεδρίαση - " or " : "
+  cleanedTitle = cleanedTitle
+    .replace(/^[\s\-\:\,]+/, '') // Leading
+    .replace(/[\s\-\:\,]+$/, '') // Trailing
+    .replace(/\s{2,}/g, ' ')     // Double spaces
+    .trim();
+
+  // 3. Fallback to original title if we stripped too much (unlikely with this regex)
+  return cleanedTitle || title;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

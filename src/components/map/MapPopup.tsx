@@ -1,5 +1,6 @@
 import Icon, { iconMap } from "@/components/icon";
 import Image from 'next/image';
+import { formatMeetingTitle } from '@/lib/utils';
 
 interface MapPopupProps {
     feature: GeoJSON.Feature;
@@ -17,7 +18,8 @@ export function MapPopup({ feature }: MapPopupProps) {
         const topicColor = feature.properties?.topicColor;
         const topicIcon = feature.properties?.topicIcon;
         const meetingDate = feature.properties?.meetingDate;
-        const meetingName = feature.properties?.meetingName;
+        const rawMeetingName = feature.properties?.meetingName;
+        const meetingName = formatMeetingTitle(rawMeetingName);
         const discussionTimeSeconds = feature.properties?.discussionTimeSeconds;
         const speakerCount = feature.properties?.speakerCount;
         const cityName = feature.properties?.cityName;
