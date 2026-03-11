@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { PetitionFormStep } from '../steps/petition/PetitionFormStep';
 import { NotificationInfoStep } from '../steps/notification/NotificationInfoStep';
+import { WelcomeBriefStep } from '../steps/notification/WelcomeBriefStep';
 
 export function FormContainer() {
     const {
@@ -88,6 +89,8 @@ export function FormContainer() {
                         onBack={handleBack}
                     />
                 );
+            case OnboardingStage.NOTIFICATION_WELCOME_BRIEF:
+                return <WelcomeBriefStep />;
             case OnboardingStage.NOTIFICATION_COMPLETE:
                 return <CompleteStep />;
             default:

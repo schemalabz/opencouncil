@@ -13,6 +13,7 @@ export enum OnboardingStage {
     NOTIFICATION_LOCATION_SELECTION = 'NOTIFICATION_LOCATION_SELECTION',
     NOTIFICATION_TOPIC_SELECTION = 'NOTIFICATION_TOPIC_SELECTION',
     NOTIFICATION_REGISTRATION = 'NOTIFICATION_REGISTRATION',
+    NOTIFICATION_WELCOME_BRIEF = 'NOTIFICATION_WELCOME_BRIEF',
     NOTIFICATION_COMPLETE = 'NOTIFICATION_COMPLETE',
     
     // Petition Flow
@@ -48,6 +49,7 @@ export const notificationFlow: Flow = {
         { id: OnboardingStage.NOTIFICATION_LOCATION_SELECTION, showInProgress: true },
         { id: OnboardingStage.NOTIFICATION_TOPIC_SELECTION, showInProgress: true },
         { id: OnboardingStage.NOTIFICATION_REGISTRATION, showInProgress: true },
+        { id: OnboardingStage.NOTIFICATION_WELCOME_BRIEF, showInProgress: false },
         { id: OnboardingStage.NOTIFICATION_COMPLETE, showInProgress: false }
     ],
     getNextStep: (currentStep) => {
