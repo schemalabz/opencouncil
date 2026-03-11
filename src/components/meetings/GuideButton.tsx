@@ -12,7 +12,7 @@ interface GuideButtonProps {
     onOpenChange?: (open: boolean) => void;
     children: React.ReactNode;
   }>;
-  label: string;
+  label?: string;
   hintTitle: string;
   hintDescription: string;
   ringClassName?: string;
@@ -59,7 +59,7 @@ export function GuideButton({
             className={cn("flex items-center space-x-1", showHint ? ringClassName : "")}
           >
             <BookOpen className={cn("h-4 w-4", iconClassName)} />
-            <span className="hidden sm:inline">{label}</span>
+            {label && <span className="hidden sm:inline">{label}</span>}
           </Button>
         </TooltipTrigger>
       </DialogComponent>

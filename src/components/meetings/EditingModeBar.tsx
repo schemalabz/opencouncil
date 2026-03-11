@@ -7,7 +7,7 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useHighlight } from './HighlightContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward } from 'lucide-react';
+import { Edit, Gauge, UserRoundSearch, X, CheckCircle, SkipForward, Undo2, Redo2, ShieldCheck, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,16 +17,21 @@ import { UNKNOWN_SPEAKER_LABEL } from '@/lib/utils';
 import { SpeakersOverviewSheet } from './transcript/SpeakersOverviewSheet';
 import { CompleteReviewDialog } from '@/components/reviews/CompleteReviewDialog';
 import { useRouter } from 'next/navigation';
+import { useEditing } from './EditingContext';
 
 export function EditingModeBar() {
     const { options, updateOptions } = useTranscriptOptions();
     const { playbackSpeed, handleSpeedChange, seekTo, currentTime } = useVideo();
     const { transcript: speakerSegments, getSpeakerTag, meeting } = useCouncilMeetingData();
     const { editingHighlight } = useHighlight(); // To check for exclusivity
+    const { canUndo, canRedo, undoLastChange, redoLastChange, isApplyingHistory, applyingHistoryType, sessionStartedAt, sessionChangeCount } = useEditing();
     const t = useTranslations('editing');
     const [showCompleteDialog, setShowCompleteDialog] = useState(false);
     const [isReviewCompleted, setIsReviewCompleted] = useState(false);
     const router = useRouter();
+    const sessionStartedAtLabel = sessionStartedAt
+        ? new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(sessionStartedAt)
+        : null;
 
     // Check if humanReview is already completed
     useEffect(() => {
@@ -123,11 +128,41 @@ export function EditingModeBar() {
                                             <div className="text-xs text-muted-foreground">
                                                 {t('status.description')}
                                             </div>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                <ShieldCheck className="w-3 h-3" />
+                                                <span>
+                                                    {sessionStartedAtLabel
+                                                        ? t('session.activeSince', { time: sessionStartedAtLabel })
+                                                        : t('session.active')}
+                                                </span>
+                                                <span>•</span>
+                                                <span>{t('session.changes', { count: sessionChangeCount })}</span>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Right Side: Actions */}
                                     <div className="flex items-center space-x-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void undoLastChange()}
+                                            disabled={!canUndo || isApplyingHistory}
+                                            className="flex items-center space-x-1"
+                                            title={t('actions.undo')}
+                                        >
+                                            {applyingHistoryType === 'undo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void redoLastChange()}
+                                            disabled={!canRedo || isApplyingHistory}
+                                            className="flex items-center space-x-1"
+                                            title={t('actions.redo')}
+                                        >
+                                            {applyingHistoryType === 'redo' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Redo2 className="h-4 w-4" />}
+                                        </Button>
                                         
                                         {/* Playback Speed */}
                                         <DropdownMenu>
@@ -135,10 +170,11 @@ export function EditingModeBar() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="flex items-center space-x-1"
+                                                    className="flex items-center"
+                                                    title={t('actions.playbackSpeed', { defaultValue: 'Playback Speed' })}
                                                 >
-                                                    <Gauge className="h-4 w-4 mr-1" />
-                                                    <span>{parseFloat(playbackSpeed).toFixed(1)}x</span>
+                                                    <Gauge className="h-4 w-4" />
+                                                    <span className="ml-1 text-xs font-medium">{parseFloat(playbackSpeed).toFixed(1)}x</span>
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
@@ -160,11 +196,11 @@ export function EditingModeBar() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="flex items-center space-x-1"
+                                                    className="flex items-center"
                                                     title={t('actions.skipInterval')}
                                                 >
-                                                    <SkipForward className="h-4 w-4 mr-1" />
-                                                    <span>{options.skipInterval}s</span>
+                                                    <SkipForward className="h-4 w-4" />
+                                                    <span className="ml-1 text-xs font-medium">{options.skipInterval}s</span>
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
@@ -185,11 +221,10 @@ export function EditingModeBar() {
                                             variant="outline"
                                             size="sm"
                                             onClick={goToNextUnknown}
-                                            className="flex items-center space-x-1"
-                                            title={t('actions.nextUnknown')}
+                                            className="flex items-center space-x-2"
                                         >
-                                            <UserRoundSearch className="h-4 w-4 mr-1" />
-                                            <span className="hidden sm:inline">{t('actions.unknownSpeaker')}</span>
+                                            <UserRoundSearch className="h-4 w-4" />
+                                            <span className="text-xs font-medium">{t('actions.nextUnknown')}</span>
                                         </Button>
 
                         {/* Speakers Overview */}
@@ -201,11 +236,10 @@ export function EditingModeBar() {
                                 variant="outline"
                                 size="sm"
                                 onClick={handleCompleteReview}
-                                className="flex items-center space-x-1 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-                                title={t('actions.completeReview')}
+                                className="flex items-center space-x-2 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
                             >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                <span className="hidden sm:inline">{t('actions.completeReview')}</span>
+                                <CheckCircle className="h-4 w-4" />
+                                <span className="text-xs font-medium">{t('actions.completeReview')}</span>
                             </Button>
                         )}
 
@@ -225,10 +259,10 @@ export function EditingModeBar() {
                                             variant="ghost"
                                             size="sm"
                                             onClick={handleExit}
-                                            className="flex items-center space-x-1 hover:bg-slate-200"
+                                            className="flex items-center space-x-1 hover:bg-slate-200 text-slate-600"
                                         >
                                             <X className="h-4 w-4" />
-                                            <span className="ml-1">{t('actions.exit')}</span>
+                                            <span className="text-xs font-medium">{t('actions.exit')}</span>
                                         </Button>
                                     </div>
                                 </div>
@@ -250,4 +284,3 @@ export function EditingModeBar() {
         </>
     );
 }
-

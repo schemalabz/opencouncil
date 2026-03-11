@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { useVideo } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
-import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { ArrowLeftToLine, ArrowRightToLine, Copy, Star, Scissors, Loader2, Check, X, Trash2, Clock } from "lucide-react";
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useShare } from "@/contexts/ShareContext";
-import { useEditing } from "../EditingContext";import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 
 const UtteranceC: React.FC<{
@@ -35,8 +34,8 @@ const UtteranceC: React.FC<{
     const [isActive, setIsActive] = useState(false);
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
-    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
-    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
+    const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, saveUtteranceChanges } = useCouncilMeetingData();
+    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing, pushAction } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -141,6 +140,17 @@ const UtteranceC: React.FC<{
         const originalText = localUtterance.text;
         const originalStart = localUtterance.startTimestamp;
         const originalEnd = localUtterance.endTimestamp;
+        const utteranceId = localUtterance.id;
+        const nextState = {
+            text: editedText,
+            startTimestamp: editedStartTime,
+            endTimestamp: editedEndTime
+        };
+        const previousState = {
+            text: originalText,
+            startTimestamp: originalStart,
+            endTimestamp: originalEnd
+        };
         
         // Check what changed
         const textChanged = editedText !== originalText;
@@ -155,46 +165,22 @@ const UtteranceC: React.FC<{
         // Optimistic update - immediate
         setLocalUtterance({ 
             ...localUtterance, 
-            text: editedText,
-            startTimestamp: editedStartTime,
-            endTimestamp: editedEndTime
+            ...nextState
         });
         setIsEditing(false);
         
         // Background save
         try {
-            // Update text first
-            const updatedUtterance = await editUtterance(localUtterance.id, editedText);
-            
-            // Then update timestamps if they changed
-            if (timestampsChanged) {
-                const { utterance: finalUtterance } = await updateUtteranceTimestamps(
-                    localUtterance.id, 
-                    editedStartTime, 
-                    editedEndTime
-                );
-                setLocalUtterance(finalUtterance);
-                
-                // Update everything in context in one call
-                // This will automatically recalculate and update segment timestamps
-                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, {
-                    text: editedText,
-                    startTimestamp: editedStartTime,
-                    endTimestamp: editedEndTime,
-                    lastModifiedBy: finalUtterance.lastModifiedBy
-                });
-                
-                // Call onUpdate if provided (for future extensibility)
-                onUpdate?.(finalUtterance);
-            } else {
-                setLocalUtterance(updatedUtterance);
-                
-                // Update just the text in context
-                updateUtterance(localUtterance.speakerSegmentId, localUtterance.id, { text: editedText, lastModifiedBy: updatedUtterance.lastModifiedBy });
-                
-                // Call onUpdate if provided (for future extensibility)
-                onUpdate?.(updatedUtterance);
-            }
+            const updatedUtterance = await saveUtteranceChanges(utteranceId, nextState);
+            setLocalUtterance(updatedUtterance);
+
+            pushAction({
+                type: 'TEXT_EDIT',
+                payload: { utteranceId, previousState, nextState }
+            });
+
+            // Call onUpdate if provided (for future extensibility)
+            onUpdate?.(updatedUtterance);
         } catch (error) {
             console.error('Failed to edit utterance:', error);
             // Silent revert
@@ -239,11 +225,36 @@ const UtteranceC: React.FC<{
                 <Button
                     variant="default"
                     size="sm"
-                    onClick={() => {
-                        moveUtterancesToPrevious(localUtterance.id, localUtterance.speakerSegmentId);
-                        toast({
-                            description: t('toasts.utterancesMovedSuccessfully'),
-                        });
+                    onClick={async () => {
+                        const originalSegmentId = localUtterance.speakerSegmentId;
+                        const utteranceId = localUtterance.id;
+                        
+                        try {
+                            const result = await moveUtterancesToPrevious(utteranceId, originalSegmentId);
+                            const newSegmentId = result?.previousSegment?.id;
+
+                            if (newSegmentId) {
+                                pushAction({
+                                    type: 'MOVE_UTTERANCE',
+                                    payload: {
+                                        utteranceId,
+                                        fromSegmentId: originalSegmentId,
+                                        toSegmentId: newSegmentId,
+                                        direction: 'previous'
+                                    }
+                                });
+                                toast({
+                                    description: t('toasts.utterancesMovedSuccessfully'),
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Failed to move utterance:', error);
+                            toast({
+                                title: t('common.error'),
+                                description: t('toasts.moveUtteranceError', { defaultValue: 'Failed to move utterance' }),
+                                variant: 'destructive'
+                            });
+                        }
                     }}
                 >
                     {t('toasts.confirm')}
@@ -261,11 +272,36 @@ const UtteranceC: React.FC<{
                 <Button
                     variant="default"
                     size="sm"
-                    onClick={() => {
-                        moveUtterancesToNext(localUtterance.id, localUtterance.speakerSegmentId);
-                        toast({
-                            description: t('toasts.utterancesMovedSuccessfully'),
-                        });
+                    onClick={async () => {
+                        const originalSegmentId = localUtterance.speakerSegmentId;
+                        const utteranceId = localUtterance.id;
+
+                        try {
+                            const result = await moveUtterancesToNext(utteranceId, originalSegmentId);
+                            const newSegmentId = result?.nextSegment?.id;
+
+                            if (newSegmentId) {
+                                pushAction({
+                                    type: 'MOVE_UTTERANCE',
+                                    payload: {
+                                        utteranceId,
+                                        fromSegmentId: originalSegmentId,
+                                        toSegmentId: newSegmentId,
+                                        direction: 'next'
+                                    }
+                                });
+                                toast({
+                                    description: t('toasts.utterancesMovedSuccessfully'),
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Failed to move utterance:', error);
+                            toast({
+                                title: t('common.error'),
+                                description: t('toasts.moveUtteranceError', { defaultValue: 'Failed to move utterance' }),
+                                variant: 'destructive'
+                            });
+                        }
                     }}
                 >
                     {t('toasts.confirm')}
@@ -342,7 +378,9 @@ const UtteranceC: React.FC<{
                         value={editedText}
                         onChange={(e) => setEditedText(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if ((e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y') && (e.ctrlKey || e.metaKey)) {
+                                e.stopPropagation();
+                            } else if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleEdit(e);
                             } else if (e.key === 'Escape') {

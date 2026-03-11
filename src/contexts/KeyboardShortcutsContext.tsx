@@ -69,6 +69,16 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
         id: 'SKIP_FORWARD',
         description: 'Skip forward by interval',
         keys: ['Shift+ArrowRight']
+    },
+    UNDO: {
+        id: 'UNDO',
+        description: 'Undo last editing action',
+        keys: ['Control+z', 'Meta+z']
+    },
+    REDO: {
+        id: 'REDO',
+        description: 'Redo last undone editing action',
+        keys: ['Control+y', 'Control+Shift+z', 'Meta+Shift+z']
     }
 };
 
