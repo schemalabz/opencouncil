@@ -20,6 +20,7 @@ export default function MapPage() {
                 className="w-full h-full"
                 features={[
                     {
+                        type: 'Feature',
                         id: city.id,
                         geometry: city.geometry,
                         properties: {

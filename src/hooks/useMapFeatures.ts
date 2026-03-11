@@ -77,6 +77,7 @@ export function useMapFeatures({
                             : 0;
 
                         return {
+                            type: 'Feature',
                             id: city.id,
                             geometry: city.geometry!,
                             properties: {
@@ -152,6 +153,7 @@ export function useMapFeatures({
                         : 0;
 
                     return {
+                        type: 'Feature',
                         id: city.id,
                         geometry: city.geometry!,
                         properties: {
@@ -206,6 +208,7 @@ export function useMapFeatures({
                     }
 
                     return {
+                        type: 'Feature',
                         id: `subject-${subject.id}`,
                         geometry: subject.geometry,
                         properties: {

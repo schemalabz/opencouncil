@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { MapFeature } from '@/components/map/map';
 
 interface UseMapTourProps {
-    features: GeoJSON.Feature[];
+    features: MapFeature[];
     selectedCities: string[];
     allCities: { id: string, name: string }[];
     isEnabled: boolean;

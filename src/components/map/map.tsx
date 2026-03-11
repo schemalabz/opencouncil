@@ -11,9 +11,10 @@ import { env } from '@/env.mjs'
 mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export interface MapFeature {
+    type: 'Feature'
     id: string
     geometry: any // GeoJSON geometry
-    properties?: Record<string, any>
+    properties: Record<string, any>
     style?: {
         fillColor?: string
         fillOpacity?: number

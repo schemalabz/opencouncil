@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { MapFeature } from '@/components/map/map';
 
 /**
  * SOTA Map Animation Hook
  * Manages the "Shooting Star" traveler logic and synchronizes popups with movement completion.
  */
-export function useMapAnimation(activeTourFeature: GeoJSON.Feature | null) {
-    const [delayedTourFeature, setDelayedTourFeature] = useState<GeoJSON.Feature | null>(null);
+export function useMapAnimation(activeTourFeature: MapFeature | null) {
+    const [delayedTourFeature, setDelayedTourFeature] = useState<MapFeature | null>(null);
     const [travelerGeoJSON, setTravelerGeoJSON] = useState<GeoJSON.FeatureCollection | null>(null);
     const lastTourCoords = useRef<[number, number] | null>(null);
     const animationFrameId = useRef<number | null>(null);

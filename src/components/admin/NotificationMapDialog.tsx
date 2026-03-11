@@ -102,8 +102,10 @@ export function NotificationMapDialog({
         mapData.subjectLocations.forEach((subject) => {
             // Add 400m radius circle
             features.push({
+                type: 'Feature',
                 id: `subject-${subject.id}-400m`,
                 geometry: createCircleBuffer(subject.coordinates, 400),
+                properties: {},
                 style: {
                     fillColor: '#3B82F6',
                     fillOpacity: 0.1,
@@ -114,8 +116,10 @@ export function NotificationMapDialog({
 
             // Add 600m radius circle
             features.push({
+                type: 'Feature',
                 id: `subject-${subject.id}-600m`,
                 geometry: createCircleBuffer(subject.coordinates, 600),
+                properties: {},
                 style: {
                     fillColor: '#60A5FA',
                     fillOpacity: 0.1,
@@ -126,10 +130,14 @@ export function NotificationMapDialog({
 
             // Add subject point
             features.push({
+                type: 'Feature',
                 id: `subject-${subject.id}`,
                 geometry: {
                     type: 'Point',
                     coordinates: subject.coordinates,
+                },
+                properties: {
+                    name: subject.name,
                 },
                 style: {
                     fillColor: '#1E40AF',
@@ -144,10 +152,14 @@ export function NotificationMapDialog({
         // Add user preference locations
         mapData.userPreferenceLocations.forEach((location) => {
             features.push({
+                type: 'Feature',
                 id: `user-pref-${location.id}`,
                 geometry: {
                     type: 'Point',
                     coordinates: location.coordinates,
+                },
+                properties: {
+                    text: location.text,
                 },
                 style: {
                     fillColor: '#EF4444',

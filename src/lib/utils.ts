@@ -49,6 +49,7 @@ export function subjectToMapFeature(subject: SubjectWithRelations) {
   if (!subject.location?.coordinates) return null;
 
   return {
+    type: 'Feature' as const,
     id: subject.id,
     geometry: {
       type: 'Point',

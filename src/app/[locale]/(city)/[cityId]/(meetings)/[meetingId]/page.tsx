@@ -65,6 +65,7 @@ export default function MeetingPage() {
             <div className="relative h-[200px] sm:h-[300px] w-full">
                 <MapView className="w-full h-full" features={[
                     {
+                        type: 'Feature',
                         id: city.id,
                         geometry: city.geometry,
                         properties: {
