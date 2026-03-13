@@ -13,7 +13,9 @@
       "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
       "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
       "shareFromHere": "Κοινοποίηση από εδώ",
-      "extractSegment": "Εξαγωγή τμήματος"
+      "extractSegment": "Εξαγωγή τμήματος",
+      "deleteUtterance": "Διαγραφή φράσης",
+      "deleteSelectedUtterances": "Διαγραφή επιλεγμένων ({count})"
     },
     "toasts": {
       "moveUtterances": "Μετακίνηση φράσεων;",
@@ -32,7 +34,8 @@
       "deleteError": "Αποτυχία διαγραφής φράσης"
     },
     "common": {
-      "error": "Σφάλμα"
+      "error": "Σφάλμα",
+      "undo": "Αναίρεση"
     }
   },
   "controls": {
@@ -43,28 +46,28 @@
     "previousClip": "Προηγούμενο κλιπ",
     "nextClip": "Επόμενο κλιπ"
   },
-    "unverifiedBanner": {
-        "title": "Αυτόματη απομαγνητοφώνηση",
-        "description": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί εντός 48 ωρών από τη συνεδρίαση."
-    },
-    "emptySegment": {
-        "noUtterances": "Δεν υπάρχουν φράσεις σε αυτό το τμήμα",
-        "addUtterance": "Προσθήκη Φράσης",
-        "adding": "Προσθήκη..."
-    },
-    "addUtterance": {
-        "button": "Προσθήκη φράσης",
-        "tooltip": "Προσθήκη νέας φράσης στο τέλος αυτού του τμήματος"
-    },
-    "miniTranscript": {
-        "play": "Αναπαραγωγή",
-        "pause": "Παύση",
-        "seekTo": "Μετάβαση",
-        "transcript": "Απομαγνητοφώνηση"
-    },
-    "copySegment": {
-        "button": "Αντιγραφή τμήματος",
-        "segmentCopied": "Το τμήμα αντιγράφηκε",
-        "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
-    }
+  "unverifiedBanner": {
+    "title": "Αυτόματη απομαγνητοφώνηση",
+    "description": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί εντός 48 ωρών από τη συνεδρίαση."
+  },
+  "emptySegment": {
+    "noUtterances": "Δεν υπάρχουν φράσεις σε αυτό το τμήμα",
+    "addUtterance": "Προσθήκη Φράσης",
+    "adding": "Προσθήκη..."
+  },
+  "addUtterance": {
+    "button": "Προσθήκη φράσης",
+    "tooltip": "Προσθήκη νέας φράσης στο τέλος αυτού του τμήματος"
+  },
+  "miniTranscript": {
+    "play": "Αναπαραγωγή",
+    "pause": "Παύση",
+    "seekTo": "Μετάβαση",
+    "transcript": "Απομαγνητοφώνηση"
+  },
+  "copySegment": {
+    "button": "Αντιγραφή τμήματος",
+    "segmentCopied": "Το τμήμα αντιγράφηκε",
+    "copySourceAttribution": "Αντιγράφηκε από το OpenCouncil · opencouncil.gr"
+  }
 }

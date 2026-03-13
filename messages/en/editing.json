@@ -136,6 +136,15 @@
     "invalidOperationTitle": "Invalid Operation",
     "invalidOperationExtractAll": "Cannot extract all utterances. Use 'Change Speaker' instead.",
     "invalidOperationExtractStartEnd": "Cannot extract from the start or end of a segment. Selection must be strictly in the middle.",
+    "deletionSuccess": "Deleted {count, plural, one {# utterance} other {# utterances}}",
+    "deletionError": "Failed to delete selected utterances",
+    "bulkDeleteConfirmTitle": "Delete selected?",
+    "bulkDeleteConfirmDesc": "Are you sure you want to delete {count, plural, one {# utterance} other {# utterances}}? This action cannot be undone.",
+    "common": {
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "delete": "Delete"
+    },
     "reviewCompleted": "Review Completed",
     "reviewCompletedDescription": "The transcript review has been marked as complete."
   }

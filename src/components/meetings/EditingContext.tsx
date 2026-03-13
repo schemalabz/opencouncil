@@ -1,10 +1,19 @@
 "use client";
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { ACTIONS, useKeyboardShortcut } from '@/contexts/KeyboardShortcutsContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
 import { calculateUtteranceRange } from '@/lib/selection-utils';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface EditingContextType {
     selectedUtteranceIds: Set<string>;
@@ -12,6 +21,8 @@ interface EditingContextType {
     toggleSelection: (id: string, modifiers: { shift: boolean, ctrl: boolean }) => void;
     clearSelection: () => void;
     extractSelectedSegment: () => Promise<void>;
+    confirmDeleteSelected: () => void;
+    deleteSelectedUtterances: () => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -21,8 +32,9 @@ export function EditingProvider({ children }: { children: ReactNode }) {
     const [selectedUtteranceIds, setSelectedUtteranceIds] = useState<Set<string>>(new Set());
     const [lastClickedUtteranceId, setLastClickedUtteranceId] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     
-    const { transcript, extractSpeakerSegment, getSpeakerSegmentById } = useCouncilMeetingData();
+    const { transcript, extractSpeakerSegment, getSpeakerSegmentById, deleteUtterances } = useCouncilMeetingData();
     const { toast } = useToast();
     const t = useTranslations('editing.toasts');
 
@@ -143,11 +155,55 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsProcessing(false);
         }
-    }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, clearSelection, toast, transcript, t]);
+    }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
+
+    const confirmDeleteSelected = useCallback(() => {
+        if (selectedUtteranceIds.size === 0) return;
+        setIsDeleteDialogOpen(true);
+    }, [selectedUtteranceIds]);
+
+    const deleteSelectedUtterances = useCallback(async () => {
+        if (selectedUtteranceIds.size === 0) return;
+        if (isProcessing) return;
+
+        setIsProcessing(true);
+        try {
+            const selectedList = Array.from(selectedUtteranceIds);
+            await deleteUtterances(selectedList);
+            clearSelection();
+            setIsDeleteDialogOpen(false);
+            toast({
+                description: t('deletionSuccess', { count: selectedList.length })
+            });
+        } catch (error) {
+            console.error(error);
+            toast({
+                title: "Error",
+                description: t('deletionError', { defaultValue: 'Failed to delete selected utterances' }),
+                variant: 'destructive'
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [selectedUtteranceIds, isProcessing, deleteUtterances, clearSelection, toast, t]);
+
+    // Enter to confirm, Escape to cancel delete dialog
+    useEffect(() => {
+        if (!isDeleteDialogOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Enter' && !isProcessing) {
+                e.preventDefault();
+                deleteSelectedUtterances();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isDeleteDialogOpen, isProcessing, deleteSelectedUtterances]);
 
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, clearSelection, selectedUtteranceIds.size > 0);
+    useKeyboardShortcut(ACTIONS.DELETE_SELECTION.id, confirmDeleteSelected, selectedUtteranceIds.size > 0);
 
     return (
         <EditingContext.Provider value={{
@@ -156,9 +212,30 @@ export function EditingProvider({ children }: { children: ReactNode }) {
             toggleSelection,
             clearSelection,
             extractSelectedSegment,
+            confirmDeleteSelected,
+            deleteSelectedUtterances,
             isProcessing
         }}>
             {children}
+            
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{t('bulkDeleteConfirmTitle', { defaultValue: 'Delete selected?' })}</DialogTitle>
+                        <DialogDescription>
+                            {t('bulkDeleteConfirmDesc', { count: selectedUtteranceIds.size, defaultValue: `Are you sure you want to delete ${selectedUtteranceIds.size} utterances? This action cannot be undone.` })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isProcessing}>
+                            {t('common.cancel', { defaultValue: 'Cancel' })}
+                        </Button>
+                        <Button variant="destructive" onClick={deleteSelectedUtterances} disabled={isProcessing}>
+                            {isProcessing ? t('common.deleting', { defaultValue: 'Deleting...' }) : t('common.delete', { defaultValue: 'Delete' })}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </EditingContext.Provider>
     );
 }

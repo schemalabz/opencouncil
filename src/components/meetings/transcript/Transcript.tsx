@@ -107,41 +107,38 @@ export default function Transcript() {
         [setCurrentScrollInterval]
     );
 
-    // Single intersection observer for tracking visible segments AND updating scroll interval
+    // Single intersection observer for tracking visible segments (pure state update only)
     const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
-        let hasChanges = false;
         const updates: { index: number; visible: boolean }[] = [];
 
         entries.forEach((entry) => {
             const segmentIndex = parseSegmentIndex(entry.target.id);
-            const isCurrentlyVisible = visibleSegments.has(segmentIndex);
-
-            if (entry.isIntersecting && !isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: true });
-                hasChanges = true;
-            } else if (!entry.isIntersecting && isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: false });
-                hasChanges = true;
-            }
+            updates.push({ index: segmentIndex, visible: entry.isIntersecting });
         });
 
-        if (hasChanges) {
-            const newVisibleSegments = new Set(visibleSegments);
-            updates.forEach(({ index, visible }) => {
-                if (visible) {
-                    newVisibleSegments.add(index);
-                } else {
-                    newVisibleSegments.delete(index);
-                }
+        if (updates.length > 0) {
+            setVisibleSegments(prev => {
+                const newVisibleSegments = new Set(prev);
+                let changed = false;
+                updates.forEach(({ index, visible }) => {
+                    if (visible && !newVisibleSegments.has(index)) {
+                        newVisibleSegments.add(index);
+                        changed = true;
+                    } else if (!visible && newVisibleSegments.has(index)) {
+                        newVisibleSegments.delete(index);
+                        changed = true;
+                    }
+                });
+                return changed ? newVisibleSegments : prev;
             });
+        }
+    }, []);
 
-            setVisibleSegments(newVisibleSegments);
-
-            // Update scroll interval with debouncing for performance
-            const interval = calculateTimeInterval(newVisibleSegments);
-            if (interval) {
-                debouncedSetCurrentScrollInterval(interval);
-            }
+    // Derive scroll interval from visible segments (side effect separated from state updater)
+    useEffect(() => {
+        const interval = calculateTimeInterval(visibleSegments);
+        if (interval) {
+            debouncedSetCurrentScrollInterval(interval);
         }
     }, [visibleSegments, calculateTimeInterval, debouncedSetCurrentScrollInterval]);
 
@@ -189,7 +186,7 @@ export default function Transcript() {
 
                 return (
                     <div
-                        key={index}
+                        key={segment.id}
                         id={createSegmentId(index)}
                     >
                         <SpeakerSegment
