@@ -98,10 +98,114 @@ const TABLE_BORDERS = {
     insideVertical: THIN_BORDER,
 };
 
+function rightAlignedCell(text: string, bold = false): TableCell {
+    return new TableCell({
+        children: [new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            children: [new TextRun({ text, size: 20, bold })],
+        })],
+        width: { size: 100, type: WidthType.AUTO },
+    });
+}
+
+interface PricingBreakdown {
+    months: number;
+    platformCost: number;
+    ingestionCost: number;
+    correctnessCost: number;
+    equipmentRentalCost: number;
+    physicalPresenceCost: number;
+    subtotal: number;
+    discount: number;
+    total: number;
+    totalWithVat: number;
+}
+
+function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours: number): Table {
+    const rows: TableRow[] = [];
+
+    const addRow = (label: string, detail: string, amount: number) => {
+        rows.push(new TableRow({
+            children: [
+                cell(label),
+                cell(detail),
+                rightAlignedCell(formatCurrency(amount)),
+            ],
+        }));
+    };
+
+    addRow('Πλατφόρμα', `${formatCurrency(offer.platformPrice)}/μήνα × ${pricing.months} μήνες`, pricing.platformCost);
+    addRow('Ψηφιοποίηση συνεδριάσεων', `${formatCurrency(offer.ingestionPerHourPrice)}/ώρα × ${Math.round(actualHours * 10) / 10} ώρες`, pricing.ingestionCost);
+
+    if (pricing.correctnessCost > 0) {
+        const correctnessPricing = getCorrectnessPricing(offer.version || 1);
+        addRow('Εγγύηση ορθότητας', `${formatCurrency(correctnessPricing.pricePerUnit)}/ώρα × ${Math.round(actualHours * 10) / 10} ώρες`, pricing.correctnessCost);
+    }
+
+    if (pricing.equipmentRentalCost > 0) {
+        const monthlyPrice = (offer as Record<string, unknown>).equipmentRentalPrice as number;
+        addRow('Ενοικίαση εξοπλισμού', `${formatCurrency(monthlyPrice)}/μήνα × ${pricing.months} μήνες`, pricing.equipmentRentalCost);
+    }
+
+    if (pricing.physicalPresenceCost > 0) {
+        addRow('Φυσική παρουσία', `${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα (αναλογία περιόδου)`, pricing.physicalPresenceCost);
+    }
+
+    // Subtotal
+    rows.push(new TableRow({
+        children: [
+            headerCell('Μερικό σύνολο'),
+            headerCell(''),
+            rightAlignedCell(formatCurrency(pricing.subtotal), true),
+        ],
+    }));
+
+    if (pricing.discount > 0) {
+        rows.push(new TableRow({
+            children: [
+                cell('Έκπτωση'),
+                cell(`${offer.discountPercentage}%`),
+                rightAlignedCell(`-${formatCurrency(pricing.discount)}`),
+            ],
+        }));
+    }
+
+    rows.push(new TableRow({
+        children: [
+            headerCell('Σύνολο (χωρίς ΦΠΑ)'),
+            headerCell(''),
+            rightAlignedCell(formatCurrency(pricing.total), true),
+        ],
+    }));
+
+    rows.push(new TableRow({
+        children: [
+            headerCell('Σύνολο (με ΦΠΑ 24%)'),
+            headerCell(''),
+            rightAlignedCell(formatCurrency(pricing.totalWithVat), true),
+        ],
+    }));
+
+    return new Table({
+        rows: [
+            new TableRow({
+                children: [
+                    headerCell('Κατηγορία'),
+                    headerCell('Ανάλυση'),
+                    headerCell('Ποσό'),
+                ],
+            }),
+            ...rows,
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: TABLE_BORDERS,
+    });
+}
+
 function createMeetingsTable(meetings: ReportMeeting[]): Table {
     const headerRow = new TableRow({
         children: [
-            headerCell('A/A'),
+            headerCell('ID'),
             headerCell('Όνομα'),
             headerCell('Ημερομηνία'),
             headerCell('Διάρκεια'),
@@ -109,11 +213,11 @@ function createMeetingsTable(meetings: ReportMeeting[]): Table {
         ],
     });
 
-    const rows = meetings.map((m, i) => {
+    const rows = meetings.map((m) => {
         const durationText = m.durationMs ? formatDurationSeconds(m.durationMs) : '—';
         return new TableRow({
             children: [
-                cell(String(i + 1)),
+                cell(m.id),
                 cell(m.name),
                 cell(format(new Date(m.dateTime), 'd MMM yyyy', { locale: el })),
                 cell(durationText),
@@ -122,8 +226,19 @@ function createMeetingsTable(meetings: ReportMeeting[]): Table {
         });
     });
 
+    const totalDurationMs = meetings.reduce((sum, m) => sum + (m.durationMs || 0), 0);
+    const sumRow = new TableRow({
+        children: [
+            headerCell(''),
+            headerCell(`Σύνολο (${meetings.length} συνεδριάσεις)`),
+            headerCell(''),
+            headerCell(totalDurationMs > 0 ? formatDurationSeconds(totalDurationMs) : '—'),
+            headerCell(''),
+        ],
+    });
+
     return new Table({
-        rows: [headerRow, ...rows],
+        rows: [headerRow, ...rows, sumRow],
         width: { size: 100, type: WidthType.PERCENTAGE },
         borders: TABLE_BORDERS,
     });
@@ -145,7 +260,7 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
     const amountFormatted = formatCurrency(pricing.total);
     const amountWithVatFormatted = formatCurrency(pricing.totalWithVat);
 
-    const page1: Paragraph[] = [
+    const page1: (Paragraph | Table)[] = [
         new Paragraph({
             heading: HeadingLevel.HEADING_1,
             alignment: AlignmentType.CENTER,
@@ -161,6 +276,12 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
             spacing: { after: 240 },
             children: [new TextRun({ text: `Με βάση τη σύμβαση ${contractReference} για την παροχή υπηρεσιών ψηφιοποίησης συνεδριάσεων δημοτικού συμβουλίου, αιτούμαστε τη πληρωμή ${amountFormatted} πλέον ΦΠΑ για την περίοδο ${periodStart} – ${periodEnd}, ήτοι σύνολο συμπεριλαμβανομένου ΦΠΑ ${amountWithVatFormatted}.`, size: 24 })],
         }),
+        new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 360, after: 240 },
+            children: [new TextRun({ text: 'Ανάλυση κόστους', size: 28, bold: true })],
+        }),
+        createPricingTable(pricing, offer, totalHours),
         new Paragraph({
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 480, after: 240 },

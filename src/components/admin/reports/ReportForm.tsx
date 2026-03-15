@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { monthsBetween } from '@/lib/utils';
 import { Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -142,7 +143,7 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                             <FormItem>
                                 <FormLabel>Αριθμός Σύμβασης</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="π.χ. 12345/2025" {...field} />
+                                    <Input placeholder="π.χ. 25SYMV01234567" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -165,6 +166,11 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                                         }}
                                     />
                                 </FormControl>
+                                {field.value?.from && field.value?.to && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {monthsBetween(field.value.from, field.value.to)} μήνες
+                                    </p>
+                                )}
                                 <FormMessage />
                             </FormItem>
                         )}
