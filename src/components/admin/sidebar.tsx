@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FileText, Settings, Files, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, Landmark } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Settings, Files, FileOutput, Rocket, UserRound, List, RefreshCw, Search, Bell, QrCode, ClipboardCheck, Landmark } from "lucide-react";
 import Link from "next/link";
 import {
     Sidebar,
@@ -48,6 +48,11 @@ const menuItems = [
         title: "Offers",
         icon: Files,
         url: "/admin/offers",
+    },
+    {
+        title: "Reports",
+        icon: FileOutput,
+        url: "/admin/reports",
     },
     {
         title: "Tasks",
