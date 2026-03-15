@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Form,
@@ -14,16 +16,16 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { startOfMonth, subMonths, endOfMonth } from 'date-fns';
 
 const formSchema = z.object({
     cityId: z.string().min(1, 'Επιλέξτε δήμο'),
-    startDate: z.date({ required_error: 'Απαιτείται ημερομηνία έναρξης' }),
-    endDate: z.date({ required_error: 'Απαιτείται ημερομηνία λήξης' }),
+    dateRange: z.object({
+        from: z.date(),
+        to: z.date(),
+    }, { required_error: 'Επιλέξτε περίοδο' }),
     contractReference: z.string().min(1, 'Απαιτείται αριθμός σύμβασης'),
 });
 
@@ -53,9 +55,11 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
         fieldOnChange(cityId);
         const offerStart = offerStartDates[cityId];
         if (offerStart) {
-            form.setValue('startDate', new Date(offerStart));
+            form.setValue('dateRange', {
+                from: new Date(offerStart),
+                to: getEndOfLastMonth(),
+            });
         }
-        form.setValue('endDate', getEndOfLastMonth());
     }
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -66,8 +70,8 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     cityId: values.cityId,
-                    startDate: values.startDate.toISOString(),
-                    endDate: values.endDate.toISOString(),
+                    startDate: values.dateRange.from.toISOString(),
+                    endDate: values.dateRange.to.toISOString(),
                     contractReference: values.contractReference,
                 }),
             });
@@ -145,45 +149,26 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                         )}
                     />
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <FormField
-                            control={form.control}
-                            name="startDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Από</FormLabel>
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                    />
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="endDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel>Έως</FormLabel>
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) => {
-                                            const start = form.getValues('startDate');
-                                            return start ? date < start : false;
+                    <FormField
+                        control={form.control}
+                        name="dateRange"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Περίοδος</FormLabel>
+                                <FormControl>
+                                    <DateRangePicker
+                                        value={field.value}
+                                        onChange={(range) => {
+                                            if (range?.from) {
+                                                field.onChange({ from: range.from, to: range.to ?? range.from });
+                                            }
                                         }}
-                                        initialFocus
                                     />
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
                     <Button type="submit" disabled={isGenerating} className="w-full">
                         {isGenerating ? (
