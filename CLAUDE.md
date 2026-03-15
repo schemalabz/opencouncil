@@ -4,15 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Environment
 
-This project uses [Nix](https://nixos.org/) to manage development dependencies. All shell commands (`npm`, `npx`, `node`, etc.) must be run inside the Nix development shell.
-
-**Prefix all commands with `nix develop --command`**, for example:
-```bash
-nix develop --command npm run build
-nix develop --command npx tsc --noEmit
-```
-
-If you open an interactive shell session first (`nix develop`), subsequent commands in that session don't need the prefix.
+Run commands (`npm`, `npx`, etc.) directly. Optionally, use `nix develop` for a reproducible shell with all dependencies pinned.
 
 ## Build Commands
 
