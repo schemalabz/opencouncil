@@ -20,7 +20,7 @@ import { Offer } from '@prisma/client'
 import { Loader2, Check } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import { useToast } from "@/hooks/use-toast"
-import { Calendar } from "@/components/ui/calendar"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Slider } from '@/components/ui/slider'
 import { createOffer } from '@/lib/db/offers'
 import { updateOffer } from '@/lib/db/offers'
@@ -603,44 +603,22 @@ export default function OfferForm({ offer, onSuccess, cityId }: OfferFormProps) 
                 <FormField
                     control={form.control}
                     name="startDate"
-                    render={({ field }) => (
+                    render={() => (
                         <FormItem className="flex flex-col">
-                            <FormLabel>{t('startDate')}</FormLabel>
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                    date < new Date()
-                                }
-                                initialFocus
-                            />
-                            <FormDescription>
-                                {t('startDateDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                            <FormLabel>{t('endDate')}</FormLabel>
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                    date < form.getValues('startDate')
-                                }
-                                initialFocus
-                            />
-                            <FormDescription>
-                                {t('endDateDescription')}
-                            </FormDescription>
+                            <FormLabel>{t('startDate')} – {t('endDate')}</FormLabel>
+                            <FormControl>
+                                <DateRangePicker
+                                    value={{ from: form.watch('startDate'), to: form.watch('endDate') }}
+                                    onChange={(range) => {
+                                        if (range?.from) {
+                                            form.setValue('startDate', range.from);
+                                            form.setValue('endDate', range.to ?? range.from);
+                                        }
+                                    }}
+                                    disabled={(date) => date < new Date()}
+                                    placeholder={t('startDateDescription')}
+                                />
+                            </FormControl>
                             <FormMessage />
                         </FormItem>
                     )}
