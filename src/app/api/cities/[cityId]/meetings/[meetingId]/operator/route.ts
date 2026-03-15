@@ -39,6 +39,10 @@ export async function PUT(
 
     const { userId } = await request.json();
 
+    if (userId !== null && typeof userId !== 'string') {
+        return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
+    }
+
     if (userId === null) {
         await prisma.meetingOperator.deleteMany({
             where: {

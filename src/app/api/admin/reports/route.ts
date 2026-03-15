@@ -19,6 +19,19 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    if (typeof contractReference !== 'string' || contractReference.length > 200) {
+        return NextResponse.json({ error: 'Invalid contract reference' }, { status: 400 });
+    }
+
+    // Validate date strings parse correctly and are in order
+    if (isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
+        return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
+    }
+
+    if (startDate >= endDate) {
+        return NextResponse.json({ error: 'startDate must be before endDate' }, { status: 400 });
+    }
+
     const city = await prisma.city.findUnique({
         where: { id: cityId },
         select: { id: true, name: true, name_municipality: true },
@@ -37,12 +50,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No offer found for this city' }, { status: 404 });
     }
 
+    // Client sends date-only strings (YYYY-MM-DD) to avoid timezone issues.
+    // Construct UTC day boundaries for the query.
+    const startDateUTC = new Date(startDate + 'T00:00:00.000Z');
+    const endDateUTC = new Date(endDate + 'T23:59:59.999Z');
+
     const meetings = await prisma.councilMeeting.findMany({
         where: {
             cityId,
             dateTime: {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
+                gte: startDateUTC,
+                lte: endDateUTC,
             },
         },
         include: {
@@ -81,8 +99,8 @@ export async function POST(request: NextRequest) {
         city,
         offer,
         meetings: reportMeetings,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDateUTC,
+        endDate: endDateUTC,
         contractReference,
     });
 

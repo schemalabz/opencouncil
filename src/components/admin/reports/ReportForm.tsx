@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { startOfMonth, subMonths, endOfMonth, format } from 'date-fns';
 import { monthsBetween } from '@/lib/utils';
 import { Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -71,8 +71,8 @@ export function ReportForm({ cities, offerStartDates }: ReportFormProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     cityId: values.cityId,
-                    startDate: values.dateRange.from.toISOString(),
-                    endDate: values.dateRange.to.toISOString(),
+                    startDate: format(values.dateRange.from, 'yyyy-MM-dd'),
+                    endDate: format(values.dateRange.to, 'yyyy-MM-dd'),
                     contractReference: values.contractReference,
                 }),
             });
