@@ -44,6 +44,18 @@ function formatDurationSeconds(ms: number): string {
     return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function roundToOneDecimal(n: number): number {
+    return Math.round(n * 10) / 10;
+}
+
+function getOfferEquipmentRentalPrice(offer: Offer): number {
+    return (offer as Record<string, unknown>).equipmentRentalPrice as number || 0;
+}
+
+function getOfferPhysicalPresenceHours(offer: Offer): number {
+    return (offer as Record<string, unknown>).physicalPresenceHours as number || 0;
+}
+
 function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, actualHoursProcessed: number) {
     const months = monthsBetween(startDate, endDate);
 
@@ -54,17 +66,17 @@ function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, ac
     if (offer.correctnessGuarantee) {
         const offerVersion = offer.version || 1;
         const correctnessPricing = getCorrectnessPricing(offerVersion);
-        if (correctnessPricing.unit === 'hour') {
-            correctnessCost = correctnessPricing.pricePerUnit * actualHoursProcessed;
-        }
+        correctnessCost = correctnessPricing.pricePerUnit * (
+            correctnessPricing.unit === 'hour' ? actualHoursProcessed : 0
+        );
     }
 
-    const equipmentRentalCost = ((offer as Record<string, unknown>).equipmentRentalPrice as number || 0) * months;
+    const equipmentRentalCost = getOfferEquipmentRentalPrice(offer) * months;
 
     // Physical presence: prorate by period/contract ratio
     const contractMonths = monthsBetween(offer.startDate, offer.endDate);
     const periodRatio = contractMonths > 0 ? months / contractMonths : 1;
-    const physicalPresenceCost = ((offer as Record<string, unknown>).physicalPresenceHours as number || 0) * PHYSICAL_PRESENCE.pricePerHour * periodRatio;
+    const physicalPresenceCost = getOfferPhysicalPresenceHours(offer) * PHYSICAL_PRESENCE.pricePerHour * periodRatio;
 
     const subtotal = platformCost + ingestionCost + correctnessCost + equipmentRentalCost + physicalPresenceCost;
     const discount = subtotal * (offer.discountPercentage / 100);
@@ -134,17 +146,18 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
         }));
     };
 
+    const hoursLabel = `${roundToOneDecimal(actualHours)} ώρες`;
+
     addRow('Πλατφόρμα', `${formatCurrency(offer.platformPrice)}/μήνα × ${pricing.months} μήνες`, pricing.platformCost);
-    addRow('Ψηφιοποίηση συνεδριάσεων', `${formatCurrency(offer.ingestionPerHourPrice)}/ώρα × ${Math.round(actualHours * 10) / 10} ώρες`, pricing.ingestionCost);
+    addRow('Ψηφιοποίηση συνεδριάσεων', `${formatCurrency(offer.ingestionPerHourPrice)}/ώρα × ${hoursLabel}`, pricing.ingestionCost);
 
     if (pricing.correctnessCost > 0) {
         const correctnessPricing = getCorrectnessPricing(offer.version || 1);
-        addRow('Εγγύηση ορθότητας', `${formatCurrency(correctnessPricing.pricePerUnit)}/ώρα × ${Math.round(actualHours * 10) / 10} ώρες`, pricing.correctnessCost);
+        addRow('Εγγύηση ορθότητας', `${formatCurrency(correctnessPricing.pricePerUnit)}/ώρα × ${hoursLabel}`, pricing.correctnessCost);
     }
 
     if (pricing.equipmentRentalCost > 0) {
-        const monthlyPrice = (offer as Record<string, unknown>).equipmentRentalPrice as number;
-        addRow('Ενοικίαση εξοπλισμού', `${formatCurrency(monthlyPrice)}/μήνα × ${pricing.months} μήνες`, pricing.equipmentRentalCost);
+        addRow('Ενοικίαση εξοπλισμού', `${formatCurrency(getOfferEquipmentRentalPrice(offer))}/μήνα × ${pricing.months} μήνες`, pricing.equipmentRentalCost);
     }
 
     if (pricing.physicalPresenceCost > 0) {
@@ -202,7 +215,7 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     });
 }
 
-function createMeetingsTable(meetings: ReportMeeting[]): Table {
+function createMeetingsTable(meetings: ReportMeeting[], totalDurationMs: number): Table {
     const headerRow = new TableRow({
         children: [
             headerCell('ID'),
@@ -226,7 +239,6 @@ function createMeetingsTable(meetings: ReportMeeting[]): Table {
         });
     });
 
-    const totalDurationMs = meetings.reduce((sum, m) => sum + (m.durationMs || 0), 0);
     const sumRow = new TableRow({
         children: [
             headerCell(''),
@@ -249,7 +261,7 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
 
     const totalDurationMs = meetings.reduce((sum, m) => sum + (m.durationMs || 0), 0);
     const totalHours = totalDurationMs / (1000 * 60 * 60);
-    const totalHoursRounded = Math.round(totalHours * 10) / 10;
+    const totalHoursRounded = roundToOneDecimal(totalHours);
 
     const pricing = calculateReportPricing(offer, startDate, endDate, totalHours);
 
@@ -333,7 +345,7 @@ export async function renderReportDocx(data: ReportData): Promise<Blob> {
             spacing: { after: 360 },
             children: [new TextRun({ text: 'Πίνακας Συνεδριάσεων που έχουν καλυφθεί', size: 28, bold: true })],
         }),
-        createMeetingsTable(meetings),
+        createMeetingsTable(meetings, totalDurationMs),
     ];
 
     const doc = new Document({

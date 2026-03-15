@@ -19,6 +19,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    if (typeof contractReference !== 'string' || contractReference.length > 200) {
+        return NextResponse.json({ error: 'Invalid contract reference' }, { status: 400 });
+    }
+
+    // Validate date strings parse correctly
+    if (isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
+        return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
+    }
+
     const city = await prisma.city.findUnique({
         where: { id: cityId },
         select: { id: true, name: true, name_municipality: true },
@@ -87,7 +96,9 @@ export async function POST(request: NextRequest) {
     });
 
     const buffer = Buffer.from(await blob.arrayBuffer());
-    const filename = `report-${city.id}-${startDate}-${endDate}.docx`;
+    const start = new Date(startDate).toISOString().slice(0, 10);
+    const end = new Date(endDate).toISOString().slice(0, 10);
+    const filename = `report-${city.id}-${start}-${end}.docx`;
 
     return new NextResponse(buffer, {
         headers: {
