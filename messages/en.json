@@ -1,6 +1,12 @@
 {
     "Common": {
-        "allTopics": "All Topics"
+        "allTopics": "All Topics",
+        "allMeetings": "All meetings",
+        "adminBodyType_council": "Councils",
+        "adminBodyType_committee": "Committees",
+        "adminBodyType_community": "Communities",
+        "allPeople": "All members",
+        "allBodies": "All"
     },
     "PilotPage": {
         "title": "OpenCouncil is running a pilot with some of the latest city council meetings of the Municipality of Athens.",

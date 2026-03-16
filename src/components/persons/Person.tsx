@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from 'next-intl';
-import { City, Party, AdministrativeBody } from '@prisma/client';
+import { City, Party, AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
@@ -19,7 +19,8 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange } from '@/lib/utils';
-import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
+import { getAdministrativeBodyTypesForPeople } from '@/lib/utils/administrativeBodies';
+import { BadgePicker } from '../ui/badge-picker';
 import { RoleDisplay } from './RoleDisplay';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
@@ -35,24 +36,23 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     includeUnreleased?: boolean
 }) {
     const t = useTranslations('Person');
+    const tCommon = useTranslations('Common');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
-    const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
+    const [selectedAdminBodyType, setSelectedAdminBodyType] = useState<AdministrativeBodyType | null>(null);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
     const { data: session } = useSession();
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
 
-    // Filter administrative bodies to only include those related to the person
-    const personRelatedAdminBodies = useMemo(() =>
-        administrativeBodies.filter(adminBody =>
-            person.roles.some(role => role.administrativeBodyId === adminBody.id)
-        ),
-        [administrativeBodies, person.roles]);
+    // Get admin body type options from person's roles
+    const typeOptions = useMemo(() =>
+        getAdministrativeBodyTypesForPeople([person], tCommon),
+        [person, tCommon]);
 
     // Filter topics to only show ones relevant to this person based on statistics
     const relevantTopics = useMemo(() => {
@@ -89,9 +89,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     1,
                     5,
-                    selectedAdminBodyId,
+                    undefined,
                     selectedTopicId,
-                    includeUnreleased
+                    includeUnreleased,
+                    selectedAdminBodyType
                 );
                 setLatestSegments(results);
                 setTotalCount(totalCount);
@@ -103,7 +104,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         fetchLatestSegments();
-    }, [person.id, selectedAdminBodyId, selectedTopicId, includeUnreleased]);
+    }, [person.id, selectedAdminBodyType, selectedTopicId, includeUnreleased]);
 
     useEffect(() => {
         const loadMoreSegments = async () => {
@@ -114,9 +115,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     page,
                     5,
-                    selectedAdminBodyId,
+                    undefined,
                     selectedTopicId,
-                    includeUnreleased
+                    includeUnreleased,
+                    selectedAdminBodyType
                 );
                 setLatestSegments(prevSegments => [...prevSegments, ...results]);
             } catch (error) {
@@ -126,7 +128,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         loadMoreSegments();
-    }, [person.id, page, selectedAdminBodyId, selectedTopicId, includeUnreleased]);
+    }, [person.id, page, selectedAdminBodyType, selectedTopicId, includeUnreleased]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -160,9 +162,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
         }
     }
 
-    // Handler for administrative body selection
-    const handleAdminBodySelect = (adminBodyId: string | null) => {
-        setSelectedAdminBodyId(adminBodyId);
+    // Handler for admin body type selection
+    const handleAdminBodyTypeChange = (values: AdministrativeBodyType[]) => {
+        setSelectedAdminBodyType(values.length > 0 ? values[0] : null);
     };
 
     // Handler for topic selection
@@ -322,14 +324,14 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         />
                     </motion.form>
 
-                    {/* Administrative Body Filter - only show if there's more than one related to the person */}
-                    {personRelatedAdminBodies.length > 1 && (
-                        <AdministrativeBodyFilter
-                            administrativeBodies={administrativeBodies}
-                            selectedAdminBodyId={selectedAdminBodyId}
-                            onSelectAdminBody={handleAdminBodySelect}
-                            personRelatedOnly={true}
-                            person={person}
+                    {/* Administrative Body Type Filter - only show if there's more than one type */}
+                    {typeOptions.length > 1 && (
+                        <BadgePicker
+                            options={typeOptions}
+                            selectedValues={selectedAdminBodyType ? [selectedAdminBodyType] : []}
+                            onSelectionChange={handleAdminBodyTypeChange}
+                            allLabel={tCommon('allMeetings')}
+                            className="items-center my-6 sm:my-8 px-2 sm:px-6"
                         />
                     )}
 

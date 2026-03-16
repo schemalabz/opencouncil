@@ -3,7 +3,7 @@ import { useTranslations } from 'next-intl';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
-import { City, Person, Role, AdministrativeBody } from '@prisma/client';
+import { City, Person, Role, AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
@@ -16,17 +16,15 @@ import { Link } from '@/i18n/routing';
 import { getLatestSegmentsForParty, SegmentWithRelations } from '@/lib/db/speakerSegments';
 import { Result } from '../search/Result';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
-import { getAdministrativeBodiesForPeople, getDefaultAdministrativeBodyFilters, filterPersonByAdministrativeBodies } from '@/lib/utils/administrativeBodies';
-import { updateFilterURL } from '@/lib/utils/filterURL';
+import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
-import { AdministrativeBodyFilter } from '../AdministrativeBodyFilter';
+import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
-import { MultiSelectDropdown } from '../ui/multi-select-dropdown';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -47,11 +45,11 @@ function PartyMembersTab({
     administrativeBodies: AdministrativeBody[]
 }) {
     const t = useTranslations('Party');
-    const router = useRouter();
-    const searchParams = useSearchParams();
+    const tCommon = useTranslations('Common');
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
+    const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
-    // Get administrative bodies that party members belong to
+    // Get administrative body types that party members belong to
     const partyMembers = useMemo(() =>
         people.filter(person =>
             person.roles.some(role => role.partyId === party.id)
@@ -59,35 +57,15 @@ function PartyMembersTab({
         [people, party.id]
     );
 
-    const partyAdministrativeBodies = useMemo(() =>
-        getAdministrativeBodiesForPeople(partyMembers),
-        [partyMembers]
+    const typeOptions = useMemo(() =>
+        getAdministrativeBodyTypesForPeople(partyMembers, tCommon),
+        [partyMembers, tCommon]
     );
 
-    const defaultFilterValues = useMemo(() =>
-        getDefaultAdministrativeBodyFilters(partyAdministrativeBodies, true),
-        [partyAdministrativeBodies]
-    );
-
-    // Get filter values from URL or use default
-    const selectedAdminBodyIds = useMemo<(string | null)[]>(() => {
-        const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
-        return selectedFilterLabels.length > 0
-            ? selectedFilterLabels.map(label =>
-                partyAdministrativeBodies.find(f => f.label === label)?.value
-            ).filter((value): value is string | null => value !== undefined)
-            : (defaultFilterValues ?? []);
-    }, [searchParams, partyAdministrativeBodies, defaultFilterValues]);
-
-    // Handle filter change
-    const handleAdminBodyFilterChange = (selectedValues: (string | null)[]) => {
-        updateFilterURL(selectedValues, partyAdministrativeBodies, defaultFilterValues, searchParams, router);
-    };
-
-    // Filter people based on selected administrative bodies
-    const filterByAdminBody = useCallback((person: PersonWithRelations) => {
-        return filterPersonByAdministrativeBodies(person, selectedAdminBodyIds);
-    }, [selectedAdminBodyIds]);
+    // Filter people based on selected admin body types
+    const filterByAdminBodyType = useCallback((person: PersonWithRelations) => {
+        return filterPersonByAdminBodyTypes(person, selectedTypes);
+    }, [selectedTypes]);
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
@@ -95,9 +73,9 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 isRoleActive(role)
-            ) && filterByAdminBody(person)
+            ) && filterByAdminBodyType(person)
         ),
-        [people, party.id, filterByAdminBody]);
+        [people, party.id, filterByAdminBodyType]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
@@ -105,25 +83,25 @@ function PartyMembersTab({
             person.roles.some(role =>
                 role.partyId === party.id &&
                 !isRoleActive(role)
-            ) && filterByAdminBody(person)
+            ) && filterByAdminBodyType(person)
         ),
-        [people, party.id, filterByAdminBody]);
+        [people, party.id, filterByAdminBodyType]);
 
     return (
         <div className="space-y-8">
-            {/* Administrative Body Filter - only show if there's more than one */}
-            {partyAdministrativeBodies.length > 1 && (
+            {/* Administrative Body Type Filter - only show if there's more than one */}
+            {typeOptions.length > 1 && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                 >
-                    <MultiSelectDropdown
-                        options={partyAdministrativeBodies}
-                        defaultValues={selectedAdminBodyIds}
-                        onChange={handleAdminBodyFilterChange}
-                        className="w-full sm:w-[300px]"
-                        allText="Όλα τα όργανα"
+                    <BadgePicker
+                        options={typeOptions}
+                        selectedValues={selectedTypes}
+                        onSelectionChange={setSelectedTypes}
+                        allLabel={tCommon('allPeople')}
+                        className="items-center"
                     />
                 </motion.div>
             )}
@@ -235,31 +213,38 @@ function PartyMembersTab({
 function SegmentsTab({
     city,
     party,
-    administrativeBodies,
-    selectedAdminBodyId,
-    onSelectAdminBody,
+    typeOptions,
+    selectedType,
+    onSelectType,
     latestSegments,
     isLoadingSegments,
     totalCount,
     setPage,
     searchQuery,
     setSearchQuery,
-    handleSearch
+    handleSearch,
+    allLabel
 }: {
     city: City,
     party: PartyWithPersons,
-    administrativeBodies: AdministrativeBody[],
-    selectedAdminBodyId: string | null,
-    onSelectAdminBody: (adminBodyId: string | null) => void,
+    typeOptions: { value: AdministrativeBodyType; label: string }[],
+    selectedType: AdministrativeBodyType | null,
+    onSelectType: (type: AdministrativeBodyType | null) => void,
     latestSegments: SegmentWithRelations[],
     isLoadingSegments: boolean,
     totalCount: number,
     setPage: (updater: (prev: number) => number) => void,
     searchQuery: string,
     setSearchQuery: (query: string) => void,
-    handleSearch: (e: React.FormEvent) => void
+    handleSearch: (e: React.FormEvent) => void,
+    allLabel: string
 }) {
     const t = useTranslations('Party');
+
+    const selectedValues = selectedType ? [selectedType] : [];
+    const handleSelectionChange = (values: AdministrativeBodyType[]) => {
+        onSelectType(values.length > 0 ? values[0] : null);
+    };
 
     return (
         <div className="space-y-8">
@@ -280,12 +265,14 @@ function SegmentsTab({
                 />
             </motion.form>
 
-            {/* Administrative Body Filter - only show if there's more than one */}
-            {administrativeBodies.length > 1 && (
-                <AdministrativeBodyFilter
-                    administrativeBodies={administrativeBodies}
-                    selectedAdminBodyId={selectedAdminBodyId}
-                    onSelectAdminBody={onSelectAdminBody}
+            {/* Administrative Body Type Filter - only show if there's more than one */}
+            {typeOptions.length > 1 && (
+                <BadgePicker
+                    options={typeOptions}
+                    selectedValues={selectedValues}
+                    onSelectionChange={handleSelectionChange}
+                    allLabel={allLabel}
+                    className="items-center"
                 />
             )}
 
@@ -359,26 +346,24 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
     includeUnreleased?: boolean
 }) {
     const t = useTranslations('Party');
+    const tCommon = useTranslations('Common');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [latestSegments, setLatestSegments] = useState<SegmentWithRelations[]>([]);
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [canEdit, setCanEdit] = useState(false);
-    const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
+    const [selectedAdminBodyType, setSelectedAdminBodyType] = useState<AdministrativeBodyType | null>(null);
     const [isLoadingSegments, setIsLoadingSegments] = useState(false);
 
     // Use people directly from the party object
     const persons = useMemo(() => party.people, [party.people]);
 
-    // Filter administrative bodies to only include those related to the party's people
-    const partyRelatedAdminBodies = useMemo(() =>
-        administrativeBodies.filter(adminBody =>
-            persons.some(person =>
-                person.roles.some(role => role.administrativeBodyId === adminBody.id)
-            )
-        ),
-        [administrativeBodies, persons]);
+    // Get admin body type options from party members
+    const typeOptions = useMemo(() =>
+        getAdministrativeBodyTypesForPeople(persons, tCommon),
+        [persons, tCommon]
+    );
 
     // Create roles with person objects for compatibility with existing code
     const rolesWithPersons = useMemo(() => {
@@ -417,8 +402,9 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                     party.id,
                     1,
                     5,
-                    selectedAdminBodyId,
-                    includeUnreleased
+                    undefined,
+                    includeUnreleased,
+                    selectedAdminBodyType
                 );
                 setLatestSegments(results);
                 setTotalCount(totalCount);
@@ -429,7 +415,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
             }
         };
         fetchLatestSegments();
-    }, [party.id, selectedAdminBodyId, includeUnreleased]);
+    }, [party.id, selectedAdminBodyType, includeUnreleased]);
 
     useEffect(() => {
         const loadMoreSegments = async () => {
@@ -440,8 +426,9 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                     party.id,
                     page,
                     5,
-                    selectedAdminBodyId,
-                    includeUnreleased
+                    undefined,
+                    includeUnreleased,
+                    selectedAdminBodyType
                 );
                 setLatestSegments(prevSegments => [...prevSegments, ...results]);
             } catch (error) {
@@ -451,7 +438,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
             }
         };
         loadMoreSegments();
-    }, [party.id, page, selectedAdminBodyId, includeUnreleased]);
+    }, [party.id, page, selectedAdminBodyType, includeUnreleased]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -485,9 +472,9 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
         }
     }
 
-    // Handler for administrative body selection
-    const handleAdminBodySelect = (adminBodyId: string | null) => {
-        setSelectedAdminBodyId(adminBodyId);
+    // Handler for admin body type selection
+    const handleAdminBodyTypeSelect = (type: AdministrativeBodyType | null) => {
+        setSelectedAdminBodyType(type);
     };
 
     return (
@@ -626,9 +613,9 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                             <SegmentsTab
                                 city={city}
                                 party={party}
-                                administrativeBodies={partyRelatedAdminBodies}
-                                selectedAdminBodyId={selectedAdminBodyId}
-                                onSelectAdminBody={handleAdminBodySelect}
+                                typeOptions={typeOptions}
+                                selectedType={selectedAdminBodyType}
+                                onSelectType={handleAdminBodyTypeSelect}
                                 latestSegments={latestSegments}
                                 isLoadingSegments={isLoadingSegments}
                                 totalCount={totalCount}
@@ -636,6 +623,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
                                 handleSearch={handleSearch}
+                                allLabel={tCommon('allMeetings')}
                             />
                         </TabsContent>
                     </Tabs>

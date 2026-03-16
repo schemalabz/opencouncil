@@ -1,7 +1,7 @@
 "use server";
 import prisma from './prisma';
 import { withUserAuthorizedToEdit } from '../auth';
-import { CouncilMeeting, City, Prisma } from '@prisma/client';
+import { CouncilMeeting, City, Prisma, AdministrativeBodyType } from '@prisma/client';
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
 import { roleWithRelationsInclude } from './types';
@@ -470,9 +470,16 @@ export async function getLatestSegmentsForSpeaker(
     pageSize: number = 5,
     administrativeBodyId?: string | null,
     topicId?: string | null,
-    includeUnreleased?: boolean
+    includeUnreleased?: boolean,
+    administrativeBodyType?: AdministrativeBodyType | null
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
+
+    const meetingFilter: Record<string, unknown> = {
+        ...(includeUnreleased ? {} : { released: true }),
+        ...(administrativeBodyId ? { administrativeBodyId } : {}),
+        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
+    };
 
     const whereClause: any = {
         speakerTag: {
@@ -485,10 +492,7 @@ export async function getLatestSegmentsForSpeaker(
                 }
             }
         },
-        meeting: {
-            ...(includeUnreleased ? {} : { released: true }),
-            ...(administrativeBodyId ? { administrativeBodyId } : {})
-        }
+        meeting: meetingFilter
     };
 
     if (topicId) {
@@ -562,13 +566,15 @@ export async function getLatestSegmentsForParty(
     page: number = 1,
     pageSize: number = 5,
     administrativeBodyId?: string | null,
-    includeUnreleased?: boolean
+    includeUnreleased?: boolean,
+    administrativeBodyType?: AdministrativeBodyType | null
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
-    const meetingFilter = {
+    const meetingFilter: Record<string, unknown> = {
         ...(includeUnreleased ? {} : { released: true }),
-        ...(administrativeBodyId ? { administrativeBodyId } : {})
+        ...(administrativeBodyId ? { administrativeBodyId } : {}),
+        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
     };
 
     const [segments, totalCount] = await Promise.all([

@@ -8,7 +8,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
 import { MeetingDecisionCounts } from "@/lib/db/decisions";
-import { AdministrativeBodyFilter } from "@/components/AdministrativeBodyFilter";
+import { BadgePicker, BadgePickerOption } from "@/components/ui/badge-picker";
 import { ExpandableMeetingRow } from "./ExpandableMeetingRow";
 import { BulkExportActions } from "./BulkExportActions";
 import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
@@ -32,17 +32,20 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
         setSearchQuery("");
     }, [selectedCityId]);
 
-    // Get unique administrative bodies from meetings
-    const administrativeBodies = useMemo(() => {
+    // Get unique administrative bodies from meetings as BadgePicker options
+    const adminBodyOptions = useMemo(() => {
         const bodies = meetings
             .map(meeting => meeting.administrativeBody)
-            .filter((body): body is NonNullable<typeof body> => 
+            .filter((body): body is NonNullable<typeof body> =>
                 body !== null && body !== undefined
             )
-            .filter((body, index, self) => 
+            .filter((body, index, self) =>
                 self.findIndex(b => b.id === body.id) === index
             );
-        return bodies;
+        return bodies.map(body => ({
+            value: body.id,
+            label: body.name
+        } satisfies BadgePickerOption<string>));
     }, [meetings]);
 
     // Filter meetings based on search and administrative body
@@ -127,11 +130,14 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
             </div>
 
             {/* Administrative Body Filter */}
-            {administrativeBodies.length > 0 && (
-                <AdministrativeBodyFilter
-                    administrativeBodies={administrativeBodies}
-                    selectedAdminBodyId={selectedAdminBodyId}
-                    onSelectAdminBody={setSelectedAdminBodyId}
+            {adminBodyOptions.length > 1 && (
+                <BadgePicker
+                    options={adminBodyOptions}
+                    selectedValues={selectedAdminBodyId ? [selectedAdminBodyId] : []}
+                    onSelectionChange={(values) => setSelectedAdminBodyId(values.length > 0 ? values[0] : null)}
+                    allLabel="All Bodies"
+                    collapsible={false}
+                    className="my-4"
                 />
             )}
 

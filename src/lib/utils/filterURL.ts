@@ -29,15 +29,19 @@ export function updateFilterURL<T>(
         selectedValues.every(v => defaultFilterValues.includes(v));
 
     // Determine if we should remove the filter parameter:
-    // - No filters selected (will use defaults or all on reload)
-    // - Matches explicit default values
-    // - All filters selected AND no defaults exist (so "all" is the implicit default)
-    const shouldRemoveParam = noneSelected ||
-        matchesDefault ||
-        (allSelected && !defaultFilterValues);
+    // - Matches explicit default values → remove (reload will re-apply defaults)
+    // - All filters selected AND no defaults exist → remove (implicit default is "all")
+    // - No filters selected AND no defaults → remove
+    // - No filters selected BUT defaults exist → set '*' sentinel so we don't fall back to defaults
+    const shouldRemoveParam = matchesDefault ||
+        (allSelected && !defaultFilterValues) ||
+        (noneSelected && !defaultFilterValues);
 
     if (shouldRemoveParam) {
         params.delete('filters');
+    } else if (noneSelected && defaultFilterValues) {
+        // Sentinel: distinguish "user explicitly chose all" from "no filter in URL" (which applies defaults)
+        params.set('filters', '*');
     } else {
         // Convert values to labels for URL
         const selectedLabels = selectedValues
