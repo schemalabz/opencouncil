@@ -120,7 +120,7 @@ export default function AdminNotificationsPage() {
         fetchNotifications(1);
         // Clear selection when filters change
         setSelectedMeetingKeys(new Set());
-    }, [filters]);
+    }, [filters, fetchNotifications]);
 
     // Handle page change
     const handlePageChange = (newPage: number) => {

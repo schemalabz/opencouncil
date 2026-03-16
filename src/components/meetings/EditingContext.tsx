@@ -143,7 +143,7 @@ export function EditingProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsProcessing(false);
         }
-    }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, clearSelection, toast, transcript, t]);
+    }, [selectedUtteranceIds, isProcessing, allUtterances, extractSpeakerSegment, getSpeakerSegmentById, clearSelection, toast, t]);
 
     // Register Shortcuts
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, extractSelectedSegment, selectedUtteranceIds.size > 0);

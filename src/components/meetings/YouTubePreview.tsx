@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Loader2, AlertCircle } from "lucide-react"
@@ -98,10 +99,12 @@ export function YouTubePreview({ url }: YouTubePreviewProps) {
       <div className="flex p-3 gap-3">
         <div className="relative aspect-video h-20 w-32 shrink-0 rounded-md overflow-hidden bg-black/10">
           {data.thumbnail_url ? (
-             <img 
-               src={data.thumbnail_url} 
+             <Image
+               src={data.thumbnail_url}
                alt={data.title}
                className="h-full w-full object-cover"
+               fill
+               unoptimized
              />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-muted">

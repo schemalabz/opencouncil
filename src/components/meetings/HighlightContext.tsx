@@ -151,7 +151,7 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
       };
 
       return { statistics, highlightUtterances: utterances };
-    }, [transcript, utteranceMap, getSpeakerTag, getPerson]);
+    }, [transcript, utteranceMap, getSpeakerSegmentById, getSpeakerTag, getPerson]);
 
   // Calculate data for the currently editing highlight
   const editingHighlightData = useMemo(() => {

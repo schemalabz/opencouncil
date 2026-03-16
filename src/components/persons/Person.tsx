@@ -103,7 +103,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         fetchLatestSegments();
-    }, [person.id, selectedAdminBodyId, selectedTopicId]);
+    }, [person.id, selectedAdminBodyId, selectedTopicId, includeUnreleased]);
 
     useEffect(() => {
         const loadMoreSegments = async () => {
@@ -126,7 +126,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
             }
         };
         loadMoreSegments();
-    }, [person.id, page, selectedAdminBodyId, selectedTopicId]);
+    }, [person.id, page, selectedAdminBodyId, selectedTopicId, includeUnreleased]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

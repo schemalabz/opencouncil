@@ -2,6 +2,7 @@
 import Map, { MapFeature } from "@/components/map/map";
 import { CityWithGeometry } from "@/lib/db/cities";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Icon, { iconMap } from "@/components/icon";
 import { MapFilters, MapFiltersState } from "@/components/map/MapFilters";
 import { CitySheet } from "@/components/map/CitySheet";
@@ -398,10 +399,13 @@ export default function MapPage() {
                     <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 flex-shrink-0">
                             {logoImage ? (
-                                <img
+                                <Image
                                     src={logoImage}
                                     alt={`${name} logo`}
                                     className="w-12 h-12 object-contain"
+                                    width={48}
+                                    height={48}
+                                    unoptimized
                                 />
                             ) : (
                                 <Icon name="Building2" size={48} color="#9ca3af" />

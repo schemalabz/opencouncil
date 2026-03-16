@@ -429,7 +429,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
             }
         };
         fetchLatestSegments();
-    }, [party.id, selectedAdminBodyId]);
+    }, [party.id, selectedAdminBodyId, includeUnreleased]);
 
     useEffect(() => {
         const loadMoreSegments = async () => {
@@ -451,7 +451,7 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
             }
         };
         loadMoreSegments();
-    }, [party.id, page, selectedAdminBodyId]);
+    }, [party.id, page, selectedAdminBodyId, includeUnreleased]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
