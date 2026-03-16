@@ -6,7 +6,7 @@ import prisma from "../db/prisma";
 import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
-import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
@@ -109,12 +109,16 @@ export async function pollDecisionsForRecentMeetings() {
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
     // Find meetings from the last 90 days in cities with diavgeiaUid,
-    // that have at least one subject with agendaItemIndex but no decision
+    // that have at least one subject with agendaItemIndex but no decision.
+    // Λογοδοσία meetings are excluded — see isLogodosiaMeeting().
     const meetings = await prisma.councilMeeting.findMany({
         where: {
             dateTime: { gte: ninetyDaysAgo },
             city: {
                 diavgeiaUid: { not: null },
+            },
+            NOT: {
+                name: { contains: LOGODOSIA_NAME_PATTERN },
             },
             subjects: {
                 some: {
