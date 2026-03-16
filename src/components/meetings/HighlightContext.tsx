@@ -331,6 +331,21 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setEditingHighlight, setOriginalHighlight, setIsDirty, router, pathname]);
 
+  // Clean up highlight editing state when navigating away from transcript.
+  // This is the mirror of the Transcript.tsx useEffect that enters edit mode
+  // when arriving at /transcript?highlight=ID.
+  useEffect(() => {
+    if (editingHighlight && !pathname.includes('/transcript')) {
+      setEditingHighlight(null);
+      setOriginalHighlight(null);
+      setIsDirty(false);
+      setPreviewMode(false);
+      setIsPlaying(false);
+      setLastClickedUtteranceId(null);
+      setLastClickedAction(null);
+    }
+  }, [pathname, editingHighlight, setIsPlaying]);
+
   // Check if editing should be disabled (e.g., during save operations)
   // This prevents users from making changes while operations like saving are in progress
   const isEditingDisabled = isSaving;
@@ -417,39 +432,18 @@ export function HighlightProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Exit edit mode - called when leaving edit mode
+  // Exit edit mode - navigate away; state cleanup happens in the pathname effect above
   const exitEditMode = useCallback(() => {
     if (!editingHighlight) return;
-    const cityId = editingHighlight.cityId;
-    const meetingId = editingHighlight.meetingId;
-
-    setEditingHighlight(null);
-    setOriginalHighlight(null);
-    setIsDirty(false);
-    setPreviewMode(false);
-    setIsPlaying(false); // Stop video playback
-    // Clear range selection anchor
-    setLastClickedUtteranceId(null);
-    setLastClickedAction(null);
-    router.push(`/${cityId}/${meetingId}/highlights`);
+    setIsPlaying(false);
+    router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights`);
   }, [editingHighlight, router, setIsPlaying]);
 
   // Exit edit mode and redirect to individual highlight page
   const exitEditModeAndRedirectToHighlight = useCallback(() => {
     if (!editingHighlight) return;
-    const cityId = editingHighlight.cityId;
-    const meetingId = editingHighlight.meetingId;
-    const highlightId = editingHighlight.id;
-
-    setEditingHighlight(null);
-    setOriginalHighlight(null);
-    setIsDirty(false);
-    setPreviewMode(false);
-    setIsPlaying(false); // Stop video playback
-    // Clear range selection anchor
-    setLastClickedUtteranceId(null);
-    setLastClickedAction(null);
-    router.push(`/${cityId}/${meetingId}/highlights/${highlightId}`);
+    setIsPlaying(false);
+    router.push(`/${editingHighlight.cityId}/${editingHighlight.meetingId}/highlights/${editingHighlight.id}`);
   }, [editingHighlight, router, setIsPlaying]);
 
   // Save highlight functionality
