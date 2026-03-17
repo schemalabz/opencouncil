@@ -35,6 +35,8 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     showSearch?: boolean;
     defaultFilterValues?: F[];
     pagination?: Omit<PaginationParams, 'totalPages'>;
+    renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
+    renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -56,7 +58,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     carouselItemWidth = 300,
     carouselGap = 16,
     defaultFilterValues,
-    pagination
+    pagination,
+    renderFilter,
+    renderAfterFilters
 }: ListProps<T, P, F>) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -64,7 +68,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Get filter and search values from URL
     const searchQuery = searchParams.get('search') || '';
-    const selectedFilterLabels = searchParams.get('filters')?.split(',').filter(Boolean) || [];
+    const rawFilters = searchParams.get('filters');
+    const explicitlyAll = rawFilters === '*';
+    const selectedFilterLabels = explicitlyAll ? [] : (rawFilters?.split(',').filter(Boolean) || []);
 
     // Local state for search input
     const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
@@ -79,12 +85,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     }, [searchParams]);
 
     // Convert filter labels to values
-    // If no filters in URL, use defaultFilterValues if provided, otherwise all values
+    // - URL has specific labels → use those
+    // - URL has '*' → explicitly all (empty array = no filtering)
+    // - URL has nothing → use defaultFilterValues if provided, otherwise all
     const selectedFilters = selectedFilterLabels.length > 0
         ? selectedFilterLabels.map(label =>
             filterAvailableValues.find(f => f.label === label)?.value
         ).filter((value): value is F => value !== undefined)
-        : (defaultFilterValues || filterAvailableValues.map(f => f.value));
+        : explicitlyAll
+            ? [] as F[]
+            : (defaultFilterValues || (renderFilter ? [] as F[] : filterAvailableValues.map(f => f.value)));
 
     const scrollCarouselLeft = useCallback(() => {
         if (carouselRef.current) {
@@ -208,8 +218,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     )}
                 </div>
             )}
-            <div className="flex flex-col sm:flex-row gap-4">
-                {filterAvailableValues && filterAvailableValues.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                {renderFilter ? (
+                    renderFilter({ selectedValues: selectedFilters, onChange: handleFilterChange })
+                ) : filterAvailableValues && filterAvailableValues.length > 0 ? (
                     <MultiSelectDropdown
                         options={filterAvailableValues}
                         defaultValues={selectedFilters}
@@ -217,7 +229,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         className="w-full sm:w-[300px] justify-between"
                         allText={allText}
                     />
-                )}
+                ) : null}
                 {showSearch && (
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -230,6 +242,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     </div>
                 )}
             </div>
+            {typeof renderAfterFilters === 'function' ? renderAfterFilters(selectedFilters) : renderAfterFilters}
             {filteredItems.length > 0 ? (
                 <div className="relative">
                     {layout === 'carousel' && (

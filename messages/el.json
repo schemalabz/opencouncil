@@ -1,6 +1,12 @@
 {
     "Common": {
-        "allTopics": "Όλα τα θέματα"
+        "allTopics": "Όλα τα θέματα",
+        "allMeetings": "Όλες",
+        "adminBodyType_council": "Δημοτικά Συμβούλια",
+        "adminBodyType_committee": "Επιτροπές",
+        "adminBodyType_community": "Κοινότητες",
+        "allPeople": "Όλα",
+        "allBodies": "Όλες"
     },
     "MeetingCard": {
         "noVideo": "Χωρίς μέσα",

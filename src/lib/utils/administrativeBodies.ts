@@ -2,172 +2,109 @@ import { PersonWithRelations } from '../db/people';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import { hasCityLevelRole } from './roles';
 
-export interface AdministrativeBodyOption {
-    value: string | null;
-    label: string;
-}
-
-interface AdministrativeBodyWithType {
-    value: string;
-    label: string;
-    type: AdministrativeBodyType;
-}
-
-/**
- * Sort administrative bodies: council first, committees second, communities alphabetically
- */
-function sortAdministrativeBodies(bodies: AdministrativeBodyWithType[]): AdministrativeBodyWithType[] {
-    return bodies.sort((a, b) => {
-        // Council first
-        if (a.type === 'council' && b.type !== 'council') return -1;
-        if (a.type !== 'council' && b.type === 'council') return 1;
-
-        // Committees second
-        if (a.type === 'committee' && b.type === 'community') return -1;
-        if (a.type === 'community' && b.type === 'committee') return 1;
-
-        // Within same type, sort alphabetically by label
-        return a.label.localeCompare(b.label, 'el');
-    });
-}
-
-/**
- * Extract and sort administrative bodies from a list of people
- * Returns bodies sorted by: council first, committees second, communities alphabetically,
- * with "Άλλοι" at the end if any person has no administrative body role
- */
-export function getAdministrativeBodiesForPeople(
-    people: PersonWithRelations[]
-): AdministrativeBodyOption[] {
-    // Extract unique administrative bodies
-    const adminBodiesMap = new Map(
-        people
-            .flatMap(person => person.roles
-                .filter(role => role.administrativeBody)
-                .map(role => [
-                    role.administrativeBody!.id,
-                    {
-                        value: role.administrativeBody!.id,
-                        label: role.administrativeBody!.name,
-                        type: role.administrativeBody!.type
-                    }
-                ])
-            )
-    );
-
-    const sortedBodies = sortAdministrativeBodies(Array.from(adminBodiesMap.values()));
-
-    // Check if any person has no administrative body role
-    const hasNoAdminBody = people.some(person =>
-        !person.roles.some(role => role.administrativeBody)
-    );
-
-    return [
-        ...sortedBodies.map(({ value, label }) => ({ value, label })),
-        ...(hasNoAdminBody ? [{
-            value: null as string | null,
-            label: "Άλλοι"
-        }] : [])
-    ];
-}
-
 /** Minimal type for meetings - only what we need for extracting admin bodies */
 type MeetingWithAdminBody = {
     administrativeBody: AdministrativeBody | null;
 };
 
+/** Canonical ordering for admin body types */
+const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
+
 /**
- * Extract and sort administrative bodies from a list of meetings
- * Returns bodies sorted by: council first, committees second, communities alphabetically,
- * with "Χωρίς διοικητικό όργανο" at the end if any meeting has no admin body
+ * Extract which admin body types exist from a flat list of admin bodies.
+ * Returns options ordered: council -> committee -> community.
  */
-export function getAdministrativeBodiesForMeetings(
-    meetings: MeetingWithAdminBody[]
-): AdministrativeBodyOption[] {
-    // Extract unique administrative bodies
-    const adminBodiesMap = new Map<string, AdministrativeBodyWithType>();
-    
-    for (const meeting of meetings) {
-        if (meeting.administrativeBody) {
-            adminBodiesMap.set(meeting.administrativeBody.id, {
-                value: meeting.administrativeBody.id,
-                label: meeting.administrativeBody.name,
-                type: meeting.administrativeBody.type
-            });
+function getAdministrativeBodyTypes(
+    bodies: (AdministrativeBody | null | undefined)[],
+    t: (key: string) => string
+): { value: AdministrativeBodyType; label: string }[] {
+    const typesPresent = new Set<AdministrativeBodyType>();
+    for (const body of bodies) {
+        if (body) typesPresent.add(body.type);
+    }
+    return ADMIN_BODY_TYPE_ORDER
+        .filter(type => typesPresent.has(type))
+        .map(type => ({
+            value: type,
+            label: t(`adminBodyType_${type}`)
+        }));
+}
+
+/**
+ * Extract individual bodies of a given type, sorted alphabetically.
+ */
+function getBodiesOfType(
+    bodies: (AdministrativeBody | null | undefined)[],
+    type: AdministrativeBodyType
+): { value: string; label: string }[] {
+    const map = new Map<string, string>();
+    for (const body of bodies) {
+        if (body?.type === type) {
+            map.set(body.id, body.name);
         }
     }
+    return Array.from(map, ([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'el'));
+}
 
-    const sortedBodies = sortAdministrativeBodies(Array.from(adminBodiesMap.values()));
+/** Extract admin body types present in a list of meetings */
+export function getAdministrativeBodyTypesForMeetings(
+    meetings: MeetingWithAdminBody[],
+    t: (key: string) => string
+): { value: AdministrativeBodyType; label: string }[] {
+    return getAdministrativeBodyTypes(meetings.map(m => m.administrativeBody), t);
+}
 
-    // Check if any meeting has no administrative body
-    const hasNoAdminBody = meetings.some(meeting => !meeting.administrativeBody);
+/** Extract admin body types present in people's roles */
+export function getAdministrativeBodyTypesForPeople(
+    people: PersonWithRelations[],
+    t: (key: string) => string
+): { value: AdministrativeBodyType; label: string }[] {
+    return getAdministrativeBodyTypes(people.flatMap(p => p.roles.map(r => r.administrativeBody)), t);
+}
 
-    return [
-        ...sortedBodies.map(({ value, label }) => ({ value, label })),
-        ...(hasNoAdminBody ? [{
-            value: null as string | null,
-            label: "Χωρίς διοικητικό όργανο"
-        }] : [])
-    ];
+/** Extract individual bodies of a given type from meetings, sorted alphabetically */
+export function getBodiesOfTypeFromMeetings(
+    meetings: MeetingWithAdminBody[],
+    type: AdministrativeBodyType
+): { value: string; label: string }[] {
+    return getBodiesOfType(meetings.map(m => m.administrativeBody), type);
+}
+
+/** Extract individual bodies of a given type from people's roles, sorted alphabetically */
+export function getBodiesOfTypeFromPeople(
+    people: PersonWithRelations[],
+    type: AdministrativeBodyType
+): { value: string; label: string }[] {
+    return getBodiesOfType(people.flatMap(p => p.roles.map(r => r.administrativeBody)), type);
 }
 
 /**
- * Get default filter values for administrative bodies
- * Returns [Δημοτικό Συμβούλιο, Άλλοι/Χωρίς διοικητικό όργανο] if they exist, otherwise undefined or all bodies
- *
- * @param bodies - List of administrative body options
- * @param fallbackToAll - If true and no defaults found, return all bodies. If false, return undefined
+ * Filter a meeting by selected admin body types.
+ * Empty selectedTypes = show all.
  */
-export function getDefaultAdministrativeBodyFilters(
-    bodies: AdministrativeBodyOption[],
-    fallbackToAll: boolean = false
-): (string | null)[] | undefined {
-    const councilBody = bodies.find(body => body.label === "Δημοτικό Συμβούλιο");
-    // "Άλλοι" is used for people without admin body, "Χωρίς διοικητικό όργανο" for meetings
-    const noAdminBody = bodies.find(body => body.label === "Άλλοι" || body.label === "Χωρίς διοικητικό όργανο");
-
-    const defaults: (string | null)[] = [];
-    if (councilBody) defaults.push(councilBody.value);
-    if (noAdminBody) defaults.push(noAdminBody.value);
-
-    if (defaults.length > 0) {
-        return defaults;
-    }
-
-    return fallbackToAll ? bodies.map(b => b.value) : undefined;
-}
-
-/**
- * Filters a person based on selected administrative body IDs.
- * Always includes mayors (people with city-level roles) regardless of filter selection.
- * 
- * @param person - Person to filter
- * @param selectedAdminBodyIds - Array of selected administrative body IDs (or null for "no admin body")
- * @returns true if person should be included in the filtered results
- */
-export function filterPersonByAdministrativeBodies(
-    person: PersonWithRelations,
-    selectedAdminBodyIds: (string | null)[]
+export function filterMeetingByAdminBodyTypes(
+    meeting: MeetingWithAdminBody,
+    selectedTypes: AdministrativeBodyType[]
 ): boolean {
-    // Always include mayors (people with city-level roles) regardless of admin body filter
-    if (hasCityLevelRole(person.roles)) {
-        return true;
-    }
+    if (selectedTypes.length === 0) return true;
+    if (!meeting.administrativeBody) return false;
+    return selectedTypes.includes(meeting.administrativeBody.type);
+}
 
-    // If no filters selected, show all
-    if (selectedAdminBodyIds.length === 0) return true;
-
-    // Check if person has no administrative body role
-    const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
-
-    // If "no admin body" is selected and person has no admin body, include them
-    if (selectedAdminBodyIds.includes(null) && hasNoAdminBody) {
-        return true;
-    }
-
-    // Check if person has any of the selected administrative bodies
+/**
+ * Filter a person by selected admin body types.
+ * City-level roles (mayors) are included only when 'council' is selected.
+ * Empty selectedTypes = show all.
+ */
+export function filterPersonByAdminBodyTypes(
+    person: PersonWithRelations,
+    selectedTypes: AdministrativeBodyType[]
+): boolean {
+    if (selectedTypes.length === 0) return true;
+    if (selectedTypes.includes('council') && hasCityLevelRole(person.roles)) return true;
     return person.roles.some(role =>
         role.administrativeBody &&
-        selectedAdminBodyIds.includes(role.administrativeBody.id)
+        selectedTypes.includes(role.administrativeBody.type)
     );
 }
