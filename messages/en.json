@@ -1,11 +1,11 @@
 {
     "Common": {
         "allTopics": "All Topics",
-        "allMeetings": "All meetings",
+        "allMeetings": "All",
         "adminBodyType_council": "Councils",
         "adminBodyType_committee": "Committees",
         "adminBodyType_community": "Communities",
-        "allPeople": "All members",
+        "allPeople": "All",
         "allBodies": "All"
     },
     "PilotPage": {

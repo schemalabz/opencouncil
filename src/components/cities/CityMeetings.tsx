@@ -84,7 +84,6 @@ export default function CityMeetings({
                         selectedValues={selectedBodyId ? [selectedBodyId] : []}
                         onSelectionChange={(values) => setSelectedBodyId(values.length > 0 ? values[0] : null)}
                         allLabel={tCommon('allBodies')}
-                        collapsible={false}
                     />
                 );
             }}
