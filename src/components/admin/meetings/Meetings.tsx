@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
@@ -21,6 +22,7 @@ interface MeetingsProps {
 }
 
 export default function Meetings({ meetings, currentCityName, selectedCityId, decisionCounts }: MeetingsProps) {
+    const tCommon = useTranslations('Common');
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedAdminBodyId, setSelectedAdminBodyId] = useState<string | null>(null);
     const [selectedMeetingIds, setSelectedMeetingIds] = useState<Set<string>>(new Set());
@@ -135,7 +137,7 @@ export default function Meetings({ meetings, currentCityName, selectedCityId, de
                     options={adminBodyOptions}
                     selectedValues={selectedAdminBodyId ? [selectedAdminBodyId] : []}
                     onSelectionChange={(values) => setSelectedAdminBodyId(values.length > 0 ? values[0] : null)}
-                    allLabel="All Bodies"
+                    allLabel={tCommon('allBodies')}
                     collapsible={false}
                     className="my-4"
                 />
