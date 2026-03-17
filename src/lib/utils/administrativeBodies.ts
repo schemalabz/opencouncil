@@ -106,14 +106,15 @@ export function filterMeetingByAdminBodyTypes(
 
 /**
  * Filter a person by selected admin body types.
- * Always includes mayors (city-level roles). Empty selectedTypes = show all.
+ * City-level roles (mayors) are included only when 'council' is selected.
+ * Empty selectedTypes = show all.
  */
 export function filterPersonByAdminBodyTypes(
     person: PersonWithRelations,
     selectedTypes: AdministrativeBodyType[]
 ): boolean {
     if (selectedTypes.length === 0) return true;
-    if (hasCityLevelRole(person.roles)) return true;
+    if (selectedTypes.includes('council') && hasCityLevelRole(person.roles)) return true;
     return person.roles.some(role =>
         role.administrativeBody &&
         selectedTypes.includes(role.administrativeBody.type)
