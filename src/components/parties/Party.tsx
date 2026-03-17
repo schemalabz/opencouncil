@@ -402,7 +402,6 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                     party.id,
                     1,
                     5,
-                    undefined,
                     includeUnreleased,
                     selectedAdminBodyType
                 );
@@ -426,7 +425,6 @@ export default function PartyC({ city, party, administrativeBodies, includeUnrel
                     party.id,
                     page,
                     5,
-                    undefined,
                     includeUnreleased,
                     selectedAdminBodyType
                 );

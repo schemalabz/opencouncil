@@ -89,7 +89,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     1,
                     5,
-                    undefined,
                     selectedTopicId,
                     includeUnreleased,
                     selectedAdminBodyType
@@ -115,7 +114,6 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     person.id,
                     page,
                     5,
-                    undefined,
                     selectedTopicId,
                     includeUnreleased,
                     selectedAdminBodyType

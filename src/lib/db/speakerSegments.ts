@@ -468,16 +468,14 @@ export async function getLatestSegmentsForSpeaker(
     personId: string,
     page: number = 1,
     pageSize: number = 5,
-    administrativeBodyId?: string | null,
     topicId?: string | null,
     includeUnreleased?: boolean,
     administrativeBodyType?: AdministrativeBodyType | null
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
-    const meetingFilter: Record<string, unknown> = {
+    const meetingFilter: Prisma.CouncilMeetingWhereInput = {
         ...(includeUnreleased ? {} : { released: true }),
-        ...(administrativeBodyId ? { administrativeBodyId } : {}),
         ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
     };
 
@@ -565,15 +563,13 @@ export async function getLatestSegmentsForParty(
     partyId: string,
     page: number = 1,
     pageSize: number = 5,
-    administrativeBodyId?: string | null,
     includeUnreleased?: boolean,
     administrativeBodyType?: AdministrativeBodyType | null
 ): Promise<{ results: SegmentWithRelations[], totalCount: number }> {
     const skip = (page - 1) * pageSize;
 
-    const meetingFilter: Record<string, unknown> = {
+    const meetingFilter: Prisma.CouncilMeetingWhereInput = {
         ...(includeUnreleased ? {} : { released: true }),
-        ...(administrativeBodyId ? { administrativeBodyId } : {}),
         ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
     };
 
