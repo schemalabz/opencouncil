@@ -21,7 +21,7 @@ export interface HiringConfig {
  * This will replace the Substack post badge when active.
  */
 export const HIRING_CONFIG: HiringConfig = {
-    enabled: true, // Set to false to show Substack badge instead
+    enabled: false, // Set to true to show hiring badge instead of Substack
     url: 'https://schemalabs.gr/jobs/civic-tech-software-engineer',
     text: 'Προσλαμβάνουμε developer!'
 } as const;
