@@ -112,6 +112,7 @@ export async function PUT(request: Request, { params }: { params: { cityId: stri
         try {
             revalidateTag(`city:${params.cityId}:basic`);
             revalidateTag(`city:${params.cityId}:message`);
+            revalidateTag('cities:all');
             revalidatePath(`/${params.cityId}`, "layout");
         } catch (error) {
             console.error('Error revalidating cache:', error);
