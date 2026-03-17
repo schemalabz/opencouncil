@@ -55,6 +55,28 @@
         export OPENSSL_LIB_DIR="${pkgs.openssl.out}/lib"
         export OPENSSL_INCLUDE_DIR="${pkgs.openssl.dev}/include"
       '';
+
+      # Shared npm config (used by opencouncil-prod and CI checks)
+      # Update this hash when package-lock.json changes:
+      #   nix run nixpkgs#prefetch-npm-deps package-lock.json
+      npmDepsHash = "sha256-xOVigx2aidN3wD3uwRjaltdwI1CTh/PTOhkxgF48LqA=";
+
+      # Single npm-deps derivation shared by all buildNpmPackage consumers.
+      # Without this, each consumer (prod build + 3 checks) would create its
+      # own identical copy with a different store path.
+      mkNpmDeps = pkgs: pkgs.fetchNpmDeps {
+        src = ./.;
+        name = "opencouncil-npm-deps";
+        hash = npmDepsHash;
+      };
+
+      mkNpmBuildInputs = pkgs: with pkgs; [
+        cairo pango libjpeg giflib pixman libpng glib librsvg
+      ];
+      mkNpmNativeBuildInputs = pkgs: with pkgs; [
+        nodejs nodePackages.prisma prisma-engines openssl pkg-config python3
+        cairo pango libjpeg giflib librsvg pixman libpng glib
+      ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.util-linux ]);
     in {
       # Export shared builders for use by nixosModules
       lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv; };
@@ -973,9 +995,7 @@ EOF
             # into the derivation at evaluation time. This correctly changes the
             # derivation hash when values change.
 
-            # This hash needs to be updated when package-lock.json changes
-            # Run: nix run nixpkgs#prefetch-npm-deps package-lock.json
-            npmDepsHash = "sha256-xOVigx2aidN3wD3uwRjaltdwI1CTh/PTOhkxgF48LqA=";
+            npmDeps = mkNpmDeps pkgs;
 
             # Configure npm - ignore scripts during dependency installation
             makeCacheWritable = true;
@@ -985,37 +1005,8 @@ EOF
             # We'll rebuild canvas properly later with all dependencies available
             npmInstallFlags = [ "--ignore-scripts" ];
 
-            nativeBuildInputs = with pkgs; [
-              nodejs
-              nodePackages.prisma
-              prisma-engines
-              openssl
-              pkg-config
-              python3  # Required by node-gyp packages
-              # Dependencies for canvas package
-              cairo
-              pango
-              libjpeg
-              giflib
-              librsvg
-              pixman
-              libpng
-              glib
-            ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
-              pkgs.util-linux
-            ]);
-
-            buildInputs = with pkgs; [
-              # Runtime dependencies for canvas
-              cairo
-              pango
-              libjpeg
-              giflib
-              pixman
-              libpng
-              glib
-              librsvg
-            ];
+            nativeBuildInputs = mkNpmNativeBuildInputs pkgs;
+            buildInputs = mkNpmBuildInputs pkgs;
 
             # Set up environment for Prisma and canvas
             preBuild = ''
@@ -1182,6 +1173,57 @@ EOF
           };
         in {
           inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-app-local oc-studio oc-cleanup opencouncil-prod;
+        });
+
+      checks = forAllSystems (_system: pkgs: _pkgs-unstable:
+        let
+          npmBuildInputs = mkNpmBuildInputs pkgs;
+          npmNativeBuildInputs = mkNpmNativeBuildInputs pkgs;
+
+          mkCheck = { name, checkScript }: pkgs.buildNpmPackage {
+            pname = "opencouncil-check-${name}";
+            version = "0.1.0";
+            src = ./.;
+            npmDeps = mkNpmDeps pkgs;
+            makeCacheWritable = true;
+            npmFlags = [ "--legacy-peer-deps" ];
+            npmInstallFlags = [ "--ignore-scripts" ];
+            nativeBuildInputs = npmNativeBuildInputs;
+            buildInputs = npmBuildInputs;
+            dontNpmBuild = true;
+            # Setup runs in preBuild (not postPatch) because postPatch also
+            # runs inside the npm-deps FOD where npm/node aren't available.
+            preBuild = ''
+              export HOME=$TMPDIR
+              ${mkPrismaEnv pkgs}
+              export SKIP_ENV_VALIDATION=1
+              export NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN="pk.placeholder"
+              npm run postinstall
+              npm rebuild canvas
+              npx prisma generate
+            '';
+            buildPhase = ''
+              runHook preBuild
+              ${checkScript}
+              runHook postBuild
+            '';
+            installPhase = "touch $out";
+          };
+        in {
+          lint = mkCheck {
+            name = "lint";
+            checkScript = "npm run lint -- --max-warnings 0";
+          };
+          types = mkCheck {
+            name = "types";
+            checkScript = "npx tsc --project tsconfig.jest.json --noEmit";
+          };
+          tests = mkCheck {
+            name = "tests";
+            # Exclude integration tests (they need Docker/testcontainers).
+            # Limit workers to avoid exhausting memory in the nix sandbox.
+            checkScript = "npm test -- --testPathIgnorePatterns='tests/integration' --maxWorkers=2";
+          };
         });
 
       nixosModules.opencouncil-preview = { config, lib, pkgs, ... }:

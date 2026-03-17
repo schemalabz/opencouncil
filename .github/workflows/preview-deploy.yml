@@ -144,7 +144,7 @@ jobs:
         with:
           name: ${{ env.CACHIX_CACHE_NAME }}
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          pushFilter: "opencouncil-prod"
+          pushFilter: "opencouncil-(prod|npm-deps)"
 
       - name: Build production package
         env:
