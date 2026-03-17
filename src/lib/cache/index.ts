@@ -1,8 +1,9 @@
 import { unstable_cache } from 'next/cache';
+import { IS_DEV } from '@/lib/utils';
 
 /**
  * Creates a cached version of a function with logging.
- * Logs CACHE HIT or CACHE MISS with timing for each call.
+ * Logs CACHE MISS (all environments) and CACHE HIT (dev only) with timing.
  *
  * IMPORTANT: Always use as `createCache(...)()` (create and immediately invoke).
  * Do NOT store the returned function and reuse it across requests — the `wasMiss`
@@ -40,7 +41,7 @@ export function createCache<T>(
     const start = performance.now();
     const result = await cached();
     const ms = (performance.now() - start).toFixed(0);
-    if (!wasMiss) {
+    if (!wasMiss && IS_DEV) {
       console.log(`  HIT  [${key}] ${ms}ms`);
     }
     return result;
