@@ -19,6 +19,11 @@ jest.mock('dotenv', () => ({
   config: jest.fn()
 }));
 
+// Mock env.mjs (ESM module that jest can't import directly)
+jest.mock('@/env.mjs', () => ({
+  env: {}
+}));
+
 describe('aiChat', () => {
   // Use this for direct access to the mocked create function
   const mockCreate = ((Anthropic as unknown as jest.Mock).mock.results[0]?.value.messages.create || jest.fn()) as jest.Mock;
@@ -46,7 +51,7 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-0",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
@@ -64,7 +69,7 @@ describe('aiChat', () => {
     await aiChat(systemPrompt, userPrompt, prefill);
     
     expect(mockCreate).toHaveBeenCalledWith({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-0",
       max_tokens: 8192,
       system: systemPrompt,
       messages: [
@@ -126,7 +131,7 @@ describe('aiChat', () => {
       stop_reason: "end_turn"
     });
     
-    await expect(aiChat('system', 'user')).rejects.toThrow("Expected text response from claude");
+    await expect(aiChat('system', 'user')).rejects.toThrow("No text response found in Claude's response");
   });
 
   it('should throw error when there are no content items', async () => {
@@ -141,7 +146,7 @@ describe('aiChat', () => {
       stop_reason: "end_turn"
     });
     
-    await expect(aiChat('system', 'user')).rejects.toThrow("Expected 1 response from claude");
+    await expect(aiChat('system', 'user')).rejects.toThrow("No content received from Claude");
   });
 
   it('should prepend to response if prependToResponse is provided', async () => {

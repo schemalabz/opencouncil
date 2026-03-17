@@ -71,11 +71,9 @@ describe('Statistics', () => {
           where: expect.objectContaining({
             meetingId: 'meeting-1',
             cityId: 'city-1',
-            id: undefined,
-            speakerTag: {
-              personId: undefined
-            },
-            meeting: undefined,
+            meeting: expect.objectContaining({
+              released: true
+            }),
             NOT: {
               summary: {
                 type: "procedural"
@@ -187,9 +185,10 @@ describe('Statistics', () => {
 
       expect(prisma.speakerSegment.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
-          meeting: {
+          meeting: expect.objectContaining({
+            released: true,
             administrativeBodyId: 'admin-body-1'
-          }
+          })
         })
       }));
     });

@@ -238,19 +238,19 @@ describe('subjectToMapFeature', () => {
 describe('sortSubjectsByImportance', () => {
   it('should sort by speaking time', () => {
     const subjects = [
-      { id: '1', name: 'Subject 1', statistics: { speakingSeconds: 100 } },
-      { id: '2', name: 'Subject 2', statistics: { speakingSeconds: 200 } }
+      { name: 'Subject 1', statistics: { speakingSeconds: 100 } },
+      { name: 'Subject 2', statistics: { speakingSeconds: 200 } }
     ];
 
     const sorted = sortSubjectsByImportance(subjects as any);
-    expect(sorted[0].id).toBe('2');
-    expect(sorted[1].id).toBe('1');
+    expect(sorted[0].name).toBe('Subject 2');
+    expect(sorted[1].name).toBe('Subject 1');
   });
 
   it('should handle subjects without statistics', () => {
     const subjects = [
-      { id: '1', name: 'Subject 1' },
-      { id: '2', name: 'Subject 2', statistics: { speakingSeconds: 200 } }
+      { name: 'Subject 1' },
+      { name: 'Subject 2', statistics: { speakingSeconds: 200 } }
     ];
 
     // Should not throw error
