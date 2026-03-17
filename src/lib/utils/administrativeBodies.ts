@@ -11,84 +11,72 @@ type MeetingWithAdminBody = {
 const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
 
 /**
- * Extract which admin body types exist in a list of meetings.
- * Returns BadgePickerOption[] ordered: council -> committee -> community.
+ * Extract which admin body types exist from a flat list of admin bodies.
+ * Returns options ordered: council -> committee -> community.
  */
+function getAdministrativeBodyTypes(
+    bodies: (AdministrativeBody | null | undefined)[],
+    t: (key: string) => string
+): { value: AdministrativeBodyType; label: string }[] {
+    const typesPresent = new Set<AdministrativeBodyType>();
+    for (const body of bodies) {
+        if (body) typesPresent.add(body.type);
+    }
+    return ADMIN_BODY_TYPE_ORDER
+        .filter(type => typesPresent.has(type))
+        .map(type => ({
+            value: type,
+            label: t(`adminBodyType_${type}`)
+        }));
+}
+
+/**
+ * Extract individual bodies of a given type, sorted alphabetically.
+ */
+function getBodiesOfType(
+    bodies: (AdministrativeBody | null | undefined)[],
+    type: AdministrativeBodyType
+): { value: string; label: string }[] {
+    const map = new Map<string, string>();
+    for (const body of bodies) {
+        if (body?.type === type) {
+            map.set(body.id, body.name);
+        }
+    }
+    return Array.from(map, ([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'el'));
+}
+
+/** Extract admin body types present in a list of meetings */
 export function getAdministrativeBodyTypesForMeetings(
     meetings: MeetingWithAdminBody[],
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
-    const typesPresent = new Set<AdministrativeBodyType>();
-    for (const meeting of meetings) {
-        if (meeting.administrativeBody) {
-            typesPresent.add(meeting.administrativeBody.type);
-        }
-    }
-    return ADMIN_BODY_TYPE_ORDER
-        .filter(type => typesPresent.has(type))
-        .map(type => ({
-            value: type,
-            label: t(`adminBodyType_${type}`)
-        }));
+    return getAdministrativeBodyTypes(meetings.map(m => m.administrativeBody), t);
 }
 
-/**
- * Extract which admin body types exist from a list of people's roles.
- */
+/** Extract admin body types present in people's roles */
 export function getAdministrativeBodyTypesForPeople(
     people: PersonWithRelations[],
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
-    const typesPresent = new Set<AdministrativeBodyType>();
-    for (const person of people) {
-        for (const role of person.roles) {
-            if (role.administrativeBody) {
-                typesPresent.add(role.administrativeBody.type);
-            }
-        }
-    }
-    return ADMIN_BODY_TYPE_ORDER
-        .filter(type => typesPresent.has(type))
-        .map(type => ({
-            value: type,
-            label: t(`adminBodyType_${type}`)
-        }));
+    return getAdministrativeBodyTypes(people.flatMap(p => p.roles.map(r => r.administrativeBody)), t);
 }
 
-/**
- * Extract individual bodies of a given type from meetings, sorted alphabetically.
- */
+/** Extract individual bodies of a given type from meetings, sorted alphabetically */
 export function getBodiesOfTypeFromMeetings(
     meetings: MeetingWithAdminBody[],
     type: AdministrativeBodyType
 ): { value: string; label: string }[] {
-    const map = new Map<string, string>();
-    for (const m of meetings) {
-        if (m.administrativeBody?.type === type) {
-            map.set(m.administrativeBody.id, m.administrativeBody.name);
-        }
-    }
-    return Array.from(map, ([value, label]) => ({ value, label }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'el'));
+    return getBodiesOfType(meetings.map(m => m.administrativeBody), type);
 }
 
-/**
- * Extract individual bodies of a given type from people's roles, sorted alphabetically.
- */
+/** Extract individual bodies of a given type from people's roles, sorted alphabetically */
 export function getBodiesOfTypeFromPeople(
     people: PersonWithRelations[],
     type: AdministrativeBodyType
 ): { value: string; label: string }[] {
-    const map = new Map<string, string>();
-    for (const person of people) {
-        for (const role of person.roles) {
-            if (role.administrativeBody?.type === type) {
-                map.set(role.administrativeBody.id, role.administrativeBody.name);
-            }
-        }
-    }
-    return Array.from(map, ([value, label]) => ({ value, label }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'el'));
+    return getBodiesOfType(people.flatMap(p => p.roles.map(r => r.administrativeBody)), type);
 }
 
 /**
@@ -120,4 +108,3 @@ export function filterPersonByAdminBodyTypes(
         selectedTypes.includes(role.administrativeBody.type)
     );
 }
-
