@@ -33,5 +33,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+    const prisma = (await import('@/lib/db/prisma')).default
+    await prisma.$disconnect()
     await teardownTestDb()
 })

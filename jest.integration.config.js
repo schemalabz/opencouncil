@@ -3,7 +3,7 @@ module.exports = {
     testEnvironment: 'node',
     testMatch: ['<rootDir>/tests/integration/**/*.test.ts'],
     setupFilesAfterEnv: ['<rootDir>/tests/setup-integration.ts'],
-    maxWorkers: 1,
+    maxWorkers: '50%',
     // Prevent Jest from scanning large build directories
     modulePathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
     testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
@@ -19,6 +19,7 @@ module.exports = {
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', {
             tsconfig: 'tsconfig.json',
+            isolatedModules: true,
         }],
     },
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],

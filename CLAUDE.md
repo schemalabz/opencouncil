@@ -221,11 +221,10 @@ Before creating commits, run `git log --oneline main..HEAD` to understand the br
 After all commits are created, run `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash main` to fold fixup commits into their targets.
 
 **Build Verification**:
-- **Always run `npm run build` after completing changes** to verify TypeScript compiles and catch errors early
-- This closes the feedback loop quickly - don't wait for the user to discover build failures
+- Run `npm run build` **once after all changes are complete** — not after every individual step
 - For schema changes: run `npm run prisma:generate` before building
 - Quick TypeScript check without full build: `npx tsc --noEmit`
-- **Full stack verification**: Run `nix run .#dev` to verify the app starts with a fresh local DB (includes running migrations)
+- **Tests**: `npm test` and `npm run test:integration` are fast — run them between changes to catch regressions early
 
 ### TypeScript
 - Strict mode is enabled
