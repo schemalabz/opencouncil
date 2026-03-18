@@ -1,7 +1,7 @@
 "use server"
 
 import { getTranscript } from "./transcript";
-import { getPeopleForCity, getPeopleForMeeting } from "./people";
+import { getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getAllTopics } from "./topics";
 import { getCity } from "./cities";
@@ -11,6 +11,7 @@ import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { Subject as DbSubject } from "@prisma/client";
 import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
+import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 
 // Type for the Prisma interactive transaction client
@@ -24,8 +25,21 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         throw new Error('Council meeting not found');
     }
 
-    // Get relevant people based on meeting's administrative body
-    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    // People identified in the transcript (for speaker lookup).
+    // Uses direct DB query so speakers assigned outside the meeting's
+    // administrative body filter are still resolved correctly.
+    const transcriptPersonIds = [...new Set(
+        transcript.map(s => s.speakerTag.personId).filter((id): id is string => id != null)
+    )];
+    const identifiedPeople = transcriptPersonIds.length > 0
+        ? await prisma.person.findMany({
+            where: { id: { in: transcriptPersonIds } },
+            include: { roles: roleWithRelationsInclude }
+        })
+        : [];
+
+    // People filtered by meeting's administrative body (for LLM context)
+    const meetingPeople = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
     const parties = await getPartiesForCity(cityId);
     const topics = await getAllTopics();
     const city = await getCity(cityId);
@@ -37,7 +51,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
     return {
         transcript: transcript.map(segment => {
             const speakerTag = segment.speakerTag;
-            const person = people.find(p => p.id === speakerTag.personId);
+            const person = identifiedPeople.find(p => p.id === speakerTag.personId);
             const party = person ? getPartyFromRoles(person.roles) : null;
 
             return {
@@ -45,7 +59,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
                 speakerParty: party?.name || null,
                 speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
                 speakerSegmentId: segment.id,
-                speakerId: person?.id || null, // NEW: personId from voiceprint match
+                speakerId: person?.id || null,
                 text: segment.utterances.map(u => u.text).join(' '),
                 utterances: segment.utterances.map(u => ({
                     text: u.text,
@@ -60,7 +74,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
         partiesWithPeople: parties.map(p => ({
             name: p.name,
-            people: people.filter(person => {
+            people: meetingPeople.filter(person => {
                 const party = getPartyFromRoles(person.roles, councilMeeting.dateTime);
                 return party?.id === p.id;
             }).map((person) => {
