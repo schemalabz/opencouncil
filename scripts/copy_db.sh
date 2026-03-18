@@ -53,6 +53,7 @@ TABLES=(
     "CouncilMeeting"
     "SpeakerTag"
     "Subject"
+    "Decision"
     "SpeakerSegment"
     "SubjectSpeakerSegment"
     "SpeakerContribution"
