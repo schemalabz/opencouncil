@@ -11,12 +11,44 @@ import prisma from "../db/prisma";
 import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
 
-export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string) {
+export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
+    force = false
+}: {
+    force?: boolean;
+} = {}) {
     await withUserAuthorizedToEdit({ cityId });
+
+    if (force) {
+        console.log(`Force summarize: deleting stale summarize data for meeting ${councilMeetingId}`);
+
+        // Summaries use upsert (keyed on speakerSegmentId) so they're overwritten naturally.
+        // TopicLabels and utterance discussion statuses need explicit cleanup because:
+        // - TopicLabels: upsert only creates/updates matching pairs; old labels for topics
+        //   no longer assigned to a segment remain as stale data.
+        // - Utterance statuses: only utterances present in the new response get updated;
+        //   utterances that had statuses from the previous run but aren't in the new
+        //   response keep their old (now stale) values.
+
+        await prisma.topicLabel.deleteMany({
+            where: {
+                speakerSegment: { meetingId: councilMeetingId, cityId }
+            }
+        });
+
+        await prisma.utterance.updateMany({
+            where: {
+                speakerSegment: { meetingId: councilMeetingId, cityId }
+            },
+            data: {
+                discussionStatus: null,
+                discussionSubjectId: null
+            }
+        });
+    }
 
     const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions);
 
-    return startTask('summarize', body, councilMeetingId, cityId);
+    return startTask('summarize', body, councilMeetingId, cityId, { force });
 }
 
 export async function handleSummarizeResult(taskId: string, response: SummarizeResult) {

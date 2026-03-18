@@ -86,6 +86,11 @@
       "agendaUrlPlaceholder": "https://...",
       "topicPlaceholder": "Θέμα {number}",
       "force": "Force",
+      "forceDescription": {
+        "transcribe": "Διαγράφει όλα τα speaker segments, utterances και summaries αυτής της συνεδρίασης και απομαγνητοφωνεί από την αρχή.",
+        "processAgenda": "Διαγράφει όλα τα subjects και τα αυτόματα highlights αυτής της συνεδρίασης και επανεπεξεργάζεται την ατζέντα από την αρχή. Τα highlights χρηστών διατηρούνται (αποσυνδέονται από τα subjects).",
+        "summarize": "Τα θέματα ατζέντας ενημερώνονται· τα εκτός ατζέντας αντικαθίστανται. Διαγράφει τα topic labels και μηδενίζει το discussion tracking των utterances (status και σύνδεση με subject)."
+      },
       "released": "Δημοσιευμένη"
     },
     "toasts": {

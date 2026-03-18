@@ -47,6 +47,7 @@ export default function AdminActions({
     const [additionalInstructions, setAdditionalInstructions] = React.useState('');
     const [isReleased, setIsReleased] = React.useState(meeting.released);
     const [forceAgenda, setForceAgenda] = React.useState(false);
+    const [forceSummarize, setForceSummarize] = React.useState(false);
     const [isNotificationModalOpen, setIsNotificationModalOpen] = React.useState(false);
     const [notificationType, setNotificationType] = React.useState<'beforeMeeting' | 'afterMeeting'>('beforeMeeting');
     React.useEffect(() => {
@@ -104,10 +105,10 @@ export default function AdminActions({
     });
 
 
-    const handleSummarize = async () => {
+    const handleSummarize = async (force: boolean = false) => {
         setIsSummarizing(true);
         try {
-            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions);
+            await requestSummarize(meeting.cityId, meeting.id, topics.filter(t => t.trim() !== ''), additionalInstructions, { force });
             toast({
                 title: t('toasts.summarizationRequested.title'),
                 description: t('toasts.summarizationRequested.description'),
@@ -328,6 +329,9 @@ export default function AdminActions({
                                     {isTranscribing ? t('buttons.starting') : t('buttons.transcribe')}
                                 </Button>
                             </div>
+                            {forceTranscribe && (
+                                <p className="text-xs text-muted-foreground">{t('forms.forceDescription.transcribe')}</p>
+                            )}
                         </div>
                     </PopoverContent>
                 </Popover>
@@ -357,6 +361,9 @@ export default function AdminActions({
                                     {isProcessingAgenda ? t('buttons.starting') : t('buttons.process')}
                                 </Button>
                             </div>
+                            {forceAgenda && (
+                                <p className="text-xs text-muted-foreground">{t('forms.forceDescription.processAgenda')}</p>
+                            )}
                         </div>
                     </PopoverContent>
                 </Popover>
@@ -382,14 +389,25 @@ export default function AdminActions({
                                 value={additionalInstructions}
                                 onChange={(e) => setAdditionalInstructions(e.target.value)}
                             />
-                            <div className="flex items-center justify-between space-x-4 w-full">
-                                <Button onClick={addTopic}>
-                                    {t('buttons.addTopic')}
-                                </Button>
-                                <Button onClick={handleSummarize} disabled={isSummarizing}>
+                            <Button variant="outline" size="sm" onClick={addTopic}>
+                                {t('buttons.addTopic')}
+                            </Button>
+                            <div className="flex items-center justify-between space-x-2 w-full">
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="force-summarize"
+                                        checked={forceSummarize}
+                                        onCheckedChange={setForceSummarize}
+                                    />
+                                    <Label htmlFor="force-summarize">{t('forms.force')}</Label>
+                                </div>
+                                <Button onClick={() => handleSummarize(forceSummarize)} disabled={isSummarizing}>
                                     {isSummarizing ? t('buttons.starting') : t('buttons.summarize')}
                                 </Button>
                             </div>
+                            {forceSummarize && (
+                                <p className="text-xs text-muted-foreground">{t('forms.forceDescription.summarize')}</p>
+                            )}
                         </div>
                     </PopoverContent>
                 </Popover>

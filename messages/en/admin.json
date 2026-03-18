@@ -86,6 +86,11 @@
       "agendaUrlPlaceholder": "https://...",
       "topicPlaceholder": "Topic {number}",
       "force": "Force",
+      "forceDescription": {
+        "transcribe": "Deletes all speaker segments, utterances, and summaries for this meeting, then re-transcribes from scratch.",
+        "processAgenda": "Deletes all subjects and auto-generated highlights for this meeting, then re-processes the agenda from scratch. User-created highlights are preserved (unlinked from subjects).",
+        "summarize": "Agenda subjects are kept and updated; non-agenda subjects are replaced. Deletes topic labels and resets utterance discussion tracking (status and subject links)."
+      },
       "released": "Released"
     },
     "toasts": {
