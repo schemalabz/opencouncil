@@ -1,4 +1,3 @@
-import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { ReadonlyURLSearchParams } from 'next/navigation';
 
 export interface FilterOption<T = string | null> {
@@ -7,7 +6,10 @@ export interface FilterOption<T = string | null> {
 }
 
 /**
- * Updates URL with filter parameters based on selected values
+ * Updates URL with filter parameters based on selected values.
+ * Uses window.history.replaceState for instant client-side URL updates
+ * without triggering a Next.js server component re-render.
+ *
  * - Removes 'filters' param if selection matches default behavior (none selected, or matches explicit defaults, or all selected when no defaults exist)
  * - Otherwise sets 'filters' param to comma-separated labels
  */
@@ -15,8 +17,7 @@ export function updateFilterURL<T>(
     selectedValues: T[],
     filterOptions: FilterOption<T>[],
     defaultFilterValues: T[] | undefined,
-    searchParams: ReadonlyURLSearchParams,
-    router: AppRouterInstance
+    searchParams: ReadonlyURLSearchParams
 ): void {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -51,5 +52,5 @@ export function updateFilterURL<T>(
     }
 
     params.delete('page'); // Reset to page 1 on filter change
-    router.replace(`?${params.toString()}`);
+    window.history.replaceState(null, '', `?${params.toString()}`);
 }

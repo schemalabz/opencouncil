@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import FormSheet from './FormSheet';
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from '@/components/ui/input';
@@ -62,8 +62,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     renderFilter,
     renderAfterFilters
 }: ListProps<T, P, F>) {
-    const router = useRouter();
     const searchParams = useSearchParams();
+    const listRef = useRef<HTMLDivElement>(null);
     const carouselRef = useRef<HTMLDivElement>(null);
 
     // Get filter and search values from URL
@@ -147,14 +147,15 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         return true;
     });
 
-    // Client-side pagination
+    // Client-side pagination — read current page from URL to avoid
+    // depending on server component re-renders for page changes.
+    const urlPage = parseInt(searchParams.get('page') || '1', 10);
     const totalPages = pagination
         ? Math.ceil(filteredItems.length / pagination.pageSize)
         : 1;
 
-    // Clamp currentPage to valid range
     const currentPage = pagination
-        ? Math.max(1, Math.min(pagination.currentPage, totalPages))
+        ? Math.max(1, Math.min(isNaN(urlPage) ? 1 : urlPage, totalPages))
         : 1;
 
     const paginatedItems = pagination
@@ -180,11 +181,11 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                 params.delete('search');
             }
             params.delete('page'); // Reset to page 1 on search
-            router.replace(`?${params.toString()}`);
+            window.history.replaceState(null, '', `?${params.toString()}`);
         }, 300); // 300ms debounce delay
 
         return () => clearTimeout(timeoutId);
-    }, [localSearchQuery, router, searchParams, showSearch]);
+    }, [localSearchQuery, searchParams, showSearch]);
 
     // Update URL with new search or filter values
     const handleSearchChange = (query: string) => {
@@ -193,7 +194,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     };
 
     const handleFilterChange = (selectedValues: F[]) => {
-        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams, router);
+        updateFilterURL(selectedValues, filterAvailableValues, defaultFilterValues, searchParams);
     };
 
     const handlePageChange = (newPage: number) => {
@@ -203,11 +204,14 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         } else {
             params.delete('page');
         }
-        router.push(`?${params.toString()}`);
+        window.history.pushState(null, '', `?${params.toString()}`);
+        requestAnimationFrame(() => {
+            listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
     };
 
     return (
-        <div className="space-y-6">
+        <div ref={listRef} className="space-y-6">
             {(showSearch || editable) && (
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     {showSearch && (
