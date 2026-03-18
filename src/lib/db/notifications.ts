@@ -258,7 +258,7 @@ type OnboardingData = {
 export async function saveNotificationPreferences(data: OnboardingData & {
     locationIds: string[];
     topicIds: string[];
-}): Promise<Result<NotificationPreference>> {
+}): Promise<Result<NotificationPreference | null>> {
     const { cityId, locationIds, topicIds, phone, email, name, seedUser } = data;
     // Only call getServerSession if not in seed/CLI mode (avoids Next.js request context requirement)
     const session = seedUser ? null : await getServerSession();
@@ -295,6 +295,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
         } else if (email) {
+            // Validate before creating a new user so we never create an orphaned user
+            // or send a magic link when there are no preferences to save.
+            if ((!locationIds || locationIds.length === 0) && (!topicIds || topicIds.length === 0)) {
+                return createError("No valid topics or locations provided");
+            }
+
             // Non-authenticated user
             // Check if this email already exists
             let user = await prisma.user.findUnique({
@@ -372,6 +378,27 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 }
             }
         });
+
+        /**
+         * Unsubscribe-all path: triggered exclusively by `useSubjectSubscribe` when the
+         * user deselects every topic and location in the nudge dialog.
+         *
+         * WARNING: this path bypasses `sendWelcomeMessages` and
+         * `sendNotificationSignupAdminAlert`. Do NOT call `saveNotificationPreferences`
+         * with empty arrays from any flow that should trigger those side-effects.
+         *
+         * NOTE: The preference row is deleted entirely. If the user later re-subscribes,
+         * a new row is created which will re-trigger welcome messages and admin alerts.
+         */
+        if (validTopicIds.length === 0 && validLocationIds.length === 0) {
+            if (isNewlyCreatedUser) {
+                return createError("No valid topics or locations provided");
+            }
+            if (existingPreference) {
+                await prisma.notificationPreference.delete({ where: { id: existingPreference.id } });
+            }
+            return createSuccess(null);
+        }
 
         if (existingPreference) {
             // For existing preferences, update using Prisma's connect/disconnect
