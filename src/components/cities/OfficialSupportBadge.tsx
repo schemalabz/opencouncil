@@ -20,15 +20,15 @@ export function OfficialSupportBadge({
     size = 'md'
 }: OfficialSupportBadgeProps) {
     const sizeClasses = {
-        sm: 'text-xs px-2.5 py-1.5',
-        md: 'text-sm px-3 py-2',
-        lg: 'text-base px-4 py-2.5'
+        sm: 'text-xs px-2 py-0.5',
+        md: 'text-xs px-2 py-1',
+        lg: 'text-sm px-2.5 py-1'
     };
 
     const iconSizes = {
         sm: 'w-3 h-3',
-        md: 'w-4 h-4',
-        lg: 'w-5 h-5'
+        md: 'w-3 h-3',
+        lg: 'w-3.5 h-3.5'
     };
 
     const getSupportText = () => {
@@ -47,16 +47,13 @@ export function OfficialSupportBadge({
         return (
             <Badge
                 className={cn(
-                    "gap-2 relative overflow-hidden border-0 text-white hover:shadow-md transition-shadow",
+                    "gap-1.5 border-0 bg-muted text-muted-foreground/70 font-normal",
                     sizeClasses[size],
                     className
                 )}
             >
-                <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-90"></span>
-                <span className="relative z-10 flex items-center gap-2">
-                    <BadgeCheck className={iconSizes[size]} />
-                    <span>{getSupportText()}</span>
-                </span>
+                <BadgeCheck className={cn(iconSizes[size], "shrink-0 text-green-600/50")} />
+                <span>{getSupportText()}</span>
             </Badge>
         );
     }
@@ -65,16 +62,13 @@ export function OfficialSupportBadge({
         <Badge
             variant="outline"
             className={cn(
-                "gap-2 relative overflow-hidden bg-background hover:bg-accent/10 transition-colors",
+                "gap-1.5 border-muted-foreground/20 text-muted-foreground/60 font-normal",
                 sizeClasses[size],
                 className
             )}
         >
-            <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-10"></span>
-            <span className="relative z-10 flex items-center gap-2 text-muted-foreground">
-                <BadgeX className={iconSizes[size]} />
-                <span>{getSupportText()}</span>
-            </span>
+            <BadgeX className={cn(iconSizes[size], "text-muted-foreground/50")} />
+            <span>{getSupportText()}</span>
         </Badge>
     );
 }
