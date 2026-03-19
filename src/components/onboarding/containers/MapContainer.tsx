@@ -1,29 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { MapFeature } from '@/components/map/map';
-import { calculateGeometryBounds } from '@/lib/geo';
+import { calculateMapView } from '@/lib/geo';
 import Map from '@/components/map/map';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/use-media-query';
-
-// Utility function to calculate center and zoom from GeoJSON
-function calculateMapView(geometry: any): { center: [number, number]; zoom: number } {
-    const { bounds, center } = calculateGeometryBounds(geometry);
-    
-    let zoom = 10; // Default zoom
-    if (bounds) {
-        const lngDiff = bounds.maxLng - bounds.minLng;
-        const latDiff = bounds.maxLat - bounds.minLat;
-        const maxDiff = Math.max(lngDiff, latDiff);
-        zoom = Math.max(8, Math.min(13, 11 - Math.log2(maxDiff * 111))); // 111km per degree
-    }
-
-    return { center, zoom };
-}
 
 export function MapContainer() {
     const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -35,10 +20,6 @@ export function MapContainer() {
         isFormVisible,
         setFormVisible
     } = useOnboarding();
-
-    // Use refs to track previous values
-    const prevCityRef = useRef(city);
-    const prevLocationsRef = useRef(selectedLocations);
 
     // Derive map features from city and locations
     const mapFeatures = useMemo(() => {
@@ -81,7 +62,8 @@ export function MapContainer() {
                     fillColor: '#EF4444',
                     fillOpacity: 0.8,
                     strokeColor: '#B91C1C',
-                    strokeWidth: 6
+                    strokeWidth: 6,
+                    label: location.text || `Τοποθεσία ${index + 1}`
                 }
             };
         }).filter(Boolean) as MapFeature[];
@@ -100,17 +82,28 @@ export function MapContainer() {
         return calculateMapView(city.geometry);
     }, [city?.geometry]);
 
-    useEffect(() => {
-        if (prevCityRef.current !== city) {
-            prevCityRef.current = city;
-        }
-    }, [city]);
+    // Zoom to fit: city boundary initially, then all locations as they're added
+    const zoomTarget = useMemo((): GeoJSON.Geometry | null => {
+        if (!city) return null;
+        if (selectedLocations.length === 0) return city.geometry ?? null;
 
-    useEffect(() => {
-        if (prevLocationsRef.current !== selectedLocations) {
-            prevLocationsRef.current = selectedLocations;
-        }
-    }, [selectedLocations]);
+        // Build a GeometryCollection of all location points so fitBounds shows them all
+        const locationGeometries: GeoJSON.Geometry[] = selectedLocations
+            .map(location => {
+                const lng = parseFloat(String(location.coordinates[0]));
+                const lat = parseFloat(String(location.coordinates[1]));
+                if (isNaN(lng) || isNaN(lat)) return null;
+                return { type: 'Point' as const, coordinates: [lng, lat] };
+            })
+            .filter((g): g is GeoJSON.Point => g !== null);
+
+        if (locationGeometries.length === 0) return city.geometry ?? null;
+
+        return {
+            type: 'GeometryCollection',
+            geometries: locationGeometries
+        };
+    }, [city, selectedLocations]);
 
     return (
         <>
@@ -125,6 +118,9 @@ export function MapContainer() {
                     features={mapFeatures}
                     center={mapCenter}
                     zoom={mapZoom}
+                    animateRotation={false}
+                    zoomToGeometry={zoomTarget}
+                    zoomPadding={120}
                     className="w-full h-full"
                 />
             </div>

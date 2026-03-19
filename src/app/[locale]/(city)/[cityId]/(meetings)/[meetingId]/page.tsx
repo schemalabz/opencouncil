@@ -8,6 +8,7 @@ import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
+import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
@@ -25,6 +26,12 @@ export default function MeetingPage() {
     const subjectFeatures = subjects
         .map(subjectToMapFeature)
         .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+
+    // Center on city geometry for the decorative header map
+    const cityCenter = useMemo((): [number, number] => {
+        if (!city.geometry) return [23.7275, 37.9838];
+        return calculateGeometryBounds(city.geometry).center;
+    }, [city.geometry]);
 
     // Extract unique topics from all subjects
     const availableTopics = useMemo(() => {
@@ -76,6 +83,8 @@ export default function MeetingPage() {
                     },
                     ...subjectFeatures
                 ]}
+                    center={cityCenter}
+                    zoom={12}
                 />
                 <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
