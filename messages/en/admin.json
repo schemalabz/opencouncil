@@ -75,7 +75,10 @@
       "starting": "Starting...",
       "syncing": "Syncing...",
       "process": "Process",
-      "manageDecisions": "Manage Decisions"
+      "manageDecisions": "Manage Decisions",
+      "generateMinutes": "Generate Minutes",
+      "downloadMinutes": "Download Minutes (DOCX)",
+      "exportMinutesRequest": "Export Minutes Request (JSON)"
     },
     "forms": {
       "enterMediaUrl": "Enter Media URL",
@@ -177,6 +180,20 @@
       },
       "errorRemovingDecision": {
         "title": "Error removing decision"
+      },
+      "minutesGenerationRequested": {
+        "title": "Minutes generation requested",
+        "description": "The minutes document generation has started."
+      },
+      "errorGeneratingMinutes": {
+        "title": "Error generating minutes"
+      },
+      "minutesRequestExported": {
+        "title": "Minutes request exported",
+        "description": "The request JSON has been downloaded."
+      },
+      "errorExportingMinutesRequest": {
+        "title": "Error exporting minutes request"
       }
     },
     "decisions": {

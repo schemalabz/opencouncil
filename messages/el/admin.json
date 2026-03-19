@@ -75,7 +75,10 @@
       "starting": "Ξεκινάει...",
       "syncing": "Συγχρονισμός...",
       "process": "Επεξεργασία",
-      "manageDecisions": "Διαχείριση Αποφάσεων"
+      "manageDecisions": "Διαχείριση Αποφάσεων",
+      "generateMinutes": "Δημιουργία Πρακτικών",
+      "downloadMinutes": "Λήψη Πρακτικών (DOCX)",
+      "exportMinutesRequest": "Εξαγωγή Αιτήματος Πρακτικών (JSON)"
     },
     "forms": {
       "enterMediaUrl": "Εισάγετε URL Μέσου",
@@ -177,6 +180,20 @@
       },
       "errorRemovingDecision": {
         "title": "Σφάλμα αφαίρεσης απόφασης"
+      },
+      "minutesGenerationRequested": {
+        "title": "Αίτημα δημιουργίας πρακτικών",
+        "description": "Η δημιουργία του εγγράφου πρακτικών ξεκίνησε."
+      },
+      "errorGeneratingMinutes": {
+        "title": "Σφάλμα δημιουργίας πρακτικών"
+      },
+      "minutesRequestExported": {
+        "title": "Το αίτημα πρακτικών εξήχθη",
+        "description": "Το JSON αρχείο αιτήματος κατέβηκε."
+      },
+      "errorExportingMinutesRequest": {
+        "title": "Σφάλμα εξαγωγής αιτήματος πρακτικών"
       }
     },
     "decisions": {

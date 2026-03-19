@@ -431,6 +431,45 @@ export interface GenerateVoiceprintResult {
 }
 
 /*
+ * Extract Decisions (PDF → structured data)
+ */
+
+export interface ExtractDecisionsRequest extends TaskRequest {
+    cityId: string;
+    meetingId: string;
+    subjects: {
+        subjectId: string;
+        name: string;
+        agendaItemIndex: number;
+        decision: {
+            pdfUrl: string;
+            ada: string | null;
+            protocolNumber: string | null;
+        };
+    }[];
+    people: {
+        id: string;
+        name: string;
+    }[];
+}
+
+export interface ExtractedDecisionData {
+    subjectId: string;
+    excerpt: string;
+    references: string;
+    presentMemberIds: string[];
+    absentMemberIds: string[];
+    voteResult: string | null;
+    voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' }[];
+    unmatchedMembers: string[];
+}
+
+export interface ExtractDecisionsResult {
+    decisions: ExtractedDecisionData[];
+    warnings: string[];
+}
+
+/*
  * Task: Poll Decisions (Diavgeia)
  */
 
