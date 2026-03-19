@@ -5,26 +5,26 @@ This document explains the database seeding process and tools in detail.
 ## Overview
 
 The seeding process consists of two main components:
-1. A seed data generator script (`scripts/generate-seed.ts`)
+1. A seed data generator script (`scripts/generate_seed_dump.ts`)
 2. A seeding script (`prisma/seed.ts`) that consumes the generated data
 
 ## Generating Seed Data
 
-The `generate-seed` script extracts a subset of data from an existing database to create seed data for development:
+The `generate_seed_dump` script extracts a subset of data from an existing database to create seed data for development:
 
 ```bash
-npm run generate-seed -- --source=postgresql://user:pass@host:port/db --pairs=city1/meeting1 city2/latest
+npx tsx scripts/generate_seed_dump.ts -s "postgresql://user:pass@host:port/db" -p chania/latest athens/latest
 ```
 
 ### Options
 
-- `--source`: Connection string for the source database (required)
-- `--output`: Path to save the JSON file (default: ./prisma/seed_data.json)
-- `--pairs`: Comma-separated list of cityId/meetingId pairs to include
+- `-s, --source`: Connection string for the source database (required)
+- `-o, --output`: Path to save the JSON file (default: `./prisma/seed_data.json`)
+- `-p, --pairs`: City/Meeting pairs to include (format: `cityId/meetingId` or `cityId/latest`)
 
-Use the special value "latest" as meetingId to include the most recent meeting for a city:
+Use the special value `latest` as meetingId to include the most recent meeting for a city:
 ```bash
-npm run generate-seed -- --source=postgresql://db-url --pairs=athens/latest chania/latest
+npx tsx scripts/generate_seed_dump.ts -s "postgresql://db-url" -p athens/latest chania/latest
 ```
 
 ### Data Structure
@@ -41,13 +41,10 @@ The seeding process is handled by `prisma/seed.ts` which:
 
 1. Checks for a local `seed_data.json` file
 2. If not found, downloads it from the project's GitHub repository
-3. Creates predefined [test users for development](#test-users)
-4. Seeds the database with the data in the following order:
-   - Core entities (topics, cities)
-   - Administrative bodies and parties
-   - Persons with their roles and speaker tags
-   - Meetings with all related data (including speaker segments)
-   - Voiceprints (which depend on speaker segments)
+3. Seeds the database with the data in dependency order
+4. Creates synthetic task statuses for meetings with processed data
+5. Creates predefined [test users for development](#test-users)
+6. Prints a per-meeting summary table showing what was seeded
 
 ### Dependencies and Order
 
@@ -55,10 +52,10 @@ The seeding process follows a specific order to respect entity dependencies:
 
 1. **Core Entities** (no dependencies)
    - Topics
-   - Cities
+   - Cities (includes `diavgeiaUid` and all config fields)
 
 2. **City-Related Entities** (depend on cities)
-   - Administrative bodies
+   - Administrative bodies (includes `diavgeiaUnitIds`, `contactEmails`, etc.)
    - Parties
 
 3. **Person-Related Entities** (depend on cities and parties)
@@ -68,16 +65,19 @@ The seeding process follows a specific order to respect entity dependencies:
 
 4. **Meeting-Related Entities** (depend on cities, administrative bodies, and persons)
    - Meetings
-   - Speaker segments
-   - Utterances
-   - Words
-   - Subjects
+   - Subjects (with locations via PostGIS)
+   - Decisions (linked to subjects, from Diavgeia)
    - Speaker contributions
-   - Highlights
-   - Podcast specs
+   - Speaker segments (with summaries, topic labels, subject connections)
+   - Utterances and words
+   - Highlights (with highlighted utterance connections)
+   - Podcast specs (with parts and utterance connections)
 
-5. **Voiceprints** (depend on speaker segments and persons)
-   - Voiceprints are seeded last since they require speaker segments to exist
+5. **Post-Processing**
+   - Task statuses (synthetic, based on meeting data state)
+   - Voiceprints (depend on speaker segments and persons)
+   - Consultations (hardcoded for Athens)
+   - Test users
 
 ### Configuration
 
@@ -99,7 +99,7 @@ DEV_TEST_CITY_ID=chania
 The seeding process automatically creates test users with different permission levels:
 
 - **Super Admin**: Full access across all cities
-- **City Admin**: Admin access to the configured test city  
+- **City Admin**: Admin access to the configured test city
 - **Party Admin**: Admin access to a specific party
 - **Person Admin**: Admin access to a specific person
 - **Read Only**: No administrative permissions
