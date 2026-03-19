@@ -159,6 +159,8 @@ model Person {
   administrators Administers[]
   subjectsIntroduced Subject[]
   speakerContributions SpeakerContribution[]
+  subjectAttendance SubjectAttendance[]
+  subjectVotes SubjectVote[]
 
   @@index([cityId])
 }
@@ -234,6 +236,8 @@ model TaskStatus {
   cityId           String
 
   decisions Decision[]
+  subjectAttendance SubjectAttendance[]
+  subjectVotes SubjectVote[]
 
   @@index([councilMeetingId, cityId])
 }
@@ -456,6 +460,8 @@ model Subject {
   groupedSubjects Subject[] @relation("GroupedSubjects")
 
   decision Decision?
+  attendance SubjectAttendance[]
+  votes SubjectVote[]
 
   // Temporary field for ADA conflict resolution.
   // Set when a poll detects that an ADA already belongs to another subject's decision.
@@ -477,6 +483,10 @@ model Decision {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  // Fields extracted from the actual decision PDF content
+  excerpt    String?   @db.Text  // Decision body text (markdown) — "ΑΠΟΦΑΣΙΖΕΙ…"
+  references String?   @db.Text  // Legal bases from "αφού έλαβε υπόψη" section (markdown)
+
   subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   // Track whether decision was added by task or manually by user
@@ -489,6 +499,73 @@ model Decision {
 enum NonAgendaReason {
   beforeAgenda
   outOfAgenda
+}
+
+model SubjectAttendance {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String
+
+  status AttendanceStatus
+  source DataSource
+
+  // Track whether added by task or manually by user
+  task      TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId    String?
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([subjectId, personId, source])
+  @@index([subjectId])
+  @@index([personId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+model SubjectVote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String
+
+  voteType VoteType
+  source   DataSource
+
+  // Track whether added by task or manually by user
+  task      TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId    String?
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([subjectId, personId, source])
+  @@index([subjectId])
+  @@index([personId])
+}
+
+enum VoteType {
+  FOR      // ΥΠΕΡ
+  AGAINST  // ΚΑΤΑ
+  ABSTAIN  // ΛΕΥΚΟ
+}
+
+enum DataSource {
+  decision    // Extracted from decision PDF
+  transcript  // Derived from transcript analysis
+  manual      // Manually entered by admin
 }
 
 enum LocationType {
@@ -690,6 +767,8 @@ model User {
   highlights Highlight[]
   decisions Decision[]
   meetingOperatorAssignments MeetingOperator[]
+  subjectAttendance SubjectAttendance[]
+  subjectVotes SubjectVote[]
 }
  
 model Account {
