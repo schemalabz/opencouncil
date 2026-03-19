@@ -110,10 +110,18 @@ echo "Migration state OK (target has all source migrations)."
 # For each table, check that any table it references (via FK) appears earlier in the list.
 # Run this BEFORE --clear deletion so we never wipe data if the order is wrong.
 echo "Validating table order against foreign key dependencies..."
-declare -A TABLE_INDEX
-for i in "${!TABLES[@]}"; do
-    TABLE_INDEX["${TABLES[$i]}"]=$i
-done
+
+# Helper: get index of a table in TABLES array (prints index or empty string if not found)
+table_index() {
+    local name="$1"
+    for i in "${!TABLES[@]}"; do
+        if [ "${TABLES[$i]}" = "$name" ]; then
+            echo "$i"
+            return
+        fi
+    done
+    echo ""
+}
 
 FK_VALIDATION_OUTPUT=$(psql --set ON_ERROR_STOP=on "$SOURCE" -t -A -F $'\t' -c "
     SELECT
@@ -134,14 +142,16 @@ fi
 FK_ERRORS=0
 while IFS=$'\t' read -r child parent; do
     # Skip FK references to tables not in our copy list (e.g. User)
-    if [ -z "${TABLE_INDEX[$parent]+x}" ]; then
+    parent_idx=$(table_index "$parent")
+    if [ -z "$parent_idx" ]; then
         continue
     fi
-    if [ -z "${TABLE_INDEX[$child]+x}" ]; then
+    child_idx=$(table_index "$child")
+    if [ -z "$child_idx" ]; then
         continue
     fi
-    if [ "${TABLE_INDEX[$child]}" -lt "${TABLE_INDEX[$parent]}" ]; then
-        echo -e "\033[31mFK ordering error: \"$child\" (position ${TABLE_INDEX[$child]}) references \"$parent\" (position ${TABLE_INDEX[$parent]}) — \"$parent\" must come first.\033[0m"
+    if [ "$child_idx" -lt "$parent_idx" ]; then
+        echo -e "\033[31mFK ordering error: \"$child\" (position $child_idx) references \"$parent\" (position $parent_idx) — \"$parent\" must come first.\033[0m"
         FK_ERRORS=$((FK_ERRORS + 1))
     fi
 done <<< "$FK_VALIDATION_OUTPUT"
@@ -155,7 +165,35 @@ echo "Table order is valid."
 # Find nullable FK columns that reference tables NOT in our copy list (e.g. User).
 # Since we intentionally exclude user data for privacy, these columns must be NULLed
 # during copy to avoid FK violations against non-existent rows.
-declare -A NULLIFY_COLUMNS  # TABLE -> space-separated column names to NULL
+# NULLIFY_COLUMNS: stored as a temp file with lines "TABLE COL1 COL2 ..."
+NULLIFY_COLUMNS_FILE=$(mktemp)
+trap "rm -f $NULLIFY_COLUMNS_FILE" EXIT
+
+# Helper: get columns to nullify for a table (empty string if none)
+get_nullify_columns() {
+    local tbl="$1"
+    local line
+    line=$(grep "^${tbl}	" "$NULLIFY_COLUMNS_FILE" 2>/dev/null) || true
+    if [ -n "$line" ]; then
+        echo "${line#*	}"
+    fi
+}
+
+# Helper: set/append columns to nullify for a table
+add_nullify_column() {
+    local tbl="$1" col="$2"
+    local existing
+    existing=$(get_nullify_columns "$tbl")
+    # Remove existing entry if present
+    grep -v "^${tbl}	" "$NULLIFY_COLUMNS_FILE" > "${NULLIFY_COLUMNS_FILE}.tmp" 2>/dev/null || true
+    mv "${NULLIFY_COLUMNS_FILE}.tmp" "$NULLIFY_COLUMNS_FILE"
+    if [ -n "$existing" ]; then
+        echo "${tbl}	${existing} ${col}" >> "$NULLIFY_COLUMNS_FILE"
+    else
+        echo "${tbl}	${col}" >> "$NULLIFY_COLUMNS_FILE"
+    fi
+}
+
 ORPHAN_FK_OUTPUT=$(psql --set ON_ERROR_STOP=on "$SOURCE" -t -A -F $'\t' -c "
     SELECT
         cl_child.relname,
@@ -175,18 +213,21 @@ fi
 while IFS=$'\t' read -r child_table col_name parent_table is_nullable; do
     [ -z "$child_table" ] && continue
     # Only care about tables we're copying that reference tables we're NOT copying
-    if [ -z "${TABLE_INDEX[$child_table]+x}" ]; then continue; fi
-    if [ -n "${TABLE_INDEX[$parent_table]+x}" ]; then continue; fi
+    child_idx=$(table_index "$child_table")
+    if [ -z "$child_idx" ]; then continue; fi
+    parent_idx=$(table_index "$parent_table")
+    if [ -n "$parent_idx" ]; then continue; fi
     if [ "$is_nullable" != "YES" ]; then
         echo -e "\033[31mERROR: \"$child_table\".\"$col_name\" has a non-nullable FK to \"$parent_table\" which is not being copied. Cannot proceed.\033[0m"
         exit 1
     fi
-    NULLIFY_COLUMNS[$child_table]="${NULLIFY_COLUMNS[$child_table]:+${NULLIFY_COLUMNS[$child_table]} }$col_name"
+    add_nullify_column "$child_table" "$col_name"
 done <<< "$ORPHAN_FK_OUTPUT"
 
-for tbl in "${!NULLIFY_COLUMNS[@]}"; do
-    echo "Note: will NULL out [${NULLIFY_COLUMNS[$tbl]}] in \"$tbl\" (FK to non-copied table)"
-done
+while IFS=$'\t' read -r tbl cols; do
+    [ -z "$tbl" ] && continue
+    echo "Note: will NULL out [$cols] in \"$tbl\" (FK to non-copied table)"
+done < "$NULLIFY_COLUMNS_FILE"
 
 # Delete all rows from destination tables if --clear flag is set
 if [ "$CLEAR" = true ]; then
@@ -202,9 +243,9 @@ fi
 
 # Proceed with data copying
 for TABLE in "${TABLES[@]}"; do
-    if [ -n "${NULLIFY_COLUMNS[$TABLE]+x}" ]; then
+    COLS_TO_NULL=$(get_nullify_columns "$TABLE")
+    if [ -n "$COLS_TO_NULL" ]; then
         # Table has FK columns pointing to non-copied tables — use custom SELECT that NULLs them
-        COLS_TO_NULL="${NULLIFY_COLUMNS[$TABLE]}"
         echo "Copying data for $TABLE (NULLing: $COLS_TO_NULL)"
 
         # Build SELECT: replace each column-to-NULL with "NULL AS col", keep the rest
