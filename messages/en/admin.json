@@ -78,7 +78,8 @@
       "manageDecisions": "Manage Decisions",
       "generateMinutes": "Generate Minutes",
       "downloadMinutes": "Download Minutes (DOCX)",
-      "exportMinutesRequest": "Export Minutes Request (JSON)"
+      "exportMinutesRequest": "Export Minutes Request (JSON)",
+      "extractDecisions": "Extract Decisions"
     },
     "forms": {
       "enterMediaUrl": "Enter Media URL",
@@ -194,6 +195,13 @@
       },
       "errorExportingMinutesRequest": {
         "title": "Error exporting minutes request"
+      },
+      "extractDecisionsRequested": {
+        "title": "Decision extraction requested",
+        "description": "Extracting data from decision PDFs."
+      },
+      "errorExtractingDecisions": {
+        "title": "Error extracting decisions"
       }
     },
     "decisions": {

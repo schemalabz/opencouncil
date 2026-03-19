@@ -15,11 +15,13 @@ import prisma from '@/lib/db/prisma'
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda'
 import { handleSummarizeResult } from '@/lib/tasks/summarize'
 import { handlePollDecisionsResult, resolveAdaConflict } from '@/lib/tasks/pollDecisions'
+import { handleExtractDecisionsResult } from '@/lib/tasks/extractDecisions'
 import { resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
     createCity,
     createMeeting,
+    createPerson,
     createSubject,
     createSpeakerSegment,
     createSpeakerTag,
@@ -27,7 +29,7 @@ import {
     createUser,
     createUtterance,
 } from '../helpers/factories'
-import { makeSubject, makeProcessAgendaResult, makeSummarizeResult, makePollDecisionsMatch, makePollDecisionsResult } from '../helpers/builders'
+import { makeSubject, makeProcessAgendaResult, makeSummarizeResult, makePollDecisionsMatch, makePollDecisionsResult, makeExtractedDecision, makeExtractDecisionsResult } from '../helpers/builders'
 
 describe('handleProcessAgendaResult', () => {
     let cityId: string
@@ -878,5 +880,228 @@ describe('resolveAdaConflict', () => {
         // SubjectA keeps its decision (ADA-X) — not moved
         const decisionA = await prisma.decision.findUnique({ where: { subjectId: subjectA.id } })
         expect(decisionA!.ada).toBe('ADA-X')
+    })
+})
+
+describe('handleExtractDecisionsResult', () => {
+    let cityId: string
+    let meetingId: string
+    let personA: { id: string }
+    let personB: { id: string }
+    let personC: { id: string }
+
+    beforeEach(async () => {
+        await resetDatabase(prisma as any)
+
+        const city = await createCity({ id: 'c1' })
+        cityId = city.id
+        const body = await createAdministrativeBody(cityId, {
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        const meeting = await createMeeting(cityId, {
+            id: 'm1',
+            administrativeBodyId: body.id,
+        })
+        meetingId = meeting.id
+
+        personA = await createPerson(cityId, { name: 'Αλέξανδρος Παπαδόπουλος' })
+        personB = await createPerson(cityId, { name: 'Μαρία Ιωάννου' })
+        personC = await createPerson(cityId, { name: 'Γεώργιος Νικολάου' })
+    })
+
+    test('creates attendance and vote records with decision source', async () => {
+        const subject = await createSubject(meetingId, cityId, { name: 'Budget', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/1.pdf', ada: 'ADA-1' },
+        })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'extractDecisions' })
+
+        await handleExtractDecisionsResult(task.id, makeExtractDecisionsResult({
+            decisions: [
+                makeExtractedDecision({
+                    subjectId: subject.id,
+                    excerpt: 'ΑΠΟΦΑΣΙΖΕΙ ομόφωνα...',
+                    references: '- Ν. 3852/2010',
+                    presentMemberIds: [personA.id, personB.id],
+                    absentMemberIds: [personC.id],
+                    voteDetails: [
+                        { personId: personA.id, vote: 'FOR' },
+                        { personId: personB.id, vote: 'AGAINST' },
+                    ],
+                }),
+            ],
+        }))
+
+        // Decision excerpt and references updated
+        const decision = await prisma.decision.findUnique({ where: { subjectId: subject.id } })
+        expect(decision!.excerpt).toBe('ΑΠΟΦΑΣΙΖΕΙ ομόφωνα...')
+        expect(decision!.references).toBe('- Ν. 3852/2010')
+
+        // Attendance records created with 'decision' source
+        const attendance = await prisma.subjectAttendance.findMany({
+            where: { subjectId: subject.id },
+            orderBy: { person: { name: 'asc' } },
+        })
+        expect(attendance).toHaveLength(3)
+        expect(attendance.every(a => a.source === 'decision')).toBe(true)
+        expect(attendance.every(a => a.taskId === task.id)).toBe(true)
+
+        const present = attendance.filter(a => a.status === 'PRESENT')
+        const absent = attendance.filter(a => a.status === 'ABSENT')
+        expect(present).toHaveLength(2)
+        expect(absent).toHaveLength(1)
+        expect(absent[0].personId).toBe(personC.id)
+
+        // Vote records created with 'decision' source
+        const votes = await prisma.subjectVote.findMany({
+            where: { subjectId: subject.id },
+            orderBy: { person: { name: 'asc' } },
+        })
+        expect(votes).toHaveLength(2)
+        expect(votes.every(v => v.source === 'decision')).toBe(true)
+
+        const forVote = votes.find(v => v.personId === personA.id)
+        const againstVote = votes.find(v => v.personId === personB.id)
+        expect(forVote!.voteType).toBe('FOR')
+        expect(againstVote!.voteType).toBe('AGAINST')
+    })
+
+    test('unanimous vote infers FOR for all present members', async () => {
+        const subject = await createSubject(meetingId, cityId, { name: 'Parks', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/2.pdf', ada: 'ADA-2' },
+        })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'extractDecisions' })
+
+        await handleExtractDecisionsResult(task.id, makeExtractDecisionsResult({
+            decisions: [
+                makeExtractedDecision({
+                    subjectId: subject.id,
+                    presentMemberIds: [personA.id, personB.id, personC.id],
+                    voteResult: 'Ομόφωνα',
+                    // no voteDetails — should infer FOR for all present
+                }),
+            ],
+        }))
+
+        const votes = await prisma.subjectVote.findMany({
+            where: { subjectId: subject.id },
+        })
+        expect(votes).toHaveLength(3)
+        expect(votes.every(v => v.voteType === 'FOR')).toBe(true)
+        expect(votes.every(v => v.source === 'decision')).toBe(true)
+    })
+
+    test('re-extraction replaces decision-sourced records but preserves other sources', async () => {
+        const subject = await createSubject(meetingId, cityId, { name: 'Roads', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/3.pdf', ada: 'ADA-3' },
+        })
+
+        // Simulate a manual attendance record (different source)
+        await prisma.subjectAttendance.create({
+            data: {
+                subjectId: subject.id,
+                personId: personC.id,
+                status: 'PRESENT',
+                source: 'manual',
+            },
+        })
+        await prisma.subjectVote.create({
+            data: {
+                subjectId: subject.id,
+                personId: personC.id,
+                voteType: 'FOR',
+                source: 'manual',
+            },
+        })
+
+        // First extraction
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'extractDecisions' })
+        await handleExtractDecisionsResult(task1.id, makeExtractDecisionsResult({
+            decisions: [
+                makeExtractedDecision({
+                    subjectId: subject.id,
+                    presentMemberIds: [personA.id],
+                    absentMemberIds: [personB.id],
+                    voteResult: 'Ομόφωνα',
+                }),
+            ],
+        }))
+
+        // Verify: decision-sourced + manual records coexist
+        let attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
+        expect(attendance).toHaveLength(3) // A (decision), B (decision), C (manual)
+
+        let votes = await prisma.subjectVote.findMany({ where: { subjectId: subject.id } })
+        expect(votes).toHaveLength(2) // A (decision), C (manual)
+
+        // Second extraction — replaces decision-sourced, preserves manual
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'extractDecisions' })
+        await handleExtractDecisionsResult(task2.id, makeExtractDecisionsResult({
+            decisions: [
+                makeExtractedDecision({
+                    subjectId: subject.id,
+                    presentMemberIds: [personA.id, personB.id],
+                    // No absent members this time
+                    voteDetails: [
+                        { personId: personA.id, vote: 'FOR' },
+                        { personId: personB.id, vote: 'AGAINST' },
+                    ],
+                }),
+            ],
+        }))
+
+        attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
+        // A (decision, PRESENT), B (decision, PRESENT), C (manual, PRESENT)
+        expect(attendance).toHaveLength(3)
+
+        const manualAttendance = attendance.find(a => a.source === 'manual')
+        expect(manualAttendance).toBeDefined()
+        expect(manualAttendance!.personId).toBe(personC.id)
+
+        const decisionAttendance = attendance.filter(a => a.source === 'decision')
+        expect(decisionAttendance).toHaveLength(2)
+        expect(decisionAttendance.every(a => a.status === 'PRESENT')).toBe(true)
+        expect(decisionAttendance.every(a => a.taskId === task2.id)).toBe(true)
+
+        votes = await prisma.subjectVote.findMany({ where: { subjectId: subject.id } })
+        // A (decision, FOR), B (decision, AGAINST), C (manual, FOR)
+        expect(votes).toHaveLength(3)
+
+        const manualVote = votes.find(v => v.source === 'manual')
+        expect(manualVote).toBeDefined()
+        expect(manualVote!.personId).toBe(personC.id)
+        expect(manualVote!.voteType).toBe('FOR')
+
+        const decisionVotes = votes.filter(v => v.source === 'decision')
+        expect(decisionVotes).toHaveLength(2)
+        expect(decisionVotes.every(v => v.taskId === task2.id)).toBe(true)
+    })
+
+    test('no votes created when not unanimous and no vote details', async () => {
+        const subject = await createSubject(meetingId, cityId, { name: 'Misc', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/4.pdf', ada: 'ADA-4' },
+        })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'extractDecisions' })
+
+        await handleExtractDecisionsResult(task.id, makeExtractDecisionsResult({
+            decisions: [
+                makeExtractedDecision({
+                    subjectId: subject.id,
+                    presentMemberIds: [personA.id, personB.id],
+                    voteResult: 'Κατά πλειοψηφία',
+                    // no voteDetails — can't infer individual votes for non-unanimous
+                }),
+            ],
+        }))
+
+        const votes = await prisma.subjectVote.findMany({ where: { subjectId: subject.id } })
+        expect(votes).toHaveLength(0)
+
+        // But attendance is still created
+        const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
+        expect(attendance).toHaveLength(2)
     })
 })

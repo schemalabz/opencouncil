@@ -1,5 +1,5 @@
 import prisma from './prisma';
-import { Decision, TaskStatus, User } from '@prisma/client';
+import { AttendanceStatus, DataSource, Decision, TaskStatus, User, VoteType } from '@prisma/client';
 
 export type DecisionWithSource = Decision & {
     task: TaskStatus | null;
@@ -60,6 +60,40 @@ export async function deleteDecision(subjectId: string): Promise<void> {
     await prisma.decision.deleteMany({
         where: { subjectId },
     });
+}
+
+/**
+ * Clear extracted data for all decisions in a meeting, keeping the decision
+ * links (pdfUrl, ada, protocolNumber) intact. Removes:
+ * - Decision.excerpt and Decision.references (set to null)
+ * - Decision-sourced SubjectAttendance records
+ * - Decision-sourced SubjectVote records
+ */
+export async function clearExtractedDataForMeeting(cityId: string, meetingId: string): Promise<{ clearedCount: number }> {
+    // Get all subject IDs for this meeting
+    const subjects = await prisma.subject.findMany({
+        where: { cityId, councilMeetingId: meetingId },
+        select: { id: true },
+    });
+    const subjectIds = subjects.map(s => s.id);
+
+    if (subjectIds.length === 0) return { clearedCount: 0 };
+
+    // Clear excerpt/references from decisions
+    const updated = await prisma.decision.updateMany({
+        where: { subjectId: { in: subjectIds } },
+        data: { excerpt: null, references: null },
+    });
+
+    // Delete decision-sourced attendance and vote records
+    await prisma.subjectAttendance.deleteMany({
+        where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+    });
+    await prisma.subjectVote.deleteMany({
+        where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+    });
+
+    return { clearedCount: updated.count };
 }
 
 export type MeetingDecisionCounts = Record<string, { linked: number; eligible: number }>;
