@@ -7,6 +7,7 @@ import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleGenerateHighlightResult } from './generateHighlight';
 import { handlePollDecisionsResult, checkBatchCompletionAndAlert } from './pollDecisions';
+import { handleExtractDecisionsResult } from './extractDecisions';
 
 // Task handler registry - maps task types to their result handlers
 export type TaskResultHandler = (taskId: string, result: any, options?: { force?: boolean }) => Promise<void>;
@@ -21,6 +22,7 @@ export const taskHandlers: Record<string, TaskResultHandler> = {
     generateVoiceprint: handleGenerateVoiceprintResult,
     generateHighlight: handleGenerateHighlightResult,
     pollDecisions: handlePollDecisionsResult,
+    extractDecisions: handleExtractDecisionsResult,
 };
 
 // Hooks called after a task reaches a terminal state (succeeded or failed).
