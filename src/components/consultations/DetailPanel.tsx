@@ -225,7 +225,7 @@ export default function DetailPanel({
     const renderContent = () => (
         <>
             {/* Header */}
-            <div className={cn("pr-6 flex-shrink-0", isMobile && "px-4")}>
+            <div className={cn("relative flex-shrink-0", isMobile ? "px-4" : "pr-20")}>
                 <div className="flex items-start justify-between group">
                     <div className="flex-1">
                         <div className="text-xs text-muted-foreground font-medium mb-1">
@@ -236,7 +236,13 @@ export default function DetailPanel({
                         </div>
                     </div>
                     {detailType !== 'search-location' && detailId && (
-                        <PermalinkButton href={`${baseUrl}?view=map#${detailId}`} />
+                        <PermalinkButton
+                            href={`${baseUrl}?view=map#${detailId}`}
+                            className={cn(
+                                "shrink-0 self-start",
+                                !isMobile && "absolute right-10 -top-3",
+                            )}
+                        />
                     )}
                 </div>
             </div>
@@ -479,6 +485,7 @@ export default function DetailPanel({
                 side="right"
                 className={cn("w-96 max-w-[calc(100vw-2rem)] sm:max-w-md flex flex-col", className)}
                 overlayClassName="bg-black/20"
+                onOpenAutoFocus={(event) => event.preventDefault()}
             >
                 <SheetTitle className="sr-only">{getTitleData().title}</SheetTitle>
                 {renderContent()}
