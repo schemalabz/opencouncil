@@ -37,6 +37,8 @@ export default function MapPage() {
                     ...subjectFeatures
                 ]}
                 animateRotation={false}
+                zoomToGeometry={city.geometry}
+                zoomPadding={120}
                 onFeatureClick={(feature: Feature) => {
                     if (feature.properties?.subjectId && feature.properties?.type !== 'city') {
                         router.push(`subjects/${feature.properties.subjectId}`);
