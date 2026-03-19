@@ -7,6 +7,68 @@ import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
 
 const prisma = new PrismaClient()
 
+// Track seeding counts for summary
+const globalStats: Record<string, number> = {}
+const meetingStats: Map<string, Record<string, number>> = new Map()
+let currentMeetingKey = ''
+
+function track(entity: string, count: number) {
+  globalStats[entity] = (globalStats[entity] || 0) + count
+  if (currentMeetingKey) {
+    const stats = meetingStats.get(currentMeetingKey)!
+    stats[entity] = (stats[entity] || 0) + count
+  }
+}
+
+function startMeetingTracking(cityId: string, meetingId: string) {
+  currentMeetingKey = `${cityId}/${meetingId}`
+  meetingStats.set(currentMeetingKey, {})
+}
+
+function endMeetingTracking() {
+  currentMeetingKey = ''
+}
+
+function printSeedingSummary() {
+  // Per-meeting table
+  const cols = ['Subjects', 'Decisions', 'Segments', 'Summaries', 'Utterances', 'Highlights', 'Podcasts']
+  const colKeys = ['Subjects', 'Decisions', 'Speaker Segments', 'Summaries', 'Utterances', 'Highlights', 'Podcast Specs']
+
+  const meetingCol = 'Meeting'
+  const meetingWidth = Math.max(meetingCol.length, ...[...meetingStats.keys()].map(k => k.length))
+  const colWidth = 10
+
+  const header = meetingCol.padEnd(meetingWidth) + '  ' + cols.map(c => c.padStart(colWidth)).join('')
+  const separator = '-'.repeat(header.length)
+
+  console.log('\n=== Seeding Summary ===\n')
+  console.log(header)
+  console.log(separator)
+
+  for (const [key, stats] of meetingStats) {
+    const row = key.padEnd(meetingWidth) + '  ' +
+      colKeys.map(k => (stats[k] || 0).toLocaleString().padStart(colWidth)).join('')
+    console.log(row)
+  }
+
+  console.log(separator)
+  // Totals row
+  const totals = meetingCol.padEnd(meetingWidth).replace(/./g, ' ').slice(0, -6) + 'Totals' + '  ' +
+    colKeys.map(k => (globalStats[k] || 0).toLocaleString().padStart(colWidth)).join('')
+  console.log(totals)
+
+  // Global entities (not per-meeting)
+  console.log('\nGlobal entities:')
+  const globalOnly = ['Topics', 'Cities', 'Administrative Bodies', 'Parties', 'Persons', 'Roles', 'Speaker Tags', 'Voiceprints', 'Task Statuses']
+  const maxLabel = Math.max(...globalOnly.map(k => k.length))
+  for (const key of globalOnly) {
+    if (globalStats[key]) {
+      console.log(`  ${key.padEnd(maxLabel)}  ${globalStats[key].toLocaleString()}`)
+    }
+  }
+  console.log('')
+}
+
 // Configuration
 const SEED_DATA_URL = env.SEED_DATA_URL
 const SEED_DATA_PATH = env.SEED_DATA_PATH
@@ -211,6 +273,7 @@ async function seedVoicePrints(persons: any[]) {
           data: validVoicePrints,
           skipDuplicates: true,
         })
+        track('Voiceprints', validVoicePrints.length)
         console.log('Successfully created voiceprints')
       } catch (error) {
         console.error('Error creating voiceprints:', error)
@@ -284,7 +347,8 @@ async function main() {
 
     await createTestUsers()
 
-    console.log('Database has been seeded! 🌱')
+    printSeedingSummary()
+    console.log('Database has been seeded!')
   } catch (error) {
     console.error('Error during seeding:', error)
     process.exit(1)
@@ -343,6 +407,7 @@ async function seedTopics(topics: any[]) {
     data: topicData,
     skipDuplicates: true,
   })
+  track('Topics', topicData.length)
 }
 
 /**
@@ -351,18 +416,16 @@ async function seedTopics(topics: any[]) {
 async function seedCities(cities: any[]) {
   console.log(`Seeding ${cities.length} cities...`)
 
-  const cityData = cities.map(city => ({
-    id: city.id,
-    name: city.name,
-    name_en: city.name_en,
+  // Spread all fields from dump, exclude unsupported PostGIS geometry if present,
+  // apply defaults for fields that might be missing in older dumps
+  const cityData = cities.map(({ geometry, ...city }) => ({
+    ...city,
     name_municipality: city.name_municipality || city.name,
     name_municipality_en: city.name_municipality_en || city.name_en,
-    logoImage: city.logoImage,
     timezone: city.timezone || 'Europe/Athens',
     officialSupport: city.officialSupport ?? CITY_DEFAULTS.officialSupport,
     status: city.status || CITY_DEFAULTS.status,
     authorityType: city.authorityType || CITY_DEFAULTS.authorityType,
-    wikipediaId: city.wikipediaId,
     consultationsEnabled: city.id === 'athens' ? true : CITY_DEFAULTS.consultationsEnabled,
     highlightCreationPermission: city.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
   }))
@@ -371,6 +434,7 @@ async function seedCities(cities: any[]) {
     data: cityData,
     skipDuplicates: true,
   })
+  track('Cities', cityData.length)
 }
 
 /**
@@ -379,18 +443,11 @@ async function seedCities(cities: any[]) {
 async function seedAdministrativeBodies(bodies: any[]) {
   console.log(`Seeding ${bodies.length} administrative bodies...`)
 
-  const bodyData = bodies.map(body => ({
-    id: body.id,
-    name: body.name,
-    name_en: body.name_en,
-    type: body.type,
-    cityId: body.cityId,
-  }))
-
   await prisma.administrativeBody.createMany({
-    data: bodyData,
+    data: bodies,
     skipDuplicates: true,
   })
+  track('Administrative Bodies', bodies.length)
 }
 
 /**
@@ -414,6 +471,7 @@ async function seedParties(parties: any[]) {
     data: partyData,
     skipDuplicates: true,
   })
+  track('Parties', partyData.length)
 }
 
 /**
@@ -441,6 +499,7 @@ async function seedPersons(persons: any[]) {
     data: personData,
     skipDuplicates: true,
   })
+  track('Persons', personData.length)
 
   // Now handle relations separately
   // Collect all roles from all persons
@@ -479,6 +538,7 @@ async function seedPersons(persons: any[]) {
       data: allRoles,
       skipDuplicates: true,
     })
+    track('Roles', allRoles.length)
   }
 
   // Create all speaker tags at once if there are any
@@ -488,6 +548,7 @@ async function seedPersons(persons: any[]) {
       data: allSpeakerTags,
       skipDuplicates: true,
     })
+    track('Speaker Tags', allSpeakerTags.length)
   }
 }
 
@@ -519,6 +580,7 @@ async function seedMeetings(meetings: any[]) {
       data: meetingData,
       skipDuplicates: true,
     })
+    track('Meetings', meetingData.length)
   } catch (error) {
     console.error('Error creating meetings:', error)
     return // If we can't create meetings, no point in continuing
@@ -561,6 +623,7 @@ async function seedMeetings(meetings: any[]) {
   // 3. Highlights (references subjects and utterances)
   // 4. Podcast specs (references utterances)
   for (const meeting of meetings) {
+    startMeetingTracking(meeting.cityId, meeting.id)
     try {
       // 1. Create subjects first (needed by speaker segments and highlights)
       if (meeting.subjects && meeting.subjects.length > 0) {
@@ -584,6 +647,8 @@ async function seedMeetings(meetings: any[]) {
     } catch (error) {
       console.error(`Error processing meeting ${meeting.id}:`, error)
       // Continue with next meeting
+    } finally {
+      endMeetingTracking()
     }
   }
 }
@@ -639,20 +704,18 @@ async function seedSubjects(subjects: any[], meeting: any) {
   }
 
   if (locationsCreated > 0) {
+    track('Locations', locationsCreated)
     console.log(`Created ${locationsCreated} locations for meeting ${meeting.id}`);
   }
 
-  // Create all subjects
-  const validSubjectData = subjects.map(subject => ({
-    id: subject.id,
-    name: subject.name,
-    description: subject.description,
-    agendaItemIndex: subject.agendaItemIndex,
-    nonAgendaReason: subject.nonAgendaReason,
-    topicId: subject.topicId,
-    locationId: subject.locationId,
-    personId: subject.personId,
-    context: subject.context,
+  // Create all subjects — spread all scalar fields from dump, exclude relation objects
+  const validSubjectData = subjects.map(({
+    location: _location, introducedBy: _introducedBy, topic: _topic,
+    highlights: _highlights, speakerSegments: _speakerSegments,
+    contributions: _contributions, decision: _decision,
+    ...subject
+  }) => ({
+    ...subject,
     contextCitationUrls: subject.contextCitationUrls || [],
     councilMeetingId: meeting.id,
     cityId: meeting.cityId,
@@ -662,9 +725,43 @@ async function seedSubjects(subjects: any[], meeting: any) {
     data: validSubjectData,
     skipDuplicates: true,
   });
+  track('Subjects', validSubjectData.length)
+
+  // Seed decisions after subjects are created
+  await seedDecisions(subjects);
 
   // Seed speaker contributions after subjects are created
   await seedSpeakerContributions(subjects);
+}
+
+/**
+ * Seed decisions for subjects
+ */
+async function seedDecisions(subjects: any[]) {
+  const allDecisions = subjects
+    .filter(subject => subject.decision)
+    .map(subject => {
+      // Exclude taskId and createdById — those reference records that won't exist in the seeded DB
+      const { taskId, createdById, ...decision } = subject.decision;
+      return {
+        ...decision,
+        subjectId: subject.id,
+        publishDate: decision.publishDate ? new Date(decision.publishDate) : null,
+      };
+    });
+
+  if (allDecisions.length > 0) {
+    console.log(`Creating ${allDecisions.length} decisions...`);
+    try {
+      await prisma.decision.createMany({
+        data: allDecisions,
+        skipDuplicates: true,
+      });
+      track('Decisions', allDecisions.length)
+    } catch (error) {
+      console.error('Error creating decisions:', error);
+    }
+  }
 }
 
 /**
@@ -707,6 +804,7 @@ async function seedSpeakerContributions(subjects: any[]) {
         data: allContributions,
         skipDuplicates: true,
       });
+      track('Speaker Contributions', allContributions.length)
     } catch (error) {
       console.error('Error creating speaker contributions:', error);
       // Continue anyway, as this is not critical
@@ -772,6 +870,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
     data: segmentData,
     skipDuplicates: true,
   })
+  track('Speaker Segments', segmentData.length)
 
   // Create summaries for segments
   const summaries = segments
@@ -789,6 +888,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       data: summaries,
       skipDuplicates: true,
     })
+    track('Summaries', summaries.length)
   }
 
   // Create topic labels for segments
@@ -808,6 +908,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       data: topicLabels,
       skipDuplicates: true,
     })
+    track('Topic Labels', topicLabels.length)
   }
 
   // Create subject connections for segments
@@ -828,23 +929,20 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
       data: subjectConnections,
       skipDuplicates: true,
     })
+    track('Subject Connections', subjectConnections.length)
   }
 
   // Create all utterances and then their words
   // First collect all utterances from all segments
+  // Spread all scalar fields from dump, exclude relation objects
   const utterances = segments
     .filter(segment => segment.utterances && segment.utterances.length > 0)
     .flatMap(segment =>
-      segment.utterances.map((utterance: any) => ({
-        id: utterance.id,
-        startTimestamp: utterance.startTimestamp,
-        endTimestamp: utterance.endTimestamp,
-        text: utterance.text,
+      segment.utterances.map(({ words, highlightedUtterances, ...utterance }: any) => ({
+        ...utterance,
         drift: utterance.drift || 0,
-        uncertain: utterance.uncertain || false,
-        lastModifiedBy: utterance.lastModifiedBy,
         speakerSegmentId: segment.id,
-        _words: utterance.words || [], // Temporary property to track words for later
+        _words: words || [], // Temporary property to track words for later
       }))
     )
 
@@ -860,6 +958,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
         }),
         skipDuplicates: true,
       })
+      track('Utterances', utterances.length)
 
       // Now create words for utterances
       const words = utterances
@@ -882,6 +981,7 @@ async function seedSpeakerSegments(segments: any[], meeting: any) {
             data: words,
             skipDuplicates: true,
           })
+          track('Words', words.length)
         } catch (error) {
           console.error('Error creating words:', error)
           // Continue anyway, as this is not critical
@@ -918,6 +1018,7 @@ async function seedHighlights(highlights: any[], meeting: any) {
       data: highlightData,
       skipDuplicates: true,
     })
+    track('Highlights', highlightData.length)
 
     // Collect all highlighted utterance connections
     const allHighlightedUtterances = highlights
@@ -938,6 +1039,7 @@ async function seedHighlights(highlights: any[], meeting: any) {
           data: allHighlightedUtterances,
           skipDuplicates: true,
         })
+        track('Highlighted Utterances', allHighlightedUtterances.length)
       } catch (error) {
         console.error('Error creating highlighted utterance connections:', error)
       }
@@ -966,6 +1068,7 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
       data: specData,
       skipDuplicates: true,
     })
+    track('Podcast Specs', specData.length)
 
     // Collect all podcast parts from all specs
     const allParts = podcastSpecs
@@ -997,6 +1100,7 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
           }),
           skipDuplicates: true,
         })
+        track('Podcast Parts', allParts.length)
 
         // Create podcast part audio utterances
         const allUtteranceConnections = allParts
@@ -1016,6 +1120,7 @@ async function seedPodcastSpecs(podcastSpecs: any[], meeting: any) {
               data: allUtteranceConnections,
               skipDuplicates: true,
             })
+            track('Podcast Utterance Links', allUtteranceConnections.length)
           } catch (error) {
             console.error('Error creating podcast part audio utterance connections:', error)
           }
@@ -1067,6 +1172,7 @@ async function seedMeetingTaskStatuses(meetings: any[]) {
     }
   }
 
+  track('Task Statuses', taskCount)
   console.log(`Created ${taskCount} task statuses`);
 }
 

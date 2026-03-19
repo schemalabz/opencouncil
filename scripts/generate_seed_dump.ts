@@ -31,7 +31,14 @@ function parseArguments() {
       alias: 'p',
       type: 'array',
       description: 'City/Meeting pairs to include (format: cityId/meetingId or cityId/latest)',
-      default: ['chania/apr2_2025', 'chania/mar19_2025'],
+      default: [
+        'chania/dec23_2025', 'xylokastro/dec22_2025', 'argos/jan19_2026',
+        'sparta/jan19_2026', 'chalandri/dec17_2025', 'zografou/jan8_2026_3',
+        'samothraki/dec29_2025', 'orestiada/jan21_2026', 'vrilissia/jan21_2026',
+        'athens/jan14_2026', 'athens/jan22_2026', 'athens/feb11_2026',
+        'zografou/feb19_2026', 'zografou/jan29_2_2026', 'vrilissia/mar4_2026',
+        'vrilissia/feb4_2026', 'chalandri/feb25_2_2026', 'chalandri/mar11_2026',
+      ],
     })
     .example('$0 -s "postgresql://user:password@localhost:5432/db" -p chania/latest athens/latest', 'Extract data for the latest meetings in Chania and Athens')
     .example('$0 -s postgresql://user:password@localhost:5432/db -o ./custom-data.json -p chania/meeting1 chania/meeting2', 'Extract specific meetings to a custom file')
@@ -104,16 +111,6 @@ async function extractDataForPairs(prisma: PrismaClient, pairsArg: string[]) {
   // Finally extract meeting data with optimized references
   const meetings = await extractMeetings(prisma, pairs);
   
-  // Create entity maps for efficient reference lookup
-  const entityMaps = await createEntityMaps(prisma, {
-    cityIds,
-    meetingIds,
-    persons,
-    administrativeBodies,
-    parties,
-    topics
-  });
-  
   return {
     // Metadata
     metadata: {
@@ -128,48 +125,6 @@ async function extractDataForPairs(prisma: PrismaClient, pairsArg: string[]) {
     parties,
     persons,
     meetings
-  };
-}
-
-/**
- * Create maps of entity IDs to their index in the arrays
- * This helps with data deduplication
- */
-async function createEntityMaps(prisma: PrismaClient, {
-  cityIds,
-  meetingIds,
-  persons,
-  administrativeBodies,
-  parties,
-  topics
-}: {
-  cityIds: string[];
-  meetingIds: string[];
-  persons: any[];
-  administrativeBodies: any[];
-  parties: any[];
-  topics: any[];
-}) {
-  return {
-    persons: persons.reduce((map: Record<string, number>, person: any, index: number) => {
-      map[person.id] = index;
-      return map;
-    }, {}),
-    
-    administrativeBodies: administrativeBodies.reduce((map: Record<string, number>, body: any, index: number) => {
-      map[body.id] = index;
-      return map;
-    }, {}),
-    
-    parties: parties.reduce((map: Record<string, number>, party: any, index: number) => {
-      map[party.id] = index;
-      return map;
-    }, {}),
-    
-    topics: topics.reduce((map: Record<string, number>, topic: any, index: number) => {
-      map[topic.id] = index;
-      return map;
-    }, {})
   };
 }
 
@@ -461,7 +416,22 @@ async function extractMeetings(prisma: PrismaClient, pairs: { cityId: string; me
                 createdAt: true,
                 updatedAt: true,
               }
-            }
+            },
+            // Include decision data from Diavgeia
+            // Note: uses select instead of `true` to avoid pulling columns
+            // that may not exist in source database yet (e.g. excerpt, references)
+            decision: {
+              select: {
+                id: true,
+                ada: true,
+                protocolNumber: true,
+                title: true,
+                pdfUrl: true,
+                publishDate: true,
+                createdAt: true,
+                updatedAt: true,
+              }
+            },
           }
         },
         
