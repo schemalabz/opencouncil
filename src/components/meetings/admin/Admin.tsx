@@ -17,6 +17,7 @@ import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { requestGenerateMinutes, buildGenerateMinutesRequestBody } from '@/lib/tasks/generateMinutes';
+import { requestExtractDecisions } from '@/lib/tasks/extractDecisions';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { Pencil, Bell, FileDown, ChevronDown } from 'lucide-react';
@@ -38,6 +39,7 @@ export default function AdminActions({
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
     const [isGeneratingMinutes, setIsGeneratingMinutes] = React.useState(false);
+    const [isExtractingDecisions, setIsExtractingDecisions] = React.useState(false);
     const [decisionsDialogOpen, setDecisionsDialogOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
@@ -240,6 +242,25 @@ export default function AdminActions({
             });
         } finally {
             setIsGeneratingMinutes(false);
+        }
+    };
+
+    const handleExtractDecisions = async () => {
+        setIsExtractingDecisions(true);
+        try {
+            await requestExtractDecisions(meeting.cityId, meeting.id);
+            toast({
+                title: t('toasts.extractDecisionsRequested.title'),
+                description: t('toasts.extractDecisionsRequested.description'),
+            });
+        } catch (error) {
+            toast({
+                title: t('toasts.errorExtractingDecisions.title'),
+                description: `${error}`,
+                variant: 'destructive'
+            });
+        } finally {
+            setIsExtractingDecisions(false);
         }
     };
 
@@ -492,9 +513,18 @@ export default function AdminActions({
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.decisions')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.decisionsSubtitle')}</p>
-            <Button variant="outline" onClick={() => setDecisionsDialogOpen(true)}>
-                {t('buttons.manageDecisions')}
-            </Button>
+            <div className="flex space-x-3">
+                <Button variant="outline" onClick={() => setDecisionsDialogOpen(true)}>
+                    {t('buttons.manageDecisions')}
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={handleExtractDecisions}
+                    disabled={isExtractingDecisions}
+                >
+                    {isExtractingDecisions ? t('buttons.starting') : t('buttons.extractDecisions')}
+                </Button>
+            </div>
         </div>
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>

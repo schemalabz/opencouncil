@@ -1,4 +1,4 @@
-import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch } from '@/lib/apiTypes'
+import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch, ExtractDecisionsResult, ExtractedDecisionData } from '@/lib/apiTypes'
 import { PersonWithRelations } from '@/lib/db/people'
 import { Transcript } from '@/lib/db/transcript'
 
@@ -132,5 +132,28 @@ export function makePollDecisionsResult(params: {
         reassignments: params.reassignments ?? [],
         unmatchedSubjects: params.unmatchedSubjects ?? [],
         ambiguousSubjects: params.ambiguousSubjects ?? [],
+    }
+}
+
+export function makeExtractedDecision(overrides: Partial<ExtractedDecisionData> & { subjectId: string }): ExtractedDecisionData {
+    return {
+        excerpt: '',
+        references: '',
+        presentMemberIds: [],
+        absentMemberIds: [],
+        voteResult: null,
+        voteDetails: [],
+        unmatchedMembers: [],
+        ...overrides,
+    }
+}
+
+export function makeExtractDecisionsResult(params: {
+    decisions?: ExtractedDecisionData[]
+    warnings?: string[]
+}): ExtractDecisionsResult {
+    return {
+        decisions: params.decisions ?? [],
+        warnings: params.warnings ?? [],
     }
 }

@@ -78,7 +78,8 @@
       "manageDecisions": "Διαχείριση Αποφάσεων",
       "generateMinutes": "Δημιουργία Πρακτικών",
       "downloadMinutes": "Λήψη Πρακτικών (DOCX)",
-      "exportMinutesRequest": "Εξαγωγή Αιτήματος Πρακτικών (JSON)"
+      "exportMinutesRequest": "Εξαγωγή Αιτήματος Πρακτικών (JSON)",
+      "extractDecisions": "Εξαγωγή Αποφάσεων"
     },
     "forms": {
       "enterMediaUrl": "Εισάγετε URL Μέσου",
@@ -194,6 +195,13 @@
       },
       "errorExportingMinutesRequest": {
         "title": "Σφάλμα εξαγωγής αιτήματος πρακτικών"
+      },
+      "extractDecisionsRequested": {
+        "title": "Ζητήθηκε εξαγωγή αποφάσεων",
+        "description": "Εξαγωγή δεδομένων από τα PDF αποφάσεων."
+      },
+      "errorExtractingDecisions": {
+        "title": "Σφάλμα εξαγωγής αποφάσεων"
       }
     },
     "decisions": {
