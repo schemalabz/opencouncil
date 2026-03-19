@@ -241,6 +241,7 @@ After all commits are created, run `GIT_SEQUENCE_EDITOR=true git rebase -i --aut
 - For schema changes: run `npm run prisma:generate` before building
 - Quick TypeScript check without full build: `npx tsc --noEmit`
 - **Tests**: `npm test` and `npm run test:integration` are fast — run them between changes to catch regressions early
+- **If `package-lock.json` changed**: update `npmDepsHash` in `flake.nix` — run `nix run nixpkgs#prefetch-npm-deps package-lock.json` and copy the hash. Preview deployments will fail without this.
 
 ### TypeScript
 - Strict mode is enabled
