@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import Icon from "./icon";
 import { MapPin, ScrollText, Calendar, Loader2, Clock, MessageSquare } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
+import { getNonAgendaLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonAvatarList } from "./persons/PersonAvatarList";
 import { PersonWithRelations } from '@/lib/db/people';
@@ -123,9 +124,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                             <div className="text-xs text-muted-foreground">
                                 {subject.agendaItemIndex ?
                                     `#${subject.agendaItemIndex}` :
-                                    subject.nonAgendaReason === 'beforeAgenda' ?
-                                        "Προ ημερησίας" :
-                                        "Εκτός ημερησίας"
+                                    getNonAgendaLabel(subject.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')
                                 }
                             </div>
                         </div>
