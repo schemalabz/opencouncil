@@ -79,19 +79,19 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
 
     if (subjectIds.length === 0) return { clearedCount: 0 };
 
-    // Clear excerpt/references from decisions
-    const updated = await prisma.decision.updateMany({
-        where: { subjectId: { in: subjectIds } },
-        data: { excerpt: null, references: null },
-    });
-
-    // Delete decision-sourced attendance and vote records
-    await prisma.subjectAttendance.deleteMany({
-        where: { subjectId: { in: subjectIds }, source: DataSource.decision },
-    });
-    await prisma.subjectVote.deleteMany({
-        where: { subjectId: { in: subjectIds }, source: DataSource.decision },
-    });
+    // Clear all extracted data atomically to avoid partial state on failure
+    const [updated] = await prisma.$transaction([
+        prisma.decision.updateMany({
+            where: { subjectId: { in: subjectIds } },
+            data: { excerpt: null, references: null },
+        }),
+        prisma.subjectAttendance.deleteMany({
+            where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+        }),
+        prisma.subjectVote.deleteMany({
+            where: { subjectId: { in: subjectIds }, source: DataSource.decision },
+        }),
+    ]);
 
     return { clearedCount: updated.count };
 }
