@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/routing";
 import { MapPin, Map, FileText, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Credenza, CredenzaContent, CredenzaHeader, CredenzaTitle, CredenzaDescription, CredenzaBody } from "@/components/ui/credenza";
@@ -15,8 +16,16 @@ import MarkdownContent from "./MarkdownContent";
 
 import { RegulationData, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
-
-type ViewMode = 'map' | 'document';
+import {
+    buildConsultationUrl,
+    ConsultationEntityType,
+    ConsultationUrlState,
+    ConsultationView,
+    getConsultationViewForEntityType,
+    isConsultationEntityCompatibleWithView,
+    resolveConsultationEntityType,
+    resolveConsultationUrlState,
+} from "./consultationUrl";
 
 interface Consultation {
     id: string;
@@ -51,12 +60,32 @@ export default function ConsultationViewer({
     cityLogoUrl
 }: ConsultationViewerProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    const defaultView = regulationData?.defaultView || 'document';
+    const defaultView: ConsultationView = regulationData?.defaultView || "document";
 
-    // Default to the regulation's defaultView, unless URL specifies otherwise
-    const [currentView, setCurrentView] = useState<ViewMode>(defaultView);
+    const getLivePathname = useCallback(() => {
+        if (typeof window !== "undefined" && window.location.pathname) {
+            return window.location.pathname;
+        }
+
+        return pathname;
+    }, [pathname]);
+
+    const getResolvedUrlState = useCallback((): ConsultationUrlState => {
+        return resolveConsultationUrlState({
+            pathname: getLivePathname(),
+            defaultView,
+            regulationData,
+            searchParams,
+            liveSearch: typeof window !== "undefined" ? window.location.search : undefined,
+            liveHash: typeof window !== "undefined" ? window.location.hash : undefined,
+        });
+    }, [defaultView, getLivePathname, regulationData, searchParams]);
+
+    const [currentView, setCurrentView] = useState<ConsultationView>(() => getResolvedUrlState().view);
+    const [currentEntityId, setCurrentEntityId] = useState<string | null>(() => getResolvedUrlState().entityId);
 
     // Track which chapters and articles are expanded
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
@@ -65,38 +94,34 @@ export default function ConsultationViewer({
     // Track comments overview sheet state
     const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
 
-    // Track whether the map summary card has been dismissed
-    // Don't show by default if URL has a hash (direct link to a community)
-    const [showMapSummary, setShowMapSummary] = useState(true);
+    // Track whether the map summary card has been dismissed.
+    const [showMapSummary, setShowMapSummary] = useState(() => !getResolvedUrlState().entityId);
 
     // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
     const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
 
-    // Hide welcome dialog if URL has a hash on mount (direct link)
+    // Keep local state aligned with the committed URL and normalize old hash links.
     useEffect(() => {
-        if (window.location.hash) {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const resolvedUrlState = getResolvedUrlState();
+
+        setCurrentView(resolvedUrlState.view);
+        setCurrentEntityId(resolvedUrlState.entityId);
+
+        if (resolvedUrlState.entityId) {
             setShowMapSummary(false);
         }
-    }, []);
 
-    // Update view based on URL on mount and when search params change
-    useEffect(() => {
-        const viewParam = searchParams.get('view');
-        if (viewParam === 'map' || viewParam === 'document') {
-            setCurrentView(viewParam as ViewMode);
-        } else {
-            // Use the regulation's default view and update URL
-            setCurrentView(defaultView);
-            if (typeof window !== 'undefined') {
-                const params = new URLSearchParams(window.location.search);
-                if (!params.has('view')) {
-                    params.set('view', defaultView);
-                    const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-                    router.replace(newUrl, { scroll: false });
-                }
+        if (resolvedUrlState.needsCanonicalUrl) {
+            const currentUrl = `${window.location.pathname}${window.location.search}`;
+            if (currentUrl !== resolvedUrlState.canonicalUrl) {
+                router.replace(resolvedUrlState.canonicalUrl, { scroll: false });
             }
         }
-    }, [searchParams, router, defaultView]);
+    }, [getResolvedUrlState, router]);
 
     // Helper functions for managing expansion state
     const expandChapter = (chapterId: string) => {
@@ -147,139 +172,106 @@ export default function ConsultationViewer({
         return null;
     }, [regulationData]);
 
-    // Handle initial hash on page load and actual hash changes
-    useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash;
-            if (hash && hash.length > 1) {
-                const targetId = hash.substring(1); // Remove #
+    const scrollToDocumentEntity = useCallback((entityId: string) => {
+        let attempts = 0;
+        let frameId = 0;
 
-                // Check if user explicitly set view=map in URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const explicitView = urlParams.get('view');
+        const tryScroll = () => {
+            const element = document.getElementById(entityId);
+            if (element) {
+                element.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+                return;
+            }
 
-                // Only auto-switch to document view if user hasn't explicitly chosen map view
-                if (currentView === 'map' && explicitView !== 'map') {
-                    setCurrentView('document');
-                    // Update URL to reflect document view
-                    const params = new URLSearchParams(window.location.search);
-                    params.set('view', 'document');
-                    const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-                    router.replace(newUrl, { scroll: false });
-                }
-
-                // Only handle hash navigation if we're in document view or switching to it
-                if (currentView === 'document' || explicitView !== 'map') {
-                    // Determine what needs to be expanded
-                    if (regulationData) {
-                        // Check if it's a chapter
-                        const chapter = regulationData.regulation.find(item =>
-                            item.type === 'chapter' && item.id === targetId
-                        );
-
-                        if (chapter) {
-                            // It's a chapter - expand it
-                            expandChapter(targetId);
-                        } else {
-                            // Check if it's an article
-                            const parentChapterId = findChapterForArticle(targetId);
-                            if (parentChapterId) {
-                                // It's an article - expand both the chapter and the article
-                                expandChapter(parentChapterId);
-                                expandArticle(targetId);
-                            }
-                        }
-                    }
-
-                    // Small delay to ensure content is rendered and expanded
-                    setTimeout(() => {
-                        const element = document.querySelector(hash);
-                        if (element) {
-                            element.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }
-                    }, currentView === 'map' ? 500 : 200);
-                }
+            if (attempts < 60) {
+                attempts += 1;
+                frameId = window.requestAnimationFrame(tryScroll);
             }
         };
 
-        // Only handle initial hash on mount
-        if (window.location.hash) {
-            handleHashChange();
-        }
+        frameId = window.requestAnimationFrame(tryScroll);
 
-        // Listen for actual hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Remove dependencies to prevent running on every state change
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, []);
 
-    // Separate effect to handle hash when view changes to document
     useEffect(() => {
-        if (currentView === 'document' && window.location.hash) {
-            const hash = window.location.hash;
-            const targetId = hash.substring(1);
-
-            if (regulationData) {
-                const chapter = regulationData.regulation.find(item =>
-                    item.type === 'chapter' && item.id === targetId
-                );
-
-                if (chapter) {
-                    expandChapter(targetId);
-                } else {
-                    const parentChapterId = findChapterForArticle(targetId);
-                    if (parentChapterId) {
-                        expandChapter(parentChapterId);
-                        expandArticle(targetId);
-                    }
-                }
-            }
+        if (currentView !== "document" || !currentEntityId) {
+            return;
         }
-    }, [currentView, regulationData, findChapterForArticle]); // Only run when view changes or regulation data loads
 
-    const toggleView = () => {
-        const newView = currentView === 'map' ? 'document' : 'map';
-        setCurrentView(newView);
+        const entityType = resolveConsultationEntityType(regulationData, currentEntityId);
 
-        // Update URL with new view
-        const params = new URLSearchParams(window.location.search);
-        params.set('view', newView);
+        if (entityType === "chapter") {
+            expandChapter(currentEntityId);
+            return scrollToDocumentEntity(currentEntityId);
+        }
 
-        // If switching to map view, remove any hash (since anchors don't make sense in map view)
-        const newUrl = newView === 'map'
-            ? `${window.location.pathname}?${params.toString()}`
-            : `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+        if (entityType === "article") {
+            const parentChapterId = findChapterForArticle(currentEntityId);
+            if (parentChapterId) {
+                expandChapter(parentChapterId);
+            }
+            expandArticle(currentEntityId);
+            return scrollToDocumentEntity(currentEntityId);
+        }
+    }, [currentEntityId, currentView, findChapterForArticle, regulationData, scrollToDocumentEntity]);
 
-        router.push(newUrl, { scroll: false });
+    const navigateToConsultationState = useCallback((
+        view: ConsultationView,
+        entityId: string | null,
+        {
+            replace = false,
+            scrollToTop = false,
+        }: { replace?: boolean; scrollToTop?: boolean } = {},
+    ) => {
+        const entityType = resolveConsultationEntityType(regulationData, entityId);
+        const nextEntityId = isConsultationEntityCompatibleWithView(entityType, view) ? entityId : null;
+        const nextUrl = buildConsultationUrl(getLivePathname(), {
+            view,
+            entityId: nextEntityId,
+        });
 
-        // Scroll to top when switching to map view (non-smoothly to hide footer)
-        if (newView === 'map') {
+        setCurrentView(view);
+        setCurrentEntityId(nextEntityId);
+
+        if (nextEntityId) {
+            setShowMapSummary(false);
+        }
+
+        const navigate = replace ? router.replace : router.push;
+        navigate(nextUrl, { scroll: false });
+
+        if (scrollToTop && typeof window !== "undefined") {
             window.scrollTo(0, 0);
         }
+    }, [getLivePathname, regulationData, router]);
+
+    const toggleView = () => {
+        const newView: ConsultationView = currentView === "map" ? "document" : "map";
+        const currentEntityType = resolveConsultationEntityType(regulationData, currentEntityId);
+        const nextEntityId = isConsultationEntityCompatibleWithView(currentEntityType, newView)
+            ? currentEntityId
+            : null;
+
+        navigateToConsultationState(newView, nextEntityId, {
+            scrollToTop: newView === "map",
+        });
     };
 
     // Handle comment navigation from comments overview sheet
     const handleCommentClick = (comment: ConsultationCommentWithUpvotes) => {
-        // Navigate to the entity based on comment type
-        if (comment.entityType === 'CHAPTER' || comment.entityType === 'ARTICLE') {
-            // Navigate to document section
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'document');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
-            router.push(newUrl, { scroll: false });
-            window.location.hash = `#${comment.entityId}`; // To trigger hash change event
-        } else if (comment.entityType === 'GEOSET' || comment.entityType === 'GEOMETRY') {
-            // Navigate to map view
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'map');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
-            router.push(newUrl, { scroll: false });
-            // Scroll to top so the full-screen map is visible
-            window.scrollTo(0, 0);
-        }
+        const targetView = comment.entityType === "CHAPTER" || comment.entityType === "ARTICLE"
+            ? "document"
+            : "map";
+
+        navigateToConsultationState(targetView, comment.entityId, {
+            scrollToTop: targetView === "map",
+        });
     };
 
     // Handle reference navigation
@@ -316,50 +308,12 @@ export default function ConsultationViewer({
         }
 
         // Navigate based on reference type
-        if (referenceType === 'chapter' || referenceType === 'article') {
-            if (currentView === 'document') {
-                // Already in document view - expand and scroll directly
-                // (router.push uses History.pushState which does NOT trigger hashchange)
-                const chapter = regulationData.regulation.find(item =>
-                    item.type === 'chapter' && item.id === referenceId
-                );
-                if (chapter) {
-                    expandChapter(referenceId);
-                } else {
-                    const parentChapterId = findChapterForArticle(referenceId);
-                    if (parentChapterId) {
-                        expandChapter(parentChapterId);
-                        expandArticle(referenceId);
-                    }
-                }
-                window.location.hash = `#${referenceId}`;
-                setTimeout(() => {
-                    const element = document.querySelector(`#${referenceId}`);
-                    if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                }, 200);
-            } else {
-                // Switch to document view - the useEffect will handle expansion/scroll on view change
-                const params = new URLSearchParams(window.location.search);
-                params.set('view', 'document');
-                const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-                router.push(newUrl, { scroll: false });
-            }
-        } else if (referenceType === 'geoset' || referenceType === 'geometry') {
-            if (currentView === 'map') {
-                // Already in map view - directly set hash to trigger ConsultationMap's hashchange handler
-                // (router.push uses History.pushState which does NOT trigger hashchange)
-                window.location.hash = referenceId;
-            } else {
-                // Switch to map view first - ConsultationMap will handle the hash on mount
-                const params = new URLSearchParams(window.location.search);
-                params.set('view', 'map');
-                const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-                router.push(newUrl, { scroll: false });
-            }
-            // Scroll to top so the full-screen map is visible
-            window.scrollTo(0, 0);
+        if (referenceType === "chapter" || referenceType === "article") {
+            navigateToConsultationState("document", referenceId);
+        } else if (referenceType === "geoset" || referenceType === "geometry") {
+            navigateToConsultationState("map", referenceId, {
+                scrollToTop: true,
+            });
         }
     };
 
