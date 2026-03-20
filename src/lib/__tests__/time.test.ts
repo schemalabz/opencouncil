@@ -43,10 +43,12 @@ describe('formatTimestamp', () => {
     expect(formatTimestamp(input)).toBe(expected);
   });
 
-  it('includes milliseconds when showMilliseconds is true', () => {
-    expect(formatTimestamp(1.5, true)).toBe('00:00:01.500');
-    expect(formatTimestamp(0, true)).toBe('00:00:00.000');
-    expect(formatTimestamp(3661.123, true)).toBe('01:01:01.123');
+  it.each([
+    [1.5, '00:00:01.500'],
+    [0, '00:00:00.000'],
+    [3661.123, '01:01:01.123'],
+  ])('formatTimestamp(%f, true) → %s', (input, expected) => {
+    expect(formatTimestamp(input, true)).toBe(expected);
   });
 
   it('omits milliseconds by default', () => {
@@ -117,6 +119,7 @@ describe('formatDateRange', () => {
     const result = formatDateRange(start, end, mockT);
     expect(result).toContain('from');
     expect(result).toContain('until');
+    expect(result).toContain('2024');
   });
 
   it('uses "present" when end date is null', () => {
@@ -124,6 +127,7 @@ describe('formatDateRange', () => {
     const result = formatDateRange(start, null, mockT);
     expect(result).toContain('from');
     expect(result).toContain('present');
+    expect(result).toContain('2024');
   });
 
   it('formats with only end date', () => {
@@ -131,5 +135,6 @@ describe('formatDateRange', () => {
     const result = formatDateRange(null, end, mockT);
     expect(result).toContain('until');
     expect(result).not.toContain('from');
+    expect(result).toContain('2024');
   });
 });
