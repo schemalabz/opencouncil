@@ -315,6 +315,7 @@ function shouldRevalidateForTaskType(taskType: MeetingTaskType): boolean {
         'summarize',
         'processAgenda',
         'pollDecisions',
+        'extractDecisions',
     ];
     return revalidationTaskTypes.includes(taskType);
 }

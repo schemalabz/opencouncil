@@ -10,12 +10,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock } from 'lucide-react';
-import { DecisionWithSource } from '@/lib/db/decisions';
+import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote } from 'lucide-react';
+import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
+import { calculateVoteResult } from '@/lib/utils/votes';
+import ReactMarkdown from 'react-markdown';
 
-type FilterTab = 'all' | 'unlinked';
+type FilterTab = 'all' | 'unlinked' | 'extracted';
 
 interface ManualEntryState {
     pdfUrl: string;
@@ -33,12 +35,64 @@ interface DecisionsPanelProps {
     onOpenChange: (open: boolean) => void;
 }
 
+function CollapsibleMarkdown({ content, showMoreLabel, showLessLabel }: {
+    content: string;
+    showMoreLabel: string;
+    showLessLabel: string;
+}) {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = content.length > 300;
+    return (
+        <div>
+            <div className={isLong && !expanded ? 'max-h-24 overflow-hidden relative' : ''}>
+                <div className="prose prose-xs max-w-none text-xs [&_p]:mb-1.5 [&_p]:leading-relaxed [&_ol]:ml-4 [&_ol]:list-decimal [&_ul]:ml-4 [&_ul]:list-disc [&_li]:mb-0.5">
+                    <ReactMarkdown>{content}</ReactMarkdown>
+                </div>
+                {isLong && !expanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
+                )}
+            </div>
+            {isLong && (
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="text-primary hover:underline text-xs mt-1"
+                >
+                    {expanded ? showLessLabel : showMoreLabel}
+                </button>
+            )}
+        </div>
+    );
+}
+
+function NameList({ names, label }: { names: string[]; label: string }) {
+    const [expanded, setExpanded] = useState(false);
+    if (names.length === 0) return null;
+    return (
+        <span>
+            <button
+                onClick={() => setExpanded(!expanded)}
+                className="text-xs text-primary hover:underline inline-flex items-center gap-0.5"
+            >
+                {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                {label}
+            </button>
+            {expanded && (
+                <span className="block text-xs text-muted-foreground mt-1 ml-4">
+                    {names.join(', ')}
+                </span>
+            )}
+        </span>
+    );
+}
+
 export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const { toast } = useToast();
     const { subjects, meeting } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
+    const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
     const [expandedManualEntry, setExpandedManualEntry] = useState<string | null>(null);
+    const [expandedExtracted, setExpandedExtracted] = useState<string | null>(null);
     const [editState, setEditState] = useState<ManualEntryState>({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
     const [formErrors, setFormErrors] = useState<FormErrors>({});
     const [savingSubjectId, setSavingSubjectId] = useState<string | null>(null);
@@ -53,12 +107,17 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`);
             if (!response.ok) return;
-            const data: DecisionWithSource[] = await response.json();
-            const map: Record<string, DecisionWithSource> = {};
-            for (const d of data) {
-                map[d.subjectId] = d;
+            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[] } = await response.json();
+            const decisionMap: Record<string, DecisionWithSource> = {};
+            for (const d of data.decisions) {
+                decisionMap[d.subjectId] = d;
             }
-            setDecisions(map);
+            setDecisions(decisionMap);
+            const extractedMap: Record<string, SubjectExtractedData> = {};
+            for (const e of data.extractedData) {
+                extractedMap[e.subjectId] = e;
+            }
+            setExtractedData(extractedMap);
         } catch {
             // silent
         } finally {
@@ -70,6 +129,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         if (open) {
             // Reset form state when dialog opens
             setExpandedManualEntry(null);
+            setExpandedExtracted(null);
             setEditState({ pdfUrl: '', ada: '', protocolNumber: '', title: '' });
             setFormErrors({});
             setFilterTab('all');
@@ -158,6 +218,10 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
+    const toggleExtracted = (subjectId: string) => {
+        setExpandedExtracted(prev => prev === subjectId ? null : subjectId);
+    };
+
     const updateEditState = (field: keyof ManualEntryState, value: string) => {
         setEditState(prev => ({ ...prev, [field]: value }));
         // Clear error for this field when user starts typing
@@ -182,15 +246,23 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
-    // Only subjects with agendaItemIndex can have decisions
-    const eligibleSubjects = subjects.filter(s => s.agendaItemIndex != null);
+    // Only subjects with agendaItemIndex can have decisions, sorted by agenda order
+    const eligibleSubjects = subjects
+        .filter(s => s.agendaItemIndex != null)
+        .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
     const linkedCount = eligibleSubjects.filter(s => decisions[s.id]).length;
     const unlinkedSubjects = eligibleSubjects.filter(s => !decisions[s.id]);
+    const extractedSubjects = eligibleSubjects.filter(s => {
+        const decision = decisions[s.id];
+        return (decision?.excerpt) || extractedData[s.id];
+    });
 
     // Filter subjects based on selected tab
     const displayedSubjects = filterTab === 'unlinked'
         ? unlinkedSubjects
-        : eligibleSubjects;
+        : filterTab === 'extracted'
+            ? extractedSubjects
+            : eligibleSubjects;
 
     // Helper to get source info for a decision
     const getSourceInfo = (decision: DecisionWithSource) => {
@@ -237,6 +309,16 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                             }`}
                         >
                             {t('decisions.tabUnlinked')} ({unlinkedSubjects.length})
+                        </button>
+                        <button
+                            onClick={() => setFilterTab('extracted')}
+                            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                                filterTab === 'extracted'
+                                    ? 'bg-background shadow-sm font-medium'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {t('decisions.tabExtracted')} ({extractedSubjects.length})
                         </button>
                     </div>
 
@@ -304,14 +386,21 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </div>
                     ) : displayedSubjects.length === 0 ? (
                         <div className="p-8 text-center text-gray-500">
-                            {filterTab === 'unlinked' ? t('decisions.allLinked') : t('decisions.noSubjects')}
+                            {filterTab === 'unlinked'
+                                ? t('decisions.allLinked')
+                                : filterTab === 'extracted'
+                                    ? t('decisions.noExtractedData')
+                                    : t('decisions.noSubjects')}
                         </div>
                     ) : (
                         <TooltipProvider>
                             {displayedSubjects.map(subject => {
                                 const decision = decisions[subject.id];
+                                const extracted = extractedData[subject.id];
                                 const sourceInfo = decision ? getSourceInfo(decision) : null;
-                                const isExpanded = expandedManualEntry === subject.id;
+                                const isManualExpanded = expandedManualEntry === subject.id;
+                                const hasExtractedContent = (decision?.excerpt) || extracted;
+                                const isExtractedExpanded = expandedExtracted === subject.id;
                                 const isSaving = savingSubjectId === subject.id;
                                 const isRemoving = removingSubjectId === subject.id;
 
@@ -322,19 +411,60 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                     >
                                         {/* Main row */}
                                         <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-sm text-gray-900 break-words">
-                                                    {subject.agendaItemIndex != null && (
-                                                        <span className="text-muted-foreground mr-1">#{subject.agendaItemIndex}</span>
-                                                    )}
-                                                    {subject.name}
-                                                </div>
-                                                {/* Decision title - secondary, discreet */}
-                                                {decision?.title && (
-                                                    <div className="text-xs text-muted-foreground mt-0.5 break-words">
-                                                        {decision.title}
-                                                    </div>
+                                            <div className="flex-1 min-w-0 flex items-start gap-2">
+                                                {/* Expand chevron for linked decisions with extracted data */}
+                                                {decision && hasExtractedContent ? (
+                                                    <button
+                                                        onClick={() => toggleExtracted(subject.id)}
+                                                        className="mt-0.5 text-muted-foreground hover:text-foreground shrink-0"
+                                                    >
+                                                        {isExtractedExpanded
+                                                            ? <ChevronDown className="h-4 w-4" />
+                                                            : <ChevronRight className="h-4 w-4" />}
+                                                    </button>
+                                                ) : (
+                                                    <span className="w-4 shrink-0" />
                                                 )}
+                                                <div className="min-w-0">
+                                                    <div className="font-medium text-sm text-gray-900 break-words">
+                                                        {subject.agendaItemIndex != null && (
+                                                            <span className="text-muted-foreground mr-1">#{subject.agendaItemIndex}</span>
+                                                        )}
+                                                        {subject.name}
+                                                    </div>
+                                                    {/* Decision title - secondary, discreet */}
+                                                    {decision?.title && (
+                                                        <div className="text-xs text-muted-foreground mt-0.5 break-words">
+                                                            {decision.title}
+                                                        </div>
+                                                    )}
+                                                    {/* Inline attendance & vote summary */}
+                                                    {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
+                                                        const present = extracted.attendance.filter(a => a.status === 'PRESENT');
+                                                        const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                        const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
+                                                        return (
+                                                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                                                {extracted.attendance.length > 0 && (
+                                                                    <span className="inline-flex items-center gap-1">
+                                                                        <Users className="h-3 w-3" />
+                                                                        {present.length}/{absent.length}
+                                                                    </span>
+                                                                )}
+                                                                {voteResult && (
+                                                                    <span className="inline-flex items-center gap-1">
+                                                                        <Vote className="h-3 w-3" />
+                                                                        {voteResult.isUnanimous
+                                                                            ? t('decisions.unanimous', { count: voteResult.forCount })
+                                                                            : voteResult.passed
+                                                                                ? t('decisions.majorityVote', { for: voteResult.forCount, against: voteResult.againstCount })
+                                                                                : t('decisions.rejected', { against: voteResult.againstCount, for: voteResult.forCount })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
                                             </div>
 
                                             <div className="flex items-center gap-2 shrink-0">
@@ -400,7 +530,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                             onClick={() => toggleManualEntry(subject.id)}
                                                             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                                                         >
-                                                            {isExpanded ? (
+                                                            {isManualExpanded ? (
                                                                 <X className="h-3 w-3" />
                                                             ) : (
                                                                 <Plus className="h-3 w-3" />
@@ -412,8 +542,112 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
                                         </div>
 
+                                        {/* Extracted data panel - expandable for linked decisions */}
+                                        {isExtractedExpanded && hasExtractedContent && (
+                                            <div className="mt-3 ml-6 pl-4 border-l-2 border-muted space-y-3">
+                                                {/* Excerpt */}
+                                                {decision?.excerpt && (
+                                                    <div>
+                                                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                            {t('decisions.excerpt')}
+                                                        </div>
+                                                        <CollapsibleMarkdown
+                                                            content={decision.excerpt}
+                                                            showMoreLabel={t('decisions.showMore')}
+                                                            showLessLabel={t('decisions.showLess')}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* References */}
+                                                {decision?.references && (
+                                                    <div>
+                                                        <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                            {t('decisions.references')}
+                                                        </div>
+                                                        <CollapsibleMarkdown
+                                                            content={decision.references}
+                                                            showMoreLabel={t('decisions.showMore')}
+                                                            showLessLabel={t('decisions.showLess')}
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                {/* Attendance */}
+                                                {extracted && extracted.attendance.length > 0 && (() => {
+                                                    const present = extracted.attendance.filter(a => a.status === 'PRESENT');
+                                                    const absent = extracted.attendance.filter(a => a.status === 'ABSENT');
+                                                    return (
+                                                        <div>
+                                                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                                {t('decisions.attendance')}
+                                                            </div>
+                                                            <div className="text-xs text-foreground space-y-1">
+                                                                <span>
+                                                                    {present.length} {t('decisions.present')}, {absent.length} {t('decisions.absent')}
+                                                                </span>
+                                                                <div className="flex flex-col gap-1">
+                                                                    {present.length > 0 && (
+                                                                        <NameList
+                                                                            names={present.map(a => a.personName)}
+                                                                            label={`${t('decisions.showNames')} (${t('decisions.present')})`}
+                                                                        />
+                                                                    )}
+                                                                    {absent.length > 0 && (
+                                                                        <NameList
+                                                                            names={absent.map(a => a.personName)}
+                                                                            label={`${t('decisions.showNames')} (${t('decisions.absent')})`}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                {/* Votes */}
+                                                {extracted && extracted.votes.length > 0 && (() => {
+                                                    const voteResult = calculateVoteResult(extracted.votes);
+                                                    return (
+                                                        <div>
+                                                            <div className="text-xs font-medium text-muted-foreground mb-1">
+                                                                {t('decisions.votes')}
+                                                            </div>
+                                                            <div className="text-xs text-foreground space-y-1">
+                                                                <span>
+                                                                    {voteResult.isUnanimous
+                                                                        ? t('decisions.unanimous', { count: voteResult.forCount })
+                                                                        : voteResult.passed
+                                                                            ? t('decisions.majorityVote', { for: voteResult.forCount, against: voteResult.againstCount })
+                                                                            : t('decisions.rejected', { against: voteResult.againstCount, for: voteResult.forCount })}
+                                                                </span>
+                                                                {!voteResult.isUnanimous && (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <NameList
+                                                                            names={extracted.votes.filter(v => v.voteType === 'FOR').map(v => v.personName)}
+                                                                            label={`${t('decisions.showNames')} (${voteResult.forCount} ${t('decisions.voteFor')})`}
+                                                                        />
+                                                                        <NameList
+                                                                            names={extracted.votes.filter(v => v.voteType === 'AGAINST').map(v => v.personName)}
+                                                                            label={`${t('decisions.showNames')} (${voteResult.againstCount} ${t('decisions.voteAgainst')})`}
+                                                                        />
+                                                                        {voteResult.abstainCount > 0 && (
+                                                                            <NameList
+                                                                                names={extracted.votes.filter(v => v.voteType === 'ABSTAIN').map(v => v.personName)}
+                                                                                label={`${t('decisions.showNames')} (${voteResult.abstainCount} ${t('decisions.voteAbstain')})`}
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        )}
+
                                         {/* Manual entry form - expandable */}
-                                        {isExpanded && (
+                                        {isManualExpanded && (
                                             <div className="mt-3 pl-4 border-l-2 border-muted space-y-3">
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div className="space-y-1">

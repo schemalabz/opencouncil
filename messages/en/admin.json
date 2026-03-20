@@ -232,7 +232,25 @@
       "allLinked": "All subjects have linked decisions.",
       "pollButton": "Poll Diavgeia",
       "pollRequested": "Decision polling started",
-      "pollError": "Failed to start polling"
+      "pollError": "Failed to start polling",
+      "tabExtracted": "Extracted",
+      "excerpt": "Excerpt",
+      "references": "Legal references",
+      "attendance": "Attendance",
+      "votes": "Voting",
+      "present": "present",
+      "absent": "absent",
+      "showNames": "Show names",
+      "hideNames": "Hide names",
+      "voteFor": "for",
+      "voteAgainst": "against",
+      "voteAbstain": "abstain",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "unanimous": "Unanimous ({count} for)",
+      "majorityVote": "By majority ({for} for, {against} against)",
+      "rejected": "Rejected ({against} against, {for} for)",
+      "noExtractedData": "No subjects with extracted data."
     }
   }
 }
