@@ -530,7 +530,21 @@
         "decisionTitle": "Title",
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
-        "viewDecision": "View decision on Diavgeia"
+        "viewDecision": "View decision on Diavgeia",
+        "voting": "Voting",
+        "votingSource": "Voting data sourced from the Diavgeia decision",
+        "votingDisclaimer": "Voting results are extracted from Diavgeia decisions when available",
+        "noVotingUtterances": "No voting found for this subject",
+        "unanimous": "Unanimous ({count} for)",
+        "majorityVote": "By majority ({for} for, {against} against)",
+        "rejected": "Rejected ({against} against, {for} for)",
+        "decides": "Decision",
+        "unanimousVerdict": "Unanimously",
+        "majorityVerdict": "By majority",
+        "rejectedVerdict": "Rejected",
+        "voteFor": "For",
+        "voteAgainst": "Against",
+        "voteAbstain": "Abstain"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

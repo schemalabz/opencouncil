@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { getDecisionsForMeeting, upsertDecision, deleteDecision } from '@/lib/db/decisions';
+import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision } from '@/lib/db/decisions';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
@@ -12,8 +12,11 @@ export async function GET(
 ) {
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const decisions = await getDecisionsForMeeting(params.cityId, params.meetingId);
-    return NextResponse.json(decisions);
+    const [decisions, extractedData] = await Promise.all([
+        getDecisionsForMeeting(params.cityId, params.meetingId),
+        getExtractedDataForMeeting(params.cityId, params.meetingId),
+    ]);
+    return NextResponse.json({ decisions, extractedData });
 }
 
 const upsertSchema = z.object({

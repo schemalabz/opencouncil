@@ -125,6 +125,57 @@ export async function getDecisionCountsForCity(cityId: string): Promise<MeetingD
     return result;
 }
 
+export interface SubjectExtractedData {
+    subjectId: string;
+    attendance: { personId: string; personName: string; status: AttendanceStatus }[];
+    votes: { personId: string; personName: string; voteType: VoteType }[];
+}
+
+export async function getExtractedDataForMeeting(
+    cityId: string,
+    meetingId: string
+): Promise<SubjectExtractedData[]> {
+    // Fetch attendance and votes for all subjects in the meeting
+    const subjects = await prisma.subject.findMany({
+        where: { cityId, councilMeetingId: meetingId, agendaItemIndex: { not: null } },
+        select: {
+            id: true,
+            attendance: {
+                select: {
+                    personId: true,
+                    status: true,
+                    person: { select: { name: true } },
+                },
+                orderBy: { person: { name: 'asc' } },
+            },
+            votes: {
+                select: {
+                    personId: true,
+                    voteType: true,
+                    person: { select: { name: true } },
+                },
+                orderBy: { person: { name: 'asc' } },
+            },
+        },
+    });
+
+    return subjects
+        .filter(s => s.attendance.length > 0 || s.votes.length > 0)
+        .map(s => ({
+            subjectId: s.id,
+            attendance: s.attendance.map(a => ({
+                personId: a.personId,
+                personName: a.person.name,
+                status: a.status,
+            })),
+            votes: s.votes.map(v => ({
+                personId: v.personId,
+                personName: v.person.name,
+                voteType: v.voteType,
+            })),
+        }));
+}
+
 export async function getDecisionForSubject(subjectId: string): Promise<{
     ada: string | null;
     protocolNumber: string | null;

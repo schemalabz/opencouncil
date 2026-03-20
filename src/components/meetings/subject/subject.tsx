@@ -20,6 +20,7 @@ import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
+import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
@@ -79,6 +80,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         const feature = subjectToMapFeature(subject);
         return feature ? [feature] : [];
     }, [subject, location]);
+
+    // Calculate vote result from extracted data
+    const voteResult = useMemo(
+        () => subject.votes && subject.votes.length > 0 ? calculateVoteResult(subject.votes) : null,
+        [subject.votes]
+    );
 
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
@@ -360,10 +367,23 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 {/* Voting Section */}
                 <CollapsibleCard
                     icon={<CheckSquare className="w-4 h-4" />}
-                    title={t("voting")}
+                    title={
+                        voteResult && voteResult.totalVotes > 0 ? (
+                            <span className="flex items-center gap-2">
+                                {t("voting")}
+                                <Badge variant="secondary" className="text-xs">
+                                    {voteResult.isUnanimous
+                                        ? t("unanimous", { count: voteResult.forCount })
+                                        : voteResult.passed
+                                            ? t("majorityVote", { for: voteResult.forCount, against: voteResult.againstCount })
+                                            : t("rejected", { against: voteResult.againstCount, for: voteResult.forCount })}
+                                </Badge>
+                            </span>
+                        ) : t("voting")
+                    }
                     defaultOpen={false}
                 >
-                    <VotingSection subjectId={subject.id} />
+                    <VotingSection subjectId={subject.id} votes={subject.votes} />
                 </CollapsibleCard>
 
                 {/* Decision Section */}

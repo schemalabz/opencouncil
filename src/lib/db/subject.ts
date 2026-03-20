@@ -8,6 +8,7 @@ import {
     Highlight,
     Location,
     Topic,
+    VoteType,
     Prisma,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -32,6 +33,14 @@ const introducedByInclude = {
     },
 } satisfies Prisma.PersonDefaultArgs;
 
+const votesInclude = {
+    select: {
+        voteType: true,
+        person: { select: { id: true, name: true } },
+    },
+    orderBy: { person: { name: 'asc' as const } },
+} satisfies Prisma.SubjectVoteFindManyArgs;
+
 // Type for location with coordinates
 export type LocationWithCoordinates = Location & {
     coordinates?: {
@@ -54,6 +63,7 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
     decision: Decision | null;
+    votes: { voteType: VoteType; person: { id: string; name: string } }[];
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
@@ -76,6 +86,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                         topic: true,
                     },
                 },
+                votes: votesInclude,
             },
         });
         return subjects;
@@ -115,6 +126,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                         topic: true,
                     },
                 },
+                votes: votesInclude,
             },
         });
 
@@ -179,6 +191,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                         topic: true,
                     },
                 },
+                votes: votesInclude,
             },
         });
 
