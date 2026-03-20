@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision } from '@/lib/db/decisions';
+import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision, clearExtractedDataForMeeting } from '@/lib/db/decisions';
 import prisma from '@/lib/db/prisma';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
@@ -101,4 +101,26 @@ export async function DELETE(
     await deleteDecision(subjectId);
     revalidateTag(`city:${params.cityId}:meetings`);
     return NextResponse.json({ success: true });
+}
+
+const postSchema = z.object({
+    action: z.literal('clearExtractedData'),
+});
+
+export async function POST(
+    request: Request,
+    { params }: { params: { cityId: string; meetingId: string } }
+) {
+    await withUserAuthorizedToEdit({ cityId: params.cityId });
+
+    const body = await request.json();
+    const parsed = postSchema.safeParse(body);
+
+    if (!parsed.success) {
+        return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
+    }
+
+    const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
+    revalidateTag(`city:${params.cityId}:meetings`);
+    return NextResponse.json(result);
 }

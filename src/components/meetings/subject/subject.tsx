@@ -377,6 +377,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         : voteResult.passed
                                             ? t("majorityVote", { for: voteResult.forCount, against: voteResult.againstCount })
                                             : t("rejected", { against: voteResult.againstCount, for: voteResult.forCount })}
+                                    {!voteResult.isUnanimous && voteResult.abstainCount > 0 &&
+                                        `, ${voteResult.abstainCount} ${t("voteAbstain")}`}
                                 </Badge>
                             </span>
                         ) : t("voting")

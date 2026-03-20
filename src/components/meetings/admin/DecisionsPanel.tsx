@@ -10,10 +10,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote } from 'lucide-react';
+import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search, FileText } from 'lucide-react';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
+import { requestExtractDecisions } from '@/lib/tasks/extractDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
 import ReactMarkdown from 'react-markdown';
 
@@ -101,6 +102,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [filterTab, setFilterTab] = useState<FilterTab>('all');
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
+    const [isExtracting, setIsExtracting] = useState(false);
+    const [isClearing, setIsClearing] = useState(false);
 
     const fetchDecisions = useCallback(async () => {
         setIsLoading(true);
@@ -246,6 +249,45 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
+    const handleExtractDecisions = async () => {
+        setIsExtracting(true);
+        try {
+            await requestExtractDecisions(meeting.cityId, meeting.id);
+            toast({
+                title: t('toasts.extractDecisionsRequested.title'),
+                description: t('toasts.extractDecisionsRequested.description'),
+            });
+        } catch (error) {
+            toast({
+                title: t('toasts.errorExtractingDecisions.title'),
+                description: `${error}`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsExtracting(false);
+        }
+    };
+
+    const handleClearExtractedData = async () => {
+        if (!confirm('Clear all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.')) return;
+        setIsClearing(true);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'clearExtractedData' }),
+            });
+            if (!response.ok) throw new Error('Failed to clear extracted data');
+            const result = await response.json();
+            toast({ title: `Cleared extracted data for ${result.clearedCount} decisions` });
+            await fetchDecisions();
+        } catch (error) {
+            toast({ title: 'Error clearing extracted data', description: `${error}`, variant: 'destructive' });
+        } finally {
+            setIsClearing(false);
+        }
+    };
+
     // Only subjects with agendaItemIndex can have decisions, sorted by agenda order
     const eligibleSubjects = subjects
         .filter(s => s.agendaItemIndex != null)
@@ -286,97 +328,159 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Toolbar */}
-                <div className="flex items-center justify-between border-b pb-3">
-                    {/* Filter tabs */}
-                    <div className="flex rounded-lg border p-0.5 bg-muted/50">
-                        <button
-                            onClick={() => setFilterTab('all')}
-                            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
-                                filterTab === 'all'
-                                    ? 'bg-background shadow-sm font-medium'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            {t('decisions.tabAll')} ({eligibleSubjects.length})
-                        </button>
-                        <button
-                            onClick={() => setFilterTab('unlinked')}
-                            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
-                                filterTab === 'unlinked'
-                                    ? 'bg-background shadow-sm font-medium'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            {t('decisions.tabUnlinked')} ({unlinkedSubjects.length})
-                        </button>
-                        <button
-                            onClick={() => setFilterTab('extracted')}
-                            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
-                                filterTab === 'extracted'
-                                    ? 'bg-background shadow-sm font-medium'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            {t('decisions.tabExtracted')} ({extractedSubjects.length})
-                        </button>
+                {/* Actions: two-step workflow */}
+                <div className="space-y-3 border-b pb-3">
+                    {/* Step 1: Link PDFs */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground shrink-0">1</div>
+                            <div>
+                                <div className="text-xs font-medium">Link decision PDFs</div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    Poll Diavgeia automatically or add PDF links manually below.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs text-muted-foreground">
+                                <FileCheck className="h-3.5 w-3.5 inline mr-1" />
+                                {linkedCount}/{eligibleSubjects.length}
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={isPolling}
+                                onClick={handlePollDecisions}
+                            >
+                                {isPolling ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                    <Search className="h-3 w-3 mr-1" />
+                                )}
+                                {t('decisions.pollButton')}
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* Linked count */}
-                        <span className="text-xs text-muted-foreground">
-                            <FileCheck className="h-3.5 w-3.5 inline mr-1" />
-                            {linkedCount}/{eligibleSubjects.length}
-                        </span>
-
-                        {/* Poll button */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            disabled={isPolling}
-                            onClick={handlePollDecisions}
-                        >
-                            {isPolling ? (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    {/* Polling Status */}
+                    {pollingStatus && pollingStatus.totalPolls > 0 && (
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap ml-7">
+                            <Clock className="h-3 w-3" />
+                            <span>
+                                Polled {pollingStatus.totalPolls} {pollingStatus.totalPolls === 1 ? 'time' : 'times'}
+                            </span>
+                            {pollingStatus.firstPollAt && (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>started {new Date(pollingStatus.firstPollAt).toLocaleDateString()}</span>
+                                </>
+                            )}
+                            {pollingStatus.currentTierLabel && (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{pollingStatus.currentTierLabel}</span>
+                                </>
+                            )}
+                            {pollingStatus.nextPollEligible ? (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>Next auto-poll: {new Date(pollingStatus.nextPollEligible).toLocaleDateString()}</span>
+                                </>
+                            ) : pollingStatus.currentTierLabel?.startsWith('Stopped') ? (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>Automatic polling stopped</span>
+                                </>
                             ) : null}
-                            {t('decisions.pollButton')}
-                        </Button>
+                        </div>
+                    )}
+
+                    {/* Step 2: Extract data from PDFs */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground shrink-0">2</div>
+                            <div>
+                                <div className="text-xs font-medium">Extract data from PDFs</div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    Extract attendance, votes, and excerpts from linked PDFs.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {extractedSubjects.length > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    <FileText className="h-3.5 w-3.5 inline mr-1" />
+                                    {extractedSubjects.length}/{linkedCount}
+                                </span>
+                            )}
+                            {extractedSubjects.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    disabled={isClearing}
+                                    onClick={handleClearExtractedData}
+                                >
+                                    {isClearing ? (
+                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                        <Eraser className="h-3 w-3 mr-1" />
+                                    )}
+                                    Clear
+                                </Button>
+                            )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={isExtracting || linkedCount === 0}
+                                onClick={handleExtractDecisions}
+                            >
+                                {isExtracting ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                    <FileText className="h-3 w-3 mr-1" />
+                                )}
+                                {t('buttons.extractDecisions')}
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Polling Status */}
-                {pollingStatus && pollingStatus.totalPolls > 0 && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                            Polled {pollingStatus.totalPolls} {pollingStatus.totalPolls === 1 ? 'time' : 'times'}
-                        </span>
-                        {pollingStatus.firstPollAt && (
-                            <>
-                                <span>&middot;</span>
-                                <span>started {new Date(pollingStatus.firstPollAt).toLocaleDateString()}</span>
-                            </>
-                        )}
-                        {pollingStatus.currentTierLabel && (
-                            <>
-                                <span>&middot;</span>
-                                <span>{pollingStatus.currentTierLabel}</span>
-                            </>
-                        )}
-                        {pollingStatus.nextPollEligible ? (
-                            <>
-                                <span>&middot;</span>
-                                <span>Next auto-poll: {new Date(pollingStatus.nextPollEligible).toLocaleDateString()}</span>
-                            </>
-                        ) : pollingStatus.currentTierLabel?.startsWith('Stopped') ? (
-                            <>
-                                <span>&middot;</span>
-                                <span>Automatic polling stopped</span>
-                            </>
-                        ) : null}
-                    </div>
-                )}
+                {/* Filter tabs */}
+                <div className="flex rounded-lg border p-0.5 bg-muted/50 self-start">
+                    <button
+                        onClick={() => setFilterTab('all')}
+                        className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                            filterTab === 'all'
+                                ? 'bg-background shadow-sm font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        {t('decisions.tabAll')} ({eligibleSubjects.length})
+                    </button>
+                    <button
+                        onClick={() => setFilterTab('unlinked')}
+                        className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                            filterTab === 'unlinked'
+                                ? 'bg-background shadow-sm font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        {t('decisions.tabUnlinked')} ({unlinkedSubjects.length})
+                    </button>
+                    <button
+                        onClick={() => setFilterTab('extracted')}
+                        className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+                            filterTab === 'extracted'
+                                ? 'bg-background shadow-sm font-medium'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        {t('decisions.tabExtracted')} ({extractedSubjects.length})
+                    </button>
+                </div>
 
                 {/* Subjects List */}
                 <div className="space-y-1 py-2">
@@ -459,6 +563,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                                             : voteResult.passed
                                                                                 ? t('decisions.majorityVote', { for: voteResult.forCount, against: voteResult.againstCount })
                                                                                 : t('decisions.rejected', { against: voteResult.againstCount, for: voteResult.forCount })}
+                                                                        {!voteResult.isUnanimous && voteResult.abstainCount > 0 &&
+                                                                            `, ${voteResult.abstainCount} ${t('decisions.voteAbstain')}`}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -620,6 +726,8 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                                                         : voteResult.passed
                                                                             ? t('decisions.majorityVote', { for: voteResult.forCount, against: voteResult.againstCount })
                                                                             : t('decisions.rejected', { against: voteResult.againstCount, for: voteResult.forCount })}
+                                                                    {!voteResult.isUnanimous && voteResult.abstainCount > 0 &&
+                                                                        `, ${voteResult.abstainCount} ${t('decisions.voteAbstain')}`}
                                                                 </span>
                                                                 {!voteResult.isUnanimous && (
                                                                     <div className="flex flex-col gap-1">
