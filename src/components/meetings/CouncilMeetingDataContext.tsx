@@ -47,15 +47,19 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const [transcript, setTranscript] = useState(data.transcript);
     const [highlights, setHighlights] = useState(data.highlights);
     const orderedTranscript = useMemo(() => {
-        return [...transcript].sort((a, b) => {
-            if (a.startTimestamp !== b.startTimestamp) {
-                return a.startTimestamp - b.startTimestamp;
+        // Map each segment to its array index so we can use insertion order as a
+        // stable tiebreaker when timestamps are identical (e.g. adjacent empty segments).
+        const indexed = transcript.map((segment, i) => ({ segment, i }));
+        indexed.sort((a, b) => {
+            if (a.segment.startTimestamp !== b.segment.startTimestamp) {
+                return a.segment.startTimestamp - b.segment.startTimestamp;
             }
-            if (a.endTimestamp !== b.endTimestamp) {
-                return a.endTimestamp - b.endTimestamp;
+            if (a.segment.endTimestamp !== b.segment.endTimestamp) {
+                return a.segment.endTimestamp - b.segment.endTimestamp;
             }
-            return a.id.localeCompare(b.id);
+            return a.i - b.i;
         });
+        return indexed.map(({ segment }) => segment);
     }, [transcript]);
     const speakerTagsMap = useMemo(() => new Map(speakerTags.map(tag => [tag.id, tag])), [speakerTags]);
     const speakerSegmentsMap = useMemo(() => new Map(orderedTranscript.map(segment => [segment.id, segment])), [orderedTranscript]);
