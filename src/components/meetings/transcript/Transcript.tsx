@@ -150,6 +150,15 @@ export default function Transcript() {
         }
     }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval]);
 
+    // Evict stale IDs when displayedSegments changes (e.g. after segment deletion/reorder)
+    useEffect(() => {
+        const currentIds = new Set(displayedSegments.map(s => s.id));
+        setVisibleSegments(prev => {
+            const next = new Set([...prev].filter(id => currentIds.has(id)));
+            return next.size !== prev.size ? next : prev;
+        });
+    }, [displayedSegments]);
+
     useEffect(() => {
         if (!containerRef.current) return;
 
