@@ -136,8 +136,18 @@ export async function getExtractedDataForMeeting(
     meetingId: string
 ): Promise<SubjectExtractedData[]> {
     // Fetch attendance and votes for all subjects in the meeting
+    // Include both agenda items AND outOfAgenda subjects (which have agendaItemIndex null
+    // but nonAgendaReason 'outOfAgenda'). The extraction pipeline writes attendance/vote data
+    // for outOfAgenda subjects too, so we need to read it back here.
     const subjects = await prisma.subject.findMany({
-        where: { cityId, councilMeetingId: meetingId, agendaItemIndex: { not: null } },
+        where: {
+            cityId,
+            councilMeetingId: meetingId,
+            OR: [
+                { agendaItemIndex: { not: null } },
+                { nonAgendaReason: 'outOfAgenda' },
+            ],
+        },
         select: {
             id: true,
             attendance: {

@@ -1,15 +1,17 @@
-import { categorizeSubjects, getNonAgendaLabel, SUBJECT_CATEGORIES } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, SUBJECT_CATEGORIES, filterSubjectsForMinutes } from '../subjects';
 
 function makeSubject(overrides: Partial<{
+    id: string;
     name: string;
     nonAgendaReason: string | null;
     agendaItemIndex: number | null;
     statistics: { speakingSeconds: number };
 }> = {}) {
     return {
+        id: 'subject-1',
         name: 'Test subject',
-        nonAgendaReason: null,
-        agendaItemIndex: null,
+        nonAgendaReason: null as string | null,
+        agendaItemIndex: null as number | null,
         statistics: { speakingSeconds: 0 },
         speakerSegments: [],
         ...overrides,
@@ -114,5 +116,51 @@ describe('SUBJECT_CATEGORIES', () => {
             expect(category.shortLabel).toBeTruthy();
             expect(category.explainerText).toBeTruthy();
         }
+    });
+});
+
+describe('filterSubjectsForMinutes', () => {
+    it('keeps agenda items', () => {
+        const subjects = [
+            makeSubject({ id: 's1', agendaItemIndex: 1 }),
+            makeSubject({ id: 's2', agendaItemIndex: 2 }),
+        ];
+        expect(filterSubjectsForMinutes(subjects).map(s => s.id)).toEqual(['s1', 's2']);
+    });
+
+    it('keeps outOfAgenda subjects', () => {
+        const subjects = [
+            makeSubject({ id: 's1', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' }),
+        ];
+        expect(filterSubjectsForMinutes(subjects)).toHaveLength(1);
+    });
+
+    it('excludes beforeAgenda subjects', () => {
+        const subjects = [
+            makeSubject({ id: 's1', agendaItemIndex: null, nonAgendaReason: 'beforeAgenda' }),
+        ];
+        expect(filterSubjectsForMinutes(subjects)).toHaveLength(0);
+    });
+
+    it('excludes subjects with no agendaItemIndex and no nonAgendaReason', () => {
+        const subjects = [
+            makeSubject({ id: 's1' }),
+        ];
+        expect(filterSubjectsForMinutes(subjects)).toHaveLength(0);
+    });
+
+    it('handles mixed subjects correctly', () => {
+        const subjects = [
+            makeSubject({ id: 'agenda-1', agendaItemIndex: 1 }),
+            makeSubject({ id: 'before', agendaItemIndex: null, nonAgendaReason: 'beforeAgenda' }),
+            makeSubject({ id: 'out', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' }),
+            makeSubject({ id: 'agenda-2', agendaItemIndex: 3 }),
+            makeSubject({ id: 'orphan' }),
+        ];
+        expect(filterSubjectsForMinutes(subjects).map(s => s.id)).toEqual(['agenda-1', 'out', 'agenda-2']);
+    });
+
+    it('returns empty array for empty input', () => {
+        expect(filterSubjectsForMinutes([])).toEqual([]);
     });
 });
