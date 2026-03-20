@@ -49,6 +49,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const orderedTranscript = useMemo(() => {
         // Map each segment to its array index so we can use insertion order as a
         // stable tiebreaker when timestamps are identical (e.g. adjacent empty segments).
+        // For the initial server payload, the DB query guarantees deterministic ordering (createdAt).
         const indexed = transcript.map((segment, i) => ({ segment, i }));
         indexed.sort((a, b) => {
             if (a.segment.startTimestamp !== b.segment.startTimestamp) {

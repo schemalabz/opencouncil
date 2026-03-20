@@ -57,9 +57,10 @@ export async function getTranscript(meetingId: string, cityId: string, {
       },
       summary: true
     },
-    orderBy: {
-      startTimestamp: 'asc'
-    }
+    orderBy: [
+      { startTimestamp: 'asc' },
+      { createdAt: 'asc' }
+    ]
   });
 
   if (joinAdjacentSameSpeakerSegments) {
