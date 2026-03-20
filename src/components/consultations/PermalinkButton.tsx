@@ -3,37 +3,34 @@
 import { useState } from "react";
 import { Link, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePathname } from "@/i18n/routing";
+import { buildConsultationUrl, ConsultationView } from "./consultationUrl";
 
 interface PermalinkButtonProps {
-    href: string;
+    entityId?: string | null;
+    view: ConsultationView;
     className?: string;
 }
 
-export default function PermalinkButton({ href, className }: PermalinkButtonProps) {
+export default function PermalinkButton({ entityId, view, className }: PermalinkButtonProps) {
     const [copied, setCopied] = useState(false);
+    const pathname = usePathname();
 
     const handleCopy = async (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
 
         try {
-            // Get current view state from URL
-            const currentParams = new URLSearchParams(window.location.search);
-            const currentView = currentParams.get('view') || 'document';
-
-            // Build URL with current view state and the anchor
-            const baseUrl = href.split('#')[0]; // Remove any existing hash
-            const anchor = href.includes('#') ? `#${href.split('#')[1]}` : '';
-
-            const params = new URLSearchParams();
-            params.set('view', currentView);
-
-            const fullUrl = `${window.location.origin}${baseUrl}?${params.toString()}${anchor}`;
+            const livePathname = window.location.pathname || pathname;
+            const fullUrl = `${window.location.origin}${buildConsultationUrl(livePathname, {
+                view,
+                entityId,
+            })}`;
             await navigator.clipboard.writeText(fullUrl);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
-            console.error('Failed to copy link:', err);
+            console.error("Failed to copy link:", err);
         }
     };
 
