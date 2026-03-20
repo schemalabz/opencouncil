@@ -47,7 +47,7 @@ export function OfficialSupportBadge({
         return (
             <Badge
                 className={cn(
-                    "gap-1.5 border-0 bg-muted text-muted-foreground/70 font-normal",
+                    "gap-1.5 border-0 bg-muted hover:bg-muted text-muted-foreground font-normal",
                     sizeClasses[size],
                     className
                 )}
