@@ -11,6 +11,7 @@ import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
 import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
+import { getNonAgendaLabel } from "@/lib/utils/subjects";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -171,7 +172,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     <>
                                         <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
                                         <span className="font-medium">
-                                            {subject.nonAgendaReason === 'beforeAgenda' ? "Προ ημερησίας" : "Εκτός ημερησίας"}
+                                            {getNonAgendaLabel(subject.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')}
                                         </span>
                                     </>
                                 )}
