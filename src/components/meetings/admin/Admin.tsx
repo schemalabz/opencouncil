@@ -16,13 +16,12 @@ import PodcastSpecs from './PodcastSpecs';
 import { toggleMeetingRelease } from '@/lib/db/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
-import { requestGenerateMinutes, buildGenerateMinutesRequestBody } from '@/lib/tasks/generateMinutes';
 import { requestExtractDecisions } from '@/lib/tasks/extractDecisions';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Bell, FileDown, ChevronDown } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Pencil, Bell, Eye } from 'lucide-react';
 import { DecisionsPanel } from './DecisionsPanel';
+import { MinutesPreviewDialog } from './MinutesPreviewDialog';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
@@ -38,9 +37,9 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
-    const [isGeneratingMinutes, setIsGeneratingMinutes] = React.useState(false);
     const [isExtractingDecisions, setIsExtractingDecisions] = React.useState(false);
     const [decisionsDialogOpen, setDecisionsDialogOpen] = React.useState(false);
+    const [minutesPreviewOpen, setMinutesPreviewOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -226,25 +225,6 @@ export default function AdminActions({
         }
     };
 
-    const handleGenerateMinutes = async () => {
-        setIsGeneratingMinutes(true);
-        try {
-            await requestGenerateMinutes(meeting.cityId, meeting.id);
-            toast({
-                title: t('toasts.minutesGenerationRequested.title'),
-                description: t('toasts.minutesGenerationRequested.description'),
-            });
-        } catch (error) {
-            toast({
-                title: t('toasts.errorGeneratingMinutes.title'),
-                description: `${error}`,
-                variant: 'destructive'
-            });
-        } finally {
-            setIsGeneratingMinutes(false);
-        }
-    };
-
     const handleExtractDecisions = async () => {
         setIsExtractingDecisions(true);
         try {
@@ -261,29 +241,6 @@ export default function AdminActions({
             });
         } finally {
             setIsExtractingDecisions(false);
-        }
-    };
-
-    const handleExportMinutesRequest = async () => {
-        try {
-            const body = await buildGenerateMinutesRequestBody(meeting.cityId, meeting.id);
-            const blob = new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `minutes-request-${meeting.cityId}-${meeting.id}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast({
-                title: t('toasts.minutesRequestExported.title'),
-                description: t('toasts.minutesRequestExported.description'),
-            });
-        } catch (error) {
-            toast({
-                title: t('toasts.errorExportingMinutesRequest.title'),
-                description: `${error}`,
-                variant: 'destructive',
-            });
         }
     };
 
@@ -481,33 +438,6 @@ export default function AdminActions({
                 <Button onClick={handleFixTranscript}>
                     {t('buttons.fixTranscript')}
                 </Button>
-                <div className="inline-flex rounded-md shadow-sm">
-                    <Button
-                        onClick={handleGenerateMinutes}
-                        disabled={isGeneratingMinutes}
-                        className="rounded-r-none"
-                    >
-                        {isGeneratingMinutes ? t('buttons.starting') : t('buttons.generateMinutes')}
-                    </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="rounded-l-none border-l-0 px-2"
-                                disabled={isGeneratingMinutes}
-                            >
-                                <ChevronDown className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={handleExportMinutesRequest}>
-                                <FileDown className="w-4 h-4 mr-2" />
-                                {t('buttons.exportMinutesRequest')}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
             </div>
         </div>
         <div className="mt-6">
@@ -526,6 +456,17 @@ export default function AdminActions({
                 </Button>
             </div>
         </div>
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold">{t('sections.minutes')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('sections.minutesSubtitle')}</p>
+            <Button variant="outline" onClick={() => setMinutesPreviewOpen(true)}>
+                <Eye className="w-4 h-4 mr-2" />
+                {t('buttons.previewMinutes')}
+            </Button>
+        </div>
+
+        <MinutesPreviewDialog open={minutesPreviewOpen} onOpenChange={setMinutesPreviewOpen} />
+
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.meetingReleaseSubtitle')}</p>
@@ -652,28 +593,6 @@ export default function AdminActions({
                 cityId={city.id}
                 meetingId={meeting.id}
             />
-
-            {(() => {
-                const minutesTask = taskStatuses
-                    .filter(t => t.type === 'generateMinutes' && t.status === 'succeeded' && t.responseBody)
-                    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
-                if (!minutesTask) return null;
-                const docxUrl = (() => {
-                    try { return JSON.parse(minutesTask.responseBody!).docxUrl; }
-                    catch { return null; }
-                })();
-                if (!docxUrl) return null;
-                return (
-                    <Button
-                        variant="outline"
-                        className="mt-2 w-full"
-                        onClick={() => window.open(docxUrl, '_blank')}
-                    >
-                        <FileDown className="w-4 h-4 mr-2" />
-                        {t('buttons.downloadMinutes')}
-                    </Button>
-                );
-            })()}
 
         </div>
 
