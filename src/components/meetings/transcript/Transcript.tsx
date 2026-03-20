@@ -150,9 +150,9 @@ export default function Transcript() {
         if (interval) {
             debouncedSetScrollInterval(interval);
         } else if (visibleSegments.size === 0) {
-            debouncedSetScrollInterval([0, 0]);
+            setCurrentScrollInterval([0, 0]);  // bypass debounce: clear immediately
         }
-    }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval]);
+    }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval, setCurrentScrollInterval]);
 
     // Evict stale IDs when displayedSegments changes (e.g. after segment deletion/reorder)
     useEffect(() => {

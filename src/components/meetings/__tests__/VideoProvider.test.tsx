@@ -82,24 +82,19 @@ describe('VideoProvider', () => {
             }
         ];
 
-        // Mock context hook
-        const ContextProvider = ({ children }: { children: React.ReactNode }) => {
-            (useCouncilMeetingData as jest.Mock).mockReturnValue({
-                transcript: transcriptData,
-                meeting: { meeting: mockMeeting },
-                getHighlight: jest.fn(),
-                taskStatus: { humanReview: true }
-            });
-
-            return <VideoProvider meeting={mockMeeting}>{children}</VideoProvider>;
-        };
+        (useCouncilMeetingData as jest.Mock).mockImplementation(() => ({
+            transcript: transcriptData,
+            meeting: { meeting: mockMeeting },
+            getHighlight: jest.fn(),
+            taskStatus: { humanReview: true }
+        }));
 
         const { rerender } = render(
-            <ContextProvider>
+            <VideoProvider meeting={mockMeeting}>
                 <div id="utt-1" data-testid="utt-1"></div>
                 <div id="utt-2" data-testid="utt-2"></div>
                 <TestConsumer />
-            </ContextProvider>
+            </VideoProvider>
         );
 
         const mockScrollIntoView = window.HTMLElement.prototype.scrollIntoView;
@@ -134,11 +129,11 @@ describe('VideoProvider', () => {
 
         // Rerender to trigger the new context values
         rerender(
-            <ContextProvider>
+            <VideoProvider meeting={mockMeeting}>
                 <div id="utt-1" data-testid="utt-1"></div>
                 <div id="utt-2" data-testid="utt-2"></div>
                 <TestConsumer />
-            </ContextProvider>
+            </VideoProvider>
         );
 
         const utt2AfterRerender = document.getElementById('utt-2');

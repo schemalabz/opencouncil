@@ -160,6 +160,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     // === URL PARAMETER HANDLING ===
     const timeParam = searchParams.get('t');
 
+    // === INITIAL TIME SETUP ===
     useEffect(() => {
         // Set initial time to first utterance only on first load
         if (!hasSetInitialTime.current && utterances.length > 0) {
@@ -169,12 +170,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         }
     }, [utterances.length > 0]); // Re-run only when utterances first become available
 
+    // === URL PARAMETER DEEP-LINK ===
+    // One-shot: flag is set only after a successful seek so that if playerRef.current is not yet
+    // available (conditional render), the next effect run can retry.
+    // Share URLs encode timestamps with Math.floor (see ShareDropdown, ContributionCard),
+    // so we resolve the floor'd second back to the exact utterance startTimestamp.
     useEffect(() => {
-        // Handle ?t=123 URL parameter for deep linking (one-shot to avoid re-seeking on transcript mutations).
-        // The flag is set only after a successful seek so that if playerRef.current is not yet available
-        // (conditional render), the next effect run can retry.
-        // Share URLs encode timestamps with Math.floor (see ShareDropdown, ContributionCard),
-        // so we resolve the floor'd second back to the exact utterance startTimestamp.
         if (timeParam && !hasAppliedUrlParam.current) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
