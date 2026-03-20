@@ -142,11 +142,15 @@ export default function Transcript() {
         });
     }, []);
 
-    // Effect to update scroll interval when visible segments change
+    // Effect to update scroll interval when visible segments change.
+    // If all segments are evicted (e.g. the only visible segment was deleted),
+    // reset to [0, 0] so the stale interval doesn't linger until the observer fires.
     useEffect(() => {
         const interval = calculateTimeInterval(visibleSegments);
         if (interval) {
             debouncedSetScrollInterval(interval);
+        } else if (visibleSegments.size === 0) {
+            debouncedSetScrollInterval([0, 0]);
         }
     }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval]);
 
