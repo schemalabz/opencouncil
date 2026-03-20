@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
 import { env } from "@/env.mjs";
+import { Suspense } from "react";
 
 interface PageProps {
     params: { cityId: string; id: string };
@@ -155,17 +156,19 @@ export default async function ConsultationPage({ params }: PageProps) {
                     __html: JSON.stringify(structuredData),
                 }}
             />
-            <ConsultationViewer
-                consultation={consultation}
-                regulationData={regulationData}
-                baseUrl={baseUrl}
-                comments={comments}
-                currentUser={session?.user}
-                consultationId={params.id}
-                cityId={params.cityId}
-                cityName={city.name}
-                cityLogoUrl={city.logoImage || null}
-            />
+            <Suspense fallback={null}>
+                <ConsultationViewer
+                    consultation={consultation}
+                    regulationData={regulationData}
+                    baseUrl={baseUrl}
+                    comments={comments}
+                    currentUser={session?.user}
+                    consultationId={params.id}
+                    cityId={params.cityId}
+                    cityName={city.name}
+                    cityLogoUrl={city.logoImage || null}
+                />
+            </Suspense>
         </>
     );
 } 

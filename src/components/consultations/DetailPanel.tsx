@@ -237,7 +237,8 @@ export default function DetailPanel({
                     </div>
                     {detailType !== 'search-location' && detailId && (
                         <PermalinkButton
-                            href={`${baseUrl}?view=map#${detailId}`}
+                            entityId={detailId}
+                            view="map"
                             className={cn(
                                 "shrink-0 self-start",
                                 !isMobile && "absolute right-10 -top-3",

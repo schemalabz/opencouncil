@@ -60,7 +60,7 @@ export default function ArticleView({
                         </div>
                     </CollapsibleTrigger>
                     <div className="flex items-center self-center">
-                        <PermalinkButton href={`${baseUrl}#${article.id}`} />
+                        <PermalinkButton entityId={article.id} view="document" />
                     </div>
                 </div>
 

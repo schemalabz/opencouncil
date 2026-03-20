@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/routing";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
 import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeometry, DerivedGeometry, BufferOperation, DifferenceOperation, CurrentUser, GeoSetData, SEARCH_COLORS } from "./types";
@@ -15,6 +16,7 @@ import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import { Location } from "@/lib/types/onboarding";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { buildConsultationUrl, resolveConsultationUrlState } from "./consultationUrl";
 
 interface ConsultationMapProps {
     className?: string;
@@ -181,8 +183,26 @@ export default function ConsultationMap({
     onDrawerStateChange
 }: ConsultationMapProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const isMobile = useIsMobile();
+
+    const getLivePathname = useCallback(() => {
+        if (typeof window !== "undefined" && window.location.pathname) {
+            return window.location.pathname;
+        }
+
+        return pathname;
+    }, [pathname]);
+
+    const navigateMapEntity = useCallback((entityId: string | null, replace = false) => {
+        const nextUrl = buildConsultationUrl(getLivePathname(), {
+            view: "map",
+            entityId,
+        });
+        const navigate = replace ? router.replace : router.push;
+        navigate(nextUrl, { scroll: false });
+    }, [getLivePathname, router]);
 
     const [isControlsOpen, setIsControlsOpen] = useState(true);
     const [enabledGeoSets, setEnabledGeoSets] = useState<Set<string>>(new Set());
@@ -308,19 +328,17 @@ export default function ConsultationMap({
         setExpandedGeoSets(new Set()); // Start with all collapsed
     }, [geoSets, regulationData]);
 
-    const closeDetail = useCallback(() => {
+    const closeDetail = useCallback((updateUrl = true) => {
         isInSearchLocationMode.current = false;
         setDetailType(null);
         setDetailId(null);
         setSelectedSearchLocationIndex(null);
         setActiveSearchLocation(null);
-        // Remove hash from URL
-        if (window.location.hash) {
-            // Use history.pushState to remove hash without page reload
-            const url = window.location.href.split('#')[0];
-            window.history.pushState({}, '', url);
+
+        if (updateUrl) {
+            navigateMapEntity(null);
         }
-    }, []);
+    }, [navigateMapEntity]);
 
     // Find the zoomable GeoJSON for a geometry by id
     const findGeometryGeoJSON = useCallback((geometryId: string): GeoJSON.Geometry | null => {
@@ -340,8 +358,7 @@ export default function ConsultationMap({
         setDetailType('geoset');
         setDetailId(geoSetId);
         setSelectedSearchLocationIndex(null);
-        // Update URL hash without triggering navigation
-        window.location.hash = geoSetId;
+        navigateMapEntity(geoSetId);
 
         const geoSet = geoSets.find(gs => gs.id === geoSetId);
         if (geoSet) ensureGeoSetVisibleAndZoom(geoSet);
@@ -353,8 +370,7 @@ export default function ConsultationMap({
         setDetailType('geometry');
         setDetailId(geometryId);
         setSelectedSearchLocationIndex(null);
-        // Update URL hash without triggering navigation
-        window.location.hash = geometryId;
+        navigateMapEntity(geometryId);
     };
 
     const openSearchLocationDetail = (location: Location, locationIndex: number) => {
@@ -364,11 +380,7 @@ export default function ConsultationMap({
         setDetailId(`search-location-${locationIndex}`);
         setSelectedSearchLocationIndex(locationIndex);
         setActiveSearchLocation(location);
-        // Clear hash so it doesn't conflict (use pushState to avoid triggering hashchange)
-        if (window.location.hash) {
-            const url = window.location.href.split('#')[0];
-            window.history.pushState({}, '', url);
-        }
+        navigateMapEntity(null);
     };
 
     // Handle map feature clicks
@@ -620,24 +632,37 @@ export default function ConsultationMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [geoSets, closeDetail, findGeometryGeoJSON]);
 
-    // Handle URL hash changes to open detail panels
     useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash.substring(1); // Remove #
-            if (hash) {
-                openDetailFromId(hash);
-            } else {
-                closeDetail();
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const urlState = resolveConsultationUrlState({
+            pathname: getLivePathname(),
+            defaultView: "map",
+            regulationData,
+            searchParams,
+            liveSearch: window.location.search,
+            liveHash: window.location.hash,
+        });
+
+        if (urlState.needsCanonicalUrl) {
+            const currentUrl = `${window.location.pathname}${window.location.search}`;
+            if (currentUrl !== urlState.canonicalUrl) {
+                router.replace(urlState.canonicalUrl, { scroll: false });
             }
-        };
+        }
 
-        // Check initial hash
-        handleHashChange();
+        if (urlState.view !== "map") {
+            return;
+        }
 
-        // Listen for hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, [geoSets, openDetailFromId, closeDetail]);
+        if (urlState.entityId) {
+            openDetailFromId(urlState.entityId);
+        } else if (!isInSearchLocationMode.current) {
+            closeDetail(false);
+        }
+    }, [closeDetail, getLivePathname, openDetailFromId, regulationData, router, searchParams]);
 
     const toggleGeoSetExpansion = (geoSetId: string) => {
         setExpandedGeoSets(prev => {

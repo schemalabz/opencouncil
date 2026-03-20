@@ -100,7 +100,7 @@ export default function ChapterView({
                         </div>
                     </CollapsibleTrigger>
                     <div className="flex items-center self-center">
-                        <PermalinkButton href={`${baseUrl}#${chapter.id}`} />
+                        <PermalinkButton entityId={chapter.id} view="document" />
                     </div>
                 </div>
 
