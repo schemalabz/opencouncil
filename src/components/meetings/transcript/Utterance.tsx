@@ -2,7 +2,7 @@
 import { Utterance } from "@prisma/client";
 import React, { useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
-import { useVideo } from "../VideoProvider";
+import { useVideoActions } from "../VideoProvider";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useHighlight } from "../HighlightContext";
 import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
@@ -31,8 +31,7 @@ const UtteranceC: React.FC<{
     utterance: Utterance,
     onUpdate?: (updatedUtterance: Utterance) => void
 }> = React.memo(({ utterance, onUpdate }) => {
-    const { currentTime, seekTo, togglePlayPause } = useVideo();
-    const [isActive, setIsActive] = useState(false);
+    const { currentTimeRef, seekToWithoutScroll, togglePlayPause, seekTo } = useVideoActions();
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
@@ -63,26 +62,6 @@ const UtteranceC: React.FC<{
         setEditedEndTime(utterance.endTimestamp);
     }, [utterance]);
 
-    useEffect(() => {
-        const isActive = currentTime >= localUtterance.startTimestamp && currentTime <= localUtterance.endTimestamp;
-        setIsActive(isActive);
-
-        // Check if this utterance should be initially active based on URL param
-        const urlParams = new URLSearchParams(window.location.search);
-        const timeParam = urlParams.get('t');
-        if (timeParam) {
-            const seconds = parseInt(timeParam, 10);
-            if (!isNaN(seconds) && seconds >= localUtterance.startTimestamp && seconds <= localUtterance.endTimestamp) {
-                setIsActive(true);
-                // If this is the target utterance, ensure it's visible
-                const element = document.getElementById(localUtterance.id);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-        }
-    }, [currentTime, localUtterance.startTimestamp, localUtterance.endTimestamp, localUtterance.id]);
-
     // Check if this utterance is highlighted in the current editing highlight
     const isHighlighted = editingHighlight?.highlightedUtterances.some(hu => hu.utteranceId === localUtterance.id) || false;
 
@@ -93,7 +72,6 @@ const UtteranceC: React.FC<{
     const className = cn(
         "cursor-pointer hover:bg-accent utterance transcript-text transition-colors duration-100",
         {
-            "bg-accent": isActive,
             "font-semibold": isSelected,
             "font-bold underline": isHighlighted,
             "underline decoration-blue-500 decoration-2": isTaskModified,
@@ -108,12 +86,12 @@ const UtteranceC: React.FC<{
         if (editingHighlight) {
             // Pass shift modifier for range selection
             updateHighlightUtterances(
-                localUtterance.id, 
+                localUtterance.id,
                 isHighlighted ? 'remove' : 'add',
                 { shift: e.shiftKey }
             );
             // Seek to the utterance timestamp so user can easily play and listen to what they highlighted
-            seekTo(localUtterance.startTimestamp);
+            seekToWithoutScroll(localUtterance.startTimestamp);
         } else if (options.editable) {
             // Editing Mode: Handle Selection Logic
             // Prevent text editing if modifiers are present (intent is selection)
@@ -125,14 +103,14 @@ const UtteranceC: React.FC<{
             } else if (isSelected) {
                 // Click on selected utterance: enable editing
                 setIsEditing(true);
-                seekTo(localUtterance.startTimestamp);
+                seekToWithoutScroll(localUtterance.startTimestamp);
             } else {
                  // Standard click: Seek & Edit
                  setIsEditing(true);
-                 seekTo(localUtterance.startTimestamp);
+                 seekToWithoutScroll(localUtterance.startTimestamp);
             }
         } else {
-            seekTo(localUtterance.startTimestamp);
+            seekToWithoutScroll(localUtterance.startTimestamp);
         }
     };
 
@@ -223,11 +201,11 @@ const UtteranceC: React.FC<{
     };
 
     const setStartTimeToCurrentVideo = () => {
-        setEditedStartTime(currentTime);
+        setEditedStartTime(currentTimeRef.current);
     };
 
     const setEndTimeToCurrentVideo = () => {
-        setEditedEndTime(currentTime);
+        setEditedEndTime(currentTimeRef.current);
     };
 
     const handleMoveUtterancesToPrevious = (e: React.MouseEvent) => {
@@ -355,11 +333,11 @@ const UtteranceC: React.FC<{
                                 setEndTimeToCurrentVideo();
                             } else if (e.key === 'ArrowLeft' && e.shiftKey) {
                                 e.preventDefault();
-                                const newTime = Math.max(0, currentTime - options.skipInterval);
+                                const newTime = Math.max(0, currentTimeRef.current - options.skipInterval);
                                 seekTo(newTime);
                             } else if (e.key === 'ArrowRight' && e.shiftKey) {
                                 e.preventDefault();
-                                seekTo(currentTime + options.skipInterval);
+                                seekTo(currentTimeRef.current + options.skipInterval);
                             } else if (e.key === ' ' && e.shiftKey) {
                                 e.preventDefault();
                                 togglePlayPause();

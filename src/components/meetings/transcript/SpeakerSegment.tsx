@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { useVideo } from '../VideoProvider';
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
 import { PersonBadge } from '@/components/persons/PersonBadge';
@@ -96,7 +95,7 @@ const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
             setTimeout(() => {
                 const utteranceElement = document.getElementById(newUtteranceId);
                 if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     utteranceElement.click(); // Trigger click to enter edit mode
                 }
             }, 100);
@@ -139,7 +138,7 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
             setTimeout(() => {
                 const utteranceElement = document.getElementById(newUtteranceId);
                 if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     utteranceElement.click(); // Trigger click to enter edit mode
                 }
             }, 100);
@@ -169,13 +168,11 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
+const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     segment: TranscriptType[number],
-    renderMock: boolean,
     isFirstSegment?: boolean
 }) => {
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingData();
-    const { currentTime } = useVideo();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -266,61 +263,22 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
     return (
         <>
             {/* Add the new button before the segment */}
-            {options.editable && isFirstSegment && !renderMock && (
+            {options.editable && isFirstSegment && (
                 <AddSegmentBeforeButton segmentId={segment.id} isFirstSegment={true} />
             )}
             
-            <div className='my-2 sm:my-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: memoizedData.borderColor }}>
+            <div className='mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: memoizedData.borderColor }}>
                 <div className='w-full'>
                     <div 
                         className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
                         style={{ top: 'var(--banner-offset, 0px)' }}
                     >
-                        {renderMock ? (
-                            <div className='flex flex-col w-full space-y-2 py-2'>
-                                <div className='flex items-center justify-between w-full px-4'>
-                                    <div className='flex-grow overflow-hidden'>
-                                        <div className='h-6 bg-muted rounded animate-pulse' />
-                                    </div>
-                                    <div className='flex items-center gap-3 ml-4'>
-                                        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                                            <span className='font-medium'>{formatTimestamp(segment.startTimestamp)}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                {summary && (
-                                    <div className='px-4 space-y-2'>
-                                        <div className='text-sm'>
-                                            <div className='h-4 bg-muted rounded animate-pulse' />
-                                        </div>
-                                        <div className='flex items-center justify-between'>
-                                            {segment.topicLabels.length > 0 && (
-                                                <div className='flex flex-wrap gap-2'>
-                                                    {segment.topicLabels.map(tl =>
-                                                        <div key={tl.topic.id} className='h-6 w-16 bg-muted rounded animate-pulse' />
-                                                    )}
-                                                </div>
-                                            )}
-                                            <div className='flex items-center gap-2 text-xs text-muted-foreground ml-auto'>
-                                                {summary?.type === 'procedural' && (
-                                                    <span className="bg-muted/50 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                                        Διαδικαστικό
-                                                    </span>
-                                                )}
-                                                <AIGeneratedBadge />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className='flex flex-col w-full'>
+                        <div className='flex flex-col w-full'>
                                 {/* Collapsed header (mobile only, shown when collapsed) */}
                                 {isCollapsed && (
                                     <button
                                         onClick={() => handleCollapseToggle(false)}
-                                        className='sticky flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 border-b border-border/40'
-                                        style={{ top: 'var(--banner-offset, 0px)' }}
+                                        className='flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background border-b border-border/40'
                                     >
                                         <PersonBadge
                                             person={memoizedData.person}
@@ -368,7 +326,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                             >
                                                 <ChevronUp className="h-4 w-4" />
                                             </Button>
-                                            {options.editable && isEmpty && !renderMock && (
+                                            {options.editable && isEmpty && (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -385,7 +343,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
-                                            {isSuperAdmin && !renderMock && (
+                                            {isSuperAdmin && (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <Button
@@ -402,23 +360,21 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                                     </TooltipContent>
                                                 </Tooltip>
                                             )}
-                                            {!renderMock && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                            onClick={handleCopySegment}
-                                                        >
-                                                            <Copy className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{tCopy('button')}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            )}
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                        onClick={handleCopySegment}
+                                                    >
+                                                        <Copy className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>{tCopy('button')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                             <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
                                                 <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
                                             </div>
@@ -449,18 +405,11 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
+                        </div>
                     </div>
                     <div className='font-mono px-2.5 sm:px-4 py-1.5 sm:py-3 text-left sm:text-justify w-full leading-relaxed group text-sm sm:text-base'>
-                        {utterances.length === 0 && options.editable && !renderMock ? (
+                        {utterances.length === 0 && options.editable ? (
                             <EmptySegmentState segmentId={segment.id} />
-                        ) : renderMock ? (
-                            <div className='w-full break-words whitespace-pre-wrap'>
-                                {utterances.map((u, i) =>
-                                    <span className='break-words' id={u.id} key={u.id}>{u.text} </span>
-                                )}
-                            </div>
                         ) : (
                             <div className='w-full break-words whitespace-pre-wrap'>
                                 {utterances.map((u) => <UtteranceC utterance={u} key={u.id} />)}
@@ -473,11 +422,7 @@ const SpeakerSegment = React.memo(({ segment, renderMock, isFirstSegment }: {
                 </div>
             </div>
             {options.editable && (
-                renderMock ? (
-                    <div className="w-full h-2" />
-                ) : (
-                    <AddSegmentButton segmentId={segment.id} />
-                )
+                <AddSegmentButton segmentId={segment.id} />
             )}
 
             <SpeakerSegmentMetadataDialog
