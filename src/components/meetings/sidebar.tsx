@@ -1,5 +1,6 @@
 "use client"
-import { LayoutDashboard, FileText, Mic, ChevronDown, ChevronRight, Play, Pause, Loader, Settings, Star, Map, Bolt } from "lucide-react"
+import { ChevronDown, ChevronRight, Play, Pause, Loader } from "lucide-react"
+import { MEETING_PAGE_SEGMENTS } from "@/lib/utils/meetingPages"
 import {
     Sidebar,
     SidebarContent,
@@ -122,36 +123,12 @@ export default function MeetingSidebar() {
     }
 
     const mainMenuItems = [
-        {
-            title: "Σύνοψη",
-            icon: LayoutDashboard,
-            url: `/${city.id}/${meeting.id}`
-        },
-        {
-            title: "Χάρτης",
-            icon: Map,
-            url: `/${city.id}/${meeting.id}/map`
-        },
-        {
-            title: "Απομαγνητοφώνηση",
-            icon: Mic,
-            url: `/${city.id}/${meeting.id}/transcript`
-        },
-        ...(canCreateHighlights ? [{
-            title: "Στιγμιότυπα",
-            icon: Star,
-            url: `/${city.id}/${meeting.id}/highlights`
-        }] : []),
-        {
-            title: "Ρυθμίσεις",
-            icon: Settings,
-            url: `/${city.id}/${meeting.id}/settings`
-        },
-        ...(canEdit ? [{
-            title: "Διαχείριση",
-            icon: Bolt,
-            url: `/${city.id}/${meeting.id}/admin`
-        }] : [])
+        { ...MEETING_PAGE_SEGMENTS.overview, url: `/${city.id}/${meeting.id}` },
+        { ...MEETING_PAGE_SEGMENTS.map, url: `/${city.id}/${meeting.id}/map` },
+        { ...MEETING_PAGE_SEGMENTS.transcript, url: `/${city.id}/${meeting.id}/transcript` },
+        ...(canCreateHighlights ? [{ ...MEETING_PAGE_SEGMENTS.highlights, url: `/${city.id}/${meeting.id}/highlights` }] : []),
+        { ...MEETING_PAGE_SEGMENTS.settings, url: `/${city.id}/${meeting.id}/settings` },
+        ...(canEdit ? [{ ...MEETING_PAGE_SEGMENTS.admin, url: `/${city.id}/${meeting.id}/admin` }] : []),
     ]
 
     return (
@@ -188,8 +165,8 @@ export default function MeetingSidebar() {
                                         isSubjectsActive() && "text-primary font-medium"
                                     )}
                                 >
-                                    <FileText className="h-4 w-4" />
-                                    <span>Θέματα</span>
+                                    <MEETING_PAGE_SEGMENTS.subjects.icon className="h-4 w-4" />
+                                    <span>{MEETING_PAGE_SEGMENTS.subjects.title}</span>
                                     {subjectsExpanded ?
                                         <ChevronDown className="h-4 w-4 ml-auto" /> :
                                         <ChevronRight className="h-4 w-4 ml-auto" />
