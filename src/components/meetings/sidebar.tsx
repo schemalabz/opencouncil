@@ -19,14 +19,14 @@ import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { useVideo } from "./VideoProvider"
 import { usePathname } from "next/navigation"
-import { cn, formatTime } from "@/lib/utils"
-import { sortSubjectsByImportance } from "@/lib/utils"
+import { cn, formatTime, sortSubjectsByAgendaIndex } from "@/lib/utils"
+import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects"
 import { useTranscriptOptions } from "./options/OptionsContext"
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
-    const { isMobile, setOpenMobile } = useSidebar()
+    const { isMobile, setOpenMobile, state: sidebarState } = useSidebar()
     const pathname = usePathname()
     // State to track both actual path and anticipated path during navigation
     const [activeItem, setActiveItem] = useState(pathname)
@@ -34,9 +34,12 @@ export default function MeetingSidebar() {
     const canEdit = options.editsAllowed
     const canCreateHighlights = options.canCreateHighlights
 
-    // Sort subjects by appearance (chronological) for the sidebar
-    const chronologicalSubjects = useMemo(() => {
-        return sortSubjectsByImportance(subjects, 'appearance')
+    const { beforeAgenda, outOfAgenda, agenda } = useMemo(() => {
+        const categorized = categorizeSubjects(subjects)
+        return {
+            ...categorized,
+            agenda: sortSubjectsByAgendaIndex(categorized.agenda),
+        }
     }, [subjects])
 
     // Sync with pathname when it changes
@@ -81,6 +84,41 @@ export default function MeetingSidebar() {
     // Check if subjects section is active
     const isSubjectsActive = () => {
         return activeItem.includes(`/${city.id}/${meeting.id}/subjects`)
+    }
+
+    type Subject = typeof subjects[number]
+    const renderSubjectSection = (title: string, sectionSubjects: Subject[], getPrefix?: (subject: Subject, index: number) => string) => {
+        if (sectionSubjects.length === 0) return null
+        return (
+            <>
+                <SidebarMenuItem className="pl-4">
+                    <span className="text-xs font-semibold text-muted-foreground tracking-wide py-1">
+                        {title}
+                    </span>
+                </SidebarMenuItem>
+                {sectionSubjects.map((subject, index) => {
+                    const subjectUrl = `/${city.id}/${meeting.id}/subjects/${subject.id}`
+                    return (
+                        <SidebarMenuItem key={subject.id} className="pl-8">
+                            <SidebarMenuButton
+                                asChild
+                                onClick={handleMenuItemClick}
+                                isActive={activeItem === subjectUrl}
+                            >
+                                <Link
+                                    href={subjectUrl}
+                                    className={cn(
+                                        activeItem === subjectUrl && "text-primary font-medium"
+                                    )}
+                                >
+                                    <span className="text-sm">{getPrefix ? `${getPrefix(subject, index)} ` : ''}{subject.name}</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )
+                })}
+            </>
+        )
     }
 
     const mainMenuItems = [
@@ -159,26 +197,11 @@ export default function MeetingSidebar() {
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
 
-                            {subjectsExpanded && (
+                            {subjectsExpanded && sidebarState !== 'collapsed' && (
                                 <>
-                                    {chronologicalSubjects?.map((subject) => (
-                                        <SidebarMenuItem key={subject.id} className="pl-8">
-                                            <SidebarMenuButton
-                                                asChild
-                                                onClick={handleMenuItemClick}
-                                                isActive={activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}`}
-                                            >
-                                                <Link
-                                                    href={`/${city.id}/${meeting.id}/subjects/${subject.id}`}
-                                                    className={cn(
-                                                        activeItem === `/${city.id}/${meeting.id}/subjects/${subject.id}` && "text-primary font-medium"
-                                                    )}
-                                                >
-                                                    <span className="text-sm">{subject.name}</span>
-                                                </Link>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    ))}
+                                    {renderSubjectSection(SUBJECT_CATEGORIES.beforeAgenda.shortLabel, beforeAgenda)}
+                                    {renderSubjectSection(SUBJECT_CATEGORIES.outOfAgenda.shortLabel, outOfAgenda)}
+                                    {renderSubjectSection(SUBJECT_CATEGORIES.agenda.shortLabel, agenda, (s) => `${s.agendaItemIndex}.`)}
                                 </>
                             )}
                         </SidebarMenu>

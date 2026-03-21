@@ -7,6 +7,8 @@ import { formatDate } from "date-fns";
 import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
+import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
@@ -24,6 +26,12 @@ export default function MeetingPage() {
     const subjectFeatures = subjects
         .map(subjectToMapFeature)
         .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+
+    // Center on city geometry for the decorative header map
+    const cityCenter = useMemo((): [number, number] => {
+        if (!city.geometry) return [23.7275, 37.9838];
+        return calculateGeometryBounds(city.geometry).center;
+    }, [city.geometry]);
 
     // Extract unique topics from all subjects
     const availableTopics = useMemo(() => {
@@ -43,22 +51,17 @@ export default function MeetingPage() {
     }, [subjects, selectedTopicId]);
 
     // Categorize subjects
-    const beforeAgendaSubjects = useMemo(() =>
-        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'beforeAgenda' && s.agendaItemIndex === null)),
+    const { beforeAgenda: beforeAgendaSubjects, outOfAgenda: outOfAgendaSubjects, agenda: categorizedAgenda } = useMemo(() =>
+        categorizeSubjects(filteredSubjects),
         [filteredSubjects]
     );
 
-    const outOfAgendaSubjects = useMemo(() =>
-        sortSubjectsBySpeakingTime(filteredSubjects.filter(s => s.nonAgendaReason === 'outOfAgenda' && s.agendaItemIndex === null)),
-        [filteredSubjects]
+    const agendaSubjects = useMemo(() =>
+        agendaSortMode === 'agendaIndex'
+            ? sortSubjectsByAgendaIndex(categorizedAgenda)
+            : sortSubjectsBySpeakingTime(categorizedAgenda),
+        [categorizedAgenda, agendaSortMode]
     );
-
-    const agendaSubjects = useMemo(() => {
-        const agenda = filteredSubjects.filter(s => s.agendaItemIndex !== null);
-        return agendaSortMode === 'agendaIndex'
-            ? sortSubjectsByAgendaIndex(agenda)
-            : sortSubjectsBySpeakingTime(agenda);
-    }, [filteredSubjects, agendaSortMode]);
 
     return (
         <div className="flex flex-col w-full">
@@ -80,6 +83,8 @@ export default function MeetingPage() {
                     },
                     ...subjectFeatures
                 ]}
+                    center={cityCenter}
+                    zoom={12}
                 />
                 <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
                 <MeetingInfo />
@@ -102,14 +107,14 @@ export default function MeetingPage() {
                 {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && (
                     <div className={`max-w-4xl mx-auto ${beforeAgendaSubjects.length <= 1 && outOfAgendaSubjects.length <= 1 ? "flex flex-col lg:flex-row lg:flex-wrap gap-x-8" : "flex flex-col"}`}>
                         <SubjectSection
-                            title="Προ ημερησίας, συζήτηση και ανακοινώσεις"
-                            explainerText="Αυτά τα θέματα είναι ανακοινώσεις, ερωτήματα και συζήτηση για τα οποία δεν υπάρχει ψηφοφορία και δεν λαμβάνονται αποφάσεις, συνήθως στην αρχή της συνεδρίασης."
+                            title={SUBJECT_CATEGORIES.beforeAgenda.label}
+                            explainerText={SUBJECT_CATEGORIES.beforeAgenda.explainerText}
                             subjects={beforeAgendaSubjects}
                             className="flex-1 min-w-0"
                         />
                         <SubjectSection
-                            title="Εκτός ημερησίας θέματα"
-                            explainerText="Τα εκτός ημερησίας θέματα είναι έκτακτα θέματα που δεν πρόλαβαν να ενταχτούν στην ημερήσια διάταξη της συνεδρίασης. Ψηφίζονται από το σώμα, πρώτα για το κατ'επείγον, και έπειτα για την ουσία του θέματος."
+                            title={SUBJECT_CATEGORIES.outOfAgenda.label}
+                            explainerText={SUBJECT_CATEGORIES.outOfAgenda.explainerText}
                             subjects={outOfAgendaSubjects}
                             className="flex-1 min-w-0"
                         />
@@ -121,8 +126,8 @@ export default function MeetingPage() {
                 )}
 
                 <SubjectSection
-                    title="Θέματα ημερησίας διάταξης"
-                    explainerText="Τα θέματα της ημερησίας διάταξης συζητούνται και ψηφίζονται από το σώμα και αποτελούν το κύριο μέρος της συνεδρίασης."
+                    title={SUBJECT_CATEGORIES.agenda.label}
+                    explainerText={SUBJECT_CATEGORIES.agenda.explainerText}
                     subjects={agendaSubjects}
                     sortMode={agendaSortMode}
                     onSortModeChange={setAgendaSortMode}

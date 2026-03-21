@@ -11,6 +11,7 @@ import {
 import * as React from "react"
 import { geniki } from "@/lib/utils/geniki"
 import sanitizeHtml from 'sanitize-html'
+import { buildConsultationUrl, getConsultationViewForEntityType } from "@/components/consultations/consultationUrl"
 
 interface ConsultationCommentEmailProps {
     userName: string
@@ -75,12 +76,16 @@ export const ConsultationCommentEmail = ({
 
     // Generate permalink to the specific entity
     const getEntityPermalink = (entityType: string, entityId: string): string => {
-        const baseUrl = consultationUrl.replace(/[?#].*$/, ''); // Remove any existing query params and hash
+        const consultationEntityType =
+            entityType === 'chapter' ||
+            entityType === 'article' ||
+            entityType === 'geoset' ||
+            entityType === 'geometry'
+                ? entityType
+                : 'geometry';
+        const view = getConsultationViewForEntityType(consultationEntityType);
 
-        // Determine the view parameter based on entity type
-        const view = (entityType === 'chapter' || entityType === 'article') ? 'document' : 'map';
-
-        return `${baseUrl}?view=${view}#${entityId}`;
+        return buildConsultationUrl(consultationUrl, { view, entityId });
     };
 
     const entityPermalink = getEntityPermalink(entityType, entityId);
