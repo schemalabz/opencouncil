@@ -7,8 +7,6 @@ import MeetingSidebar from '@/components/meetings/sidebar';
 import TranscriptControls from '@/components/meetings/TranscriptControls';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
-import { formatDate } from 'date-fns';
-import { el, enUS } from 'date-fns/locale';
 import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
@@ -125,12 +123,6 @@ export default async function CouncilMeetingPage({
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
     );
 
-    // Format meeting description to include more info
-    const meetingDescription = [
-        formatDate(new Date(data.meeting.dateTime), 'EEEE, d MMMM yyyy', { locale: locale === 'el' ? el : enUS }),
-        `${data.subjects.length} θέματα`
-    ].filter(Boolean).join(' · ');
-
     // Build admin body breadcrumb link with proper filter params
     const adminBody = data.meeting.administrativeBody;
     const tCommon = await getTranslations({ locale, namespace: 'Common' });
@@ -161,8 +153,7 @@ export default async function CouncilMeetingPage({
                                         ...(adminBodyPath ? [adminBodyPath] : []),
                                         {
                                             name: data.meeting.name,
-                                            link: `/${cityId}/${meetingId}`,
-                                            description: meetingDescription
+                                            link: `/${cityId}/${meetingId}`
                                         }
                                     ]}
                                     showSidebarTrigger={true}
@@ -180,7 +171,7 @@ export default async function CouncilMeetingPage({
                                 <EditingModeBar />
                                 <div className="flex-1 flex min-h-0">
                                     <MeetingSidebar />
-                                    <div className="flex-1 overflow-auto">
+                                    <div className="flex-1 overflow-auto" data-meeting-scroll>
                                         <div className='pb-20'>
                                             <Suspense>
                                                 {children}
