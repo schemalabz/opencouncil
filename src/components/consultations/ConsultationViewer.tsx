@@ -1,23 +1,31 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/routing";
+import { MapPin, Map, FileText, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Credenza, CredenzaContent, CredenzaHeader, CredenzaTitle, CredenzaDescription, CredenzaBody } from "@/components/ui/credenza";
 import ConsultationHeader from "./ConsultationHeader";
 import ConsultationMap from "./ConsultationMap";
 import ConsultationDocument from "./ConsultationDocument";
 import ViewToggleButton from "./ViewToggleButton";
 import CommentsOverviewSheet from "./CommentsOverviewSheet";
+import MarkdownContent from "./MarkdownContent";
 
-import { RegulationData } from "./types";
+import { RegulationData, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
-
-type ViewMode = 'map' | 'document';
+import {
+    buildConsultationUrl,
+    ConsultationEntityType,
+    ConsultationUrlState,
+    ConsultationView,
+    getConsultationViewForEntityType,
+    isConsultationEntityCompatibleWithView,
+    resolveConsultationEntityType,
+    resolveConsultationUrlState,
+} from "./consultationUrl";
 
 interface Consultation {
     id: string;
@@ -36,6 +44,8 @@ interface ConsultationViewerProps {
     currentUser?: CurrentUser;
     consultationId: string;
     cityId: string;
+    cityName?: string;
+    cityLogoUrl?: string | null;
 }
 
 export default function ConsultationViewer({
@@ -45,13 +55,37 @@ export default function ConsultationViewer({
     comments,
     currentUser,
     consultationId,
-    cityId
+    cityId,
+    cityName,
+    cityLogoUrl
 }: ConsultationViewerProps) {
     const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    // Default to document view, unless URL specifies map
-    const [currentView, setCurrentView] = useState<ViewMode>('document');
+    const defaultView: ConsultationView = regulationData?.defaultView || "document";
+
+    const getLivePathname = useCallback(() => {
+        if (typeof window !== "undefined" && window.location.pathname) {
+            return window.location.pathname;
+        }
+
+        return pathname;
+    }, [pathname]);
+
+    const getResolvedUrlState = useCallback((): ConsultationUrlState => {
+        return resolveConsultationUrlState({
+            pathname: getLivePathname(),
+            defaultView,
+            regulationData,
+            searchParams,
+            liveSearch: typeof window !== "undefined" ? window.location.search : undefined,
+            liveHash: typeof window !== "undefined" ? window.location.hash : undefined,
+        });
+    }, [defaultView, getLivePathname, regulationData, searchParams]);
+
+    const [currentView, setCurrentView] = useState<ConsultationView>(() => getResolvedUrlState().view);
+    const [currentEntityId, setCurrentEntityId] = useState<string | null>(() => getResolvedUrlState().entityId);
 
     // Track which chapters and articles are expanded
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
@@ -60,24 +94,34 @@ export default function ConsultationViewer({
     // Track comments overview sheet state
     const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
 
-    // Update view based on URL on mount and when search params change
+    // Track whether the map summary card has been dismissed.
+    const [showMapSummary, setShowMapSummary] = useState(() => !getResolvedUrlState().entityId);
+
+    // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
+    const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
+
+    // Keep local state aligned with the committed URL and normalize old hash links.
     useEffect(() => {
-        const viewParam = searchParams.get('view');
-        if (viewParam === 'map' || viewParam === 'document') {
-            setCurrentView(viewParam as ViewMode);
-        } else {
-            // Default to document view and update URL if no view param exists
-            setCurrentView('document');
-            if (typeof window !== 'undefined') {
-                const params = new URLSearchParams(window.location.search);
-                if (!params.has('view')) {
-                    params.set('view', 'document');
-                    const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-                    router.replace(newUrl, { scroll: false });
-                }
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const resolvedUrlState = getResolvedUrlState();
+
+        setCurrentView(resolvedUrlState.view);
+        setCurrentEntityId(resolvedUrlState.entityId);
+
+        if (resolvedUrlState.entityId) {
+            setShowMapSummary(false);
+        }
+
+        if (resolvedUrlState.needsCanonicalUrl) {
+            const currentUrl = `${window.location.pathname}${window.location.search}`;
+            if (currentUrl !== resolvedUrlState.canonicalUrl) {
+                router.replace(resolvedUrlState.canonicalUrl, { scroll: false });
             }
         }
-    }, [searchParams, router]);
+    }, [getResolvedUrlState, router]);
 
     // Helper functions for managing expansion state
     const expandChapter = (chapterId: string) => {
@@ -128,137 +172,106 @@ export default function ConsultationViewer({
         return null;
     }, [regulationData]);
 
-    // Handle initial hash on page load and actual hash changes
-    useEffect(() => {
-        const handleHashChange = () => {
-            const hash = window.location.hash;
-            if (hash && hash.length > 1) {
-                const targetId = hash.substring(1); // Remove #
+    const scrollToDocumentEntity = useCallback((entityId: string) => {
+        let attempts = 0;
+        let frameId = 0;
 
-                // Check if user explicitly set view=map in URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const explicitView = urlParams.get('view');
+        const tryScroll = () => {
+            const element = document.getElementById(entityId);
+            if (element) {
+                element.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                });
+                return;
+            }
 
-                // Only auto-switch to document view if user hasn't explicitly chosen map view
-                if (currentView === 'map' && explicitView !== 'map') {
-                    setCurrentView('document');
-                    // Update URL to reflect document view
-                    const params = new URLSearchParams(window.location.search);
-                    params.set('view', 'document');
-                    const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-                    router.replace(newUrl, { scroll: false });
-                }
-
-                // Only handle hash navigation if we're in document view or switching to it
-                if (currentView === 'document' || explicitView !== 'map') {
-                    // Determine what needs to be expanded
-                    if (regulationData) {
-                        // Check if it's a chapter
-                        const chapter = regulationData.regulation.find(item =>
-                            item.type === 'chapter' && item.id === targetId
-                        );
-
-                        if (chapter) {
-                            // It's a chapter - expand it
-                            expandChapter(targetId);
-                        } else {
-                            // Check if it's an article
-                            const parentChapterId = findChapterForArticle(targetId);
-                            if (parentChapterId) {
-                                // It's an article - expand both the chapter and the article
-                                expandChapter(parentChapterId);
-                                expandArticle(targetId);
-                            }
-                        }
-                    }
-
-                    // Small delay to ensure content is rendered and expanded
-                    setTimeout(() => {
-                        const element = document.querySelector(hash);
-                        if (element) {
-                            element.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }
-                    }, currentView === 'map' ? 500 : 200);
-                }
+            if (attempts < 60) {
+                attempts += 1;
+                frameId = window.requestAnimationFrame(tryScroll);
             }
         };
 
-        // Only handle initial hash on mount
-        if (window.location.hash) {
-            handleHashChange();
-        }
+        frameId = window.requestAnimationFrame(tryScroll);
 
-        // Listen for actual hash changes
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Remove dependencies to prevent running on every state change
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, []);
 
-    // Separate effect to handle hash when view changes to document
     useEffect(() => {
-        if (currentView === 'document' && window.location.hash) {
-            const hash = window.location.hash;
-            const targetId = hash.substring(1);
-
-            if (regulationData) {
-                const chapter = regulationData.regulation.find(item =>
-                    item.type === 'chapter' && item.id === targetId
-                );
-
-                if (chapter) {
-                    expandChapter(targetId);
-                } else {
-                    const parentChapterId = findChapterForArticle(targetId);
-                    if (parentChapterId) {
-                        expandChapter(parentChapterId);
-                        expandArticle(targetId);
-                    }
-                }
-            }
+        if (currentView !== "document" || !currentEntityId) {
+            return;
         }
-    }, [currentView, regulationData, findChapterForArticle]); // Only run when view changes or regulation data loads
 
-    const toggleView = () => {
-        const newView = currentView === 'map' ? 'document' : 'map';
-        setCurrentView(newView);
+        const entityType = resolveConsultationEntityType(regulationData, currentEntityId);
 
-        // Update URL with new view
-        const params = new URLSearchParams(window.location.search);
-        params.set('view', newView);
+        if (entityType === "chapter") {
+            expandChapter(currentEntityId);
+            return scrollToDocumentEntity(currentEntityId);
+        }
 
-        // If switching to map view, remove any hash (since anchors don't make sense in map view)
-        const newUrl = newView === 'map'
-            ? `${window.location.pathname}?${params.toString()}`
-            : `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+        if (entityType === "article") {
+            const parentChapterId = findChapterForArticle(currentEntityId);
+            if (parentChapterId) {
+                expandChapter(parentChapterId);
+            }
+            expandArticle(currentEntityId);
+            return scrollToDocumentEntity(currentEntityId);
+        }
+    }, [currentEntityId, currentView, findChapterForArticle, regulationData, scrollToDocumentEntity]);
 
-        router.push(newUrl, { scroll: false });
+    const navigateToConsultationState = useCallback((
+        view: ConsultationView,
+        entityId: string | null,
+        {
+            replace = false,
+            scrollToTop = false,
+        }: { replace?: boolean; scrollToTop?: boolean } = {},
+    ) => {
+        const entityType = resolveConsultationEntityType(regulationData, entityId);
+        const nextEntityId = isConsultationEntityCompatibleWithView(entityType, view) ? entityId : null;
+        const nextUrl = buildConsultationUrl(getLivePathname(), {
+            view,
+            entityId: nextEntityId,
+        });
 
-        // Scroll to top when switching to map view (non-smoothly to hide footer)
-        if (newView === 'map') {
+        setCurrentView(view);
+        setCurrentEntityId(nextEntityId);
+
+        if (nextEntityId) {
+            setShowMapSummary(false);
+        }
+
+        const navigate = replace ? router.replace : router.push;
+        navigate(nextUrl, { scroll: false });
+
+        if (scrollToTop && typeof window !== "undefined") {
             window.scrollTo(0, 0);
         }
+    }, [getLivePathname, regulationData, router]);
+
+    const toggleView = () => {
+        const newView: ConsultationView = currentView === "map" ? "document" : "map";
+        const currentEntityType = resolveConsultationEntityType(regulationData, currentEntityId);
+        const nextEntityId = isConsultationEntityCompatibleWithView(currentEntityType, newView)
+            ? currentEntityId
+            : null;
+
+        navigateToConsultationState(newView, nextEntityId, {
+            scrollToTop: newView === "map",
+        });
     };
 
     // Handle comment navigation from comments overview sheet
     const handleCommentClick = (comment: ConsultationCommentWithUpvotes) => {
-        // Navigate to the entity based on comment type
-        if (comment.entityType === 'CHAPTER' || comment.entityType === 'ARTICLE') {
-            // Navigate to document section
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'document');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
-            router.push(newUrl, { scroll: false });
-            window.location.hash = `#${comment.entityId}`; // To trigger hash change event
-        } else if (comment.entityType === 'GEOSET' || comment.entityType === 'GEOMETRY') {
-            // Navigate to map view
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'map');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${comment.entityId}`;
-            router.push(newUrl, { scroll: false });
-        }
+        const targetView = comment.entityType === "CHAPTER" || comment.entityType === "ARTICLE"
+            ? "document"
+            : "map";
+
+        navigateToConsultationState(targetView, comment.entityId, {
+            scrollToTop: targetView === "map",
+        });
     };
 
     // Handle reference navigation
@@ -295,18 +308,12 @@ export default function ConsultationViewer({
         }
 
         // Navigate based on reference type
-        if (referenceType === 'chapter' || referenceType === 'article') {
-            // Navigate to document section
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'document');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-            router.push(newUrl, { scroll: false });
-        } else if (referenceType === 'geoset' || referenceType === 'geometry') {
-            // Navigate to map view
-            const params = new URLSearchParams(window.location.search);
-            params.set('view', 'map');
-            const newUrl = `${window.location.pathname}?${params.toString()}#${referenceId}`;
-            router.push(newUrl, { scroll: false });
+        if (referenceType === "chapter" || referenceType === "article") {
+            navigateToConsultationState("document", referenceId);
+        } else if (referenceType === "geoset" || referenceType === "geometry") {
+            navigateToConsultationState("map", referenceId, {
+                scrollToTop: true,
+            });
         }
     };
 
@@ -329,13 +336,110 @@ export default function ConsultationViewer({
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            onShowInfo={() => setShowMapSummary(true)}
+                            onDrawerStateChange={setMapDrawerOpen}
                         />
                     </div>
+
+                    {/* Welcome dialog */}
+                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
+                        <CredenzaContent className="max-w-xl">
+                            {/* Logos */}
+                            <CredenzaBody>
+                                <div className="flex items-center justify-center gap-4 pt-1">
+                                    {cityLogoUrl && (
+                                        <div className="relative h-12 w-12 shrink-0">
+                                            <Image
+                                                src={cityLogoUrl}
+                                                alt={cityName ? `Λογότυπο ${cityName}` : 'Λογότυπο Δήμου'}
+                                                fill
+                                                className="object-contain"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="relative h-10 w-10 shrink-0">
+                                        <Image
+                                            src="/logo.png"
+                                            alt="OpenCouncil"
+                                            fill
+                                            className="object-contain"
+                                        />
+                                    </div>
+                                </div>
+
+                                <CredenzaHeader className="text-center sm:text-center">
+                                    <div className="text-lg font-bold tracking-wide">
+                                        ΔΙΑΒΟΥΛΕΥΣΗ
+                                    </div>
+                                    <CredenzaTitle className="text-sm font-normal text-muted-foreground leading-tight">
+                                        {regulationData?.title}
+                                    </CredenzaTitle>
+                                    <CredenzaDescription className="sr-only">
+                                        Περίληψη διαβούλευσης
+                                    </CredenzaDescription>
+                                </CredenzaHeader>
+                                {regulationData?.summary && (
+                                    <div className="max-h-52 overflow-y-auto -mx-1 px-1">
+                                        <MarkdownContent
+                                            content={regulationData.summary}
+                                            variant="muted"
+                                            className="text-sm"
+                                            referenceFormat={regulationData.referenceFormat}
+                                            onReferenceClick={(id) => {
+                                                setShowMapSummary(false);
+                                                handleReferenceClick(id);
+                                            }}
+                                            regulationData={regulationData}
+                                        />
+                                    </div>
+                                )}
+                                <div className="flex flex-col gap-2 pt-1">
+                                    <Button
+                                        onClick={() => setShowMapSummary(false)}
+                                        className="w-full"
+                                    >
+                                        <MapPin className="h-4 w-4 mr-2" />
+                                        Βρείτε την περιοχή σας
+                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            onClick={() => {
+                                                setShowMapSummary(false);
+                                                toggleView();
+                                            }}
+                                            variant="outline"
+                                            className="flex-1"
+                                        >
+                                            <FileText className="h-4 w-4 mr-1.5" />
+                                            Κείμενο
+                                        </Button>
+                                        {comments.length > 0 && (
+                                            <Button
+                                                onClick={() => {
+                                                    setShowMapSummary(false);
+                                                    setCommentsSheetOpen(true);
+                                                }}
+                                                variant="outline"
+                                                className="flex-1 text-muted-foreground"
+                                            >
+                                                <MessageSquare className="h-4 w-4 mr-1.5" />
+                                                {comments.length} σχόλια
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center pt-1 border-t">
+                                    Σχολιάστε και εκφράστε τη γνώμη σας -- τα σχόλια αποστέλλονται απευθείας στον Δήμο ως επίσημες παρατηρήσεις.
+                                </p>
+                            </CredenzaBody>
+                        </CredenzaContent>
+                    </Credenza>
 
                     {/* Floating action button for view toggle */}
                     <ViewToggleButton
                         currentView={currentView}
                         onToggle={toggleView}
+                        drawerOpen={mapDrawerOpen}
                     />
                 </div>
             );

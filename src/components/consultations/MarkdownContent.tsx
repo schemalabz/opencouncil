@@ -241,13 +241,27 @@ export default function MarkdownContent({
                             }
                         }
 
-                        // Handle document references (chapters/articles) - check if it's a reference link
-                        if (href?.startsWith('#') && typeof children === 'string' && children.includes('{REF:')) {
-                            // Extract reference ID from the href
+                        // Handle document references (chapters/articles) - any #hash link that resolves to a known entity
+                        if (href?.startsWith('#') && !href.startsWith('#ref-')) {
                             const referenceId = href.substring(1); // Remove #
                             const { displayName, referenceType, isValid } = resolveReference(referenceId);
 
-                            if (isValid) {
+                            if (isValid && onReferenceClick) {
+                                return (
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            onReferenceClick(referenceId);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium inline text-left"
+                                        type="button"
+                                        title={`Navigate to: ${displayName}`}
+                                    >
+                                        {getIcon(referenceType) && <span className="inline-block mr-1 align-baseline">{getIcon(referenceType)}</span>}
+                                        <span className="inline">{displayName}</span>
+                                    </button>
+                                );
+                            } else if (isValid) {
                                 return (
                                     <a
                                         href={href}
@@ -258,17 +272,8 @@ export default function MarkdownContent({
                                         <span className="inline">{displayName}</span>
                                     </a>
                                 );
-                            } else {
-                                return (
-                                    <span
-                                        className="text-red-600 font-medium inline"
-                                        title={`Broken reference: ${referenceId}`}
-                                    >
-                                        <span className="inline">{displayName}</span>
-                                        <span className="inline-block ml-1 align-baseline"><Link2Off className="h-3 w-3" /></span>
-                                    </span>
-                                );
                             }
+                            // If not a known reference, fall through to regular link handler below
                         }
 
                         // Regular link

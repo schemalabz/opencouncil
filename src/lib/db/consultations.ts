@@ -8,6 +8,90 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 // Re-export the enum for use in other files
 export { ConsultationCommentEntityType };
 
+// ----- Admin types -----
+
+export type ConsultationForAdmin = Consultation & {
+    city: Pick<import('@prisma/client').City, 'id' | 'name'>;
+    _count: { comments: number };
+};
+
+// ----- Admin CRUD functions -----
+
+export async function getConsultationsForAdmin(): Promise<ConsultationForAdmin[]> {
+    return prisma.consultation.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+            city: { select: { id: true, name: true } },
+            _count: { select: { comments: true } }
+        }
+    });
+}
+
+export async function createConsultation(data: {
+    name: string;
+    jsonUrl: string;
+    endDate: string;
+    isActive?: boolean;
+    cityId: string;
+}) {
+    // Validate the city exists and has consultations enabled
+    const city = await prisma.city.findUnique({
+        where: { id: data.cityId },
+        select: { id: true, consultationsEnabled: true }
+    });
+
+    if (!city) {
+        throw new Error('City not found');
+    }
+
+    if (!city.consultationsEnabled) {
+        throw new Error('Consultations are not enabled for this city. Enable them first in city settings.');
+    }
+
+    return prisma.consultation.create({
+        data: {
+            name: data.name,
+            jsonUrl: data.jsonUrl,
+            endDate: new Date(data.endDate),
+            isActive: data.isActive ?? true,
+            cityId: data.cityId
+        },
+        include: {
+            city: { select: { id: true, name: true } }
+        }
+    });
+}
+
+export async function updateConsultation(
+    id: string,
+    data: { name?: string; jsonUrl?: string; endDate?: string; isActive?: boolean }
+) {
+    return prisma.consultation.update({
+        where: { id },
+        data: {
+            ...(data.name !== undefined && { name: data.name }),
+            ...(data.jsonUrl !== undefined && { jsonUrl: data.jsonUrl }),
+            ...(data.endDate !== undefined && { endDate: new Date(data.endDate) }),
+            ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+        include: {
+            city: { select: { id: true, name: true } }
+        }
+    });
+}
+
+export async function deleteConsultation(id: string) {
+    return prisma.consultation.delete({ where: { id } });
+}
+
+export async function getAdminCityOptions() {
+    return prisma.city.findMany({
+        where: { consultationsEnabled: true },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' }
+    });
+}
+
 // Types for comment data with upvote information
 export interface ConsultationCommentWithUpvotes extends ConsultationComment {
     user: Pick<User, 'id' | 'name'>;
@@ -195,11 +279,12 @@ async function validateEntityExists(
     }
 }
 
-// Helper function to fetch regulation data from URL
-async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
+// Fetch regulation data from URL (exported for use in page components)
+export async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
     try {
-        // Handle relative URLs by prepending the base URL
-        const url = jsonUrl.startsWith('http') ? jsonUrl : jsonUrl;
+        // Resolve relative URLs (e.g. /regulation.json) against the app's base URL
+        const { env } = await import('@/env.mjs');
+        const url = jsonUrl.startsWith('http') ? jsonUrl : `${env.NEXTAUTH_URL}${jsonUrl}`;
         const response = await fetch(url, { cache: 'no-store' });
 
         if (!response.ok) {

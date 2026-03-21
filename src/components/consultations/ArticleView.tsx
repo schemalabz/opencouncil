@@ -4,14 +4,8 @@ import PermalinkButton from "./PermalinkButton";
 import AISummaryCard from "./AISummaryCard";
 import MarkdownContent from "./MarkdownContent";
 import CommentSection from "./CommentSection";
-import { Article, ReferenceFormat, RegulationData } from "./types";
+import { Article, ReferenceFormat, RegulationData, CurrentUser } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
-
-interface CurrentUser {
-    id?: string;
-    name?: string | null;
-    email?: string | null;
-}
 
 interface ArticleViewProps {
     article: Article;
@@ -66,7 +60,7 @@ export default function ArticleView({
                         </div>
                     </CollapsibleTrigger>
                     <div className="flex items-center self-center">
-                        <PermalinkButton href={`${baseUrl}#${article.id}`} />
+                        <PermalinkButton entityId={article.id} view="document" />
                     </div>
                 </div>
 
