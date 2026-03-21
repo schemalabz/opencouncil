@@ -4,9 +4,9 @@ import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
 import { cache } from 'react';
-import { getPeopleForCityCached, getPartiesForCityCached } from '@/lib/cache/queries';
-import { getSubjectsForMeeting, SubjectWithRelations } from '@/lib/db/subject';
-import { getBatchStatisticsForSubjects, Statistics } from '@/lib/statistics';
+import { getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
+import { SubjectWithRelations } from '@/lib/db/subject';
+import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
 import { SpeakerTag } from '@prisma/client';
@@ -57,11 +57,7 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         )(),
         getPeopleForCityCached(cityId),
         getPartiesForCityCached(cityId),
-        createCache(
-            () => getSubjectsForMeeting(cityId, meetingId),
-            ['city', cityId, 'meeting', meetingId, 'subjects'],
-            meetingTags
-        )(),
+        getSubjectsForMeetingCached(cityId, meetingId),
         createCache(
             () => getMeetingTaskStatus(cityId, meetingId),
             ['city', cityId, 'meeting', meetingId, 'taskStatus'],
@@ -73,15 +69,7 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         throw new Error('Required data not found');
     }
 
-    // Cache statistics as a plain object (Map doesn't JSON-serialize)
-    const statisticsRecord = await createCache(
-        async () => {
-            const map = await getBatchStatisticsForSubjects(subjects.map(s => s.id), meeting.dateTime);
-            return Object.fromEntries(map);
-        },
-        ['city', cityId, 'meeting', meetingId, 'subjectStatistics'],
-        meetingTags
-    )();
+    const statisticsRecord = await getSubjectStatisticsCached(cityId, meetingId, subjects, meeting.dateTime);
     const subjectsWithStatistics = subjects.map(subject => ({
         ...subject,
         statistics: statisticsRecord[subject.id] ?? EMPTY_STATISTICS
