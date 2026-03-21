@@ -1,7 +1,6 @@
 "use client";
 import Map from "@/components/map/map";
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import TopicBadge from "../transcript/Topic";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +8,7 @@ import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import Icon from "@/components/icon";
 import { subjectToMapFeature } from "@/lib/utils";
-import { getNonAgendaLabel } from "@/lib/utils/subjects";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -22,20 +19,17 @@ import { AIGeneratedBadge } from "@/components/AIGeneratedBadge";
 import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
-import { AutoScrollText } from "@/components/ui/auto-scroll-text";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
-import { useSession } from "next-auth/react";
-import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
+import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
     const locale = useLocale();
-    const { data: session } = useSession();
-    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
+    const { setSubjectHeader } = useSubjectHeader();
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -89,6 +83,16 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
 
+    // Push subject info to the header breadcrumb
+    useEffect(() => {
+        setSubjectHeader({
+            name,
+            topicIcon: topic?.icon ?? undefined,
+            topicColor: topic?.colorHex ?? undefined,
+        });
+        return () => setSubjectHeader(null);
+    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader]);
+
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
         if (agendaItemIndex != null && !subject.decision) {
@@ -134,63 +138,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-                <div className="max-w-4xl mx-auto px-3 py-3.5 md:px-4 md:py-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 rounded-full shrink-0" style={{ backgroundColor: topic?.colorHex ? topic.colorHex + "20" : "#e5e7eb" }}>
-                            <Icon name={topic?.icon as any || "Hash"} color={topic?.colorHex || "#9ca3af"} size={24} />
-                        </div>
-                        <div className="flex-grow min-w-0">
-                            <AutoScrollText className="mb-1.5">
-                                <h1 className="text-xl font-semibold leading-tight">{name}</h1>
-                            </AutoScrollText>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                {topic && <TopicBadge topic={topic} size="compact" />}
-                                {agendaItemIndex != null ? (
-                                    <>
-                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                                        <span className="font-medium">{t("agendaItem", { index: agendaItemIndex })}</span>
-                                        {decision && (
-                                            <a
-                                                href="#decision"
-                                                className="inline-flex items-center gap-1 text-primary hover:underline"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    history.replaceState(null, '', '#decision');
-                                                    window.dispatchEvent(new HashChangeEvent('hashchange'));
-                                                }}
-                                            >
-                                                <Landmark className="w-3 h-3" />
-                                                {decision.protocolNumber && (
-                                                    <span className="font-medium">{decision.protocolNumber}</span>
-                                                )}
-                                            </a>
-                                        )}
-                                    </>
-                                ) : subject.nonAgendaReason && (
-                                    <>
-                                        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
-                                        <span className="font-medium">
-                                            {getNonAgendaLabel(subject.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                        {isSuperAdmin && (
-                            <div className="flex-shrink-0">
-                                <DebugMetadataButton
-                                    data={subject}
-                                    title="Subject Metadata"
-                                    tooltip="View subject metadata"
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
                 {/* Quick Stats Section */}
