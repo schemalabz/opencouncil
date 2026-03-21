@@ -176,14 +176,11 @@ export default async function SubjectOgImage({
         );
     }
 
-    // Calculate total speaking time in seconds
-    const totalSeconds = data.subject.speakerSegments.reduce((total, segment) => {
-        const duration = segment.speakerSegment.endTimestamp - segment.speakerSegment.startTimestamp;
-        return total + duration;
-    }, 0);
-
-    // Convert to minutes and round to nearest minute
-    const totalMinutes = Math.round(totalSeconds / 60);
+    // Use statistics.speakingSeconds (same as subject page) — handles both
+    // utterance-based (new) and SubjectSpeakerSegment (old) systems
+    const totalMinutes = Math.round(
+        data.statistics?.speakingSeconds ? data.statistics.speakingSeconds / 60 : 0
+    );
 
     // Get top speaker IDs from statistics
     const topSpeakersIds =
@@ -477,7 +474,7 @@ export default async function SubjectOgImage({
                                                 fontWeight: "600",
                                             }}
                                         >
-                                            +{topSpeakers.length - 6}
+                                            +{topSpeakers.length - 9}
                                         </div>
                                     </div>
                                 )}

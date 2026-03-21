@@ -13,9 +13,8 @@ import {
     Prisma,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
-import { getCity } from './cities';
 import { getCouncilMeeting } from './meetings';
-import { getPeopleForCity } from './people';
+import { getCityCached, getPeopleForCityCached } from '@/lib/cache/queries';
 import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { extractUtteranceIds } from '@/lib/utils/references';
 import { roleWithRelationsInclude } from './types/roles';
@@ -233,15 +232,16 @@ export async function getSubjectDataForOG(
     try {
         const [subject, city, meeting] = await Promise.all([
             getSubject(subjectId),
-            getCity(cityId),
+            getCityCached(cityId),
             getCouncilMeeting(cityId, meetingId),
         ]);
 
         if (!subject || !city || !meeting) return null;
 
-        const statistics = await getStatisticsFor({ subjectId: subject.id }, ['person', 'party']);
-
-        const people = await getPeopleForCity(cityId);
+        const [statistics, people] = await Promise.all([
+            getStatisticsFor({ subjectId: subject.id }, ['person', 'party']),
+            getPeopleForCityCached(cityId),
+        ]);
 
         return {
             subject,
