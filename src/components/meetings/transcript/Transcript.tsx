@@ -45,7 +45,7 @@ export default function Transcript() {
 
     // Track scroll state for banner minimization via scroll container
     useEffect(() => {
-        const container = containerRef.current?.closest('.overflow-auto');
+        const container = containerRef.current?.closest('[data-scroll-container]');
         if (!container) return;
 
         const handleScroll = () => {

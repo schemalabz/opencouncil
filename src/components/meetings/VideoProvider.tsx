@@ -285,6 +285,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 playerRef.current.currentTime = time;
             }
             currentTimeRef.current = time;
+            setCurrentTime(time);
+            updateHighlightOnce();
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
                 scrollToUtterance(time);
@@ -336,16 +338,23 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const styleRef = useRef<HTMLStyleElement | null>(null);
     const activeUtteranceIdRef = useRef<string | null>(null);
 
+    // Pre-computed Map for O(1) utterance lookup by second
+    const utteranceBySecond = useMemo(() => {
+        const map = new Map<number, UtteranceType>();
+        for (const u of utterances) {
+            for (let s = Math.floor(u.startTimestamp); s <= Math.floor(u.endTimestamp); s++) {
+                map.set(s, u);
+            }
+        }
+        return map;
+    }, [utterances]);
+
     const updateHighlightOnce = useCallback(() => {
         const time = currentTimeRef.current;
 
-        let activeUtterance: UtteranceType | null = null;
-        for (let i = utterances.length - 1; i >= 0; i--) {
-            if (utterances[i].startTimestamp <= time && utterances[i].endTimestamp >= time) {
-                activeUtterance = utterances[i];
-                break;
-            }
-        }
+        const candidate = utteranceBySecond.get(Math.floor(time));
+        const activeUtterance = candidate && candidate.startTimestamp <= time && candidate.endTimestamp >= time
+            ? candidate : null;
 
         const newActiveId = activeUtterance?.id ?? null;
 
@@ -357,7 +366,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                     : '';
             }
         }
-    }, [utterances]);
+    }, [utteranceBySecond]);
 
     // Create/cleanup the <style> element
     useEffect(() => {
