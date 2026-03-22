@@ -339,11 +339,17 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const activeUtteranceIdRef = useRef<string | null>(null);
 
     // Pre-computed Map for O(1) utterance lookup by second
-    const utteranceBySecond = useMemo(() => {
-        const map = new Map<number, UtteranceType>();
+    // Stores arrays to handle overlapping utterances at shared seconds
+    const utterancesBySecond = useMemo(() => {
+        const map = new Map<number, UtteranceType[]>();
         for (const u of utterances) {
             for (let s = Math.floor(u.startTimestamp); s <= Math.floor(u.endTimestamp); s++) {
-                map.set(s, u);
+                const existing = map.get(s);
+                if (existing) {
+                    existing.push(u);
+                } else {
+                    map.set(s, [u]);
+                }
             }
         }
         return map;
@@ -352,9 +358,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const updateHighlightOnce = useCallback(() => {
         const time = currentTimeRef.current;
 
-        const candidate = utteranceBySecond.get(Math.floor(time));
-        const activeUtterance = candidate && candidate.startTimestamp <= time && candidate.endTimestamp >= time
-            ? candidate : null;
+        const candidates = utterancesBySecond.get(Math.floor(time));
+        const activeUtterance = candidates?.find(u => u.startTimestamp <= time && u.endTimestamp >= time) ?? null;
 
         const newActiveId = activeUtterance?.id ?? null;
 
@@ -366,7 +371,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                     : '';
             }
         }
-    }, [utteranceBySecond]);
+    }, [utterancesBySecond]);
 
     // Create/cleanup the <style> element
     useEffect(() => {
