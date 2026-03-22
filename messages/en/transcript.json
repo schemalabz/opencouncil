@@ -13,7 +13,9 @@
       "moveToPreviousSegment": "Move to previous segment",
       "moveToNextSegment": "Move to next segment",
       "shareFromHere": "Share from here",
-      "extractSegment": "Extract segment"
+      "extractSegment": "Extract segment",
+      "deleteUtterance": "Delete utterance",
+      "deleteSelectedUtterances": "Delete selected ({count})"
     },
     "toasts": {
       "moveUtterances": "Move utterances?",
@@ -32,7 +34,8 @@
       "deleteError": "Failed to delete utterance"
     },
     "common": {
-      "error": "Error"
+      "error": "Error",
+      "undo": "Undo"
     }
   },
   "controls": {

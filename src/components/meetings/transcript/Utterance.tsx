@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useShare } from "@/contexts/ShareContext";
-import { useEditing } from "../EditingContext";import { ACTIONS, useKeyboardShortcut } from "@/contexts/KeyboardShortcutsContext";
+import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 
 const UtteranceC: React.FC<{
@@ -36,7 +36,7 @@ const UtteranceC: React.FC<{
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances, createHighlight } = useHighlight();
     const { moveUtterancesToPrevious, moveUtterancesToNext, deleteUtterance, updateUtterance } = useCouncilMeetingData();
-    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, isProcessing } = useEditing();
+    const { selectedUtteranceIds, toggleSelection, clearSelection, extractSelectedSegment, confirmDeleteSelected, isProcessing } = useEditing();
     
     const [isEditing, setIsEditing] = useState(false);
     const [localUtterance, setLocalUtterance] = useState(utterance);
@@ -44,6 +44,7 @@ const UtteranceC: React.FC<{
     const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
     const [pendingShareAction, setPendingShareAction] = useState<number | null>(null);
+    const [pendingDeleteAction, setPendingDeleteAction] = useState(false);
     const { toast } = useToast();
     const { openShareDropdownAndCopy } = useShare();
     const t = useTranslations('transcript.utterance');
@@ -309,21 +310,27 @@ const UtteranceC: React.FC<{
         await extractSelectedSegment();
     };
 
-    const handleDeleteUtterance = async (e: React.MouseEvent) => {
+    const handleDeleteUtterance = (e: React.MouseEvent) => {
         e.stopPropagation();
-        
-        // Delete immediately without confirmation since utterance is empty
+        // For multi-select, open the bulk confirmation dialog immediately.
+        // For single, set a pending flag so the action fires after the context
+        // menu closes (onOpenChange fires before click handlers execute).
+        if (selectedUtteranceIds.size > 1) {
+            confirmDeleteSelected();
+        } else {
+            setPendingDeleteAction(true);
+        }
+    };
+
+    // Direct delete for the inline trash button on empty utterances (not inside a context menu)
+    const handleDeleteEmptyUtterance = async (e: React.MouseEvent) => {
+        e.stopPropagation();
         try {
             await deleteUtterance(localUtterance.id);
-            toast({
-                description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }),
-            });
-        } catch (error) {
-            toast({
-                title: t('common.error'),
-                description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }),
-                variant: 'destructive'
-            });
+            if (isSelected) clearSelection();
+            toast({ description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }) });
+        } catch {
+            toast({ title: t('common.error'), description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }), variant: 'destructive' });
         }
     };
 
@@ -496,7 +503,7 @@ const UtteranceC: React.FC<{
                             variant="ghost"
                             size="sm"
                             className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100"
-                            onClick={handleDeleteUtterance}
+                            onClick={handleDeleteEmptyUtterance}
                         >
                             <Trash2 className="h-3 w-3 text-red-600" />
                         </Button>
@@ -528,6 +535,15 @@ const UtteranceC: React.FC<{
                     openShareDropdownAndCopy(pendingShareAction);
                     setPendingShareAction(null);
                 }
+                if (pendingDeleteAction) {
+                    // Execute pending single-utterance delete
+                    setPendingDeleteAction(false);
+                    deleteUtterance(localUtterance.id).then(() => {
+                        toast({ description: t('toasts.utteranceDeletedSuccessfully', { defaultValue: 'Utterance deleted successfully' }) });
+                    }).catch(() => {
+                        toast({ title: t('common.error'), description: t('toasts.deleteError', { defaultValue: 'Failed to delete utterance' }), variant: 'destructive' });
+                    });
+                }
                 // Only clear selection if there's just one selected (the temporary right-click selection)
                 // If multiple utterances are selected, preserve the user's deliberate selection
                 if (selectedUtteranceIds.size === 1) {
@@ -557,6 +573,19 @@ const UtteranceC: React.FC<{
                             {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Scissors className="h-4 w-4 mr-2" />}
                             {t('contextMenu.extractSegment', { defaultValue: 'Extract Segment' })}
                             {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">e</span>}
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                            onClick={handleDeleteUtterance}
+                            disabled={isProcessing || (!isSelected && selectedUtteranceIds.size > 0)}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {selectedUtteranceIds.size > 1
+                                ? t('contextMenu.deleteSelectedUtterances', {
+                                    count: selectedUtteranceIds.size,
+                                    defaultValue: `Delete selected (${selectedUtteranceIds.size})`
+                                })
+                                : t('contextMenu.deleteUtterance', { defaultValue: 'Delete utterance' })}
+                            {isSelected && <span className="ml-auto text-xs text-muted-foreground pl-4">⌫</span>}
                         </ContextMenuItem>
                         <ContextMenuSeparator />
                         <ContextMenuItem onClick={handleMoveUtterancesToPrevious}>
