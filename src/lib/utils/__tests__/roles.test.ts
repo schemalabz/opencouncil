@@ -52,6 +52,7 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.role!.name).toBe('Δήμαρχος');
     expect(result.party).not.toBeNull();
     expect(result.party!.name_short).toBe('TP');
+    expect(result.isPartyHead).toBe(false);
     expect(result.isIndependent).toBe(false);
   });
 
@@ -155,6 +156,7 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.role!.name).toBe('Πρόεδρος');
     expect(result.party).not.toBeNull();
     expect(result.party!.name_short).toBe('TP');
+    expect(result.isPartyHead).toBe(false);
     expect(result.isIndependent).toBe(false);
   });
 
@@ -208,6 +210,7 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.role).toBeNull();
     expect(result.party).not.toBeNull();
     expect(result.party!.name_short).toBe('TP');
+    expect(result.isPartyHead).toBe(true);
     expect(result.isIndependent).toBe(false);
   });
 
@@ -223,7 +226,89 @@ describe('getSpeakerDisplayInfo', () => {
     expect(result.role).toBeNull();
     expect(result.party).not.toBeNull();
     expect(result.party!.name_short).toBe('TP');
+    expect(result.isPartyHead).toBe(false);
     expect(result.isIndependent).toBe(false);
+  });
+
+  describe('isPartyHead', () => {
+    it('suppresses isPartyHead for the mayor (city head is always party head)', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'mayor', cityId: 'city-1', isHead: true, name: 'Δήμαρχος' }),
+        makeRole({ id: 'party-head', partyId: party.id, party, isHead: true }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.role!.name).toBe('Δήμαρχος');
+      expect(result.party).not.toBeNull();
+      expect(result.isPartyHead).toBe(false);
+    });
+
+    it('shows isPartyHead for council president who leads party', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'council-president', administrativeBodyId: 'ab-1', isHead: true, name: 'Πρόεδρος' }),
+        makeRole({ id: 'party-head', partyId: party.id, party, isHead: true }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.role!.name).toBe('Πρόεδρος');
+      expect(result.party).not.toBeNull();
+      expect(result.isPartyHead).toBe(true);
+    });
+
+    it('shows isPartyHead for party head with no other prominent role', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'party-head', partyId: party.id, party, isHead: true }),
+        makeRole({ id: 'admin-role', administrativeBodyId: 'ab-1', name: 'Δημοτικός Σύμβουλος' }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.role).toBeNull();
+      expect(result.isPartyHead).toBe(true);
+    });
+
+    it('returns false for regular party member (not head)', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'party-role', partyId: party.id, party, isHead: false }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.isPartyHead).toBe(false);
+    });
+
+    it('suppresses isPartyHead for mayor + committee chair + party head', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'mayor', cityId: 'city-1', isHead: true, name: 'Δήμαρχος' }),
+        makeRole({ id: 'committee-chair', administrativeBodyId: 'ab-1', isHead: true, name: 'Πρόεδρος' }),
+        makeRole({ id: 'party-head', partyId: party.id, party, isHead: true }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.role!.name).toBe('Δήμαρχος');
+      expect(result.isPartyHead).toBe(false);
+    });
+
+    it('does not suppress isPartyHead for deputy mayor (not city head)', () => {
+      const party = makeParty();
+      const roles = [
+        makeRole({ id: 'deputy', cityId: 'city-1', isHead: false, name: 'Αντιδήμαρχος' }),
+        makeRole({ id: 'party-head', partyId: party.id, party, isHead: true }),
+      ];
+
+      const result = getSpeakerDisplayInfo(roles, meetingDate);
+
+      expect(result.role!.name).toBe('Αντιδήμαρχος');
+      expect(result.isPartyHead).toBe(true);
+    });
   });
 });
 

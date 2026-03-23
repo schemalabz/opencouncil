@@ -60,11 +60,11 @@ describe('renderMinutesDocx', () => {
         const data = makeMinutesData({
             overallAttendance: {
                 present: [
-                    { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', role: 'Πρόεδρος' },
-                    { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', role: null },
+                    { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
+                    { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
                 ],
                 absent: [
-                    { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', role: null },
+                    { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
                 ],
             },
             subjects: [
@@ -79,8 +79,8 @@ describe('renderMinutesDocx', () => {
                     },
                     voteResult: {
                         forMembers: [
-                            { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', role: 'Πρόεδρος' },
-                            { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', role: null },
+                            { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
+                            { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
                         ],
                         againstMembers: [],
                         abstainMembers: [],
@@ -91,6 +91,7 @@ describe('renderMinutesDocx', () => {
                         {
                             speakerName: 'Γιώργος Παπαδόπουλος',
                             party: 'ΝΔ',
+                            isPartyHead: false,
                             role: 'Πρόεδρος',
                             text: 'Θα συζητήσουμε τον προϋπολογισμό.',
                             timestamp: 1200,
@@ -98,6 +99,7 @@ describe('renderMinutesDocx', () => {
                         {
                             speakerName: 'Μαρία Ιωάννου',
                             party: 'ΣΥΡΙΖΑ',
+                            isPartyHead: false,
                             role: null,
                             text: 'Συμφωνούμε με την πρόταση.',
                             timestamp: 1320,
@@ -136,7 +138,7 @@ describe('renderMinutesDocx', () => {
                 makeSubject({
                     attendance: {
                         present: [
-                            { personId: 'p1', name: 'Γιώργος', party: null, role: null },
+                            { personId: 'p1', name: 'Γιώργος', party: null, isPartyHead: false, role: null },
                         ],
                         absent: [],
                     },

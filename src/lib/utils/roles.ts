@@ -331,11 +331,13 @@ export function getPrimaryRole<T extends {
  * - City-level roles (mayor, deputy mayor) have highest priority
  * - Admin body head roles (council president) are included
  * - Party affiliation is resolved separately
+ * - isPartyHead indicates the person leads their party (suppressed for
+ *   city-level heads like the mayor, where it's always implied)
  * - Independent if neither party nor prominent role
  *
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)
- * @returns Object with party, role, and independent status
+ * @returns Object with party, role, party head status, and independent status
  */
 export function getSpeakerDisplayInfo(
   roles: (Role & { party?: Party | null; cityId?: string | null })[],
@@ -343,6 +345,7 @@ export function getSpeakerDisplayInfo(
 ): {
   party: Party | null;
   role: Role | null;
+  isPartyHead: boolean;
   isIndependent: boolean;
 } {
   const party = getPartyFromRoles(roles, date);
@@ -356,7 +359,14 @@ export function getSpeakerDisplayInfo(
   const role = primaryRole && !primaryRole.partyId ? primaryRole : null;
   const isIndependent = !party && !role;
 
-  return { party, role, isIndependent };
+  // Party head status: true when the active party role has isHead,
+  // but suppressed when the displayed role is already city-level head (mayor)
+  // since the mayor is always the party leader — showing both is redundant.
+  const activePartyRole = activeRoles.find(r => r.partyId);
+  const isCityHead = role !== null && role.cityId != null && !role.partyId && !role.administrativeBodyId && role.isHead;
+  const isPartyHead = activePartyRole?.isHead === true && !isCityHead;
+
+  return { party, role, isPartyHead, isIndependent };
 }
 
 /**

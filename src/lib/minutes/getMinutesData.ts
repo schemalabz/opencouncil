@@ -128,13 +128,14 @@ export async function getMinutesData(
     ): MinutesTranscriptEntry {
         const person = personId ? peopleMap.get(personId) : null;
         const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-        const { party, role } = person
+        const { party, role, isPartyHead } = person
             ? getSpeakerDisplayInfo(person.roles || [], date)
-            : { party: null, role: null };
+            : { party: null, role: null, isPartyHead: false };
 
         return {
             speakerName,
             party: party?.name_short ?? null,
+            isPartyHead,
             role: role?.name ?? null,
             text: texts.join(' '),
             timestamp,
@@ -147,14 +148,15 @@ export async function getMinutesData(
 
         for (const a of ed.attendance) {
             const person = peopleMap.get(a.personId);
-            const { party, role } = person
+            const { party, role, isPartyHead } = person
                 ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null };
+                : { party: null, role: null, isPartyHead: false };
 
             const member: MinutesMember = {
                 personId: a.personId,
                 name: a.personName,
                 party: party?.name_short ?? null,
+                isPartyHead,
                 role: role?.name ?? null,
             };
 
@@ -177,14 +179,15 @@ export async function getMinutesData(
 
         for (const v of ed.votes) {
             const person = peopleMap.get(v.personId);
-            const { party, role } = person
+            const { party, role, isPartyHead } = person
                 ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, role: null };
+                : { party: null, role: null, isPartyHead: false };
 
             const member: MinutesMember = {
                 personId: v.personId,
                 name: v.personName,
                 party: party?.name_short ?? null,
+                isPartyHead,
                 role: role?.name ?? null,
             };
 
