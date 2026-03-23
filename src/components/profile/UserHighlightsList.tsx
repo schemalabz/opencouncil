@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,17 +38,6 @@ export function UserHighlightsList({ highlights }: UserHighlightsListProps) {
                 </p>
             </div>
         );
-    }
-
-    // Group highlights by city
-    const groupedByCityId = new Map<string, { cityName: string; highlights: UserHighlight[] }>();
-    for (const highlight of highlights) {
-        const meetingName = locale === "el" ? highlight.meeting.name : highlight.meeting.name_en;
-        if (!groupedByCityId.has(highlight.cityId)) {
-            // Use the city name from the meeting context — we don't have it directly, so group by cityId
-            groupedByCityId.set(highlight.cityId, { cityName: highlight.cityId, highlights: [] });
-        }
-        groupedByCityId.get(highlight.cityId)!.highlights.push(highlight);
     }
 
     return (
@@ -102,14 +91,14 @@ export function UserHighlightsList({ highlights }: UserHighlightsListProps) {
                                             </span>
                                         </div>
                                         <Badge variant="secondary" className="text-xs">
-                                            {utteranceCount} {utteranceCount === 1 ? "utterance" : "utterances"}
+                                            {t("highlights.utterances", { count: utteranceCount })}
                                         </Badge>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground/70">
                                     <Clock className="h-3 w-3" />
-                                    <span>{formatRelativeTime(highlight.updatedAt, locale)}</span>
+                                    <span>{formatRelativeTime(new Date(highlight.updatedAt), locale)}</span>
                                 </div>
                             </CardContent>
                         </Card>

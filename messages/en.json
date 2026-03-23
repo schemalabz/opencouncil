@@ -555,7 +555,8 @@
             "description": "All your highlights across every meeting, in one place.",
             "emptyTitle": "No highlights yet",
             "emptyDescription": "You haven't created any highlights yet. Visit a meeting to create your first highlight.",
-            "count": "{count, plural, one {# highlight} other {# highlights}} across all meetings"
+            "count": "{count, plural, one {# highlight} other {# highlights}} across all meetings",
+            "utterances": "{count, plural, one {# utterance} other {# utterances}}"
         }
     }
 }
