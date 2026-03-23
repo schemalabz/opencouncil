@@ -14,11 +14,19 @@ try {
     logoBase64 = "";
 }
 
+export function formatCityDisplayName(cityName: string, adminBodyName?: string | null): string {
+    return adminBodyName ? `${cityName} · ${adminBodyName}` : cityName;
+}
+
+// Logo aspect ratio: 1606x1354
+const LOGO_ASPECT_RATIO = 1606 / 1354;
+
 interface OpenCouncilWatermarkProps {
     size?: number;
     fontSize?: number;
     bottom?: number;
     right?: number;
+    logoOnly?: boolean;
 }
 
 // Shared watermark component
@@ -27,30 +35,37 @@ export const OpenCouncilWatermark = ({
     fontSize = 21,
     bottom = 40,
     right = 40,
-}: OpenCouncilWatermarkProps = {}) => (
-    <div
-        style={{
-            position: "absolute",
-            bottom: `${bottom}px`,
-            right: `${right}px`,
-            display: "flex",
-            alignItems: "center",
-            opacity: 0.7,
-        }}
-    >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoBase64} width={size} height={size} alt='OpenCouncil' style={{ marginRight: "8px" }} />
-        <span
+    logoOnly = false,
+}: OpenCouncilWatermarkProps = {}) => {
+    const logoWidth = Math.round(size * LOGO_ASPECT_RATIO);
+
+    return (
+        <div
             style={{
-                fontSize: `${fontSize}px`,
-                fontWeight: 500,
-                color: "#6b7280",
+                position: "absolute",
+                bottom: `${bottom}px`,
+                right: `${right}px`,
+                display: "flex",
+                alignItems: "center",
+                opacity: 0.7,
             }}
         >
-            OpenCouncil
-        </span>
-    </div>
-);
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoBase64} width={logoWidth} height={size} alt='OpenCouncil' style={{ marginRight: logoOnly ? "0" : "8px" }} />
+            {!logoOnly && (
+                <span
+                    style={{
+                        fontSize: `${fontSize}px`,
+                        fontWeight: 500,
+                        color: "#6b7280",
+                    }}
+                >
+                    OpenCouncil
+                </span>
+            )}
+        </div>
+    );
+};
 
 // Shared container component
 interface ContainerProps {
@@ -273,18 +288,13 @@ interface OgHeaderProps {
         name: string;
         logoImage: string | null;
     };
-    meeting?: {
-        name: string;
-        dateFormatted: string;
-    };
     logoHeight?: number;
     nameSize?: number;
     marginBottom?: string;
 }
 
-export const OgHeader = ({ 
-    city, 
-    meeting,
+export const OgHeader = ({
+    city,
     logoHeight = 80,
     nameSize = 32,
     marginBottom = "40px"
@@ -344,52 +354,6 @@ export const OgHeader = ({
                 </div>
             </div>
 
-            {/* Add meeting info if provided */}
-            {meeting && (
-                <>
-                    {/* Separator */}
-                    <div
-                        style={{
-                            width: "1px",
-                            height: "48px",
-                            backgroundColor: "#e5e7eb",
-                            margin: "0 20px",
-                        }}
-                    />
-
-                    {/* Meeting info */}
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            overflow: "hidden",
-                            flexShrink: 1,
-                        }}
-                    >
-                        <span
-                            style={{
-                                fontSize: "28px",
-                                color: "#6b7280",
-                                display: "flex",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                            }}
-                        >
-                            {meeting.name}
-                        </span>
-                        <span
-                            style={{
-                                fontSize: "20px",
-                                color: "#9ca3af",
-                                display: "flex",
-                            }}
-                        >
-                            {meeting.dateFormatted}
-                        </span>
-                    </div>
-                </>
-            )}
         </div>
     </div>
 );

@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
-import { Container, OgHeader } from "@/components/og/shared-components";
-import { getSubjectDataForOG } from "@/lib/db/subject";
-import { formatDate } from "date-fns";
-import { el, enUS } from "date-fns/locale";
+import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
+import { getMeetingDataForOG } from "@/lib/db/meetings";
+import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
 import { PersonWithRelations } from '@/lib/db/people';
 import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
 
@@ -157,10 +156,18 @@ export default async function SubjectOgImage({
         subjectId: string;
     };
 }) {
-    const data = await getSubjectDataForOG(params.cityId, params.meetingId, params.subjectId);
+    const { cityId, meetingId, subjectId } = params;
+
+    const [meeting, subjects, people] = await Promise.all([
+        getMeetingDataForOG(cityId, meetingId),
+        getSubjectsForMeetingCached(cityId, meetingId),
+        getPeopleForCityCached(cityId),
+    ]);
+
+    const subject = subjects?.find(s => s.id === subjectId);
 
     // Return a blank image if no data
-    if (!data) {
+    if (!meeting || !subjects || !subject) {
         return new ImageResponse(
             (
                 <div
@@ -176,45 +183,40 @@ export default async function SubjectOgImage({
         );
     }
 
-    // Calculate total speaking time in seconds
-    const totalSeconds = data.subject.speakerSegments.reduce((total, segment) => {
-        const duration = segment.speakerSegment.endTimestamp - segment.speakerSegment.startTimestamp;
-        return total + duration;
-    }, 0);
+    const statisticsRecord = await getSubjectStatisticsCached(cityId, meetingId, subjects, meeting.dateTime);
+    const statistics = statisticsRecord[subject.id];
 
-    // Convert to minutes and round to nearest minute
-    const totalMinutes = Math.round(totalSeconds / 60);
+    // Use statistics.speakingSeconds (same as subject page) — handles both
+    // utterance-based (new) and SubjectSpeakerSegment (old) systems
+    const totalMinutes = Math.round(
+        statistics?.speakingSeconds ? statistics.speakingSeconds / 60 : 0
+    );
 
     // Get top speaker IDs from statistics
     const topSpeakersIds =
-        data.statistics?.people?.sort((a, b) => b.speakingSeconds - a.speakingSeconds).map(p => p.item.id) || [];
+        statistics?.people?.sort((a, b) => b.speakingSeconds - a.speakingSeconds).map(p => p.item.id) || [];
 
     // Add the introducer at the start if they exist and aren't already in top speakers
-    const introducedByPerson = data.subject.introducedBy;
+    const introducedByPerson = subject.introducedBy;
     if (introducedByPerson && !topSpeakersIds.includes(introducedByPerson.id)) {
         topSpeakersIds.unshift(introducedByPerson.id);
     }
 
     // Filter and sort to get top speakers
     const topSpeakers = topSpeakersIds
-        .map(id => data.people.find(p => p.id === id))
+        .map(id => people.find(p => p.id === id))
         .filter((p): p is PersonWithRelations => p !== undefined);
 
     // Prepare color percentages data for the ring
     const colorPercentages =
-        data.statistics?.parties?.map(p => ({
+        statistics?.parties?.map(p => ({
             color: p.item.colorHex,
-            percentage: (p.speakingSeconds / data.statistics!.speakingSeconds) * 100,
+            percentage: (p.speakingSeconds / statistics!.speakingSeconds) * 100,
         })) || [];
-
-    // Format the meeting date for display
-    const meetingDate = formatDate(new Date(data.meeting.dateTime), "EEEE, d MMMM yyyy", {
-        locale: params.locale === "el" ? el : enUS,
-    });
 
     return new ImageResponse(
         (
-            <Container>
+            <Container watermarkProps={{ logoOnly: true, size: 80 }}>
                 {/* Color Percentage Ring in the absolute top right corner */}
                 <div
                     style={{
@@ -234,12 +236,8 @@ export default async function SubjectOgImage({
 
                 <OgHeader
                     city={{
-                        name: data.city.name_municipality,
-                        logoImage: data.city.logoImage,
-                    }}
-                    meeting={{
-                        name: data.meeting.name,
-                        dateFormatted: meetingDate,
+                        name: formatCityDisplayName(meeting.city.name_municipality, meeting.administrativeBody?.name),
+                        logoImage: meeting.city.logoImage,
                     }}
                 />
 
@@ -251,6 +249,18 @@ export default async function SubjectOgImage({
                         flex: 1,
                     }}
                 >
+                    {/* Meeting title above subject name */}
+                    <span
+                        style={{
+                            fontSize: "28px",
+                            color: "#6b7280",
+                            display: "flex",
+                            marginBottom: "8px",
+                        }}
+                    >
+                        {meeting.name}
+                    </span>
+
                     {/* Subject name with padding on the right to make room for the ring */}
                     <h1
                         style={{
@@ -260,12 +270,11 @@ export default async function SubjectOgImage({
                             lineHeight: 1.3,
                             margin: 0,
                             marginBottom: "24px",
-                            paddingTop: "8px",
                             paddingRight: "180px", // Make room for the ring
                             display: "flex",
                         }}
                     >
-                        {data.subject.name}
+                        {subject.name}
                     </h1>
 
                     {/* Topic and location badges */}
@@ -279,13 +288,13 @@ export default async function SubjectOgImage({
                         }}
                     >
                         {/* Topic badge if available */}
-                        {data.subject.topic && (
+                        {subject.topic && (
                             <div
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "8px",
-                                    backgroundColor: data.subject.topic.colorHex || "#e5e7eb",
+                                    backgroundColor: subject.topic.colorHex || "#e5e7eb",
                                     padding: "8px 16px",
                                     borderRadius: "6px",
                                     color: "#ffffff",
@@ -303,12 +312,12 @@ export default async function SubjectOgImage({
                                         display: "flex",
                                     }}
                                 />
-                                <span style={{ display: "flex" }}>{data.subject.topic.name}</span>
+                                <span style={{ display: "flex" }}>{subject.topic.name}</span>
                             </div>
                         )}
 
                         {/* Location badge if available */}
-                        {data.subject.location && (
+                        {subject.location && (
                             <div
                                 style={{
                                     display: "flex",
@@ -323,7 +332,7 @@ export default async function SubjectOgImage({
                                 }}
                             >
                                 <span style={{ display: "flex" }}>📍</span>
-                                <span style={{ display: "flex" }}>{data.subject.location.text}</span>
+                                <span style={{ display: "flex" }}>{subject.location.text}</span>
                             </div>
                         )}
                     </div>
@@ -477,7 +486,7 @@ export default async function SubjectOgImage({
                                                 fontWeight: "600",
                                             }}
                                         >
-                                            +{topSpeakers.length - 6}
+                                            +{topSpeakers.length - 9}
                                         </div>
                                     </div>
                                 )}
