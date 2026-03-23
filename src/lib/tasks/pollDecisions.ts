@@ -55,7 +55,10 @@ export async function pollDecisionsForMeeting(
                     decision: { select: { ada: true, title: true } },
                 },
                 where: {
-                    agendaItemIndex: { not: null },
+                    OR: [
+                        { agendaItemIndex: { not: null } },
+                        { nonAgendaReason: 'outOfAgenda' },
+                    ],
                 },
             },
         },
@@ -70,7 +73,7 @@ export async function pollDecisionsForMeeting(
     }
 
     if (councilMeeting.subjects.length === 0) {
-        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex)");
+        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda)");
     }
 
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
@@ -1111,6 +1114,118 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
     });
+
+    // --- Process extraction results (excerpt, attendance, votes) ---
+    // Each subject is wrapped in its own transaction for atomicity:
+    // partial failures roll back individual subjects without blocking others.
+    // Uses deleteMany + createMany instead of N individual upserts.
+    let extractedCount = 0;
+    if (result.extractions) {
+        for (const decision of result.extractions.decisions) {
+            try {
+                await prisma.$transaction(async (tx) => {
+                    // 1. Update Decision excerpt and references
+                    await tx.decision.updateMany({
+                        where: { subjectId: decision.subjectId },
+                        data: {
+                            excerpt: decision.excerpt || null,
+                            references: decision.references || null,
+                        },
+                    });
+
+                    // 2. Create SubjectAttendance records (deduplicate by personId)
+                    const attendanceByPerson = new Map<string, AttendanceStatus>(
+                        [
+                            ...decision.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
+                            ...decision.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
+                        ]
+                    );
+
+                    // Include mayor attendance if extracted from decision narrative
+                    if (decision.mayorPresent != null && mayorId) {
+                        attendanceByPerson.set(mayorId, decision.mayorPresent ? 'PRESENT' : 'ABSENT');
+                    }
+
+                    if (attendanceByPerson.size > 0) {
+                        await tx.subjectAttendance.deleteMany({
+                            where: { subjectId: decision.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectAttendance.createMany({
+                            data: [...attendanceByPerson].map(([personId, status]) => ({
+                                subjectId: decision.subjectId,
+                                personId,
+                                status,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    }
+
+                    // 3. Create SubjectVote records (deduplicate by personId)
+                    // Vote inference (unanimous, majority) is handled by the backend —
+                    // voteDetails already includes inferred FOR votes.
+                    const voteByPerson = new Map<string, VoteType>();
+                    for (const d of decision.voteDetails) {
+                        voteByPerson.set(d.personId, d.vote);
+                    }
+
+                    if (voteByPerson.size > 0) {
+                        await tx.subjectVote.deleteMany({
+                            where: { subjectId: decision.subjectId, source: DataSource.decision },
+                        });
+                        await tx.subjectVote.createMany({
+                            data: [...voteByPerson].map(([personId, voteType]) => ({
+                                subjectId: decision.subjectId,
+                                personId,
+                                voteType,
+                                source: DataSource.decision,
+                                taskId,
+                            })),
+                        });
+                    }
+
+                    // TODO: Re-enable once the codebase stops using `agendaItemIndex !== null`
+                    // as a proxy for "is a regular agenda item". Currently, most display
+                    // and categorization logic (categorizeSubjects, sidebar, DecisionsPanel,
+                    // subject-card, MinutesPreviewContent, subject-helpers upsert matching,
+                    // etc.) assumes outOfAgenda subjects have agendaItemIndex === null.
+                    // Setting it here causes them to be miscategorized as regular agenda
+                    // items across the UI. To enable this, those checks need to use
+                    // nonAgendaReason as the primary discriminator instead.
+                    //
+                    // 4. Update agendaItemIndex from subjectInfo for outOfAgenda subjects
+                    // if (decision.subjectInfo?.number != null) {
+                    //     await tx.subject.updateMany({
+                    //         where: {
+                    //             id: decision.subjectId,
+                    //             agendaItemIndex: null,
+                    //             nonAgendaReason: 'outOfAgenda',
+                    //         },
+                    //         data: { agendaItemIndex: decision.subjectInfo.number },
+                    //     });
+                    // }
+                });
+
+                extractedCount++;
+            } catch (error) {
+                console.error(`Failed to write extraction data for subject ${decision.subjectId}:`, error);
+            }
+
+            // Log unmatched members (outside transaction — informational only)
+            if (decision.unmatchedMembers.length > 0) {
+                for (const name of decision.unmatchedMembers) {
+                    console.log(`  Unmatched member "${name}" in subject "${decision.subjectId}"`);
+                }
+            }
+        }
+
+        if (result.extractions.warnings.length > 0) {
+            console.log(`Extraction warnings (${result.extractions.warnings.length}):`);
+            for (const w of result.extractions.warnings) {
+                console.log(`  - ${w}`);
+            }
+        }
+    }
 
     // Enrich responseBody with post-processing counts so the batch completion
     // hook (checkBatchCompletionAndAlert) can read accurate totals from DB.

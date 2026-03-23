@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -288,10 +288,13 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
-    // Only subjects with agendaItemIndex can have decisions, sorted by agenda order
-    const eligibleSubjects = subjects
+    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order
+    const agendaSubjects = subjects
         .filter(s => s.agendaItemIndex != null)
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
+    const outOfAgendaSubjects = subjects
+        .filter(s => s.nonAgendaReason === 'outOfAgenda');
+    const eligibleSubjects = [...agendaSubjects, ...outOfAgendaSubjects];
     const linkedCount = eligibleSubjects.filter(s => decisions[s.id]).length;
     const unlinkedSubjects = eligibleSubjects.filter(s => !decisions[s.id]);
     const extractedSubjects = eligibleSubjects.filter(s => {
@@ -498,7 +501,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                         </div>
                     ) : (
                         <TooltipProvider>
-                            {displayedSubjects.map(subject => {
+                            {displayedSubjects.map((subject, index) => {
                                 const decision = decisions[subject.id];
                                 const extracted = extractedData[subject.id];
                                 const sourceInfo = decision ? getSourceInfo(decision) : null;
@@ -508,9 +511,17 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                 const isSaving = savingSubjectId === subject.id;
                                 const isRemoving = removingSubjectId === subject.id;
 
+                                const showOutOfAgendaSeparator = subject.nonAgendaReason === 'outOfAgenda' &&
+                                    (index === 0 || displayedSubjects[index - 1].nonAgendaReason !== 'outOfAgenda');
+
                                 return (
+                                    <Fragment key={subject.id}>
+                                        {showOutOfAgendaSeparator && (
+                                            <div className="pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                Εκτός Ημ. Διάταξης
+                                            </div>
+                                        )}
                                     <div
-                                        key={subject.id}
                                         className="py-3 border-b last:border-b-0"
                                     >
                                         {/* Main row */}
@@ -820,6 +831,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                             </div>
                                         )}
                                     </div>
+                                    </Fragment>
                                 );
                             })}
                         </TooltipProvider>
