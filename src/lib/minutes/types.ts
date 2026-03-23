@@ -2,6 +2,7 @@ export interface MinutesMember {
     personId: string;
     name: string;
     party: string | null;
+    isPartyHead: boolean;
     role: string | null;
 }
 
@@ -21,6 +22,7 @@ export interface MinutesVoteResult {
 export interface MinutesTranscriptEntry {
     speakerName: string;
     party: string | null;
+    isPartyHead: boolean;
     role: string | null;
     text: string;
     timestamp: number;

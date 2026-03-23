@@ -123,7 +123,8 @@ function createAttendanceSection(attendance: MinutesAttendance): Paragraph[] {
             new TextRun({ text: member.name, size: FONT_SIZE.BODY }),
         ];
         if (member.party) {
-            children.push(new TextRun({ text: ` (${member.party})`, size: FONT_SIZE.BODY, color: '666666' }));
+            const partyLabel = member.isPartyHead ? `${member.party}, Επικ.` : member.party;
+            children.push(new TextRun({ text: ` (${partyLabel})`, size: FONT_SIZE.BODY, color: '666666' }));
         }
         if (member.role) {
             children.push(new TextRun({ text: ` — ${member.role}`, size: FONT_SIZE.SMALL, color: '666666', italics: true }));
@@ -258,7 +259,10 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
 
     // Transcript (no heading) — matches full transcript DOCX speaker attribution format
     for (const entry of subject.transcriptEntries) {
-        const nameWithParty = `${entry.speakerName} ${entry.party ? `(${entry.party})` : ''} `;
+        const partyLabel = entry.party
+            ? entry.isPartyHead ? `(${entry.party}, Επικ.) ` : `(${entry.party}) `
+            : '';
+        const nameWithParty = `${entry.speakerName} ${partyLabel}`;
         const children: TextRun[] = [
             new TextRun({ text: nameWithParty, bold: true, size: FONT_SIZE.BODY }),
         ];
@@ -294,7 +298,7 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
     if (subject.voteResult && !subject.voteResult.isUnanimous) {
         if (subject.voteResult.againstMembers.length > 0) {
             const names = subject.voteResult.againstMembers
-                .map(m => m.party ? `${m.name} (${m.party})` : m.name).join(', ');
+                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [
@@ -305,7 +309,7 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         }
         if (subject.voteResult.abstainMembers.length > 0) {
             const names = subject.voteResult.abstainMembers
-                .map(m => m.party ? `${m.name} (${m.party})` : m.name).join(', ');
+                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [

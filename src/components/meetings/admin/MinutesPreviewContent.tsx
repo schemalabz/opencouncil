@@ -90,7 +90,7 @@ function AttendanceSection({ attendance }: { attendance: MinutesAttendance }) {
                     <li key={member.personId}>
                         <span>{member.name}</span>
                         {member.party && (
-                            <span className="text-gray-500"> ({member.party})</span>
+                            <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικ.' : ''})</span>
                         )}
                         {member.role && (
                             <span className="text-gray-500 italic text-xs"> — {member.role}</span>
@@ -233,7 +233,7 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
                         <p className="my-0.5">
                             <span className="font-bold">ΚΑΤΑ: </span>
                             {subject.voteResult.againstMembers
-                                .map(m => m.party ? `${m.name} (${m.party})` : m.name)
+                                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
                                 .join(', ')}
                         </p>
                     )}
@@ -241,7 +241,7 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
                         <p className="my-0.5">
                             <span className="font-bold">ΛΕΥΚΑ: </span>
                             {subject.voteResult.abstainMembers
-                                .map(m => m.party ? `${m.name} (${m.party})` : m.name)
+                                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
                                 .join(', ')}
                         </p>
                     )}
@@ -265,7 +265,7 @@ function TranscriptSection({ entries }: { entries: MinutesTranscriptEntry[] }) {
                 {entries.map((entry, i) => (
                     <div key={i}>
                         <span className="font-bold">
-                            {entry.speakerName} {entry.party ? `(${entry.party})` : ''}
+                            {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικ.' : ''})` : ''}
                         </span>
                         {entry.role && (
                             <span className="text-xs text-gray-500"> {entry.role}</span>
