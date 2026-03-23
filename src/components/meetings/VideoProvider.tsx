@@ -274,24 +274,38 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     };
 
     /**
-     * SEEK TO TIME:
+     * SEEK CORE:
      * - Sets video currentTime to specific timestamp
-     * - Updates internal time reference
-     * - Scrolls transcript to corresponding utterance
+     * - Updates internal time reference and highlight
+     */
+    const applySeek = (time: number) => {
+        if (!playerRef.current) return;
+        if (hasStartedPlaying) {
+            playerRef.current.currentTime = time;
+        }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
+        updateHighlightOnce();
+    };
+
+    /**
+     * SEEK TO TIME:
+     * - Seeks to time and scrolls transcript to corresponding utterance
      */
     const seekTo = (time: number) => {
+        applySeek(time);
         if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
-            }
-            currentTimeRef.current = time;
-            setCurrentTime(time);
-            updateHighlightOnce();
-            // Use requestAnimationFrame to ensure DOM has updated
-            requestAnimationFrame(() => {
-                scrollToUtterance(time);
-            });
+            requestAnimationFrame(() => scrollToUtterance(time));
         }
+    };
+
+    /**
+     * SEEK WITHOUT SCROLL:
+     * - Seeks to time without triggering transcript scroll
+     * - Used for programmatic seeking
+     */
+    const seekToWithoutScroll = (time: number) => {
+        applySeek(time);
     };
 
     /**
@@ -401,22 +415,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
         return () => cancelAnimationFrame(rafId);
     }, [isPlaying, updateHighlightOnce]);
-
-    /**
-     * SEEK WITHOUT SCROLL:
-     * - Seeks to time without triggering transcript scroll
-     * - Used for programmatic seeking
-     */
-    const seekToWithoutScroll = (time: number) => {
-        if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
-            }
-            currentTimeRef.current = time;
-            setCurrentTime(time);
-            updateHighlightOnce();
-        }
-    };
 
     // === STABLE ACTIONS CONTEXT ===
     // Store action functions in refs so the memoized actions value never changes.
