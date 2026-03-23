@@ -33,6 +33,26 @@ npx prisma migrate dev --name <migration_name> --create-only
 ```
 This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
 
+### Direct Database Access
+
+When you need to query the database directly (e.g. to find test data, verify state, or debug):
+
+**Before connecting, check which database `.env` points to:**
+- Read `DATABASE_URL` from `.env` and inspect the connection string
+- **Local** (e.g. `localhost`): safe to read and write freely
+- **Staging** (contains `stagpool`) or dev databases: safe to read, be careful with writes
+- **CRITICAL: Production** (contains `production`): **DO NOT connect.** Inform the user that `DATABASE_URL` points to production and ask how they want to proceed. Never run queries against production without explicit user approval.
+
+**Schema discovery:**
+- Read `prisma/schema.prisma` to understand models and relations before writing queries. Model names are not always obvious (e.g. `Role` not `PersonRole`, `CouncilMeeting` not `Meeting`).
+
+**Connecting:**
+- With nix (preferred): `nix develop --command bash -c 'psql "$PSQL_URL" -c "SELECT ..."'`
+- Without nix: `psql <DATABASE_URL from .env>`
+
+**Restarting the DB (nix setup only):**
+- `nix develop --command bash -c 'pg_ctl -D .data/postgres -l .data/process-compose/db.log start'`
+
 ### Utility Scripts
 - `npm run lint` - Run ESLint
 - `npm run email` - Test municipality email sending
