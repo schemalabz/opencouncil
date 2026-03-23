@@ -11,15 +11,10 @@ import { CityOverview } from "./city-overview";
 import { ChevronDown } from 'lucide-react';
 import { MunicipalitySelector } from '@/components/onboarding/selectors/MunicipalitySelector';
 
-interface LandingProps extends LandingPageData {
-    renderedAt: string;
-}
-
-export function Landing({ allCities, cities, latestPost, renderedAt }: LandingProps) {
+export function Landing({ allCities, cities, latestPost }: LandingPageData) {
     const { status } = useSession();
     const router = useRouter();
     const [citiesWithMeetings, setCitiesWithMeetings] = useState<LandingCity[]>(cities);
-    const [citiesRenderedAt, setCitiesRenderedAt] = useState<string>(renderedAt);
     const [isLoadingUserCities, setIsLoadingUserCities] = useState(false);
     const [selectedCity, setSelectedCity] = useState<CityMinimalWithCounts | null>(null);
     const [isNavigating, setIsNavigating] = useState(false);
@@ -53,14 +48,15 @@ export function Landing({ allCities, cities, latestPost, renderedAt }: LandingPr
             setIsLoadingUserCities(true);
             try {
                 // Fetch all cities the user can access (including public + unlisted ones they administer)
-                const userCities: CityWithCounts[] = await fetch('/api/cities?includeUnlisted=true')
+                const userCities: CityWithCounts[] = await fetch('/api/cities?includeUnlisted=true', { next: { tags: ['cities'] } })
                     .then(r => r.json());
                 // Fetch meeting data for all supported cities
                 const userCitiesWithMeetings: LandingCity[] = await Promise.all(
                     userCities.map(async city => {
                         try {
                             const meetings: CouncilMeetingWithAdminBodyAndSubjects[] = await fetch(
-                                `/api/cities/${city.id}/meetings?limit=1`
+                                `/api/cities/${city.id}/meetings?limit=1`,
+                                { next: { tags: [`city:${city.id}:meetings`] } }
                             ).then(r => r.json());
 
                             return {
@@ -79,7 +75,6 @@ export function Landing({ allCities, cities, latestPost, renderedAt }: LandingPr
 
                 // Replace cities entirely with user-specific list
                 setCitiesWithMeetings(userCitiesWithMeetings);
-                setCitiesRenderedAt(new Date().toISOString());
             } catch (error) {
                 console.error('Error fetching user-specific cities:', error);
             } finally {
@@ -152,7 +147,6 @@ export function Landing({ allCities, cities, latestPost, renderedAt }: LandingPr
                                 key={city.id}
                                 city={city}
                                 showPrivateLabel={city.status !== 'listed'}
-                                renderedAt={citiesRenderedAt}
                             />
                         ))}
 

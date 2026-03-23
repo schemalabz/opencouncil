@@ -2,15 +2,11 @@ import { Landing } from "@/components/landing/landing";
 import { LandingCity } from "@/lib/db/landing";
 import { fetchLatestSubstackPostCached, getAllCitiesMinimalCached, getCouncilMeetingsForCityPublicCached } from "@/lib/cache/queries";
 
-export const dynamic = 'force-dynamic';
-
 export default async function HomePage({
     params: { locale }
 }: {
     params: { locale: string }
 }) {
-    const renderedAt = new Date().toISOString();
-
     // Fetch all cities (minimal data) and substack post in parallel
     const [allCities, latestPost] = await Promise.all([
         getAllCitiesMinimalCached().catch(error => {
@@ -36,5 +32,5 @@ export default async function HomePage({
     );
 
 
-    return <Landing allCities={allCities} cities={citiesWithMeetings} latestPost={latestPost} renderedAt={renderedAt} />;
+    return <Landing allCities={allCities} cities={citiesWithMeetings} latestPost={latestPost} />;
 }

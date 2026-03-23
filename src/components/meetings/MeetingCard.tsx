@@ -25,7 +25,6 @@ interface MeetingCardProps {
     editable: boolean;
     mostRecent?: boolean;
     cityTimezone?: string;
-    referenceNow: string;
 }
 
 const LoadingDots = () => (
@@ -48,17 +47,20 @@ const LoadingDots = () => (
     </div>
 );
 
-export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone, referenceNow }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
     const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [referenceNow, setReferenceNow] = useState<string | null>(null);
 
     useEffect(() => {
+        setReferenceNow(new Date().toISOString());
         setIsLoading(false);
     }, [pathname]);
+
 
     const sortedSubjects = useMemo(() => {
         return sortSubjectsByImportance(meeting.subjects, 'importance');
@@ -73,7 +75,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
     const remainingSubjectsCount = meeting.subjects.length - 3;
     const { isUpcoming, isToday, isTodayWithoutVideo, upcomingDistance } = useMemo(
         () => {
-            if (!meeting.dateTime) {
+            if (!meeting.dateTime || !referenceNow) {
                 return { isUpcoming: false, isToday: false, isTodayWithoutVideo: false, upcomingDistance: null };
             }
             return getMeetingCardTemporalState({
@@ -138,7 +140,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                                     </span>
                                 </motion.div>
                             )}
-                            {(isUpcoming || (isTodayWithoutVideo && !isUpcoming)) && (
+                            {referenceNow && (isUpcoming || isTodayWithoutVideo) && (
                                 <Badge variant="default" className="shrink-0 w-fit flex items-center gap-1.5 relative overflow-hidden">
                                     <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-50"></span>
                                     <span className="relative z-10 flex items-center gap-1.5">

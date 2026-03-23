@@ -1,4 +1,4 @@
-import { format, formatDistance, parseISO, isValid } from 'date-fns';
+import { format, formatDistance, isValid } from 'date-fns';
 import { el, enUS } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -25,7 +25,7 @@ function toDate(value: DateValue): Date {
   if (value == null) {
     throw new RangeError(`Invalid date value: ${value}`);
   }
-  const date = value instanceof Date ? value : parseISO(value);
+  const date = value instanceof Date ? value : new Date(value);
   if (!isValid(date)) {
     throw new RangeError(`Invalid date value: ${value}`);
   }

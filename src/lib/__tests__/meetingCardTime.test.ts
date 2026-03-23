@@ -1,4 +1,5 @@
 /** @jest-environment node */
+process.env.TZ = 'UTC';
 import { getMeetingCardTemporalState } from '../meetingCardTime';
 
 describe('getMeetingCardTemporalState', () => {
@@ -58,17 +59,34 @@ describe('getMeetingCardTemporalState', () => {
     expect(result.upcomingDistance).toBeNull();
   });
 
-  it('uses city timezone for isToday comparison when provided', () => {
+  it('uses city timezone for isToday comparison when cross-midnight UTC', () => {
     const result = getMeetingCardTemporalState({
-      // 01:00 on Feb 25 in Athens, but 23:00 on Feb 24 in UTC
-      meetingDate: new Date('2026-02-24T23:00:00Z'),
+      // 00:30 on Feb 25 in Athens, but 22:30 on Feb 24 in UTC
+      meetingDate: new Date('2026-02-24T22:30:00Z'),
       meetingHasVideo: false,
-      // 03:00 on Feb 25 in Athens, but still Feb 25 in UTC too
-      referenceNow: new Date('2026-02-25T01:00:00Z'),
+      // 01:00 on Feb 25 in Athens, but still 23:00 on Feb 24 in UTC
+      referenceNow: new Date('2026-02-24T23:00:00Z'),
       locale: 'en',
       cityTimezone: 'Europe/Athens'
     });
 
+    // Both are Feb 25 in Athens, even though both are Feb 24 in UTC
+    expect(result.isToday).toBe(true);
+  });
+
+  it('correctly identifies today when crossing midnight in UTC but same day in local timezone', () => {
+    const result = getMeetingCardTemporalState({
+      // 2024-03-24 01:30 Athens (UTC+2)
+      meetingDate: '2024-03-23T23:30:00Z',
+      meetingHasVideo: false,
+      // 2024-03-24 02:30 Athens (UTC+2)
+      referenceNow: '2024-03-24T00:30:00Z',
+      locale: 'en',
+      cityTimezone: 'Europe/Athens'
+    });
+
+    // In UTC, these are different days (23rd and 24th)
+    // In Athens, both are March 24th
     expect(result.isToday).toBe(true);
   });
 

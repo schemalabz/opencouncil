@@ -1,4 +1,4 @@
-process.env.TZ = 'UTC';
+// process.env.TZ = 'UTC'; // Removed global override to avoid affecting all tests. Narrower scope used in specific tests.
 
 module.exports = {
   preset: 'ts-jest',
