@@ -19,7 +19,8 @@ export interface MinutesVoteResult {
     isUnanimous: boolean;
 }
 
-export interface MinutesTranscriptEntry {
+export interface MinutesSpeakerEntry {
+    type: 'speaker';
     speakerName: string;
     party: string | null;
     isPartyHead: boolean;
@@ -28,11 +29,26 @@ export interface MinutesTranscriptEntry {
     timestamp: number;
 }
 
+export interface MinutesGapSubject {
+    id: string;
+    name: string;
+}
+
+export interface MinutesGapEntry {
+    type: 'gap';
+    durationSeconds: number;
+    subjects: MinutesGapSubject[];
+}
+
+export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesGapEntry;
+
 export interface MinutesSubject {
     subjectId: string;
     agendaItemIndex: number | null;
     nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
     name: string;
+
+    discussedWith: { id: string; name: string; agendaItemIndex: number | null } | null;
 
     decision: {
         protocolNumber: string | null;

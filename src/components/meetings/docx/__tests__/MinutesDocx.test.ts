@@ -27,6 +27,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
         agendaItemIndex: 1,
         nonAgendaReason: null,
         name: 'Έγκριση προϋπολογισμού',
+        discussedWith: null,
         decision: null,
         attendance: null,
         voteResult: null,
@@ -89,6 +90,7 @@ describe('renderMinutesDocx', () => {
                     },
                     transcriptEntries: [
                         {
+                            type: 'speaker',
                             speakerName: 'Γιώργος Παπαδόπουλος',
                             party: 'ΝΔ',
                             isPartyHead: false,
@@ -97,6 +99,7 @@ describe('renderMinutesDocx', () => {
                             timestamp: 1200,
                         },
                         {
+                            type: 'speaker',
                             speakerName: 'Μαρία Ιωάννου',
                             party: 'ΣΥΡΙΖΑ',
                             isPartyHead: false,
