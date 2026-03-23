@@ -4,8 +4,10 @@ import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
+import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
+import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
 import { fetchLatestSubstackPost } from "@/lib/db/landing";
 
@@ -130,5 +132,32 @@ export async function getCityMessageCached(cityId: string) {
     () => getCityMessage(cityId),
     ['city', cityId, 'message'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
+  )();
+}
+
+export async function getSubjectsForMeetingCached(cityId: string, meetingId: string) {
+  return createCache(
+    () => getSubjectsForMeeting(cityId, meetingId),
+    ['city', cityId, 'meeting', meetingId, 'subjects'],
+    { tags: [`city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] }
+  )();
+}
+
+export async function getSubjectStatisticsCached(
+  cityId: string,
+  meetingId: string,
+  subjects: SubjectWithRelations[],
+  meetingDateTime: Date | string,
+): Promise<Record<string, Statistics>> {
+  return createCache(
+    async () => {
+      const map = await getBatchStatisticsForSubjects(
+        subjects.map(s => s.id),
+        new Date(meetingDateTime)
+      );
+      return Object.fromEntries(map);
+    },
+    ['city', cityId, 'meeting', meetingId, 'subjectStatistics'],
+    { tags: [`city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] }
   )();
 }

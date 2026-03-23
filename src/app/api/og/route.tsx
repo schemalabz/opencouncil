@@ -7,7 +7,7 @@ import prisma from '@/lib/db/prisma';
 import { getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills } from '@/components/og/shared-components';
+import { Container, MeetingMetaRow, OgHeader, OpenCouncilWatermark, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
 // Import the native subject OG image generator for reuse
 import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
@@ -25,11 +25,13 @@ const MeetingOGImage = async (cityId: string, meetingId: string) => {
 
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
+    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
+
     return (
-        <Container>
+        <Container watermarkProps={{ logoOnly: true, size: 80 }}>
             <OgHeader
                 city={{
-                    name: data.city.name_municipality,
+                    name: cityDisplayName,
                     logoImage: data.city.logoImage
                 }}
             />
@@ -99,11 +101,13 @@ const MeetingFeedOGImage = async (cityId: string, meetingId: string) => {
 
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
+    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
+
     return (
-        <Container watermarkProps={{ size: 120, fontSize: 50 }}>
+        <Container watermarkProps={{ logoOnly: true, size: 120 }}>
             <OgHeader
                 city={{
-                    name: data.city.name_municipality,
+                    name: cityDisplayName,
                     logoImage: data.city.logoImage
                 }}
             />
@@ -172,14 +176,16 @@ const MeetingStoryOGImage = async (cityId: string, meetingId: string) => {
 
     const sortedSubjects = sortSubjectsByImportance(data.subjects);
 
+    const cityDisplayName = formatCityDisplayName(data.city.name_municipality, data.administrativeBody?.name);
+
     return (
         <Container
-            watermarkProps={{ size: 120, fontSize: 50, bottom: 52, right: 52 }}
+            watermarkProps={{ logoOnly: true, size: 120, bottom: 52, right: 52 }}
             containerPadding="64px 48px"
         >
             <OgHeader
                 city={{
-                    name: data.city.name_municipality,
+                    name: cityDisplayName,
                     logoImage: data.city.logoImage
                 }}
                 logoHeight={100}
@@ -425,7 +431,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string) => {
     // Note: Removed date display to keep the layout clean
 
     return (
-        <Container>
+        <Container watermarkProps={{ logoOnly: true, size: 80 }}>
             <OgHeader
                 city={{
                     name: consultationData.city.name_municipality,
