@@ -310,29 +310,53 @@ export function sortRolesByPriority<T extends { isHead: boolean; cityId?: string
 }
 
 /**
+ * Returns the highest-priority role from a list.
+ * Wraps sortRolesByPriority to name the common "pick the most prominent role" concept.
+ * Generic so callers keep their concrete type (e.g. RoleWithRelations).
+ */
+export function getPrimaryRole<T extends {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+}>(roles: T[]): T | null {
+  const sorted = sortRolesByPriority(roles);
+  return sorted[0] ?? null;
+}
+
+/**
  * Derives speaker display information from roles at a specific date.
  * Centralizes the logic for determining what to show for a person:
- * - City-level role (mayor, deputy mayor) takes priority
- * - Party affiliation if no city-level role
- * - Independent if neither
+ * - Uses getPrimaryRole to find the most prominent non-party role
+ * - City-level roles (mayor, deputy mayor) have highest priority
+ * - Admin body head roles (council president) are included
+ * - Party affiliation is resolved separately
+ * - Independent if neither party nor prominent role
  *
  * @param roles Array of roles with party relations
  * @param date Date to check for active roles (defaults to current date)
- * @returns Object with party, city role, and independent status
+ * @returns Object with party, role, and independent status
  */
 export function getSpeakerDisplayInfo(
   roles: (Role & { party?: Party | null; cityId?: string | null })[],
   date?: Date
 ): {
   party: Party | null;
-  cityRole: Role | null;
+  role: Role | null;
   isIndependent: boolean;
 } {
   const party = getPartyFromRoles(roles, date);
-  const cityRole = getSingleCityRole(roles, date);
-  const isIndependent = !party && !cityRole;
 
-  return { party, cityRole, isIndependent };
+  const checkDate = date || new Date();
+  const activeRoles = roles.filter(role => isRoleActiveAt(role, checkDate));
+  const primaryRole = getPrimaryRole(activeRoles);
+
+  // Use primary role only if it's a non-party role
+  // (party roles are shown separately via the party field)
+  const role = primaryRole && !primaryRole.partyId ? primaryRole : null;
+  const isIndependent = !party && !role;
+
+  return { party, role, isIndependent };
 }
 
 /**

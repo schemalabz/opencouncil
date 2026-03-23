@@ -75,15 +75,15 @@ export async function requestGenerateHighlight(
         let roleLabel: string | undefined;
         
         if (person && person.roles) {
-            const { party, cityRole, isIndependent } = getSpeakerDisplayInfo(person.roles, highlight.meeting.dateTime);
+            const { party, role, isIndependent } = getSpeakerDisplayInfo(person.roles, highlight.meeting.dateTime);
 
             if (party) {
                 partyColorHex = party.colorHex || undefined;
                 partyLabel = party.name_short || party.name;
             }
 
-            if (cityRole) {
-                roleLabel = cityRole.name || undefined;
+            if (role) {
+                roleLabel = role.name || undefined;
             } else if (isIndependent) {
                 roleLabel = "Ανεξάρτητος Δημοτικός Σύμβουλος";
             }
