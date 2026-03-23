@@ -48,15 +48,14 @@ export function Landing({ allCities, cities, latestPost }: LandingPageData) {
             setIsLoadingUserCities(true);
             try {
                 // Fetch all cities the user can access (including public + unlisted ones they administer)
-                const userCities: CityWithCounts[] = await fetch('/api/cities?includeUnlisted=true', { next: { tags: ['cities'] } })
+                const userCities: CityWithCounts[] = await fetch('/api/cities?includeUnlisted=true')
                     .then(r => r.json());
                 // Fetch meeting data for all supported cities
                 const userCitiesWithMeetings: LandingCity[] = await Promise.all(
                     userCities.map(async city => {
                         try {
                             const meetings: CouncilMeetingWithAdminBodyAndSubjects[] = await fetch(
-                                `/api/cities/${city.id}/meetings?limit=1`,
-                                { next: { tags: [`city:${city.id}:meetings`] } }
+                                `/api/cities/${city.id}/meetings?limit=1`
                             ).then(r => r.json());
 
                             return {

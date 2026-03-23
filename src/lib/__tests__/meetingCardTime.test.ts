@@ -1,8 +1,18 @@
 /** @jest-environment node */
-process.env.TZ = 'UTC';
 import { getMeetingCardTemporalState } from '../meetingCardTime';
 
 describe('getMeetingCardTemporalState', () => {
+  let originalTZ: string | undefined;
+
+  beforeAll(() => {
+    originalTZ = process.env.TZ;
+    process.env.TZ = 'UTC';
+  });
+
+  afterAll(() => {
+    process.env.TZ = originalTZ;
+  });
+
   beforeEach(() => {
     jest.useFakeTimers();
   });
