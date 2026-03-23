@@ -164,6 +164,11 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                         name_municipality: true,
                         logoImage: true
                     }
+                },
+                administrativeBody: {
+                    select: {
+                        name: true
+                    }
                 }
             }
         });

@@ -8,15 +8,9 @@ import {
     Highlight,
     Location,
     Topic,
-    City,
-    CouncilMeeting,
     Prisma,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
-import { getCity } from './cities';
-import { getCouncilMeeting } from './meetings';
-import { getPeopleForCity } from './people';
-import { getStatisticsFor, Statistics } from '@/lib/statistics';
 import { extractUtteranceIds } from '@/lib/utils/references';
 import { roleWithRelationsInclude } from './types/roles';
 
@@ -60,14 +54,6 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
     decision: Decision | null;
-};
-
-export type SubjectOgData = {
-    subject: SubjectWithRelations;
-    city: City;
-    meeting: CouncilMeeting;
-    statistics?: Statistics;
-    people: PersonWithRelations[];
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
@@ -219,40 +205,6 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
     } catch (error) {
         console.error('Error fetching subject:', error);
         throw new Error('Failed to fetch subject');
-    }
-}
-
-/**
- * Get subject data for OpenGraph image generation
- */
-export async function getSubjectDataForOG(
-    cityId: string,
-    meetingId: string,
-    subjectId: string,
-): Promise<SubjectOgData | null> {
-    try {
-        const [subject, city, meeting] = await Promise.all([
-            getSubject(subjectId),
-            getCity(cityId),
-            getCouncilMeeting(cityId, meetingId),
-        ]);
-
-        if (!subject || !city || !meeting) return null;
-
-        const statistics = await getStatisticsFor({ subjectId: subject.id }, ['person', 'party']);
-
-        const people = await getPeopleForCity(cityId);
-
-        return {
-            subject,
-            city,
-            meeting,
-            statistics,
-            people,
-        };
-    } catch (error) {
-        console.error('Error fetching subject data for OG:', error);
-        return null;
     }
 }
 
