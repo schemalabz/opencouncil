@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from '@/i18n/routing';
 import { Badge } from '../ui/badge';
-import { cn, sortRolesByPriority } from '@/lib/utils';
+import { cn, sortRolesByPriority, getPrimaryRole } from '@/lib/utils';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';
 
@@ -93,9 +93,10 @@ export function RoleDisplay({
         compact: 'flex flex-wrap items-center'
     };
 
-    if (layout === 'compact' && displayRoles.length > 0) {
+    if (layout === 'compact') {
         // For compact layout, show only the highest-priority role
-        const primaryRole = displayRoles[0];
+        const primaryRole = getPrimaryRole(roles);
+        if (!primaryRole) return null;
 
         return (
             <div className={cn("flex items-center min-w-0", sizeClasses[size], className)}>

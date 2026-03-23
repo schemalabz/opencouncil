@@ -3,7 +3,8 @@ import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, SubjectExtractedData } from '@/lib/db/decisions';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
-import { getSpeakerDisplayInfo } from '@/lib/utils/roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt } from '@/lib/utils/roles';
+import { PersonWithRelations } from '@/lib/db/people';
 import { filterSubjectsForMinutes } from '@/lib/utils/subjects';
 import prisma from '@/lib/db/prisma';
 import {
@@ -127,14 +128,14 @@ export async function getMinutesData(
     ): MinutesTranscriptEntry {
         const person = personId ? peopleMap.get(personId) : null;
         const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-        const { party, cityRole } = person
+        const { party, role } = person
             ? getSpeakerDisplayInfo(person.roles || [], date)
-            : { party: null, cityRole: null };
+            : { party: null, role: null };
 
         return {
             speakerName,
             party: party?.name_short ?? null,
-            role: cityRole?.name ?? null,
+            role: role?.name ?? null,
             text: texts.join(' '),
             timestamp,
         };
@@ -146,15 +147,15 @@ export async function getMinutesData(
 
         for (const a of ed.attendance) {
             const person = peopleMap.get(a.personId);
-            const { party, cityRole } = person
+            const { party, role } = person
                 ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, cityRole: null };
+                : { party: null, role: null };
 
             const member: MinutesMember = {
                 personId: a.personId,
                 name: a.personName,
                 party: party?.name_short ?? null,
-                role: cityRole?.name ?? null,
+                role: role?.name ?? null,
             };
 
             if (a.status === 'PRESENT') {
@@ -176,15 +177,15 @@ export async function getMinutesData(
 
         for (const v of ed.votes) {
             const person = peopleMap.get(v.personId);
-            const { party, cityRole } = person
+            const { party, role } = person
                 ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
-                : { party: null, cityRole: null };
+                : { party: null, role: null };
 
             const member: MinutesMember = {
                 personId: v.personId,
                 name: v.personName,
                 party: party?.name_short ?? null,
-                role: cityRole?.name ?? null,
+                role: role?.name ?? null,
             };
 
             switch (v.voteType) {
