@@ -1,6 +1,7 @@
 "use client";
 
 import { formatTimestamp } from '@/lib/utils';
+import { formatGapDuration } from '@/lib/formatters/time';
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 import {
@@ -192,6 +193,18 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
         <div className="mb-10">
             <h3 id={`subject-${subject.subjectId}`} className="text-base font-bold mt-8 mb-3">{headingText}</h3>
 
+            {subject.discussedWith && (
+                <p className="text-sm italic text-gray-500 mb-3">
+                    Συζητήθηκε μαζί με{' '}
+                    {subject.discussedWith.agendaItemIndex != null
+                        ? `ΘΕΜΑ ${subject.discussedWith.agendaItemIndex}: ` : ''}
+                    <a href={`#subject-${subject.discussedWith.id}`}
+                       className="hover:underline text-blue-600">
+                        {subject.discussedWith.name}
+                    </a>
+                </p>
+            )}
+
             {/* Transcript (no heading) */}
             {subject.transcriptEntries.length > 0 && (
                 <TranscriptSection entries={subject.transcriptEntries} />
@@ -263,18 +276,34 @@ function TranscriptSection({ entries }: { entries: MinutesTranscriptEntry[] }) {
         <div className="mt-2">
             <div className="space-y-3">
                 {entries.map((entry, i) => (
-                    <div key={i}>
-                        <span className="font-bold">
-                            {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικ.' : ''})` : ''}
-                        </span>
-                        {entry.role && (
-                            <span className="text-xs text-gray-500"> {entry.role}</span>
-                        )}
-                        <span className="text-xs text-gray-500 ml-1">
-                            {formatTimestamp(entry.timestamp)}
-                        </span>
-                        <p className="mt-1">{entry.text}</p>
-                    </div>
+                    entry.type === 'gap' ? (
+                        <div key={i} className="text-center text-sm text-gray-400 italic my-4 py-2 border-y border-dashed border-gray-200">
+                            [Άλλη συζήτηση {formatGapDuration(entry.durationSeconds)}
+                            {entry.subjects.length > 0 && (
+                                <> — {entry.subjects.map((s, j) => (
+                                    <span key={s.id}>
+                                        {j > 0 && ', '}
+                                        «<a href={`#subject-${s.id}`} className="hover:underline text-blue-400">
+                                            {s.name}
+                                        </a>»
+                                    </span>
+                                ))}</>
+                            )}]
+                        </div>
+                    ) : (
+                        <div key={i}>
+                            <span className="font-bold">
+                                {entry.speakerName} {entry.party ? `(${entry.party}${entry.isPartyHead ? ', Επικ.' : ''})` : ''}
+                            </span>
+                            {entry.role && (
+                                <span className="text-xs text-gray-500"> {entry.role}</span>
+                            )}
+                            <span className="text-xs text-gray-500 ml-1">
+                                {formatTimestamp(entry.timestamp)}
+                            </span>
+                            <p className="mt-1">{entry.text}</p>
+                        </div>
+                    )
                 ))}
             </div>
         </div>

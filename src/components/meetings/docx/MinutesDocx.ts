@@ -3,8 +3,10 @@ import { formatInTimeZone } from 'date-fns-tz';
 import {
     Document, Paragraph, TextRun, HeadingLevel, Packer, AlignmentType,
     Table, TableRow, TableCell, WidthType, Bookmark, PageReference,
+    InternalHyperlink,
 } from 'docx';
 import { formatTimestamp } from '@/lib/utils';
+import { formatGapDuration } from '@/lib/formatters/time';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import {
     MinutesData,
@@ -257,8 +259,71 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         ],
     }));
 
+    // "Discussed with" note for grouped subjects
+    if (subject.discussedWith) {
+        const prefix = subject.discussedWith.agendaItemIndex != null
+            ? `ΘΕΜΑ ${subject.discussedWith.agendaItemIndex}: `
+            : '';
+        paragraphs.push(new Paragraph({
+            spacing: { before: 0, after: 200 },
+            children: [
+                new TextRun({
+                    text: 'Συζητήθηκε μαζί με ',
+                    italics: true,
+                    color: '666666',
+                    size: FONT_SIZE.SMALL,
+                }),
+                new TextRun({
+                    text: prefix,
+                    italics: true,
+                    color: '666666',
+                    size: FONT_SIZE.SMALL,
+                }),
+                new InternalHyperlink({
+                    anchor: subjectBookmarkId({ subjectId: subject.discussedWith.id } as MinutesSubject),
+                    children: [new TextRun({
+                        text: subject.discussedWith.name,
+                        italics: true,
+                        color: '4472C4',
+                        size: FONT_SIZE.SMALL,
+                    })],
+                }),
+            ],
+        }));
+    }
+
     // Transcript (no heading) — matches full transcript DOCX speaker attribution format
     for (const entry of subject.transcriptEntries) {
+        if (entry.type === 'gap') {
+            const gapChildren: (TextRun | InternalHyperlink)[] = [
+                new TextRun({
+                    text: `[Άλλη συζήτηση ${formatGapDuration(entry.durationSeconds)}`,
+                    italics: true,
+                    color: '999999',
+                    size: FONT_SIZE.SMALL,
+                }),
+            ];
+            if (entry.subjects.length > 0) {
+                gapChildren.push(new TextRun({ text: ' — ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                entry.subjects.forEach((s, j) => {
+                    if (j > 0) gapChildren.push(new TextRun({ text: ', ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                    gapChildren.push(new TextRun({ text: '«', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                    gapChildren.push(new InternalHyperlink({
+                        anchor: subjectBookmarkId({ subjectId: s.id } as MinutesSubject),
+                        children: [new TextRun({ text: s.name, italics: true, color: '4472C4', size: FONT_SIZE.SMALL })],
+                    }));
+                    gapChildren.push(new TextRun({ text: '»', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                });
+            }
+            gapChildren.push(new TextRun({ text: ']', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+            paragraphs.push(new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 120, after: 120 },
+                children: gapChildren,
+            }));
+            continue;
+        }
+
         const partyLabel = entry.party
             ? entry.isPartyHead ? `(${entry.party}, Επικ.) ` : `(${entry.party}) `
             : '';

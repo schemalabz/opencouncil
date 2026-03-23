@@ -16,6 +16,8 @@ import {
     MinutesTranscriptEntry,
 } from './types';
 
+import { buildTranscriptEntriesFromUtterances, GAP_FILL_THRESHOLD_SECONDS, GapContentUtterance } from './transcriptEntries';
+
 export async function getMinutesData(
     cityId: string,
     meetingId: string,
@@ -41,37 +43,45 @@ export async function getMinutesData(
         extractedData.map(ed => [ed.subjectId, ed])
     );
 
-    // Filter to agenda + beforeAgenda subjects (exclude outOfAgenda)
+    // Filter to agenda + outOfAgenda subjects (exclude beforeAgenda)
     const filteredSubjects = filterSubjectsForMinutes(subjects);
 
     // Get transcript entries grouped by subject
     const subjectIds = filteredSubjects.map(s => s.id);
-    const utterancesWithSpeaker = await prisma.utterance.findMany({
-        where: {
-            discussionSubjectId: { in: subjectIds },
-            discussionStatus: 'SUBJECT_DISCUSSION',
-        },
-        select: {
-            id: true,
-            text: true,
-            startTimestamp: true,
-            discussionSubjectId: true,
-            speakerSegment: {
-                select: {
-                    speakerTag: {
-                        select: {
-                            label: true,
-                            personId: true,
-                        },
+    const utteranceSelect = {
+        id: true,
+        text: true,
+        startTimestamp: true,
+        endTimestamp: true,
+        discussionSubjectId: true,
+        speakerSegment: {
+            select: {
+                id: true,
+                meetingId: true,
+                cityId: true,
+                speakerTag: {
+                    select: {
+                        label: true,
+                        personId: true,
                     },
                 },
             },
         },
+    } as const;
+
+    const utterancesWithSpeaker = await prisma.utterance.findMany({
+        where: {
+            discussionSubjectId: { in: subjectIds },
+            discussionStatus: { in: ['SUBJECT_DISCUSSION', 'VOTE'] },
+        },
+        select: utteranceSelect,
         orderBy: { startTimestamp: 'asc' },
     });
 
-    // Group utterances by subject, then consolidate consecutive same-speaker blocks
-    const utterancesBySubject = new Map<string, typeof utterancesWithSpeaker>();
+    type UtteranceWithSpeaker = typeof utterancesWithSpeaker[number];
+
+    // Group utterances by subject
+    const utterancesBySubject = new Map<string, UtteranceWithSpeaker[]>();
     for (const u of utterancesWithSpeaker) {
         if (!u.discussionSubjectId) continue;
         const list = utterancesBySubject.get(u.discussionSubjectId) || [];
@@ -79,67 +89,103 @@ export async function getMinutesData(
         utterancesBySubject.set(u.discussionSubjectId, list);
     }
 
+    // Subject name map for gap marker labels (includes all subjects, not just filtered)
+    const subjectNameMap = new Map(subjects.map(s => [s.id, s.name]));
+
+    // Per-subject gap content info for long gaps
+    const gapContentBySubject = new Map<string, GapContentUtterance[]>();
+
+    // Detect gaps, fetch fill utterances for short gaps, check content for long gaps
+    for (const [subjectId, utterances] of utterancesBySubject) {
+        if (utterances.length < 2) continue;
+
+        const shortGapRanges: { start: number; end: number }[] = [];
+
+        for (let i = 0; i < utterances.length - 1; i++) {
+            const current = utterances[i];
+            const next = utterances[i + 1];
+            const gap = next.startTimestamp - current.endTimestamp;
+
+            if (gap > 0 && gap < GAP_FILL_THRESHOLD_SECONDS) {
+                shortGapRanges.push({ start: current.endTimestamp, end: next.startTimestamp });
+            }
+        }
+
+        if (shortGapRanges.length > 0) {
+            // Fetch fill utterances for all short gaps in one batch
+            const fillUtterances = await prisma.utterance.findMany({
+                where: {
+                    speakerSegment: {
+                        meetingId: meeting.id,
+                        cityId: cityId,
+                    },
+                    OR: shortGapRanges.map(range => ({
+                        startTimestamp: { gte: range.start, lt: range.end },
+                    })),
+                    NOT: { discussionSubjectId: { in: subjectIds } },
+                },
+                select: utteranceSelect,
+                orderBy: { startTimestamp: 'asc' },
+            });
+
+            // Merge fill utterances into the list at correct positions
+            if (fillUtterances.length > 0) {
+                const merged = [...utterances, ...fillUtterances];
+                merged.sort((a, b) => a.startTimestamp - b.startTimestamp);
+                utterancesBySubject.set(subjectId, merged);
+            }
+        }
+
+        // After short gap handling, detect long gaps and check for content
+        const updatedUtterances = utterancesBySubject.get(subjectId)!;
+        const longGapRanges: { start: number; end: number }[] = [];
+        for (let i = 0; i < updatedUtterances.length - 1; i++) {
+            const gap = updatedUtterances[i + 1].startTimestamp - updatedUtterances[i].endTimestamp;
+            if (gap >= GAP_FILL_THRESHOLD_SECONDS) {
+                longGapRanges.push({
+                    start: updatedUtterances[i].endTimestamp,
+                    end: updatedUtterances[i + 1].startTimestamp,
+                });
+            }
+        }
+
+        if (longGapRanges.length > 0) {
+            // Check what content exists in long gap ranges (for silence vs real gap detection)
+            const gapContent = await prisma.utterance.findMany({
+                where: {
+                    speakerSegment: { meetingId: meeting.id, cityId },
+                    OR: longGapRanges.map(r => ({
+                        startTimestamp: { gte: r.start, lt: r.end },
+                    })),
+                    id: { notIn: updatedUtterances.map(u => u.id) },
+                },
+                select: { startTimestamp: true, discussionSubjectId: true },
+                orderBy: { startTimestamp: 'asc' },
+            });
+            gapContentBySubject.set(subjectId, gapContent);
+        }
+    }
+
     const meetingDate = new Date(meeting.dateTime);
 
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
         const utterances = utterancesBySubject.get(subjectId) || [];
-        if (utterances.length === 0) return [];
-
-        const entries: MinutesTranscriptEntry[] = [];
-        let currentPersonId: string | null | undefined = undefined;
-        let currentLabel: string | null | undefined = undefined;
-        let currentTexts: string[] = [];
-        let currentTimestamp = 0;
-
-        for (const u of utterances) {
-            const tag = u.speakerSegment.speakerTag;
-            const isSameSpeaker =
-                currentPersonId !== undefined &&
-                tag.personId === currentPersonId &&
-                (tag.personId !== null || tag.label === currentLabel);
-
-            if (isSameSpeaker) {
-                currentTexts.push(u.text);
-            } else {
-                // Flush previous block
-                if (currentTexts.length > 0 && currentPersonId !== undefined) {
-                    entries.push(buildEntry(currentPersonId, currentLabel ?? null, currentTexts, currentTimestamp, meetingDate));
-                }
-                currentPersonId = tag.personId;
-                currentLabel = tag.label;
-                currentTexts = [u.text];
-                currentTimestamp = u.startTimestamp;
-            }
-        }
-        // Flush last block
-        if (currentTexts.length > 0 && currentPersonId !== undefined) {
-            entries.push(buildEntry(currentPersonId, currentLabel ?? null, currentTexts, currentTimestamp, meetingDate));
-        }
-
-        return entries;
-    }
-
-    function buildEntry(
-        personId: string | null,
-        label: string | null,
-        texts: string[],
-        timestamp: number,
-        date: Date,
-    ): MinutesTranscriptEntry {
-        const person = personId ? peopleMap.get(personId) : null;
-        const speakerName = person ? person.name_short : (label || 'Ομιλητής');
-        const { party, role, isPartyHead } = person
-            ? getSpeakerDisplayInfo(person.roles || [], date)
-            : { party: null, role: null, isPartyHead: false };
-
-        return {
-            speakerName,
-            party: party?.name_short ?? null,
-            isPartyHead,
-            role: role?.name ?? null,
-            text: texts.join(' '),
-            timestamp,
-        };
+        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
+            const person = personId ? peopleMap.get(personId) : null;
+            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
+            const { party, role, isPartyHead } = person
+                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
+                : { party: null, role: null, isPartyHead: false };
+            return {
+                speakerName,
+                party: party?.name_short ?? null,
+                isPartyHead,
+                role: role?.name ?? null,
+            };
+        }, {
+            gapContentUtterances: gapContentBySubject.get(subjectId) ?? [],
+            subjectNames: subjectNameMap,
+        });
     }
 
     function buildAttendance(ed: SubjectExtractedData): MinutesAttendance {
@@ -204,12 +250,12 @@ export async function getMinutesData(
         return { forMembers, againstMembers, abstainMembers, passed, isUnanimous };
     }
 
-    // Sort subjects: beforeAgenda first, then by agendaItemIndex
+    // Sort subjects: agenda items by index first, then outOfAgenda at the end
     const sortedSubjects = [...filteredSubjects].sort((a, b) => {
-        const aIsBeforeAgenda = a.nonAgendaReason === 'beforeAgenda';
-        const bIsBeforeAgenda = b.nonAgendaReason === 'beforeAgenda';
-        if (aIsBeforeAgenda && !bIsBeforeAgenda) return -1;
-        if (!aIsBeforeAgenda && bIsBeforeAgenda) return 1;
+        const aIsOutOfAgenda = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOutOfAgenda = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOutOfAgenda && !bIsOutOfAgenda) return 1;
+        if (!aIsOutOfAgenda && bIsOutOfAgenda) return -1;
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
 
@@ -224,6 +270,11 @@ export async function getMinutesData(
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda' | null,
             name: s.name,
+            discussedWith: s.discussedIn ? {
+                id: s.discussedIn.id,
+                name: s.discussedIn.name,
+                agendaItemIndex: s.discussedIn.agendaItemIndex,
+            } : null,
             decision: s.decision ? {
                 protocolNumber: s.decision.protocolNumber,
                 excerpt: s.decision.excerpt ?? null,
