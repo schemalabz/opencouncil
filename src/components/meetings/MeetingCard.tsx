@@ -182,7 +182,7 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
                             )}
                             <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground/70" />
-                                <span>{(isUpcoming || isToday)
+                                <span>{(!referenceNow || (isUpcoming || isToday))
                                     ? formatDateTime(meeting.dateTime, cityTimezone)
                                     : formatDate(meeting.dateTime, cityTimezone)}
                                 </span>
