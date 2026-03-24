@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { attachGeometryToCities } from '@/lib/db/cities'
 import prisma from '@/lib/db/prisma'
 
-// Disable caching during development/initial setup to ensure geometries appear immediately
-// For production optimization later, this can be set back to 3600 (1 hour)
-export const revalidate = 0;
-// export const revalidate = 3600;
+// Enable 1-hour caching for production as city geometries change rarely
+export const revalidate = 3600;
 
 export async function GET() {
     try {

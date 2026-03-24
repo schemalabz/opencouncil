@@ -16,6 +16,7 @@ export function useMapAnimation(activeTourFeature: MapFeature | null) {
         if (!activeTourFeature) {
             setDelayedTourFeature(null);
             setTravelerGeoJSON(null);
+            lastTourCoords.current = null;
             if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
             return;
         }
