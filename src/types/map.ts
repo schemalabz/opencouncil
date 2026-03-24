@@ -5,7 +5,6 @@
 
 import { CityWithGeometry } from '@/lib/db/cities';
 import { Topic } from '@prisma/client';
-import { findAllByDisplayValue } from '@testing-library/react';
 
 /**
  * City with geometry and count aggregates for map display
@@ -67,7 +66,7 @@ export const MAP_FILTERS_CONFIG = {
     LONG_DISCUSSION_THRESHOLD: 300, // 5 minutes
     
     // Feature Flag: Show the long discussion filter in UI
-    ENABLE_LONG_DISCUSSION_FILTER: findAllByDisplayValue,
+    ENABLE_LONG_DISCUSSION_FILTER: true,
 };
 
 /**

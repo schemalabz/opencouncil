@@ -2,13 +2,18 @@ import { NextResponse } from 'next/server'
 import { attachGeometryToCities } from '@/lib/db/cities'
 import prisma from '@/lib/db/prisma'
 
-// Enable caching - revalidate every 1 hour
-export const revalidate = 3600;
+// Disable caching during development/initial setup to ensure geometries appear immediately
+// For production optimization later, this can be set back to 3600 (1 hour)
+export const revalidate = 0;
+// export const revalidate = 3600;
 
 export async function GET() {
     try {
-        // Get ALL cities - query with fields needed for map display
+        // Get ONLY listed cities for the public map
         const cities = await prisma.city.findMany({
+            where: {
+                status: 'listed'
+            },
             select: {
                 id: true,
                 name: true,
@@ -35,7 +40,6 @@ export async function GET() {
                 }
             },
             orderBy: [
-                { status: 'desc' },
                 { name: 'asc' }
             ]
         });

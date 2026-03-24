@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/db/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, AdministrativeBodyType } from '@prisma/client'
 import { MAP_FILTERS_CONFIG } from '@/types/map'
 
 // Disable caching for dynamic queries with different filters
 export const dynamic = 'force-dynamic';
+
+const VALID_BODY_TYPES = Object.values(AdministrativeBodyType) as string[];
 
 export async function GET(request: Request) {
     try {
@@ -19,7 +21,11 @@ export async function GET(request: Request) {
         const monthsBack = monthsBackParam ? parseInt(monthsBackParam) : 6;
         const topicIds = topicIdsParam ? topicIdsParam.split(',') : [];
         const cityIds = cityIdsParam ? cityIdsParam.split(',') : [];
-        const bodyTypes = bodyTypesParam ? bodyTypesParam.split(',') : [];
+        
+        // Validate body types
+        const bodyTypes = (bodyTypesParam ? bodyTypesParam.split(',') : [])
+            .filter(type => VALID_BODY_TYPES.includes(type)) as AdministrativeBodyType[];
+
         const longOnly = longOnlyParam === 'true';
 
         if (process.env.NODE_ENV === 'development') {
@@ -78,7 +84,7 @@ export async function GET(request: Request) {
             }
             whereClause.councilMeeting.administrativeBody = {
                 type: {
-                    in: bodyTypes as any[]
+                    in: bodyTypes
                 }
             };
         }

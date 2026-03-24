@@ -52,13 +52,13 @@ export function useMapFeatures({
                 const bodyTypes = filters.selectedBodyTypes?.join(',') || '';
                 const longOnly = filters.longOnly || false;
 
-                // Early exit only if filters were initialized and user has explicitly cleared them
-                // During initialization (filtersInitialized=false), skip the early exit and fetch normally
+                // Early exit only if ALL filters are cleared after initialization
+                // This prevents hiding everything when just one category is empty
                 const userHasClearedTopics = filtersInitialized && filters.selectedTopics?.length === 0;
                 const userHasClearedCities = filtersInitialized && filters.selectedCities?.length === 0;
                 const userHasClearedBodies = filtersInitialized && filters.selectedBodyTypes?.length === 0;
 
-                if (userHasClearedTopics || userHasClearedCities || userHasClearedBodies) {
+                if (userHasClearedTopics && userHasClearedCities && userHasClearedBodies) {
                     // We still fetch cities to show the polygons, but skip subject fetch
                     const citiesResponse = await fetch('/api/cities/map', {
                         cache: 'no-store',

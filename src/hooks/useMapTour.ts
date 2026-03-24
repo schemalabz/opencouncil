@@ -48,17 +48,15 @@ export function useMapTour({ features, selectedCities, allCities, isEnabled }: U
             return;
         }
 
-        // Start from first if not started
-        if (activeIndex === -1) {
-            setActiveIndex(0);
-        }
-
         const interval = setInterval(() => {
-            setActiveIndex(current => (current + 1) % tourSubjects.length);
+            setActiveIndex(current => {
+                if (current === -1) return 0;
+                return (current + 1) % tourSubjects.length;
+            });
         }, 3500);
 
         return () => clearInterval(interval);
-    }, [tourSubjects.length, isPaused, isManualInterruption, activeIndex]);
+    }, [tourSubjects.length, isPaused, isManualInterruption]);
 
     // Reset when city changes or tour is disabled
     useEffect(() => {
