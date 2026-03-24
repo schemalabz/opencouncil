@@ -35,7 +35,18 @@ export async function PUT(
     const userId = session?.user?.id;
 
     const body = await request.json();
-    const parsed = upsertSchema.parse(body);
+    let parsed: z.infer<typeof upsertSchema>;
+    try {
+        parsed = upsertSchema.parse(body);
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return NextResponse.json(
+                { error: 'Invalid request body', details: err.errors },
+                { status: 400 }
+            );
+        }
+        throw err;
+    }
 
     // Verify the subject belongs to this city and meeting
     const subject = await prisma.subject.findFirst({
