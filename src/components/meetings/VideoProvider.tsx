@@ -1,6 +1,7 @@
 "use client"
-import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback } from 'react';
-import { CouncilMeeting, Utterance } from "@prisma/client";
+import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { CouncilMeeting, Utterance as UtteranceType } from "@prisma/client";
 import { useTranscriptOptions } from './options/OptionsContext';
 
 /**
@@ -28,6 +29,7 @@ import { useTranscriptOptions } from './options/OptionsContext';
 interface VideoContextType {
     isPlaying: boolean;
     currentTime: number;
+    currentTimeRef: React.MutableRefObject<number>;
     duration: number;
     setCurrentScrollInterval: (interval: [number, number]) => void;
     currentScrollInterval: [number, number];
@@ -49,6 +51,21 @@ interface VideoContextType {
 
 const VideoContext = createContext<VideoContextType | undefined>(undefined);
 
+/**
+ * Stable context for actions/refs that don't change during playback.
+ * Components using this context (like Utterance) won't re-render when
+ * currentTime updates. Functions are ref-wrapped so the value object
+ * is created once and never changes.
+ */
+interface VideoActionsContextType {
+    currentTimeRef: React.MutableRefObject<number>;
+    seekTo: (time: number) => void;
+    seekToWithoutScroll: (time: number) => void;
+    togglePlayPause: () => void;
+}
+
+const VideoActionsContext = createContext<VideoActionsContextType | undefined>(undefined);
+
 export const useVideo = () => {
     const context = useContext(VideoContext);
     if (!context) {
@@ -57,10 +74,23 @@ export const useVideo = () => {
     return context;
 };
 
+/**
+ * Use this instead of useVideo() in components that don't need reactive
+ * currentTime/isPlaying state (e.g., Utterance). This prevents re-renders
+ * during video playback.
+ */
+export const useVideoActions = () => {
+    const context = useContext(VideoActionsContext);
+    if (!context) {
+        throw new Error('useVideoActions must be used within a VideoProvider');
+    }
+    return context;
+};
+
 interface VideoProviderProps {
     children: React.ReactNode;
     meeting: CouncilMeeting;
-    utterances: Utterance[];
+    utterances: UtteranceType[];
 }
 
 // Add throttle helper function
@@ -77,6 +107,7 @@ const throttle = (func: Function, limit: number) => {
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const { options } = useTranscriptOptions();
+    const searchParams = useSearchParams();
     
     // === CORE VIDEO STATE ===
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
@@ -99,7 +130,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         if (utteranceToScrollTo) {
             const utteranceElement = document.getElementById(utteranceToScrollTo.id);
             if (utteranceElement) {
-                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
     }, [utterances]);
@@ -123,43 +154,58 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     }, [utterances]);
 
     // === URL PARAMETER HANDLING ===
+    const timeParam = searchParams.get('t');
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const timeParam = urlParams.get('t');
-
         // Set initial time to first utterance if no other time set
         if (currentTimeRef.current === 0 && utterances.length > 0) {
             currentTimeRef.current = utterances[0].startTimestamp;
         }
 
-        // Handle ?t=123 URL parameter for deep linking
+        // Handle ?t=123 URL parameter for deep linking.
+        // Share URLs encode timestamps with Math.floor (see ShareDropdown, ContributionCard),
+        // so we resolve the floor'd second back to the exact utterance startTimestamp.
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
-                currentTimeRef.current = seconds;
-                // Add a longer delay and retry mechanism for scrolling
+                const targetUtterance = utterances.find(u => Math.floor(u.startTimestamp) === seconds);
+                const targetTime = targetUtterance?.startTimestamp ?? seconds;
+
+                currentTimeRef.current = targetTime;
+                // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
                         const utteranceElement = utterances
-                            .filter(u => u.startTimestamp <= seconds)
+                            .filter(u => u.startTimestamp <= targetTime)
                             .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
                         if (utteranceElement) {
                             const element = document.getElementById(utteranceElement.id);
                             if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                updateHighlightOnce();
+                                // content-visibility:auto causes layout shifts as off-screen
+                                // segments render at their actual size. Re-scroll to correct.
+                                // Multiple attempts with increasing delays to handle varying
+                                // numbers of segments that need to render.
+                                for (const delay of [150, 500, 1000]) {
+                                    setTimeout(() => {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, delay);
+                                }
                             } else if (attemptsLeft > 0) {
-                                // If element not found, retry with one less attempt
                                 scrollAttempt(attemptsLeft - 1);
                             }
                         }
                     }, 500);
                 };
 
-                scrollAttempt(3); // Try up to 3 times
+                scrollAttempt(3);
             }
         }
-    }, [utterances]);
+    // updateHighlightOnce is called inside a deferred setTimeout so the reference
+    // is valid at runtime.  It changes only when utterancesBySecond (derived from
+    // utterances) changes, so the existing utterances dep covers it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [utterances, timeParam]);
 
     // === PLAYBACK SPEED SYNC ===
     useEffect(() => {
@@ -245,22 +291,38 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     };
 
     /**
-     * SEEK TO TIME:
+     * SEEK CORE:
      * - Sets video currentTime to specific timestamp
-     * - Updates internal time reference
-     * - Scrolls transcript to corresponding utterance
+     * - Updates internal time reference and highlight
+     */
+    const applySeek = (time: number) => {
+        if (!playerRef.current) return;
+        if (hasStartedPlaying) {
+            playerRef.current.currentTime = time;
+        }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
+        updateHighlightOnce();
+    };
+
+    /**
+     * SEEK TO TIME:
+     * - Seeks to time and scrolls transcript to corresponding utterance
      */
     const seekTo = (time: number) => {
+        applySeek(time);
         if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
-            }
-            currentTimeRef.current = time;
-            // Use requestAnimationFrame to ensure DOM has updated
-            requestAnimationFrame(() => {
-                scrollToUtterance(time);
-            });
+            requestAnimationFrame(() => scrollToUtterance(time));
         }
+    };
+
+    /**
+     * SEEK WITHOUT SCROLL:
+     * - Seeks to time without triggering transcript scroll
+     * - Used for programmatic seeking
+     */
+    const seekToWithoutScroll = (time: number) => {
+        applySeek(time);
     };
 
     /**
@@ -291,7 +353,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const throttledSetCurrentTime = useRef(
         throttle((time: number) => {
             setCurrentTime(time);
-        }, 250) // Update at most every 250ms
+        }, 2000) // Update at most every 2s — DOM highlighting runs imperatively via <style>, so React state updates are only needed for UI controls
     ).current;
 
     const seekToAndPlay = (time: number) => {
@@ -301,23 +363,97 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
 
     const [currentScrollInterval, setCurrentScrollInterval] = useState<[number, number]>([0, 0]);
 
-    /**
-     * SEEK WITHOUT SCROLL:
-     * - Seeks to time without triggering transcript scroll
-     * - Used for programmatic seeking
-     */
-    const seekToWithoutScroll = (time: number) => {
-        if (playerRef.current) {
-            if (hasStartedPlaying) {
-                playerRef.current.currentTime = time;
+    // === DOM-BASED ACTIVE UTTERANCE HIGHLIGHTING ===
+    // Uses rAF during playback for smooth 60fps highlighting without React re-renders.
+    // Runs a single update on seek/pause for immediate feedback.
+    const styleRef = useRef<HTMLStyleElement | null>(null);
+    const activeUtteranceIdRef = useRef<string | null>(null);
+
+    // Pre-computed Map for O(1) utterance lookup by second
+    // Stores arrays to handle overlapping utterances at shared seconds
+    const utterancesBySecond = useMemo(() => {
+        const map = new Map<number, UtteranceType[]>();
+        for (const u of utterances) {
+            for (let s = Math.floor(u.startTimestamp); s <= Math.floor(u.endTimestamp); s++) {
+                const existing = map.get(s);
+                if (existing) {
+                    existing.push(u);
+                } else {
+                    map.set(s, [u]);
+                }
             }
-            currentTimeRef.current = time;
         }
-    };
+        return map;
+    }, [utterances]);
+
+    const updateHighlightOnce = useCallback(() => {
+        const time = currentTimeRef.current;
+
+        const candidates = utterancesBySecond.get(Math.floor(time));
+        const activeUtterance = candidates?.find(u => u.startTimestamp <= time && u.endTimestamp >= time) ?? null;
+
+        const newActiveId = activeUtterance?.id ?? null;
+
+        if (newActiveId !== activeUtteranceIdRef.current) {
+            activeUtteranceIdRef.current = newActiveId;
+            if (styleRef.current) {
+                styleRef.current.textContent = newActiveId
+                    ? `#${CSS.escape(newActiveId)} { background: hsl(var(--accent)); }`
+                    : '';
+            }
+        }
+    }, [utterancesBySecond]);
+
+    // Create/cleanup the <style> element
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.setAttribute('data-utterance-highlight', '');
+        document.head.appendChild(style);
+        styleRef.current = style;
+        return () => {
+            style.remove();
+            styleRef.current = null;
+        };
+    }, []);
+
+    // rAF loop: only runs while playing
+    useEffect(() => {
+        if (!isPlaying) {
+            updateHighlightOnce();
+            return;
+        }
+
+        let rafId: number;
+        const loop = () => {
+            updateHighlightOnce();
+            rafId = requestAnimationFrame(loop);
+        };
+        rafId = requestAnimationFrame(loop);
+
+        return () => cancelAnimationFrame(rafId);
+    }, [isPlaying, updateHighlightOnce]);
+
+    // === STABLE ACTIONS CONTEXT ===
+    // Store action functions in refs so the memoized actions value never changes.
+    // This prevents Utterance components from re-rendering during playback.
+    const seekToRef = useRef(seekTo);
+    seekToRef.current = seekTo;
+    const seekToWithoutScrollRef = useRef(seekToWithoutScroll);
+    seekToWithoutScrollRef.current = seekToWithoutScroll;
+    const togglePlayPauseRef = useRef(togglePlayPause);
+    togglePlayPauseRef.current = togglePlayPause;
+
+    const actionsValue = useMemo<VideoActionsContextType>(() => ({
+        currentTimeRef,
+        seekTo: (time: number) => seekToRef.current(time),
+        seekToWithoutScroll: (time: number) => seekToWithoutScrollRef.current(time),
+        togglePlayPause: () => togglePlayPauseRef.current(),
+    }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const value = {
         isPlaying,
         currentTime: currentTimeRef.current,
+        currentTimeRef,
         duration,
         playbackSpeed,
         currentScrollInterval,
@@ -344,8 +480,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     };
 
     return (
-        <VideoContext.Provider value={value}>
-            {children}
-        </VideoContext.Provider>
+        <VideoActionsContext.Provider value={actionsValue}>
+            <VideoContext.Provider value={value}>
+                {children}
+            </VideoContext.Provider>
+        </VideoActionsContext.Provider>
     );
 };
