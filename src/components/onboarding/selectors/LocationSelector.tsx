@@ -8,6 +8,7 @@ import { Location } from '@/lib/types/onboarding';
 import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestionsResult } from '@/lib/google-maps';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { CityWithGeometry } from '@/lib/db/cities';
 
@@ -28,6 +29,7 @@ export function LocationSelector({
     onLocationClick,
     hideSelectedList = false
 }: LocationSelectorProps) {
+    const t = useTranslations('Common');
     const [inputValue, setInputValue] = useState('');
     const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -169,6 +171,7 @@ export function LocationSelector({
                             data-lpignore="true"
                             data-form-type="other"
                             placeholder={`Αναζητήστε διεύθυνση στον δήμο ${city.name}...`}
+                            aria-label={t('searchAddressInMunicipality', { cityName: city.name })}
                             className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
                             value={inputValue}
                             onChange={handleInputChange}

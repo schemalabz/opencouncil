@@ -24,7 +24,7 @@ export default async function Layout({
         </div>
 
         <Header path={[]} className="relative z-10" />
-        <main className="min-h-[70vh] mt-[65px] relative z-5">
+        <main id="main-content" className="min-h-[70vh] mt-[65px] relative z-5">
           {children}
         </main>
         <Footer className="relative z-5" />

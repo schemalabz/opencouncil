@@ -114,6 +114,7 @@ export function RoleDisplay({
                             <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                                 <div
                                     className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0"
+                                    aria-hidden="true"
                                     style={{ backgroundColor: primaryRole.party.colorHex }}
                                 />
                                 {showIcons && primaryRole.isHead && (
@@ -174,6 +175,7 @@ export function RoleDisplay({
                                         <div className="flex items-center gap-1.5 w-6 flex-shrink-0">
                                             <div
                                                 className="w-2 h-2 rounded-full flex-shrink-0"
+                                                aria-hidden="true"
                                                 style={{ backgroundColor: role.party.colorHex }}
                                             />
                                             {RoleIcon ? (

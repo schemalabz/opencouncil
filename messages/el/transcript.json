@@ -41,7 +41,9 @@
     "pause": "Παύση",
     "play": "Αναπαραγωγή",
     "previousClip": "Προηγούμενο κλιπ",
-    "nextClip": "Επόμενο κλιπ"
+    "nextClip": "Επόμενο κλιπ",
+    "timeline": "Χρονολόγιο αναπαραγωγής",
+    "playbackProgress": "Πρόοδος αναπαραγωγής"
   },
     "unverifiedBanner": {
         "title": "Αυτόματη απομαγνητοφώνηση",

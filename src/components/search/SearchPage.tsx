@@ -13,6 +13,7 @@ import { Skeleton } from "../ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";
+import { useTranslations } from 'next-intl';
 
 const PAGE_SIZE = 6;
 const SEARCH_DELAY = 500;
@@ -24,6 +25,7 @@ export default function SearchPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const t = useTranslations('Common');
 
     // Get all search parameters from URL
     const query = searchParams.get('query') || "";
@@ -270,6 +272,7 @@ export default function SearchPage() {
                             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
                                 placeholder={SEARCH_TEMPORARILY_DISABLED ? "Η αναζήτηση είναι προσωρινά απενεργοποιημένη..." : "Πληκτρολογήστε για αναζήτηση..."}
+                                aria-label={t('search')}
                                 className="pl-12 h-12 text-base"
                                 value={localQuery}
                                 onChange={(e) => {

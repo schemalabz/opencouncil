@@ -1,5 +1,13 @@
 {
     "Common": {
+        "skipToContent": "Skip to main content",
+        "search": "Search",
+        "collapse": "Collapse",
+        "filter": "Filter: {label}",
+        "municipalityMap": "Municipality map",
+        "transcript": "Transcript",
+        "meetingNavigation": "Meeting navigation",
+        "searchAddressInMunicipality": "Search address in {cityName}",
         "allTopics": "All Topics",
         "allMeetings": "All",
         "adminBodyType_council": "Councils",
@@ -18,7 +26,8 @@
         "meetings": "meetings"
     },
     "Header": {
-        "about": "For Municipalities"
+        "about": "For Municipalities",
+        "search": "Search"
     },
     "Footer": {
         "privacy": "Privacy Policy",
@@ -133,7 +142,8 @@
         "editCity": "Edit City",
         "searchInCity": "Search in city council meetings",
         "allAdministrativeBodies": "All Bodies",
-        "filterByAdminBody": "Filter by Administrative Body"
+        "filterByAdminBody": "Filter by Administrative Body",
+        "citySections": "City sections"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",
