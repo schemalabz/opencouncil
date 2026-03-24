@@ -1,5 +1,6 @@
 "use client"
 import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { CouncilMeeting, Utterance as UtteranceType } from "@prisma/client";
 import { useTranscriptOptions } from './options/OptionsContext';
 
@@ -106,6 +107,7 @@ const throttle = (func: Function, limit: number) => {
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const { options } = useTranscriptOptions();
+    const searchParams = useSearchParams();
     
     // === CORE VIDEO STATE ===
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
@@ -152,43 +154,58 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     }, [utterances]);
 
     // === URL PARAMETER HANDLING ===
+    const timeParam = searchParams.get('t');
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const timeParam = urlParams.get('t');
-
         // Set initial time to first utterance if no other time set
         if (currentTimeRef.current === 0 && utterances.length > 0) {
             currentTimeRef.current = utterances[0].startTimestamp;
         }
 
-        // Handle ?t=123 URL parameter for deep linking
+        // Handle ?t=123 URL parameter for deep linking.
+        // Share URLs encode timestamps with Math.floor (see ShareDropdown, ContributionCard),
+        // so we resolve the floor'd second back to the exact utterance startTimestamp.
         if (timeParam) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds) && playerRef.current) {
-                currentTimeRef.current = seconds;
-                // Add a longer delay and retry mechanism for scrolling
+                const targetUtterance = utterances.find(u => Math.floor(u.startTimestamp) === seconds);
+                const targetTime = targetUtterance?.startTimestamp ?? seconds;
+
+                currentTimeRef.current = targetTime;
+                // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
                         const utteranceElement = utterances
-                            .filter(u => u.startTimestamp <= seconds)
+                            .filter(u => u.startTimestamp <= targetTime)
                             .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
 
                         if (utteranceElement) {
                             const element = document.getElementById(utteranceElement.id);
                             if (element) {
-                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                updateHighlightOnce();
+                                // content-visibility:auto causes layout shifts as off-screen
+                                // segments render at their actual size. Re-scroll to correct.
+                                // Multiple attempts with increasing delays to handle varying
+                                // numbers of segments that need to render.
+                                for (const delay of [150, 500, 1000]) {
+                                    setTimeout(() => {
+                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    }, delay);
+                                }
                             } else if (attemptsLeft > 0) {
-                                // If element not found, retry with one less attempt
                                 scrollAttempt(attemptsLeft - 1);
                             }
                         }
                     }, 500);
                 };
 
-                scrollAttempt(3); // Try up to 3 times
+                scrollAttempt(3);
             }
         }
-    }, [utterances]);
+    // updateHighlightOnce is called inside a deferred setTimeout so the reference
+    // is valid at runtime.  It changes only when utterancesBySecond (derived from
+    // utterances) changes, so the existing utterances dep covers it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [utterances, timeParam]);
 
     // === PLAYBACK SPEED SYNC ===
     useEffect(() => {
