@@ -1,12 +1,13 @@
 "use client";
 
-import { useVideo } from './VideoProvider';
+import { useVideo, useVideoActions } from './VideoProvider';
 import { useTranscriptOptions } from './options/OptionsContext';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
-    const { currentTime, seekTo, handleSpeedChange, togglePlayPause } = useVideo();
+    const { seekTo, handleSpeedChange, togglePlayPause } = useVideo();
+    const { currentTimeRef } = useVideoActions();
     const { options, updateOptions } = useTranscriptOptions();
     const { transcript } = useCouncilMeetingData();
 
@@ -23,7 +24,7 @@ export function KeyboardShortcuts() {
         
         // Find current utterance
         const currentUtterance = sortedUtterances.find(u =>
-            currentTime >= u.startTimestamp && currentTime <= u.endTimestamp
+            currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
         );
 
         if (currentUtterance) {
@@ -40,11 +41,11 @@ export function KeyboardShortcuts() {
         // Find utterances before current time
         const prevUtterances = [...sortedUtterances]
             .reverse()
-            .filter(u => u.startTimestamp < currentTime)
+            .filter(u => u.startTimestamp < currentTimeRef.current)
             .slice(0, 2);
 
         const currentUtterance = sortedUtterances.find(u =>
-            currentTime >= u.startTimestamp && currentTime <= u.endTimestamp
+            currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
         );
 
         if (prevUtterances.length > 0) {
@@ -59,7 +60,7 @@ export function KeyboardShortcuts() {
         const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
         
         const nextUtterance = sortedUtterances
-            .find(u => u.startTimestamp > currentTime);
+            .find(u => u.startTimestamp > currentTimeRef.current);
         if (nextUtterance) {
             seekTo(nextUtterance.startTimestamp);
         }
@@ -81,13 +82,13 @@ export function KeyboardShortcuts() {
 
     // Skip Backward (Shift + ArrowLeft)
     useKeyboardShortcut(ACTIONS.SKIP_BACKWARD.id, () => {
-        const newTime = Math.max(0, currentTime - options.skipInterval);
+        const newTime = Math.max(0, currentTimeRef.current - options.skipInterval);
         seekTo(newTime);
     }, options.editable);
 
     // Skip Forward (Shift + ArrowRight)
     useKeyboardShortcut(ACTIONS.SKIP_FORWARD.id, () => {
-        seekTo(currentTime + options.skipInterval);
+        seekTo(currentTimeRef.current + options.skipInterval);
     }, options.editable);
 
     return null;
