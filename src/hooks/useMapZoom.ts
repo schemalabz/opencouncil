@@ -12,6 +12,8 @@ export function useMapZoom(
     const [zoomToGeometry, setZoomToGeometry] = useState<GeoJSON.Geometry | null>(null);
 
     useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
         if (selectedCities.length === 1 && citiesWithGeometry.length > 0) {
             const selectedCityId = selectedCities[0];
             const selectedCity = citiesWithGeometry.find(c => c.id === selectedCityId);
@@ -20,7 +22,7 @@ export function useMapZoom(
                 const geometry = selectedCity.geometry;
                 // Force re-trigger by clearing first, then setting in next tick
                 setZoomToGeometry(null);
-                setTimeout(() => {
+                timeoutId = setTimeout(() => {
                     setZoomToGeometry(geometry);
                 }, 0);
             }
@@ -28,6 +30,12 @@ export function useMapZoom(
             // Reset zoom when multiple or no cities selected
             setZoomToGeometry(null);
         }
+
+        return () => {
+            if (timeoutId !== null) {
+                clearTimeout(timeoutId);
+            }
+        };
     }, [selectedCities, citiesWithGeometry]);
 
     return { zoomToGeometry, setZoomToGeometry };

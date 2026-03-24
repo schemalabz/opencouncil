@@ -175,17 +175,8 @@ export default function MapPage() {
                     <MapExplainer
                         open={showExplainer}
                         onOpenChange={setShowExplainer}
-                        hideButton={true}
+                        hideButton={false}
                     />
-
-                    {/* Mobile explainer button */}
-                    <div className="md:hidden">
-                        <MapExplainer
-                            open={showExplainer}
-                            onOpenChange={setShowExplainer}
-                            hideButton={false}
-                        />
-                    </div>
 
                     {/* Map Summary */}
                     <div className="absolute bottom-4 right-4 z-20 pointer-events-none hidden sm:block">
