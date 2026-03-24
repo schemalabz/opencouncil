@@ -4,6 +4,7 @@ import { Button } from './button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Filter } from 'lucide-react';
 
 export interface BadgePickerOption<T extends string> {
@@ -33,6 +34,7 @@ export function BadgePicker<T extends string>({
     inline = false
 }: BadgePickerProps<T>) {
     const [expanded, setExpanded] = useState(false);
+    const t = useTranslations('Common');
 
     if (options.length === 0) {
         return null;
@@ -68,6 +70,8 @@ export function BadgePicker<T extends string>({
                 <button
                     onClick={() => setExpanded(!expanded)}
                     className="sm:hidden flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    aria-expanded={expanded}
+                    aria-label={t('filter', { label: selectedLabel })}
                 >
                     <Filter className="w-3.5 h-3.5" />
                     <span>{selectedLabel}</span>
@@ -163,6 +167,7 @@ function BadgeButtons<T extends string>({
                     isAllSelected ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/50"
                 )}
                 onClick={onSelectAll}
+                aria-pressed={isAllSelected}
             >
                 {allLabel}
             </Button>
@@ -181,6 +186,7 @@ function BadgeButtons<T extends string>({
                                 : "bg-background hover:bg-muted/50"
                         )}
                         onClick={() => onToggle(option.value)}
+                        aria-pressed={isSelected}
                         style={
                             option.color
                                 ? isSelected
@@ -192,6 +198,7 @@ function BadgeButtons<T extends string>({
                         {option.color && (
                             <div
                                 className="w-1.5 h-1.5 rounded-full"
+                                aria-hidden="true"
                                 style={{
                                     backgroundColor: isSelected ? '#fff' : option.color
                                 }}

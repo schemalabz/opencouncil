@@ -93,6 +93,7 @@ export function CityOverview({ city, showPrivateLabel }: CityOverviewProps) {
                             }}
                             editable={false}
                             mostRecent={true}
+                            headingLevel="h3"
                         />
                     )}
                 </div>

@@ -99,14 +99,14 @@ export default function Footer({ className }: FooterProps = {}) {
                         <div className="flex items-center gap-4">
                             <TooltipProvider>
                                 {[
-                                    { href: "https://twitter.com/opencouncil_gr", icon: SiX, label: "@opencouncil_gr" },
-                                    { href: "https://instagram.com/opencouncil_gr", icon: SiInstagram, label: "@opencouncil_gr" },
-                                    { href: "https://github.com/schemalabz/opencouncil", icon: SiGithub, label: "opencouncil" },
+                                    { href: "https://twitter.com/opencouncil_gr", icon: SiX, label: "X (Twitter): @opencouncil_gr" },
+                                    { href: "https://instagram.com/opencouncil_gr", icon: SiInstagram, label: "Instagram: @opencouncil_gr" },
+                                    { href: "https://github.com/schemalabz/opencouncil", icon: SiGithub, label: "GitHub: opencouncil" },
                                     { href: "https://discord.gg/VdwtVG43WB", icon: SiDiscord, label: "Discord" },
                                     {
                                         href: "https://www.facebook.com/profile.php?id=61570217107676",
                                         icon: SiFacebook,
-                                        label: "OpenCouncil",
+                                        label: "Facebook: OpenCouncil",
                                     },
                                     { href: "https://schemalabs.substack.com", icon: SiSubstack, label: "Substack" },
                                 ].map((social) => (
@@ -116,7 +116,8 @@ export default function Footer({ className }: FooterProps = {}) {
                                                 href={social.href}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-muted-foreground hover:text-primary transition-colors"
+                                                className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
+                                                aria-label={social.label}
                                             >
                                                 <social.icon className="w-5 h-5" />
                                             </a>

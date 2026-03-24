@@ -41,7 +41,9 @@
     "pause": "Pause",
     "play": "Play",
     "previousClip": "Previous clip",
-    "nextClip": "Next clip"
+    "nextClip": "Next clip",
+    "timeline": "Playback timeline",
+    "playbackProgress": "Playback progress"
   },
   "unverifiedBanner": {
     "title": "Automatic Transcript",

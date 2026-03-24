@@ -4,6 +4,7 @@ import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { calculateGeometryBounds } from '@/lib/geo'
 import { createRoot } from 'react-dom/client'
@@ -67,6 +68,7 @@ const Map = memo(function Map({
     zoomToGeometry,
     zoomPadding
 }: MapProps) {
+    const t = useTranslations('Common')
     const mapContainer = useRef<HTMLDivElement>(null)
     const map = useRef<mapboxgl.Map | null>(null)
     const popup = useRef<mapboxgl.Popup | null>(null)
@@ -976,7 +978,7 @@ const Map = memo(function Map({
     }, [zoomToGeometry, zoomPadding, mapReady]);
 
     return (
-        <div ref={mapContainer} className={cn("w-full h-full", className)} />
+        <div ref={mapContainer} className={cn("w-full h-full", className)} role="img" aria-label={t('municipalityMap')} />
     );
 }, (prevProps, nextProps) => {
     // Custom comparison to prevent unnecessary rerenders

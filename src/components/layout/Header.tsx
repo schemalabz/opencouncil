@@ -1,6 +1,7 @@
 "use client"
 import { cn } from "@/lib/utils"
 import { Link } from '@/i18n/routing'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
@@ -105,6 +106,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
 }
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
+    const t = useTranslations("Header");
     const { scrollY } = useScroll();
     const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
     const router = useRouter();
@@ -258,7 +260,8 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                 <button
                     onClick={() => setIsSearchOpen(true)}
                     className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-accent transition-colors"
-                    title="Search"
+                    aria-label={t('search')}
+                    title={t('search')}
                 >
                     <Search className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </button>
@@ -405,6 +408,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"
+                                        aria-label={t('search')}
                                         autoFocus
                                     />
                                 </form>

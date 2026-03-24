@@ -1,5 +1,13 @@
 {
     "Common": {
+        "skipToContent": "Μετάβαση στο κύριο περιεχόμενο",
+        "search": "Αναζήτηση",
+        "collapse": "Σύμπτυξη",
+        "filter": "Φίλτρο: {label}",
+        "municipalityMap": "Χάρτης δήμου",
+        "transcript": "Απομαγνητοφώνηση",
+        "meetingNavigation": "Πλοήγηση συνεδρίασης",
+        "searchAddressInMunicipality": "Αναζητήστε διεύθυνση στον δήμο {cityName}",
         "allTopics": "Όλα τα θέματα",
         "allMeetings": "Όλες",
         "adminBodyType_council": "Δημοτικά Συμβούλια",
@@ -32,7 +40,8 @@
         "meetings": "συνεδριάσεις"
     },
     "Header": {
-        "about": "Για Δήμους"
+        "about": "Για Δήμους",
+        "search": "Αναζήτηση"
     },
     "Footer": {
         "privacy": "Πολιτική Απορρήτου",
@@ -150,7 +159,8 @@
         "addItem": "Προσθήκη Πόλης",
         "noItems": "Δεν υπάρχουν πόλεις στο OpenCouncil.",
         "allAdministrativeBodies": "Όλα τα όργανα",
-        "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο"
+        "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο",
+        "citySections": "Ενότητες δήμου"
     },
     "AddMeetingForm": {
         "meetingName": "Όνομα Συνεδρίασης",

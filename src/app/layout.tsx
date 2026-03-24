@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { routing } from "@/i18n/routing";
 import { inter, roboto, robotoMono } from "@/lib/fonts";
+import { getTranslations } from "next-intl/server";
 
 export const metadata = {
     title: 'OpenCouncil',
@@ -55,8 +56,10 @@ export default async function RootLayout({
     params: { locale: string }
 }) {
 
+    const t = await getTranslations({ locale: locale || routing.defaultLocale, namespace: "Common" });
+
     return (
-        <html lang={locale} suppressHydrationWarning>
+        <html lang={locale || routing.defaultLocale} suppressHydrationWarning>
             <head>
             </head>
             <body
@@ -67,6 +70,12 @@ export default async function RootLayout({
                     robotoMono.variable
                 )}
             >
+                <a
+                    href="#main-content"
+                    className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:outline-none"
+                >
+                    {t("skipToContent")}
+                </a>
                 <SessionProvider>
                     <PlausibleProvider domain="opencouncil.gr">
                         {children}

@@ -11,7 +11,7 @@ export default function TopicBadge({ topic, count, className, size = "default" }
 
     return (
         <div className={cn("inline-flex items-center rounded-full", sizeClasses, className)} style={{ backgroundColor: topic.colorHex + '20' }}>
-            <div className={cn("rounded-full shrink-0", dotSize)} style={{ backgroundColor: topic.colorHex }} />
+            <div className={cn("rounded-full shrink-0", dotSize)} aria-hidden="true" style={{ backgroundColor: topic.colorHex }} />
             <span className={cn("truncate", textSize)} style={{ color: topic.colorHex }}>{topic.name}</span>
             {count !== undefined && (
                 <span className="text-[9px] sm:text-xs shrink-0" style={{ color: topic.colorHex }}>({count})</span>
