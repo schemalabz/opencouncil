@@ -32,6 +32,7 @@ interface MeetingCardProps {
     editable: boolean;
     mostRecent?: boolean;
     cityTimezone?: string;
+    headingLevel?: 'h2' | 'h3';
 }
 
 const LoadingDots = () => (
@@ -54,7 +55,7 @@ const LoadingDots = () => (
     </div>
 );
 
-export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone }: MeetingCardProps) {
+export default function MeetingCard({ item: meeting, editable, mostRecent, cityTimezone, headingLevel: Heading = 'h2' }: MeetingCardProps) {
     const t = useTranslations('MeetingCard');
     const router = useRouter();
     const locale = useLocale();
@@ -173,14 +174,14 @@ export default function MeetingCard({ item: meeting, editable, mostRecent, cityT
 
                         {/* Meeting title */}
                         <div className="pb-1">
-                            <h3
+                            <Heading
                                 className={cn(
                                     "text-xl sm:text-2xl text-foreground/90 line-clamp-2 tracking-tight transition-colors duration-200",
                                     isHovered ? "text-primary" : ""
                                 )}
                             >
                                 {meeting.name}
-                            </h3>
+                            </Heading>
                         </div>
 
                         {/* Meeting metadata - more compact */}

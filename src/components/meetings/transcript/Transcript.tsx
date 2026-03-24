@@ -8,6 +8,7 @@ import { ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
+import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 
 // Helper functions for speaker segment identification and parsing
@@ -28,6 +29,7 @@ const createSegmentId = (index: number): string => {
 export default function Transcript() {
     const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
+    const t = useTranslations('Common');
     const { setCurrentScrollInterval } = useVideo();
     const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -142,18 +144,21 @@ export default function Transcript() {
     }
 
     return (
-        <div className="container px-2 sm:px-4 md:px-6" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+        <div className="container px-2 sm:px-4 md:px-6" style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
+            <h2 className="sr-only">{t('transcript')}</h2>
             {isUnverified && (
                 <UnverifiedTranscriptBanner
                     isScrolled={isScrolled}
                     onBannerHeightChange={setBannerHeight}
                 />
             )}
+            <div ref={containerRef} role="list" aria-label={t('transcript')}>
             {displayedSegments.map((segment, index: number) => (
                 <div
                     key={index}
                     id={createSegmentId(index)}
                     className="content-visibility-auto"
+                    role="listitem"
                 >
                     <SpeakerSegment
                         segment={segment}
@@ -161,6 +166,7 @@ export default function Transcript() {
                     />
                 </div>
             ))}
+            </div>
         </div>
     );
 }

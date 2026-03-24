@@ -23,9 +23,11 @@ import { usePathname } from "next/navigation"
 import { cn, formatTime, sortSubjectsByAgendaIndex } from "@/lib/utils"
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects"
 import { useTranscriptOptions } from "./options/OptionsContext"
+import { useTranslations } from 'next-intl'
 
 export default function MeetingSidebar() {
     const { city, meeting, subjects } = useCouncilMeetingData()
+    const tCommon = useTranslations('Common')
     const [subjectsExpanded, setSubjectsExpanded] = useState(true)
     const { isMobile, setOpenMobile, state: sidebarState } = useSidebar()
     const pathname = usePathname()
@@ -139,6 +141,7 @@ export default function MeetingSidebar() {
             <SidebarContent className="flex-1 min-h-0">
                 <SidebarGroup>
                     <SidebarGroupContent>
+                        <nav aria-label={tCommon('meetingNavigation')}>
                         <SidebarMenu>
                             {mainMenuItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
@@ -182,6 +185,7 @@ export default function MeetingSidebar() {
                                 </>
                             )}
                         </SidebarMenu>
+                        </nav>
                     </SidebarGroupContent>
                 </SidebarGroup>
                 <div className="h-20 shrink-0" />
@@ -193,10 +197,11 @@ export default function MeetingSidebar() {
 function ControlsWidget() {
     const { isPlaying, togglePlayPause, isSeeking, currentTime, duration } = useVideo();
     const { state } = useSidebar();
+    const t = useTranslations('transcript.controls');
 
     if (state === "collapsed") {
         return (
-            <button onClick={togglePlayPause} className="flex items-center justify-center">
+            <button onClick={togglePlayPause} className="flex items-center justify-center" aria-label={isPlaying ? t('pause') : t('play')}>
                 {isPlaying ?
                     (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
                     : <Play className="h-4 w-4" />
@@ -208,7 +213,7 @@ function ControlsWidget() {
     return (
         <div className="w-full space-y-2">
             <div className="flex items-center justify-between">
-                <button onClick={togglePlayPause} className="flex items-center gap-2">
+                <button onClick={togglePlayPause} className="flex items-center gap-2" aria-label={isPlaying ? t('pause') : t('play')}>
                     {isPlaying ?
                         (isSeeking ? <Loader className="h-4 w-4 animate-spin" /> : <Pause className="h-4 w-4" />)
                         : <Play className="h-4 w-4" />
@@ -217,7 +222,7 @@ function ControlsWidget() {
                 </button>
                 <span className="text-sm text-muted-foreground">{formatTime(duration)}</span>
             </div>
-            <div className="h-1 w-full rounded-full bg-secondary">
+            <div className="h-1 w-full rounded-full bg-secondary" role="progressbar" aria-valuenow={Math.round(currentTime)} aria-valuemin={0} aria-valuemax={Math.round(duration)} aria-valuetext={formatTime(currentTime)} aria-label={t('playbackProgress')}>
                 <div
                     className="h-full rounded-full bg-primary transition-all"
                     style={{ width: `${(currentTime / duration) * 100}%` }}
