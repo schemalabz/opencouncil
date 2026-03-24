@@ -1,6 +1,6 @@
 "use client";
 import SpeakerSegment from "./SpeakerSegment";
-import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useVideo } from "../VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
@@ -28,68 +28,33 @@ const createSegmentId = (index: number): string => {
 export default function Transcript() {
     const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
-    const { setCurrentScrollInterval, currentTime } = useVideo();
+    const { setCurrentScrollInterval } = useVideo();
     const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
-    const [visibleSegments, setVisibleSegments] = useState<Set<number>>(new Set());
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
+    const [isScrolled, setIsScrolled] = useState(false);
     const searchParams = useSearchParams();
-    
+
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview;
-
-    // Derive scroll state from visible segments - if first segment (index 0) is not visible, we've scrolled
-    const isScrolled = useMemo(() => {
-        return visibleSegments.size > 0 && !visibleSegments.has(0);
-    }, [visibleSegments]);
 
     // Join segments if not in edit mode
     const displayedSegments = useMemo(() => {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
 
-    // Helper to calculate time interval from segment indices
-    const calculateTimeInterval = useCallback((segmentIndices: number[] | Set<number>): [number, number] | null => {
-        const indices = Array.isArray(segmentIndices) ? segmentIndices : Array.from(segmentIndices);
-        const sortedIndices = indices.sort((a, b) => a - b);
-        const validSegments = sortedIndices.map(index => displayedSegments[index]).filter(Boolean);
-        
-        if (validSegments.length === 0) return null;
-        
-        const firstVisible = validSegments[0];
-        const lastVisible = validSegments[validSegments.length - 1];
-        return [firstVisible.startTimestamp, lastVisible.endTimestamp];
-    }, [displayedSegments]);
-
-    // Add effect to handle initial scroll position
+    // Track scroll state for banner minimization via scroll container
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const timeParam = urlParams.get('t');
+        const container = containerRef.current?.closest('[data-scroll-container]');
+        if (!container) return;
 
-        if (timeParam && containerRef.current) {
-            const seconds = parseInt(timeParam, 10);
-            if (!isNaN(seconds)) {
-                // Force an immediate scroll update
-                const updateScrollInterval = () => {
-                    const visibleIndices = Array.from(containerRef.current!.children)
-                        .filter((child) => {
-                            const rect = child.getBoundingClientRect();
-                            return rect.top < window.innerHeight && rect.bottom >= 0;
-                        })
-                        .filter(isSpeakerSegmentElement)
-                        .map((child) => parseSegmentIndex(child.id));
+        const handleScroll = () => {
+            setIsScrolled(container.scrollTop > 50);
+        };
 
-                    const interval = calculateTimeInterval(visibleIndices);
-                    if (interval) {
-                        setCurrentScrollInterval(interval);
-                    }
-                };
-
-                // Update scroll interval after a short delay to ensure components are rendered
-                setTimeout(updateScrollInterval, 100);
-            }
-        }
-    }, [displayedSegments, setCurrentScrollInterval, calculateTimeInterval]);
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // Handle highlight editing initialization from URL
     useEffect(() => {
@@ -102,59 +67,61 @@ export default function Transcript() {
         }
     }, [searchParams, getHighlight, enterEditMode, editingHighlight?.id]);
 
+    // Store displayedSegments in a ref for stable IntersectionObserver callback
+    const displayedSegmentsRef = useRef(displayedSegments);
+    displayedSegmentsRef.current = displayedSegments;
+
+    // Store setCurrentScrollInterval in a ref for stable access from observer callback
+    const setCurrentScrollIntervalRef = useRef(setCurrentScrollInterval);
+    setCurrentScrollIntervalRef.current = setCurrentScrollInterval;
+
     const debouncedSetCurrentScrollInterval = useMemo(
-        () => debounce(setCurrentScrollInterval, 500),
-        [setCurrentScrollInterval]
+        () => debounce((interval: [number, number]) => {
+            setCurrentScrollIntervalRef.current(interval);
+        }, 500),
+        []
     );
 
-    // Single intersection observer for tracking visible segments AND updating scroll interval
-    const handleIntersection = useCallback((entries: IntersectionObserverEntry[]) => {
-        let hasChanges = false;
-        const updates: { index: number; visible: boolean }[] = [];
-
-        entries.forEach((entry) => {
-            const segmentIndex = parseSegmentIndex(entry.target.id);
-            const isCurrentlyVisible = visibleSegments.has(segmentIndex);
-
-            if (entry.isIntersecting && !isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: true });
-                hasChanges = true;
-            } else if (!entry.isIntersecting && isCurrentlyVisible) {
-                updates.push({ index: segmentIndex, visible: false });
-                hasChanges = true;
-            }
-        });
-
-        if (hasChanges) {
-            const newVisibleSegments = new Set(visibleSegments);
-            updates.forEach(({ index, visible }) => {
-                if (visible) {
-                    newVisibleSegments.add(index);
-                } else {
-                    newVisibleSegments.delete(index);
-                }
-            });
-
-            setVisibleSegments(newVisibleSegments);
-
-            // Update scroll interval with debouncing for performance
-            const interval = calculateTimeInterval(newVisibleSegments);
-            if (interval) {
-                debouncedSetCurrentScrollInterval(interval);
-            }
-        }
-    }, [visibleSegments, calculateTimeInterval, debouncedSetCurrentScrollInterval]);
-
+    // IntersectionObserver ONLY for currentScrollInterval tracking (used by CurrentTimeButton).
+    // No state updates — only refs and debounced callbacks. This means scrolling causes
+    // ZERO React re-renders.
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const observer = new IntersectionObserver(handleIntersection, {
+        const visibleSegments = new Set<number>();
+
+        const observer = new IntersectionObserver((entries) => {
+            let hasChanges = false;
+
+            entries.forEach((entry) => {
+                if (!isSpeakerSegmentElement(entry.target)) return;
+                const segmentIndex = parseSegmentIndex(entry.target.id);
+
+                if (entry.isIntersecting && !visibleSegments.has(segmentIndex)) {
+                    visibleSegments.add(segmentIndex);
+                    hasChanges = true;
+                } else if (!entry.isIntersecting && visibleSegments.has(segmentIndex)) {
+                    visibleSegments.delete(segmentIndex);
+                    hasChanges = true;
+                }
+            });
+
+            if (hasChanges) {
+                const indices = Array.from(visibleSegments).sort((a, b) => a - b);
+                const segments = indices.map(i => displayedSegmentsRef.current[i]).filter(Boolean);
+                if (segments.length > 0) {
+                    debouncedSetCurrentScrollInterval([
+                        segments[0].startTimestamp,
+                        segments[segments.length - 1].endTimestamp,
+                    ]);
+                }
+            }
+        }, {
             root: null,
-            rootMargin: '200px', // Load segments when they're 200px away from viewport
+            rootMargin: '200px',
             threshold: 0,
         });
 
-        // Only observe speaker segment elements, not other children like the banner
         Array.from(containerRef.current.children).forEach((child) => {
             if (isSpeakerSegmentElement(child)) {
                 observer.observe(child);
@@ -162,7 +129,8 @@ export default function Transcript() {
         });
 
         return () => observer.disconnect();
-    }, [displayedSegments, handleIntersection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [displayedSegments]);
 
     if (displayedSegments.length === 0) {
         return <div className="container py-8">
@@ -176,30 +144,23 @@ export default function Transcript() {
     return (
         <div className="container px-2 sm:px-4 md:px-6" ref={containerRef} style={isUnverified ? { '--banner-offset': bannerHeight } as React.CSSProperties : undefined}>
             {isUnverified && (
-                <UnverifiedTranscriptBanner 
+                <UnverifiedTranscriptBanner
                     isScrolled={isScrolled}
                     onBannerHeightChange={setBannerHeight}
                 />
             )}
-            {displayedSegments.map((segment, index: number) => {
-                // Determine if this segment should be fully rendered
-                const shouldRender = visibleSegments.has(index) ||
-                    visibleSegments.has(index - 1) ||
-                    visibleSegments.has(index + 1);
-
-                return (
-                    <div
-                        key={index}
-                        id={createSegmentId(index)}
-                    >
-                        <SpeakerSegment
-                            segment={segment}
-                            renderMock={!shouldRender}
-                            isFirstSegment={index === 0}
-                        />
-                    </div>
-                );
-            })}
+            {displayedSegments.map((segment, index: number) => (
+                <div
+                    key={index}
+                    id={createSegmentId(index)}
+                    className="content-visibility-auto"
+                >
+                    <SpeakerSegment
+                        segment={segment}
+                        isFirstSegment={index === 0}
+                    />
+                </div>
+            ))}
         </div>
     );
 }

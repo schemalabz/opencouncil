@@ -196,6 +196,19 @@ h2:not(.prose h2) {
   line-height: 1.5;
 }
 
+/* When scrolling to an utterance (via scrollIntoView), position it below
+   sticky segment headers rather than at the very top of the scroll container. */
+.utterance {
+  scroll-margin-top: 25vh;
+}
+
+/* Allow the browser to skip rendering for off-screen speaker segments.
+   This provides native virtualization without any DOM swapping or layout shifts. */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
 /* Monospace font utility */
 .font-mono-roboto {
   font-family: var(--font-roboto-mono), 'Roboto Mono', monospace;
