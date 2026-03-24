@@ -178,6 +178,7 @@ function PersonBadge({
                 {party && (
                     <div
                         className="w-2 h-2 rounded-full shrink-0"
+                        aria-hidden="true"
                         style={{ backgroundColor: party.colorHex }}
                     />
                 )}

@@ -177,6 +177,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
     const { data: session } = useSession();
     const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
+    const tCommon = useTranslations('Common');
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
 
@@ -323,6 +324,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                 size="icon"
                                                 className="h-7 w-7 md:hidden"
                                                 onClick={() => handleCollapseToggle(true)}
+                                                aria-label={tCommon('collapse')}
                                             >
                                                 <ChevronUp className="h-4 w-4" />
                                             </Button>
@@ -367,6 +369,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                         size="icon"
                                                         className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
                                                         onClick={handleCopySegment}
+                                                        aria-label={tCopy('button')}
                                                     >
                                                         <Copy className="h-4 w-4" />
                                                     </Button>

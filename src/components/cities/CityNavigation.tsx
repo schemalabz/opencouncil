@@ -34,7 +34,7 @@ function NavLink({
         }`;
 
     return (
-        <Link href={href} className={className}>
+        <Link href={href} className={className} aria-current={isActive ? 'page' : undefined}>
             {children}
         </Link>
     );
@@ -54,7 +54,7 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
             transition={{ delay: 0.7 }}
             className="flex justify-center mb-6 md:mb-8"
         >
-            <div className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
+            <nav aria-label={t('citySections')} className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
                 <NavLink
                     href={`/${cityId}`}
                     segment={currentSegment}
@@ -85,7 +85,7 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
                         {t('consultations')}
                     </NavLink>
                 )}
-            </div>
+            </nav>
         </motion.div>
     );
 } 

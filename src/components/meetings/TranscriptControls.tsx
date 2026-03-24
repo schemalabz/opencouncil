@@ -6,7 +6,7 @@ import { cn, formatTimestamp } from "@/lib/utils";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useTranscriptOptions } from "./options/OptionsContext";
 import { useHighlight } from "./HighlightContext";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Video } from "./Video";
 
 export default function TranscriptControls({ className }: { className?: string }) {
@@ -180,6 +180,29 @@ export default function TranscriptControls({ className }: { className?: string }
 
     const tooltipStyle = getTooltipPosition();
 
+    const handleSliderKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        const step = duration * 0.01;
+        const increase = isWide
+            ? (e.key === 'ArrowRight' || e.key === 'ArrowUp')
+            : (e.key === 'ArrowDown' || e.key === 'ArrowRight');
+        const decrease = isWide
+            ? (e.key === 'ArrowLeft' || e.key === 'ArrowDown')
+            : (e.key === 'ArrowUp' || e.key === 'ArrowLeft');
+        if (increase) {
+            e.preventDefault();
+            seekTo(Math.min(duration, currentTime + step));
+        } else if (decrease) {
+            e.preventDefault();
+            seekTo(Math.max(0, currentTime - step));
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            seekTo(0);
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            seekTo(duration);
+        }
+    }, [duration, currentTime, seekTo, isWide]);
+
     // Check if we're in highlight editing mode
     const isHighlightMode = editingHighlight !== null;
 
@@ -254,8 +277,17 @@ export default function TranscriptControls({ className }: { className?: string }
                 {/* Slider Container */}
                 <div
                     ref={sliderRef}
+                    role="slider"
+                    aria-label={t('timeline')}
+                    aria-orientation={isWide ? "horizontal" : "vertical"}
+                    aria-valuenow={Math.round(currentTime)}
+                    aria-valuemin={0}
+                    aria-valuemax={Math.round(duration)}
+                    aria-valuetext={formatTimestamp(currentTime)}
+                    tabIndex={0}
                     className={`flex-grow cursor-pointer ${isWide ? 'h-12' : 'w-12'} bg-white border-2 mx-1 my-1 relative`}
                     onClick={handleSeek}
+                    onKeyDown={handleSliderKeyDown}
                     onMouseMove={handleMouseMove}
                     onMouseLeave={handleMouseLeave}
                     onTouchStart={onTouchStart}
