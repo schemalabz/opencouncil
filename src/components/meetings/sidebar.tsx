@@ -179,8 +179,8 @@ export default function MeetingSidebar() {
 
                             {subjectsExpanded && sidebarState !== 'collapsed' && (
                                 <>
-                                    {renderSubjectSection(SUBJECT_CATEGORIES.beforeAgenda.shortLabel, beforeAgenda)}
-                                    {renderSubjectSection(SUBJECT_CATEGORIES.outOfAgenda.shortLabel, outOfAgenda)}
+                                    {renderSubjectSection(SUBJECT_CATEGORIES.beforeAgenda.shortLabel, beforeAgenda, (_, i) => `${i + 1}.`)}
+                                    {renderSubjectSection(SUBJECT_CATEGORIES.outOfAgenda.shortLabel, outOfAgenda, (_, i) => `${i + 1}.`)}
                                     {renderSubjectSection(SUBJECT_CATEGORIES.agenda.shortLabel, agenda, (s) => `${s.agendaItemIndex}.`)}
                                 </>
                             )}
