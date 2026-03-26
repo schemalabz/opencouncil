@@ -673,6 +673,7 @@ export async function sendPollDecisionsBatchCompletedAlert(data: {
     totalMatches: number;
     totalReassignments: number;
     totalConflicts: number;
+    totalExtractions: number;
     meetingBreakdown: PollDecisionsMeetingResult[];
 }): Promise<void> {
     const hasDecisions = data.totalMatches > 0;
@@ -704,9 +705,13 @@ export async function sendPollDecisionsBatchCompletedAlert(data: {
         fields.push({ name: 'Conflicts', value: data.totalConflicts.toString(), inline: true });
     }
 
+    if (data.totalExtractions > 0) {
+        fields.push({ name: 'Extracted', value: data.totalExtractions.toString(), inline: true });
+    }
+
     // Per-meeting breakdown for meetings with results or failures
     const notable = data.meetingBreakdown.filter(
-        m => m.matches > 0 || m.reassignments > 0 || m.conflicts > 0 || m.status === 'failed'
+        m => m.matches > 0 || m.reassignments > 0 || m.conflicts > 0 || m.extractions > 0 || m.status === 'failed'
     );
 
     if (notable.length > 0) {
@@ -720,6 +725,7 @@ export async function sendPollDecisionsBatchCompletedAlert(data: {
                     if (m.matches > 0) details.push(`${m.matches} match(es)`);
                     if (m.reassignments > 0) details.push(`${m.reassignments} reassignment(s)`);
                     if (m.conflicts > 0) details.push(`${m.conflicts} conflict(s)`);
+                    if (m.extractions > 0) details.push(`${m.extractions} extracted`);
                     parts.push(details.join(', '));
                 }
                 return parts.join(' — ');

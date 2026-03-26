@@ -50,9 +50,6 @@ export const TASK_CONFIG = {
     requiredForPipeline: false,
     discordAlertMode: 'none',
   },
-  extractDecisions: {
-    requiredForPipeline: false,
-  },
 } satisfies Record<string, TaskConfig>;
 
 // Derive MeetingTaskType from the configuration

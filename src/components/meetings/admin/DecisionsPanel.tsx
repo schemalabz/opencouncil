@@ -10,11 +10,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search, FileText } from 'lucide-react';
+import { ExternalLink, Trash2, FileCheck, FileX, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Eraser, Search } from 'lucide-react';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
-import { requestExtractDecisions } from '@/lib/tasks/extractDecisions';
 import { calculateVoteResult } from '@/lib/utils/votes';
 import ReactMarkdown from 'react-markdown';
 
@@ -102,7 +101,6 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [filterTab, setFilterTab] = useState<FilterTab>('all');
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
-    const [isExtracting, setIsExtracting] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
 
     const fetchDecisions = useCallback(async () => {
@@ -249,25 +247,6 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
         }
     };
 
-    const handleExtractDecisions = async () => {
-        setIsExtracting(true);
-        try {
-            await requestExtractDecisions(meeting.cityId, meeting.id);
-            toast({
-                title: t('toasts.extractDecisionsRequested.title'),
-                description: t('toasts.extractDecisionsRequested.description'),
-            });
-        } catch (error) {
-            toast({
-                title: t('toasts.errorExtractingDecisions.title'),
-                description: `${error}`,
-                variant: 'destructive',
-            });
-        } finally {
-            setIsExtracting(false);
-        }
-    };
-
     const handleClearExtractedData = async () => {
         if (!confirm('Clear all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.')) return;
         setIsClearing(true);
@@ -331,16 +310,14 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                     </DialogDescription>
                 </DialogHeader>
 
-                {/* Actions: two-step workflow */}
+                {/* Actions */}
                 <div className="space-y-3 border-b pb-3">
-                    {/* Step 1: Link PDFs */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground shrink-0">1</div>
                             <div>
-                                <div className="text-xs font-medium">Link decision PDFs</div>
+                                <div className="text-xs font-medium">Poll &amp; extract decisions</div>
                                 <div className="text-[11px] text-muted-foreground">
-                                    Poll Diavgeia automatically or add PDF links manually below.
+                                    Poll Diavgeia, match decisions to subjects, and extract data from PDFs.
                                 </div>
                             </div>
                         </div>
@@ -349,6 +326,22 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                 <FileCheck className="h-3.5 w-3.5 inline mr-1" />
                                 {linkedCount}/{eligibleSubjects.length}
                             </span>
+                            {extractedSubjects.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    disabled={isClearing}
+                                    onClick={handleClearExtractedData}
+                                >
+                                    {isClearing ? (
+                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : (
+                                        <Eraser className="h-3 w-3 mr-1" />
+                                    )}
+                                    Clear
+                                </Button>
+                            )}
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -368,7 +361,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
 
                     {/* Polling Status */}
                     {pollingStatus && pollingStatus.totalPolls > 0 && (
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap ml-7">
+                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                             <Clock className="h-3 w-3" />
                             <span>
                                 Polled {pollingStatus.totalPolls} {pollingStatus.totalPolls === 1 ? 'time' : 'times'}
@@ -398,57 +391,6 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                             ) : null}
                         </div>
                     )}
-
-                    {/* Step 2: Extract data from PDFs */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground shrink-0">2</div>
-                            <div>
-                                <div className="text-xs font-medium">Extract data from PDFs</div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    Extract attendance, votes, and excerpts from linked PDFs.
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            {extractedSubjects.length > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                    <FileText className="h-3.5 w-3.5 inline mr-1" />
-                                    {extractedSubjects.length}/{linkedCount}
-                                </span>
-                            )}
-                            {extractedSubjects.length > 0 && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    disabled={isClearing}
-                                    onClick={handleClearExtractedData}
-                                >
-                                    {isClearing ? (
-                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    ) : (
-                                        <Eraser className="h-3 w-3 mr-1" />
-                                    )}
-                                    Clear
-                                </Button>
-                            )}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                disabled={isExtracting || linkedCount === 0}
-                                onClick={handleExtractDecisions}
-                            >
-                                {isExtracting ? (
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                ) : (
-                                    <FileText className="h-3 w-3 mr-1" />
-                                )}
-                                {t('buttons.extractDecisions')}
-                            </Button>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Filter tabs */}
