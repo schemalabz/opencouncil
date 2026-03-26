@@ -434,25 +434,6 @@ export interface GenerateVoiceprintResult {
  * Extract Decisions (PDF → structured data)
  */
 
-export interface ExtractDecisionsRequest extends TaskRequest {
-    cityId: string;
-    meetingId: string;
-    subjects: {
-        subjectId: string;
-        name: string;
-        agendaItemIndex: number;
-        decision: {
-            pdfUrl: string;
-            ada: string | null;
-            protocolNumber: string | null;
-        };
-    }[];
-    people: {
-        id: string;
-        name: string;
-    }[];
-}
-
 export interface ExtractedDecisionData {
     subjectId: string;
     excerpt: string;
@@ -462,27 +443,27 @@ export interface ExtractedDecisionData {
     voteResult: string | null;
     voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' }[];
     unmatchedMembers: string[];
-}
-
-export interface ExtractDecisionsResult {
-    decisions: ExtractedDecisionData[];
-    warnings: string[];
+    subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
 }
 
 /*
- * Task: Poll Decisions (Diavgeia)
+ * Task: Poll Decisions (Diavgeia) — includes extraction
  */
 
 export interface PollDecisionsRequest extends TaskRequest {
     meetingDate: string; // ISO date "YYYY-MM-DD"
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
     diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
+    people: { id: string; name: string }[];
     subjects: Array<{
         subjectId: string;
         name: string;
+        agendaItemIndex: number | null;
         existingDecision?: {
             ada: string;
             decisionTitle: string;
+            pdfUrl: string;
+            needsExtraction?: boolean;
         };
     }>;
 }
@@ -516,6 +497,16 @@ export interface PollDecisionsResult {
             similarity: number;
         }>;
     }>;
+    extractions: {
+        decisions: ExtractedDecisionData[];
+        warnings: string[];
+    } | null;
+    costs: {
+        input_tokens: number;
+        output_tokens: number;
+        cache_creation_input_tokens: number;
+        cache_read_input_tokens: number;
+    };
     metadata?: {
         diavgeiaUid: string;
         query: object;

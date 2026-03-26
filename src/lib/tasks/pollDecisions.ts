@@ -56,7 +56,7 @@ export async function pollDecisionsForMeeting(
                     name: true,
                     agendaItemIndex: true,
                     nonAgendaReason: true,
-                    decision: { select: { ada: true, title: true, pdfUrl: true } },
+                    decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
                 },
                 where: {
                     OR: [
@@ -100,6 +100,7 @@ export async function pollDecisionsForMeeting(
                     ada: s.decision.ada,
                     decisionTitle: s.decision.title ?? '',
                     pdfUrl: s.decision.pdfUrl,
+                    needsExtraction: !s.decision.excerpt, // linked but no extraction data
                 },
             } : {}),
         })),
