@@ -1,11 +1,13 @@
 "use server";
 
-import { PollDecisionsRequest, PollDecisionsResult } from "../apiTypes";
+import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
+import { AttendanceStatus, DataSource, VoteType } from "@prisma/client";
 import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/decisions";
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
+import { getPeopleForMeeting } from "../db/people";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
@@ -44,6 +46,7 @@ export async function pollDecisionsForMeeting(
             },
             administrativeBody: {
                 select: {
+                    id: true,
                     diavgeiaUnitIds: true,
                 },
             },
@@ -52,7 +55,8 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     agendaItemIndex: true,
-                    decision: { select: { ada: true, title: true } },
+                    nonAgendaReason: true,
+                    decision: { select: { ada: true, title: true, pdfUrl: true } },
                 },
                 where: {
                     OR: [
@@ -76,17 +80,27 @@ export async function pollDecisionsForMeeting(
         throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda)");
     }
 
+    // Fetch people for name matching during extraction
+    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBody?.id ?? null);
+    const peopleForRequest = people.map(p => ({ id: p.id, name: p.name }));
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
         diavgeiaUnitIds: councilMeeting.administrativeBody?.diavgeiaUnitIds.length
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
+        people: peopleForRequest,
         subjects: councilMeeting.subjects.map(s => ({
             subjectId: s.id,
             name: s.name,
+            agendaItemIndex: s.agendaItemIndex,
             ...(s.decision?.ada ? {
-                existingDecision: { ada: s.decision.ada, decisionTitle: s.decision.title ?? '' },
+                existingDecision: {
+                    ada: s.decision.ada,
+                    decisionTitle: s.decision.title ?? '',
+                    pdfUrl: s.decision.pdfUrl,
+                },
             } : {}),
         })),
     };
@@ -844,6 +858,7 @@ export interface PollDecisionsMeetingResult {
     matches: number;
     reassignments: number;
     conflicts: number;
+    extractions: number;
     status: 'succeeded' | 'failed';
     error?: string;
 }
@@ -910,6 +925,7 @@ export async function checkBatchCompletionAndAlert(
     let totalMatches = 0;
     let totalReassignments = 0;
     let totalConflicts = 0;
+    let totalExtractions = 0;
     let succeededCount = 0;
     let failedCount = 0;
     const meetingBreakdown: PollDecisionsMeetingResult[] = [];
@@ -926,6 +942,7 @@ export async function checkBatchCompletionAndAlert(
                 matches: 0,
                 reassignments: 0,
                 conflicts: 0,
+                extractions: 0,
                 status: 'failed',
                 error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
             });
@@ -940,6 +957,7 @@ export async function checkBatchCompletionAndAlert(
         let matches = 0;
         let reassignments = 0;
         let conflicts = 0;
+        let extractions = 0;
         if (sibling.responseBody) {
             try {
                 const parsed = JSON.parse(sibling.responseBody);
@@ -947,6 +965,7 @@ export async function checkBatchCompletionAndAlert(
                     matches = parsed._processedCounts.matches ?? 0;
                     reassignments = parsed._processedCounts.reassignments ?? 0;
                     conflicts = parsed._processedCounts.conflicts ?? 0;
+                    extractions = parsed._processedCounts.extractions ?? 0;
                 } else {
                     matches = Array.isArray(parsed.matches) ? parsed.matches.length : 0;
                     reassignments = Array.isArray(parsed.reassignments) ? parsed.reassignments.length : 0;
@@ -956,12 +975,14 @@ export async function checkBatchCompletionAndAlert(
         totalMatches += matches;
         totalReassignments += reassignments;
         totalConflicts += conflicts;
+        totalExtractions += extractions;
         meetingBreakdown.push({
             cityId,
             meetingId,
             matches,
             reassignments,
             conflicts,
+            extractions,
             status: 'succeeded',
         });
     }
@@ -972,6 +993,7 @@ export async function checkBatchCompletionAndAlert(
         totalMatches,
         totalReassignments,
         totalConflicts,
+        totalExtractions,
         meetingBreakdown,
     }).catch(err => console.error('Failed to send pollDecisions batch completed alert:', err));
 }
@@ -1237,7 +1259,12 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             data: {
                 responseBody: JSON.stringify({
                     ...result,
-                    _processedCounts: { matches: processedCount, reassignments: reassignmentCount, conflicts: conflictCount },
+                    _processedCounts: {
+                        matches: processedCount,
+                        reassignments: reassignmentCount,
+                        conflicts: conflictCount,
+                        extractions: extractedCount,
+                    },
                 }),
             },
         });
@@ -1245,5 +1272,5 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         console.error(`Failed to enrich responseBody for task ${taskId} (decisions already persisted):`, enrichError);
     }
 
-    console.log(`Poll decisions completed: ${processedCount} processed, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
+    console.log(`Poll decisions completed: ${processedCount} matched, ${extractedCount} extracted, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
 }
