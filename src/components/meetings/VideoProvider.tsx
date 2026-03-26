@@ -301,21 +301,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
     };
 
     /**
-     * SEEK CORE:
-     * - Sets video currentTime to specific timestamp
-     * - Updates internal time reference and highlight
-     */
-    const applySeek = (time: number) => {
-        if (!playerRef.current) return;
-        if (hasStartedPlaying) {
-            playerRef.current.currentTime = time;
-        }
-        currentTimeRef.current = time;
-        setCurrentTime(time);
-        updateHighlightOnce();
-    };
-
-    /**
      * SEEK TO TIME:
      * - Seeks to time and scrolls transcript to corresponding utterance
      */
@@ -325,7 +310,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
         }
         currentTimeRef.current = time;
         setCurrentTime(time);
-        
+        updateHighlightOnce();
+
         if (hasStartedPlaying) {
             // Use requestAnimationFrame to ensure DOM has updated
             requestAnimationFrame(() => {
@@ -340,7 +326,12 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
      * - Used for programmatic seeking
      */
     const seekToWithoutScroll = (time: number) => {
-        applySeek(time);
+        if (playerRef.current && hasStartedPlaying) {
+            playerRef.current.currentTime = time;
+        }
+        currentTimeRef.current = time;
+        setCurrentTime(time);
+        updateHighlightOnce();
     };
 
     /**

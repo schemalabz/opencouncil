@@ -67,7 +67,7 @@ export default function Transcript() {
     // Add effect to handle initial scroll position/interval
     useEffect(() => {
         const timeParam = searchParams.get('t');
-        if (timeParam && containerRef.current) {
+        if (timeParam && displayedSegments.length > 0 && containerRef.current) {
             const seconds = parseInt(timeParam, 10);
             if (!isNaN(seconds)) {
                 // Force an immediate scroll update
@@ -92,7 +92,7 @@ export default function Transcript() {
                 return () => clearTimeout(timeoutId);
             }
         }
-    }, [searchParams, setCurrentScrollInterval, calculateTimeInterval]);
+    }, [searchParams, setCurrentScrollInterval, calculateTimeInterval, displayedSegments]);
 
     // Handle highlight editing initialization from URL
     useEffect(() => {
@@ -183,7 +183,7 @@ export default function Transcript() {
         });
 
         return () => observer.disconnect();
-    }, [handleIntersection]);
+    }, [handleIntersection, displayedSegments]);
 
     if (displayedSegments.length === 0) {
         return <div className="container py-8">
