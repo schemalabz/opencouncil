@@ -52,6 +52,7 @@ export default function Transcript() {
     }, [visibleSegments, displayedSegments]);
 
     // Helper to calculate time interval from segment identities
+    // Assumes displayedSegments is chronologically ordered (guaranteed by orderedTranscript in CouncilMeetingDataContext)
     const calculateTimeInterval = useCallback((segmentIds: string[] | Set<string>): [number, number] | null => {
         const ids = Array.isArray(segmentIds) ? new Set(segmentIds) : segmentIds;
         const validSegments = displayedSegments.filter(segment => ids.has(segment.id));

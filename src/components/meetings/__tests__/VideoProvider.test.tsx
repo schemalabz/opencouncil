@@ -14,6 +14,12 @@ jest.mock('../CouncilMeetingDataContext', () => ({
     useCouncilMeetingData: jest.fn()
 }));
 
+jest.mock('next/navigation', () => ({
+    useSearchParams: () => ({
+        get: () => null
+    })
+}));
+
 // Mock MuxVideo to prevent console errors about it
 jest.mock('@mux/mux-player-react', () => ({
     __esModule: true,

@@ -39,6 +39,10 @@ jest.mock('../../HighlightContext', () => ({
     useHighlight: jest.fn()
 }));
 
+jest.mock('next-intl', () => ({
+    useTranslations: () => (key: string) => key
+}));
+
 jest.mock('next/navigation', () => ({
     useSearchParams: () => ({
         get: () => null
