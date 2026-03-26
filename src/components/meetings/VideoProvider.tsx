@@ -168,7 +168,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
             currentTimeRef.current = utterances[0].startTimestamp;
             setCurrentTime(utterances[0].startTimestamp);
         }
-    }, [utterances.length > 0]); // Re-run only when utterances first become available
+    }, [utterances.length]); // Re-run when utterance count changes; hasSetInitialTime guard prevents double-run
 
     // === URL PARAMETER DEEP-LINK ===
     // One-shot: flag is set only after a successful seek so that if playerRef.current is not yet
@@ -214,7 +214,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting 
                 scrollAttempt(3);
             }
         }
-    }, [timeParam, utterances.length > 0]);
+    }, [timeParam, utterances.length]);
 
     // === PLAYBACK SPEED SYNC ===
     useEffect(() => {

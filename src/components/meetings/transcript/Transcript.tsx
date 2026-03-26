@@ -71,7 +71,8 @@ export default function Transcript() {
             if (!isNaN(seconds)) {
                 // Force an immediate scroll update
                 const updateScrollInterval = () => {
-                    const visibleIds = Array.from(containerRef.current!.children)
+                    if (!containerRef.current) return;
+                    const visibleIds = Array.from(containerRef.current.children)
                         .filter((child) => {
                             const rect = child.getBoundingClientRect();
                             return rect.top < window.innerHeight && rect.bottom >= 0;
@@ -86,7 +87,8 @@ export default function Transcript() {
                 };
 
                 // Update scroll interval after a short delay to ensure components are rendered
-                setTimeout(updateScrollInterval, 100);
+                const timeoutId = setTimeout(updateScrollInterval, 100);
+                return () => clearTimeout(timeoutId);
             }
         }
     }, [searchParams, setCurrentScrollInterval, calculateTimeInterval]);
@@ -150,6 +152,7 @@ export default function Transcript() {
         if (interval) {
             debouncedSetScrollInterval(interval);
         } else if (visibleSegments.size === 0) {
+            debouncedSetScrollInterval.cancel();  // prevent stale debounced call from overwriting reset
             setCurrentScrollInterval([0, 0]);  // bypass debounce: clear immediately
         }
     }, [visibleSegments, calculateTimeInterval, debouncedSetScrollInterval, setCurrentScrollInterval]);
