@@ -395,3 +395,54 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
         throw new Error('Failed to fetch cities with logos');
     }
 }
+
+export interface AboutPageStats {
+    municipalityCount: number
+    subjectCount: number
+    meetingHours: number
+}
+
+/**
+ * Fetches aggregate stats for the about page:
+ * - Number of officially supported municipalities
+ * - Total subject count across all released meetings
+ * - Total meeting hours (estimated from speaker segment timestamps)
+ */
+export async function getAboutPageStats(): Promise<AboutPageStats> {
+    try {
+        const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
+            // Count officially supported cities
+            prisma.city.count({
+                where: { officialSupport: true }
+            }),
+            // Count subjects in released meetings only
+            prisma.subject.count({
+                where: {
+                    councilMeeting: { released: true }
+                }
+            }),
+            // Get min/max timestamps per meeting to calculate duration
+            prisma.$queryRaw<Array<{ total_hours: number }>>`
+                SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
+                FROM (
+                    SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
+                    FROM "CouncilMeeting" cm
+                    JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
+                    WHERE cm.released = true
+                    GROUP BY cm.id, cm."cityId"
+                ) meetings
+            `
+        ])
+
+        const totalHours = Number(meetingDurations[0]?.total_hours ?? 0)
+
+        return {
+            municipalityCount,
+            subjectCount,
+            meetingHours: Math.round(totalHours)
+        }
+    } catch (error) {
+        console.error('Error fetching about page stats:', error)
+        throw new Error('Failed to fetch about page stats')
+    }
+}

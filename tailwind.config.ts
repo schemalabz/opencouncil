@@ -170,6 +170,21 @@ const config = {
 						backgroundPosition: '350% 50%, 350% 50%'
 					}
 				},
+				'orb-1': {
+					'0%, 100%': { transform: 'translate(0%, 0%)' },
+					'25%': { transform: 'translate(30%, -20%)' },
+					'50%': { transform: 'translate(-20%, 30%)' },
+					'75%': { transform: 'translate(20%, 20%)' },
+				},
+				'orb-2': {
+					'0%, 100%': { transform: 'translate(0%, 0%) rotate(0deg)' },
+					'33%': { transform: 'translate(-25%, 15%) rotate(120deg)' },
+					'66%': { transform: 'translate(25%, -10%) rotate(240deg)' },
+				},
+				'orb-3': {
+					'0%, 100%': { transform: 'translate(0%, 0%)' },
+					'50%': { transform: 'translate(-30%, -25%)' },
+				},
 				'auto-scroll': {
 					'0%': {
 						transform: 'translateX(0)'
@@ -189,6 +204,14 @@ const config = {
 					'100%': {
 						transform: 'translateX(0)'
 					}
+				},
+				float: {
+					'0%, 100%': {
+						transform: 'translateY(0)'
+					},
+					'50%': {
+						transform: 'translateY(-8px)'
+					}
 				}
 			},
 			animation: {
@@ -201,7 +224,11 @@ const config = {
 				'fade-in': 'fade-in 0.5s ease-out forwards',
 				'bounce': 'bounce 2s ease-in-out infinite',
 				'aurora': 'aurora 60s linear infinite',
-				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite'
+				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite',
+				float: 'float 5s ease-in-out infinite',
+				'orb-1': 'orb-1 25s ease-in-out infinite',
+				'orb-2': 'orb-2 30s ease-in-out infinite',
+				'orb-3': 'orb-3 20s ease-in-out infinite',
 			},
 			fontFamily: {
 				sans: [

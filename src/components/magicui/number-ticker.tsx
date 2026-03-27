@@ -5,6 +5,8 @@ import { useInView, useMotionValue, useSpring } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
+const numberFormatter = new Intl.NumberFormat("en-US", { useGrouping: false });
+
 export default function NumberTicker({
   value,
   direction = "up",
@@ -19,8 +21,9 @@ export default function NumberTicker({
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(direction === "down" ? value : 0);
   const springValue = useSpring(motionValue, {
-    damping: 60,
-    stiffness: 100,
+    damping: 40,
+    stiffness: 200,
+    restDelta: 0.5,
   });
   const isInView = useInView(ref, { once: true, margin: "0px" });
 
@@ -35,7 +38,7 @@ export default function NumberTicker({
     () =>
       springValue.on("change", (latest) => {
         if (ref.current) {
-          ref.current.textContent = Intl.NumberFormat("en-US").format(
+          ref.current.textContent = numberFormatter.format(
             Number(latest.toFixed(0)),
           );
         }
