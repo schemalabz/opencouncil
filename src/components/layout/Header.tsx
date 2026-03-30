@@ -13,9 +13,9 @@ import { Search, Building2, ChevronRight, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { useSubjectHeaderOptional, SubjectHeaderInfo } from "@/contexts/SubjectHeaderContext"
-import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import Icon from "@/components/icon"
 import { MEETING_PAGE_SEGMENTS } from "@/lib/utils/meetingPages"
+import { getNonAgendaLabel } from "@/lib/utils/subjects"
 
 export interface PathElement {
     name: string
@@ -63,20 +63,26 @@ function CityElement({ element }: { element: PathElement }) {
     )
 }
 
-function CurrentPageTitle({ element, autoScroll }: {
+function CurrentPageTitle({ element, compact }: {
     element: PathElement
-    autoScroll?: boolean
+    compact?: boolean
 }) {
-    if (autoScroll) {
+    if (compact) {
         return (
-            <AutoScrollText>
-                <span className="text-sm sm:text-base font-medium leading-tight">{element.name}</span>
-            </AutoScrollText>
+            <span className="text-[11px] sm:text-xs text-muted-foreground leading-tight line-clamp-1">
+                {element.name}
+            </span>
         )
     }
 
     return (
-        <span className="text-sm sm:text-base font-medium truncate">{element.name}</span>
+        <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-sm sm:text-base font-medium leading-tight line-clamp-2"
+        >
+            {element.name}
+        </motion.span>
     )
 }
 
@@ -102,6 +108,42 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
         <div className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-full shrink-0 bg-gray-100">
             <IconComponent className="h-[18px] w-[18px] text-gray-400" />
         </div>
+    )
+}
+
+function TopicNameBadge({ name, color }: { name: string; color?: string }) {
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap",
+                !color && "bg-muted text-muted-foreground"
+            )}
+            style={color ? {
+                backgroundColor: color + "18",
+                color: color,
+            } : undefined}
+        >
+            {name}
+        </span>
+    )
+}
+
+function AgendaCategoryBadge({ agendaItemIndex, nonAgendaReason }: {
+    agendaItemIndex?: number
+    nonAgendaReason?: string
+}) {
+    const label = agendaItemIndex != null
+        ? `#${agendaItemIndex}`
+        : nonAgendaReason
+            ? getNonAgendaLabel(nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')
+            : null;
+
+    if (!label) return null;
+
+    return (
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground whitespace-nowrap">
+            {label}
+        </span>
     )
 }
 
@@ -187,7 +229,7 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
     useEffect(() => {
         if (!showSidebarTrigger) return;
 
-        const scrollContainer = document.querySelector('[data-meeting-scroll]');
+        const scrollContainer = document.querySelector('[data-scroll-container]');
         if (!scrollContainer) return;
 
         const handleScroll = () => {
@@ -198,11 +240,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         return () => scrollContainer.removeEventListener('scroll', handleScroll);
     }, [showSidebarTrigger]);
 
+    const isCurrentSubject = subjectHeader !== null;
     const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2;
     const cityElement = dynamicPath[0];
     const currentPageElement = isMeetingContext ? dynamicPath[dynamicPath.length - 1] : null;
     const middleElements = isMeetingContext ? dynamicPath.slice(1, -1) : dynamicPath.slice(1);
-    const isCurrentSubject = subjectHeader !== null;
     const pageIcon = (showSidebarTrigger && !subjectHeader)
         ? MEETING_PAGE_SEGMENTS[segment ?? 'overview']?.icon
         : null;
@@ -292,9 +334,28 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             {currentPageElement && (
                 <CurrentPageTitle
                     element={currentPageElement}
-                    autoScroll={isCurrentSubject}
+                    compact={isCurrentSubject && subjectHeader?.heroVisible}
                 />
             )}
+            <AnimatePresence>
+                {isCurrentSubject && subjectHeader && !subjectHeader.heroVisible && (subjectHeader.topicName || subjectHeader.agendaItemIndex != null || subjectHeader.nonAgendaReason) && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -2 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -2 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center gap-1.5"
+                    >
+                        {subjectHeader.topicName && (
+                            <TopicNameBadge name={subjectHeader.topicName} color={subjectHeader.topicColor} />
+                        )}
+                        <AgendaCategoryBadge
+                            agendaItemIndex={subjectHeader.agendaItemIndex}
+                            nonAgendaReason={subjectHeader.nonAgendaReason}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 

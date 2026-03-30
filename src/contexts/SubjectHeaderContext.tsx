@@ -1,16 +1,21 @@
 "use client";
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 export interface SubjectHeaderInfo {
     name: string;
     topicIcon?: string;
     topicColor?: string;
+    topicName?: string;
+    agendaItemIndex?: number;
+    nonAgendaReason?: string;
+    heroVisible: boolean;
 }
 
 interface SubjectHeaderContextValue {
     subjectHeader: SubjectHeaderInfo | null;
     setSubjectHeader: (info: SubjectHeaderInfo | null) => void;
+    setHeroVisible: (visible: boolean) => void;
 }
 
 const SubjectHeaderContext = createContext<SubjectHeaderContextValue | undefined>(undefined);
@@ -18,8 +23,12 @@ const SubjectHeaderContext = createContext<SubjectHeaderContextValue | undefined
 export function SubjectHeaderProvider({ children }: { children: React.ReactNode }) {
     const [subjectHeader, setSubjectHeader] = useState<SubjectHeaderInfo | null>(null);
 
+    const setHeroVisible = useCallback((visible: boolean) => {
+        setSubjectHeader(prev => prev ? { ...prev, heroVisible: visible } : prev);
+    }, []);
+
     return (
-        <SubjectHeaderContext.Provider value={{ subjectHeader, setSubjectHeader }}>
+        <SubjectHeaderContext.Provider value={{ subjectHeader, setSubjectHeader, setHeroVisible }}>
             {children}
         </SubjectHeaderContext.Provider>
     );

@@ -8,10 +8,10 @@ import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { subjectToMapFeature } from "@/lib/utils";
+import { cn, subjectToMapFeature } from "@/lib/utils";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
 import { CollapsibleCard } from "@/components/ui/collapsible-card";
 import { DebugUtterances } from "./DebugUtterances";
@@ -23,13 +23,18 @@ import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
+import { getNonAgendaLabel } from "@/lib/utils/subjects";
+import { useSession } from "next-auth/react";
+import { DebugMetadataButton } from "@/components/ui/debug-metadata-button";
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getSpeakerTag, getPerson, getParty, meeting } = useCouncilMeetingData();
     const { seekToAndPlay } = useVideo();
     const t = useTranslations("Subject");
     const locale = useLocale();
-    const { setSubjectHeader } = useSubjectHeader();
+    const { setSubjectHeader, setHeroVisible } = useSubjectHeader();
+    const { data: session } = useSession();
+    const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
@@ -83,15 +88,43 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
 
+    const heroRef = useRef<HTMLDivElement>(null);
+    const heroVisibleRef = useRef(true);
+
     // Push subject info to the header breadcrumb
     useEffect(() => {
         setSubjectHeader({
             name,
             topicIcon: topic?.icon ?? undefined,
             topicColor: topic?.colorHex ?? undefined,
+            topicName: topic?.name ?? undefined,
+            agendaItemIndex: agendaItemIndex ?? undefined,
+            nonAgendaReason: subject.nonAgendaReason ?? undefined,
+            heroVisible: heroVisibleRef.current,
         });
         return () => setSubjectHeader(null);
-    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader]);
+    }, [name, topic?.icon, topic?.colorHex, topic?.name, agendaItemIndex, subject.nonAgendaReason, setSubjectHeader]);
+
+    // Observe hero visibility to trigger enriched sticky header
+    useEffect(() => {
+        const heroEl = heroRef.current;
+        if (!heroEl) return;
+
+        const scrollContainer = document.querySelector('[data-scroll-container]');
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                heroVisibleRef.current = entry.isIntersecting;
+                setHeroVisible(entry.isIntersecting);
+            },
+            {
+                root: scrollContainer as Element | null,
+                threshold: 0,
+            }
+        );
+
+        observer.observe(heroEl);
+        return () => observer.disconnect();
+    }, [setHeroVisible]);
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
@@ -140,6 +173,45 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         <div className="min-h-screen bg-background">
             {/* Main Content */}
             <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
+                {/* Subject Hero — title + badges; both move to sticky header on scroll */}
+                <div ref={heroRef} className="space-y-2">
+                    <div className="flex items-start gap-2">
+                        <h1 className="text-lg sm:text-xl font-semibold leading-tight flex-1">{name}</h1>
+                        {isSuperAdmin && (
+                            <DebugMetadataButton
+                                data={subject}
+                                title="Subject Metadata"
+                                tooltip="View subject metadata"
+                            />
+                        )}
+                    </div>
+                    {(topic?.name || agendaItemIndex != null || subject.nonAgendaReason) && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {topic?.name && (
+                                <span
+                                    className={cn(
+                                        "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                                        !topic.colorHex && "bg-muted text-muted-foreground"
+                                    )}
+                                    style={topic.colorHex ? {
+                                        backgroundColor: topic.colorHex + "18",
+                                        color: topic.colorHex,
+                                    } : undefined}
+                                >
+                                    {topic.name}
+                                </span>
+                            )}
+                            {(agendaItemIndex != null || subject.nonAgendaReason) && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                                    {agendaItemIndex != null
+                                        ? `#${agendaItemIndex}`
+                                        : getNonAgendaLabel(subject.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Quick Stats Section */}
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                     {/* Parties Card */}
