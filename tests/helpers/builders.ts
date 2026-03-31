@@ -114,6 +114,7 @@ export function makePersonWithRoles(overrides: {
             endDate: null,
             isHead: false,
             rank: null,
+            electedOrder: null,
             party: { id: overrides.partyId, name: overrides.partyName ?? 'Party', cityId, logo: null },
             administrativeBody: adminBodyId ? { id: adminBodyId, name: 'Body', name_en: 'Body', type: 'council', cityId } : null,
             city: null,

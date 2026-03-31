@@ -881,6 +881,7 @@ model Role {
   name String?
   name_en String?
   rank Int?
+  electedOrder Int?
 
   startDate DateTime?
   endDate DateTime?
