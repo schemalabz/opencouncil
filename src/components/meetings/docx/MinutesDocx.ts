@@ -11,7 +11,8 @@ import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import {
     MinutesData,
     MinutesSubject,
-    MinutesAttendance,
+    MinutesMember,
+    MinutesCouncilComposition,
 } from '@/lib/minutes/types';
 
 const FONT_SIZE = {
@@ -107,20 +108,42 @@ function createTitlePage(data: MinutesData): Paragraph[] {
     ];
 }
 
-function createAttendanceSection(attendance: MinutesAttendance): Paragraph[] {
+function createCouncilCompositionSection(composition: MinutesCouncilComposition): Paragraph[] {
     const paragraphs: Paragraph[] = [];
+
+    if (composition.mayor) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 80 },
+            children: [
+                new TextRun({ text: 'ΔΗΜΑΡΧΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
+                new TextRun({ text: composition.mayor.name, size: FONT_SIZE.BODY }),
+                ...(!composition.mayor.present ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+            ],
+        }));
+    }
+
+    if (composition.president) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 80, after: 200 },
+            children: [
+                new TextRun({ text: 'ΠΡΟΕΔΡΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
+                new TextRun({ text: composition.president.name, size: FONT_SIZE.BODY }),
+                ...(!composition.president.present ? [new TextRun({ text: ' (ΑΠΩΝ)', size: FONT_SIZE.BODY, color: '666666' })] : []),
+            ],
+        }));
+    }
 
     paragraphs.push(new Paragraph({
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 360, after: 200 },
         children: [new TextRun({
-            text: `ΠΑΡΟΝΤΕΣ (${attendance.present.length})`,
+            text: `ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ (${composition.members.length})`,
             size: FONT_SIZE.HEADING,
             bold: true,
         })],
     }));
 
-    for (const member of attendance.present) {
+    for (const member of composition.members) {
         const children: TextRun[] = [
             new TextRun({ text: member.name, size: FONT_SIZE.BODY }),
         ];
@@ -132,28 +155,6 @@ function createAttendanceSection(attendance: MinutesAttendance): Paragraph[] {
             children.push(new TextRun({ text: ` — ${member.role}`, size: FONT_SIZE.SMALL, color: '666666', italics: true }));
         }
         paragraphs.push(new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children }));
-    }
-
-    if (attendance.absent.length > 0) {
-        paragraphs.push(new Paragraph({
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 360, after: 200 },
-            children: [new TextRun({
-                text: `ΑΠΟΝΤΕΣ (${attendance.absent.length})`,
-                size: FONT_SIZE.HEADING,
-                bold: true,
-            })],
-        }));
-
-        for (const member of attendance.absent) {
-            const children: TextRun[] = [
-                new TextRun({ text: member.name, size: FONT_SIZE.BODY }),
-            ];
-            if (member.party) {
-                children.push(new TextRun({ text: ` (${member.party})`, size: FONT_SIZE.BODY, color: '666666' }));
-            }
-            paragraphs.push(new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children }));
-        }
     }
 
     paragraphs.push(new Paragraph({ pageBreakBefore: true }));
@@ -348,37 +349,22 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
 
     // --- Subject footer: attendance, dissenting votes, decision number ---
 
-    if (subject.attendance) {
-        const parts: string[] = [`Παρόντες: ${subject.attendance.present.length}`];
-        if (subject.attendance.absent.length > 0) {
-            parts.push(`Απόντες: ${subject.attendance.absent.length}`);
-        }
-        paragraphs.push(new Paragraph({
-            spacing: { before: 200, after: 80 },
-            children: [new TextRun({ text: parts.join(' | '), size: FONT_SIZE.SMALL, color: '666666' })],
-        }));
-    }
-
-    // Dissenting / abstain votes (only when not unanimous)
-    if (subject.voteResult && !subject.voteResult.isUnanimous) {
-        if (subject.voteResult.againstMembers.length > 0) {
-            const names = subject.voteResult.againstMembers
+    // Full vote breakdown
+    if (subject.voteResult) {
+        const voteCategories: { label: string; members: MinutesMember[] }[] = [
+            { label: 'ΥΠΕΡ', members: subject.voteResult.forMembers },
+            { label: 'ΚΑΤΑ', members: subject.voteResult.againstMembers },
+            { label: 'ΛΕΥΚΑ', members: subject.voteResult.abstainMembers },
+            { label: 'ΑΠΟΝΤΕΣ', members: subject.voteResult.absentMembers },
+        ];
+        for (const { label, members } of voteCategories) {
+            if (members.length === 0) continue;
+            const names = members
                 .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name).join(', ');
             paragraphs.push(new Paragraph({
                 spacing: { before: 60, after: 40 },
                 children: [
-                    new TextRun({ text: 'ΚΑΤΑ: ', bold: true, size: FONT_SIZE.SMALL }),
-                    new TextRun({ text: names, size: FONT_SIZE.SMALL }),
-                ],
-            }));
-        }
-        if (subject.voteResult.abstainMembers.length > 0) {
-            const names = subject.voteResult.abstainMembers
-                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name).join(', ');
-            paragraphs.push(new Paragraph({
-                spacing: { before: 60, after: 40 },
-                children: [
-                    new TextRun({ text: 'ΛΕΥΚΑ: ', bold: true, size: FONT_SIZE.SMALL }),
+                    new TextRun({ text: `${label} (${members.length}): `, bold: true, size: FONT_SIZE.SMALL }),
                     new TextRun({ text: names, size: FONT_SIZE.SMALL }),
                 ],
             }));
@@ -411,9 +397,9 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     // Title page
     children.push(...createTitlePage(data));
 
-    // Overall attendance
-    if (data.overallAttendance) {
-        children.push(...createAttendanceSection(data.overallAttendance));
+    // Council composition
+    if (data.councilComposition) {
+        children.push(...createCouncilCompositionSection(data.councilComposition));
     }
 
     // Table of contents (split into ΕΚΤΟΣ ΗΔ + ΗΔ tables)
