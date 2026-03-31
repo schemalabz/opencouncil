@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
 import { calculateVoteResult } from '@/lib/utils/votes';
+import { compareRanks } from '@/lib/sorting/people';
+import { formatSurnameFirst } from '@/lib/formatters/name';
 import { VoteType } from '@prisma/client';
 import { Loader2 } from 'lucide-react';
 
@@ -36,7 +38,7 @@ interface VotingUtterance {
 
 interface Vote {
     voteType: VoteType;
-    person: { id: string; name: string };
+    person: { id: string; name: string; roles: { electedOrder: number | null }[] };
 }
 
 interface VotingSectionProps {
@@ -44,13 +46,23 @@ interface VotingSectionProps {
     votes: Vote[];
 }
 
+function sortVotesByElectedOrder(votes: Vote[]): Vote[] {
+    return [...votes].sort((a, b) => {
+        const aOrder = a.person.roles[0]?.electedOrder ?? null;
+        const bOrder = b.person.roles[0]?.electedOrder ?? null;
+        const orderCompare = compareRanks(aOrder, bOrder);
+        if (orderCompare !== 0) return orderCompare;
+        return a.person.name.localeCompare(b.person.name);
+    });
+}
+
 function VoteBreakdown({ votes }: { votes: Vote[] }) {
     const t = useTranslations('Subject');
     const result = useMemo(() => calculateVoteResult(votes), [votes]);
 
-    const forVoters = votes.filter(v => v.voteType === 'FOR');
-    const againstVoters = votes.filter(v => v.voteType === 'AGAINST');
-    const abstainVoters = votes.filter(v => v.voteType === 'ABSTAIN');
+    const forVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'FOR')), [votes]);
+    const againstVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'AGAINST')), [votes]);
+    const abstainVoters = useMemo(() => sortVotesByElectedOrder(votes.filter(v => v.voteType === 'ABSTAIN')), [votes]);
 
     return (
         <div className="p-4 space-y-3">
@@ -74,7 +86,7 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
                                 {t('voteFor')} ({forVoters.length})
                             </td>
                             <td className="py-1.5">
-                                {forVoters.map(v => v.person.name).join(', ')}
+                                {forVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
                             </td>
                         </tr>
                     )}
@@ -84,7 +96,7 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
                                 {t('voteAgainst')} ({againstVoters.length})
                             </td>
                             <td className="py-1.5">
-                                {againstVoters.map(v => v.person.name).join(', ')}
+                                {againstVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
                             </td>
                         </tr>
                     )}
@@ -94,7 +106,7 @@ function VoteBreakdown({ votes }: { votes: Vote[] }) {
                                 {t('voteAbstain')} ({abstainVoters.length})
                             </td>
                             <td className="py-1.5">
-                                {abstainVoters.map(v => v.person.name).join(', ')}
+                                {abstainVoters.map(v => formatSurnameFirst(v.person.name)).join(', ')}
                             </td>
                         </tr>
                     )}

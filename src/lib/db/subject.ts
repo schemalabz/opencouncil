@@ -36,7 +36,17 @@ const introducedByInclude = {
 const votesInclude = {
     select: {
         voteType: true,
-        person: { select: { id: true, name: true } },
+        person: {
+            select: {
+                id: true,
+                name: true,
+                roles: {
+                    select: { electedOrder: true },
+                    where: { electedOrder: { not: null } },
+                    take: 1,
+                },
+            },
+        },
     },
     orderBy: { person: { name: 'asc' as const } },
 } satisfies Prisma.SubjectVoteFindManyArgs;
@@ -63,7 +73,7 @@ export type SubjectWithRelations = Subject & {
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
     decision: Decision | null;
-    votes: { voteType: VoteType; person: { id: string; name: string } }[];
+    votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null }[] } }[];
 };
 
 export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
