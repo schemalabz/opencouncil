@@ -15,6 +15,7 @@ import {
     MinutesMember,
     MinutesTranscriptEntry,
 } from './types';
+import { compareRanks } from '@/lib/sorting/people';
 
 import { buildTranscriptEntriesFromUtterances, GAP_FILL_THRESHOLD_SECONDS, GapContentUtterance } from './transcriptEntries';
 
@@ -188,6 +189,19 @@ export async function getMinutesData(
         });
     }
 
+    function getElectedOrder(personId: string): number | null {
+        const person = peopleMap.get(personId);
+        if (!person) return null;
+        const role = person.roles.find(r => r.electedOrder != null);
+        return role?.electedOrder ?? null;
+    }
+
+    const sortByElectedOrder = (a: MinutesMember, b: MinutesMember) => {
+        const orderCompare = compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId));
+        if (orderCompare !== 0) return orderCompare;
+        return a.name.localeCompare(b.name);
+    };
+
     function buildAttendance(ed: SubjectExtractedData): MinutesAttendance {
         const present: MinutesMember[] = [];
         const absent: MinutesMember[] = [];
@@ -212,6 +226,9 @@ export async function getMinutesData(
                 absent.push(member);
             }
         }
+
+        present.sort(sortByElectedOrder);
+        absent.sort(sortByElectedOrder);
 
         return { present, absent };
     }
@@ -244,18 +261,55 @@ export async function getMinutesData(
             }
         }
 
+        forMembers.sort(sortByElectedOrder);
+        againstMembers.sort(sortByElectedOrder);
+        abstainMembers.sort(sortByElectedOrder);
+
         const passed = forMembers.length > againstMembers.length;
         const isUnanimous = forMembers.length > 0 && againstMembers.length === 0 && abstainMembers.length === 0;
 
         return { forMembers, againstMembers, abstainMembers, passed, isUnanimous };
     }
 
-    // Sort subjects: agenda items by index first, then outOfAgenda at the end
+    // Sort subjects by discussion order (first utterance timestamp)
+    const firstUtteranceBySubject = new Map<string, number>();
+    for (const [subjectId, utterances] of utterancesBySubject) {
+        if (utterances.length > 0) {
+            firstUtteranceBySubject.set(subjectId, utterances[0].startTimestamp);
+        }
+    }
+
+    // For subjects discussed alongside another subject (discussedIn),
+    // use the parent subject's timestamp so they sort adjacent to their parent.
+    function getDiscussionTime(s: typeof filteredSubjects[number]): number | undefined {
+        const own = firstUtteranceBySubject.get(s.id);
+        if (own !== undefined) return own;
+        if (s.discussedIn) return firstUtteranceBySubject.get(s.discussedIn.id);
+        return undefined;
+    }
+
     const sortedSubjects = [...filteredSubjects].sort((a, b) => {
-        const aIsOutOfAgenda = a.nonAgendaReason === 'outOfAgenda';
-        const bIsOutOfAgenda = b.nonAgendaReason === 'outOfAgenda';
-        if (aIsOutOfAgenda && !bIsOutOfAgenda) return 1;
-        if (!aIsOutOfAgenda && bIsOutOfAgenda) return -1;
+        const aTime = getDiscussionTime(a);
+        const bTime = getDiscussionTime(b);
+
+        // Both have discussion times: sort by time
+        if (aTime !== undefined && bTime !== undefined) {
+            if (aTime !== bTime) return aTime - bTime;
+            // Same timestamp (child inherits parent's time): parent comes first
+            const aIsChild = a.discussedIn != null;
+            const bIsChild = b.discussedIn != null;
+            if (aIsChild !== bIsChild) return aIsChild ? 1 : -1;
+            return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+        }
+        // Subjects with discussion time come before those without
+        if (aTime !== undefined) return -1;
+        if (bTime !== undefined) return 1;
+
+        // Fallback for subjects without transcript: agenda order
+        const aIsOOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOOA && !bIsOOA) return 1;
+        if (!aIsOOA && bIsOOA) return -1;
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
 
