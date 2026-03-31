@@ -6,13 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Copy, Check } from 'lucide-react';
 
-interface JsonMetadataDialogProps {
+interface JsonView {
+    label: string;
+    data: unknown;
+}
+
+interface BaseProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     title?: string;
-    data: unknown;
     metadata?: Array<{
         label: string;
         value: string | number | ReactNode;
@@ -26,26 +31,46 @@ interface JsonMetadataDialogProps {
     footerActions?: ReactNode;
 }
 
+interface SingleViewProps extends BaseProps {
+    data: unknown;
+    views?: never;
+}
+
+interface MultiViewProps extends BaseProps {
+    data?: never;
+    views: JsonView[];
+}
+
+type JsonMetadataDialogProps = SingleViewProps | MultiViewProps;
+
 /**
  * Reusable JSON Metadata Dialog Component
- * 
+ *
  * Displays JSON data in a formatted, scrollable dialog with optional metadata and badges.
  * Includes copy-to-clipboard functionality.
- * 
+ *
+ * Supports two modes:
+ * - Single view: pass `data` for a single JSON panel
+ * - Multi view: pass `views` for tabbed JSON panels
+ *
  * @example
  * ```tsx
+ * // Single view
  * <JsonMetadataDialog
  *   open={isOpen}
  *   onOpenChange={setIsOpen}
  *   title="Document Metadata"
  *   data={myJsonObject}
- *   metadata={[
- *     { label: 'Subject', value: 'Example' },
- *     { label: 'City', value: 'Athens' }
- *   ]}
- *   badges={[
- *     { label: 'Active', variant: 'default' },
- *     { label: '5 items', variant: 'secondary' }
+ * />
+ *
+ * // Multi view with tabs
+ * <JsonMetadataDialog
+ *   open={isOpen}
+ *   onOpenChange={setIsOpen}
+ *   title="Task Details"
+ *   views={[
+ *     { label: 'Request', data: requestData },
+ *     { label: 'Response', data: responseData },
  *   ]}
  * />
  * ```
@@ -54,23 +79,81 @@ export function JsonMetadataDialog({
     open,
     onOpenChange,
     title = 'Metadata',
-    data,
     metadata,
     badges,
-    footerActions
+    footerActions,
+    ...rest
 }: JsonMetadataDialogProps) {
-    const [copied, setCopied] = useState(false);
+    const resolvedViews: JsonView[] = rest.views
+        ? rest.views
+        : [{ label: '', data: rest.data }];
 
-    const jsonString = JSON.stringify(data, null, 2);
+    const [copiedView, setCopiedView] = useState<string | null>(null);
 
-    const handleCopy = async () => {
+    const handleCopy = async (jsonString: string, viewLabel: string) => {
         try {
             await navigator.clipboard.writeText(jsonString);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            setCopiedView(viewLabel);
+            setTimeout(() => setCopiedView(null), 2000);
         } catch (err) {
             console.error('Failed to copy JSON:', err);
         }
+    };
+
+    const isMultiView = resolvedViews.length > 1;
+
+    const renderJsonPanel = (view: JsonView) => {
+        const jsonString = JSON.stringify(view.data, null, 2);
+        return (
+            <>
+                <ScrollArea className="flex-1 min-h-0">
+                    <div className="relative">
+                        <Textarea
+                            value={jsonString}
+                            readOnly
+                            className="min-h-[400px] font-mono text-sm resize-none border-0 bg-muted/30"
+                            style={{
+                                whiteSpace: 'pre',
+                                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                            }}
+                            aria-label={`${title}${view.label ? ` — ${view.label}` : ''} in JSON format`}
+                        />
+                    </div>
+                </ScrollArea>
+
+                <DialogFooter className="flex justify-between items-center">
+                    <div className="text-xs text-muted-foreground">
+                        {jsonString.length.toLocaleString()} characters • {jsonString.split('\n').length} lines
+                    </div>
+                    <div className="flex gap-2">
+                        {footerActions}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleCopy(jsonString, view.label)}
+                            className="flex items-center gap-2"
+                        >
+                            {copiedView === view.label ? (
+                                <>
+                                    <Check className="h-4 w-4" />
+                                    Copied!
+                                </>
+                            ) : (
+                                <>
+                                    <Copy className="h-4 w-4" />
+                                    Copy JSON
+                                </>
+                            )}
+                        </Button>
+                        {!isMultiView && (
+                            <Button variant="default" onClick={() => onOpenChange(false)}>
+                                Close
+                            </Button>
+                        )}
+                    </div>
+                </DialogFooter>
+            </>
+        );
     };
 
     return (
@@ -106,52 +189,25 @@ export function JsonMetadataDialog({
                 )}
 
                 {/* JSON Content */}
-                <ScrollArea className="flex-1 min-h-0">
-                    <div className="relative">
-                        <Textarea
-                            value={jsonString}
-                            readOnly
-                            className="min-h-[400px] font-mono text-sm resize-none border-0 bg-muted/30"
-                            style={{
-                                whiteSpace: 'pre',
-                                fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
-                            }}
-                            aria-label={`${title} in JSON format`}
-                        />
-                    </div>
-                </ScrollArea>
-
-                <DialogFooter className="flex justify-between items-center">
-                    <div className="text-xs text-muted-foreground">
-                        {jsonString.length.toLocaleString()} characters • {jsonString.split('\n').length} lines
-                    </div>
-                    <div className="flex gap-2">
-                        {footerActions}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopy}
-                            className="flex items-center gap-2"
-                        >
-                            {copied ? (
-                                <>
-                                    <Check className="h-4 w-4" />
-                                    Copied!
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="h-4 w-4" />
-                                    Copy JSON
-                                </>
-                            )}
-                        </Button>
-                        <Button variant="default" onClick={() => onOpenChange(false)}>
-                            Close
-                        </Button>
-                    </div>
-                </DialogFooter>
+                {isMultiView ? (
+                    <Tabs local defaultValue={resolvedViews[resolvedViews.length - 1].label} className="flex-1 flex flex-col min-h-0">
+                        <TabsList>
+                            {resolvedViews.map(view => (
+                                <TabsTrigger key={view.label} value={view.label}>
+                                    {view.label}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                        {resolvedViews.map(view => (
+                            <TabsContent key={view.label} value={view.label} className="flex-1 flex flex-col min-h-0 mt-0">
+                                {renderJsonPanel(view)}
+                            </TabsContent>
+                        ))}
+                    </Tabs>
+                ) : (
+                    renderJsonPanel(resolvedViews[0])
+                )}
             </DialogContent>
         </Dialog>
     );
 }
-
