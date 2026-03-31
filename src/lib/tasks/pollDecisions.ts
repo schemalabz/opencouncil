@@ -15,10 +15,11 @@ import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAler
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
+    options?: { forceExtract?: boolean },
 ) {
     await withUserAuthorizedToEdit({ cityId });
 
-    return pollDecisionsForMeeting(cityId, councilMeetingId);
+    return pollDecisionsForMeeting(cityId, councilMeetingId, options);
 }
 
 /**
@@ -26,11 +27,12 @@ export async function requestPollDecisions(
  * Does NOT check authorization — callers are responsible for auth.
  *
  * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
+ * @param options.forceExtract - When true, skips extraction cache and reprocesses all PDFs
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
-    options?: { silent?: boolean },
+    options?: { silent?: boolean; forceExtract?: boolean },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -97,6 +99,7 @@ export async function pollDecisionsForMeeting(
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
         mayorId: mayorPerson?.id,
+        forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
         subjects: councilMeeting.subjects.map(s => ({
             subjectId: s.id,
