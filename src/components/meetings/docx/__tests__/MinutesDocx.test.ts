@@ -15,7 +15,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
             dateTime: '2024-06-15T18:00:00.000Z',
         },
         administrativeBody: 'Δημοτικό Συμβούλιο',
-        overallAttendance: null,
+        councilComposition: null,
         subjects: [],
         ...overrides,
     };
@@ -59,12 +59,12 @@ describe('renderMinutesDocx', () => {
 
     it('should handle subjects with full data', async () => {
         const data = makeMinutesData({
-            overallAttendance: {
-                present: [
+            councilComposition: {
+                mayor: { name: 'Δημήτρης Αντωνίου', present: true },
+                president: { name: 'Γιώργος Παπαδόπουλος', present: true },
+                members: [
                     { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
                     { personId: 'p2', name: 'Μαρία Ιωάννου', party: 'ΣΥΡΙΖΑ', isPartyHead: false, role: null },
-                ],
-                absent: [
                     { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
                 ],
             },
@@ -85,6 +85,9 @@ describe('renderMinutesDocx', () => {
                         ],
                         againstMembers: [],
                         abstainMembers: [],
+                        absentMembers: [
+                            { personId: 'p3', name: 'Νίκος Δημητρίου', party: 'ΠΑΣΟΚ', isPartyHead: false, role: null },
+                        ],
                         passed: true,
                         isUnanimous: true,
                     },

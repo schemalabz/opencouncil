@@ -7,7 +7,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 import {
     MinutesData,
     MinutesSubject,
-    MinutesAttendance,
+    MinutesMember,
+    MinutesCouncilComposition,
     MinutesTranscriptEntry,
 } from '@/lib/minutes/types';
 
@@ -44,9 +45,9 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
 
             <hr className="my-8 border-gray-300" />
 
-            {/* Attendance */}
-            {data.overallAttendance && (
-                <AttendanceSection attendance={data.overallAttendance} />
+            {/* Council Composition */}
+            {data.councilComposition && (
+                <CouncilCompositionSection composition={data.councilComposition} />
             )}
 
             {/* Table of Contents */}
@@ -80,14 +81,34 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
     );
 }
 
-function AttendanceSection({ attendance }: { attendance: MinutesAttendance }) {
+function CouncilCompositionSection({ composition }: { composition: MinutesCouncilComposition }) {
     return (
         <div className="mb-8">
+            {composition.mayor && (
+                <p className="text-sm mb-1">
+                    <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
+                    {composition.mayor.name}
+                    {!composition.mayor.present && (
+                        <span className="text-gray-500"> (ΑΠΩΝ)</span>
+                    )}
+                </p>
+            )}
+
+            {composition.president && (
+                <p className="text-sm mb-4">
+                    <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
+                    {composition.president.name}
+                    {!composition.president.present && (
+                        <span className="text-gray-500"> (ΑΠΩΝ)</span>
+                    )}
+                </p>
+            )}
+
             <h2 className="text-base font-bold mb-3">
-                ΠΑΡΟΝΤΕΣ ({attendance.present.length})
+                ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ ({composition.members.length})
             </h2>
             <ul className="list-disc pl-6 space-y-1">
-                {attendance.present.map((member) => (
+                {composition.members.map((member) => (
                     <li key={member.personId}>
                         <span>{member.name}</span>
                         {member.party && (
@@ -99,24 +120,6 @@ function AttendanceSection({ attendance }: { attendance: MinutesAttendance }) {
                     </li>
                 ))}
             </ul>
-
-            {attendance.absent.length > 0 && (
-                <>
-                    <h2 className="text-base font-bold mt-6 mb-3">
-                        ΑΠΟΝΤΕΣ ({attendance.absent.length})
-                    </h2>
-                    <ul className="list-disc pl-6 space-y-1">
-                        {attendance.absent.map((member) => (
-                            <li key={member.personId}>
-                                <span>{member.name}</span>
-                                {member.party && (
-                                    <span className="text-gray-500"> ({member.party})</span>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </>
-            )}
 
             <hr className="my-8 border-gray-300" />
         </div>
@@ -223,39 +226,43 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
     );
 }
 
+function formatMemberList(members: MinutesMember[]) {
+    return members
+        .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
+        .join(', ');
+}
+
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {
-    const hasFooter = subject.attendance || (subject.voteResult && !subject.voteResult.isUnanimous) || subject.decision?.protocolNumber;
+    const hasFooter = subject.voteResult || subject.decision?.protocolNumber;
     if (!hasFooter) return null;
 
     return (
         <div className="mt-4 text-xs">
-            {/* Attendance counts */}
-            {subject.attendance && (
-                <p className="text-gray-500 mb-1">
-                    Παρόντες: {subject.attendance.present.length}
-                    {subject.attendance.absent.length > 0 && (
-                        <> | Απόντες: {subject.attendance.absent.length}</>
-                    )}
-                </p>
-            )}
-
-            {/* Dissenting / abstain votes (only when not unanimous) */}
-            {subject.voteResult && !subject.voteResult.isUnanimous && (
+            {/* Full vote breakdown */}
+            {subject.voteResult && (
                 <>
+                    {subject.voteResult.forMembers.length > 0 && (
+                        <p className="my-0.5">
+                            <span className="font-bold">ΥΠΕΡ ({subject.voteResult.forMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.forMembers)}
+                        </p>
+                    )}
                     {subject.voteResult.againstMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΚΑΤΑ: </span>
-                            {subject.voteResult.againstMembers
-                                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
-                                .join(', ')}
+                            <span className="font-bold">ΚΑΤΑ ({subject.voteResult.againstMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.againstMembers)}
                         </p>
                     )}
                     {subject.voteResult.abstainMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΛΕΥΚΑ: </span>
-                            {subject.voteResult.abstainMembers
-                                .map(m => m.party ? `${m.name} (${m.party}${m.isPartyHead ? ', Επικ.' : ''})` : m.name)
-                                .join(', ')}
+                            <span className="font-bold">ΛΕΥΚΑ ({subject.voteResult.abstainMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.abstainMembers)}
+                        </p>
+                    )}
+                    {subject.voteResult.absentMembers.length > 0 && (
+                        <p className="my-0.5">
+                            <span className="font-bold">ΑΠΟΝΤΕΣ ({subject.voteResult.absentMembers.length}): </span>
+                            {formatMemberList(subject.voteResult.absentMembers)}
                         </p>
                     )}
                 </>

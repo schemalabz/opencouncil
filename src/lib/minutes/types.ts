@@ -11,10 +11,22 @@ export interface MinutesAttendance {
     absent: MinutesMember[];
 }
 
+export interface MinutesOfficialRole {
+    name: string;
+    present: boolean;
+}
+
+export interface MinutesCouncilComposition {
+    mayor: MinutesOfficialRole | null;
+    president: MinutesOfficialRole | null;
+    members: MinutesMember[];
+}
+
 export interface MinutesVoteResult {
     forMembers: MinutesMember[];
     againstMembers: MinutesMember[];
     abstainMembers: MinutesMember[];
+    absentMembers: MinutesMember[];
     passed: boolean;
     isUnanimous: boolean;
 }
@@ -74,6 +86,6 @@ export interface MinutesData {
         dateTime: string; // ISO string for JSON serialization
     };
     administrativeBody: string | null;
-    overallAttendance: MinutesAttendance | null;
+    councilComposition: MinutesCouncilComposition | null;
     subjects: MinutesSubject[];
 }
