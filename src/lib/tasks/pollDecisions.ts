@@ -8,6 +8,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/dec
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
+import { isRoleActiveAt } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
@@ -84,12 +85,21 @@ export async function pollDecisionsForMeeting(
     const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBody?.id ?? null);
     const peopleForRequest = people.map(p => ({ id: p.id, name: p.name }));
 
+    // Find the city mayor for presence extraction from decision narrative
+    const mayorPerson = people.find(p =>
+        p.roles.some(r =>
+            r.cityId != null && !r.partyId && !r.administrativeBodyId && r.isHead
+            && isRoleActiveAt(r, councilMeeting.dateTime)
+        )
+    );
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         meetingDate: councilMeeting.dateTime.toISOString().split('T')[0],
         diavgeiaUid: councilMeeting.city.diavgeiaUid,
         diavgeiaUnitIds: councilMeeting.administrativeBody?.diavgeiaUnitIds.length
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
+        mayorId: mayorPerson?.id,
         people: peopleForRequest,
         subjects: councilMeeting.subjects.map(s => ({
             subjectId: s.id,
@@ -1007,6 +1017,9 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     if (!task) {
         throw new Error("Task not found");
     }
+
+    const requestBody = JSON.parse(task.requestBody) as PollDecisionsRequest;
+    const mayorId = requestBody.mayorId;
 
     let reassignmentCount = 0;
     let processedCount = 0;

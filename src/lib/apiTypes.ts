@@ -440,6 +440,7 @@ export interface ExtractedDecisionData {
     references: string;
     presentMemberIds: string[];
     absentMemberIds: string[];
+    mayorPresent?: boolean;
     voteResult: string | null;
     voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' }[];
     unmatchedMembers: string[];
@@ -454,6 +455,7 @@ export interface PollDecisionsRequest extends TaskRequest {
     meetingDate: string; // ISO date "YYYY-MM-DD"
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
     diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
+    mayorId?: string; // Person ID of the city mayor, for presence extraction
     people: { id: string; name: string }[];
     subjects: Array<{
         subjectId: string;
