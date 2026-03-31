@@ -54,6 +54,7 @@ function makePerson(roles: { administrativeBody: AdministrativeBody | null; city
             name: null,
             name_en: null,
             rank: null,
+            electedOrder: null,
             startDate: new Date('2020-01-01'),
             endDate: null,
             createdAt: new Date('2020-01-01'),

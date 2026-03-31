@@ -97,6 +97,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             startDate: values.startDate,
             endDate: values.endDate,
             rank: editingRole?.rank ?? null,
+            electedOrder: editingRole?.electedOrder ?? null,
             createdAt: new Date(),
             updatedAt: new Date(),
             // Relations will be populated below if available
