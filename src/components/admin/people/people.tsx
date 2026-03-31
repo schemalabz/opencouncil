@@ -5,11 +5,13 @@ import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { PersonWithRelations } from "@/lib/db/people";
 import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
 import { BulkVoiceprintDialog } from "./bulk-voiceprint-dialog";
+import ElectedOrderSheet from "./ElectedOrderSheet";
 
 interface PeopleProps {
     people: PersonWithRelations[];
@@ -18,7 +20,9 @@ interface PeopleProps {
 
 export default function People({ people, currentCityName }: PeopleProps) {
     const [searchQuery, setSearchQuery] = useState("");
+    const [electedOrderOpen, setElectedOrderOpen] = useState(false);
     const t = useTranslations("Person");
+    const tElectedOrder = useTranslations("ElectedOrderSheet");
 
     const filteredPeople = useMemo(() => {
         if (!searchQuery) return people;
@@ -67,9 +71,18 @@ export default function People({ people, currentCityName }: PeopleProps) {
                 <CardHeader>
                     <CardTitle className='flex justify-between'>
                         <span>People</span>
-                        <div className='flex items-center'>
+                        <div className='flex items-center gap-2'>
+                            {cityId && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setElectedOrderOpen(true)}
+                                >
+                                    {tElectedOrder('triggerButton')}
+                                </Button>
+                            )}
                             {cityId && <BulkVoiceprintDialog cityId={cityId} currentCityName={currentCityName} />}
-                            <span className='text-muted-foreground text-sm ml-4'>{currentCityName}</span>
+                            <span className='text-muted-foreground text-sm ml-2'>{currentCityName}</span>
                         </div>
                     </CardTitle>
                 </CardHeader>
@@ -96,6 +109,15 @@ export default function People({ people, currentCityName }: PeopleProps) {
                     )}
                 </CardContent>
             </Card>
+
+            {cityId && (
+                <ElectedOrderSheet
+                    open={electedOrderOpen}
+                    onOpenChange={setElectedOrderOpen}
+                    people={people}
+                    cityId={cityId}
+                />
+            )}
         </>
     );
 }

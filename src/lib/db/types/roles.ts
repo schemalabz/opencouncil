@@ -5,6 +5,11 @@ export interface RoleRanking {
     rank: number | null;
 }
 
+export interface ElectedOrderRanking {
+    roleId: string;
+    electedOrder: number | null;
+}
+
 export const roleWithRelationsInclude = {
     include: {
         party: true,
