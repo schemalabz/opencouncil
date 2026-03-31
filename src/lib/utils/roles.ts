@@ -284,8 +284,8 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
 function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+  if (isMayorRole(role)) return 0;             // mayor
   const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
-  if (isCityLevel && role.isHead) return 0;  // mayor
   if (isCityLevel) return 1;                 // deputy mayor
   if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
   if (role.partyId && role.isHead) return 3;  // party leader
@@ -363,10 +363,18 @@ export function getSpeakerDisplayInfo(
   // but suppressed when the displayed role is already city-level head (mayor)
   // since the mayor is always the party leader — showing both is redundant.
   const activePartyRole = activeRoles.find(r => r.partyId);
-  const isCityHead = role !== null && role.cityId != null && !role.partyId && !role.administrativeBodyId && role.isHead;
+  const isCityHead = role !== null && isMayorRole(role);
   const isPartyHead = activePartyRole?.isHead === true && !isCityHead;
 
   return { party, role, isPartyHead, isIndependent };
+}
+
+/**
+ * Checks if a single role is the city mayor role.
+ * Mayor = city-level role (cityId set, no partyId or administrativeBodyId) with isHead.
+ */
+export function isMayorRole(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): boolean {
+  return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
 }
 
 /**

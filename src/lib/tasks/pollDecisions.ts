@@ -8,7 +8,7 @@ import { upsertDecision, deleteDecision, getDecisionForSubject } from "../db/dec
 export { getDecisionForSubject };
 import { withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
-import { isRoleActiveAt } from "../utils/roles";
+import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
@@ -87,10 +87,7 @@ export async function pollDecisionsForMeeting(
 
     // Find the city mayor for presence extraction from decision narrative
     const mayorPerson = people.find(p =>
-        p.roles.some(r =>
-            r.cityId != null && !r.partyId && !r.administrativeBodyId && r.isHead
-            && isRoleActiveAt(r, councilMeeting.dateTime)
-        )
+        p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, councilMeeting.dateTime))
     );
 
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
