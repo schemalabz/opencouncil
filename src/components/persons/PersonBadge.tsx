@@ -13,13 +13,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
-
-// Helper function to switch name order (reverses word order for display)
-const switchOrder = (name: string | undefined) => {
-    if (!name) return null;
-    const parts = name.split(' ');
-    return parts.length > 1 ? parts.reverse().join(' ') : name;
-};
+import { formatSurnameFirst } from '@/lib/formatters/name';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;
@@ -89,7 +83,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                 <div className="flex flex-col justify-center min-w-0 flex-1">
                     <div className={cn("font-medium text-foreground truncate sm:whitespace-normal sm:break-words", nameTextSize, size === 'sm' && "text-sm sm:text-base")}>
                         {person ? (
-                            preferFullName ? person.name : switchOrder(person.name)
+                            preferFullName ? person.name : formatSurnameFirst(person.name)
                         ) : (
                             speakerTag?.label
                         )}
@@ -184,7 +178,7 @@ function PersonBadge({
                 )}
                 <span className="text-sm font-medium truncate">
                     {person ? (
-                        preferFullName ? person.name : switchOrder(person.name)
+                        preferFullName ? person.name : formatSurnameFirst(person.name)
                     ) : (
                         speakerTag?.label
                     )}
