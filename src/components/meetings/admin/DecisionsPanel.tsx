@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
@@ -102,6 +103,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
+    const [forceExtract, setForceExtract] = useState(false);
 
     const fetchDecisions = useCallback(async () => {
         setIsLoading(true);
@@ -234,7 +236,7 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
     const handlePollDecisions = async () => {
         setIsPolling(true);
         try {
-            await requestPollDecisions(meeting.cityId, meeting.id);
+            await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
             toast({ title: t('decisions.pollRequested') });
         } catch (error) {
             toast({
@@ -342,6 +344,17 @@ export function DecisionsPanel({ open, onOpenChange }: DecisionsPanelProps) {
                                     Clear
                                 </Button>
                             )}
+                            <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                    id="force-extract"
+                                    checked={forceExtract}
+                                    onCheckedChange={(checked) => setForceExtract(checked === true)}
+                                    className="h-3.5 w-3.5"
+                                />
+                                <Label htmlFor="force-extract" className="text-[11px] text-muted-foreground cursor-pointer">
+                                    Force extract
+                                </Label>
+                            </div>
                             <Button
                                 variant="outline"
                                 size="sm"

@@ -445,6 +445,7 @@ export interface ExtractedDecisionData {
     voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' }[];
     unmatchedMembers: string[];
     subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
+    fromCache?: boolean;
 }
 
 /*
@@ -456,6 +457,7 @@ export interface PollDecisionsRequest extends TaskRequest {
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
     diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
     mayorId?: string; // Person ID of the city mayor, for presence extraction
+    forceExtract?: boolean; // Skip extraction cache and reprocess all PDFs
     people: { id: string; name: string }[];
     subjects: Array<{
         subjectId: string;
