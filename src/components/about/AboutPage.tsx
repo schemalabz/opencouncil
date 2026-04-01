@@ -10,6 +10,7 @@ import OpennessFeatures from './OpennessFeatures'
 import InternalFeatures from './InternalFeatures'
 import Quotes from './Quotes'
 import Recognition from './Recognition'
+import HowItWorks from './HowItWorks'
 import Team from './Team'
 import CTAFooter from './CTAFooter'
 import type { AboutPageStats } from '@/lib/db/cities'
@@ -66,7 +67,10 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
             {/* 4. Axis 2 — Εσωτερικές λειτουργίες (full-width gray bg) */}
             <InternalFeatures />
 
-            {/* 5. Quotes (full-width warm bg) */}
+            {/* 5. Πώς δουλεύει */}
+            <HowItWorks />
+
+            {/* 6. Quotes (full-width warm bg) */}
             <Quotes />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">

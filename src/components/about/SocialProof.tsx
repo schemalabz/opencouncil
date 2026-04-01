@@ -10,6 +10,10 @@ export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
     if (!citiesWithLogos.length) return null
 
     const count = citiesWithLogos.length
+    const cities = citiesWithLogos.map(c => ({
+        ...c,
+        shortName: c.name_municipality.replace(/^Δήμος\s+/i, ''),
+    }))
 
     return (
         <motion.section
@@ -38,20 +42,22 @@ export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
                     pauseOnHover={true}
                     repeat={5}
                 >
-                    {citiesWithLogos.map((city) => (
+                    {cities.map((city) => (
                         <Link
                             key={city.id}
                             href={`/${city.id}`}
-                            title={city.name_municipality}
                             tabIndex={-1}
-                            className="flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 transition-opacity hover:opacity-80"
+                            className="flex-shrink-0 flex flex-col items-center gap-2 group transition-transform duration-200 hover:scale-110 no-underline"
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={city.logoImage}
                                 alt={city.name_municipality}
-                                className="w-full h-full object-contain"
+                                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain"
                             />
+                            <span className="text-xs sm:text-sm text-muted-foreground text-center leading-tight max-w-[96px] sm:max-w-[112px]">
+                                {city.shortName}
+                            </span>
                         </Link>
                     ))}
                 </Marquee>

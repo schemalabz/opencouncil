@@ -138,46 +138,40 @@ export const INTERNAL_FEATURES: Feature[] = [
 
 export const CUSTOMER_QUOTES: CustomerQuote[] = [
     {
-        id: 'quote-1',
-        quote: 'Το OpenCouncil άλλαξε τον τρόπο που λειτουργεί το δημοτικό μας συμβούλιο. Οι πολίτες πλέον παρακολουθούν και συμμετέχουν ενεργά.',
-        name: '[Αιρετός/ή]',
-        role: 'Δήμαρχος',
-        municipality: '[Δήμος]',
-    },
-    {
-        id: 'quote-2',
-        quote: 'Εξοικονομούμε ημέρες εργασίας κάθε μήνα. Η απομαγνητοφώνηση που γινόταν σε εβδομάδες, τώρα είναι έτοιμη σε 48 ώρες.',
-        name: '[Υπάλληλος]',
-        role: 'Γραμματέας Δ.Σ.',
-        municipality: '[Δήμος]',
-    },
-    {
-        id: 'quote-3',
-        quote: 'Επιτέλους μπορώ να μάθω τι συζητήθηκε για τη γειτονιά μου, χωρίς να παρακολουθήσω 4ωρες συνεδριάσεις.',
-        name: '[Δημότης/ισσα]',
-        role: 'Δημότης',
-        municipality: '[Δήμος]',
+        id: 'quote-chania',
+        quote: 'Μέσα στα πρώτα πέντε λεπτά κατάλαβα πως ήταν κάτι το διαφορετικό.',
+        name: 'Προϊσταμένη Δ/νσης Προγραμματισμού, Οργάνωσης και Πληροφορικής',
+        role: 'Δήμος Χανίων',
     },
 ]
 
 export const RECOGNITION_ITEMS: RecognitionItem[] = [
     {
+        id: 'ministry-award',
+        title: 'Βραβείο Υπουργείου Ψηφιακής Διακυβέρνησης',
+        subtitle: 'Καλύτερη Εφαρμοσμένη Ιδέα — Τοπική Αυτοδιοίκηση',
+        linkUrl: '',
+    },
+    {
+        id: 'oecd',
+        title: 'OECD',
+        subtitle: 'Αναφορά σε έκθεση του ΟΟΣΑ για AI & Civic Engagement',
+        linkUrl: 'https://oecd.ai/en/gov/issues/civic-engagement-open-government',
+        logoUrl: '/about/oecd.png',
+    },
+    {
         id: 'ert',
         title: 'ERTnews',
         subtitle: 'Ρεπορτάζ για την τεχνητή νοημοσύνη στα Χανιά',
         linkUrl: 'https://www.ertnews.gr/video/xania-i-texniti-noimosyni-sti-diathesi-tou-dimoti/',
+        logoUrl: '/about/ert-news.svg',
     },
     {
         id: 'kede',
         title: 'ΚΕΔΕ',
-        subtitle: 'Άρθρο στο kede.gr',
+        subtitle: 'Άρθρο στο kede.gr για την τεχνητή νοημοσύνη στην τοπική δημοκρατία',
         linkUrl: 'https://www.kede.gr/opencouncil-chania-gr-i-texniti-noimosini-sti-ypiresia-tis-topikis-dimokratias/',
-    },
-    {
-        id: 'mayor-chania',
-        title: 'Δήμαρχος Χανίων',
-        subtitle: 'Παρουσίαση του OpenCouncil',
-        linkUrl: 'https://www.instagram.com/p/DJo18NyCT5D/',
+        logoUrl: '/about/kede.png',
     },
 ]
 
@@ -217,14 +211,18 @@ export const TEAM_MEMBERS: TeamMember[] = [
         },
     },
     {
-        name: '[Μέλος ομάδας 5]',
-        image: '/people/placeholder.jpg',
-        socials: {},
+        name: 'Βασιλική Κουμαρέλα',
+        image: '/people/vasia.jpg',
+        socials: {
+            linkedin: 'https://www.linkedin.com/in/vasiliki-koumarela/',
+        },
     },
     {
-        name: '[Μέλος ομάδας 6]',
-        image: '/people/placeholder.jpg',
-        socials: {},
+        name: 'Κλέα Μέσι',
+        image: '/people/klea.png',
+        socials: {
+            linkedin: 'https://www.linkedin.com/in/klea-meshi-0980b2370/',
+        },
     },
 ]
 
@@ -232,16 +230,16 @@ export const ROADMAP_ITEMS: RoadmapItem[] = [
     {
         title: 'Αυτόματες αποφάσεις Διαύγειας',
         description: 'Αυτόματη δημιουργία εγγράφων αποφάσεων για ανάρτηση στη Διαύγεια',
-        timeframe: 'Q4 2026',
+        timeframe: 'Q2 2026',
     },
     {
         title: 'Αμφίδρομες ειδοποιήσεις',
         description: 'Οι δημότες απαντάνε στις ειδοποιήσεις και στέλνουν feedback',
-        timeframe: 'Q1 2027',
+        timeframe: 'Q3 2026',
     },
     {
         title: 'Fine-tuned μοντέλο απομαγνητοφώνησης',
         description: 'Εξειδικευμένο μοντέλο για ελληνικά δημοτικά συμβούλια',
-        timeframe: 'Q2 2027',
+        timeframe: 'Q3 2026',
     },
 ]

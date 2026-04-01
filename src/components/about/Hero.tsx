@@ -3,6 +3,7 @@ import { PhoneCall, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import NumberTicker from '@/components/magicui/number-ticker'
 import BrowserFrame from './BrowserFrame'
+import ShineTitle from './ShineTitle'
 import { HERO_COUNTERS, CONTACT_PHONE, CONTACT_PHONE_DISPLAY } from './config'
 import type { AboutPageStats } from '@/lib/db/cities'
 import type { HeroCounter } from './config'
@@ -70,12 +71,12 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7 }}
                 >
-                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.5rem] font-light tracking-tight leading-[1.1]">
+                    <ShineTitle className="text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.5rem] font-light tracking-tight leading-[1.1]">
                         Το λειτουργικό σύστημα{' '}
                         <span className="font-medium">
                             των συλλογικών οργάνων
                         </span>
-                    </h1>
+                    </ShineTitle>
 
                     <motion.p
                         className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-muted-foreground leading-relaxed"

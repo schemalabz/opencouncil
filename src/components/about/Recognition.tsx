@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Trophy } from 'lucide-react'
+import Image from 'next/image'
+import { cn } from '@/lib/utils'
 import { RECOGNITION_ITEMS } from './config'
 
 export default function Recognition() {
@@ -17,39 +19,72 @@ export default function Recognition() {
                 </h2>
             </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {RECOGNITION_ITEMS.map((item, index) => (
-                    <motion.a
-                        key={item.id}
-                        href={item.linkUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex flex-col rounded-xl border border-border/50 bg-white p-6 transition-all duration-300 hover:shadow-md hover:border-border/80 no-underline"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: index * 0.08 }}
-                        viewport={{ once: true }}
-                    >
-                        {/* Logo placeholder */}
-                        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center mb-4">
-                            <span className="text-xs font-medium text-muted-foreground/60">
-                                {item.title.charAt(0)}
-                            </span>
-                        </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {RECOGNITION_ITEMS.map((item, index) => {
+                    const hasLink = !!item.linkUrl
+                    const cardClass = cn(
+                        'flex flex-col rounded-xl border border-border/50 bg-white p-6 h-full transition-shadow duration-200',
+                        hasLink && 'hover:shadow-md'
+                    )
 
-                        <h3 className="text-base font-medium text-foreground group-hover:text-primary transition-colors">
-                            {item.title}
-                        </h3>
-                        <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed flex-1">
-                            {item.subtitle}
-                        </p>
+                    const cardContent = (
+                        <>
+                            <div className="h-10 mb-4 flex items-center">
+                                {item.logoUrl ? (
+                                    <Image
+                                        src={item.logoUrl}
+                                        alt={item.title}
+                                        width={120}
+                                        height={40}
+                                        className="h-8 w-auto max-w-[120px] object-contain object-left"
+                                    />
+                                ) : (
+                                    <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-primary/10">
+                                        <Trophy className="h-5 w-5 text-primary" />
+                                    </div>
+                                )}
+                            </div>
 
-                        <div className="mt-4 flex items-center gap-1 text-xs text-primary/70 group-hover:text-primary transition-colors">
-                            <span>Δείτε</span>
-                            <ExternalLink className="h-3 w-3" />
-                        </div>
-                    </motion.a>
-                ))}
+                            <h3 className="text-sm font-semibold text-foreground leading-snug">
+                                {item.title}
+                            </h3>
+                            <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed flex-1">
+                                {item.subtitle}
+                            </p>
+
+                            {hasLink && (
+                                <div className="mt-4 flex items-center gap-1 text-xs text-muted-foreground/60">
+                                    <ExternalLink className="h-3 w-3" />
+                                </div>
+                            )}
+                        </>
+                    )
+
+                    return (
+                        <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: index * 0.08 }}
+                            viewport={{ once: true }}
+                        >
+                            {hasLink ? (
+                                <a
+                                    href={item.linkUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={cn(cardClass, 'no-underline')}
+                                >
+                                    {cardContent}
+                                </a>
+                            ) : (
+                                <div className={cardClass}>
+                                    {cardContent}
+                                </div>
+                            )}
+                        </motion.div>
+                    )
+                })}
             </div>
         </section>
     )
