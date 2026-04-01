@@ -54,7 +54,15 @@ const people = [
             linkedin: "https://www.linkedin.com/in/athanasios-papadogiannis-099537195/",
             email: "mailto:thanos@schemalabs.gr"
         }
-    }
+    },
+    {
+        name: "Βασιλική Κουμαρέλα",
+        image: "/people/vasia.jpg",
+        about: "Tech",
+        socials: {
+            linkedin: "https://www.linkedin.com/in/vasiliki-koumarela/",
+        }
+    },
 ]
 function Hero({ setIsContactFormOpen }: { setIsContactFormOpen: (open: boolean) => void }) {
     const heroRef = useRef(null)
