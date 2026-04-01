@@ -5,18 +5,21 @@ import { useInView, useMotionValue, useSpring } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
-const numberFormatter = new Intl.NumberFormat("en-US", { useGrouping: false });
+const numberFormatterNoGrouping = new Intl.NumberFormat("en-US", { useGrouping: false });
+const numberFormatterWithGrouping = new Intl.NumberFormat("en-US");
 
 export default function NumberTicker({
   value,
   direction = "up",
   delay = 0,
   className,
+  useGrouping = true,
 }: {
   value: number;
   direction?: "up" | "down";
   className?: string;
   delay?: number; // delay in s
+  useGrouping?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const motionValue = useMotionValue(direction === "down" ? value : 0);
@@ -26,6 +29,7 @@ export default function NumberTicker({
     restDelta: 0.5,
   });
   const isInView = useInView(ref, { once: true, margin: "0px" });
+  const formatter = useGrouping ? numberFormatterWithGrouping : numberFormatterNoGrouping;
 
   useEffect(() => {
     isInView &&
@@ -38,12 +42,12 @@ export default function NumberTicker({
     () =>
       springValue.on("change", (latest) => {
         if (ref.current) {
-          ref.current.textContent = numberFormatter.format(
+          ref.current.textContent = formatter.format(
             Number(latest.toFixed(0)),
           );
         }
       }),
-    [springValue],
+    [springValue, formatter],
   );
 
   return (

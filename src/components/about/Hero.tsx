@@ -19,7 +19,7 @@ function getCounters(stats?: AboutPageStats | null): HeroCounter[] {
     return [
         { value: stats.municipalityCount, label: 'δήμοι' },
         { value: stats.subjectCount, suffix: '+', label: 'θέματα' },
-        { value: Math.max(stats.meetingHours, 300), suffix: '+', label: 'ώρες συνεδριάσεων' },
+        { value: stats.meetingHours, suffix: '+', label: 'ώρες συνεδριάσεων' },
     ]
 }
 
@@ -100,7 +100,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                                     className="text-xl sm:text-3xl md:text-5xl font-semibold tracking-tight text-foreground whitespace-nowrap tabular-nums"
                                     style={{ fontFamily: 'var(--font-roboto), Roboto, sans-serif' }}
                                 >
-                                    <NumberTicker value={counter.value} delay={0.5} />
+                                    <NumberTicker value={counter.value} delay={0.5} useGrouping={false} />
                                     {counter.suffix && (
                                         <span className="text-primary">{counter.suffix}</span>
                                     )}

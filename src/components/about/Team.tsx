@@ -189,7 +189,7 @@ export default function Team({ githubStats }: TeamProps) {
                         </p>
                         {/* GitHub commit activity grid — last 12 weeks */}
                         <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-border/30">
-                            <div className="grid grid-cols-12 gap-0.5">
+                            <div className="grid grid-rows-7 grid-flow-col gap-0.5">
                                 {dailyCommits.map((commits, i) => {
                                     const intensity = commits > 0 ? Math.min(commits / maxDaily, 1) : 0
                                     return (

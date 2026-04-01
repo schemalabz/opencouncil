@@ -79,14 +79,6 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
 
                 {/* 7. Pricing */}
                 <section className="py-16 md:py-24">
-                    <motion.p
-                        className="text-center text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6 }}
-                        viewport={{ once: true }}
-                    >
-                    </motion.p>
                     <Pricing />
                 </section>
             </div>

@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Claude Code local config
+.claude/launch.json
+.claude/worktrees/
+
 # dependencies
 /node_modules
 /.pnp

@@ -186,7 +186,7 @@ export default function Pricing() {
 }
 export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: boolean) => void }) {
     const [card1Open, setCard1Open] = React.useState(false)
-    const [card2Open, setCard2Open] = React.useState(false)
+    const [card2Open, setCard2Open] = React.useState(true)
 
     const processingPrice = getCombinedProcessingPrice()
 

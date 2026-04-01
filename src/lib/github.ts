@@ -44,7 +44,7 @@ export async function getGitHubStats(): Promise<GitHubStats> {
     // commit_activity returns last 52 weeks of commit data
     // Each entry: { total: number, week: number, days: number[7] }
     let dailyCommits: number[] = []
-    if (commitActivityRes.ok) {
+    if (commitActivityRes.ok && commitActivityRes.status !== 202) {
         const activity = await commitActivityRes.json()
         if (Array.isArray(activity)) {
             // Take last 12 weeks, flatten daily data: each week has days[0..6] (Sun-Sat)
