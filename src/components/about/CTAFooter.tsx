@@ -75,7 +75,7 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                             <CalendarClock className="mr-2 h-4 w-4" />
                             Κλείστε μία παρουσίαση
                         </Button>
-                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline">
+                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 className="bg-transparent border border-white/30 text-white hover:bg-white/10 rounded-xl px-8 py-6 text-base w-full transition-colors duration-300"

@@ -127,7 +127,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                             <CalendarClock className="mr-2 h-4 w-4" />
                             Κλείστε μία παρουσίαση
                         </Button>
-                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline">
+                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 variant="outline"

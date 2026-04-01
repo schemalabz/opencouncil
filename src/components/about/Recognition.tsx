@@ -73,7 +73,7 @@ export default function Recognition() {
                                     href={item.linkUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={cn(cardClass, 'no-underline')}
+                                    className={cn(cardClass, 'no-underline [&_*]:no-underline')}
                                 >
                                     {cardContent}
                                 </a>

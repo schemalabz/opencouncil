@@ -68,20 +68,20 @@ export default function Team({ githubStats }: TeamProps) {
                                     <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300" />
                                 )}
                             </div>
-                            <h3 className="text-sm sm:text-base font-medium">{person.name}</h3>
+                            <h3 className="text-sm sm:text-base font-medium h-10 flex items-center justify-center text-center leading-tight">{person.name}</h3>
                             <div className="flex gap-2.5 mt-2">
                                 {person.socials.twitter && (
-                                    <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/50 hover:text-primary transition-colors">
+                                    <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="no-underline text-muted-foreground/50 hover:text-primary transition-colors">
                                         <Twitter className="w-3.5 h-3.5" />
                                     </a>
                                 )}
                                 {person.socials.linkedin && (
-                                    <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/50 hover:text-primary transition-colors">
+                                    <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" className="no-underline text-muted-foreground/50 hover:text-primary transition-colors">
                                         <Linkedin className="w-3.5 h-3.5" />
                                     </a>
                                 )}
                                 {person.socials.email && (
-                                    <a href={person.socials.email} className="text-muted-foreground/50 hover:text-primary transition-colors">
+                                    <a href={person.socials.email} className="no-underline text-muted-foreground/50 hover:text-primary transition-colors">
                                         <Mail className="w-3.5 h-3.5" />
                                     </a>
                                 )}
