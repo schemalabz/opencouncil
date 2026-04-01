@@ -4,10 +4,11 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { useVideo } from "../VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
-import { ScrollText } from "lucide-react";
+import { Clock, ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
 import { useHighlight } from "../HighlightContext";
+import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 
 // Helper functions for speaker segment identification and parsing
@@ -26,8 +27,9 @@ const createSegmentId = (index: number): string => {
 };
 
 export default function Transcript() {
-    const { transcript: speakerSegments, getHighlight, taskStatus } = useCouncilMeetingData();
+    const { transcript: speakerSegments, getHighlight, taskStatus, transcriptHiddenForReview } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
+    const tTranscript = useTranslations('transcript');
     const { setCurrentScrollInterval, currentTime } = useVideo();
     const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export default function Transcript() {
     const searchParams = useSearchParams();
     
     // Check if transcript is unverified (humanReview not completed)
-    const isUnverified = !taskStatus.humanReview;
+    const isUnverified = !taskStatus.humanReview && !options.editsAllowed;
 
     // Derive scroll state from visible segments - if first segment (index 0) is not visible, we've scrolled
     const isScrolled = useMemo(() => {
@@ -165,6 +167,17 @@ export default function Transcript() {
     }, [displayedSegments, handleIntersection]);
 
     if (displayedSegments.length === 0) {
+        if (transcriptHiddenForReview) {
+            return <div className="container py-8">
+                <Clock className="w-12 h-12 mx-auto text-muted-foreground" />
+                <div className="text-center text-base font-medium text-muted-foreground pt-4">
+                    {tTranscript('hiddenForReview.title')}
+                </div>
+                <div className="text-center text-sm text-muted-foreground pt-2">
+                    {tTranscript('hiddenForReview.description')}
+                </div>
+            </div>
+        }
         return <div className="container py-8">
             <ScrollText className="w-12 h-12 mx-auto text-muted-foreground" />
             <div className="text-center text-base text-muted-foreground py-8">

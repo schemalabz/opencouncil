@@ -17,6 +17,7 @@ function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): Administrat
         name_en: 'Test Body',
         type: 'council',
         notificationBehavior: 'NOTIFICATIONS_APPROVAL',
+        showUnreviewedTranscript: true,
         youtubeChannelUrl: null,
         contactEmails: [],
         diavgeiaUnitIds: [],

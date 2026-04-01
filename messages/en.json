@@ -442,6 +442,8 @@
             "auto": "Automatic",
             "approval": "With Approval"
         },
+        "showUnreviewedTranscript": "Show Unreviewed Transcript",
+        "showUnreviewedTranscriptDescription": "When disabled, unreviewed transcripts are hidden from public view until human review is completed.",
         "diavgeiaUnitIds": "Diavgeia Unit IDs",
         "diavgeiaUnitIdsPlaceholder": "e.g. 81689, 81690",
         "diavgeiaUnitIdsDescription": "Comma-separated unit IDs on Diavgeia (for automatic decision retrieval).",

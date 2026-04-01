@@ -28,6 +28,7 @@ export type MeetingDataCore = {
     subjects: (SubjectWithRelations & { statistics?: Statistics })[];
     speakerTags: SpeakerTag[];
     taskStatus: MeetingTaskStatus;
+    transcriptHiddenForReview: boolean;
 }
 
 export type MeetingData = MeetingDataCore & {
@@ -96,6 +97,9 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
     }
     const speakerTags = Array.from(speakerTagsMap.values());
 
+    const transcriptHiddenForReview = !taskStatus.humanReview
+        && meeting.administrativeBody?.showUnreviewedTranscript === false;
+
     return {
         meeting,
         transcript,
@@ -104,7 +108,8 @@ export const getMeetingDataCore = async (cityId: string, meetingId: string): Pro
         parties,
         subjects: subjectsWithStatistics,
         speakerTags,
-        taskStatus
+        taskStatus,
+        transcriptHiddenForReview
     };
 }
 

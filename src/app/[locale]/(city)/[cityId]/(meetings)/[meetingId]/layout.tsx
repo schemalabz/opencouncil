@@ -114,6 +114,10 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
+    const meetingData = (data.transcriptHiddenForReview && !editable)
+        ? { ...data, transcript: [], speakerTags: [] }
+        : data;
+
     const highlightCreationAllowed = editable || (
         !!currentUser &&
         data.city.highlightCreationPermission === HighlightCreationPermission.EVERYONE
@@ -127,8 +131,8 @@ export default async function CouncilMeetingPage({
 
     return (
         <ShareProvider>
-            <CouncilMeetingWrapper 
-                meetingData={data} 
+            <CouncilMeetingWrapper
+                meetingData={meetingData}
                 editable={editable}
                 canCreateHighlights={highlightCreationAllowed}
             >

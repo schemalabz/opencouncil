@@ -20,6 +20,7 @@ const bodySchema = z.object({
     ]).optional().transform(val => val === '' ? undefined : val),
     contactEmails: z.array(z.string().email()).optional().default([]),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional(),
+    showUnreviewedTranscript: z.boolean().optional(),
     diavgeiaUnitIds: z.string().optional().transform(val => {
         if (!val || val.trim() === '') return [];
         return val.split(',').map(s => s.trim()).filter(Boolean);
@@ -34,7 +35,7 @@ export async function PUT(
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
         const parsed = bodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
 
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
@@ -43,6 +44,7 @@ export async function PUT(
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
             contactEmails: contactEmails || [],
             notificationBehavior: notificationBehavior,
+            ...(showUnreviewedTranscript !== undefined && { showUnreviewedTranscript }),
             diavgeiaUnitIds: diavgeiaUnitIds || [],
         });
 

@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Loader2, Pencil, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
+import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,6 +51,7 @@ const formSchema = z.object({
         return emails.every(email => emailSchema.safeParse(email).success);
     }, { message: "All entries must be valid email addresses" }),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']),
+    showUnreviewedTranscript: z.boolean(),
     diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
 })
 
@@ -61,6 +63,7 @@ interface AdministrativeBody {
     youtubeChannelUrl?: string | null;
     contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
+    showUnreviewedTranscript?: boolean;
     diavgeiaUnitIds?: string[];
 }
 
@@ -79,6 +82,7 @@ function getFormDefaults(body?: AdministrativeBody | null): z.infer<typeof formS
         contactEmailPrimary: body?.contactEmails?.[0] || "",
         contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+        showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
     };
 }
@@ -321,6 +325,26 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                             {t('notificationBehaviorDescription')}
                                         </FormDescription>
                                         <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="showUnreviewedTranscript"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                        <div className="space-y-0.5">
+                                            <FormLabel>{t('showUnreviewedTranscript')}</FormLabel>
+                                            <FormDescription>
+                                                {t('showUnreviewedTranscriptDescription')}
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                            />
+                                        </FormControl>
                                     </FormItem>
                                 )}
                             />

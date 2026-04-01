@@ -62,6 +62,10 @@
     "seekTo": "Seek to",
     "transcript": "Transcript"
   },
+  "hiddenForReview": {
+    "title": "Transcript not yet available",
+    "description": "The transcript is being reviewed by our team and will be available soon."
+  },
   "copySegment": {
     "button": "Copy segment",
     "segmentCopied": "Segment copied",

@@ -95,6 +95,7 @@ model AdministrativeBody {
   name_en   String   // e.g. "5th Municipal Community"
   type      AdministrativeBodyType
   notificationBehavior NotificationBehavior @default(NOTIFICATIONS_APPROVAL)
+  showUnreviewedTranscript Boolean @default(true)
   youtubeChannelUrl String?
   contactEmails String[] @default([]) // Emails for receiving transcripts
   diavgeiaUnitIds String[] @default([]) // Diavgeia unit IDs (e.g., ["81689"])

@@ -35,6 +35,10 @@ export async function GET(
 ) {
     try {
         const data = await getMeetingDataCore(params.cityId, params.meetingId);
+        // Strip transcript data when hidden for review (no auth on this endpoint)
+        if (data.transcriptHiddenForReview) {
+            return NextResponse.json({ ...data, transcript: [], speakerTags: [] });
+        }
         return NextResponse.json({ ...data });
     } catch (error) {
         // TODO: Brittle string match — refactor getMeetingData to return null instead of throwing

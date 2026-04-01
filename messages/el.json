@@ -564,6 +564,8 @@
             "auto": "Αυτόματες",
             "approval": "Με Έγκριση"
         },
+        "showUnreviewedTranscript": "Εμφάνιση Μη Ελεγμένης Απομαγνητοφώνησης",
+        "showUnreviewedTranscriptDescription": "Όταν είναι απενεργοποιημένο, οι μη ελεγμένες απομαγνητοφωνήσεις κρύβονται από το κοινό μέχρι να ολοκληρωθεί ο έλεγχος.",
         "diavgeiaUnitIds": "IDs Μονάδων Διαύγειας",
         "diavgeiaUnitIdsPlaceholder": "π.χ. 81689, 81690",
         "diavgeiaUnitIdsDescription": "IDs μονάδων στη Διαύγεια, χωρισμένα με κόμμα (για αυτόματη ανάκτηση αποφάσεων).",

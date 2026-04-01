@@ -476,7 +476,12 @@ export async function getLatestSegmentsForSpeaker(
 
     const meetingFilter: Prisma.CouncilMeetingWhereInput = {
         ...(includeUnreleased ? {} : { released: true }),
-        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
+        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {}),
+        // Exclude meetings where transcript is hidden for review
+        NOT: {
+            administrativeBody: { showUnreviewedTranscript: false },
+            taskStatuses: { none: { type: 'humanReview', status: 'succeeded' } }
+        }
     };
 
     const whereClause: any = {
@@ -570,7 +575,12 @@ export async function getLatestSegmentsForParty(
 
     const meetingFilter: Prisma.CouncilMeetingWhereInput = {
         ...(includeUnreleased ? {} : { released: true }),
-        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {})
+        ...(administrativeBodyType ? { administrativeBody: { type: administrativeBodyType } } : {}),
+        // Exclude meetings where transcript is hidden for review
+        NOT: {
+            administrativeBody: { showUnreviewedTranscript: false },
+            taskStatuses: { none: { type: 'humanReview', status: 'succeeded' } }
+        }
     };
 
     const [segments, totalCount] = await Promise.all([
