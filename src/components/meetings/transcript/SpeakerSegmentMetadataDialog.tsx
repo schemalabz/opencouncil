@@ -230,8 +230,10 @@ export default function SpeakerSegmentMetadataDialog({
                 <ScrollArea className="flex-1 min-h-0">
                     <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                            <div className="text-sm text-muted-foreground">
-                                Edit utterances and summary data. Remove utterances by deleting them from the array.
+                            <div className="text-sm text-muted-foreground space-y-1">
+                                <div>Edit utterances and summary data. Remove utterances by deleting them from the array.</div>
+                                <div>discussionStatus: ATTENDANCE | SUBJECT_DISCUSSION | VOTE | OTHER | null.</div>
+                                <div>Set discussionSubjectId to a subject ID or null.</div>
                             </div>
                             <Button
                                 variant="outline"
