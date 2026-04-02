@@ -181,6 +181,6 @@ export async function getGitHubStatsCached() {
   return createCache(
     () => getGitHubStats(),
     ['about', 'github'],
-    { tags: ['github'] }
+    { tags: ['github'], revalidate: 86400 } // refresh once per day
   )();
 }
