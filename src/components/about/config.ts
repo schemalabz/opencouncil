@@ -16,6 +16,7 @@ export interface Feature {
     description: string
     status: FeatureStatus
     demoUrl?: string
+    demoLabel?: string
     targetDate?: string
     screenshot?: string
     embedPlaceholder?: boolean
@@ -76,7 +77,7 @@ export const OPENNESS_FEATURES: Feature[] = [
         title: 'Θέματα & Περιλήψεις',
         description: 'Κάθε συνεδρίαση χωρίζεται αυτόματα σε θέματα. Για κάθε θέμα, σύνοψη τοποθέτησης ανά ομιλητή, με βίντεο, κείμενο και ψηφοφορία.',
         status: 'live',
-        demoUrl: '/athens/subjects',
+        demoUrl: '/chania/mar26_2026/subjects/cmmywhibg07ud139hav10soag',
     },
     {
         id: 'search',
@@ -89,17 +90,19 @@ export const OPENNESS_FEATURES: Feature[] = [
     {
         id: 'notifications',
         title: 'Ειδοποιήσεις',
-        description: 'Σύντομα μηνύματα για τα θέματα της γειτονιάς σου, μέσω SMS, WhatsApp και email — πριν και μετά από κάθε συνεδρίαση.',
+        description: 'Οι δημότες λαμβάνουν σύντομα μηνύματα σε SMS, WhatsApp και email, όποτε το ΔΣ συζητάει κάτι για τον δρόμο ή την γειτονιά τους.',
         status: 'live',
-        demoUrl: '/chalandri/notifications',
+        demoUrl: '/athens/notifications',
+        demoLabel: 'Εγγραφείτε στις ειδοποιήσεις για την Αθήνα',
         screenshot: '/about/notifications-placeholder.png',
     },
     {
         id: 'map',
         title: 'Χάρτης θεμάτων',
-        description: 'Τα θέματα κάθε συνεδρίασης τοποθετημένα στον χάρτη. Δες τι συζητήθηκε για τη γειτονιά σου.',
+        description: 'Ζουμ σε κάθε περιοχή, γειτονιά και δρόμο: τα θέματα που συζητάει το ΔΣ και οι κοινότητες σε χάρτη.',
         status: 'live',
-        demoUrl: '/chania/map',
+        demoUrl: '/map',
+        demoLabel: 'Δείτε τον χάρτη',
     },
 ]
 
@@ -109,13 +112,13 @@ export const INTERNAL_FEATURES: Feature[] = [
         title: 'Απομαγνητοφωνήσεις σε 48 ώρες',
         description: 'Ακριβείς, ελεγμένες από άνθρωπο απομαγνητοφωνήσεις κάθε συνεδρίασης, έτοιμες μέσα σε 48 ώρες. Αυτόματη αναγνώριση ομιλητή.',
         status: 'live',
-        demoUrl: '/chania/jun25_2025/transcript',
+        demoUrl: '/chania/mar26_2026/transcript',
         icon: Mic2,
     },
     {
         id: 'minutes',
         title: 'Αυτόματη παραγωγή πρακτικών',
-        description: 'Τα επίσημα πρακτικά της συνεδρίασης παράγονται αυτόματα, έτοιμα για έλεγχο και υπογραφή. Εξοικονόμηση ημερών εργασίας.',
+        description: 'Αυτόματα πρακτικά της συνεδρίασης, έτοιμα για έλεγχο και υπογραφή. Εξοικονόμηση ημερών εργασίας.',
         status: 'live',
         icon: ScrollText,
     },

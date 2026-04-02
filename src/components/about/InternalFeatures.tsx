@@ -77,6 +77,16 @@ export default function InternalFeatures() {
                         </motion.div>
                     ))}
                 </div>
+
+                <motion.p
+                    className="mt-10 text-center text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed border-t border-border/40 pt-8"
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    viewport={{ once: true }}
+                >
+                    Το OpenCouncil μπορεί να αντικαταστήσει τον πάροχο των πρακτικών σας για παρόμοιο κόστος — με δεκαπλάσια λειτουργικότητα και ταχύτητα.
+                </motion.p>
             </section>
         </div>
     )

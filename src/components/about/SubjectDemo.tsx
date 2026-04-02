@@ -111,7 +111,7 @@ export default function SubjectDemo() {
     const d = DEMO_SUBJECT
 
     return (
-        <BrowserFrame url="opencouncil.gr/chania/jan15_2026/subjects/3" className="w-full">
+        <BrowserFrame url="opencouncil.gr/chania/mar26_2026/subjects/..." className="w-full">
             <div className="p-4 md:p-6 space-y-5 bg-white">
                 {/* Section 1: Header — label left */}
                 <AnnotationBox calloutId="header">
@@ -241,10 +241,10 @@ export default function SubjectDemo() {
                 {/* CTA */}
                 <div className="pt-2">
                     <Link
-                        href="/chania/subjects"
+                        href="/chania/mar26_2026/subjects/cmmywhibg07ud139hav10soag"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-orange hover:text-orange/80 transition-colors group"
                     >
-                        Δείτε ολόκληρη τη σελίδα
+                        Δείτε μια σελίδα πραγματικού θέματος
                         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                 </div>

@@ -43,21 +43,15 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     style={{ transform: 'perspective(1200px) rotateY(-6deg) rotateX(2deg)' }}
                 >
                     <BrowserFrame url="opencouncil.gr" className="shadow-xl">
-                        <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-                            <div className="text-center px-8">
-                                <div className="mx-auto mb-4 h-6 w-48 rounded bg-gray-200/80" />
-                                <div className="space-y-2.5 max-w-sm mx-auto">
-                                    <div className="h-3 w-full rounded bg-gray-200/60" />
-                                    <div className="h-3 w-5/6 rounded bg-gray-200/60" />
-                                    <div className="h-3 w-4/6 rounded bg-gray-200/60" />
-                                </div>
-                                <div className="mt-6 grid grid-cols-2 gap-3">
-                                    <div className="h-20 rounded-lg bg-gray-200/50" />
-                                    <div className="h-20 rounded-lg bg-gray-200/50" />
-                                    <div className="h-20 rounded-lg bg-gray-200/50" />
-                                    <div className="h-20 rounded-lg bg-gray-200/50" />
-                                </div>
-                            </div>
+                        <div className="aspect-[4/3] bg-black overflow-hidden">
+                            <video
+                                src="/about/product-demo.mp4"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                className="w-full h-full object-fill"
+                            />
                         </div>
                     </BrowserFrame>
                 </div>
@@ -153,22 +147,15 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                         style={{ transform: 'perspective(1000px) rotateY(-6deg) rotateX(2deg)' }}
                     >
                         <BrowserFrame url="opencouncil.gr" className="shadow-2xl">
-                            {/* Skeleton placeholder for hero screenshot */}
-                            <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-                                <div className="text-center px-8">
-                                    <div className="mx-auto mb-4 h-6 w-48 rounded bg-gray-200/80 animate-pulse" />
-                                    <div className="space-y-2.5 max-w-sm mx-auto">
-                                        <div className="h-3 w-full rounded bg-gray-200/60 animate-pulse" />
-                                        <div className="h-3 w-5/6 rounded bg-gray-200/60 animate-pulse" />
-                                        <div className="h-3 w-4/6 rounded bg-gray-200/60 animate-pulse" />
-                                    </div>
-                                    <div className="mt-6 grid grid-cols-2 gap-3">
-                                        <div className="h-20 rounded-lg bg-gray-200/50 animate-pulse" />
-                                        <div className="h-20 rounded-lg bg-gray-200/50 animate-pulse" />
-                                        <div className="h-20 rounded-lg bg-gray-200/50 animate-pulse" />
-                                        <div className="h-20 rounded-lg bg-gray-200/50 animate-pulse" />
-                                    </div>
-                                </div>
+                            <div className="aspect-[4/3] bg-black overflow-hidden">
+                                <video
+                                    src="/about/product-demo.mp4"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    className="w-full h-full object-fill"
+                                />
                             </div>
                         </BrowserFrame>
                         {/* Decorative shadow */}

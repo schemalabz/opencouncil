@@ -78,7 +78,7 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
                         href={feature.demoUrl}
                         className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
                     >
-                        Δοκιμάστε το
+                        {feature.demoLabel ?? 'Δοκιμάστε το'}
                         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                 )}

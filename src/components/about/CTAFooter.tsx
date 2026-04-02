@@ -60,10 +60,10 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                     viewport={{ once: true }}
                 >
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                        Φέρτε το OpenCouncil στον δήμο σας
+                        Φέρετε τα συλλογικά όργανα του δήμου σας στο σήμερα.
                     </h2>
                     <p className="mt-4 text-base md:text-lg text-white/60 max-w-lg mx-auto">
-                        Ενσωμάτωση σε ώρες, όχι μήνες.
+                        Το OpenCouncil μπορεί να ξεκινήσει στο δήμο σας σε ημέρες — όχι σε μήνες.
                     </p>
 
                     <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
