@@ -4,7 +4,7 @@ import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { useVideo } from "../VideoProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2 } from "lucide-react";
+import { Landmark, FileText, CheckSquare, ScrollText, Play, ExternalLink, Loader2, MapPin } from "lucide-react";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -20,6 +20,7 @@ import { GroupedDiscussionNotice } from "./grouped-discussion-notice";
 import { ContributionCard } from "./ContributionCard";
 import { VotingSection } from "./VotingSection";
 import { formatDate, formatRelativeTime } from "@/lib/formatters/time";
+import { RelatedSubjects } from "./related-subjects";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
@@ -440,24 +441,29 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         {t("searchingDecision")}
                                     </div>
                                 ) : (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleFetchDecision}
-                                    >
-                                        <Landmark className="w-4 h-4 mr-2" />
-                                        {t("fetchDecision")}
-                                    </Button>
-                                )}
-                                {lastSearchedAt && !isFetchingDecision && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
-                                    </p>
+                                    <>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handleFetchDecision}
+                                        >
+                                            <Landmark className="w-4 h-4 mr-2" />
+                                            {t("fetchDecision")}
+                                        </Button>
+                                        {lastSearchedAt && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                                            </p>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
                     </CollapsibleCard>
                 )}
+
+                {/* Related Subjects Section */}
+                <RelatedSubjects subjectId={subject.id} />
 
                 {/* Admin Section */}
                 {(topicImportance || proximityImportance) && (
