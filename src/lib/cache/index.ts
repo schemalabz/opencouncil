@@ -13,7 +13,7 @@ import { IS_DEV } from '@/lib/utils';
 export function createCache<T>(
   fn: () => Promise<T>,
   keyParts: string[],
-  options?: { tags?: string[]; }
+  options?: { tags?: string[]; revalidate?: number | false; }
 ): () => Promise<T> {
   const key = keyParts.join(':');
   let wasMiss = false;

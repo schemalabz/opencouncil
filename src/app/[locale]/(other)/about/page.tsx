@@ -1,15 +1,15 @@
-import About from "@/components/static/About"
+import About from "@/components/about/AboutPage"
 import { Metadata } from "next"
 import { env } from '@/env.mjs'
-import { getSupportedCitiesWithLogosCached } from '@/lib/cache/queries'
+import { getSupportedCitiesWithLogosCached, getAboutPageStatsCached, getGitHubStatsCached } from '@/lib/cache/queries'
 
 export async function generateMetadata(): Promise<Metadata> {
-    const description = "Το OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά. Μάθετε περισσότερα για την αποστολή μας, την τεχνολογία μας και την ομάδα μας.";
+    const description = "Δημοτικά συμβούλια, επιτροπές και κοινότητες — πιο ανοιχτά για τους δημότες, πιο αποδοτικά για τις υπηρεσίες. Σε 10 δήμους στην Ελλάδα.";
 
     const ogImageUrl = `${env.NEXTAUTH_URL}/api/og?pageType=about`;
 
     return {
-        title: "Σχετικά με το OpenCouncil | Διαφάνεια στα Δημοτικά Συμβούλια",
+        title: "OpenCouncil — Το λειτουργικό σύστημα των συλλογικών οργάνων",
         description,
         keywords: [
             'OpenCouncil',
@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
         ],
         authors: [{ name: 'OpenCouncil Team' }],
         openGraph: {
-            title: "Σχετικά με το OpenCouncil",
+            title: "OpenCouncil — Το λειτουργικό σύστημα των συλλογικών οργάνων",
             description,
             type: 'website',
             siteName: 'OpenCouncil',
@@ -33,14 +33,14 @@ export async function generateMetadata(): Promise<Metadata> {
                     url: ogImageUrl,
                     width: 1200,
                     height: 630,
-                    alt: "OpenCouncil - Διαφάνεια στα Δημοτικά Συμβούλια",
+                    alt: "OpenCouncil — Το λειτουργικό σύστημα των συλλογικών οργάνων",
                 }
             ],
             locale: 'el_GR',
         },
         twitter: {
             card: 'summary_large_image',
-            title: "Σχετικά με το OpenCouncil",
+            title: "OpenCouncil — Το λειτουργικό σύστημα των συλλογικών οργάνων",
             description,
             images: [ogImageUrl],
             creator: '@opencouncil',
@@ -58,9 +58,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AboutPage() {
-    const citiesWithLogos = await getSupportedCitiesWithLogosCached().catch(error => {
-        console.error('Failed to fetch cities with logos:', error);
-        return [];
-    });
-    return <About citiesWithLogos={citiesWithLogos} />
+    const [citiesWithLogos, stats, githubStats] = await Promise.all([
+        getSupportedCitiesWithLogosCached().catch(error => {
+            console.error('Failed to fetch cities with logos:', error);
+            return [];
+        }),
+        getAboutPageStatsCached().catch(error => {
+            console.error('Failed to fetch about page stats:', error);
+            return null;
+        }),
+        getGitHubStatsCached().catch(error => {
+            console.error('Failed to fetch GitHub stats:', error);
+            return null;
+        }),
+    ]);
+    return <About citiesWithLogos={citiesWithLogos} stats={stats} githubStats={githubStats} />
 }

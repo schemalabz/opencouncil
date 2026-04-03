@@ -761,52 +761,87 @@ const PeopleOGImage = async (cityId: string) => {
 // About Page OG Image
 const AboutOGImage = () => {
     return (
-        <Container>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '32px',
-                textAlign: 'center',
-            }}>
+        <div style={{
+            width: '1200px',
+            height: '630px',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: '#0a0a0a',
+            padding: '60px 72px',
+        }}>
+            {/* Logo / wordmark top-left */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '56px' }}>
                 <div style={{
-                    fontSize: '64px',
-                    fontWeight: 'bold',
-                    color: '#1f2937',
+                    fontSize: '22px',
+                    fontWeight: '600',
+                    color: '#ffffff',
                 }}>
                     OpenCouncil
                 </div>
+            </div>
 
-                <div style={{
-                    fontSize: '32px',
-                    color: '#6b7280',
-                    maxWidth: '800px',
-                    lineHeight: 1.4,
-                }}>
-                    Χρησιμοποιούμε τεχνητή νοημοσύνη για να παρακολουθούμε τα δημοτικά συμβούλια και να τα κάνουμε απλά και κατανοητά
+            {/* Main content */}
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: '32px' }}>
+                {/* Headline — two lines to avoid flexWrap */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{
+                        fontSize: '56px',
+                        fontWeight: '300',
+                        color: '#ffffff',
+                        lineHeight: 1.15,
+                        letterSpacing: '-0.02em',
+                    }}>
+                        Το λειτουργικό σύστημα
+                    </div>
+                    <div style={{
+                        fontSize: '56px',
+                        fontWeight: '500',
+                        color: '#f97316',
+                        lineHeight: 1.15,
+                        letterSpacing: '-0.02em',
+                    }}>
+                        των συλλογικών οργάνων
+                    </div>
                 </div>
 
-                <div style={{
-                    display: 'flex',
-                    gap: '24px',
-                    alignItems: 'center',
-                    fontSize: '18px',
-                    color: '#9ca3af',
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🎯 Διαφάνεια
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🤖 Τεχνητή Νοημοσύνη
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🏛️ Δημοκρατία
-                    </div>
+                {/* Stat pills */}
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    {['10 δήμοι', '5.000+ θέματα', '400+ ώρες συνεδριάσεων'].map((label) => (
+                        <div key={label} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            backgroundColor: 'rgba(255,255,255,0.07)',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            borderRadius: '100px',
+                            padding: '8px 20px',
+                            fontSize: '20px',
+                            color: 'rgba(255,255,255,0.75)',
+                        }}>
+                            {label}
+                        </div>
+                    ))}
                 </div>
             </div>
-        </Container>
+
+            {/* Feature tags bottom */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '40px' }}>
+                {['Απομαγνητοφωνήσεις', 'Πρακτικά', 'Ειδοποιήσεις δημοτών', 'Χάρτης θεμάτων'].map((tag) => (
+                    <div key={tag} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: 'rgba(249,115,22,0.12)',
+                        border: '1px solid rgba(249,115,22,0.3)',
+                        borderRadius: '6px',
+                        padding: '6px 14px',
+                        fontSize: '16px',
+                        color: '#f97316',
+                        fontWeight: '500',
+                    }}>
+                        {tag}
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 };
 

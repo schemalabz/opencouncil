@@ -1,7 +1,6 @@
 import React from "react"
 import Header from "@/components/layout/Header"
 import Footer from "@/components/layout/Footer"
-import { Toaster } from "@/components/ui/toaster";
 import dynamic from 'next/dynamic';
 
 // Import Aurora with dynamic loading to prevent SSR issues with canvas

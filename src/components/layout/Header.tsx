@@ -4,7 +4,7 @@ import { Link } from '@/i18n/routing'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Separator } from "@/components/ui/separator"
@@ -107,8 +107,7 @@ function PageIconBadge({ icon: IconComponent }: { icon: LucideIcon }) {
 
 const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noContainer = false, className }: HeaderProps) => {
     const t = useTranslations("Header");
-    const { scrollY } = useScroll();
-    const blurBackgroundOpacity = useTransform(scrollY, [0, 50], [0, 1], { clamp: true });
+    const [isScrolled, setIsScrolled] = useState(false);
     const router = useRouter();
     const segment = useSelectedLayoutSegment();
     const [searchQuery, setSearchQuery] = useState("");
@@ -166,6 +165,18 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
         router.push(chatUrl);
         setIsSearchOpen(false);
     };
+
+    // Lightweight scroll tracking — replaces framer-motion useScroll/useTransform
+    // to avoid keeping the framer-motion frame loop alive on every page
+    useEffect(() => {
+        const onScroll = () => {
+            const scrolled = window.scrollY > 50;
+            setIsScrolled(prev => prev === scrolled ? prev : scrolled);
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -350,9 +361,11 @@ const Header = ({ path, showSidebarTrigger = false, currentEntity, children, noC
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.2 }}
         >
-            <motion.div
-                className="absolute inset-0 backdrop-blur bg-background/50"
-                style={{ opacity: blurBackgroundOpacity }}
+            <div
+                className={cn(
+                    "absolute inset-0 backdrop-blur bg-background/50 transition-opacity duration-200",
+                    isScrolled ? "opacity-100" : "opacity-0"
+                )}
             />
             {noContainer ? (
                 <div className="flex flex-col w-full px-2 sm:px-4 relative">

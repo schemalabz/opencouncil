@@ -57,302 +57,254 @@ export default function Pricing() {
     }
 
     return (
-        <motion.div
-            initial="initial"
-            animate="animate"
-            className={`container mx-auto px-4 py-16 ${inter.className}`}
-        >
-            <motion.h1 variants={fadeInUp} className="text-4xl font-bold text-center mb-4">Διαφανής τιμολόγηση</motion.h1>
-            <motion.p variants={fadeInUp} className="text-xl text-center text-muted-foreground mb-12">Απλή και δίκαιη τιμολόγηση για δήμους κάθε μεγέθους</motion.p>
+        <div className={`py-16 ${inter.className}`}>
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">Διαφανής τιμολόγηση</h2>
+            <p className="text-base md:text-lg text-center text-muted-foreground mb-2 max-w-xl mx-auto">
+                Συγκρίσιμο ή μικρότερο κόστος με την απομαγνητοφώνηση που ήδη κάνετε— με 10 φορές περισσότερη λειτουργικότητα. Για δήμους κάθε μεγέθους.
+            </p>
 
             <PricingCards setIsDialogOpen={setIsDialogOpen} />
 
 
 
-            <motion.div variants={fadeInUp} className="mt-12">
-                <h2 className="text-2xl font-semibold mb-6 text-center">Επιπλέον πλεονεκτήματα</h2>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <ul className="space-y-4">
-                                <li className="flex items-start">
-                                    <ClockIcon className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Δωρεάν δοκιμαστική περίοδος, για όσο χρόνο χρειάζεστε</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <RocketIcon className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Συμπεριλαμβάνονται όλες οι τωρινές και μελλοντικές λειτουργίες του OpenCouncil</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <PhoneIcon className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Τηλεφωνική υποστήριξη για όλους: πολίτες, δημοτικούς υπαλλήλους και αιρετούς</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <RotateCcw className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Δυνατότητα συμπερίληψης παλαιότερων συνεδριάσεων</span>
-                                </li>
-                            </ul>
-                            <ul className="space-y-4 flex flex-col justify-between h-full">
-                                <li className="flex items-start">
-                                    <PrinterIcon className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Παράδοση αρχείου σε έντυπη μορφή ή και CD, μία φορά το χρόνο</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <Cuboid className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Προτείνετε νέες λειτουργίες και διαμορφώστε μαζί μας το OpenCouncil</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <BadgeEuro className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Απλή και διαφανής τιμολόγηση για όλους τους δήμους</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <Megaphone className="mr-2 h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                                    <span>Προώθηση του OpenCouncil στους δημότες, online αλλά και δια ζώσης</span>
-                                </li>
-                            </ul>
+            <div className="mt-16">
+                <h2 className="text-2xl font-semibold mb-2 text-center">Επιπλέον πλεονεκτήματα</h2>
+                <p className="text-center text-muted-foreground mb-8">Κάθε συνδρομή περιλαμβάνει</p>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                        { icon: ClockIcon, text: 'Δωρεάν δοκιμαστική περίοδος, για όσο χρόνο χρειάζεστε' },
+                        { icon: RocketIcon, text: 'Όλες οι τωρινές και μελλοντικές λειτουργίες' },
+                        { icon: PhoneIcon, text: 'Τηλεφωνική υποστήριξη για πολίτες, υπαλλήλους και αιρετούς' },
+                        { icon: RotateCcw, text: 'Δυνατότητα συμπερίληψης παλαιότερων συνεδριάσεων' },
+                        { icon: PrinterIcon, text: 'Παράδοση αρχείου σε έντυπη μορφή ή CD, μία φορά το χρόνο' },
+                        { icon: Cuboid, text: 'Προτείνετε νέες λειτουργίες και διαμορφώστε μαζί μας το OpenCouncil' },
+                        { icon: BadgeEuro, text: 'Απλή και διαφανής τιμολόγηση για όλους τους δήμους' },
+                        { icon: Megaphone, text: 'Προώθηση του OpenCouncil στους δημότες, online και δια ζώσης' },
+                    ].map(({ icon: Icon, text }, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-xl border border-border/50 bg-card p-4">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                <Icon className="h-4 w-4 text-primary" />
+                            </div>
+                            <span className="text-sm leading-snug text-muted-foreground">{text}</span>
                         </div>
+                    ))}
+                </div>
 
-                        <div className="mt-8 pt-6 border-t border-gray-200">
-                            <h3 className="text-lg font-semibold mb-4 text-gray-600">Με επιπλέον χρέωση:</h3>
-                            <ul className="space-y-4">
-                                <li className="flex items-start">
-                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                    </div>
-                                    <span>Παροχή εξοπλισμού για τη μαγνητοσκόπηση συνεδριάσεων (π.χ. Δημοτικής Επιτροπής, Δημοτικών Συμβουλίων ή Κοινοτήτων)</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <div className="mr-2 h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5 rounded-full border-2 border-orange-500 flex items-center justify-center">
-                                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                    </div>
-                                    <span>Τεχνική υποστήριξη με φυσική παρουσία σε κάθε συνεδρίαση</span>
-                                </li>
-                            </ul>
+                <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-muted/30 p-5">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3">Με επιπλέον χρέωση:</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-muted-foreground/30 mt-0.5">
+                                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">Παροχή εξοπλισμού για τη μαγνητοσκόπηση συνεδριάσεων (π.χ. Δημοτικής Επιτροπής, Δημοτικών Συμβουλίων ή Κοινοτήτων)</span>
                         </div>
-                    </CardContent>
-                </Card>
-            </motion.div>
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-muted-foreground/30 mt-0.5">
+                                <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">Τεχνική υποστήριξη με φυσική παρουσία σε κάθε συνεδρίαση</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-
-            <AnimatePresence>
-                {isDialogOpen && (
-                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                        <DialogContent className="sm:max-w-[425px]">
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <DialogHeader>
-                                    <DialogTitle>Υπολογίστε το ετήσιο κόστος</DialogTitle>
-                                    <DialogDescription>
-                                        Συμπληρώστε τα παρακάτω στοιχεία για να υπολογίσετε το ετήσιο κόστος του συμβολαίου σας.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-6 py-4">
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="councilCount">
-                                            Αριθμός συμβουλίων ανά έτος
-                                        </Label>
-                                        <Slider
-                                            id="councilCount"
-                                            min={10}
-                                            max={50}
-                                            step={1}
-                                            value={[councilCount]}
-                                            onValueChange={(value) => setCouncilCount(value[0])}
-                                        />
-                                        <div className="text-right text-sm text-muted-foreground">
-                                            {councilCount}
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="averageDuration">
-                                            Μέση διάρκεια συνεδρίασης (ώρες)
-                                        </Label>
-                                        <Slider
-                                            id="averageDuration"
-                                            min={1}
-                                            max={8}
-                                            step={1}
-                                            value={[averageDuration]}
-                                            onValueChange={(value) => setAverageDuration(value[0])}
-                                        />
-                                        <div className="text-right text-sm text-muted-foreground">
-                                            {averageDuration}
-                                        </div>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="population">
-                                            Πληθυσμός
-                                        </Label>
-                                        <Slider
-                                            id="population"
-                                            min={2000}
-                                            max={200000}
-                                            step={1000}
-                                            value={[population]}
-                                            onValueChange={(value) => setPopulation(value[0])}
-                                        />
-                                        <div className="text-right text-sm text-muted-foreground">
-                                            {population <= 2000 ? 'μέχρι 2.000' : population >= 200000 ? '200.000 και πάνω' : population}
-                                        </div>
-                                    </div>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden">
+                    <div className="p-6 sm:p-8">
+                        <DialogHeader className="text-center space-y-2 pb-4">
+                            <DialogTitle className="text-xl font-semibold">Υπολογίστε το ετήσιο κόστος</DialogTitle>
+                            <DialogDescription className="text-sm">
+                                Προσαρμόστε τα στοιχεία του δήμου σας
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <Label htmlFor="councilCount" className="text-sm font-medium">Συμβούλια ανά έτος</Label>
+                                    <span className="text-sm font-semibold text-primary tabular-nums">{councilCount}</span>
                                 </div>
-                                <DialogFooter className="sm:justify-center">
-                                    <Button onClick={calculatePrice}>Υπολογισμός</Button>
-                                </DialogFooter>
-                            </motion.div>
-                        </DialogContent>
-                    </Dialog>
-                )}
-            </AnimatePresence>
+                                <Slider
+                                    id="councilCount"
+                                    min={10}
+                                    max={50}
+                                    step={1}
+                                    value={[councilCount]}
+                                    onValueChange={(value) => setCouncilCount(value[0])}
+                                />
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <Label htmlFor="averageDuration" className="text-sm font-medium">Μέση διάρκεια (ώρες)</Label>
+                                    <span className="text-sm font-semibold text-primary tabular-nums">{averageDuration}</span>
+                                </div>
+                                <Slider
+                                    id="averageDuration"
+                                    min={1}
+                                    max={8}
+                                    step={1}
+                                    value={[averageDuration]}
+                                    onValueChange={(value) => setAverageDuration(value[0])}
+                                />
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-baseline">
+                                    <Label htmlFor="population" className="text-sm font-medium">Πληθυσμός</Label>
+                                    <span className="text-sm font-semibold text-primary tabular-nums">
+                                        {population <= 2000 ? 'μέχρι 2.000' : population >= 200000 ? '200.000+' : population.toLocaleString('el-GR')}
+                                    </span>
+                                </div>
+                                <Slider
+                                    id="population"
+                                    min={2000}
+                                    max={200000}
+                                    step={1000}
+                                    value={[population]}
+                                    onValueChange={(value) => setPopulation(value[0])}
+                                />
+                            </div>
+                        </div>
+                        <div className="pt-4">
+                            <Button
+                                onClick={calculatePrice}
+                                className="w-full h-11 rounded-xl text-base font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                            >
+                                Υπολογισμός
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <ContactFormPopup
                 isOpen={isContactFormOpen}
                 onClose={() => setIsContactFormOpen(false)}
                 calculatedPrice={calculatedPrice}
             />
-        </motion.div>
+        </div>
     )
 }
 export function PricingCards({ setIsDialogOpen }: { setIsDialogOpen: (open: boolean) => void }) {
-    const [isOpen, setIsOpen] = React.useState(false)
+    const [card1Open, setCard1Open] = React.useState(false)
+    const [card2Open, setCard2Open] = React.useState(true)
 
-    const toggleOpen = () => {
-        setIsOpen(!isOpen)
-    }
+    const processingPrice = getCombinedProcessingPrice()
 
     return (
-        <motion.div
-            initial="initial"
-            animate="animate"
-            className="container mx-auto px-4 py-16"
-        >
-            <motion.div variants={fadeInUp} className="flex flex-col lg:flex-row items-stretch gap-8 relative">
-                <div className="flex-1">
-                    <PricingCard
-                        icon={<FileInput className="h-10 w-10 text-primary stroke-[1.5]" />}
-                        title={getCombinedProcessingPrice().label}
-                        description={getCombinedProcessingPrice().description}
-                        price={`${formatCurrency(getCombinedProcessingPrice().pricePerHour)} / ώρα`}
-                        subtext="Χρέωση ανά ώρα συνεδρίασης"
-                        includedItems={[
-                            "Αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλιτή.",
-                            "Διόρθωση απομαγνητοφώνησης από άνθρωπο.",
-                            "Δημιουργία embeddings για κάθε τοποθέτηση ομιλητή",
-                            "Αυτόματες συνόψεις ανά τοποθέτηση.",
-                            "Εξαγωγή στατιστικών"
-                        ]}
-                        isOpen={isOpen}
-                        toggleOpen={toggleOpen}
-                        content={
-                            <div className="mt-4 pt-4 border-t border-gray-200">
-                                <p className="text-sm text-muted-foreground">
-                                    Η προσθήκη παλαιότερων συνεδριάσεων, χωρίς διόρθωση της απομαγνητοφώνησης από άνθρωπο, χρεώνεται στα {formatCurrency(SESSION_PROCESSING.pricePerHour)} την ώρα.
-                                </p>
-                            </div>
-                        }
-                    />
-                </div>
+        <div className="mt-10">
+            <div className="grid gap-6 lg:grid-cols-2">
+                {/* Card 1: Session Processing */}
+                <div className="relative rounded-2xl border border-border/60 bg-card p-6 sm:p-8 flex flex-col">
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                            <FileInput className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold">{processingPrice.label}</h3>
+                            <p className="text-sm text-muted-foreground">{processingPrice.description}</p>
+                        </div>
+                    </div>
 
-                <div className="flex-shrink-0 self-center">
-                    <div className="bg-primary text-primary-foreground rounded-full w-12 h-12 flex items-center justify-center text-lg font-bold">
-                        και
+                    <div className="mb-5">
+                        <span className="text-4xl font-bold tracking-tight">{formatCurrency(processingPrice.pricePerHour)}</span>
+                        <span className="text-muted-foreground ml-1">/ ώρα</span>
+                    </div>
+
+                    <Collapsible open={card1Open}>
+                        <CheckList items={[
+                            "Αυτόματη απομαγνητοφώνηση και αναγνώριση ομιλητή",
+                            "Διόρθωση απομαγνητοφώνησης από άνθρωπο",
+                            "Αυτόματες συνόψεις ανά τοποθέτηση",
+                        ]} />
+                        <CollapsibleContent>
+                            <CheckList items={[
+                                "Δημιουργία embeddings για κάθε τοποθέτηση ομιλητή",
+                                "Εξαγωγή στατιστικών",
+                            ]} className="mt-2.5" />
+                        </CollapsibleContent>
+                        <CollapsibleTrigger asChild>
+                            <button
+                                onClick={() => setCard1Open(prev => !prev)}
+                                className="mt-3 text-xs text-primary hover:text-primary/80 font-medium flex items-center gap-1 transition-colors"
+                            >
+                                {card1Open ? 'Λιγότερα' : 'Περισσότερα'}
+                                <ChevronDownIcon className={`h-3 w-3 transition-transform duration-200 ${card1Open ? 'rotate-180' : ''}`} />
+                            </button>
+                        </CollapsibleTrigger>
+                    </Collapsible>
+
+                    <div className="mt-5 pt-4 border-t border-border/40">
+                        <p className="text-xs text-muted-foreground">
+                            Παλαιότερες συνεδριάσεις χωρίς ανθρώπινη διόρθωση: {formatCurrency(SESSION_PROCESSING.pricePerHour)} / ώρα
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex-1">
-                    <PricingCard
-                        icon={<LayoutTemplateIcon className="h-10 w-10 text-primary stroke-[1.5]" />}
-                        title="Χρήση Πλατφόρμας"
-                        description="Τιμολόγηση βάσει μεγέθους δήμου"
-                        price=""
-                        subtext=""
-                        content={
-                            <ul className="space-y-2">
-                                {PLATFORM_PRICING_TIERS.map((tier, index) => (
-                                    <PricingTier
-                                        key={index}
-                                        icon={<UsersIcon />}
-                                        population={tier.label}
-                                        price={tier.monthlyPrice === 0 ? "Δωρεάν" : `${formatCurrency(tier.monthlyPrice)} / μήνα`}
-                                    />
-                                ))}
-                            </ul>
-                        }
-                        includedItems={[
-                            "Ελεύθερη χρήση για όλους τους δημότες.",
-                            "Όλες τις λειτουργίες της πλατφόρμας",
-                            "1000 μηνύματα με το AI Chat ανά ημέρα.",
-                            "Τεχνική υποστήριξη"
-                        ]}
-                        isOpen={isOpen}
-                        toggleOpen={toggleOpen}
-                    />
-                </div>
-            </motion.div>
-            <motion.p variants={fadeInUp} className="text-center text-sm text-muted-foreground mt-4">
-                Στις τιμές δε συμπεριλαμβάνεται ΦΠΑ
-            </motion.p>
+                {/* Card 2: Platform Usage */}
+                <div className="relative rounded-2xl border border-border/60 bg-card p-6 sm:p-8 flex flex-col">
+                    <div className="flex items-center gap-3 mb-5">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                            <LayoutTemplateIcon className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold">Χρήση Πλατφόρμας</h3>
+                            <p className="text-sm text-muted-foreground">Τιμολόγηση βάσει μεγέθους δήμου</p>
+                        </div>
+                    </div>
 
-            <motion.div variants={fadeInUp} className="mt-12 text-center">
-                <Button size="lg" onClick={() => setIsDialogOpen(true)}>Υπολογίστε το συμβόλαιό σας</Button>
-            </motion.div>
-        </motion.div>
+                    <div className="space-y-2 mb-5 flex-grow">
+                        {PLATFORM_PRICING_TIERS.map((tier, index) => (
+                            <div key={index} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                                    <Users2Icon className="h-3.5 w-3.5 text-primary/60" />
+                                    {tier.label}
+                                </span>
+                                <span className="text-sm font-semibold">
+                                    {tier.monthlyPrice === 0 ? 'Δωρεάν' : `${formatCurrency(tier.monthlyPrice)} / μήνα`}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <Collapsible open={card2Open}>
+                        <CollapsibleContent>
+                            <CheckList items={[
+                                "Ελεύθερη χρήση για όλους τους δημότες",
+                                "Όλες οι λειτουργίες της πλατφόρμας",
+                                "1000 μηνύματα με το AI Chat ανά ημέρα",
+                                "Τεχνική υποστήριξη",
+                            ]} className="mb-3" />
+                        </CollapsibleContent>
+                    </Collapsible>
+                </div>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground mt-4">
+                Στις τιμές δε συμπεριλαμβάνεται ΦΠΑ. Μπορείτε να αναζητήσετε τις υπάρχουσες συμβάσεις μας στην Δι@υγεια ή το ΚΗΜΔΗΣ, χρησιμοποιώντας το ΑΦΜ μας 802666391.
+            </p>
+
+            <div className="mt-8 text-center">
+                <Button
+                    size="lg"
+                    className="rounded-xl px-8 py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
+                    onClick={() => setIsDialogOpen(true)}
+                >
+                    Υπολογίστε το συμβόλαιό σας
+                </Button>
+            </div>
+        </div>
     )
 }
 
-function PricingCard(
-    { icon, title, description, price, subtext, content, includedItems, isOpen, toggleOpen }
-        : { icon: React.ReactElement, title: string, description: string, price: string, subtext: string, content: React.ReactNode, includedItems: string[], isOpen: boolean, toggleOpen: () => void }
-) {
+function CheckList({ items, className }: { items: string[]; className?: string }) {
     return (
-        <Card className="flex flex-col h-full">
-            <CardHeader className="flex flex-row items-start space-x-4 pb-2">
-                <div className="p-2 flex-shrink-0">
-                    {icon}
-                </div>
-                <div>
-                    <CardTitle className="text-xl">{title}</CardTitle>
-                    <CardDescription>{description}</CardDescription>
-                </div>
-            </CardHeader>
-            <CardContent className="flex flex-col justify-start flex-grow pt-2">
-                {price && (
-                    <>
-                        <p className="text-3xl font-bold">{price}</p>
-                        {subtext && <p className="text-sm text-muted-foreground">{subtext}</p>}
-                    </>
-                )}
-                {content}
-            </CardContent>
-            <CardFooter className="pt-2 mt-auto">
-                <Collapsible className="w-full" open={isOpen}>
-                    <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="w-full" onClick={toggleOpen}>
-                            Τι περιλαμβάνει <ChevronDownIcon className={`h-4 w-4 ml-2 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-                        </Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2">
-                        <ul className="list-disc pl-5 space-y-1">
-                            {includedItems.map((item, index) => (
-                                <li key={index}>{item}</li>
-                            ))}
-                        </ul>
-                    </CollapsibleContent>
-                </Collapsible>
-            </CardFooter>
-        </Card>
-    )
-}
-
-function PricingTier({ icon, population, price }: { icon: React.ReactElement, population: string, price: string }) {
-    return (
-        <li className="flex items-center">
-            {React.cloneElement(icon, { className: "mr-2 h-4 w-4 text-primary flex-shrink-0" })}
-            <span>{population}: <strong>{price}</strong></span>
-        </li>
+        <ul className={`space-y-2.5 text-sm text-muted-foreground ${className ?? ''}`}>
+            {items.map((item, i) => (
+                <li key={i} className="flex items-start gap-2">
+                    <CheckCircle2Icon className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                </li>
+            ))}
+        </ul>
     )
 }

@@ -1,5 +1,6 @@
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getSupportedCitiesWithLogos, getAboutPageStats } from "@/lib/db/cities";
+import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
 import { getPartiesForCity } from "@/lib/db/parties";
@@ -159,5 +160,27 @@ export async function getSubjectStatisticsCached(
     },
     ['city', cityId, 'meeting', meetingId, 'subjectStatistics'],
     { tags: [`city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] }
+  )();
+}
+
+/**
+ * Cached aggregate stats for the about page (municipality count, subject count, meeting hours)
+ */
+export async function getAboutPageStatsCached() {
+  return createCache(
+    () => getAboutPageStats(),
+    ['about', 'stats'],
+    { tags: ['cities:all'] }
+  )();
+}
+
+/**
+ * Cached GitHub stats for the about page (contributors, commit activity, stars)
+ */
+export async function getGitHubStatsCached() {
+  return createCache(
+    () => getGitHubStats(),
+    ['about', 'github'],
+    { tags: ['github'], revalidate: 86400 } // refresh once per day
   )();
 }
