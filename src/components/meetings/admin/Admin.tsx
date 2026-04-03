@@ -24,6 +24,7 @@ import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
 import { useTranslations } from 'next-intl';
+import MeetingOperator from './MeetingOperator';
 
 export default function AdminActions({
 }: {
@@ -551,6 +552,8 @@ export default function AdminActions({
             />
 
         </div>
+
+        <MeetingOperator cityId={meeting.cityId} meetingId={meeting.id} />
     </div>
     );
 };
