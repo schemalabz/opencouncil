@@ -58,24 +58,19 @@ export function MinutesPreviewContent({ data }: MinutesPreviewContentProps) {
                 />
             )}
 
-            {/* Regular agenda subjects */}
-            {agendaSubjects.length > 0 && (
-                <>
-                    <h2 className="text-base font-bold mt-10 mb-4">ΘΕΜΑΤΑ ΗΜΕΡΗΣΙΑΣ ΔΙΑΤΑΞΗΣ</h2>
-                    {agendaSubjects.map((subject) => (
-                        <SubjectSection key={subject.subjectId} subject={subject} />
-                    ))}
-                </>
+            {/* Preamble: orphaned utterances before the first subject */}
+            {data.preambleEntries.length > 0 && (
+                <TranscriptSection entries={data.preambleEntries} />
             )}
 
-            {/* Out-of-agenda subjects */}
-            {outOfAgendaSubjects.length > 0 && (
-                <>
-                    <h2 className="text-base font-bold mt-10 mb-4">ΕΚΤΟΣ ΗΜΕΡΗΣΙΑΣ ΔΙΑΤΑΞΗΣ ΘΕΜΑΤΑ</h2>
-                    {outOfAgendaSubjects.map((subject) => (
-                        <SubjectSection key={subject.subjectId} subject={subject} />
-                    ))}
-                </>
+            {/* All subjects in discussion order (linear, no section headings) */}
+            {data.subjects.map((subject) => (
+                <SubjectSection key={subject.subjectId} subject={subject} />
+            ))}
+
+            {/* Epilogue: orphaned utterances after the last subject */}
+            {data.epilogueEntries.length > 0 && (
+                <TranscriptSection entries={data.epilogueEntries} />
             )}
         </div>
     );
@@ -194,6 +189,11 @@ function SubjectSection({ subject }: { subject: MinutesSubject }) {
 
     return (
         <div className="mb-10">
+            {/* Orphaned utterances between previous subject and this one */}
+            {subject.preDiscussionEntries.length > 0 && (
+                <TranscriptSection entries={subject.preDiscussionEntries} />
+            )}
+
             <h3 id={`subject-${subject.subjectId}`} className="text-base font-bold mt-8 mb-3">{headingText}</h3>
 
             {subject.discussedWith && (

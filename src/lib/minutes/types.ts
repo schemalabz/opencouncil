@@ -70,6 +70,8 @@ export interface MinutesSubject {
 
     attendance: MinutesAttendance | null;
     voteResult: MinutesVoteResult | null;
+    /** Orphaned utterances that fall between the previous subject and this one */
+    preDiscussionEntries: MinutesTranscriptEntry[];
     transcriptEntries: MinutesTranscriptEntry[];
 }
 
@@ -87,5 +89,9 @@ export interface MinutesData {
     };
     administrativeBody: string | null;
     councilComposition: MinutesCouncilComposition | null;
+    /** Orphaned utterances before the first subject (opening remarks, procedural content) */
+    preambleEntries: MinutesTranscriptEntry[];
     subjects: MinutesSubject[];
+    /** Orphaned utterances after the last subject (closing remarks) */
+    epilogueEntries: MinutesTranscriptEntry[];
 }
