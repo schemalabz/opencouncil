@@ -351,11 +351,102 @@ export async function getMinutesData(
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
 
+    // --- Orphaned utterances (discussionSubjectId = null) ---
+    const orphanedUtterances = await prisma.utterance.findMany({
+        where: {
+            speakerSegment: { meetingId: meeting.id, cityId },
+            discussionSubjectId: null,
+        },
+        select: utteranceSelect,
+        orderBy: { startTimestamp: 'asc' },
+    });
+
+    // Compute timestamp boundaries for each sorted subject
+    const subjectBounds: { firstTs: number; lastTs: number }[] = sortedSubjects.map(s => {
+        const utterances = utterancesBySubject.get(s.id) || [];
+        if (utterances.length === 0) return { firstTs: Infinity, lastTs: -Infinity };
+        return {
+            firstTs: utterances[0].startTimestamp,
+            lastTs: utterances[utterances.length - 1].endTimestamp,
+        };
+    });
+
+    // Split orphaned utterances by position relative to subjects
+    const preambleUtterances: UtteranceWithSpeaker[] = [];
+    const epilogueUtterances: UtteranceWithSpeaker[] = [];
+    const preDiscussionByIndex = new Map<number, UtteranceWithSpeaker[]>();
+
+    const boundsWithUtterances = subjectBounds.filter(b => b.firstTs !== Infinity);
+    const firstSubjectTs = boundsWithUtterances.length > 0
+        ? Math.min(...boundsWithUtterances.map(b => b.firstTs))
+        : Infinity;
+    const lastSubjectTs = boundsWithUtterances.length > 0
+        ? Math.max(...boundsWithUtterances.map(b => b.lastTs))
+        : -Infinity;
+
+    for (const u of orphanedUtterances) {
+        if (u.startTimestamp < firstSubjectTs) {
+            preambleUtterances.push(u);
+            continue;
+        }
+
+        if (u.startTimestamp >= lastSubjectTs) {
+            epilogueUtterances.push(u);
+            continue;
+        }
+
+        // Find which subject this orphan falls before: it belongs to the first subject
+        // whose first utterance starts after this orphan
+        let assigned = false;
+        for (let i = 0; i < sortedSubjects.length; i++) {
+            const bounds = subjectBounds[i];
+            if (bounds.firstTs === Infinity) continue;
+
+            // Check if orphan falls between previous subject's end and this subject's start
+            const prevEnd = i > 0
+                ? Math.max(...subjectBounds.slice(0, i).filter(b => b.lastTs !== -Infinity).map(b => b.lastTs))
+                : firstSubjectTs;
+
+            if (u.startTimestamp >= prevEnd && u.startTimestamp < bounds.firstTs) {
+                const list = preDiscussionByIndex.get(i) || [];
+                list.push(u);
+                preDiscussionByIndex.set(i, list);
+                assigned = true;
+                break;
+            }
+        }
+
+        // Orphans within a subject's range that weren't assigned — append to preamble
+        if (!assigned) {
+            preambleUtterances.push(u);
+        }
+    }
+
+    function buildOrphanTranscriptEntries(utterances: UtteranceWithSpeaker[]): MinutesTranscriptEntry[] {
+        return buildTranscriptEntriesFromUtterances(utterances, (personId, label) => {
+            const person = personId ? peopleMap.get(personId) : null;
+            const speakerName = person ? person.name_short : (label || 'Ομιλητής');
+            const { party, role, isPartyHead } = person
+                ? getSpeakerDisplayInfo(person.roles || [], meetingDate)
+                : { party: null, role: null, isPartyHead: false };
+            return {
+                speakerName,
+                party: party?.name_short ?? null,
+                isPartyHead,
+                role: role?.name ?? null,
+            };
+        }, { gapContentUtterances: [] });
+    }
+
+    const preambleEntries = buildOrphanTranscriptEntries(preambleUtterances);
+    const epilogueEntries = buildOrphanTranscriptEntries(epilogueUtterances);
+
     // Build MinutesSubject for each
-    const minutesSubjects: MinutesSubject[] = sortedSubjects.map(s => {
+    const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s, index) => {
         const ed = extractedDataMap.get(s.id);
         const attendance = ed && ed.attendance.length > 0 ? buildAttendance(ed) : null;
         const voteResult = ed ? buildVoteResult(ed) : null;
+        const preDiscussionUtterances = preDiscussionByIndex.get(index) || [];
 
         return {
             subjectId: s.id,
@@ -374,6 +465,7 @@ export async function getMinutesData(
             } : null,
             attendance,
             voteResult,
+            preDiscussionEntries: buildOrphanTranscriptEntries(preDiscussionUtterances),
             transcriptEntries: buildTranscriptEntries(s.id),
         };
     });
@@ -441,6 +533,8 @@ export async function getMinutesData(
         },
         administrativeBody: meeting.administrativeBody?.name ?? null,
         councilComposition,
+        preambleEntries,
         subjects: minutesSubjects,
+        epilogueEntries,
     };
 }

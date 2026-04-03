@@ -13,6 +13,7 @@ import {
     MinutesSubject,
     MinutesMember,
     MinutesCouncilComposition,
+    MinutesTranscriptEntry,
 } from '@/lib/minutes/types';
 
 const FONT_SIZE = {
@@ -235,10 +236,70 @@ function createTOCSections(subjects: MinutesSubject[]): (Paragraph | Table)[] {
     return elements;
 }
 
+// --- Transcript entries → DOCX paragraphs ---
+
+function createTranscriptParagraphs(entries: MinutesTranscriptEntry[]): Paragraph[] {
+    const paragraphs: Paragraph[] = [];
+
+    for (const entry of entries) {
+        if (entry.type === 'gap') {
+            const gapChildren: (TextRun | InternalHyperlink)[] = [
+                new TextRun({
+                    text: `[Άλλη συζήτηση ${formatGapDuration(entry.durationSeconds)}`,
+                    italics: true,
+                    color: '999999',
+                    size: FONT_SIZE.SMALL,
+                }),
+            ];
+            if (entry.subjects.length > 0) {
+                gapChildren.push(new TextRun({ text: ' — ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                entry.subjects.forEach((s, j) => {
+                    if (j > 0) gapChildren.push(new TextRun({ text: ', ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                    gapChildren.push(new TextRun({ text: '«', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                    gapChildren.push(new InternalHyperlink({
+                        anchor: subjectBookmarkId({ subjectId: s.id } as MinutesSubject),
+                        children: [new TextRun({ text: s.name, italics: true, color: '4472C4', size: FONT_SIZE.SMALL })],
+                    }));
+                    gapChildren.push(new TextRun({ text: '»', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+                });
+            }
+            gapChildren.push(new TextRun({ text: ']', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
+            paragraphs.push(new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { before: 120, after: 120 },
+                children: gapChildren,
+            }));
+            continue;
+        }
+
+        const partyLabel = entry.party
+            ? entry.isPartyHead ? `(${entry.party}, Επικ.) ` : `(${entry.party}) `
+            : '';
+        const nameWithParty = `${entry.speakerName} ${partyLabel}`;
+        const children: TextRun[] = [
+            new TextRun({ text: nameWithParty, bold: true, size: FONT_SIZE.BODY }),
+        ];
+        if (entry.role) {
+            children.push(new TextRun({ text: `${entry.role} `, size: FONT_SIZE.SMALL, color: '666666' }));
+        }
+        children.push(new TextRun({ text: formatTimestamp(entry.timestamp), size: FONT_SIZE.SMALL, color: '666666' }));
+        children.push(new TextRun({ text: entry.text, size: FONT_SIZE.BODY, break: 1 }));
+
+        paragraphs.push(new Paragraph({ children, spacing: { before: 160, after: 160 } }));
+    }
+
+    return paragraphs;
+}
+
 // --- Per-subject sections ---
 
 function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
     const paragraphs: (Paragraph | Table)[] = [];
+
+    // Orphaned utterances between previous subject and this one
+    if (subject.preDiscussionEntries.length > 0) {
+        paragraphs.push(...createTranscriptParagraphs(subject.preDiscussionEntries));
+    }
 
     // Subject heading with bookmark for TOC page references
     const headingPrefix = subject.nonAgendaReason === 'outOfAgenda'
@@ -293,53 +354,8 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
         }));
     }
 
-    // Transcript (no heading) — matches full transcript DOCX speaker attribution format
-    for (const entry of subject.transcriptEntries) {
-        if (entry.type === 'gap') {
-            const gapChildren: (TextRun | InternalHyperlink)[] = [
-                new TextRun({
-                    text: `[Άλλη συζήτηση ${formatGapDuration(entry.durationSeconds)}`,
-                    italics: true,
-                    color: '999999',
-                    size: FONT_SIZE.SMALL,
-                }),
-            ];
-            if (entry.subjects.length > 0) {
-                gapChildren.push(new TextRun({ text: ' — ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                entry.subjects.forEach((s, j) => {
-                    if (j > 0) gapChildren.push(new TextRun({ text: ', ', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                    gapChildren.push(new TextRun({ text: '«', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                    gapChildren.push(new InternalHyperlink({
-                        anchor: subjectBookmarkId({ subjectId: s.id } as MinutesSubject),
-                        children: [new TextRun({ text: s.name, italics: true, color: '4472C4', size: FONT_SIZE.SMALL })],
-                    }));
-                    gapChildren.push(new TextRun({ text: '»', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-                });
-            }
-            gapChildren.push(new TextRun({ text: ']', italics: true, color: '999999', size: FONT_SIZE.SMALL }));
-            paragraphs.push(new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 120, after: 120 },
-                children: gapChildren,
-            }));
-            continue;
-        }
-
-        const partyLabel = entry.party
-            ? entry.isPartyHead ? `(${entry.party}, Επικ.) ` : `(${entry.party}) `
-            : '';
-        const nameWithParty = `${entry.speakerName} ${partyLabel}`;
-        const children: TextRun[] = [
-            new TextRun({ text: nameWithParty, bold: true, size: FONT_SIZE.BODY }),
-        ];
-        if (entry.role) {
-            children.push(new TextRun({ text: `${entry.role} `, size: FONT_SIZE.SMALL, color: '666666' }));
-        }
-        children.push(new TextRun({ text: formatTimestamp(entry.timestamp), size: FONT_SIZE.SMALL, color: '666666' }));
-        children.push(new TextRun({ text: entry.text, size: FONT_SIZE.BODY, break: 1 }));
-
-        paragraphs.push(new Paragraph({ children, spacing: { before: 160, after: 160 } }));
-    }
+    // Transcript (no heading)
+    paragraphs.push(...createTranscriptParagraphs(subject.transcriptEntries));
 
     // Decision excerpt (no heading, extra spacing to separate from transcript)
     if (subject.decision?.excerpt) {
@@ -383,14 +399,6 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
     return paragraphs;
 }
 
-function sectionHeading(text: string): Paragraph {
-    return new Paragraph({
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 480, after: 300 },
-        children: [new TextRun({ text, size: FONT_SIZE.HEADING, bold: true })],
-    });
-}
-
 export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
     const children: (Paragraph | Table)[] = [];
 
@@ -407,24 +415,19 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
         children.push(...createTOCSections(data.subjects));
     }
 
-    // Split subjects into groups
-    const agendaSubjects = data.subjects.filter(s => s.nonAgendaReason !== 'outOfAgenda');
-    const outOfAgendaSubjects = data.subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
-
-    // Regular agenda subjects
-    if (agendaSubjects.length > 0) {
-        children.push(sectionHeading('ΘΕΜΑΤΑ ΗΜΕΡΗΣΙΑΣ ΔΙΑΤΑΞΗΣ'));
-        for (const subject of agendaSubjects) {
-            children.push(...createSubjectSection(subject));
-        }
+    // Preamble: orphaned utterances before the first subject
+    if (data.preambleEntries.length > 0) {
+        children.push(...createTranscriptParagraphs(data.preambleEntries));
     }
 
-    // Out-of-agenda subjects
-    if (outOfAgendaSubjects.length > 0) {
-        children.push(sectionHeading('ΕΚΤΟΣ ΗΜΕΡΗΣΙΑΣ ΔΙΑΤΑΞΗΣ ΘΕΜΑΤΑ'));
-        for (const subject of outOfAgendaSubjects) {
-            children.push(...createSubjectSection(subject));
-        }
+    // All subjects in discussion order (linear, no section headings)
+    for (const subject of data.subjects) {
+        children.push(...createSubjectSection(subject));
+    }
+
+    // Epilogue: orphaned utterances after the last subject
+    if (data.epilogueEntries.length > 0) {
+        children.push(...createTranscriptParagraphs(data.epilogueEntries));
     }
 
     const doc = new Document({

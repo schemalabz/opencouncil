@@ -16,7 +16,9 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
         },
         administrativeBody: 'Δημοτικό Συμβούλιο',
         councilComposition: null,
+        preambleEntries: [],
         subjects: [],
+        epilogueEntries: [],
         ...overrides,
     };
 }
@@ -31,6 +33,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
         decision: null,
         attendance: null,
         voteResult: null,
+        preDiscussionEntries: [],
         transcriptEntries: [],
         ...overrides,
     };
