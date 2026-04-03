@@ -212,6 +212,17 @@ const config = {
 					'50%': {
 						transform: 'translateY(-8px)'
 					}
+				},
+				flow: {
+					'0%': { 'stroke-dashoffset': '1', opacity: '0' },
+					'10%': { opacity: '1' },
+					'80%': { opacity: '1' },
+					'100%': { 'stroke-dashoffset': '0', opacity: '0' },
+				},
+				'arrow-pulse': {
+					'0%, 70%': { stroke: '#d4d4d8' },
+					'85%': { stroke: 'hsl(24, 90%, 55%)' },
+					'100%': { stroke: '#d4d4d8' },
 				}
 			},
 			animation: {
@@ -226,6 +237,8 @@ const config = {
 				'aurora': 'aurora 60s linear infinite',
 				'auto-scroll': 'auto-scroll var(--duration, 8s) ease-in-out infinite',
 				float: 'float 5s ease-in-out infinite',
+				flow: 'flow 2.5s ease-in-out infinite',
+				'arrow-pulse': 'arrow-pulse 2.5s ease-in-out infinite',
 				'orb-1': 'orb-1 25s ease-in-out infinite',
 				'orb-2': 'orb-2 30s ease-in-out infinite',
 				'orb-3': 'orb-3 20s ease-in-out infinite',

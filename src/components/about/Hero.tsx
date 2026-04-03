@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import NumberTicker from '@/components/magicui/number-ticker'
 import BrowserFrame from './BrowserFrame'
 import ShineTitle from './ShineTitle'
-import { HERO_COUNTERS, CONTACT_PHONE, CONTACT_PHONE_DISPLAY } from './config'
+import { HERO_COUNTERS } from './config'
+import { env } from '@/env.mjs'
 import type { AboutPageStats } from '@/lib/db/cities'
 import type { HeroCounter } from './config'
 
@@ -45,11 +46,13 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     <BrowserFrame url="opencouncil.gr" className="shadow-xl">
                         <div className="aspect-[4/3] bg-black overflow-hidden">
                             <video
-                                src="/about/product-demo.mp4"
+                                src="https://data.opencouncil.gr/product-demo.mp4"
+                                poster="/about/product-demo-poster.jpg"
                                 autoPlay
                                 muted
                                 loop
                                 playsInline
+                                preload="none"
                                 className="w-full h-full object-fill"
                             />
                         </div>
@@ -121,14 +124,14 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                             <CalendarClock className="mr-2 h-4 w-4" />
                             Κλείστε μία παρουσίαση
                         </Button>
-                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
+                        <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 variant="outline"
                                 className="rounded-xl px-6 py-4 sm:px-8 sm:py-6 text-sm sm:text-base w-full sm:w-auto"
                             >
                                 <PhoneCall className="mr-2 h-4 w-4" />
-                                {CONTACT_PHONE_DISPLAY}
+                                {env.NEXT_PUBLIC_CONTACT_PHONE}
                             </Button>
                         </a>
                     </motion.div>
@@ -149,7 +152,8 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                         <BrowserFrame url="opencouncil.gr" className="shadow-2xl">
                             <div className="aspect-[4/3] bg-black overflow-hidden">
                                 <video
-                                    src="/about/product-demo.mp4"
+                                    src="https://data.opencouncil.gr/product-demo.mp4"
+                                    poster="/about/product-demo-poster.jpg"
                                     autoPlay
                                     muted
                                     loop

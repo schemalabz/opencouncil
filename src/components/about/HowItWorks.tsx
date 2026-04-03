@@ -94,7 +94,7 @@ function FlowArrow({ d, delay, duration }: { d: string; delay: number; duration:
             fill="none"
             strokeLinecap="round"
             style={{
-                animation: `arrowPulse ${duration}s ease-in-out ${delay}s infinite`,
+                animation: `arrow-pulse ${duration}s ease-in-out ${delay}s infinite`,
             }}
         />
     )
@@ -158,22 +158,6 @@ function StepCard({ step, index, delay }: { step: Step | Branch; index: number; 
 
 export default function HowItWorks() {
     return (
-        <>
-            {/* CSS keyframes for the flow animation */}
-            <style jsx global>{`
-                @keyframes flow {
-                    0% { stroke-dashoffset: 1; opacity: 0; }
-                    10% { opacity: 1; }
-                    80% { opacity: 1; }
-                    100% { stroke-dashoffset: 0; opacity: 0; }
-                }
-                @keyframes arrowPulse {
-                    0%, 70% { stroke: #d4d4d8; }
-                    85% { stroke: hsl(24, 90%, 55%); }
-                    100% { stroke: #d4d4d8; }
-                }
-            `}</style>
-
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
                 <motion.div
                     className="text-center mb-12 md:mb-16"
@@ -236,6 +220,5 @@ export default function HowItWorks() {
                     ))}
                 </div>
             </section>
-        </>
     )
 }

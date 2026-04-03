@@ -4,7 +4,7 @@ import { useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { PhoneCall, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { CONTACT_PHONE, CONTACT_PHONE_DISPLAY } from './config'
+import { env } from '@/env.mjs'
 
 interface CTAFooterProps {
     onContactClick: () => void
@@ -75,13 +75,13 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                             <CalendarClock className="mr-2 h-4 w-4" />
                             Κλείστε μία παρουσίαση
                         </Button>
-                        <a href={`tel:${CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
+                        <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 className="bg-transparent border border-white/30 text-white hover:bg-white/10 rounded-xl px-8 py-6 text-base w-full transition-colors duration-300"
                             >
                                 <PhoneCall className="mr-2 h-4 w-4" />
-                                {CONTACT_PHONE_DISPLAY}
+                                {env.NEXT_PUBLIC_CONTACT_PHONE}
                             </Button>
                         </a>
                     </div>

@@ -3,9 +3,6 @@ import type { LucideIcon } from 'lucide-react'
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-export const CONTACT_PHONE = '+302111980212'
-export const CONTACT_PHONE_DISPLAY = '+30 2111980212'
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type FeatureStatus = 'live' | 'upcoming'
@@ -173,7 +170,7 @@ export const RECOGNITION_ITEMS: RecognitionItem[] = [
         id: 'kede',
         title: 'ΚΕΔΕ',
         subtitle: 'Άρθρο στο kede.gr για την τεχνητή νοημοσύνη στην τοπική δημοκρατία',
-        linkUrl: 'https://www.kede.gr/opencouncil-chania-gr-i-texniti-noimosini-sti-ypiresia-tis-topikis-dimokratias/',
+        linkUrl: 'https://kede.gr/opencouncil-chania-gr-i-protoporiaki-platforma-ai-pou-allazei-ta-dedomena-sto-dimotiko-symvoulio-chanion/',
         logoUrl: '/about/kede.png',
     },
 ]
