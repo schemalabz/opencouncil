@@ -28,7 +28,7 @@ export function DateRangePicker({
     disabled,
 }: DateRangePickerProps) {
     return (
-        <Popover>
+        <Popover modal>
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
