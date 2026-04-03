@@ -10,6 +10,7 @@ const config = {
 		'./app/**/*.{ts,tsx}',
 		'./src/**/*.{ts,tsx}',
 	],
+	safelist: ['animate-flow', 'animate-arrow-pulse'],
 	prefix: "",
 	theme: {
 		container: {
