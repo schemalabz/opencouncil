@@ -60,10 +60,22 @@ jobs:
 
           LOCKFILE_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package-lock.json$' || true)
           HASH_CHANGED=$(git diff origin/${{ github.base_ref }}...HEAD -- flake.nix | grep 'npmDepsHash' || true)
+          PKG_JSON_CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^package.json$' || true)
 
+          # Case 1: lockfile changed but hash wasn't updated
           if [ -n "$LOCKFILE_CHANGED" ] && [ -z "$HASH_CHANGED" ]; then
             echo "::error::package-lock.json was modified but npmDepsHash in flake.nix was not updated. Run: nix run nixpkgs#prefetch-npm-deps package-lock.json"
             exit 1
+          fi
+
+          # Case 2: dependencies changed in package.json but lockfile wasn't updated
+          if [ -n "$PKG_JSON_CHANGED" ] && [ -z "$LOCKFILE_CHANGED" ]; then
+            OLD_DEPS=$(git show origin/${{ github.base_ref }}:package.json | jq -S '{dep: .dependencies, dev: .devDependencies}')
+            NEW_DEPS=$(jq -S '{dep: .dependencies, dev: .devDependencies}' package.json)
+            if [ "$OLD_DEPS" != "$NEW_DEPS" ]; then
+              echo "::error::Dependencies in package.json were modified but package-lock.json was not updated. Run 'npm install' and commit the updated lockfile."
+              exit 1
+            fi
           fi
 
           echo "✅ npmDepsHash check passed" >> $GITHUB_STEP_SUMMARY
