@@ -122,9 +122,11 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                         <div className="flex items-center gap-1 shrink-0">
                             <ScrollText className="w-3.5 h-3.5 shrink-0" />
                             <div className="text-xs text-muted-foreground">
-                                {subject.agendaItemIndex ?
-                                    `#${subject.agendaItemIndex}` :
-                                    getNonAgendaLabel(subject.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda')
+                                {subject.agendaItemIndex
+                                    ? `#${subject.agendaItemIndex}`
+                                    : subject.nonAgendaReason
+                                        ? getNonAgendaLabel(subject.nonAgendaReason)
+                                        : null
                                 }
                             </div>
                         </div>
