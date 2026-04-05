@@ -10,6 +10,7 @@ import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
+import { getNotificationPreferenceForCity } from '@/lib/db/notifications';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
@@ -19,6 +20,7 @@ import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
 import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
+import { NotificationPreferenceProvider } from '@/contexts/NotificationPreferenceContext';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateImageMetadata({
@@ -114,6 +116,10 @@ export default async function CouncilMeetingPage({
 
     console.log(`Got meeting data for ${cityId} ${meetingId}: ${data.meeting.updatedAt}`);
 
+    const notificationPreference = currentUser
+        ? await getNotificationPreferenceForCity(currentUser.id, cityId)
+        : null;
+
     const meetingData = (data.transcriptHiddenForReview && !editable)
         ? { ...data, transcript: [], speakerTags: [] }
         : data;
@@ -133,6 +139,7 @@ export default async function CouncilMeetingPage({
 
     return (
         <ShareProvider>
+            <NotificationPreferenceProvider notificationPreference={notificationPreference}>
             <CouncilMeetingWrapper
                 meetingData={meetingData}
                 editable={editable}
@@ -185,6 +192,7 @@ export default async function CouncilMeetingPage({
                     </SubjectHeaderProvider>
                 </HighlightProvider>
             </CouncilMeetingWrapper>
+            </NotificationPreferenceProvider>
         </ShareProvider>
     );
 }

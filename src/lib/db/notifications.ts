@@ -61,6 +61,19 @@ async function sendMagicLink(email: string) {
 }
 
 /**
+ * Get a user's notification preference for a specific city, if it exists.
+ * Returns the preference with topics and locations, or null.
+ */
+export async function getNotificationPreferenceForCity(userId: string, cityId: string) {
+    return prisma.notificationPreference.findUnique({
+        where: { userId_cityId: { userId, cityId } },
+        include: { interests: true, locations: true },
+    });
+}
+
+export type CityNotificationPreference = NonNullable<Awaited<ReturnType<typeof getNotificationPreferenceForCity>>>;
+
+/**
  * Get all user preferences (notifications and petitions)
  */
 export async function getUserPreferences(): Promise<UserPreference[]> {

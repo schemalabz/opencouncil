@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
-import { getUserPreferences } from '@/lib/db/notifications';
 import { CityMessage as CityMessageComponent } from '@/components/cities/CityMessage';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import CityCreator from '@/components/cities/CityCreator';
@@ -27,15 +26,15 @@ type CityHeaderProps = {
     councilMeetingsCount: number,
     cityMessage: CityMessage | null,
     hasNoData?: boolean,
+    hasNotifications?: boolean,
 };
 
-export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData = false }: CityHeaderProps) {
+export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData = false, hasNotifications = false }: CityHeaderProps) {
     const t = useTranslations('City');
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [isCityCreatorOpen, setIsCityCreatorOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [canEdit, setCanEdit] = useState(false);
-    const [hasNotifications, setHasNotifications] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
     const router = useRouter();
     const { data: session } = useSession();
@@ -53,24 +52,6 @@ export function CityHeader({ city, councilMeetingsCount, cityMessage, hasNoData 
         };
         checkEditPermissions();
     }, [city.id]);
-
-    useEffect(() => {
-        const checkNotifications = async () => {
-            if (!session?.user) return;
-
-            try {
-                const preferences = await getUserPreferences();
-                const hasCityNotifications = preferences.some(
-                    pref => pref.cityId === city.id && !pref.isPetition
-                );
-                setHasNotifications(hasCityNotifications);
-            } catch (error) {
-                console.error('Error checking notifications:', error);
-            }
-        };
-
-        checkNotifications();
-    }, [city.id, session?.user]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
