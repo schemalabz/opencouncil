@@ -5,6 +5,7 @@ import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
 import { formatDate } from "date-fns";
 import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
+import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
 import { formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
 import { sortSubjectsBySpeakingTime, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
 import { categorizeSubjects, SUBJECT_CATEGORIES } from "@/lib/utils/subjects";
@@ -14,7 +15,7 @@ import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { el } from "date-fns/locale";
 import { enUS } from "date-fns/locale";
 import { useLocale } from "next-intl";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { Topic } from "@prisma/client";
 
 export default function MeetingPage() {
@@ -173,47 +174,98 @@ function MeetingInfo() {
 
 function UpcomingMeetingCard() {
     const { meeting, city } = useCouncilMeetingData();
+    const notificationPreference = useNotificationPreference();
     const locale = useLocale();
 
-    if (meeting.youtubeUrl || (!meeting.agendaUrl && !meeting.administrativeBody?.youtubeChannelUrl)) {
+    const meetingDate = new Date(meeting.dateTime);
+    // Only tick while the meeting hasn't started yet, to catch the upcoming → past transition.
+    // Once past, the card is static — no interval needed.
+    const [now, setNow] = useState(() => new Date());
+    const isUpcoming = meetingDate > now;
+    useEffect(() => {
+        if (!isUpcoming) return;
+        const interval = setInterval(() => setNow(new Date()), 60_000);
+        return () => clearInterval(interval);
+    }, [isUpcoming]);
+
+    // Hide once video is uploaded
+    if (meeting.youtubeUrl) return null;
+
+    // Nothing useful to show if no links and no notification CTA
+    if (!meeting.agendaUrl && !meeting.administrativeBody?.youtubeChannelUrl && !city.supportsNotifications) {
         return null;
     }
+    const youtubeChannelUrl = meeting.administrativeBody?.youtubeChannelUrl;
 
-    const meetingDate = new Date(meeting.dateTime);
+    // After the meeting without YouTube channel, show notification CTA or nothing
+    if (!isUpcoming && !youtubeChannelUrl) {
+        if (!city.supportsNotifications) return null;
+        return (
+            <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
+                <p className="font-medium mb-2">
+                    Η συνεδρίαση θα είναι σύντομα διαθέσιμη
+                </p>
+                {notificationPreference ? (
+                    <p className="text-sm text-muted-foreground">
+                        Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης
+                    </p>
+                ) : (
+                    <Link
+                        href={`/${city.id}/notifications`}
+                        className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
+                    >
+                        Γραφτείτε στις ειδοποιήσεις για να λαμβάνετε τα θέματα συζήτησης πριν και μετά τις συνεδριάσεις
+                    </Link>
+                )}
+            </div>
+        );
+    }
+
+    const links = (
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            {youtubeChannelUrl && (
+                <Link
+                    href={youtubeChannelUrl}
+                    target="_blank"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
+                >
+                    <Youtube className="w-5 h-5 text-red-600" />
+                    YouTube
+                </Link>
+            )}
+            {meeting.agendaUrl && (
+                <Link
+                    href={meeting.agendaUrl}
+                    target="_blank"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
+                >
+                    <FileText className="w-4 h-4" />
+                    Ημερήσια Διάταξη
+                </Link>
+            )}
+        </div>
+    );
 
     return (
         <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
-            <div className="flex items-center justify-center gap-2 mb-3">
-                <CalendarIcon className="w-5 h-5 text-primary" />
-                <p className="font-medium">
-                    Η συνεδρίαση θα πραγματοποιηθεί {formatRelativeTime(meetingDate, locale)}
+            {isUpcoming ? (
+                <>
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                        <CalendarIcon className="w-5 h-5 text-primary" />
+                        <p className="font-medium">
+                            Η συνεδρίαση θα πραγματοποιηθεί {formatRelativeTime(meetingDate, locale)}
+                        </p>
+                    </div>
+                    <p className="text-lg font-semibold mb-4">
+                        {formatDateTime(meetingDate, city.timezone)}
+                    </p>
+                </>
+            ) : (
+                <p className="font-medium mb-4">
+                    Παρακολουθήστε τη συνεδρίαση
                 </p>
-            </div>
-            <p className="text-lg font-semibold">
-                {formatDateTime(meetingDate, city.timezone)}
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
-                {meeting.administrativeBody?.youtubeChannelUrl && (
-                    <Link
-                        href={meeting.administrativeBody.youtubeChannelUrl}
-                        target="_blank"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
-                    >
-                        <Youtube className="w-5 h-5 text-red-600" />
-                        YouTube
-                    </Link>
-                )}
-                {meeting.agendaUrl && (
-                    <Link
-                        href={meeting.agendaUrl}
-                        target="_blank"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
-                    >
-                        <FileText className="w-4 h-4" />
-                        Ημερήσια Διάταξη
-                    </Link>
-                )}
-            </div>
+            )}
+            {links}
         </div>
     );
 }
