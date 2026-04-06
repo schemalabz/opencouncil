@@ -73,11 +73,31 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function klitiki(name: string): string {
-  if (name.includes(" ")) {
-    return name.split(" ").map(greekKlitiki).join(" ");
+  const normalizedName = name.trim();
+  if (!normalizedName) {
+    return "";
   }
 
-  return greekKlitiki(name);
+  const decline = (s: string): string => {
+    if (!s) return "";
+    // If the segment contains spaces (e.g. after splitting by hyphen), decline each word individually
+    if (/\s/.test(s)) {
+      return s.split(/\s+/).map(decline).join(" ");
+    }
+    // Normalize to Title Case for the library
+    const capitalized = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    return greekKlitiki(capitalized);
+  };
+
+  if (normalizedName.includes("-")) {
+    return normalizedName.split("-").map(decline).join("-");
+  }
+
+  if (/\s/.test(normalizedName)) {
+    return normalizedName.split(/\s+/).map(decline).join(" ");
+  }
+
+  return decline(normalizedName);
 }
 
 export function debounce<T extends (...args: any[]) => any>(
