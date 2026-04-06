@@ -1,10 +1,7 @@
 import { getCurrentUser } from "@/lib/auth"
 import prisma from "@/lib/db/prisma"
-import { sendEmail } from "@/lib/email/resend"
-import { renderAsync } from "@react-email/render"
-import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { NextResponse } from "next/server"
-import { env } from '@/env.mjs'
+import { sendInviteEmail } from "@/lib/auth/invite"
 
 export async function POST(
     request: Request,
@@ -24,20 +21,11 @@ export async function POST(
             return new NextResponse("User not found", { status: 404 })
         }
 
-        // Send email with simple sign in link
-        const signInUrl = `${env.NEXTAUTH_URL}/sign-in?email=${user.email}`
+        const sent = await sendInviteEmail(user.email, user.name)
 
-        const emailHtml = await renderAsync(UserInviteEmail({
-            name: user.name || user.email,
-            inviteUrl: signInUrl
-        }))
-
-        await sendEmail({
-            from: "OpenCouncil <auth@opencouncil.gr>",
-            to: user.email,
-            subject: "Πρόσκληση: Συνδεθείτε στο OpenCouncil",
-            html: emailHtml,
-        })
+        if (!sent) {
+            return new NextResponse("Failed to send invite email", { status: 500 })
+        }
 
         return new NextResponse("Invite sent successfully", { status: 200 })
     } catch (error) {
