@@ -87,8 +87,8 @@ export default function UsersPage() {
             })
 
             if (!response.ok) {
-                const errorData = await response.text()
-                throw new Error(errorData || 'Failed to delete user')
+                const errorData = await response.json().catch(() => null)
+                throw new Error(errorData?.error || 'Failed to delete user')
             }
 
             toast({
