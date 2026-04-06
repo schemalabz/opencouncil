@@ -37,19 +37,18 @@ OpenCouncil is developed by [Schema Labs](https://schemalabs.gr), a non-profit o
 
 ## Technical Architecture
 
-This is a [Next.js](https://nextjs.org/) web application:
-
-- **Frontend**: Next.js with TypeScript
-- **Database**: PostgreSQL
-- **Data Models**: Prisma ORM for type-safe database access
-- **Tasks**: This Next.js app calls the [backend task server](https://github.com/schemalabz/opencouncil-tasks), for media processing and AI features. For details, see the [Task Workflow Architecture](./docs/task-architecture.md).
+Next.js 14 (TypeScript) + PostgreSQL/PostGIS + Prisma. A separate [task server](https://github.com/schemalabz/opencouncil-tasks) handles media processing and AI features. See the [documentation index](./docs/README.md) for architecture details and the full deployment topology.
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- PostgreSQL 14+ with the postgis extensions
+- PostgreSQL 14+ with the postgis extension
 - Docker (optional, but recommended)
 - Nix (optional, recommended for the flake-based setup)
+
+## Documentation
+
+For architecture, feature guides, and operational procedures, see the [documentation index](./docs/README.md).
 
 ## Contributing
 
@@ -134,10 +133,3 @@ If you prefer to run without Docker:
    npm run dev
    ```
 
-## Database & Development Tools
-
-The database is automatically seeded with sample data and test users during setup. The seed data provides a realistic development environment while excluding sensitive information.
-
-During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
-
-For detailed information about database seeding and test user management, see [Database Seeding Guide](./docs/database-seeding.md).

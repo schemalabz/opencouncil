@@ -39,6 +39,10 @@ This allows testing the migration against a local database first before applying
 - `npm run import:people` - Import people data
 - `npm run generate-seed` - Generate seed data dump
 
+## Documentation
+
+For deeper context on architecture, features, operations, and product specs, see **[docs/README.md](./docs/README.md)** — the documentation index. Consult it when you need background beyond what's covered here.
+
 ## Architecture Overview
 
 ### Technology Stack

@@ -9,6 +9,14 @@ To get started with development, you'll need to set up the project on your local
 > [!TIP]
 > Please follow the [Development Setup guide in our README.md](./README.md#development-setup) to get your environment up and running.
 
+### Database & Development Tools
+
+The database is automatically seeded with sample data and test users during setup. The seed data provides a realistic development environment while excluding sensitive information.
+
+During seeding, if a local `prisma/seed_data.json` file doesn't exist, it will be automatically downloaded from the project's GitHub repository.
+
+For detailed information about database seeding and test user management, see [Database Seeding Guide](./docs/database-seeding.md).
+
 ### Working with Multiple Features Simultaneously
 
 When collaborating with AI co-pilots on multiple features or bug fixes in parallel, git worktrees provide an efficient workflow. Each worktree is a separate working directory linked to the same repository, allowing you to work on multiple branches without switching contexts.
