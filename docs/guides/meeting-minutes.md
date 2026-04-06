@@ -167,6 +167,7 @@ This linking is currently AI-driven with no manual editing UI. Misclassified or 
 5. Missing decisions produce warnings but don't block minutes generation
 6. Vote breakdown is best-effort — some PDFs only state "Ομόφωνα" without naming voters
 7. Reference richness varies by municipality — from detailed law citations to generic phrases
+8. Each extraction result includes per-decision `warnings` (e.g. missing vote result, empty excerpt, incomplete extraction) — see `docs/pollDecisions.md` in opencouncil-tasks for the full list of warning codes
 
 ### Workflow Assumptions
 1. The `pollDecisions` task handles both linking and extraction in a single pass — no separate extraction step needed
