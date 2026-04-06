@@ -434,6 +434,13 @@ export interface GenerateVoiceprintResult {
  * Extract Decisions (PDF → structured data)
  */
 
+/** Per-decision warning from the extraction pipeline. See DecisionWarningCode in opencouncil-tasks for the full list of codes. */
+export interface DecisionWarning {
+    code: string;
+    severity: 'info' | 'warning' | 'error';
+    message: string;
+}
+
 export interface ExtractedDecisionData {
     subjectId: string;
     excerpt: string;
@@ -446,6 +453,7 @@ export interface ExtractedDecisionData {
     unmatchedMembers: string[];
     subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
     fromCache?: boolean;
+    warnings?: DecisionWarning[];
 }
 
 /*

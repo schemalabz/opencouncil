@@ -1253,6 +1253,13 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                     console.log(`  Unmatched member "${name}" in subject "${decision.subjectId}"`);
                 }
             }
+
+            // Log per-decision warnings from validation
+            if (decision.warnings && decision.warnings.length > 0) {
+                for (const w of decision.warnings) {
+                    console.log(`  [${w.severity}] ${w.code}: ${w.message} (subject ${decision.subjectId})`);
+                }
+            }
         }
 
         if (result.extractions.warnings.length > 0) {
