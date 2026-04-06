@@ -176,6 +176,7 @@
     "clip": "Κλιπ {current} από {total}"
   },
   "highlightCard": {
+    "subjectConnected": "Συνδεδεμένο θέμα",
     "allHighlightsProcessed": "Όλα τα στιγμιότυπα έχουν επεξεργαστεί σε βίντεο",
     "currentlyEditing": "Επεξεργασία στιγμιότυπου:",
     "finishEditingDescription": "Ολοκληρώστε την επεξεργασία αυτού του στιγμιότυπου πριν δημιουργήσετε ένα νέο."
