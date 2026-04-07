@@ -1160,6 +1160,17 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         for (const decision of result.extractions.decisions) {
             try {
                 await prisma.$transaction(async (tx) => {
+                    // Skip extraction for subjects without a linked Decision — the backend
+                    // match may have been wrong (ADA conflict), so this data is unreliable.
+                    const existingDecision = await tx.decision.findFirst({
+                        where: { subjectId: decision.subjectId },
+                        select: { subjectId: true },
+                    });
+                    if (!existingDecision) {
+                        console.log(`Skipping extraction for subject ${decision.subjectId} — no linked Decision`);
+                        return;
+                    }
+
                     // 1. Update Decision excerpt and references
                     await tx.decision.updateMany({
                         where: { subjectId: decision.subjectId },

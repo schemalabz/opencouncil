@@ -1098,6 +1098,70 @@ describe('pollDecisions extraction processing', () => {
         expect(decisionVotes.every(v => v.taskId === task2.id)).toBe(true)
     })
 
+    test('ADA conflict skips extraction — no attendance or votes for conflicting subject', async () => {
+        // Subject in meeting 1 already owns ADA-X
+        const subjectA = await createSubject(meetingId, cityId, { name: 'Subject A', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subjectA.id, ada: 'ADA-X', pdfUrl: 'https://example.com/a.pdf' },
+        })
+
+        // Meeting 2 subjects — poll will match ADA-X to subjectB (conflict) and ADA-Y to subjectC (clean)
+        const meeting2 = await createMeeting(cityId, { id: 'm2', administrativeBodyId: (await prisma.administrativeBody.findFirst())!.id })
+        const subjectB = await createSubject(meeting2.id, cityId, { name: 'Subject B', agendaItemIndex: 1 })
+        const subjectC = await createSubject(meeting2.id, cityId, { name: 'Subject C', agendaItemIndex: 2 })
+        const task = await createTaskStatus(meeting2.id, cityId, { type: 'pollDecisions' })
+
+        // Backend returns both matches and extractions in one response
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({
+            matches: [
+                makePollDecisionsMatch({ subjectId: subjectB.id, ada: 'ADA-X' }),  // conflict
+                makePollDecisionsMatch({ subjectId: subjectC.id, ada: 'ADA-Y' }),  // clean
+            ],
+            extractions: {
+                decisions: [
+                    makeExtractedDecision({
+                        subjectId: subjectB.id,
+                        excerpt: 'Should not be stored',
+                        presentMemberIds: [personA.id, personB.id],
+                        absentMemberIds: [personC.id],
+                        voteDetails: [
+                            { personId: personA.id, vote: 'FOR' },
+                            { personId: personB.id, vote: 'FOR' },
+                        ],
+                    }),
+                    makeExtractedDecision({
+                        subjectId: subjectC.id,
+                        excerpt: 'Should be stored',
+                        presentMemberIds: [personA.id, personC.id],
+                        absentMemberIds: [personB.id],
+                        voteDetails: [
+                            { personId: personA.id, vote: 'FOR' },
+                            { personId: personC.id, vote: 'AGAINST' },
+                        ],
+                    }),
+                ],
+                warnings: [],
+            },
+        }))
+
+        // SubjectB: ADA conflict — no Decision, no extraction data stored
+        const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
+        expect(decisionB).toBeNull()
+        const attendanceB = await prisma.subjectAttendance.findMany({ where: { subjectId: subjectB.id } })
+        expect(attendanceB).toHaveLength(0)
+        const votesB = await prisma.subjectVote.findMany({ where: { subjectId: subjectB.id } })
+        expect(votesB).toHaveLength(0)
+
+        // SubjectC: clean match — Decision created, extraction data stored
+        const decisionC = await prisma.decision.findUnique({ where: { subjectId: subjectC.id } })
+        expect(decisionC).not.toBeNull()
+        expect(decisionC!.excerpt).toBe('Should be stored')
+        const attendanceC = await prisma.subjectAttendance.findMany({ where: { subjectId: subjectC.id } })
+        expect(attendanceC).toHaveLength(3)
+        const votesC = await prisma.subjectVote.findMany({ where: { subjectId: subjectC.id } })
+        expect(votesC).toHaveLength(2)
+    })
+
     test('no votes created when not unanimous and no vote details', async () => {
         const subject = await createSubject(meetingId, cityId, { name: 'Misc', agendaItemIndex: 1 })
         await prisma.decision.create({
