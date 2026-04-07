@@ -18,9 +18,12 @@ export const meetingSchema = z.object({
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
+    // Optional on create: when omitted, the POST handler auto-generates a
+    // unique ID from the meeting date. The PUT handler identifies the meeting
+    // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
-        message: "Meeting ID is required.",
-    }),
+        message: "Meeting ID must not be empty.",
+    }).optional(),
     administrativeBodyId: z.string().optional(),
     processAgenda: z.boolean().optional().default(false),
 });

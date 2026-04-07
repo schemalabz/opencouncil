@@ -8,13 +8,13 @@ import { searchRequestSchema } from '@/lib/zod-schemas/search';
 const SearchRequestSchema = searchRequestSchema.openapi('SearchRequest');
 
 const SearchResultSchema = z.object({
-    results: z.array(z.object({
-        meetingId: z.string(),
-        cityId: z.string(),
-        utteranceId: z.string().optional(),
-        text: z.string(),
-        score: z.number(),
-    })).openapi({ description: 'Matching search results' }),
+    results: z.array(z.unknown()).openapi({
+        description:
+            'Matching results. Each item is a SearchResultLight — a Subject with its relations, '
+            + 'a relevance `score`, and its `councilMeeting` (including `city` and `administrativeBody`). '
+            + 'When the request sets `detailed: true`, items are SearchResultDetailed, which additionally '
+            + 'include `speakerSegments` and `context`. See src/lib/search/types.ts for the full shape.',
+    }),
     pagination: z.object({
         total: z.number().int(),
         page: z.number().int(),

@@ -26,8 +26,19 @@ export const ErrorResponseSchema = z.object({
     error: z.string(),
 }).openapi('ErrorResponse');
 
+// Simple `{ message }` response shared by delete endpoints.
+export const MessageSchema = z.object({
+    message: z.string(),
+}).openapi('Message');
+
 registry.register('ValidationError', ValidationErrorSchema);
 registry.register('ErrorResponse', ErrorResponseSchema);
+registry.register('Message', MessageSchema);
+
+// Shared path parameter for `{cityId}`-scoped routes.
+export const cityIdParam = z.object({
+    cityId: z.string().openapi({ description: 'City ID', example: 'athens' }),
+});
 
 export function generateSpec() {
     const generator = new OpenApiGeneratorV3(registry.definitions);
