@@ -37,7 +37,7 @@ const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
 
 // Base field definitions — validation and transformation only, no defaults.
 // Shared between frontend (baseCityFormSchema) and backend (baseCityFormDataSchema).
-const baseCityFields = {
+export const baseCityFields = {
   name: z.string().min(2, {
     message: "City name must be at least 2 characters.",
   }),

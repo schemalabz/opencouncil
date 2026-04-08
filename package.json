@@ -27,7 +27,8 @@
     "test:og": "tsx scripts/test_og_images.ts",
     "generate-seed": "tsx scripts/generate_seed_dump.ts",
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
-    "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts"
+    "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
+    "generate-openapi": "tsx scripts/generate-openapi.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -150,6 +151,7 @@
     "hls.js": "^1.6.7"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.3.4",
     "@testcontainers/postgresql": "^10.10.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

@@ -6,30 +6,7 @@ import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { createMeetingCalendarEvent, calculateMeetingEndTime } from '@/lib/google-calendar';
 import prisma from '@/lib/db/prisma';
-
-const meetingSchema = z.object({
-    name: z.string().min(2, {
-        message: "Meeting name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Meeting name (English) must be at least 2 characters.",
-    }),
-    date: z.string()
-        .refine(val => !isNaN(new Date(val).getTime()), {
-            message: "Invalid date/time format"
-        })
-        .transform((str) => new Date(str)),
-    youtubeUrl: z.string().url({
-        message: "Invalid YouTube URL.",
-    }).optional().or(z.literal("")),
-    agendaUrl: z.string().url({
-        message: "Invalid Agenda URL.",
-    }).optional().or(z.literal("")),
-    meetingId: z.string().min(1, {
-        message: "Meeting ID is required.",
-    }),
-    administrativeBodyId: z.string().optional(),
-});
+import { meetingSchema } from '@/lib/zod-schemas/meeting';
 
 const getMeetingsQuerySchema = z.object({
     limit: z.string()
