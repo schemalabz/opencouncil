@@ -1,4 +1,5 @@
 import { Check, CheckCheck } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 /**
@@ -6,6 +7,8 @@ import Image from 'next/image'
  * Uses the actual WhatsApp color palette and bubble shapes with CSS tails.
  */
 export default function NotificationDemo() {
+    const t = useTranslations('about.demos.notification')
+
     return (
         <div className="w-full max-w-sm mx-auto overflow-hidden rounded-2xl shadow-lg border border-black/10">
             {/* Status bar (phone) */}
@@ -51,7 +54,7 @@ export default function NotificationDemo() {
                 {/* Date chip */}
                 <div className="flex justify-center mb-1">
                     <span className="text-[11px] text-[#667781] bg-white/90 rounded-lg px-3 py-1 shadow-sm">
-                        ΣΗΜΕΡΑ
+                        {t('today')}
                     </span>
                 </div>
 
@@ -62,31 +65,31 @@ export default function NotificationDemo() {
                         <div className="absolute -left-2 top-0 w-0 h-0 border-t-[8px] border-t-white border-r-[8px] border-r-transparent" />
                         {/* Sender name */}
                         <p className="text-[12.5px] font-medium mb-0.5" style={{ color: '#075E54' }}>
-                            OpenCouncil · Χαλάνδρι
+                            {t('senderName')}
                         </p>
                         {/* Message body */}
                         <p className="text-[14px] text-[#111B21] leading-[19px]">
-                            Στη χθεσινή συνεδρίαση του δημοτικού συμβουλίου, συζητήθηκαν θέματα που αφορούν τη γειτονιά σου:
+                            {t('messageBody')}
                         </p>
                         <div className="mt-1.5 space-y-1">
                             <div className="flex items-start gap-1.5">
                                 <span className="text-[13px] leading-[18px]">📍</span>
                                 <p className="text-[13.5px] text-[#111B21] leading-[18px]">
-                                    <span className="font-medium">Παράταση ωραρίου καταστήματος</span>
-                                    <span className="text-[#667781]"> — Λ. Πεντέλης 42</span>
+                                    <span className="font-medium">{t('item1Title')}</span>
+                                    <span className="text-[#667781]"> — {t('item1Location')}</span>
                                 </p>
                             </div>
                             <div className="flex items-start gap-1.5">
                                 <span className="text-[13px] leading-[18px]">🚗</span>
                                 <p className="text-[13.5px] text-[#111B21] leading-[18px]">
-                                    <span className="font-medium">Κυκλοφοριακές ρυθμίσεις</span>
-                                    <span className="text-[#667781]"> — Οδός Ηρακλείτου</span>
+                                    <span className="font-medium">{t('item2Title')}</span>
+                                    <span className="text-[#667781]"> — {t('item2Location')}</span>
                                 </p>
                             </div>
                         </div>
                         {/* Link preview */}
                         <p className="text-[13px] mt-1.5 text-[#027eb5] underline-offset-2">
-                            Δες τις περιλήψεις →
+                            {t('viewSummaries')}
                         </p>
                         {/* Timestamp + read receipt */}
                         <div className="flex justify-end items-center gap-1 -mt-0.5">
@@ -101,7 +104,7 @@ export default function NotificationDemo() {
                     <div className="relative max-w-[65%] rounded-lg shadow-sm px-2.5 pt-1.5 pb-1" style={{ backgroundColor: '#DCF8C6' }}>
                         {/* Tail */}
                         <div className="absolute -right-2 top-0 w-0 h-0 border-t-[8px] border-t-[#DCF8C6] border-l-[8px] border-l-transparent" />
-                        <p className="text-[14px] text-[#111B21] leading-[19px]">Ευχαριστώ! 👍</p>
+                        <p className="text-[14px] text-[#111B21] leading-[19px]">{t('reply')}</p>
                         <div className="flex justify-end items-center gap-1 -mt-0.5">
                             <span className="text-[11px] text-[#667781]">09:17</span>
                             <Check className="h-[14px] w-[14px] text-[#667781]" />
@@ -115,7 +118,7 @@ export default function NotificationDemo() {
                 <div className="flex-1 flex items-center bg-white rounded-full px-3 py-1.5">
                     {/* Emoji icon */}
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="#54656F" className="flex-shrink-0"><path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm5.694 0c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zM12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.418 0-8-3.582-8-8s3.582-8 8-8 8 3.582 8 8-3.582 8-8 8zm-1.019-5.219c-1.567 0-2.832.716-3.552 1.799l1.36.86c.438-.695 1.221-1.159 2.192-1.159.966 0 1.751.461 2.192 1.159l1.36-.86c-.72-1.083-1.985-1.799-3.552-1.799z" /></svg>
-                    <span className="flex-1 text-[15px] text-[#667781] ml-2">Γράψε μήνυμα</span>
+                    <span className="flex-1 text-[15px] text-[#667781] ml-2">{t('inputPlaceholder')}</span>
                 </div>
                 {/* Mic button */}
                 <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#00A884' }}>

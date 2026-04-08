@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import { OPENNESS_FEATURES } from './config'
 import type { Feature } from './config'
@@ -42,8 +43,9 @@ function FeatureVisual({ feature }: { feature: Feature }) {
     )
 }
 
-function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
+function FeatureRow({ feature, index, t }: { feature: Feature; index: number; t: ReturnType<typeof useTranslations> }) {
     const isReversed = index % 2 === 1
+    const demoLabel = t.has(`features.${feature.id}.demoLabel`) ? t(`features.${feature.id}.demoLabel`) : undefined
 
     return (
         <motion.div
@@ -63,22 +65,22 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
                         </span>
                     ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
-                            Σύντομα{feature.targetDate ? ` — ${feature.targetDate}` : ''}
+                            {t('comingSoon')}
                         </span>
                     )}
                 </div>
                 <h3 className="text-2xl md:text-3xl font-medium tracking-tight">
-                    {feature.title}
+                    {t(`features.${feature.id}.title`)}
                 </h3>
                 <p className="mt-3 text-base md:text-lg text-muted-foreground leading-relaxed">
-                    {feature.description}
+                    {t(`features.${feature.id}.description`)}
                 </p>
                 {feature.demoUrl && feature.status === 'live' && (
                     <Link
                         href={feature.demoUrl}
                         className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-primary hover:text-primary/80 transition-colors group"
                     >
-                        {feature.demoLabel ?? 'Δοκιμάστε το'}
+                        {demoLabel ?? t('tryIt')}
                         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                 )}
@@ -93,6 +95,8 @@ function FeatureRow({ feature, index }: { feature: Feature; index: number }) {
 }
 
 export default function OpennessFeatures() {
+    const t = useTranslations('about.openness')
+
     return (
         <section className="py-16 md:py-24">
             <motion.div
@@ -103,17 +107,17 @@ export default function OpennessFeatures() {
                 viewport={{ once: true }}
             >
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                    Κάθε συνεδρίαση,{' '}
-                    <span className="font-medium">ανοιχτή σε όλους</span>
+                    {t('title')}{' '}
+                    <span className="font-medium">{t('titleHighlight')}</span>
                 </h2>
                 <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    Το OpenCouncil μετατρέπει πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο και προσβάσιμο περιεχόμενο — αυτόματα.
+                    {t('subtitle')}
                 </p>
             </motion.div>
 
             <div className="space-y-16 md:space-y-24">
                 {OPENNESS_FEATURES.map((feature, index) => (
-                    <FeatureRow key={feature.id} feature={feature} index={index} />
+                    <FeatureRow key={feature.id} feature={feature} index={index} t={t} />
                 ))}
             </div>
         </section>

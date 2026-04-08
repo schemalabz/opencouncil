@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/routing'
 import Marquee from '@/components/ui/marquee'
 
@@ -7,6 +8,8 @@ interface SocialProofProps {
 }
 
 export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
+    const t = useTranslations('about.socialProof')
+
     if (!citiesWithLogos.length) return null
 
     const count = citiesWithLogos.length
@@ -24,9 +27,9 @@ export default function SocialProof({ citiesWithLogos }: SocialProofProps) {
             viewport={{ once: true }}
         >
             <p className="text-center text-sm sm:text-base md:text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4">
-                Σε{' '}
-                <span className="font-medium text-foreground">{count} δήμους</span>{' '}
-                στην Ελλάδα, από τον Δήμο Σαμοθράκης μέχρι τον Δήμο Αθηναίων.
+                {t('prefix')}{' '}
+                <span className="font-medium text-foreground">{t('municipalities', { count })}</span>{' '}
+                {t('suffix')}
             </p>
 
             <div

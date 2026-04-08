@@ -1,31 +1,27 @@
 import { motion } from 'framer-motion'
 import { PhoneCall, CalendarClock } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import NumberTicker from '@/components/magicui/number-ticker'
 import BrowserFrame from './BrowserFrame'
 import ShineTitle from './ShineTitle'
-import { HERO_COUNTERS } from './config'
 import { env } from '@/env.mjs'
 import type { AboutPageStats } from '@/lib/db/cities'
-import type { HeroCounter } from './config'
 
 interface HeroProps {
     onContactClick: () => void
     stats?: AboutPageStats | null
 }
 
-function getCounters(stats?: AboutPageStats | null): HeroCounter[] {
-    if (!stats) return HERO_COUNTERS
-
-    return [
-        { value: stats.municipalityCount, label: 'δήμοι' },
-        { value: stats.subjectCount, suffix: '+', label: 'θέματα' },
-        { value: stats.meetingHours, suffix: '+', label: 'ώρες συνεδριάσεων' },
-    ]
-}
-
 export default function Hero({ onContactClick, stats }: HeroProps) {
-    const counters = getCounters(stats)
+    const t = useTranslations('about.hero')
+
+    const counters = [
+        { value: stats?.municipalityCount ?? 10, label: t('counters.municipalities') },
+        { value: stats?.subjectCount ?? 500, suffix: '+', label: t('counters.subjects') },
+        { value: stats?.meetingHours ?? 200, suffix: '+', label: t('counters.meetingHours') },
+    ]
+
     return (
         <section className="relative pt-2 pb-8 sm:py-12 md:py-20 lg:py-28">
             {/* Mobile background screenshot — faded, right-aligned, behind text */}
@@ -69,9 +65,9 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     transition={{ duration: 0.7 }}
                 >
                     <ShineTitle className="text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.5rem] font-light tracking-tight leading-[1.1]">
-                        Το λειτουργικό σύστημα{' '}
+                        {t('title')}{' '}
                         <span className="font-medium">
-                            των συλλογικών οργάνων
+                            {t('titleHighlight')}
                         </span>
                     </ShineTitle>
 
@@ -81,7 +77,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
                     >
-                        Δημοτικά συμβούλια, επιτροπές και κοινότητες — πιο ανοιχτά για τους δημότες, πιο αποδοτικά για τις υπηρεσίες.
+                        {t('subtitle')}
                     </motion.p>
 
                     {/* Counters */}
@@ -122,7 +118,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                             onClick={onContactClick}
                         >
                             <CalendarClock className="mr-2 h-4 w-4" />
-                            Κλείστε μία παρουσίαση
+                            {t('schedulePresentation')}
                         </Button>
                         <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button

@@ -1,10 +1,13 @@
 import { motion } from 'framer-motion'
 import { ExternalLink, Trophy } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { RECOGNITION_ITEMS } from './config'
 
 export default function Recognition() {
+    const t = useTranslations('about.recognition')
+
     return (
         <section className="py-16 md:py-24">
             <motion.div
@@ -15,7 +18,7 @@ export default function Recognition() {
                 viewport={{ once: true }}
             >
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                    Διακρίσεις & Αναφορές
+                    {t('title')}
                 </h2>
             </motion.div>
 
@@ -33,7 +36,7 @@ export default function Recognition() {
                                 {item.logoUrl ? (
                                     <Image
                                         src={item.logoUrl}
-                                        alt={item.title}
+                                        alt={t(`items.${item.id}.title`)}
                                         width={120}
                                         height={40}
                                         className="h-8 w-auto max-w-[120px] object-contain object-left"
@@ -46,10 +49,10 @@ export default function Recognition() {
                             </div>
 
                             <h3 className="text-sm font-semibold text-foreground leading-snug">
-                                {item.title}
+                                {t(`items.${item.id}.title`)}
                             </h3>
                             <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed flex-1">
-                                {item.subtitle}
+                                {t(`items.${item.id}.subtitle`)}
                             </p>
 
                             {hasLink && (

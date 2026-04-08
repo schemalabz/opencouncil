@@ -1,0 +1,361 @@
+{
+  "metadata": {
+    "title": "OpenCouncil — The operating system for municipal councils",
+    "description": "City councils, committees, and communities — more open for citizens, more efficient for staff. In 10 municipalities across Greece.",
+    "keywords": "OpenCouncil,artificial intelligence,city councils,transparency,democracy,local government,automation,civic engagement,citizens"
+  },
+  "hero": {
+    "title": "The operating system",
+    "titleHighlight": "for municipal councils",
+    "subtitle": "City councils, committees, and communities — more open for citizens, more efficient for staff.",
+    "schedulePresentation": "Schedule a presentation",
+    "counters": {
+      "municipalities": "municipalities",
+      "subjects": "subjects",
+      "meetingHours": "hours of meetings"
+    }
+  },
+  "socialProof": {
+    "prefix": "In",
+    "municipalities": "{count} municipalities",
+    "suffix": "across Greece, from Samothraki to Athens."
+  },
+  "openness": {
+    "title": "Every meeting,",
+    "titleHighlight": "open to everyone",
+    "subtitle": "OpenCouncil turns hours-long meetings into understandable, searchable, and accessible content — automatically.",
+    "comingSoon": "Coming soon",
+    "tryIt": "Try it",
+    "features": {
+      "subjects": {
+        "title": "Subjects & Summaries",
+        "description": "Every meeting is automatically split into subjects. For each subject, a summary of each speaker's position, with video, text, and vote."
+      },
+      "search": {
+        "title": "Search",
+        "description": "Search everything that has been said in every meeting, in every municipality."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "When the council discusses something about your street or neighborhood, you'll know — via WhatsApp, SMS, or email.",
+        "demoLabel": "Sign up for notifications for Athens"
+      },
+      "map": {
+        "title": "Subject map",
+        "description": "Every council discussion pinned to the map — zoom into any neighborhood to see what's been decided about the places you care about.",
+        "demoLabel": "View the map"
+      }
+    }
+  },
+  "internal": {
+    "title": "What used to take days,",
+    "titleHighlight": "now takes hours",
+    "subtitle": "Transcriptions, minutes, decisions — automatically or with minimal human intervention.",
+    "seeExample": "See example",
+    "comingSoon": "Coming soon",
+    "bottomNote": "OpenCouncil can replace your minutes provider at a similar cost — with ten times the functionality and speed.",
+    "features": {
+      "transcription": {
+        "title": "Transcriptions in 48 hours",
+        "description": "Accurate, human-verified transcriptions of every meeting, ready within 48 hours. Automatic speaker recognition."
+      },
+      "minutes": {
+        "title": "Automatic minutes generation",
+        "description": "Automatic meeting minutes, ready for review and signing. Saving days of work."
+      },
+      "diavgeia": {
+        "title": "Decisions for Di@vgeia",
+        "description": "Automatic generation of decision documents, ready for publication on Di@vgeia.",
+        "targetDate": "December 2026"
+      },
+      "printArchive": {
+        "title": "Printed archive delivery",
+        "description": "Delivery of transcription archives in printed form, according to each municipality's specifications."
+      }
+    }
+  },
+  "howItWorks": {
+    "title": "How it",
+    "titleHighlight": "works",
+    "subtitle": "From the meeting to the municipality and the citizen — automatically",
+    "inputs": {
+      "recording": {
+        "title": "Meeting recording",
+        "description": "Recorded live or uploaded from YouTube — a video or audio file is all it takes."
+      },
+      "documents": {
+        "title": "Meeting documents",
+        "description": "Agendas, decisions from Di@vgeia, and any supporting material."
+      }
+    },
+    "processing": {
+      "transcription": {
+        "title": "Transcription",
+        "description": "AI transcription with speaker recognition, human-verified within 48 hours."
+      },
+      "analysis": {
+        "title": "Analysis & structure",
+        "description": "Topics, summaries, positions per speaker, and decisions — extracted automatically."
+      }
+    },
+    "branches": {
+      "notifications": {
+        "title": "Citizen notifications",
+        "description": "Citizens are notified about the topics that matter to them, via WhatsApp, SMS, and email."
+      },
+      "openByDefault": {
+        "title": "Open by default",
+        "description": "Transparency as infrastructure — subject summaries, speaker contributions, interactive maps, and full-text search."
+      },
+      "tools": {
+        "title": "Tools for officials & staff",
+        "description": "Minutes, transcriptions, and decisions — ready to use."
+      }
+    }
+  },
+  "quotes": {
+    "whatMunicipalitiesSay": "What municipalities say",
+    "items": {
+      "chania": {
+        "quote": "Within the first five minutes, I knew this was something different.",
+        "name": "Head of Planning, Organization & IT",
+        "role": "Municipality of Chania"
+      }
+    }
+  },
+  "recognition": {
+    "title": "Awards & Mentions",
+    "items": {
+      "ministryAward": {
+        "title": "Ministry of Digital Governance Award",
+        "subtitle": "Best Applied Idea — Local Government"
+      },
+      "oecd": {
+        "title": "OECD",
+        "subtitle": "Referenced in OECD report on AI & Civic Engagement"
+      },
+      "ert": {
+        "title": "ERTnews",
+        "subtitle": "Report on artificial intelligence in Chania"
+      },
+      "kede": {
+        "title": "KEDE",
+        "subtitle": "Article on AI in local democracy on kede.gr"
+      }
+    }
+  },
+  "team": {
+    "title": "The team behind OpenCouncil",
+    "subtitle": "6 people, building technology for local democracy. OpenCouncil IKE is wholly owned by <link>Schema Labs</link>, a non-profit company.",
+    "members": {
+      "christos": "Christos Porios",
+      "andreas": "Andreas Kouloumos",
+      "eliza": "Eliza Gkimitzoudi",
+      "thanos": "Thanos Papadogiannis",
+      "vasia": "Vasiliki Koumarela",
+      "klea": "Klea Meshi"
+    },
+    "office": {
+      "title": "Our space",
+      "imageAlt": "Our space — Smolenski 22, Athens",
+      "description": "An open space for discussion and creation in the center of Athens. Come say hello, or email us at <email>space@opencouncil.gr</email> to co-organize an event.",
+      "address": "Smolenski 22, Athens"
+    },
+    "roadmap": {
+      "title": "Always building",
+      "viewRoadmap": "View the roadmap",
+      "items": {
+        "diavgeia": { "title": "Automatic Di@vgeia decisions" },
+        "bidirectional": { "title": "Two-way notifications" },
+        "fineTuned": { "title": "Fine-tuned transcription model" }
+      }
+    },
+    "openSource": {
+      "title": "Our code is open source",
+      "description": "Transparent development under GPL v3. Every line of code is public.",
+      "viewOnGithub": "View on GitHub",
+      "contributorsLastWeeks": "{count} contributors · Last 12 weeks"
+    }
+  },
+  "cta": {
+    "title": "Make every council meeting count.",
+    "subtitle": "Integrate in days, not months.",
+    "schedulePresentation": "Schedule a presentation"
+  },
+  "demos": {
+    "subject": {
+      "meetingLabel": "City Council Meeting 15/01/26",
+      "subjectLabel": "Subject",
+      "subjectName": "Renovation of the Municipal Market Square",
+      "speakers": "{count} speakers",
+      "minutes": "{count} minutes",
+      "introducer": "Introduced by:",
+      "summary": "Summary",
+      "summaryText": "The proposal for the renovation of the Municipal Market Square was discussed, with a budget of €1.2M. The majority voted in favor, with reservations about funding. An architectural competition was approved to be announced within three months.",
+      "contributions": "Contributions",
+      "decision": "Decision",
+      "decisionTitle": "Title",
+      "decisionTitleText": "Approval of architectural competition for square renovation",
+      "decisionAda": "ADA",
+      "decisionProtocol": "Protocol",
+      "viewRealSubject": "View a real subject page",
+      "callouts": {
+        "header": "Recognition of all pre-agenda, off-agenda, and on-agenda subjects",
+        "stats": "Statistics per party",
+        "summary": "Summary with sources directly from the transcript",
+        "contributions": "Summary of each speaker's position",
+        "decision": "Link to the decision on Di@vgeia"
+      },
+      "parties": {
+        "dimotikiKinisi": "Municipal Movement",
+        "laikiSyspirosi": "People's Coalition",
+        "anexartitoi": "Independents"
+      },
+      "people": {
+        "georgiou": { "name": "Maria Georgiou", "initials": "MG", "role": "Deputy Mayor of Technical Works", "roleShort": "Deputy Mayor" },
+        "papadakis": { "name": "Nikos Papadakis", "initials": "NP", "role": "City Councilor" }
+      },
+      "contributionTexts": {
+        "georgiou": "The renovation of the square is a priority. The budget is covered by ESPA funds and the competition will be announced within three months.",
+        "papadakis": "We have reservations about the funding method. We request public consultation with residents before the plan is finalized."
+      }
+    },
+    "search": {
+      "allMunicipalities": "All municipalities",
+      "resultsCount": "{count} results in 3 municipalities",
+      "results": {
+        "0": {
+          "subject": "Renovation of the Municipal Market Square",
+          "city": "Municipality of Chania",
+          "speaker": "Maria Georgiou",
+          "location": "Municipal Market Square",
+          "highlight": "...the budget is covered by <mark>ESPA</mark> funds and the competition will be announced within three months..."
+        },
+        "1": {
+          "subject": "Funding for sports facilities",
+          "city": "Municipality of Chalandri",
+          "speaker": "Dimitris Konstantinou",
+          "location": "N. Chalandri Sports Center",
+          "highlight": "...the inclusion in <mark>ESPA</mark> was approved for the swimming pool and multipurpose halls..."
+        },
+        "2": {
+          "subject": "Energy upgrade for schools",
+          "city": "Municipality of Athens",
+          "speaker": "Eleni Papandreou",
+          "location": "Central sector",
+          "highlight": "...a proposal was submitted to <mark>ESPA</mark> 2021-2027 for solar panels on 12 school buildings..."
+        }
+      }
+    },
+    "notification": {
+      "today": "TODAY",
+      "senderName": "OpenCouncil · Chalandri",
+      "messageBody": "In yesterday's city council meeting, subjects affecting your neighborhood were discussed:",
+      "item1Title": "Store hours extension",
+      "item1Location": "42 Pentelis Ave",
+      "item2Title": "Traffic regulations",
+      "item2Location": "Herakleitou Street",
+      "viewSummaries": "View summaries →",
+      "reply": "Thanks! 👍",
+      "inputPlaceholder": "Type a message"
+    },
+    "map": {
+      "mapAlt": "Map of Chania",
+      "filters": "Filters",
+      "subjectCount": "{count} subjects · Last 6 months",
+      "subjects": {
+        "0": { "title": "Renovation of Municipal Market Square", "location": "Municipal Market Sq.", "topic": "Infrastructure" },
+        "1": { "title": "Traffic regulations on Skalidi St.", "location": "Skalidi Street", "topic": "Traffic" },
+        "2": { "title": "Store licensing", "location": "15 Halepa Ave", "topic": "Licensing" },
+        "3": { "title": "School building maintenance", "location": "4th Primary School", "topic": "Education" }
+      }
+    }
+  },
+  "pricing": {
+    "title": "Transparent pricing",
+    "subtitle": "Comparable or lower cost than the transcription you already do — with 10x the functionality. For municipalities of all sizes.",
+    "sessionProcessing": "Meeting ingestion",
+    "sessionProcessingDesc": "Includes digitization and human-verified transcription correction",
+    "perHour": "/ hour",
+    "platformUsage": "Platform Usage",
+    "platformUsageDesc": "Pricing based on municipality size",
+    "tiers": [
+      "Up to 2,000 residents",
+      "2,001 - 10,000 residents",
+      "10,001 - 30,000 residents",
+      "30,001 - 50,000 residents",
+      "50,001 - 100,000 residents",
+      "100,001+ residents"
+    ],
+    "free": "Free",
+    "perMonth": "/ month",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "sessionChecklist": [
+      "Automatic transcription and speaker recognition",
+      "Human-verified transcription correction",
+      "Automatic summaries per speaker contribution"
+    ],
+    "sessionChecklistExtra": [
+      "Embedding generation for each speaker contribution",
+      "Statistics extraction"
+    ],
+    "platformChecklist": [
+      "Free access for all citizens",
+      "All platform features",
+      "1,000 AI Chat messages per day",
+      "Technical support"
+    ],
+    "archiveNote": "Older meetings without human correction: {price} / hour",
+    "vatNote": "Prices do not include VAT. You can look up our existing contracts on Di@vgeia or KIMDIS using our tax ID 802666391.",
+    "calculateContract": "Calculate your contract",
+    "extras": {
+      "title": "Additional benefits",
+      "subtitle": "Every subscription includes",
+      "items": [
+        "Free trial period, for as long as you need",
+        "All current and future features",
+        "Phone support for citizens, staff, and elected officials",
+        "Option to include older meetings",
+        "Printed archive delivery or CD, once per year",
+        "Suggest new features and shape OpenCouncil with us",
+        "Simple and transparent pricing for all municipalities",
+        "Promotion of OpenCouncil to citizens, online and in person"
+      ],
+      "additionalCharges": "Additional charges:",
+      "additionalItems": [
+        "Equipment for meeting recording (e.g., Municipal Committee, City Councils, or Community Boards)",
+        "On-site technical support for each meeting"
+      ]
+    },
+    "calculator": {
+      "title": "Calculate the annual cost",
+      "subtitle": "Adjust your municipality's details",
+      "councilsPerYear": "Councils per year",
+      "averageDuration": "Average duration (hours)",
+      "population": "Population",
+      "populationUpTo": "up to 2,000",
+      "populationOver": "200,000+",
+      "calculate": "Calculate"
+    }
+  },
+  "contactForm": {
+    "title": "Get in touch",
+    "subtitle": "Fill in your details and we'll get back to you right away.",
+    "estimatedCost": "Estimated annual cost",
+    "vatSuffix": "+ VAT",
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "position": "Position",
+    "positionPlaceholder": "e.g. Director of Council Support",
+    "municipality": "Municipality",
+    "municipalityPlaceholder": "Municipality name",
+    "submit": "Request a presentation",
+    "thankYou": "Thank you!",
+    "thankYouMessage": "We'll get back to you at <strong>{email}</strong> shortly.",
+    "close": "Close",
+    "errorTitle": "Something went wrong",
+    "errorMessage": "Try again or contact us at <email>sales@touvlo.co</email>",
+    "errorClose": "Close"
+  }
+}

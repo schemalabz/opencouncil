@@ -1,13 +1,17 @@
 import { motion } from 'framer-motion'
-import { CUSTOMER_QUOTES } from './config'
+import { useTranslations } from 'next-intl'
+
+const QUOTE_IDS: string[] = ['chania']
 
 export default function Quotes() {
-    if (CUSTOMER_QUOTES.length === 0) return null
+    const t = useTranslations('about.quotes')
+
+    if (QUOTE_IDS.length === 0) return null
 
     return (
         <div className="bg-orange-50/20">
             <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-                {CUSTOMER_QUOTES.length === 1 ? (
+                {QUOTE_IDS.length === 1 ? (
                     // Single quote — typographic centered treatment
                     <motion.figure
                         className="text-center max-w-2xl mx-auto"
@@ -20,15 +24,15 @@ export default function Quotes() {
                             &ldquo;
                         </span>
                         <blockquote className="text-xl sm:text-2xl md:text-3xl font-light leading-relaxed tracking-tight text-foreground/90 italic">
-                            {CUSTOMER_QUOTES[0].quote}
+                            {t(`items.${QUOTE_IDS[0]}.quote`)}
                         </blockquote>
                         <figcaption className="mt-8 flex flex-col items-center gap-1">
                             <span className="block w-8 h-px bg-primary/30 mb-4" />
                             <span className="text-sm font-medium text-foreground">
-                                {CUSTOMER_QUOTES[0].name}
+                                {t(`items.${QUOTE_IDS[0]}.name`)}
                             </span>
                             <span className="text-sm text-muted-foreground">
-                                {CUSTOMER_QUOTES[0].role}
+                                {t(`items.${QUOTE_IDS[0]}.role`)}
                             </span>
                         </figcaption>
                     </motion.figure>
@@ -42,13 +46,13 @@ export default function Quotes() {
                             transition={{ duration: 0.5 }}
                             viewport={{ once: true }}
                         >
-                            Τι λένε οι δήμοι
+                            {t('whatMunicipalitiesSay')}
                         </motion.p>
 
-                        <div className={`grid gap-6 md:gap-8 ${CUSTOMER_QUOTES.length === 2 ? 'md:grid-cols-2 max-w-3xl mx-auto' : 'md:grid-cols-3'}`}>
-                            {CUSTOMER_QUOTES.map((quote, index) => (
+                        <div className={`grid gap-6 md:gap-8 ${QUOTE_IDS.length === 2 ? 'md:grid-cols-2 max-w-3xl mx-auto' : 'md:grid-cols-3'}`}>
+                            {QUOTE_IDS.map((id, index) => (
                                 <motion.blockquote
-                                    key={quote.id}
+                                    key={id}
                                     className="relative flex flex-col justify-between rounded-2xl bg-white/60 backdrop-blur-sm p-6 md:p-8 shadow-sm border border-border/30"
                                     initial={{ opacity: 0, y: 30 }}
                                     whileInView={{ opacity: 1, y: 0 }}
@@ -56,11 +60,11 @@ export default function Quotes() {
                                     viewport={{ once: true }}
                                 >
                                     <p className="text-base md:text-lg leading-relaxed text-foreground/90">
-                                        &ldquo;{quote.quote}&rdquo;
+                                        &ldquo;{t(`items.${id}.quote`)}&rdquo;
                                     </p>
                                     <footer className="mt-6 pt-4 border-t border-border/30">
-                                        <p className="text-sm font-medium text-foreground">{quote.name}</p>
-                                        <p className="text-sm text-muted-foreground">{quote.role}</p>
+                                        <p className="text-sm font-medium text-foreground">{t(`items.${id}.name`)}</p>
+                                        <p className="text-sm text-muted-foreground">{t(`items.${id}.role`)}</p>
                                     </footer>
                                 </motion.blockquote>
                             ))}

@@ -1,6 +1,7 @@
 "use client"
 
 import { MapPin, Clock, Users, Filter } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { env } from '@/env.mjs'
 import BrowserFrame from './BrowserFrame'
 
@@ -8,55 +9,11 @@ import BrowserFrame from './BrowserFrame'
 const CHANIA_LNG = 24.0186
 const CHANIA_LAT = 35.5138
 
-const MOCK_SUBJECTS = [
-    {
-        title: 'Ανάπλαση πλατείας Δημοτικής Αγοράς',
-        location: 'Πλ. Δημοτικής Αγοράς',
-        topic: 'Τεχνικά Έργα',
-        topicColor: '#2563eb',
-        lng: 24.0180,
-        lat: 35.5155,
-        x: 47,  // % position on the rendered image
-        y: 32,
-        minutes: 23,
-        speakers: 6,
-    },
-    {
-        title: 'Κυκλοφοριακές ρυθμίσεις οδού Σκαλίδη',
-        location: 'Οδός Σκαλίδη',
-        topic: 'Κυκλοφορία',
-        topicColor: '#dc2626',
-        lng: 24.0138,
-        lat: 35.5128,
-        x: 33,
-        y: 55,
-        minutes: 12,
-        speakers: 4,
-    },
-    {
-        title: 'Αδειοδότηση καταστήματος',
-        location: 'Λ. Χαλέπα 15',
-        topic: 'Αδειοδοτήσεις',
-        topicColor: '#059669',
-        lng: 24.0245,
-        lat: 35.5118,
-        x: 68,
-        y: 62,
-        minutes: 8,
-        speakers: 3,
-    },
-    {
-        title: 'Συντήρηση σχολικού κτιρίου',
-        location: '4ο Δημοτικό',
-        topic: 'Παιδεία',
-        topicColor: '#7c3aed',
-        lng: 24.0160,
-        lat: 35.5165,
-        x: 40,
-        y: 25,
-        minutes: 15,
-        speakers: 5,
-    },
+const SUBJECT_POSITIONS = [
+    { topicColor: '#2563eb', x: 47, y: 32, minutes: 23, speakers: 6 },
+    { topicColor: '#dc2626', x: 33, y: 55, minutes: 12, speakers: 4 },
+    { topicColor: '#059669', x: 68, y: 62, minutes: 8, speakers: 3 },
+    { topicColor: '#7c3aed', x: 40, y: 25, minutes: 15, speakers: 5 },
 ]
 
 function getStaticMapUrl(width: number, height: number): string {
@@ -65,6 +22,8 @@ function getStaticMapUrl(width: number, height: number): string {
 }
 
 export default function MapDemo() {
+    const t = useTranslations('about.demos.map')
+
     return (
         <BrowserFrame url="opencouncil.gr/map" className="w-full">
             {/* Map area */}
@@ -73,13 +32,13 @@ export default function MapDemo() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src={getStaticMapUrl(600, 450)}
-                    alt="Χάρτης Χανίων"
+                    alt={t('mapAlt')}
                     className="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                 />
 
                 {/* Subject pins as overlays */}
-                {MOCK_SUBJECTS.map((s, i) => (
+                {SUBJECT_POSITIONS.map((s, i) => (
                     <div
                         key={i}
                         className="absolute -translate-x-1/2 -translate-y-1/2 group/pin cursor-pointer z-10"
@@ -103,12 +62,12 @@ export default function MapDemo() {
                                         className="h-2 w-2 rounded-full flex-shrink-0"
                                         style={{ backgroundColor: s.topicColor }}
                                     />
-                                    <span className="text-[10px] font-medium text-muted-foreground">{s.topic}</span>
+                                    <span className="text-[10px] font-medium text-muted-foreground">{t(`subjects.${i}.topic`)}</span>
                                 </div>
-                                <p className="text-[11px] font-medium leading-snug">{s.title}</p>
+                                <p className="text-[11px] font-medium leading-snug">{t(`subjects.${i}.title`)}</p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                                     <MapPin className="h-2.5 w-2.5" />
-                                    {s.location}
+                                    {t(`subjects.${i}.location`)}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
                                     <span className="flex items-center gap-0.5">
@@ -129,14 +88,14 @@ export default function MapDemo() {
                 <div className="absolute bottom-3 left-3 z-10">
                     <div className="flex items-center gap-1.5 bg-white rounded-full px-3 py-1.5 shadow-md border border-border/30 text-[11px] font-medium text-muted-foreground">
                         <Filter className="h-3 w-3" />
-                        Φίλτρα
+                        {t('filters')}
                     </div>
                 </div>
 
                 {/* Subject count badge (bottom-right) */}
                 <div className="absolute bottom-3 right-3 z-10">
                     <div className="bg-black/60 text-white rounded-full px-3 py-1 text-[10px] font-medium backdrop-blur-sm">
-                        {MOCK_SUBJECTS.length} θέματα · Τελευταίοι 6 μήνες
+                        {t('subjectCount', { count: SUBJECT_POSITIONS.length })}
                     </div>
                 </div>
 

@@ -190,6 +190,20 @@ h2:not(.prose h2) {
   50% { border-color: hsl(var(--primary)); }
 }
 
+/* HowItWorks flow animations */
+@keyframes flow {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+@keyframes arrow-pulse {
+  0%, 70% { stroke: #d4d4d8; }
+  85% { stroke: hsl(24, 90%, 55%); }
+  100% { stroke: #d4d4d8; }
+}
+
 /* Transcript text styles */
 .transcript-text {
   font-family: var(--font-roboto), 'Roboto', sans-serif;

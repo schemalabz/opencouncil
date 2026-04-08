@@ -1,69 +1,21 @@
 import { FileText, ScrollText, Landmark, Play, BookOpen, ArrowRight, Clock, Users } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { ColorPercentageRing } from '@/components/ui/color-percentage-ring'
 import BrowserFrame from './BrowserFrame'
 import { Link } from '@/i18n/routing'
 
-// ─── Mock Data ───────────────────────────────────────────────
+// ─── Mock Data (non-translatable) ───────────────────────────────────────
 
-const DEMO_SUBJECT = {
-    name: 'Ανάπλαση πλατείας Δημοτικής Αγοράς',
-    agendaIndex: 3,
-    meeting: 'Συνεδρίαση Δημοτικού Συμβουλίου 15/01/26',
-
-    stats: {
-        totalMinutes: 23,
-        parties: [
-            { name: 'Δημοτική Κίνηση', color: '#2563eb', percentage: 45 },
-            { name: 'Λαϊκή Συσπείρωση', color: '#dc2626', percentage: 30 },
-            { name: 'Ανεξάρτητοι', color: '#6b7280', percentage: 25 },
-        ],
-        speakerCount: 6,
-    },
-
-    introducer: {
-        name: 'Γεωργίου Μαρία',
-        initials: 'ΓΜ',
-        role: 'Αντιδήμαρχος Τεχνικών Έργων',
-        color: '#2563eb',
-    },
-
-    summary: 'Συζητήθηκε η πρόταση ανάπλασης της πλατείας Δημοτικής Αγοράς, με προϋπολογισμό €1.2 εκ. Η πλειοψηφία τάχθηκε υπέρ, με επιφυλάξεις για τη χρηματοδότηση. Αποφασίστηκε η προκήρυξη αρχιτεκτονικού διαγωνισμού εντός τριμήνου.',
-
-    contributions: [
-        {
-            name: 'Γεωργίου Μαρία',
-            initials: 'ΓΜ',
-            color: '#2563eb',
-            role: 'Αντιδήμαρχος',
-            text: 'Η ανάπλαση της πλατείας αποτελεί προτεραιότητα. Ο προϋπολογισμός καλύπτεται από το ΕΣΠΑ και ο διαγωνισμός θα προκηρυχθεί εντός τριμήνου.',
-            timestamp: '1:23:45',
-        },
-        {
-            name: 'Παπαδάκης Νίκος',
-            initials: 'ΠΝ',
-            color: '#dc2626',
-            role: 'Δημοτικός Σύμβουλος',
-            text: 'Θέτουμε επιφύλαξη ως προς τον τρόπο χρηματοδότησης. Ζητούμε διαβούλευση με τους κατοίκους πριν οριστικοποιηθεί το σχέδιο.',
-            timestamp: '1:28:12',
-        },
-    ],
-
-    decision: {
-        ada: '9ΚΛΜ46ΜΔΨΟ-ΞΑΒ',
-        protocolNumber: '145/2026',
-        title: 'Έγκριση αρχιτεκτονικού διαγωνισμού ανάπλασης πλατείας',
-    },
-}
-
-// ─── Annotation labels ──────────────────────────────────────
-
-const CALLOUTS: Record<string, string> = {
-    header: 'Αναγνώριση όλων των προ, εκτός και εντός ημερησίας διάταξης θεμάτων',
-    stats: 'Στατιστικά ανά παράταξη',
-    summary: 'Περίληψη, με πηγές κατευθείαν από την απομαγνητοφώνηση',
-    contributions: 'Σύνοψη τοποθέτησης κάθε ομιλητή',
-    decision: 'Σύνδεση με την απόφαση στη Διαύγεια',
-}
+const PARTY_COLORS = ['#2563eb', '#dc2626', '#6b7280']
+const PARTY_PERCENTAGES = [45, 30, 25]
+const PARTY_KEYS = ['dimotikiKinisi', 'laikiSyspirosi', 'anexartitoi'] as const
+const TOTAL_MINUTES = 23
+const SPEAKER_COUNT = 6
+const INTRODUCER_COLOR = '#2563eb'
+const CONTRIBUTION_COLORS = ['#2563eb', '#dc2626']
+const CONTRIBUTION_TIMESTAMPS = ['1:23:45', '1:28:12']
+const DECISION_ADA = '9ΚΛΜ46ΜΔΨΟ-ΞΑΒ'
+const DECISION_PROTOCOL = '145/2026'
 
 // ─── Subcomponents ──────────────────────────────────────────
 
@@ -86,13 +38,11 @@ function MockPersonBadge({ name, initials, color, role }: {
     )
 }
 
-function AnnotationBox({ calloutId, labelRight, children }: {
-    calloutId: string
+function AnnotationBox({ label, labelRight, children }: {
+    label: string
     labelRight?: boolean
     children: React.ReactNode
 }) {
-    const label = CALLOUTS[calloutId]
-
     return (
         <div className="group/anno relative rounded-lg border-2 border-dashed border-gray-300 hover:border-orange pt-5 p-3 md:pt-6 md:p-4 transition-colors">
             <span
@@ -108,36 +58,42 @@ function AnnotationBox({ calloutId, labelRight, children }: {
 // ─── Main Component ─────────────────────────────────────────
 
 export default function SubjectDemo() {
-    const d = DEMO_SUBJECT
+    const t = useTranslations('about.demos.subject')
+
+    const parties = PARTY_KEYS.map((key, i) => ({
+        name: t(`parties.${key}`),
+        color: PARTY_COLORS[i],
+        percentage: PARTY_PERCENTAGES[i],
+    }))
 
     return (
         <BrowserFrame url="opencouncil.gr/chania/mar26_2026/subjects/..." className="w-full">
             <div className="p-4 md:p-6 space-y-5 bg-white">
-                {/* Section 1: Header — label left */}
-                <AnnotationBox calloutId="header">
+                {/* Section 1: Header */}
+                <AnnotationBox label={t('callouts.header')}>
                     <p className="text-[11px] text-muted-foreground mb-1">
-                        {d.meeting} · Θέμα #{d.agendaIndex}
+                        {t('meetingLabel')} · {t('subjectLabel')} #3
                     </p>
                     <h3 className="text-base md:text-lg font-semibold leading-snug">
-                        {d.name}
+                        {t('subjectName')}
                     </h3>
                 </AnnotationBox>
 
-                {/* Section 2: Stats — label right */}
-                <AnnotationBox calloutId="stats" labelRight>
+                {/* Section 2: Stats */}
+                <AnnotationBox label={t('callouts.stats')} labelRight>
                     <div className="flex flex-wrap gap-4 items-start">
                         <div className="flex items-center gap-3">
                             <ColorPercentageRing
-                                data={d.stats.parties.map(p => ({ color: p.color, percentage: p.percentage }))}
+                                data={parties.map(p => ({ color: p.color, percentage: p.percentage }))}
                                 size={56}
                                 thickness={7}
                             >
                                 <span className="text-[10px] font-semibold text-muted-foreground">
-                                    {d.stats.totalMinutes}΄
+                                    {TOTAL_MINUTES}΄
                                 </span>
                             </ColorPercentageRing>
                             <div className="space-y-0.5">
-                                {d.stats.parties.map(p => (
+                                {parties.map(p => (
                                     <div key={p.name} className="flex items-center gap-1.5">
                                         <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
                                         <span className="text-[11px] text-muted-foreground">{p.name}</span>
@@ -148,27 +104,31 @@ export default function SubjectDemo() {
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                                 <Users className="h-3.5 w-3.5" />
-                                <span>{d.stats.speakerCount} ομιλητές</span>
+                                <span>{t('speakers', { count: SPEAKER_COUNT })}</span>
                                 <span className="text-border">·</span>
                                 <Clock className="h-3.5 w-3.5" />
-                                <span>{d.stats.totalMinutes} λεπτά</span>
+                                <span>{t('minutes', { count: TOTAL_MINUTES })}</span>
                             </div>
                             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                <span>Εισηγήτρια:</span>
-                                <MockPersonBadge name={d.introducer.name} initials={d.introducer.initials} color={d.introducer.color} />
+                                <span>{t('introducer')}</span>
+                                <MockPersonBadge
+                                    name={t('people.georgiou.name')}
+                                    initials={t('people.georgiou.initials')}
+                                    color={INTRODUCER_COLOR}
+                                />
                             </div>
                         </div>
                     </div>
                 </AnnotationBox>
 
-                {/* Section 3: Summary — label left */}
-                <AnnotationBox calloutId="summary">
+                {/* Section 3: Summary */}
+                <AnnotationBox label={t('callouts.summary')}>
                     <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-4 w-4 text-muted-foreground/70" />
-                        <h4 className="text-sm font-medium">Περίληψη</h4>
+                        <h4 className="text-sm font-medium">{t('summary')}</h4>
                     </div>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        {d.summary.split('. ').map((sentence, i, arr) => (
+                        {t('summaryText').split('. ').map((sentence, i, arr) => (
                             <span key={i}>
                                 {sentence}{i < arr.length - 1 ? '. ' : ''}
                                 {i < arr.length - 1 && (
@@ -186,22 +146,27 @@ export default function SubjectDemo() {
                     </div>
                 </AnnotationBox>
 
-                {/* Section 4: Contributions — label right */}
-                <AnnotationBox calloutId="contributions" labelRight>
+                {/* Section 4: Contributions */}
+                <AnnotationBox label={t('callouts.contributions')} labelRight>
                     <div className="flex items-center gap-2 mb-3">
                         <ScrollText className="h-4 w-4 text-muted-foreground/70" />
-                        <h4 className="text-sm font-medium">Τοποθετήσεις</h4>
-                        <span className="text-[11px] text-muted-foreground">({d.contributions.length})</span>
+                        <h4 className="text-sm font-medium">{t('contributions')}</h4>
+                        <span className="text-[11px] text-muted-foreground">(2)</span>
                     </div>
                     <div className="space-y-3">
-                        {d.contributions.map((c, i) => (
-                            <div key={i} className="rounded-lg border border-border/50 p-3">
+                        {(['georgiou', 'papadakis'] as const).map((key, i) => (
+                            <div key={key} className="rounded-lg border border-border/50 p-3">
                                 <div className="flex items-center justify-between mb-2">
-                                    <MockPersonBadge name={c.name} initials={c.initials} color={c.color} role={c.role} />
+                                    <MockPersonBadge
+                                        name={t(`people.${key}.name`)}
+                                        initials={t(`people.${key}.initials`)}
+                                        color={CONTRIBUTION_COLORS[i]}
+                                        role={t.has(`people.${key}.roleShort`) ? t(`people.${key}.roleShort`) : t(`people.${key}.role`)}
+                                    />
                                     <div className="flex items-center gap-2">
                                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-gray-50">
                                             <Play className="h-2.5 w-2.5" />
-                                            {c.timestamp}
+                                            {CONTRIBUTION_TIMESTAMPS[i]}
                                         </span>
                                         <span className="flex items-center text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-gray-50">
                                             <BookOpen className="h-2.5 w-2.5" />
@@ -209,31 +174,31 @@ export default function SubjectDemo() {
                                     </div>
                                 </div>
                                 <p className="text-[13px] text-muted-foreground leading-relaxed pl-[42px]">
-                                    {c.text}
+                                    {t(`contributionTexts.${key}`)}
                                 </p>
                             </div>
                         ))}
                     </div>
                 </AnnotationBox>
 
-                {/* Section 5: Decision — label left */}
-                <AnnotationBox calloutId="decision">
+                {/* Section 5: Decision */}
+                <AnnotationBox label={t('callouts.decision')}>
                     <div className="flex items-center gap-2 mb-2">
                         <Landmark className="h-4 w-4 text-muted-foreground/70" />
-                        <h4 className="text-sm font-medium">Απόφαση</h4>
+                        <h4 className="text-sm font-medium">{t('decision')}</h4>
                     </div>
                     <div className="rounded-lg border border-border/50 p-3 text-[12px] space-y-1.5">
                         <div className="flex gap-2">
-                            <span className="text-muted-foreground w-20 flex-shrink-0">Τίτλος</span>
-                            <span className="font-medium">{d.decision.title}</span>
+                            <span className="text-muted-foreground w-20 flex-shrink-0">{t('decisionTitle')}</span>
+                            <span className="font-medium">{t('decisionTitleText')}</span>
                         </div>
                         <div className="flex gap-2">
-                            <span className="text-muted-foreground w-20 flex-shrink-0">ΑΔΑ</span>
-                            <span className="font-mono text-blue-600">{d.decision.ada}</span>
+                            <span className="text-muted-foreground w-20 flex-shrink-0">{t('decisionAda')}</span>
+                            <span className="font-mono text-blue-600">{DECISION_ADA}</span>
                         </div>
                         <div className="flex gap-2">
-                            <span className="text-muted-foreground w-20 flex-shrink-0">Πρωτόκολλο</span>
-                            <span>{d.decision.protocolNumber}</span>
+                            <span className="text-muted-foreground w-20 flex-shrink-0">{t('decisionProtocol')}</span>
+                            <span>{DECISION_PROTOCOL}</span>
                         </div>
                     </div>
                 </AnnotationBox>
@@ -244,7 +209,7 @@ export default function SubjectDemo() {
                         href="/chania/mar26_2026/subjects/cmmywhibg07ud139hav10soag"
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-orange hover:text-orange/80 transition-colors group"
                     >
-                        Δείτε μια σελίδα πραγματικού θέματος
+                        {t('viewRealSubject')}
                         <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </Link>
                 </div>
