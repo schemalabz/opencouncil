@@ -1,4 +1,10 @@
 {
+  "nav": {
+    "features": "Features",
+    "how-it-works": "How it works",
+    "pricing": "Pricing",
+    "team": "Team"
+  },
   "metadata": {
     "title": "OpenCouncil — The operating system for municipal councils",
     "description": "City councils, committees, and communities — more open for citizens, more efficient for staff. In 10 municipalities across Greece.",
