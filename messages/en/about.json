@@ -16,7 +16,7 @@
     "title": "The operating system",
     "titleHighlight": "for municipal councils",
     "subtitle": "City councils, committees, and communities — more open for citizens, more efficient for staff.",
-    "schedulePresentation": "Schedule a presentation",
+    "scheduleCall": "Schedule a call",
     "counters": {
       "municipalities": "municipalities",
       "subjects": "subjects",
@@ -188,7 +188,7 @@
   "cta": {
     "title": "Make every council meeting count.",
     "subtitle": "Integrate in days, not months.",
-    "schedulePresentation": "Schedule a presentation"
+    "scheduleCall": "Schedule a call"
   },
   "demos": {
     "subject": {

@@ -31,8 +31,8 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3, duration: 0.8 }}
                 style={{
-                    maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.7) 100%)',
-                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.7) 100%)',
+                    maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 35%, rgba(0,0,0,0.55) 100%)',
+                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 35%, rgba(0,0,0,0.55) 100%)',
                 }}
             >
                 <div
@@ -59,7 +59,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
             <div className="relative grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-10 lg:gap-16 items-center">
                 {/* Left column — text */}
                 <motion.div
-                    className="max-w-[65%] sm:max-w-[60%] md:max-w-none relative z-10"
+                    className="max-w-full md:max-w-none relative z-10"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7 }}
@@ -72,7 +72,7 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
                     </ShineTitle>
 
                     <motion.p
-                        className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-muted-foreground leading-relaxed"
+                        className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-muted-foreground leading-relaxed max-w-[70%] sm:max-w-[65%] md:max-w-none"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
@@ -107,26 +107,26 @@ export default function Hero({ onContactClick, stats }: HeroProps) {
 
                     {/* CTAs */}
                     <motion.div
-                        className="mt-6 sm:mt-10 flex flex-col sm:flex-row gap-2 sm:gap-3"
+                        className="mt-6 sm:mt-10 flex flex-row gap-2 sm:gap-3"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5, duration: 0.6 }}
                     >
                         <Button
                             size="lg"
-                            className="rounded-xl px-6 py-4 sm:px-8 sm:py-6 text-sm sm:text-base shadow-lg hover:shadow-xl transition-all duration-300"
+                            className="rounded-xl px-4 py-2.5 sm:px-8 sm:py-6 text-xs sm:text-base shadow-lg hover:shadow-xl transition-all duration-300"
                             onClick={onContactClick}
                         >
-                            <CalendarClock className="mr-2 h-4 w-4" />
-                            {t('schedulePresentation')}
+                            <CalendarClock className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            {t('scheduleCall')}
                         </Button>
                         <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
                                 size="lg"
                                 variant="outline"
-                                className="rounded-xl px-6 py-4 sm:px-8 sm:py-6 text-sm sm:text-base w-full sm:w-auto"
+                                className="rounded-xl px-4 py-2.5 sm:px-8 sm:py-6 text-xs sm:text-base"
                             >
-                                <PhoneCall className="mr-2 h-4 w-4" />
+                                <PhoneCall className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {env.NEXT_PUBLIC_CONTACT_PHONE}
                             </Button>
                         </a>
