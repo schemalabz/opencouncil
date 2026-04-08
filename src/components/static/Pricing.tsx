@@ -232,7 +232,7 @@ export function PricingCards({ setIsDialogOpen, t }: { setIsDialogOpen: (open: b
             {/* Extras — compact grid below cards */}
             <div className="mt-8">
                 <p className="text-sm font-medium text-muted-foreground mb-4">{t('extras.subtitle')}</p>
-                <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
                     {extrasItems.map((text, i) => {
                         const Icon = EXTRAS_ICONS[i]
                         return (
