@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion'
 import { Github, Linkedin, Twitter, Mail, ArrowRight, MapPin, Rocket } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { Link } from '@/i18n/routing'
-import { TEAM_MEMBERS, ROADMAP_ITEMS } from './config'
+import { TEAM_MEMBERS, ROADMAP_ITEM_IDS, ROADMAP_TIMEFRAMES } from './config'
 import type { GitHubStats } from '@/lib/github'
 
 // Deterministic fallback for daily commits (84 days = 12 weeks × 7 days)
@@ -18,6 +18,7 @@ interface TeamProps {
 }
 
 export default function Team({ githubStats }: TeamProps) {
+    const t = useTranslations('about.team')
     const dailyCommits = githubStats?.dailyCommits?.length ? githubStats.dailyCommits : FALLBACK_DAILY_COMMITS
     const maxDaily = Math.max(...dailyCommits, 1)
     const contributorCount = githubStats?.contributorCount ?? 6
@@ -33,14 +34,16 @@ export default function Team({ githubStats }: TeamProps) {
                     viewport={{ once: true }}
                 >
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                        Η ομάδα πίσω από το OpenCouncil
+                        {t('title')}
                     </h2>
                     <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                        6 άνθρωποι, χτίζουμε τεχνολογία για την τοπική δημοκρατία. Η OpenCouncil ΙΚΕ ανήκει εξ&apos; ολοκλήρου στη{' '}
-                        <a href="https://schemalabs.gr" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
-                            Schema Labs
-                        </a>
-                        , μη-κερδοσκοπική εταιρεία.
+                        {t.rich('subtitle', {
+                            link: (chunks) => (
+                                <a href="https://schemalabs.gr" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground transition-colors">
+                                    {chunks}
+                                </a>
+                            ),
+                        })}
                     </p>
                 </motion.div>
 
@@ -48,7 +51,7 @@ export default function Team({ githubStats }: TeamProps) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 md:gap-8 mb-16">
                     {TEAM_MEMBERS.map((person, index) => (
                         <motion.div
-                            key={person.name}
+                            key={person.id}
                             className="flex flex-col items-center text-center"
                             initial={{ opacity: 0, y: 20 }}
                             whileInView={{ opacity: 1, y: 0 }}
@@ -59,7 +62,7 @@ export default function Team({ githubStats }: TeamProps) {
                                 {person.image && !person.image.includes('placeholder') ? (
                                     <Image
                                         src={person.image}
-                                        alt={person.name}
+                                        alt={t(`members.${person.id}`)}
                                         width={96}
                                         height={96}
                                         className="w-full h-full object-cover filter grayscale hover:grayscale-0 transition-all duration-300"
@@ -68,7 +71,7 @@ export default function Team({ githubStats }: TeamProps) {
                                     <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300" />
                                 )}
                             </div>
-                            <h3 className="text-sm sm:text-base font-medium h-10 flex items-center justify-center text-center leading-tight">{person.name}</h3>
+                            <h3 className="text-sm sm:text-base font-medium h-10 flex items-center justify-center text-center leading-tight">{t(`members.${person.id}`)}</h3>
                             <div className="flex gap-2.5 mt-2">
                                 {person.socials.twitter && (
                                     <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" className="no-underline text-muted-foreground/50 hover:text-primary transition-colors">
@@ -92,7 +95,7 @@ export default function Team({ githubStats }: TeamProps) {
 
                 {/* Office + Roadmap + Open Source — 3-column grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-                    {/* Ο χώρος μας */}
+                    {/* Office */}
                     <motion.div
                         className="rounded-xl border border-border/40 bg-white/60 overflow-hidden flex flex-col"
                         initial={{ opacity: 0, y: 20 }}
@@ -103,14 +106,14 @@ export default function Team({ githubStats }: TeamProps) {
                         <div className="p-6 pb-4">
                             <div className="flex items-center gap-3 mb-4">
                                 <MapPin className="h-5 w-5 text-foreground/80" />
-                                <h3 className="text-base font-medium">Ο χώρος μας</h3>
+                                <h3 className="text-base font-medium">{t('office.title')}</h3>
                             </div>
                         </div>
                         <a href="https://maps.app.goo.gl/o1k1gqz9uiqw9FmW9" target="_blank" rel="noopener noreferrer">
                             <div className="aspect-[16/9] relative overflow-hidden mx-4 rounded-lg">
                                 <Image
                                     src="/about/office.jpg"
-                                    alt="Ο χώρος μας — Σμολένσκι 22, Αθήνα"
+                                    alt={t('office.imageAlt')}
                                     fill
                                     className="object-cover hover:scale-105 transition-transform duration-500"
                                 />
@@ -118,9 +121,11 @@ export default function Team({ githubStats }: TeamProps) {
                         </a>
                         <div className="p-6 pt-4 flex flex-col flex-1">
                             <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                                Ένας ανοιχτός χώρος για συζήτηση και δημιουργία στο κέντρο της Αθήνας. Ελάτε να γνωριστούμε, ή στείλτε μας ένα email στο{' '}
-                                <a href="mailto:space@opencouncil.gr" className="text-primary hover:underline">space@opencouncil.gr</a>
-                                {' '}για να συνδιοργανώσουμε κάποιο event.
+                                {t.rich('office.description', {
+                                    email: (chunks) => (
+                                        <a href="mailto:space@opencouncil.gr" className="text-primary hover:underline">{chunks}</a>
+                                    ),
+                                })}
                             </p>
                             <a
                                 href="https://maps.app.goo.gl/o1k1gqz9uiqw9FmW9"
@@ -128,7 +133,7 @@ export default function Team({ githubStats }: TeamProps) {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 mt-4 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"
                             >
-                                Σμολένσκι 22, Αθήνα
+                                {t('office.address')}
                                 <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                             </a>
                         </div>
@@ -144,19 +149,19 @@ export default function Team({ githubStats }: TeamProps) {
                     >
                         <div className="flex items-center gap-3 mb-4">
                             <Rocket className="h-5 w-5 text-foreground/80" />
-                            <h3 className="text-base font-medium">Χτίζουμε συνεχώς</h3>
+                            <h3 className="text-base font-medium">{t('roadmap.title')}</h3>
                         </div>
                         <div className="relative pl-6 flex-1">
                             {/* Continuous vertical line */}
                             <div className="absolute left-[4px] top-1 bottom-1 w-px bg-border" />
 
                             <div className="space-y-4">
-                                {ROADMAP_ITEMS.map((item) => (
-                                    <div key={item.title} className="relative">
+                                {ROADMAP_ITEM_IDS.map((id) => (
+                                    <div key={id} className="relative">
                                         {/* Dot on the line */}
                                         <div className="absolute -left-6 top-1 h-[9px] w-[9px] rounded-full border-2 border-primary bg-white" />
-                                        <p className="text-sm font-medium">{item.title}</p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">{item.timeframe}</p>
+                                        <p className="text-sm font-medium">{t(`roadmap.items.${id}.title`)}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">{ROADMAP_TIMEFRAMES[id]}</p>
                                     </div>
                                 ))}
                             </div>
@@ -167,7 +172,7 @@ export default function Team({ githubStats }: TeamProps) {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 mt-5 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"
                         >
-                            Δείτε το roadmap
+                            {t('roadmap.viewRoadmap')}
                             <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                         </a>
                     </motion.div>
@@ -182,10 +187,10 @@ export default function Team({ githubStats }: TeamProps) {
                     >
                         <div className="flex items-center gap-3 mb-4">
                             <Github className="h-5 w-5 text-foreground/80" />
-                            <h3 className="text-base font-medium">Ο κώδικάς μας είναι ανοιχτός</h3>
+                            <h3 className="text-base font-medium">{t('openSource.title')}</h3>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                            Διαφανής ανάπτυξη με άδεια GPL v3. Κάθε γραμμή κώδικα είναι δημόσια.
+                            {t('openSource.description')}
                         </p>
                         {/* GitHub commit activity grid — last 12 weeks */}
                         <div className="mt-4 p-3 rounded-lg bg-gray-50 border border-border/30">
@@ -207,7 +212,7 @@ export default function Team({ githubStats }: TeamProps) {
                                 })}
                             </div>
                             <p className="text-[10px] text-muted-foreground/50 mt-2">
-                                {contributorCount} contributors · Τελευταίες 12 εβδομάδες
+                                {t('openSource.contributorsLastWeeks', { count: contributorCount })}
                             </p>
                         </div>
                         <a
@@ -216,7 +221,7 @@ export default function Team({ githubStats }: TeamProps) {
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 mt-4 text-xs font-medium text-primary hover:text-primary/80 transition-colors group"
                         >
-                            Δείτε στο GitHub
+                            {t('openSource.viewOnGithub')}
                             <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                         </a>
                     </motion.div>

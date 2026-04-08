@@ -3,6 +3,7 @@
 import { useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { PhoneCall, CalendarClock } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { env } from '@/env.mjs'
 
@@ -11,6 +12,7 @@ interface CTAFooterProps {
 }
 
 export default function CTAFooter({ onContactClick }: CTAFooterProps) {
+    const t = useTranslations('about.cta')
     const glowRef = useRef<HTMLDivElement>(null)
 
     const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -60,10 +62,10 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                     viewport={{ once: true }}
                 >
                     <h2 className="text-2xl sm:text-3xl md:text-4xl font-light tracking-tight">
-                        Φέρετε τα συλλογικά όργανα του δήμου σας στο σήμερα.
+                        {t('title')}
                     </h2>
                     <p className="mt-4 text-base md:text-lg text-white/60 max-w-lg mx-auto">
-                        Το OpenCouncil μπορεί να ξεκινήσει στο δήμο σας σε ημέρες — όχι σε μήνες.
+                        {t('subtitle')}
                     </p>
 
                     <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
@@ -73,7 +75,7 @@ export default function CTAFooter({ onContactClick }: CTAFooterProps) {
                             className="bg-white hover:bg-white/90 text-[#0a0a0a] rounded-xl px-8 py-6 text-base transition-colors duration-300"
                         >
                             <CalendarClock className="mr-2 h-4 w-4" />
-                            Κλείστε μία παρουσίαση
+                            {t('schedulePresentation')}
                         </Button>
                         <a href={`tel:${env.NEXT_PUBLIC_CONTACT_PHONE}`} className="inline-flex no-underline [&_*]:no-underline">
                             <Button
