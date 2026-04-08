@@ -3,7 +3,7 @@ import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { useVideo } from "../VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
-import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingData, useCouncilMeetingTranscript } from "../CouncilMeetingDataContext";
 import { Clock, ScrollText } from "lucide-react";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSearchParams } from "next/navigation";
@@ -27,7 +27,8 @@ const createSegmentId = (index: number): string => {
 };
 
 export default function Transcript() {
-    const { transcript: speakerSegments, getHighlight, taskStatus, transcriptHiddenForReview } = useCouncilMeetingData();
+    const { transcript: speakerSegments } = useCouncilMeetingTranscript();
+    const { getHighlight, taskStatus, transcriptHiddenForReview } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const tTranscript = useTranslations('transcript');
     const t = useTranslations('Common');
@@ -45,6 +46,18 @@ export default function Transcript() {
     const displayedSegments = useMemo(() => {
         return options.editable ? speakerSegments : joinTranscriptSegments(speakerSegments);
     }, [speakerSegments, options.editable]);
+
+    // Compute segment counts per speaker tag for passing as primitive props.
+    // The count is a number, so React.memo compares by value — unchanged counts
+    // don't trigger SpeakerSegment re-renders even when transcript changes.
+    const speakerTagSegmentCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        displayedSegments.forEach(segment => {
+            const count = counts.get(segment.speakerTag.id) || 0;
+            counts.set(segment.speakerTag.id, count + 1);
+        });
+        return counts;
+    }, [displayedSegments]);
 
     // Track scroll state for banner minimization via scroll container
     useEffect(() => {
@@ -175,6 +188,7 @@ export default function Transcript() {
                     <SpeakerSegment
                         segment={segment}
                         isFirstSegment={index === 0}
+                        segmentCount={speakerTagSegmentCounts.get(segment.speakerTag.id) || 0}
                     />
                 </div>
             ))}
