@@ -16,7 +16,7 @@ import CTAFooter from './CTAFooter'
 import type { AboutPageStats } from '@/lib/db/cities'
 import type { GitHubStats } from '@/lib/github'
 
-const SECTION_IDS = ['features', 'how-it-works', 'pricing', 'team'] as const
+const SECTION_IDS = ['openness', 'internal', 'how-it-works', 'recognition', 'pricing', 'team'] as const
 
 /** Scroll progress bar — direct DOM mutation, no React re-renders */
 function ScrollProgressBar() {
@@ -126,14 +126,16 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
                 {/* 2. Social Proof */}
                 <SocialProof citiesWithLogos={citiesWithLogos} />
 
-                {/* 3. Features — openness */}
-                <div id="features">
+                {/* 3. Openness features */}
+                <div id="openness">
                     <OpennessFeatures />
                 </div>
             </div>
 
-            {/* 4. Features — internal */}
-            <InternalFeatures />
+            {/* 4. Internal features */}
+            <div id="internal">
+                <InternalFeatures />
+            </div>
 
             {/* 5. How it works */}
             <div id="how-it-works">
@@ -145,7 +147,9 @@ export default function AboutPage({ citiesWithLogos = [], stats, githubStats }: 
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* 7. Recognition */}
-                <Recognition />
+                <div id="recognition">
+                    <Recognition />
+                </div>
 
                 {/* 8. Pricing */}
                 <div id="pricing">

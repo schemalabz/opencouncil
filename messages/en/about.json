@@ -1,7 +1,9 @@
 {
   "nav": {
-    "features": "Features",
+    "openness": "Openness",
+    "internal": "For staff",
     "how-it-works": "How it works",
+    "recognition": "Awards & Mentions",
     "pricing": "Pricing",
     "team": "Team"
   },
